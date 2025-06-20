@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JavDB列表页显示是否已看
 // @namespace    http://tampermonkey.net/
-// @version      2025.06.15.0307
+// @version      2025.06.21.0312
 // @description  在演员列表页，显示每部影片是否已看，就难得点进去看了
 // @author       Ryen
 // @match        https://javdb.com/*
@@ -19,7 +19,7 @@
 // --- Script Configuration ---
 const CONFIG = {
     DEBUG: false,
-    VERSION: '2025.06.15.0320',
+    VERSION: '2025.06.21.0312',
 
     // --- UI & Animation ---
     MESSAGE_FADE_DURATION: 500,      // 消息渐变持续时间 (ms)
@@ -575,7 +575,7 @@ function updateCountDisplay() {
         transition: all 0.3s ease;
         border: none;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-right: 10px;
+        white-space: nowrap;
     `;
 
     // 清除按钮样式优化
@@ -594,50 +594,38 @@ function updateCountDisplay() {
         transition: all 0.3s ease;
         border: none;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        white-space: nowrap;
     `;
 
     // 定义导出函数
-    function exportVideosInfo() {
-        exportState.allowExport = false;
-        exportState.currentPage = 1;
-        exportState.maxPage = null;
+    function exportBackupData() {
+        debugLog('开始导出存储的番号...');
+        try {
+            const dataToExport = {
+                myIds: Array.from(storedIds),
+                videoBrowseHistory: GM_getValue(CONFIG.BROWSE_HISTORY_KEY, [])
+            };
 
-        localStorage.setItem('exportState', JSON.stringify(exportState));
+            const json = JSON.stringify(dataToExport, null, 2);
+            const jsonBlob = new Blob([json], { type: 'application/json' });
+            const jsonUrl = URL.createObjectURL(jsonBlob);
+            const downloadLink = document.createElement('a');
 
-        allVideosInfo.sort((a, b) => a.id.localeCompare(b.id));
-        const json = JSON.stringify(allVideosInfo);
-        const jsonBlob = new Blob([json], { type: 'application/json' });
-        const jsonUrl = URL.createObjectURL(jsonBlob);
-        const downloadLink = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            downloadLink.download = `javdb-backup_${timestamp}.json`;
+            downloadLink.href = jsonUrl;
 
-        // 获取当前时间戳
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
 
-        let fileName = '';
-        if (url.includes('/watched_videos')) {
-            fileName = 'watched-videos';
-        } else if (url.includes('/want_watch_videos')) {
-            fileName = 'want-watch-videos';
-        } else if (url.includes('/list_detail')) {
-            const breadcrumb = document.getElementsByClassName('breadcrumb')[0];
-            const li = breadcrumb.parentNode.querySelectorAll('li');
-            fileName = li[1].innerText;
-        } else if (url.includes('/lists')) {
-            fileName = document.querySelector('.actor-section-name').innerText;
+            URL.revokeObjectURL(jsonUrl);
+            logToScreen('备份文件已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
+            debugLog('备份文件导出成功。');
+        } catch (error) {
+            console.error('导出数据时出错:', error);
+            logToScreen('导出数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
         }
-
-        downloadLink.href = jsonUrl;
-        downloadLink.download = `${fileName}_${timestamp}.json`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(jsonUrl);
-
-        localStorage.removeItem('allVideosInfo');
-        localStorage.removeItem('exportState');
-
-        exportButton.textContent = '导出完毕';
-        exportButton.disabled = false;
     }
 
     // 定义清除函数
@@ -702,7 +690,7 @@ function updateCountDisplay() {
     }
 
     // 添加按钮事件监听器
-    exportButton.addEventListener('click', exportVideosInfo);
+    exportButton.addEventListener('click', exportBackupData);
     clearButton.addEventListener('click', handleClear);
 
     // 修改这段代码
@@ -1405,7 +1393,7 @@ function updateCountDisplay() {
         const maxPages = calculateMaxPages(totalCount, itemsPerPage); // 计算最大页数
 
         if (exportState.currentPage > maxPages) {
-            exportVideosInfo();
+            exportBackupData();
             return;
         }
 
@@ -1430,47 +1418,34 @@ function updateCountDisplay() {
         }
     }
 
-    function exportVideosInfo() {
-        exportState.allowExport = false;
-        exportState.currentPage = 1;
-        exportState.maxPage = null;
+    function exportBackupData() {
+        debugLog('开始导出存储的番号...');
+        try {
+            const dataToExport = {
+                myIds: Array.from(storedIds),
+                videoBrowseHistory: GM_getValue(CONFIG.BROWSE_HISTORY_KEY, [])
+            };
 
-        localStorage.setItem('exportState', JSON.stringify(exportState));
+            const json = JSON.stringify(dataToExport, null, 2);
+            const jsonBlob = new Blob([json], { type: 'application/json' });
+            const jsonUrl = URL.createObjectURL(jsonBlob);
+            const downloadLink = document.createElement('a');
 
-        allVideosInfo.sort((a, b) => a.id.localeCompare(b.id));
-        const json = JSON.stringify(allVideosInfo);
-        const jsonBlob = new Blob([json], { type: 'application/json' });
-        const jsonUrl = URL.createObjectURL(jsonBlob);
-        const downloadLink = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            downloadLink.download = `javdb-backup_${timestamp}.json`;
+            downloadLink.href = jsonUrl;
 
-        // 获取当前时间戳
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
 
-        let fileName = '';
-        if (url.includes('/watched_videos')) {
-            fileName = 'watched-videos';
-        } else if (url.includes('/want_watch_videos')) {
-            fileName = 'want-watch-videos';
-        } else if (url.includes('/list_detail')) {
-            const breadcrumb = document.getElementsByClassName('breadcrumb')[0];
-            const li = breadcrumb.parentNode.querySelectorAll('li');
-            fileName = li[1].innerText;
-        } else if (url.includes('/lists')) {
-            fileName = document.querySelector('.actor-section-name').innerText;
+            URL.revokeObjectURL(jsonUrl);
+            logToScreen('备份文件已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
+            debugLog('备份文件导出成功。');
+        } catch (error) {
+            console.error('导出数据时出错:', error);
+            logToScreen('导出数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
         }
-
-        downloadLink.href = jsonUrl;
-        downloadLink.download = `${fileName}_${timestamp}.json`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(jsonUrl);
-
-        localStorage.removeItem('allVideosInfo');
-        localStorage.removeItem('exportState');
-
-        exportButton.textContent = '导出完毕';
-        exportButton.disabled = false;
     }
 
     // 添加获取当前页码的函数
@@ -1552,7 +1527,7 @@ function updateCountDisplay() {
     function finishExport() {
         const allVideosInfo = JSON.parse(localStorage.getItem('allVideosInfo') || '[]');
         if (allVideosInfo.length > 0) {
-            exportVideosInfo();
+            exportBackupData();
         }
 
         // 重置状态
@@ -1805,6 +1780,11 @@ function updateCountDisplay() {
 
 // 修改 modifyItemAtCurrentPage 函数
 function modifyItemAtCurrentPage(itemToModify) {
+    // 从 GM 存储中读取最新的隐藏设置，以确保对动态加载的内容也有效
+    const hideWatchedVideos = GM_getValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false);
+    const hideViewedVideos = GM_getValue(CONFIG.HIDE_VIEWED_VIDEOS_KEY, false);
+    const hideVRVideos = GM_getValue(CONFIG.HIDE_VR_VIDEOS_KEY, false);
+
     // 获取番号
     const videoTitle = itemToModify.querySelector('div.video-title > strong')?.textContent.trim();
     // 获取 data-title
@@ -1904,8 +1884,9 @@ function modifyItemAtCurrentPage(itemToModify) {
 
 async function processLoadedItems() {
     debugLog('开始处理页面项目');
-    debugLog('当前 hideWatchedVideos 状态:', hideWatchedVideos);
-    debugLog('当前 hideViewedVideos 状态:', hideViewedVideos);
+    debugLog('当前 hideWatchedVideos 状态:', GM_getValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false));
+    debugLog('当前 hideViewedVideos 状态:', GM_getValue(CONFIG.HIDE_VIEWED_VIDEOS_KEY, false));
+    debugLog('当前 hideVRVideos 状态:', GM_getValue(CONFIG.HIDE_VR_VIDEOS_KEY, false));
 
     const url = window.location.href;
     debugLog('当前URL:', url);
