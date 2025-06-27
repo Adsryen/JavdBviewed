@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JavDB列表页显示是否已看
 // @namespace    http://tampermonkey.net/
-// @version      2025.06.28.0325
+// @version      2025.06.28.0405
 // @description  在演员列表页，显示每部影片是否已看，就难得点进去看了
 // @author       Ryen
 // @match        https://javdb.com/*
@@ -20,7 +20,7 @@
 const CONFIG = {
     DEBUG: false,
     PERFORMANCE_MODE: true, // 性能日志开关 - 设置为 true 可以显示加载时间
-    VERSION: '2025.06.28.0325',
+    VERSION: '2025.06.28.0405',
 
     // --- UI & Animation ---
     MESSAGE_FADE_DURATION: 500,      // 消息渐变持续时间 (ms)
@@ -35,6 +35,7 @@ const CONFIG = {
     STORED_IDS_KEY: 'myIds',
     BROWSE_HISTORY_KEY: 'videoBrowseHistory',
     LAST_UPLOAD_TIME_KEY: 'lastUploadTime',
+    LAST_EXPORT_TIME_KEY: 'lastExportTime',
 
     // --- Data Export ---
     VIDEOS_PER_PAGE: 20, // 列表页每页视频数量
@@ -194,6 +195,7 @@ let exportState = {
 };
 let uploadTimeDisplay;
 let idCountDisplay;
+let exportTimeDisplay;
 
 // 将 updateCountDisplay 函数移到全局作用域
 function updateCountDisplay() {
@@ -645,6 +647,14 @@ function updateCountDisplay() {
             document.body.removeChild(downloadLink);
 
             URL.revokeObjectURL(jsonUrl);
+
+            // 更新上次导出时间
+            const now = new Date();
+            GM_setValue(CONFIG.LAST_EXPORT_TIME_KEY, now.toISOString());
+            if (exportTimeDisplay) {
+                exportTimeDisplay.textContent = `上次备份时间：${now.toLocaleString()}`;
+            }
+
             logToScreen('存储的数据已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
             debugLog('存储的数据导出成功。');
         } catch (error) {
@@ -668,6 +678,7 @@ function updateCountDisplay() {
                 const keysToClear = [
                     CONFIG.STORED_IDS_KEY,
                     CONFIG.LAST_UPLOAD_TIME_KEY,
+                    CONFIG.LAST_EXPORT_TIME_KEY,
                     CONFIG.HIDE_WATCHED_VIDEOS_KEY,
                     CONFIG.HIDE_VIEWED_VIDEOS_KEY,
                     CONFIG.HIDE_VR_VIDEOS_KEY,
@@ -1081,6 +1092,28 @@ function updateCountDisplay() {
     panel.appendChild(browseHistoryContainer); // 添加浏览记录查询功能
     panel.appendChild(idCountDisplay);
     panel.appendChild(uploadTimeDisplay);
+
+    // 创建上次导出时间显示
+    exportTimeDisplay = document.createElement('div');
+    exportTimeDisplay.style.marginTop = '5px';
+    exportTimeDisplay.style.color = '#666';
+    exportTimeDisplay.style.fontSize = '13px';
+    exportTimeDisplay.style.textAlign = 'center';
+    panel.appendChild(exportTimeDisplay);
+
+    const lastExportTime = GM_getValue(CONFIG.LAST_EXPORT_TIME_KEY);
+    if (lastExportTime) {
+        const lastExportDate = new Date(lastExportTime);
+        const now = new Date();
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        if (now - lastExportDate > oneWeek) {
+            exportTimeDisplay.innerHTML = `上次备份已超过一周，请及时<strong style="color: red;">备份</strong>！`;
+        } else {
+            exportTimeDisplay.textContent = `上次备份时间：${lastExportDate.toLocaleString()}`;
+        }
+    } else {
+        exportTimeDisplay.innerHTML = `还未备份过，请及时<strong style="color: red;">备份</strong>！`;
+    }
 
     // 创建帮助面板
     const helpPanel = document.createElement('div');
