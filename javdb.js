@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JavDB列表页显示是否已看
 // @namespace    http://tampermonkey.net/
-// @version      2025.06.21.0312
+// @version      2025.06.28.0312
 // @description  在演员列表页，显示每部影片是否已看，就难得点进去看了
 // @author       Ryen
 // @match        https://javdb.com/*
@@ -19,7 +19,7 @@
 // --- Script Configuration ---
 const CONFIG = {
     DEBUG: false,
-    VERSION: '2025.06.21.0312',
+    VERSION: '2025.06.28.0312',
 
     // --- UI & Animation ---
     MESSAGE_FADE_DURATION: 500,      // 消息渐变持续时间 (ms)
@@ -72,6 +72,7 @@ const styleMap = {
     '我看過這部影片': 'tag is-success is-light',
     '我想看這部影片': 'tag is-info is-light',
     '未看过': 'tag is-gray',
+    '已浏览': 'tag is-warning is-light',
 };
 
 // 在这里定义 hideWatchedVideos
@@ -212,6 +213,7 @@ function updateCountDisplay() {
     'use strict';
     debugLog('开始初始化面板...');
 
+    const isSearchPage = window.location.href.startsWith('https://javdb.com/search?');
     let panelVisible = false;
     const circlePosition = CONFIG.CIRCLE_BUTTON_POSITION;
     let lastUploadTime = "";
@@ -375,14 +377,18 @@ function updateCountDisplay() {
     `;
 
     // 帮助图标
-    const uploadHelpIcon = document.createElement('span');
+    const uploadHelpIcon = document.createElement('a');
+    uploadHelpIcon.href = 'https://javdb.com/users/watched_videos';
+    uploadHelpIcon.target = '_blank';
     uploadHelpIcon.textContent = 'ℹ️';
     uploadHelpIcon.style.cssText = `
         cursor: pointer;
         padding: 4px;
         flex-shrink: 0;
+        text-decoration: none;
+        color: inherit;
     `;
-    uploadHelpIcon.title = '前往"看过"页面进行导出文件';
+    uploadHelpIcon.title = '点击前往"看过"页面进行导出文件 (在新标签页中打开)';
 
     // 将所有元素添加到容器中
     customUploadButton.appendChild(uploadButton);
@@ -550,6 +556,17 @@ function updateCountDisplay() {
     // 添加到面板
     toggleVRContainer.appendChild(toggleVRButton);
     panel.appendChild(toggleVRContainer);
+
+    // 在搜索页面，禁用切换按钮
+    if (isSearchPage) {
+        [toggleHideButton, toggleViewedButton, toggleVRButton].forEach(button => {
+            button.disabled = true;
+            button.style.backgroundColor = '#b0b0b0'; // 禁用的灰色
+            button.textContent = '搜索页禁用';
+            button.style.cursor = 'not-allowed';
+            button.title = '此功能在搜索页面禁用，以显示所有结果。';
+        });
+    }
 
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
@@ -1780,10 +1797,19 @@ function updateCountDisplay() {
 
 // 修改 modifyItemAtCurrentPage 函数
 function modifyItemAtCurrentPage(itemToModify) {
+    const isSearchPage = window.location.href.startsWith('https://javdb.com/search?');
+
     // 从 GM 存储中读取最新的隐藏设置，以确保对动态加载的内容也有效
-    const hideWatchedVideos = GM_getValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false);
-    const hideViewedVideos = GM_getValue(CONFIG.HIDE_VIEWED_VIDEOS_KEY, false);
-    const hideVRVideos = GM_getValue(CONFIG.HIDE_VR_VIDEOS_KEY, false);
+    let hideWatchedVideos = GM_getValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false);
+    let hideViewedVideos = GM_getValue(CONFIG.HIDE_VIEWED_VIDEOS_KEY, false);
+    let hideVRVideos = GM_getValue(CONFIG.HIDE_VR_VIDEOS_KEY, false);
+
+    // 如果是搜索页面，则禁用隐藏功能
+    if (isSearchPage) {
+        hideWatchedVideos = false;
+        hideViewedVideos = false;
+        hideVRVideos = false;
+    }
 
     // 获取番号
     const videoTitle = itemToModify.querySelector('div.video-title > strong')?.textContent.trim();
@@ -1877,8 +1903,37 @@ function modifyItemAtCurrentPage(itemToModify) {
         } else {
             debugLog(`${videoTitle} 已有标签，跳过添加`);
         }
+    } else if (browseHistory.has(videoTitle)) {
+        debugLog(`${videoTitle} 在浏览历史中，准备添加已浏览标签`);
+        let tags = itemToModify.closest('.item').querySelector('.tags.has-addons');
+        if (!tags) {
+            debugLog(`${videoTitle} 未找到标签容器`);
+            return;
+        }
+
+        let tagClass = styleMap['已浏览'];
+        if (!tagClass) {
+            debugLog('未找到已浏览标签的样式');
+            return;
+        }
+
+        // 检查是否已存在标签
+        let existingTags = Array.from(tags.querySelectorAll('span'));
+        let tagExists = existingTags.some(tag => ['我看過這部影片', '已浏览'].includes(tag.textContent));
+        debugLog(`${videoTitle} 是否已有标签:`, tagExists);
+
+        if (!tagExists) {
+            let newTag = document.createElement('span');
+            newTag.className = tagClass;
+            newTag.textContent = '已浏览';
+            tags.appendChild(newTag);
+            debugLog(`成功为 ${videoTitle} 添加已浏览标签`);
+            logToScreen(`已浏览: ${videoTitle}`, 'rgba(255, 159, 67, 0.8)', 'white');
+        } else {
+            debugLog(`${videoTitle} 已有标签，跳过添加`);
+        }
     } else {
-        debugLog(`${videoTitle} 不在已看列表中，不添加标签`);
+        debugLog(`${videoTitle} 不在已看或已浏览列表中，不添加标签`);
     }
 }
 
