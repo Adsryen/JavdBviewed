@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JavDB列表页显示是否已看
 // @namespace    http://tampermonkey.net/
-// @version      2025.06.28.0312
+// @version      2025.06.28.0325
 // @description  在演员列表页，显示每部影片是否已看，就难得点进去看了
 // @author       Ryen
 // @match        https://javdb.com/*
@@ -19,7 +19,8 @@
 // --- Script Configuration ---
 const CONFIG = {
     DEBUG: false,
-    VERSION: '2025.06.28.0312',
+    PERFORMANCE_MODE: true, // 性能日志开关 - 设置为 true 可以显示加载时间
+    VERSION: '2025.06.28.0325',
 
     // --- UI & Animation ---
     MESSAGE_FADE_DURATION: 500,      // 消息渐变持续时间 (ms)
@@ -615,19 +616,26 @@ function updateCountDisplay() {
     `;
 
     // 定义导出函数
-    function exportBackupData() {
+    function exportStoredData() {
         debugLog('开始导出存储的番号...');
         try {
+            const myIds = GM_getValue(CONFIG.STORED_IDS_KEY, []);
+            const videoBrowseHistory = GM_getValue(CONFIG.BROWSE_HISTORY_KEY, []);
+
+            if (myIds.length === 0 && videoBrowseHistory.length === 0) {
+                logToScreen('没有存储任何数据，已停止导出。', 'rgba(255, 193, 7, 0.8)', 'white');
+                return;
+            }
+
             const dataToExport = {
-                myIds: Array.from(storedIds),
-                videoBrowseHistory: GM_getValue(CONFIG.BROWSE_HISTORY_KEY, [])
+                myIds: myIds,
+                videoBrowseHistory: videoBrowseHistory,
             };
 
             const json = JSON.stringify(dataToExport, null, 2);
             const jsonBlob = new Blob([json], { type: 'application/json' });
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const downloadLink = document.createElement('a');
-
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             downloadLink.download = `javdb-backup_${timestamp}.json`;
             downloadLink.href = jsonUrl;
@@ -637,11 +645,11 @@ function updateCountDisplay() {
             document.body.removeChild(downloadLink);
 
             URL.revokeObjectURL(jsonUrl);
-            logToScreen('备份文件已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
-            debugLog('备份文件导出成功。');
+            logToScreen('存储的数据已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
+            debugLog('存储的数据导出成功。');
         } catch (error) {
-            console.error('导出数据时出错:', error);
-            logToScreen('导出数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
+            console.error('导出存储数据时出错:', error);
+            logToScreen('导出存储数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
         }
     }
 
@@ -707,7 +715,7 @@ function updateCountDisplay() {
     }
 
     // 添加按钮事件监听器
-    exportButton.addEventListener('click', exportBackupData);
+    exportButton.addEventListener('click', exportStoredData);
     clearButton.addEventListener('click', handleClear);
 
     // 修改这段代码
@@ -1098,40 +1106,46 @@ function updateCountDisplay() {
 
             <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">主面板功能</h3>
             <ul style="padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><strong>上传已看番号JSON:</strong> 导入之前导出的番号数据。支持从"看过"页面导出的JSON，也支持新格式的备份文件。</li>
+                <li style="margin-bottom: 8px;"><strong>上传番号备份:</strong> 点击选择一个 previously exported <code>javdb-backup_...json</code> 文件进行导入。文件中的"已看"和"已浏览"记录都会被合并到当前脚本的"已看"列表中。同时，文件中的"已浏览"记录也会被合并到脚本的"已浏览"历史中。此操作用于数据恢复和同步。</li>
                 <li style="margin-bottom: 8px;"><strong>隐藏/显示开关:</strong>
                     <ul style="padding-left: 20px; margin-top: 8px;">
                         <li style="margin-bottom: 5px;"><strong>已看的番号:</strong> 切换是否在列表页隐藏您已标记为"看过"的影片。</li>
                         <li style="margin-bottom: 5px;"><strong>已浏览的番号:</strong> 切换是否隐藏您仅访问过详情页但未标记为"看过"的影片。</li>
-                        <li><strong>VR番号:</strong> 切换是否隐藏所有VR影片。</li>
+                        <li style="margin-bottom: 5px;"><strong>VR番号:</strong> 切换是否隐藏所有VR影片。</li>
+                        <li style="margin-top: 8px; color: #666; font-size: 12px;">注意：为了保证搜索结果的完整性，所有隐藏功能在搜索页面会自动禁用。</li>
                     </ul>
                 </li>
-                <li style="margin-bottom: 8px;"><strong>导出存储番号:</strong> 将当前脚本中存储的所有"已看"和"已浏览"番号导出为一个JSON文件，用于备份。</li>
-                <li style="margin-bottom: 8px;"><strong>清空存储番号:</strong> 删除所有存储在脚本中的数据（已看、已浏览记录），此操作不可逆，请谨慎使用。</li>
-                <li style="margin-bottom: 8px;"><strong>搜索功能:</strong>
+                <li style="margin-bottom: 8px;"><strong>导出存储番号:</strong> 将当前脚本中存储的所有"已看"和"已浏览"番号数据导出为一个 <code>javdb-backup_...json</code> 文件，用于备份和迁移。</li>
+                <li style="margin-bottom: 8px;"><strong>清空存储番号:</strong> <strong style="color: #ff4a4a;">删除所有存储在脚本中的数据</strong>（包括"已看"、"已浏览"记录及所有设置）。此操作不可逆，请谨慎使用！</li>
+                <li style="margin-bottom: 8px;"><strong>搜索与管理:</strong>
                     <ul style="padding-left: 20px; margin-top: 8px;">
-                        <li style="margin-bottom: 5px;"><strong>搜索已看的番号:</strong> 快速查找并可以单独删除某个"已看"的番号记录。</li>
-                        <li><strong>查询浏览记录:</strong> 快速查找并可以单独删除某个"已浏览"的番号记录。</li>
+                        <li style="margin-bottom: 5px;"><strong>搜索已看的番号:</strong> 在"已看"列表中快速查找特定番号，并可以单独删除记录。</li>
+                        <li><strong>查询浏览记录:</strong> 在"已浏览"历史中快速查找特定番号，并可以单独删除记录。</li>
                     </ul>
                 </li>
-                <li style="margin-bottom: 8px;"><strong>数据显示:</strong> 面板底部会显示已看和已浏览的番号总数。</li>
+                <li style="margin-bottom: 8px;"><strong>数据显示:</strong> 面板底部会实时显示已存储的"已看"和"已浏览"番号总数，以及上次导入文件的时间。</li>
             </ul>
 
             <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">列表页功能</h3>
             <ul style="padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><strong>状态标记:</strong> 在影片列表（如演员页、搜索结果页等），如果一部影片在您的"已看"记录中，会自动添加一个"我看過這部影片"的绿色标签。</li>
-                <li style="margin-bottom: 8px;"><strong>自动隐藏:</strong> 根据您在面板中的设置，自动隐藏"已看"、"已浏览"或"VR"影片。</li>
-                <li style="margin-bottom: 8px;"><strong>懒加载支持:</strong> 当页面向下滚动加载更多影片时，脚本会自动处理新出现的影片。</li>
-                <li style="margin-bottom: 8px;"><strong>页面数据导出 (特定页面):</strong> 在"看过"、"想看"等特定列表页面，会出现导出工具，可以按页码范围将当前列表的影片信息导出为JSON文件。</li>
+                <li style="margin-bottom: 8px;"><strong>状态标记:</strong> 在影片列表（如演员页、热门影片等）中，脚本会自动为影片添加状态标签：
+                    <ul style="padding-left: 20px; margin-top: 8px;">
+                       <li style="margin-bottom: 5px;"> <span class="tag is-success is-light">我看過這部影片</span>: 表示该影片在您的"已看"列表中。</li>
+                       <li style="margin-bottom: 5px;"> <span class="tag is-warning is-light">已浏览</span>: 表示您曾访问过该影片的详情页。</li>
+                    </ul>
+                </li>
+                <li style="margin-bottom: 8px;"><strong>自动隐藏:</strong> 根据您在主面板中的开关设置，自动隐藏对应的"已看"、"已浏览"或"VR"影片。</li>
+                <li style="margin-bottom: 8px;"><strong>懒加载与翻页插件支持:</strong> 无论您是向下滚动无限加载，还是使用自动翻页插件，新加载的影片都会被自动处理（添加标签或隐藏）。</li>
+                <li style="margin-bottom: 8px;"><strong>页面数据导出 (特定页面):</strong> 在"看过"、"想看"、"收藏夹"等特定列表页面，顶部会出现一个导出工具。您可以输入希望导出的页数（例如输入5，即从当前页开始导出5页），将这些页面上的影片信息（番号、发行日期）导出为JSON文件。如果留空，则会导出所有页面的数据。</li>
             </ul>
 
             <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">详情页功能</h3>
             <ul style="padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><strong>自动记录浏览:</strong> 当您访问一部影片的详情页时，脚本会自动将其番号记录到"已浏览"列表中。这个过程有3-5秒的随机延迟。</li>
+                <li style="margin-bottom: 8px;"><strong>自动记录浏览:</strong> 当您访问一部影片的详情页时，脚本会在3-5秒的随机延迟后，自动将其番号记录到"已浏览"列表中。这可以避免误操作，并模拟真实浏览行为。如果记录失败，脚本会自动重试最多5次。</li>
                 <li style="margin-bottom: 8px;"><strong>状态提示:</strong>
                     <ul style="padding-left: 20px; margin-top: 8px;">
-                        <li style="margin-bottom: 5px;"><strong>悬浮按钮变色:</strong> 如果当前影片是"已看"或"已浏览"状态，左侧的悬浮按钮会变为绿色。</li>
-                        <li><strong>网页标签页图标 (Favicon) 变更:</strong> 如果是"已看"或"已浏览"状态，浏览器标签页的图标也会改变，方便您快速识别。</li>
+                        <li style="margin-bottom: 5px;"><strong>悬浮按钮变色:</strong> 如果当前影片处于"已看"或"已浏览"状态，左侧的悬浮球按钮会由默认的粉色变为<span style="color: #2ed573; font-weight: bold;">绿色</span>，给您最直观的提示。</li>
+                        <li><strong>网页标签页图标 (Favicon) 变更:</strong> 同时，浏览器标签页的图标也会改变为一个特殊的"R"图标，方便您在多个标签页中快速识别已处理过的影片。</li>
                     </ul>
                 </li>
             </ul>
@@ -1410,7 +1424,7 @@ function updateCountDisplay() {
         const maxPages = calculateMaxPages(totalCount, itemsPerPage); // 计算最大页数
 
         if (exportState.currentPage > maxPages) {
-            exportBackupData();
+            exportScrapedData();
             return;
         }
 
@@ -1435,21 +1449,39 @@ function updateCountDisplay() {
         }
     }
 
-    function exportBackupData() {
-        debugLog('开始导出存储的番号...');
+    function exportScrapedData() {
+        debugLog('开始导出抓取的番号...');
         try {
-            const dataToExport = {
-                myIds: Array.from(storedIds),
-                videoBrowseHistory: GM_getValue(CONFIG.BROWSE_HISTORY_KEY, [])
-            };
+            const allVideosInfo = JSON.parse(localStorage.getItem('allVideosInfo') || '[]');
+            if (allVideosInfo.length === 0) {
+                logToScreen('没有抓取到任何数据，已停止导出。', 'rgba(255, 193, 7, 0.8)', 'white');
+                return;
+            }
 
-            const json = JSON.stringify(dataToExport, null, 2);
-            const jsonBlob = new Blob([json], { type: 'application/json' });
+            const json = JSON.stringify(allVideosInfo, null, 2);
+            const jsonBlob = new Blob([json], {
+                type: 'application/json'
+            });
             const jsonUrl = URL.createObjectURL(jsonBlob);
             const downloadLink = document.createElement('a');
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            downloadLink.download = `javdb-backup_${timestamp}.json`;
+
+            let fileName = 'javdb-export';
+            const url = window.location.href;
+            if (url.includes('/watched_videos')) {
+                fileName = 'watched-videos';
+            } else if (url.includes('/want_watch_videos')) {
+                fileName = 'want-watch-videos';
+            } else if (url.includes('/list_detail')) {
+                const listTitle = document.querySelector('.title.is-4');
+                if (listTitle) fileName = listTitle.textContent.trim();
+            } else if (url.includes('/lists')) {
+                 const listTitle = document.querySelector('.title.is-4');
+                if (listTitle) fileName = listTitle.textContent.trim();
+            }
+
+            downloadLink.download = `${fileName}_${timestamp}.json`;
             downloadLink.href = jsonUrl;
 
             document.body.appendChild(downloadLink);
@@ -1457,11 +1489,14 @@ function updateCountDisplay() {
             document.body.removeChild(downloadLink);
 
             URL.revokeObjectURL(jsonUrl);
-            logToScreen('备份文件已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
-            debugLog('备份文件导出成功。');
+            logToScreen('抓取的数据已成功导出。', 'rgba(76, 175, 80, 0.8)', 'white');
+            debugLog('抓取的数据导出成功。');
         } catch (error) {
-            console.error('导出数据时出错:', error);
-            logToScreen('导出数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
+            console.error('导出抓取数据时出错:', error);
+            logToScreen('导出抓取数据时出错，请查看控制台。', 'rgba(244, 67, 54, 0.8)', 'white');
+        } finally {
+            localStorage.removeItem('allVideosInfo');
+            localStorage.removeItem('exportState');
         }
     }
 
@@ -1520,10 +1555,18 @@ function updateCountDisplay() {
             return;
         }
 
+        const startTime = performance.now();
+
         const videosInfo = getVideosInfo();
         const currentAllVideos = JSON.parse(localStorage.getItem('allVideosInfo') || '[]');
         const newAllVideos = currentAllVideos.concat(videosInfo);
         localStorage.setItem('allVideosInfo', JSON.stringify(newAllVideos));
+
+        if (CONFIG.PERFORMANCE_MODE) {
+            const endTime = performance.now();
+            const processingTime = (endTime - startTime).toFixed(2);
+            console.log(`成功获取到 ${videosInfo.length} 个视频数据，当前页: ${exportState.currentPage}，处理时间: ${processingTime}ms`);
+        }
 
         // 更新进度显示
         exportButton.textContent = `导出中...(${exportState.currentPage}/${exportState.maxPage})`;
@@ -1544,7 +1587,7 @@ function updateCountDisplay() {
     function finishExport() {
         const allVideosInfo = JSON.parse(localStorage.getItem('allVideosInfo') || '[]');
         if (allVideosInfo.length > 0) {
-            exportBackupData();
+            exportScrapedData();
         }
 
         // 重置状态
@@ -1780,8 +1823,29 @@ function updateCountDisplay() {
                 isExporting = true;
 
                 // 继续抓取当前页面
-                scrapeCurrentPage();
+                waitForDOMAndScrape();
             }
+        }
+    }
+
+    function waitForDOMAndScrape() {
+        // 使用更智能的DOM检测机制
+        function checkAndScrape() {
+            const videoElements = document.querySelectorAll('.item');
+            if (videoElements.length > 0) {
+                // 如果找到视频元素，立即开始处理
+                scrapeCurrentPage();
+            } else {
+                // 如果还没找到，继续等待
+                setTimeout(checkAndScrape, 200); // 每200ms检查一次
+            }
+        }
+
+        // 检查页面是否已经加载完成
+        if (document.readyState === 'complete') {
+            checkAndScrape();
+        } else {
+            window.addEventListener('load', checkAndScrape);
         }
     }
 
