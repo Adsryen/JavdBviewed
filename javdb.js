@@ -20,7 +20,7 @@
 const CONFIG = {
     DEBUG: false,
     PERFORMANCE_MODE: true, // 性能日志开关 - 设置为 true 可以显示加载时间
-    VERSION: '2025.06.28.0405',
+    VERSION: '2025.07.09.2235',
 
     // --- UI & Animation ---
     MESSAGE_FADE_DURATION: 500,      // 消息渐变持续时间 (ms)
@@ -171,6 +171,91 @@ function logToScreen(message, bgColor = 'rgba(169, 169, 169, 0.8)', textColor = 
         fadeOut(messageContainer.firstChild);
     }
 }
+
+// 新增：显示备份提醒气泡
+function showBackupReminderBubble() {
+    const lastExportTime = GM_getValue(CONFIG.LAST_EXPORT_TIME_KEY);
+    let backupNeeded = false;
+    let message = '';
+
+    if (!lastExportTime) {
+        backupNeeded = true;
+        message = '还未备份过，请及时备份！';
+    } else {
+        const lastExportDate = new Date(lastExportTime);
+        const now = new Date();
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        if (now - lastExportDate > oneWeek) {
+            backupNeeded = true;
+            message = '上次备份已超过一周，请及时备份！';
+        }
+    }
+
+    if (!backupNeeded) {
+        return;
+    }
+
+    // 延迟一点时间确保圆形按钮已经渲染
+    setTimeout(() => {
+        const circleButton = document.getElementById('unique-circle');
+        if (!circleButton) {
+            debugLog("无法找到圆形按钮，无法显示备份提醒。");
+            return;
+        }
+
+        const bubble = document.createElement('div');
+        bubble.style.position = 'fixed';
+        bubble.style.background = '#ff4a4a';
+        bubble.style.color = 'white';
+        bubble.style.padding = '10px 15px';
+        bubble.style.borderRadius = '8px';
+        bubble.style.zIndex = '10002';
+        bubble.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        bubble.style.fontSize = '14px';
+        bubble.style.fontWeight = '500';
+        bubble.style.opacity = '0';
+        bubble.style.transition = 'opacity 0.5s ease-in-out, transform 0.5s ease-in-out';
+        bubble.style.transform = 'translateX(-20px)';
+        bubble.style.whiteSpace = 'nowrap';
+
+        const pointer = document.createElement('div');
+        pointer.style.position = 'absolute';
+        pointer.style.top = '50%';
+        pointer.style.left = '-10px';
+        pointer.style.transform = 'translateY(-50%)';
+        pointer.style.width = '0';
+        pointer.style.height = '0';
+        pointer.style.borderStyle = 'solid';
+        pointer.style.borderWidth = '8px 8px 8px 0';
+        pointer.style.borderColor = 'transparent #ff4a4a transparent transparent';
+        bubble.appendChild(pointer);
+        bubble.appendChild(document.createTextNode(message));
+
+        document.body.appendChild(bubble);
+
+        const circleRect = circleButton.getBoundingClientRect();
+        bubble.style.left = `${circleRect.right + 15}px`;
+        bubble.style.top = `${circleRect.top + (circleRect.height - bubble.offsetHeight) / 2}px`;
+
+        // Fade in and slide in
+        setTimeout(() => {
+            bubble.style.opacity = '1';
+            bubble.style.transform = 'translateX(0)';
+        }, 100);
+
+        // Fade out and remove after 5 seconds
+        setTimeout(() => {
+            bubble.style.opacity = '0';
+            bubble.style.transform = 'translateX(-20px)';
+            setTimeout(() => {
+                if (bubble.parentNode) {
+                    bubble.parentNode.removeChild(bubble);
+                }
+            }, 500); // Wait for transition to finish
+        }, 5000);
+    }, 500); // 等待圆形按钮被创建
+}
+
 async function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1209,6 +1294,9 @@ function updateCountDisplay() {
     uploadButton.addEventListener('change', handleFileUpload);
 
     const circle = createCircle(circlePosition.left, circlePosition.top);
+
+    // 调用函数以检查是否需要显示备份提醒
+    showBackupReminderBubble();
 
     function handleFileUpload(event) {
         const file = event.target.files[0];
