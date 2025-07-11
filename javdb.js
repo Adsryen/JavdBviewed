@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JavDB列表页显示是否已看
 // @namespace    http://tampermonkey.net/
-// @version      2025.06.28.0405
+// @version      2025.07.09.2235
 // @description  在演员列表页，显示每部影片是否已看，就难得点进去看了
 // @author       Ryen
 // @match        https://javdb.com/*
@@ -1224,7 +1224,7 @@ function updateCountDisplay() {
 
             <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">主面板功能</h3>
             <ul style="padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><strong>上传番号备份:</strong> 点击选择一个 previously exported <code>javdb-backup_...json</code> 文件进行导入。文件中的"已看"和"已浏览"记录都会被合并到当前脚本的"已看"列表中。同时，文件中的"已浏览"记录也会被合并到脚本的"已浏览"历史中。此操作用于数据恢复和同步。</li>
+                <li style="margin-bottom: 8px;"><strong>上传/恢复番号备份:</strong> 点击选择一个之前通过"页面数据导出"或"导出存储番号"功能生成的 <code>.json</code> 文件。脚本会读取文件中的数据，并将其安全地合并到您当前的"已看"和"已浏览"列表中。这个"导出再导入"的流程是特意设计的，旨在为您提供<strong>最大程度的数据控制权和安全性</strong>，方便您在不同设备间同步数据或从备份中恢复。</li>
                 <li style="margin-bottom: 8px;"><strong>隐藏/显示开关:</strong>
                     <ul style="padding-left: 20px; margin-top: 8px;">
                         <li style="margin-bottom: 5px;"><strong>已看的番号:</strong> 切换是否在列表页隐藏您已标记为"看过"的影片。</li>
@@ -1254,7 +1254,7 @@ function updateCountDisplay() {
                 </li>
                 <li style="margin-bottom: 8px;"><strong>自动隐藏:</strong> 根据您在主面板中的开关设置，自动隐藏对应的"已看"、"已浏览"或"VR"影片。</li>
                 <li style="margin-bottom: 8px;"><strong>懒加载与翻页插件支持:</strong> 无论您是向下滚动无限加载，还是使用自动翻页插件，新加载的影片都会被自动处理（添加标签或隐藏）。</li>
-                <li style="margin-bottom: 8px;"><strong>页面数据导出 (特定页面):</strong> 在"看过"、"想看"、"收藏夹"等特定列表页面，顶部会出现一个导出工具。您可以输入希望导出的页数（例如输入5，即从当前页开始导出5页），将这些页面上的影片信息（番号、发行日期）导出为JSON文件。如果留空，则会导出所有页面的数据。</li>
+                <li style="margin-bottom: 8px;"><strong>页面数据导出 (特定页面):</strong> 在您的"看过"、"想看"、"收藏夹"等页面，顶部会出现一个导出工具。此功能会<strong>自动翻页</strong>抓取您指定页数或所有页的影片信息，并生成一个 <code>.json</code> 文件供您下载。这不仅仅是导出，更是一种<strong>安全备份机制</strong>。通过先导出为文件，可以确保在网络不稳定或操作中断时，您的原始数据不会损坏，保证了数据的完整性和安全性。</li>
             </ul>
 
             <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">详情页功能</h3>
