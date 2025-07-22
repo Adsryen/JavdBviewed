@@ -1,35 +1,88 @@
-/* General Body and Panel */
+/* General Body and Layout */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f7f7f7;
+    background-color: #f0f2f5;
     margin: 0;
-    padding: 20px;
+    color: #333;
+}
+
+.dashboard-container {
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-}
-
-#panel {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    padding: 25px;
     width: 100%;
-    max-width: 600px;
-    box-sizing: border-box;
+    max-width: 1200px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    min-height: calc(100vh - 80px);
 }
 
-/* Custom Scrollbar (for containers inside panel if needed) */
-#panel::-webkit-scrollbar,
+.sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    padding: 25px;
+    border-right: 1px solid #e8e8e8;
+    background-color: #fafafa;
+    border-radius: 16px 0 0 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #e8e8e8;
+    margin-bottom: -1px; /* Overlap with card border */
+}
+
+.tab-link {
+    padding: 12px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 16px;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-link.active,
+.tab-link:hover {
+    color: #4a9eff;
+    border-bottom-color: #4a9eff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom Scrollbar */
 .search-result::-webkit-scrollbar {
     width: 6px;
 }
-#panel::-webkit-scrollbar-track,
 .search-result::-webkit-scrollbar-track {
     background: transparent;
 }
-#panel::-webkit-scrollbar-thumb,
 .search-result::-webkit-scrollbar-thumb {
     background-color: #ccc;
     border-radius: 3px;
@@ -42,10 +95,10 @@ body {
     justify-content: space-between;
     font-weight: 600;
     font-size: 20px;
-    margin-bottom: 20px;
+    margin: 0 0 20px 0;
     color: #333;
-    border-bottom: 1px solid #eee;
     padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
 }
 
 #helpBtn {
@@ -68,6 +121,8 @@ body {
 #customUploadBtn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    width: 100%;
     padding: 10px 18px;
     background-color: #4a9eff;
     color: white;
@@ -88,12 +143,7 @@ body {
 }
 
 #fileNameDisplay {
-    color: #666;
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-grow: 1;
+    display: none; /* Hide in sidebar, maybe show as tooltip or in info */
 }
 
 #uploadContainer a {
@@ -104,7 +154,6 @@ body {
     color: inherit;
     font-size: 18px;
 }
-
 
 /* Toggle Buttons */
 .toggle-group {
@@ -146,11 +195,10 @@ body {
     cursor: not-allowed;
 }
 
-
 /* Action Buttons (Export/Clear) */
 #buttonContainer {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 15px;
     margin-bottom: 20px;
 }
@@ -193,25 +241,22 @@ body {
     background-color: #e54a4a;
 }
 
-
 /* WebDAV Section */
 #webdavContainer {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
+    margin-top: 0;
 }
 #webdavContainer .webdav-title {
     font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 15px;
+    font-size: 18px;
+    margin-bottom: 20px;
     color: #333;
 }
 #webdavContainer input {
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border: 1px solid #ddd;
     border-radius: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 15px;
     box-sizing: border-box;
     font-size: 14px;
 }
@@ -219,14 +264,16 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
+    margin-top: 10px;
 }
 #webdavContainer .webdav-buttons button {
-    padding: 10px 15px;
+    padding: 12px 18px;
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
 }
 #testWebdavBtn {
     background-color: #4CAF50;
@@ -235,29 +282,28 @@ body {
     background-color: #008CBA;
 }
 
-
 /* Search Section */
 .search-container {
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 .search-container input[type="text"] {
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border: 1px solid #ddd;
     border-radius: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
     box-sizing: border-box;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .search-result {
     width: 100%;
-    max-height: 250px;
+    max-height: 400px;
     overflow-y: auto;
     border: 1px solid #eee;
     border-radius: 8px;
     padding: 10px;
-    background-color: #f9f9f9;
+    background-color: #fdfdfd;
     display: none; /* Initially hidden */
     box-sizing: border-box;
 }
@@ -266,14 +312,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid #e0e0e0;
 }
 .search-result-item:last-child {
     border-bottom: none;
 }
 .search-result-item:hover {
-    background-color: #f0f0f0;
+    background-color: #f5f5f5;
 }
 
 .search-result-item .delete-btn {
@@ -292,16 +338,16 @@ body {
 
 /* Info Displays */
 #infoContainer {
+    margin-top: auto; /* Pushes to the bottom of the sidebar */
+    padding-top: 20px;
+    border-top: 1px solid #eee;
     color: #555;
     font-size: 14px;
-    text-align: center;
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #eee;
+    text-align: left;
+    background-color: transparent;
 }
 #infoContainer div {
-    margin-top: 8px;
+    margin-top: 10px;
 }
 #infoContainer div:first-child {
     margin-top: 0;
@@ -310,13 +356,13 @@ body {
 
 /* Version Info */
 #versionAuthorInfo {
-    margin-top: 25px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
+    margin-top: 15px;
     color: #999;
     font-size: 12px;
-    text-align: center;
+    text-align: left;
 }
+
+#panel { display: none; } /* Hide the old panel, help panel is handled separately */
 
 /* Help Panel */
 #helpPanel {
