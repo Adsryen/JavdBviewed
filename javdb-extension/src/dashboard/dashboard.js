@@ -398,6 +398,25 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAllDisplays();
         versionAuthorInfo.innerHTML = `Version: ${CONFIG.VERSION}<br>Author: Ryen`;
         setupHelpPanel();
+        setupTabs();
+    }
+
+    // 8. Tabs
+    function setupTabs() {
+        const tabLinks = document.querySelectorAll('.tab-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const tabId = link.getAttribute('data-tab');
+
+                tabLinks.forEach(item => item.classList.remove('active'));
+                tabContents.forEach(item => item.classList.remove('active'));
+
+                link.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
     }
 
     initialize();
