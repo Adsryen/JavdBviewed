@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "JavDB viewed",
+  "version": "1.0.1",
+  "description": "Mark javdb videos as watched.",
+  "permissions": ["storage", "activeTab", "tabs", "scripting", "webRequest"],
+  "host_permissions": ["https://javdb.com/*", "*://*/*"],
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://javdb.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": "src/assets/favicon-16x16.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/dashboard/dashboard.html", "src/assets/jav.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "src/assets/favicon-16x16.png",
+    "48": "src/assets/favicon-16x16.png",
+    "128": "src/assets/favicon-16x16.png"
+  }
+} 

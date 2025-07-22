@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>JavDB 助手仪表盘</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div id="panel">
+    <div id="title" class="panel-title">
+      <span>番号数据管理中心</span>
+      <span id="helpBtn" title="帮助与说明">❓</span>
+    </div>
+
+    <div id="uploadContainer" class="panel-row">
+      <label id="customUploadBtn">
+        <span>📁</span>
+        <span>上传JSON</span>
+        <input type="file" id="importFile" accept=".json" style="display:none;">
+      </label>
+      <span id="fileNameDisplay"></span>
+      <a href="https://javdb.com/users/watched_videos" target="_blank" title="点击前往'看过'页面导出">ℹ️</a>
+    </div>
+
+    <div class="toggle-group">
+      <div id="toggleWatchedContainer" class="toggle-container"></div>
+      <div id="toggleViewedContainer" class="toggle-container"></div>
+      <div id="toggleVRContainer" class="toggle-container"></div>
+    </div>
+
+    <div id="buttonContainer" class="panel-row">
+      <button id="exportBtn">💾 导出存储番号</button>
+      <button id="clearBtn">🗑️ 清空存储番号</button>
+    </div>
+
+    <div id="webdavContainer" class="panel-row">
+      <div class="webdav-title">WebDAV 备份设置</div>
+      <input type="text" id="webdavUrl" placeholder="WebDAV URL (e.g., https://dav.example.com/dav)">
+      <input type="text" id="webdavPath" placeholder="远程路径 (e.g., /JavDB_Backup)">
+      <input type="text" id="webdavUsername" placeholder="用户名">
+      <input type="password" id="webdavPassword" placeholder="密码">
+      <div class="webdav-buttons">
+        <button id="testWebdavBtn">测试连接</button>
+        <button id="uploadWebdavBtn">上传备份</button>
+      </div>
+    </div>
+
+    <div id="searchContainer" class="search-container panel-row">
+      <input type="text" id="searchBox" placeholder="搜索已看的番号">
+      <div id="resultContainer" class="search-result"></div>
+    </div>
+
+    <div id="browseHistoryContainer" class="search-container panel-row">
+      <input type="text" id="browseHistoryBox" placeholder="查询浏览记录">
+      <div id="browseHistoryResultContainer" class="search-result"></div>
+    </div>
+
+    <div id="infoContainer" class="panel-row">
+        <div id="idCountDisplay"></div>
+        <div id="uploadTimeDisplay"></div>
+        <div id="exportTimeDisplay"></div>
+    </div>
+
+    <div id="versionAuthorInfo" class="panel-row"></div>
+
+    <div id="helpPanel"></div>
+  </div>
+  
+  <div id="messageContainer"></div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="dashboard.js" type="module"></script>
+</body>
+</html> 
