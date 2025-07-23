@@ -189,60 +189,22 @@ body {
 #exportBtn {
     background-color: #4a9eff;
 }
-#exportBtn:hover {
+#exportBtn:hover:not(:disabled) {
     background-color: #3d8ae5;
 }
 
 #clearBtn {
     background-color: #ff4a4a;
 }
-#clearBtn:hover {
+#clearBtn:hover:not(:disabled) {
     background-color: #e54a4a;
 }
 
-
-/* WebDAV Section */
-#webdavContainer {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-}
-#webdavContainer .webdav-title {
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 15px;
-    color: #333;
-}
-#webdavContainer input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-bottom: 10px;
-    box-sizing: border-box;
-}
-#webdavContainer .webdav-buttons {
-    display: flex;
-    gap: 10px;
-}
-#webdavContainer .webdav-buttons button {
-    flex: 1;
-    padding: 8px 12px;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-}
-#testWebdavBtn {
-    background-color: #4CAF50;
-}
-#uploadWebdavBtn {
-    background-color: #008CBA;
-}
-
-
 /* Search Section */
+.search-container {
+    margin-bottom: 0;
+}
+
 .search-container input[type="text"] {
     width: 100%;
     padding: 8px 12px;

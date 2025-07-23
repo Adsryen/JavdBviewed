@@ -5,8 +5,8 @@ const webpack = require('webpack');
 module.exports = {
   entry: {
     background: './src/background/background.js',
-    options: './src/options/options.js',
     content: './src/content/content.js',
+    dashboard: './src/dashboard/dashboard.js',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -14,16 +14,20 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/options/options.html',
-      filename: 'options.html',
-      chunks: ['options'],
+      template: './src/dashboard/dashboard.html',
+      filename: 'dashboard.html',
+      chunks: ['dashboard'],
     }),
     new webpack.ProvidePlugin({
       process: 'process/browser',
       Buffer: ['buffer', 'Buffer'],
     }),
   ],
-  mode: 'production',
+  mode: 'development',
+  devtool: 'cheap-module-source-map',
+  performance: {
+    hints: false,
+  },
   resolve: {
     fallback: {
       "util": require.resolve("util/"),
@@ -33,21 +37,28 @@ module.exports = {
       "url": require.resolve("url/"),
       "http": require.resolve("stream-http"),
       "https": require.resolve("https-browserify"),
-      "fs": false,
       "os": require.resolve("os-browserify/browser"),
+      "crypto": require.resolve("crypto-browserify"),
+      "assert": require.resolve("assert/"),
+      "zlib": require.resolve("browserify-zlib"),
+      "fs": false,
     }
   },
   module: {
     rules: [
       {
         test: /\.js$/,
-        exclude: /node_modules/,
+        exclude: /node_modules\/(?!webdav)/,
         use: {
           loader: 'babel-loader',
           options: {
             presets: ['@babel/preset-env']
           }
         }
+      },
+      {
+        test: /\.css$/i,
+        use: ['style-loader', 'css-loader'],
       }
     ]
   }

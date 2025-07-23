@@ -3,10 +3,10 @@
   "name": "JavDB viewed",
   "version": "1.0.1",
   "description": "Mark javdb videos as watched.",
-  "permissions": ["storage", "activeTab", "tabs", "scripting", "webRequest"],
+  "permissions": ["storage", "activeTab", "tabs", "scripting", "webRequest", "alarms"],
   "host_permissions": ["https://javdb.com/*", "*://*/*"],
   "background": {
-    "service_worker": "src/background/background.js"
+    "service_worker": "dist/background.js"
   },
   "content_scripts": [
     {
@@ -21,7 +21,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/dashboard/dashboard.html", "src/assets/jav.png"],
+      "resources": ["dist/dashboard.html", "src/assets/jav.png"],
       "matches": ["<all_urls>"]
     }
   ],
