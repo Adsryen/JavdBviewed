@@ -1,16 +1,5 @@
-import { getValue, setValue } from '../utils/storage.js';
-
-const CONFIG = {
-    VERSION: '2025.07.09.2235', // Keep version in sync with userscript
-    HIDE_WATCHED_VIDEOS_KEY: 'hideWatchedVideos',
-    HIDE_VIEWED_VIDEOS_KEY: 'hideViewedVideos',
-    HIDE_VR_VIDEOS_KEY: 'hideVRVideos',
-    STORED_IDS_KEY: 'myIds',
-    BROWSE_HISTORY_KEY: 'videoBrowseHistory',
-    LAST_UPLOAD_TIME_KEY: 'lastUploadTime',
-    LAST_EXPORT_TIME_KEY: 'lastExportTime',
-    WEBDEV_SETTINGS_KEY: 'webdavSettings'
-};
+import { getValue, setValue, getSettings, saveSettings } from '../utils/storage.js';
+import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -25,12 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleVRContainer = document.getElementById('toggleVRContainer');
     const exportBtn = document.getElementById('exportBtn');
     const clearBtn = document.getElementById('clearBtn');
-    const webdavUrl = document.getElementById('webdavUrl');
-    const webdavPath = document.getElementById('webdavPath');
-    const webdavUsername = document.getElementById('webdavUsername');
-    const webdavPassword = document.getElementById('webdavPassword');
-    const testWebdavBtn = document.getElementById('testWebdavBtn');
-    const uploadWebdavBtn = document.getElementById('uploadWebdavBtn');
     const searchBox = document.getElementById('searchBox');
     const resultContainer = document.getElementById('resultContainer');
     const browseHistoryBox = document.getElementById('browseHistoryBox');
@@ -44,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 0. Open Dashboard
     openDashboardBtn.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'src/dashboard/dashboard.html' });
+        chrome.tabs.create({ url: 'dist/dashboard.html' });
     });
 
     // 1. Import/Upload
@@ -57,26 +40,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = async (evt) => {
             try {
-                const jsonData = JSON.parse(evt.target.result);
-                const watched = new Set(await getValue(CONFIG.STORED_IDS_KEY, []));
-                const viewed = new Set(await getValue(CONFIG.BROWSE_HISTORY_KEY, []));
+                const importData = JSON.parse(evt.target.result);
+                let newWatched = new Set(await getValue(STORAGE_KEYS.STORED_IDS, []));
+                let newViewed = new Set(await getValue(STORAGE_KEYS.BROWSE_HISTORY, []));
 
-                if (Array.isArray(jsonData)) { // Legacy format
-                    jsonData.forEach(item => item.id && watched.add(item.id));
-                } else if (jsonData.myIds || jsonData.videoBrowseHistory) { // New format
-                    (jsonData.myIds || []).forEach(id => watched.add(id));
-                    (jsonData.videoBrowseHistory || []).forEach(id => viewed.add(id));
+                // New format: { settings: {...}, data: {...} }
+                if (importData.settings && importData.data) {
+                    if (confirm(`即将从文件恢复设置和 ${Object.keys(importData.data).length} 条记录。这将覆盖所有现有数据，确定吗？`)) {
+                        await saveSettings(importData.settings);
+                        
+                        // Convert data back to legacy format for popup
+                        newWatched = new Set();
+                        newViewed = new Set();
+                        Object.values(importData.data).forEach(record => {
+                            if (record.status === 'viewed') {
+                                newWatched.add(record.id);
+                            } else { // 'later' or other statuses
+                                newViewed.add(record.id);
+                            }
+                        });
+                        alert("设置和数据导入成功！");
+                    } else {
+                        return; // User cancelled
+                    }
+                }
+                // Legacy format 1: { myIds: [...], videoBrowseHistory: [...] }
+                else if (importData.myIds || importData.videoBrowseHistory) {
+                    (importData.myIds || []).forEach(id => newWatched.add(id));
+                    (importData.videoBrowseHistory || []).forEach(id => newViewed.add(id));
+                     alert('数据导入成功！');
+                }
+                // Legacy format 2: [...]
+                else if (Array.isArray(importData)) {
+                    importData.forEach(item => item && item.id && newWatched.add(item.id));
+                     alert('数据导入成功！');
+                } else {
+                    throw new Error("无法识别的备份文件格式。");
                 }
 
-                await setValue(CONFIG.STORED_IDS_KEY, Array.from(watched));
-                await setValue(CONFIG.BROWSE_HISTORY_KEY, Array.from(viewed));
 
-                const now = new Date().toLocaleString();
-                await setValue(CONFIG.LAST_UPLOAD_TIME_KEY, now);
-                uploadTimeDisplay.textContent = `上次上传时间：${now}`;
+                await setValue(STORAGE_KEYS.STORED_IDS, Array.from(newWatched));
+                await setValue(STORAGE_KEYS.BROWSE_HISTORY, Array.from(newViewed));
 
-                updateCountDisplay();
-                alert('数据导入成功！');
+                const now = new Date();
+                const settings = await getSettings();
+                settings.lastUploadTime = now.toISOString();
+                await saveSettings(settings);
+                uploadTimeDisplay.textContent = `上次上传时间：${now.toLocaleString()}`;
+
+                updateAllDisplays();
+                // No alert here, moved into conditions
             } catch (err) {
                 alert('解析 JSON 失败: ' + err.message);
             }
@@ -85,9 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 2. Toggle Buttons
-    function createToggleButton(key, container, textActive, textInactive) {
+    async function createToggleButton(key, container, textActive, textInactive) {
         const button = document.createElement('button');
         button.className = 'toggle-button';
+        let settings;
 
         const updateState = (isActive) => {
             button.textContent = isActive ? textActive : textInactive;
@@ -95,12 +109,14 @@ document.addEventListener('DOMContentLoaded', () => {
             button.classList.toggle('inactive', !isActive);
         };
 
-        getValue(key, false).then(updateState);
+        settings = await getSettings();
+        updateState(settings.display[key]);
 
         button.addEventListener('click', async () => {
-            const currentState = await getValue(key, false);
-            const newState = !currentState;
-            await setValue(key, newState);
+            settings = await getSettings();
+            const newState = !settings.display[key];
+            settings.display[key] = newState;
+            await saveSettings(settings);
             updateState(newState);
             // Optionally reload the tab to apply changes
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -112,22 +128,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return button;
     }
 
-    createToggleButton(CONFIG.HIDE_WATCHED_VIDEOS_KEY, toggleWatchedContainer, '当前：隐藏已看的番号', '当前：显示已看的番号');
-    createToggleButton(CONFIG.HIDE_VIEWED_VIDEOS_KEY, toggleViewedContainer, '当前：隐藏已浏览的番号', '当前：显示已浏览的番号');
-    createToggleButton(CONFIG.HIDE_VR_VIDEOS_KEY, toggleVRContainer, '当前：隐藏VR番号', '当前：显示VR番号');
+    createToggleButton('hideWatched', toggleWatchedContainer, '当前：隐藏已看的番号', '当前：显示已看的番号');
+    createToggleButton('hideViewed', toggleViewedContainer, '当前：隐藏已浏览的番号', '当前：显示已浏览的番号');
+    createToggleButton('hideVR', toggleVRContainer, '当前：隐藏VR番号', '当前：显示VR番号');
 
 
     // 3. Export & Clear
     exportBtn.addEventListener('click', async () => {
-        const myIds = await getValue(CONFIG.STORED_IDS_KEY, []);
-        const videoBrowseHistory = await getValue(CONFIG.BROWSE_HISTORY_KEY, []);
+        const myIds = await getValue(STORAGE_KEYS.STORED_IDS, []);
+        const videoBrowseHistory = await getValue(STORAGE_KEYS.BROWSE_HISTORY, []);
+        const settings = await getSettings();
 
         if (myIds.length === 0 && videoBrowseHistory.length === 0) {
             alert('没有存储任何数据。');
             return;
         }
 
-        const dataToExport = { myIds, videoBrowseHistory };
+        // Convert legacy data to new unified format
+        const data = {};
+        myIds.forEach(id => {
+            if(!data[id]) data[id] = { id, status: 'viewed', timestamp: Date.now(), title: '' };
+        });
+        videoBrowseHistory.forEach(id => {
+            // Avoid overwriting 'viewed' status if it exists
+            if(!data[id]) data[id] = { id, status: 'later', timestamp: Date.now(), title: '' };
+        });
+
+        const dataToExport = { settings, data };
         const json = JSON.stringify(dataToExport, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -141,20 +168,16 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
 
         const now = new Date();
-        await setValue(CONFIG.LAST_EXPORT_TIME_KEY, now.toISOString());
+        settings.lastExportTime = now.toISOString();
+        await saveSettings(settings);
         exportTimeDisplay.textContent = `上次备份时间：${now.toLocaleString()}`;
     });
 
     clearBtn.addEventListener('click', async () => {
         if (confirm('确定要清除所有存储的番号和设置吗？此操作不可逆！')) {
-            await setValue(CONFIG.STORED_IDS_KEY, []);
-            await setValue(CONFIG.BROWSE_HISTORY_KEY, []);
-            await setValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false);
-            await setValue(CONFIG.HIDE_VIEWED_VIDEOS_KEY, false);
-            await setValue(CONFIG.HIDE_VR_VIDEOS_KEY, false);
-            await setValue(CONFIG.LAST_UPLOAD_TIME_KEY, '');
-            await setValue(CONFIG.LAST_EXPORT_TIME_KEY, '');
-            await setValue(CONFIG.WEBDEV_SETTINGS_KEY, { url: '', path: '', username: '', password: '' });
+            await setValue(STORAGE_KEYS.STORED_IDS, []);
+            await setValue(STORAGE_KEYS.BROWSE_HISTORY, []);
+            await saveSettings(DEFAULT_SETTINGS); // Reset all settings to default
             
             updateAllDisplays();
             alert('已清除所有数据。页面将刷新。');
@@ -164,62 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. WebDAV
-    const saveWebdavSettings = async () => {
-        const settings = {
-            url: webdavUrl.value.trim(),
-            path: webdavPath.value.trim(),
-            username: webdavUsername.value.trim(),
-            password: webdavPassword.value
-        };
-        await setValue(CONFIG.WEBDEV_SETTINGS_KEY, settings);
-    };
-
-    [webdavUrl, webdavPath, webdavUsername, webdavPassword].forEach(input => {
-        input.addEventListener('change', saveWebdavSettings);
-    });
-
-    const sendMessageToBackground = (message) => {
-        return new Promise((resolve) => {
-            chrome.runtime.sendMessage(message, (response) => {
-                resolve(response);
-            });
-        });
-    };
-    
-    testWebdavBtn.addEventListener('click', async () => {
-        await saveWebdavSettings();
-        const settings = await getValue(CONFIG.WEBDEV_SETTINGS_KEY);
-        if (!settings.url) {
-            alert('WebDAV URL 不能为空');
-            return;
-        }
-        alert('正在测试连接...');
-        const response = await sendMessageToBackground({ type: 'webdav-test', settings });
-        alert(response.success ? 'WebDAV 连接成功！' : `WebDAV 连接失败: ${response.error}`);
-    });
-
-    uploadWebdavBtn.addEventListener('click', async () => {
-        await saveWebdavSettings();
-        const settings = await getValue(CONFIG.WEBDEV_SETTINGS_KEY);
-        if (!settings.url) {
-            alert('请先配置并测试 WebDAV 设置');
-            return;
-        }
-        
-        const myIds = await getValue(CONFIG.STORED_IDS_KEY, []);
-        const videoBrowseHistory = await getValue(CONFIG.BROWSE_HISTORY_KEY, []);
-        if (myIds.length === 0 && videoBrowseHistory.length === 0) {
-            alert('没有数据可以备份');
-            return;
-        }
-
-        alert('开始上传备份到 WebDAV...');
-        const response = await sendMessageToBackground({ type: 'webdav-upload', settings, data: { myIds, videoBrowseHistory }});
-        alert(response.success ? '备份成功上传到 WebDAV！' : `上传失败: ${response.error}`);
-    });
-
-    // 5. Search
+    // 4. Search
     const createSearchResultItem = (id, listKey, resultContainer) => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
@@ -264,22 +232,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    searchBox.addEventListener('input', () => handleSearch(searchBox, resultContainer, CONFIG.STORED_IDS_KEY));
-    browseHistoryBox.addEventListener('input', () => handleSearch(browseHistoryBox, browseHistoryResultContainer, CONFIG.BROWSE_HISTORY_KEY));
+    searchBox.addEventListener('input', () => handleSearch(searchBox, resultContainer, STORAGE_KEYS.STORED_IDS));
+    browseHistoryBox.addEventListener('input', () => handleSearch(browseHistoryBox, browseHistoryResultContainer, STORAGE_KEYS.BROWSE_HISTORY));
 
 
     // 6. Info Displays
     async function updateCountDisplay() {
-        const watchedCount = (await getValue(CONFIG.STORED_IDS_KEY, [])).length;
-        const browseCount = (await getValue(CONFIG.BROWSE_HISTORY_KEY, [])).length;
+        const watchedCount = (await getValue(STORAGE_KEYS.STORED_IDS, [])).length;
+        const browseCount = (await getValue(STORAGE_KEYS.BROWSE_HISTORY, [])).length;
         idCountDisplay.innerHTML = `<div>已看番号总数: ${watchedCount}</div><div>已浏览番号总数: ${browseCount}</div>`;
     }
 
     async function updateTimeDisplays() {
-        const lastUpload = await getValue(CONFIG.LAST_UPLOAD_TIME_KEY, '');
-        uploadTimeDisplay.textContent = lastUpload ? `上次上传时间：${lastUpload}` : '';
+        const settings = await getSettings();
+        const lastUpload = settings.lastUploadTime;
+        uploadTimeDisplay.textContent = lastUpload ? `上次上传时间：${new Date(lastUpload).toLocaleString()}` : '';
 
-        const lastExport = await getValue(CONFIG.LAST_EXPORT_TIME_KEY, '');
+        const lastExport = settings.lastExportTime;
         if (lastExport) {
             const lastExportDate = new Date(lastExport);
             const oneWeek = 7 * 24 * 60 * 60 * 1000;
@@ -294,11 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function updateWebdavDisplay() {
-        const settings = await getValue(CONFIG.WEBDEV_SETTINGS_KEY, {});
-        webdavUrl.value = settings.url || '';
-        webdavPath.value = settings.path || '';
-        webdavUsername.value = settings.username || '';
-        webdavPassword.value = settings.password || '';
+        const settings = await getSettings();
+        // webdavUrl.value = settings.webdav.url || ''; 
+        // webdavPath.value = settings.webdav.path || ''; 
+        // webdavUsername.value = settings.webdav.username || ''; 
+        // webdavPassword.value = settings.webdav.password || ''; 
     }
 
     function updateAllDisplays() {
@@ -376,9 +345,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Initial Load ---
-    function initialize() {
+    async function initialize() {
         updateAllDisplays();
-        versionAuthorInfo.innerHTML = `Version: ${CONFIG.VERSION}<br>Author: Ryen`;
+        const settings = await getSettings();
+        versionAuthorInfo.innerHTML = `Version: ${settings.version}<br>Author: Ryen`;
         setupHelpPanel(); // Help panel content is large, should be handled carefully
     }
 

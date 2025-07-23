@@ -1,2 +1,615 @@
-/*! For license information please see content.js.LICENSE.txt */
-(()=>{"use strict";function e(t){return e="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e},e(t)}function t(t,n){return chrome.storage.local.set((r={},a=n,(o=function(t){var n=function(t){if("object"!=e(t)||!t)return t;var n=t[Symbol.toPrimitive];if(void 0!==n){var r=n.call(t,"string");if("object"!=e(r))return r;throw new TypeError("@@toPrimitive must return a primitive value.")}return String(t)}(t);return"symbol"==e(n)?n:n+""}(o=t))in r?Object.defineProperty(r,o,{value:a,enumerable:!0,configurable:!0,writable:!0}):r[o]=a,r));var r,o,a}function n(e,t){return new Promise(function(n){chrome.storage.local.get([e],function(r){n(void 0!==r[e]?r[e]:t)})})}function r(e){return new Promise(function(t){return setTimeout(t,e)})}function o(){var e,t,n="function"==typeof Symbol?Symbol:{},r=n.iterator||"@@iterator",i=n.toStringTag||"@@toStringTag";function c(n,r,o,i){var c=r&&r.prototype instanceof l?r:l,s=Object.create(c.prototype);return a(s,"_invoke",function(n,r,o){var a,i,c,l=0,s=o||[],d=!1,f={p:0,n:0,v:e,a:p,f:p.bind(e,4),d:function(t,n){return a=t,i=0,c=e,f.n=n,u}};function p(n,r){for(i=n,c=r,t=0;!d&&l&&!o&&t<s.length;t++){var o,a=s[t],p=f.p,m=a[2];n>3?(o=m===r)&&(c=a[(i=a[4])?5:(i=3,3)],a[4]=a[5]=e):a[0]<=p&&((o=n<2&&p<a[1])?(i=0,f.v=r,f.n=a[1]):p<m&&(o=n<3||a[0]>r||r>m)&&(a[4]=n,a[5]=r,f.n=m,i=0))}if(o||n>1)return u;throw d=!0,r}return function(o,s,m){if(l>1)throw TypeError("Generator is already running");for(d&&1===s&&p(s,m),i=s,c=m;(t=i<2?e:c)||!d;){a||(i?i<3?(i>1&&(f.n=-1),p(i,c)):f.n=c:f.v=c);try{if(l=2,a){if(i||(o="next"),t=a[o]){if(!(t=t.call(a,c)))throw TypeError("iterator result is not an object");if(!t.done)return t;c=t.value,i<2&&(i=0)}else 1===i&&(t=a.return)&&t.call(a),i<2&&(c=TypeError("The iterator does not provide a '"+o+"' method"),i=1);a=e}else if((t=(d=f.n<0)?c:n.call(r,f))!==u)break}catch(t){a=e,i=1,c=t}finally{l=1}}return{value:t,done:d}}}(n,o,i),!0),s}var u={};function l(){}function s(){}function d(){}t=Object.getPrototypeOf;var f=[][r]?t(t([][r]())):(a(t={},r,function(){return this}),t),p=d.prototype=l.prototype=Object.create(f);function m(e){return Object.setPrototypeOf?Object.setPrototypeOf(e,d):(e.__proto__=d,a(e,i,"GeneratorFunction")),e.prototype=Object.create(p),e}return s.prototype=d,a(p,"constructor",d),a(d,"constructor",s),s.displayName="GeneratorFunction",a(d,i,"GeneratorFunction"),a(p),a(p,i,"Generator"),a(p,r,function(){return this}),a(p,"toString",function(){return"[object Generator]"}),(o=function(){return{w:c,m}})()}function a(e,t,n,r){var o=Object.defineProperty;try{o({},"",{})}catch(e){o=0}a=function(e,t,n,r){if(t)o?o(e,t,{value:n,enumerable:!r,configurable:!r,writable:!r}):e[t]=n;else{var i=function(t,n){a(e,t,function(e){return this._invoke(t,n,e)})};i("next",0),i("throw",1),i("return",2)}},a(e,t,n,r)}function i(e,t){return s(e)||function(e,t){var n=null==e?null:"undefined"!=typeof Symbol&&e[Symbol.iterator]||e["@@iterator"];if(null!=n){var r,o,a,i,c=[],u=!0,l=!1;try{if(a=(n=n.call(e)).next,0===t){if(Object(n)!==n)return;u=!1}else for(;!(u=(r=a.call(n)).done)&&(c.push(r.value),c.length!==t);u=!0);}catch(e){l=!0,o=e}finally{try{if(!u&&null!=n.return&&(i=n.return(),Object(i)!==i))return}finally{if(l)throw o}}return c}}(e,t)||u(e,t)||c()}function c(){throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.")}function u(e,t){if(e){if("string"==typeof e)return l(e,t);var n={}.toString.call(e).slice(8,-1);return"Object"===n&&e.constructor&&(n=e.constructor.name),"Map"===n||"Set"===n?Array.from(e):"Arguments"===n||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)?l(e,t):void 0}}function l(e,t){(null==t||t>e.length)&&(t=e.length);for(var n=0,r=Array(t);n<t;n++)r[n]=e[n];return r}function s(e){if(Array.isArray(e))return e}function d(e,t,n,r,o,a,i){try{var c=e[a](i),u=c.value}catch(e){return void n(e)}c.done?t(u):Promise.resolve(u).then(r,o)}function f(e){return function(){var t=this,n=arguments;return new Promise(function(r,o){var a=e.apply(t,n);function i(e){d(a,r,o,i,c,"next",e)}function c(e){d(a,r,o,i,c,"throw",e)}i(void 0)})}}!function(){var e,a=chrome.runtime.getURL("src/assets/jav.png");function l(){var e=document.querySelector("link[rel~='icon']");return e||((e=document.createElement("link")).rel="icon",document.head.appendChild(e)),e}function d(e){var t=document.head;document.querySelectorAll("link[rel~='icon']").forEach(function(e){return e.remove()});var n=document.createElement("link");n.rel="icon",e.endsWith(".png")&&(n.type="image/png"),n.href=e,t.appendChild(n)}e=l().href;function p(e){return m.apply(this,arguments)}function m(){return(m=f(o().m(function e(t){var r,a,c,u,l,s,d,f,p,m,v,h,y,b,g,w,x,S,k;return o().w(function(e){for(;;)switch(e.n){case 0:return e.n=1,Promise.all([n("hideWatchedVideos",!1),n("hideViewedVideos",!1),n("hideVRVideos",!1),n("myIds",[]),n("videoBrowseHistory",[])]);case 1:if(c=e.v,u=i(c,5),l=u[0],s=u[1],d=u[2],f=u[3],p=u[4],m=new Set(f),v=new Set(p),h=null===(r=t.querySelector("div.video-title > strong"))||void 0===r?void 0:r.textContent.trim(),y=(null===(a=t.querySelector("div.video-title > span.x-btn"))||void 0===a?void 0:a.getAttribute("data-title"))||"",h){e.n=2;break}return e.a(2);case 2:if(!d||!y.includes("【VR】")){e.n=3;break}return(b=t.closest(".item"))&&(b.style.display="none"),e.a(2);case 3:if(!s||!v.has(h)){e.n=4;break}return(g=t.closest(".item"))&&(g.style.display="none"),e.a(2);case 4:if(!l||!m.has(h)){e.n=5;break}return(w=t.closest(".item"))&&(w.style.display="none"),e.a(2);case 5:if(x=t.closest(".item").querySelector(".tags.has-addons")){e.n=6;break}return e.a(2);case 6:m.has(h)?Array.from(x.querySelectorAll("span")).some(function(e){return"我看過這部影片"===e.textContent})||((S=document.createElement("span")).className="tag is-success is-light",S.textContent="我看過這部影片",x.appendChild(S)):v.has(h)&&(Array.from(x.querySelectorAll("span")).some(function(e){return["我看過這部影片","已浏览"].includes(e.textContent)})||((k=document.createElement("span")).className="tag is-warning is-light",k.textContent="已浏览",x.appendChild(k)));case 7:return e.a(2)}},e)}))).apply(this,arguments)}function v(){return h.apply(this,arguments)}function h(){return(h=f(o().m(function e(){var t,n,r,a;return o().w(function(e){for(;;)switch(e.n){case 0:t=Array.from(document.querySelectorAll(".movie-list .item a")),n=0,r=t;case 1:if(!(n<r.length)){e.n=3;break}return a=r[n],e.n=2,p(a);case 2:n++,e.n=1;break;case 3:return e.a(2)}},e)}))).apply(this,arguments)}var y=document.querySelector(".movie-list");function b(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:3,t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:5;return 1e3*Math.floor(Math.random()*(t-e+1)+e)}function g(){return(g=f(o().m(function e(){var a,i,c,u,l,s,d,f;return o().w(function(e){for(;;)switch(e.p=e.n){case 0:if(a=/<strong>番號:<\/strong>\s*&nbsp;<span class="value"><a href="\/video_codes\/([A-Z]+)">([A-Z]+)<\/a>-(\d+)<\/span>/,!(i=document.querySelector(".panel-block.first-block"))){e.n=16;break}if(!(c=i.innerHTML.match(a))){e.n=16;break}return u="".concat(c[1],"-").concat(c[3]),l=b(),console.log("等待 ".concat(l/1e3," 秒后开始记录浏览: ").concat(u)),e.n=1,r(l);case 1:s=5;case 2:if(!(s>0)){e.n=16;break}return e.p=3,e.n=4,n("videoBrowseHistory",[]);case 4:if((d=e.v).includes(u)){e.n=10;break}return d.push(u),e.n=5,t("videoBrowseHistory",d);case 5:return e.n=6,r(200);case 6:return e.n=7,n("videoBrowseHistory",[]);case 7:if(!e.v.includes(u)){e.n=8;break}return console.log("成功记录浏览: ".concat(u)),e.a(2);case 8:throw new Error("验证存储失败");case 9:e.n=11;break;case 10:return console.log("浏览记录已存在: ".concat(u)),e.a(2);case 11:e.n=15;break;case 12:if(e.p=12,f=e.v,s--,console.error("记录浏览失败: ".concat(u,", 错误: ").concat(f.message,". 剩余重试次数: ").concat(s)),!(s>0)){e.n=14;break}return e.n=13,r(3e3);case 13:e.n=15;break;case 14:console.error("记录浏览失败: ".concat(u,", 已达最大重试次数"));case 15:e.n=2;break;case 16:return e.a(2)}},e,null,[[3,12]])}))).apply(this,arguments)}y?(v(),new MutationObserver(function(){v()}).observe(y,{childList:!0,subtree:!0})):v(),setInterval(function(){var t=l().href;if(window.location.href.startsWith("https://javdb.com/v/")){var r=document.querySelector(".panel-block.first-block");if(r){var o=r.innerHTML.match(/<strong>番號:<\/strong>\s*&nbsp;<span class="value"><a href="\/video_codes\/([A-Z]+)">[A-Z]+<\/a>-(\d+)<\/span>/);if(o){var i="".concat(o[1],"-").concat(o[2]);n("myIds",[]).then(function(r){n("videoBrowseHistory",[]).then(function(n){var o=new Set(r),c=new Set(n);o.has(i)||c.has(i)?t!==a&&d(a):e&&t!==e&&d(e)})})}}}else e&&t!==e&&d(e)},2e3),window.location.href.startsWith("https://javdb.com/v/")&&function(){g.apply(this,arguments)}();var w=[],x={allowExport:!1,currentPage:1,maxPage:null},S=!1,k=null,P=null;function j(){var e=document.querySelectorAll(".item");return Array.from(e).map(function(e){var t,n=s(t=e.querySelector(".video-title").textContent.trim().split(" "))||function(e){if("undefined"!=typeof Symbol&&null!=e[Symbol.iterator]||null!=e["@@iterator"])return Array.from(e)}(t)||u(t)||c(),r=n[0];return n.slice(1),{id:r,releaseDate:e.querySelector(".meta").textContent.replace(/[^0-9-]/g,"")}})}function C(){var e=document.querySelector("a.is-active");if(e){var t=e.textContent.match(/\((\d+)\)/);if(t)return parseInt(t[1],10)}return 0}function E(e,t){return Math.ceil(e/t)}function q(){if(0!==w.length){var e=JSON.stringify(w,null,2),t=new Blob([e],{type:"application/json"}),n=URL.createObjectURL(t),r=document.createElement("a"),o=(new Date).toISOString().replace(/[:.]/g,"-").slice(0,19),a="javdb-export",i=window.location.href;if(i.includes("/watched_videos"))a="watched-videos";else if(i.includes("/want_watch_videos"))a="want-watch-videos";else if(i.includes("/list_detail")){var c=document.querySelector(".title.is-4");c&&(a=c.textContent.trim())}else if(i.includes("/lists")){var u=document.querySelector(".title.is-4");u&&(a=u.textContent.trim())}r.download="".concat(a,"_").concat(o,".json"),r.href=n,document.body.appendChild(r),r.click(),document.body.removeChild(r),URL.revokeObjectURL(n)}}function A(){var e=new URLSearchParams(window.location.search).get("page");return e?parseInt(e):1}function O(){return(O=f(o().m(function e(){var n,r,a,i,c,u;return o().w(function(e){for(;;)switch(e.n){case 0:if(n=document.getElementById("maxPageInput")){e.n=1;break}return console.error("找不到页数输入框"),e.a(2);case 1:if(r=C(),a=E(r,20),i=n.value?parseInt(n.value):a,c=A(),!((u=Math.min(c+i-1,a))<c)){e.n=2;break}return alert("请输入有效的页数"),e.a(2);case 2:return x.currentPage=c,x.maxPage=u,x.allowExport=!0,e.n=3,t("exportState",x);case 3:w=[],k.textContent="导出中...(".concat(c,"/").concat(u,")"),k.disabled=!0,P.disabled=!1,S=!0,_();case 4:return e.a(2)}},e)}))).apply(this,arguments)}function _(){return I.apply(this,arguments)}function I(){return(I=f(o().m(function e(){var n,r;return o().w(function(e){for(;;)switch(e.n){case 0:if(S&&!(x.currentPage>x.maxPage)){e.n=1;break}return T(),e.a(2);case 1:return n=j(),w=w.concat(n),k.textContent="导出中...(".concat(x.currentPage,"/").concat(x.maxPage,")"),x.currentPage++,e.n=2,t("exportState",x);case 2:x.currentPage<=x.maxPage?(r="".concat(window.location.pathname,"?page=").concat(x.currentPage),window.location.href=r):T();case 3:return e.a(2)}},e)}))).apply(this,arguments)}function T(){return L.apply(this,arguments)}function L(){return(L=f(o().m(function e(){return o().w(function(e){for(;;)switch(e.n){case 0:return w.length>0&&q(),S=!1,x.allowExport=!1,x.currentPage=1,x.maxPage=null,e.n=1,t("exportState",x);case 1:k.textContent="导出完成",k.disabled=!1,P.disabled=!0;case 2:return e.a(2)}},e)}))).apply(this,arguments)}function M(){return(M=f(o().m(function e(){var t;return o().w(function(e){for(;;)switch(e.n){case 0:return e.n=1,n("exportState",{});case 1:(t=e.v)&&t.allowExport&&(x=t,S=!0,k.textContent="导出中...(".concat(x.currentPage,"/").concat(x.maxPage,")"),k.disabled=!0,P.disabled=!1,_());case 2:return e.a(2)}},e)}))).apply(this,arguments)}[/https:\/\/javdb\.com\/users\/want_watch_videos.*/,/https:\/\/javdb\.com\/users\/watched_videos.*/,/https:\/\/javdb\.com\/users\/list_detail.*/,/https:\/\/javdb\.com\/lists.*/].some(function(e){return e.test(window.location.href)})&&(function(){var e=document.createElement("input");e.type="number",e.id="maxPageInput",e.placeholder="当前页往后导出的页数，留空导全部",e.style.cssText="\n        margin-right: 10px;\n        padding: 6px 12px;\n        border: 1px solid #ddd;\n        border-radius: 4px;\n        font-size: 14px;\n        width: auto;\n        min-width: 50px;\n        box-sizing: border-box;\n        transition: all 0.3s ease;\n        outline: none;\n        background-color: white;\n    ",e.min="1";var n=E(C(),20);e.max=n,(k=document.createElement("button")).textContent="导出 json",k.className="button is-small",k.addEventListener("click",function(){S||function(){O.apply(this,arguments)}()}),(P=document.createElement("button")).textContent="停止导出",P.className="button is-small",P.disabled=!0,P.addEventListener("click",function(){S=!1,P.disabled=!0,k.disabled=!1,k.textContent="导出已停止",t("exportState",{})});var r=document.createElement("div");r.style.display="flex",r.style.alignItems="center",r.appendChild(e),r.appendChild(k),r.appendChild(P);var o=document.querySelector(".toolbar")||document.querySelector(".breadcrumb")&&document.querySelector(".breadcrumb").querySelector("ul");o&&o.appendChild(r)}(),function(){M.apply(this,arguments)}())}()})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./src/utils/config.js":
+/*!*****************************!*\
+  !*** ./src/utils/config.js ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   DEFAULT_SETTINGS: () => (/* binding */ DEFAULT_SETTINGS),
+/* harmony export */   STORAGE_KEYS: () => (/* binding */ STORAGE_KEYS)
+/* harmony export */ });
+var STORAGE_KEYS = {
+  // Data
+  VIEWED_RECORDS: 'viewed',
+  // Settings
+  SETTINGS: 'settings',
+  // For popup.js legacy keys - can be removed after migration
+  HIDE_WATCHED_VIDEOS: 'hideWatchedVideos',
+  HIDE_VIEWED_VIDEOS: 'hideViewedVideos',
+  HIDE_VR_VIDEOS: 'hideVRVideos',
+  STORED_IDS: 'myIds',
+  BROWSE_HISTORY: 'videoBrowseHistory',
+  LAST_UPLOAD_TIME: 'lastUploadTime',
+  LAST_EXPORT_TIME: 'lastExportTime'
+};
+var DEFAULT_SETTINGS = {
+  display: {
+    hideWatched: false,
+    hideViewed: false,
+    hideVR: false
+  },
+  webdav: {
+    enabled: false,
+    url: '',
+    username: '',
+    password: '',
+    autoSync: false
+  },
+  version: '1.0.1' // Default version
+};
+
+/***/ }),
+
+/***/ "./src/utils/storage.js":
+/*!******************************!*\
+  !*** ./src/utils/storage.js ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   getSettings: () => (/* binding */ getSettings),
+/* harmony export */   getValue: () => (/* binding */ getValue),
+/* harmony export */   saveSettings: () => (/* binding */ saveSettings),
+/* harmony export */   setValue: () => (/* binding */ setValue)
+/* harmony export */ });
+/* harmony import */ var _config_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./config.js */ "./src/utils/config.js");
+function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
+function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { if (r) i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n;else { var o = function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); }; o("next", 0), o("throw", 1), o("return", 2); } }, _regeneratorDefine2(e, r, n, t); }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+// storage.js
+// 封装 chrome.storage，兼容 GM_setValue/GM_getValue
+
+
+function setValue(key, value) {
+  return chrome.storage.local.set(_defineProperty({}, key, value));
+}
+function getValue(key, defaultValue) {
+  return new Promise(function (resolve) {
+    chrome.storage.local.get([key], function (result) {
+      resolve(result[key] !== undefined ? result[key] : defaultValue);
+    });
+  });
+}
+function getSettings() {
+  return _getSettings.apply(this, arguments);
+}
+function _getSettings() {
+  _getSettings = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+    var storedSettings;
+    return _regenerator().w(function (_context) {
+      while (1) switch (_context.n) {
+        case 0:
+          _context.n = 1;
+          return getValue(_config_js__WEBPACK_IMPORTED_MODULE_0__.STORAGE_KEYS.SETTINGS, {});
+        case 1:
+          storedSettings = _context.v;
+          return _context.a(2, _objectSpread(_objectSpread(_objectSpread({}, _config_js__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS), storedSettings), {}, {
+            display: _objectSpread(_objectSpread({}, _config_js__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS.display), storedSettings.display || {}),
+            webdav: _objectSpread(_objectSpread({}, _config_js__WEBPACK_IMPORTED_MODULE_0__.DEFAULT_SETTINGS.webdav), storedSettings.webdav || {})
+          }));
+      }
+    }, _callee);
+  }));
+  return _getSettings.apply(this, arguments);
+}
+function saveSettings(settings) {
+  return setValue(_config_js__WEBPACK_IMPORTED_MODULE_0__.STORAGE_KEYS.SETTINGS, settings);
+}
+
+/***/ }),
+
+/***/ "./src/utils/utils.js":
+/*!****************************!*\
+  !*** ./src/utils/utils.js ***!
+  \****************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   sleep: () => (/* binding */ sleep)
+/* harmony export */ });
+function sleep(ms) {
+  return new Promise(function (resolve) {
+    return setTimeout(resolve, ms);
+  });
+}
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
+/*!********************************!*\
+  !*** ./src/content/content.js ***!
+  \********************************/
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _utils_storage_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../utils/storage.js */ "./src/utils/storage.js");
+/* harmony import */ var _utils_utils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../utils/utils.js */ "./src/utils/utils.js");
+function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
+function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { if (r) i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n;else { var o = function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); }; o("next", 0), o("throw", 1), o("return", 2); } }, _regeneratorDefine2(e, r, n, t); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+// content.js
+// 注入到 javdb.com 页面，负责页面 DOM 操作、UI 注入、状态标记等
+
+
+var STATE = {
+  settings: {},
+  watchedIds: new Set(),
+  viewedIds: new Set(),
+  isSearchPage: false,
+  observer: null,
+  debounceTimer: null,
+  originalFaviconUrl: ''
+};
+var SELECTORS = {
+  MOVIE_LIST_ITEM: '.movie-list .item',
+  VIDEO_TITLE: 'div.video-title > strong',
+  VIDEO_ID: '.uid, .item-id > strong',
+  TAGS_CONTAINER: '.tags.has-addons',
+  FAVICON: "link[rel~='icon']",
+  VIDEO_DETAIL_ID: '.panel-block.first-block',
+  SEARCH_RESULT_PAGE: '.container .column.is-9',
+  EXPORT_TOOLBAR: '.toolbar, .breadcrumb ul'
+};
+var log = function log() {
+  var _console;
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
+  }
+  return (_console = console).log.apply(_console, ['[JavDB Ext]'].concat(args));
+};
+
+// --- Core Logic ---
+function initialize() {
+  return _initialize.apply(this, arguments);
+}
+function _initialize() {
+  _initialize = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+    var _yield$Promise$all, _yield$Promise$all2, settings, watched, viewed, faviconLink;
+    return _regenerator().w(function (_context) {
+      while (1) switch (_context.n) {
+        case 0:
+          log('Extension initializing...');
+
+          // 1. Fetch all necessary data and settings at once
+          _context.n = 1;
+          return Promise.all([(0,_utils_storage_js__WEBPACK_IMPORTED_MODULE_0__.getSettings)(), (0,_utils_storage_js__WEBPACK_IMPORTED_MODULE_0__.getValue)('myIds', []), (0,_utils_storage_js__WEBPACK_IMPORTED_MODULE_0__.getValue)('videoBrowseHistory', [])]);
+        case 1:
+          _yield$Promise$all = _context.v;
+          _yield$Promise$all2 = _slicedToArray(_yield$Promise$all, 3);
+          settings = _yield$Promise$all2[0];
+          watched = _yield$Promise$all2[1];
+          viewed = _yield$Promise$all2[2];
+          STATE.settings = settings;
+          STATE.watchedIds = new Set(watched);
+          STATE.viewedIds = new Set(viewed);
+          log("Loaded ".concat(STATE.watchedIds.size, " watched, ").concat(STATE.viewedIds.size, " viewed."));
+
+          // 2. Check page context
+          STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE);
+          if (STATE.isSearchPage) {
+            log('Search page detected, hiding functions will be disabled.');
+          }
+
+          // 3. Store original favicon
+          faviconLink = document.querySelector(SELECTORS.FAVICON);
+          if (faviconLink) {
+            STATE.originalFaviconUrl = faviconLink.href;
+          }
+
+          // 4. Initial processing of visible items
+          processVisibleItems();
+
+          // 5. Setup MutationObserver to handle dynamic content
+          setupObserver();
+
+          // 6. Handle specific page logic
+          if (window.location.pathname.startsWith('/v/')) {
+            handleVideoDetailPage();
+          }
+
+          // 7. Initialize export functionality on relevant pages
+          initExportFeature();
+        case 2:
+          return _context.a(2);
+      }
+    }, _callee);
+  }));
+  return _initialize.apply(this, arguments);
+}
+function processVisibleItems() {
+  document.querySelectorAll(SELECTORS.MOVIE_LIST_ITEM).forEach(function (item) {
+    return processItem(item);
+  });
+}
+function setupObserver() {
+  var targetNode = document.querySelector('.movie-list');
+  if (!targetNode) return;
+  STATE.observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      if (mutation.addedNodes.length > 0) {
+        clearTimeout(STATE.debounceTimer);
+        STATE.debounceTimer = setTimeout(processVisibleItems, 300);
+      }
+    });
+  });
+  STATE.observer.observe(targetNode, {
+    childList: true,
+    subtree: true
+  });
+}
+function shouldHide(item) {
+  var _item$querySelector, _item$querySelector2;
+  if (STATE.isSearchPage) return false;
+  var _STATE$settings$displ = STATE.settings.display,
+    hideWatched = _STATE$settings$displ.hideWatched,
+    hideViewed = _STATE$settings$displ.hideViewed,
+    hideVR = _STATE$settings$displ.hideVR;
+  var isWatched = item.classList.contains('watched-item');
+  var isViewed = item.classList.contains('viewed-item');
+  var isVR = ((_item$querySelector = item.querySelector('.tag.is-link')) === null || _item$querySelector === void 0 ? void 0 : _item$querySelector.textContent.trim()) === 'VR' || ((_item$querySelector2 = item.querySelector('.panel-block.tags')) === null || _item$querySelector2 === void 0 ? void 0 : _item$querySelector2.innerText.includes('VR'));
+  if (hideWatched && isWatched) return true;
+  if (hideViewed && isViewed && !isWatched) return true;
+  if (hideVR && isVR) return true;
+  return false;
+}
+function processItem(item) {
+  var videoIdElement = item.querySelector(SELECTORS.VIDEO_ID);
+  if (!videoIdElement) return;
+  var videoId = videoIdElement.textContent.trim();
+  if (!videoId) return;
+
+  // Remove existing tags to avoid duplication
+  item.querySelectorAll('.watched-tag, .viewed-tag').forEach(function (tag) {
+    return tag.remove();
+  });
+  var tagContainer = item.querySelector(SELECTORS.TAGS_CONTAINER);
+  if (!tagContainer) return;
+  if (STATE.watchedIds.has(videoId)) {
+    addTag(tagContainer, '我看過這部影片', 'is-success');
+    item.classList.add('watched-item');
+  } else if (STATE.viewedIds.has(videoId)) {
+    addTag(tagContainer, '已浏览', 'is-warning');
+    item.classList.add('viewed-item');
+  }
+  if (shouldHide(item)) {
+    item.style.display = 'none';
+  }
+}
+function addTag(container, text, style) {
+  var tag = document.createElement('span');
+  tag.className = "tag ".concat(style, " is-light watched-tag");
+  tag.textContent = text;
+  container.appendChild(tag);
+}
+
+// --- Page-Specific Logic ---
+function handleVideoDetailPage() {
+  return _handleVideoDetailPage.apply(this, arguments);
+} // --- Utils ---
+function _handleVideoDetailPage() {
+  _handleVideoDetailPage = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3() {
+    var videoIdMatch, videoId, isWatched, isViewed;
+    return _regenerator().w(function (_context3) {
+      while (1) switch (_context3.n) {
+        case 0:
+          videoIdMatch = window.location.pathname.match(/\/v\/(\w+)/);
+          if (videoIdMatch) {
+            _context3.n = 1;
+            break;
+          }
+          return _context3.a(2);
+        case 1:
+          videoId = videoIdMatch[1];
+          isWatched = STATE.watchedIds.has(videoId);
+          isViewed = STATE.viewedIds.has(videoId);
+          if (isWatched || isViewed) {
+            setFavicon(chrome.runtime.getURL("src/assets/jav.png"));
+          }
+          if (!isWatched && !isViewed) {
+            setTimeout(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
+              var currentViewed;
+              return _regenerator().w(function (_context2) {
+                while (1) switch (_context2.n) {
+                  case 0:
+                    _context2.n = 1;
+                    return (0,_utils_storage_js__WEBPACK_IMPORTED_MODULE_0__.getValue)('videoBrowseHistory', []);
+                  case 1:
+                    currentViewed = _context2.v;
+                    if (currentViewed.includes(videoId)) {
+                      _context2.n = 3;
+                      break;
+                    }
+                    currentViewed.push(videoId);
+                    _context2.n = 2;
+                    return (0,_utils_storage_js__WEBPACK_IMPORTED_MODULE_0__.setValue)('videoBrowseHistory', currentViewed);
+                  case 2:
+                    log("".concat(videoId, " added to viewed history."));
+                    setFavicon(chrome.runtime.getURL("src/assets/jav.png"));
+                  case 3:
+                    return _context2.a(2);
+                }
+              }, _callee2);
+            })), getRandomDelay(3000, 5000));
+          }
+        case 2:
+          return _context3.a(2);
+      }
+    }, _callee3);
+  }));
+  return _handleVideoDetailPage.apply(this, arguments);
+}
+function setFavicon(url) {
+  var link = document.querySelector(SELECTORS.FAVICON);
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  if (url.endsWith('.png')) {
+    link.type = 'image/png';
+  }
+  link.href = url;
+}
+function getRandomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+// --- Export Feature ---
+// This part remains largely unchanged as it's a separate utility
+// and doesn't depend heavily on the main settings.
+// We'll just ensure it's initialized correctly.
+
+var isExporting = false;
+var exportButton, stopButton;
+function initExportFeature() {
+  var validUrlPatterns = [/https:\/\/javdb\.com\/users\/want_watch_videos.*/, /https:\/\/javdb\.com\/users\/watched_videos.*/, /https:\/\/javdb\.com\/users\/list_detail.*/, /https:\/\/javdb\.com\/lists.*/];
+  if (validUrlPatterns.some(function (pattern) {
+    return pattern.test(window.location.href);
+  })) {
+    createExportUI();
+    checkExportState();
+  }
+}
+function createExportUI() {
+  // ... (The implementation of createExportButton from the original script)
+  // For brevity, assuming the UI creation code is here.
+  var maxPageInput = document.createElement('input');
+  maxPageInput.type = 'number';
+  maxPageInput.id = 'maxPageInput';
+  maxPageInput.placeholder = '页数(空则全部)';
+  maxPageInput.className = 'input is-small';
+  maxPageInput.style.width = '120px';
+  maxPageInput.style.marginRight = '8px';
+  exportButton = document.createElement('button');
+  exportButton.textContent = '导出页面数据';
+  exportButton.className = 'button is-small is-primary';
+  exportButton.addEventListener('click', startExport);
+  stopButton = document.createElement('button');
+  stopButton.textContent = '停止';
+  stopButton.className = 'button is-small is-danger';
+  stopButton.style.marginLeft = '8px';
+  stopButton.disabled = true;
+  stopButton.addEventListener('click', stopExport);
+  var container = document.createElement('div');
+  container.className = 'level-item';
+  container.appendChild(maxPageInput);
+  container.appendChild(exportButton);
+  container.appendChild(stopButton);
+  var target = document.querySelector(SELECTORS.EXPORT_TOOLBAR);
+  if (target) {
+    target.appendChild(container);
+  }
+}
+function startExport() {
+  return _startExport.apply(this, arguments);
+}
+function _startExport() {
+  _startExport = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
+    var maxPageInput, totalCount, maxPages, pagesToExport, currentPage, allVideos, i, pageNum, url;
+    return _regenerator().w(function (_context4) {
+      while (1) switch (_context4.n) {
+        case 0:
+          maxPageInput = document.getElementById('maxPageInput');
+          totalCount = getTotalVideoCount();
+          maxPages = Math.ceil(totalCount / 20); // Assuming 20 items per page
+          pagesToExport = maxPageInput.value ? parseInt(maxPageInput.value) : maxPages;
+          currentPage = new URLSearchParams(window.location.search).get('page') || 1;
+          isExporting = true;
+          exportButton.disabled = true;
+          stopButton.disabled = false;
+          allVideos = [];
+          i = 0;
+        case 1:
+          if (!(i < pagesToExport)) {
+            _context4.n = 6;
+            break;
+          }
+          if (isExporting) {
+            _context4.n = 2;
+            break;
+          }
+          return _context4.a(3, 6);
+        case 2:
+          pageNum = parseInt(currentPage) + i;
+          if (!(pageNum > maxPages)) {
+            _context4.n = 3;
+            break;
+          }
+          return _context4.a(3, 6);
+        case 3:
+          exportButton.textContent = "\u5BFC\u51FA\u4E2D... ".concat(pageNum, "/").concat(maxPages);
+          if (!(i > 0)) {
+            _context4.n = 4;
+            break;
+          }
+          // Navigate to next page if not the first page
+          url = new URL(window.location.href);
+          url.searchParams.set('page', pageNum);
+          window.location.href = url.href;
+          _context4.n = 4;
+          return new Promise(function (resolve) {
+            return window.addEventListener('load', resolve, {
+              once: true
+            });
+          });
+        case 4:
+          allVideos = allVideos.concat(scrapeVideosFromPage());
+          _context4.n = 5;
+          return (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_1__.sleep)(1000);
+        case 5:
+          i++;
+          _context4.n = 1;
+          break;
+        case 6:
+          if (allVideos.length > 0) {
+            downloadExportedData(allVideos);
+          }
+          finishExport();
+        case 7:
+          return _context4.a(2);
+      }
+    }, _callee4);
+  }));
+  return _startExport.apply(this, arguments);
+}
+function scrapeVideosFromPage() {
+  return Array.from(document.querySelectorAll(SELECTORS.MOVIE_LIST_ITEM)).map(function (item) {
+    var idElement = item.querySelector(SELECTORS.VIDEO_ID);
+    var titleElement = item.querySelector(SELECTORS.VIDEO_TITLE);
+    return {
+      id: idElement ? idElement.textContent.trim() : '',
+      title: titleElement ? titleElement.textContent.trim() : ''
+    };
+  });
+}
+function downloadExportedData(data) {
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], {
+    type: 'application/json'
+  });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.download = "javdb-export-".concat(new Date().toISOString().slice(0, 10), ".json");
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function getTotalVideoCount() {
+  var activeLink = document.querySelector('a.is-active');
+  if (activeLink) {
+    var match = activeLink.textContent.match(/\((\d+)\)/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+  return 0;
+}
+function stopExport() {
+  isExporting = false;
+  finishExport();
+}
+function finishExport() {
+  isExporting = false;
+  exportButton.disabled = false;
+  stopButton.disabled = true;
+  exportButton.textContent = '导出页面数据';
+}
+function checkExportState() {
+  return _checkExportState.apply(this, arguments);
+} // --- Entry Point ---
+function _checkExportState() {
+  _checkExportState = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
+    return _regenerator().w(function (_context5) {
+      while (1) switch (_context5.n) {
+        case 0:
+          return _context5.a(2);
+      }
+    }, _callee5);
+  }));
+  return _checkExportState.apply(this, arguments);
+}
+initialize()["catch"](function (err) {
+  return console.error('[JavDB Ext] Initialization failed:', err);
+});
+})();
+
+/******/ })()
+;
+//# sourceMappingURL=content.js.map
