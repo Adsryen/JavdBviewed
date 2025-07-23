@@ -51,6 +51,7 @@
                 <button class="tab-link active" data-tab="tab-records">观看记录</button>
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-advanced-settings">高级配置</button>
+                <button class="tab-link" data-tab="tab-logs">日志</button>
             </div>
     
             <div id="tab-records" class="tab-content active">
@@ -117,18 +118,16 @@
                                 <input type="checkbox" id="webdavAutoSync">
                                 <label for="webdavAutoSync">每日自动上传</label>
                             </div>
-                            <button type="button" id="saveAndTest">保存并测试连接</button>
+                            <div class="button-group">
+                                <button type="button" id="saveWebdavSettings">保存设置</button>
+                                <button type="button" id="testWebdavConnection">测试连接</button>
+                            </div>
                         </div>
                     </div>
 
                     <div id="fileListContainer" class="settings-section hidden">
                         <h4>云端文件列表 (点击恢复)</h4>
                         <ul id="fileList"></ul>
-                    </div>
-
-                    <div id="logContainer" class="settings-section">
-                        <h4>日志</h4>
-                        <pre id="log"></pre>
                     </div>
                 </div>
             </div>
@@ -146,6 +145,19 @@
                             <button id="saveJsonBtn" class="hidden">保存配置</button>
                         </div>
                         <textarea id="jsonConfig" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-logs" class="tab-content">
+                <div class="card">
+                    <div class="settings-section">
+                        <h4>日志记录</h4>
+                        <p class="settings-description">此处显示插件运行期间的关键事件，便于问题排查。日志会自动保存。</p>
+                        <div class="button-group">
+                            <button id="clearLogsBtn" class="danger">清空日志</button>
+                        </div>
+                        <pre id="log"></pre>
                     </div>
                 </div>
             </div>

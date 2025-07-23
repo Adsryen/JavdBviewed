@@ -14,18 +14,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   STORAGE_KEYS: () => (/* binding */ STORAGE_KEYS)
 /* harmony export */ });
 var STORAGE_KEYS = {
-  // Data
+  // A single key for all viewed records, which is an object
+  // where keys are video IDs and values are objects with { title, status, timestamp }.
   VIEWED_RECORDS: 'viewed',
-  // Settings
+  // Stores all settings, including display and WebDAV configurations.
   SETTINGS: 'settings',
-  // For popup.js legacy keys - can be removed after migration
-  HIDE_WATCHED_VIDEOS: 'hideWatchedVideos',
-  HIDE_VIEWED_VIDEOS: 'hideViewedVideos',
-  HIDE_VR_VIDEOS: 'hideVRVideos',
-  STORED_IDS: 'myIds',
-  BROWSE_HISTORY: 'videoBrowseHistory',
-  LAST_UPLOAD_TIME: 'lastUploadTime',
-  LAST_EXPORT_TIME: 'lastExportTime'
+  // Key for storing persistent logs.
+  LOGS: 'persistent_logs'
 };
 var DEFAULT_SETTINGS = {
   display: {
