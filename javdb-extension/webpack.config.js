@@ -48,7 +48,7 @@ module.exports = {
     rules: [
       {
         test: /\.js$/,
-        exclude: /node_modules\/(?!webdav)/,
+        exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
           options: {

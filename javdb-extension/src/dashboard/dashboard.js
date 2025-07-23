@@ -2,6 +2,11 @@ import './dashboard.css';
 import { getSettings, saveSettings, getValue, setValue } from '../utils/storage.js';
 import { STORAGE_KEYS } from '../utils/config.js';
 import { createClient } from 'webdav';
+import httpAdapter from 'axios/lib/adapters/xhr.js';
+import axios from 'axios';
+
+// Force axios to use the XHR adapter in the browser environment.
+axios.defaults.adapter = httpAdapter;
 
 const CONFIG = {
     VERSION: '1.0.1', // Keep version in sync with manifest
@@ -22,6 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebar(); // For stats and info
     initHelpPanel();
 });
+
+function showToast(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('messageContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast-message ${type}`;
+    toast.textContent = message;
+
+    // Show the toast
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 100); // Small delay to allow CSS transition
+
+    // Hide and remove the toast
+    setTimeout(() => {
+        toast.classList.remove('show');
+        // Remove from DOM after transition
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, duration);
+}
+
 
 function initializeTabs() {
     const tabs = document.querySelectorAll('.tab-link');
@@ -196,9 +222,7 @@ async function initDashboardLogic() {
         if (confirm('确定要清空所有本地观看记录吗？此操作不可逆！')) {
             await setValue('viewed', {});
             await loadRecords();
-            // Also clear display settings if desired
-            // await setValue(CONFIG.HIDE_WATCHED_VIDEOS_KEY, false);
-            // ... etc
+            showToast('已清空所有本地记录', 'success');
         }
     });
 
@@ -208,7 +232,7 @@ async function initDashboardLogic() {
         const settings = await getSettings();
 
         if (Object.keys(records).length === 0) {
-            alert("没有记录可导出。");
+            showToast("没有记录可导出。", 'info');
             return;
         }
 
@@ -226,6 +250,7 @@ async function initDashboardLogic() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showToast('导出成功！', 'success');
     });
 
     importFile.addEventListener('change', (event) => {
@@ -247,7 +272,7 @@ async function initDashboardLogic() {
                         await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
                         await loadRecords();
                         await initSettingsLogic(); // Reload settings on screen
-                        alert("设置和数据导入成功！");
+                        showToast("设置和数据导入成功！", 'success');
                     }
                 } 
                 // Legacy format (only data)
@@ -255,11 +280,11 @@ async function initDashboardLogic() {
                      if (confirm(`检测到旧版备份文件。即将导入 ${Object.keys(importData).length} 条记录。这将覆盖您当前的观看记录（但保留设置），确定吗？`)) {
                         await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
                         await loadRecords();
-                        alert("导入成功！");
+                        showToast("导入成功！", 'success');
                     }
                 }
             } catch (error) {
-                alert(`导入失败: ${error.message}`);
+                showToast(`导入失败: ${error.message}`, 'error');
             }
         };
         reader.readAsText(file);
@@ -300,13 +325,13 @@ async function initAdvancedSettingsLogic() {
             editJsonBtn.classList.remove('hidden');
             saveJsonBtn.classList.add('hidden');
             
-            alert('高级配置已成功保存！');
+            showToast('高级配置已成功保存！', 'success');
             
             // Reload other tabs to reflect potential changes
             await initSettingsLogic();
 
         } catch (error) {
-            alert(`JSON 格式无效，请检查后重试。\n错误信息: ${error.message}`);
+            showToast(`JSON 格式无效，请检查后重试。\n错误信息: ${error.message}`, 'error');
         }
     });
 
@@ -317,12 +342,81 @@ async function initAdvancedSettingsLogic() {
 // =================================================================
 // ==================== SETTINGS LOGIC =============================
 // =================================================================
+
+// Centralized log manager
+const logManager = {
+    logElement: document.getElementById('log'),
+    clearLogsBtn: document.getElementById('clearLogsBtn'),
+    maxLogSize: 200, // Maximum number of log entries
+    logs: [],
+
+    async init() {
+        this.logs = await getValue(STORAGE_KEYS.LOGS, []);
+        this.render();
+        this.clearLogsBtn.addEventListener('click', () => this.clear());
+    },
+
+    async log(message) {
+        const timestamp = new Date().toLocaleString();
+        const logEntry = `[${timestamp}] ${message}`;
+        
+        // Add to the start of the array
+        this.logs.unshift(logEntry);
+
+        // Trim old logs if size exceeds the maximum
+        if (this.logs.length > this.maxLogSize) {
+            this.logs.length = this.maxLogSize;
+        }
+        
+        await this.save();
+        this.render();
+    },
+    
+    render() {
+        this.logElement.textContent = this.logs.join('\n');
+    },
+
+    async save() {
+        await setValue(STORAGE_KEYS.LOGS, this.logs);
+    },
+    
+    async clear() {
+        if (confirm('确定要清空所有日志记录吗？')) {
+            this.logs = [];
+            await this.save();
+            this.render();
+        }
+    }
+};
+
+
+// Only bind events once
+let settingsEventListenersBound = false;
+
 async function initSettingsLogic() {
-    // --- Display Settings ---
+    // --- Element Cache ---
     const hideWatchedCheckbox = document.getElementById('hideWatchedVideos');
     const hideViewedCheckbox = document.getElementById('hideViewedVideos');
     const hideVRCheckbox = document.getElementById('hideVRVideos');
+    const webdavEnabled = document.getElementById('webdavEnabled');
+    const webdavFieldsContainer = document.getElementById('webdav-fields-container');
+    const urlInput = document.getElementById('webdavUrl');
+    const userInput = document.getElementById('webdavUser');
+    const passInput = document.getElementById('webdavPass');
+    const autoSyncCheckbox = document.getElementById('webdavAutoSync');
+    const saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings');
+    const testWebdavConnectionBtn = document.getElementById('testWebdavConnection');
+    const syncNowBtn = document.getElementById('syncNow');
+    const syncDownBtn = document.getElementById('syncDown');
+    const fileListContainer = document.getElementById('fileListContainer');
+    const fileList = document.getElementById('fileList');
 
+    // --- Logger Integration ---
+    function log(message) {
+        logManager.log(message);
+    }
+    
+    // --- Load Functions ---
     async function loadDisplaySettings() {
         const settings = await getSettings();
         hideWatchedCheckbox.checked = settings.display.hideWatched;
@@ -330,107 +424,80 @@ async function initSettingsLogic() {
         hideVRCheckbox.checked = settings.display.hideVR;
     }
 
-    async function saveDisplaySetting(key, value) {
-        const settings = await getSettings();
-        settings.display[key] = value;
-        await saveSettings(settings);
-    }
-
-    hideWatchedCheckbox.addEventListener('change', () => saveDisplaySetting('hideWatched', hideWatchedCheckbox.checked));
-    hideViewedCheckbox.addEventListener('change', () => saveDisplaySetting('hideViewed', hideViewedCheckbox.checked));
-    hideVRCheckbox.addEventListener('change', () => saveDisplaySetting('hideVR', hideVRCheckbox.checked));
-
-    // --- WebDAV Settings ---
-    const webdavEnabled = document.getElementById('webdavEnabled');
-    const webdavFieldsContainer = document.getElementById('webdav-fields-container');
-    const urlInput = document.getElementById('webdavUrl');
-    const userInput = document.getElementById('webdavUser');
-    const passInput = document.getElementById('webdavPass');
-    const autoSyncCheckbox = document.getElementById('webdavAutoSync');
-    const saveAndTestBtn = document.getElementById('saveAndTest');
-    const syncNowBtn = document.getElementById('syncNow'); // This one is in the sidebar
-    const syncDownBtn = document.getElementById('syncDown'); // This one is in the sidebar
-    const fileListContainer = document.getElementById('fileListContainer');
-    const fileList = document.getElementById('fileList');
-    const logElement = document.getElementById('log');
-
-    function log(message) {
-        const timestamp = new Date().toLocaleTimeString();
-        logElement.textContent += `[${timestamp}] ${message}\n`;
-        logElement.scrollTop = logElement.scrollHeight;
-    }
-
     async function loadWebdavSettings() {
         const settings = await getSettings();
-        
         webdavEnabled.checked = settings.webdav.enabled;
         urlInput.value = settings.webdav.url || '';
         userInput.value = settings.webdav.username || '';
         passInput.value = settings.webdav.password || '';
         autoSyncCheckbox.checked = settings.webdav.autoSync;
-        
         toggleWebdavFields();
     }
 
     function toggleWebdavFields() {
         webdavFieldsContainer.classList.toggle('hidden', !webdavEnabled.checked);
     }
-
-    webdavEnabled.addEventListener('change', async () => {
-        toggleWebdavFields();
+    
+    // --- Action Functions ---
+    async function saveDisplaySetting(key, value) {
         const settings = await getSettings();
-        settings.webdav.enabled = webdavEnabled.checked;
+        settings.display[key] = value;
         await saveSettings(settings);
-    });
+    }
 
-    saveAndTestBtn.addEventListener('click', async function() {
+    async function saveWebdavConfig() {
         const settings = await getSettings();
-        const newWebdavSettings = {
+        settings.webdav = {
             enabled: webdavEnabled.checked,
             url: urlInput.value.trim(),
             username: userInput.value.trim(),
             password: passInput.value,
             autoSync: autoSyncCheckbox.checked,
         };
-        settings.webdav = newWebdavSettings;
         await saveSettings(settings);
         log('WebDAV 设置已保存');
-        
-        if (newWebdavSettings.enabled && newWebdavSettings.url) {
-            testConnection(newWebdavSettings);
-        } else {
-            log('WebDAV 未启用或 URL 为空，跳过测试。');
+        showToast('WebDAV 设置已保存', 'success');
+        return settings.webdav;
+    }
+
+    async function testConnection() {
+        const webdavSettings = await saveWebdavConfig(); // Also saves before testing
+        if (!webdavSettings.enabled || !webdavSettings.url) {
+            showToast('WebDAV 未启用或 URL 为空，跳过测试。', 'info');
+            return;
         }
-    });
-    
-    async function testConnection(webdavSettings) {
+
         log('正在测试 WebDAV 连接...');
         try {
             const client = createClient(webdavSettings.url, {
-                username: webdavSettings.username, password: webdavSettings.password,
+                username: webdavSettings.username,
+                password: webdavSettings.password
             });
             await client.getDirectoryContents('/');
             log('✅ WebDAV 连接成功！');
+            showToast('✅ WebDAV 连接成功！', 'success');
             listRemoteFiles();
         } catch (error) {
             log('❌ WebDAV 连接失败: ' + error.message);
+            showToast('❌ WebDAV 连接失败: ' + error.message, 'error');
         }
     }
 
-    syncNowBtn.addEventListener('click', () => {
+    function syncUp() {
         log('开始上传数据...');
         chrome.runtime.sendMessage({ type: 'webdav-upload' }, (response) => {
             if (response && response.success) {
                 log('✅ 上传成功！');
+                showToast('✅ 数据已成功上传至云端！', 'success');
                 listRemoteFiles();
             } else {
-                log(`❌ 上传失败: ${response ? response.error : '未知错误'}`);
+                const errorMsg = response ? response.error : '未知错误';
+                log(`❌ 上传失败: ${errorMsg}`);
+                showToast(`❌ 上传失败: ${errorMsg}`, 'error');
             }
         });
-    });
+    }
 
-    syncDownBtn.addEventListener('click', listRemoteFiles);
-    
     async function listRemoteFiles() {
         const settings = await getSettings();
         if (!settings.webdav || !settings.webdav.enabled || !settings.webdav.url) {
@@ -444,7 +511,8 @@ async function initSettingsLogic() {
 
         try {
             const client = createClient(settings.webdav.url, {
-                username: settings.webdav.username, password: settings.webdav.password,
+                username: settings.webdav.username,
+                password: settings.webdav.password
             });
             const dirItems = (await client.getDirectoryContents('/'))
                 .filter(item => item.type === 'file' && item.basename.endsWith('.json'));
@@ -465,9 +533,12 @@ async function initSettingsLogic() {
                         chrome.runtime.sendMessage({ type: 'webdav-restore', filename: item.filename }, (response) => {
                             if (response && response.success) {
                                 log(`✅ 从 ${item.basename} 恢复成功！`);
+                                showToast(`✅ 成功从 ${item.basename} 恢复数据!`, 'success');
                                 initDashboardLogic(); // Re-initialize to show new data
                             } else {
-                                log(`❌ 恢复失败: ${response ? response.error : '未知错误'}`);
+                                const errorMsg = response ? response.error : '未知错误';
+                                log(`❌ 恢复失败: ${errorMsg}`);
+                                showToast(`❌ 恢复失败: ${errorMsg}`, 'error');
                             }
                         });
                     }
@@ -480,8 +551,30 @@ async function initSettingsLogic() {
             fileList.innerHTML = '<li>获取列表失败。</li>';
         }
     }
+
+    // --- Bind Events (only once) ---
+    if (!settingsEventListenersBound) {
+        hideWatchedCheckbox.addEventListener('change', () => saveDisplaySetting('hideWatched', hideWatchedCheckbox.checked));
+        hideViewedCheckbox.addEventListener('change', () => saveDisplaySetting('hideViewed', hideViewedCheckbox.checked));
+        hideVRCheckbox.addEventListener('change', () => saveDisplaySetting('hideVR', hideVRCheckbox.checked));
+
+        webdavEnabled.addEventListener('change', async () => {
+            toggleWebdavFields();
+            const settings = await getSettings();
+            settings.webdav.enabled = webdavEnabled.checked;
+            await saveSettings(settings);
+        });
+
+        saveWebdavSettingsBtn.addEventListener('click', saveWebdavConfig);
+        testWebdavConnectionBtn.addEventListener('click', testConnection);
+        syncNowBtn.addEventListener('click', syncUp);
+        syncDownBtn.addEventListener('click', listRemoteFiles);
+
+        settingsEventListenersBound = true;
+    }
     
-    // Initial Load
+    // --- Initial Load ---
     await loadDisplaySettings();
     await loadWebdavSettings();
+    await logManager.init();
 } 
