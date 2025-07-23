@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "JavDB viewed (Native)",
+  "version": "1.0.1",
+  "description": "Mark javdb videos as watched. (Native JS Version)",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "webRequest",
+    "alarms"
+  ],
+  "host_permissions": ["https://javdb.com/*", "*://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://javdb.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/favicon-16x16.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/webdav.js", "icons/jav.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/favicon-16x16.png",
+    "48": "icons/favicon-16x16.png",
+    "128": "icons/favicon-16x16.png"
+  }
+} 
