@@ -3,22 +3,31 @@
   "version": "1.0.0",
   "description": "JavDB 插件",
   "scripts": {
-    "build": "webpack"
+    "build": "webpack",
+    "postinstall": "node cleanup.js"
   },
   "dependencies": {
-    "webdav": "4.11.0"
+    "webdav": "^4.11.0"
   },
   "devDependencies": {
     "@babel/core": "^7.17.0",
     "@babel/preset-env": "^7.16.0",
     "babel-loader": "^8.2.0",
     "buffer": "^6.0.0",
+    "css-loader": "^7.1.2",
+    "crypto-browserify": "^3.12.0",
+    "assert": "^2.0.0",
+    "browserify-zlib": "^0.2.0",
+    "html-webpack-plugin": "^5.6.3",
     "https-browserify": "^1.0.0",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.0",
     "process": "^0.11.10",
+    "rimraf": "^5.0.7",
+    "glob": "^10.4.1",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
+    "style-loader": "^4.0.0",
     "url": "^0.11.0",
     "util": "^0.12.5",
     "webpack": "^5.60.0",
