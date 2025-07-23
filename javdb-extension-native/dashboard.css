@@ -86,17 +86,29 @@ button:disabled {
 }
 
 /* Specific Button Colors */
-#exportBtn, #syncNow, #saveAndTest {
-    background-color: #4a9eff;
+/* Primary Actions: Blue (save, export, sync) */
+#exportBtn, #syncNow, #saveWebdavSettings, #saveJsonBtn {
+    background-color: #007bff;
 }
+
+/* Success Actions: Green (restore) */
 #syncDown {
-    background-color: #2ed573;
+    background-color: #28a745;
 }
-#clearAllBtn {
-    background-color: #ff4a4a;
+
+/* Danger Actions: Red (clear data) */
+#clearAllBtn, #clearLogsBtn {
+    background-color: #dc3545;
 }
-.button-like { /* For file import label */
+
+/* Secondary Actions: Gray (import, test connection) */
+.button-like, #testWebdavConnection {
     background-color: #6c757d;
+}
+
+/* Info/Toggle Actions: Teal */
+#editJsonBtn {
+    background-color: #17a2b8;
 }
 
 
@@ -141,15 +153,16 @@ button:disabled {
     border: none;
     background-color: transparent;
     font-size: 16px;
-    color: #666;
+    color: #495057;
     border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
     margin-bottom: -1px;
+    font-weight: 500;
 }
 .tab-link.active,
 .tab-link:hover {
-    color: #4a9eff;
-    border-bottom-color: #4a9eff;
+    color: #007bff;
+    border-bottom-color: #007bff;
 }
 .tab-content {
     display: none;
@@ -245,20 +258,30 @@ button:disabled {
     width: 100%;
     height: 400px;
     padding: 15px;
-    border: 1px solid #ccc;
+    border: 1px solid #30363d;
     border-radius: 8px;
-    font-family: "Courier New", Courier, monospace;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 14px;
+    line-height: 1.5;
     white-space: pre;
     overflow-wrap: normal;
-    overflow-x: scroll;
-    background-color: #f9f9f9;
+    overflow-x: auto;
+    background-color: #0d1117;
+    color: #c9d1d9;
     resize: vertical;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 #jsonConfig:read-only {
-    background-color: #e9ecef;
-    color: #495057;
+    background-color: #161b22;
+    color: #8b949e;
+    border-color: #30363d;
+}
+
+#jsonConfig:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
 }
 
 .button-group {

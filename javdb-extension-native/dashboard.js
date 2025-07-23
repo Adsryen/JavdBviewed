@@ -20,7 +20,121 @@ const CONFIG = {
     WEBDEV_SETTINGS_KEY: 'webdavSettings'
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const settings = await getSettings();
+    
+    // Populate WebDAV settings using existing IDs from dashboard.html
+    const webdavEnabled = document.getElementById('webdavEnabled');
+    const webdavUrl = document.getElementById('webdavUrl');
+    const webdavUsername = document.getElementById('webdavUser');
+    const webdavPassword = document.getElementById('webdavPass');
+    const webdavAutoSync = document.getElementById('webdavAutoSync');
+    // Assuming you will add an ID for sync interval
+    const webdavSyncInterval = document.getElementById('webdav-sync-interval'); 
+    const lastSyncTime = document.getElementById('last-sync-time');
+
+    if (webdavEnabled) webdavEnabled.checked = settings.webdav?.enabled || false;
+    if (webdavUrl) webdavUrl.value = settings.webdav?.url || '';
+    if (webdavUsername) webdavUsername.value = settings.webdav?.username || '';
+    if (webdavPassword) webdavPassword.value = settings.webdav?.password || '';
+    if (webdavAutoSync) webdavAutoSync.checked = settings.webdav?.autoSync || false;
+    if (webdavSyncInterval) webdavSyncInterval.value = settings.webdav?.syncInterval || 1440;
+    if (lastSyncTime) lastSyncTime.textContent = settings.webdav?.lastSync ? new Date(settings.webdav.lastSync).toLocaleString() : 'Never';
+
+    // Save WebDAV settings
+    const saveButton = document.getElementById('saveWebdavSettings');
+    if(saveButton) {
+        saveButton.addEventListener('click', async () => {
+            const currentSettings = await getSettings();
+            const newSettings = {
+                ...currentSettings,
+                webdav: {
+                    enabled: webdavEnabled.checked,
+                    url: webdavUrl.value,
+                    username: webdavUsername.value,
+                    password: webdavPassword.value,
+                    autoSync: webdavAutoSync.checked,
+                    syncInterval: webdavSyncInterval ? webdavSyncInterval.value : 1440
+                }
+            };
+            await saveSettings(newSettings);
+            alert('Settings saved!');
+            chrome.runtime.sendMessage({ type: 'setup-alarms' });
+        });
+    }
+
+    // Test WebDAV connection
+    const testButton = document.getElementById('testWebdavConnection');
+    if (testButton) {
+        testButton.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: 'webdav-test' }, response => {
+                if (response.success) {
+                    alert('Connection successful!');
+                } else {
+                    alert(`Connection failed: ${response.error}`);
+                }
+            });
+        });
+    }
+
+    // Manual Sync from sidebar
+    const manualSyncButton = document.getElementById('syncNow');
+    if(manualSyncButton) {
+        manualSyncButton.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: 'webdav-upload' }, response => {
+                if (response.success) {
+                    alert('Sync successful!');
+                    if(lastSyncTime) lastSyncTime.textContent = new Date().toLocaleString();
+                } else {
+                    alert(`Sync failed: ${response.error}`);
+                }
+            });
+        });
+    }
+
+    // Restore from Cloud from sidebar
+    const restoreButton = document.getElementById('syncDown');
+    const fileListContainer = document.getElementById('fileListContainer');
+    const fileList = document.getElementById('fileList');
+    
+    if(restoreButton) {
+        restoreButton.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
+                if (response.success && fileList) {
+                    fileList.innerHTML = ''; // Clear previous list
+                    response.files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.textContent = `${file.name} - ${file.lastModified}`;
+                        li.dataset.path = file.path;
+                        li.style.cursor = 'pointer';
+                        li.addEventListener('click', () => {
+                            if (confirm(`Are you sure you want to restore from ${file.name}? This will overwrite your local data.`)) {
+                                chrome.runtime.sendMessage({ type: 'webdav-restore', filename: file.path }, restoreResponse => {
+                                    if (restoreResponse.success) {
+                                        alert('Restore successful!');
+                                        if (fileListContainer) fileListContainer.classList.add('hidden');
+                                        window.location.reload(); // Reload to reflect changes
+                                    } else {
+                                        alert(`Restore failed: ${restoreResponse.error}`);
+                                    }
+                                });
+                            }
+                        });
+                        fileList.appendChild(li);
+                    });
+                    if (fileListContainer) fileListContainer.classList.remove('hidden');
+                } else {
+                    alert(`Failed to list files: ${response.error}`);
+                }
+            });
+        });
+    }
+    
+    // A cancel button is not in the original html, so this would fail.
+    // document.getElementById('cancel-restore').addEventListener('click', () => {
+    //     fileListContainer.classList.add('hidden');
+    // });
+
     initializeTabs();
     initDashboardLogic();
     initSettingsLogic(); // Combines display and webdav settings
@@ -523,41 +637,46 @@ async function initSettingsLogic() {
         fileList.innerHTML = '<li>加载中...</li>';
 
         try {
-            const client = createClient(settings.webdav.url, {
-                username: settings.webdav.username,
-                password: settings.webdav.password
-            });
-            const dirItems = (await client.getDirectoryContents('/'))
-                .filter(item => item.type === 'file' && item.basename.endsWith('.json'));
+            // This part needs to be rewritten using fetch API.
+            // Temporarily disabled.
+            showToast('此功能正在重构中...', 'info');
+            return;
+
+            // const client = createClient(settings.webdav.url, {
+            //     username: settings.webdav.username,
+            //     password: settings.webdav.password
+            // });
+            // const dirItems = (await client.getDirectoryContents('/'))
+            //     .filter(item => item.type === 'file' && item.basename.endsWith('.json'));
             
-            fileList.innerHTML = '';
-            if (dirItems.length === 0) {
-                fileList.innerHTML = '<li>未找到任何 .json 备份文件。</li>';
-                return;
-            }
+            // fileList.innerHTML = '';
+            // if (dirItems.length === 0) {
+            //     fileList.innerHTML = '<li>未找到任何 .json 备份文件。</li>';
+            //     return;
+            // }
             
-            dirItems.sort((a,b) => new Date(b.lastmod) - new Date(a.lastmod)).forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.basename} (${new Date(item.lastmod).toLocaleString()})`;
-                li.dataset.filename = item.filename;
-                li.addEventListener('click', () => {
-                    if(confirm(`确定要从 ${item.basename} 恢复数据吗？此操作会覆盖本地所有观看记录。`)) {
-                        log(`请求从 ${item.basename} 恢复...`);
-                        chrome.runtime.sendMessage({ type: 'webdav-restore', filename: item.filename }, (response) => {
-                            if (response && response.success) {
-                                log(`✅ 从 ${item.basename} 恢复成功！`);
-                                showToast(`✅ 成功从 ${item.basename} 恢复数据!`, 'success');
-                                initDashboardLogic(); // Re-initialize to show new data
-                            } else {
-                                const errorMsg = response ? response.error : '未知错误';
-                                log(`❌ 恢复失败: ${errorMsg}`);
-                                showToast(`❌ 恢复失败: ${errorMsg}`, 'error');
-                            }
-                        });
-                    }
-                });
-                fileList.appendChild(li);
-            });
+            // dirItems.sort((a,b) => new Date(b.lastmod) - new Date(a.lastmod)).forEach(item => {
+            //     const li = document.createElement('li');
+            //     li.textContent = `${item.basename} (${new Date(item.lastmod).toLocaleString()})`;
+            //     li.dataset.filename = item.filename;
+            //     li.addEventListener('click', () => {
+            //         if(confirm(`确定要从 ${item.basename} 恢复数据吗？此操作会覆盖本地所有观看记录。`)) {
+            //             log(`请求从 ${item.basename} 恢复...`);
+            //             chrome.runtime.sendMessage({ type: 'webdav-restore', filename: item.filename }, (response) => {
+            //                 if (response && response.success) {
+            //                     log(`✅ 从 ${item.basename} 恢复成功！`);
+            //                     showToast(`✅ 成功从 ${item.basename} 恢复数据!`, 'success');
+            //                     initDashboardLogic(); // Re-initialize to show new data
+            //                 } else {
+            //                     const errorMsg = response ? response.error : '未知错误';
+            //                     log(`❌ 恢复失败: ${errorMsg}`);
+            //                     showToast(`❌ 恢复失败: ${errorMsg}`, 'error');
+            //                 }
+            //             });
+            //         }
+            //     });
+            //     fileList.appendChild(li);
+            // });
             log(`✅ 成功获取 ${dirItems.length} 个备份文件。`);
         } catch (error) {
             log(`❌ 获取文件列表失败: ${error.message}`);
