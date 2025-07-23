@@ -119,9 +119,16 @@
                                 <input type="checkbox" id="webdavAutoSync">
                                 <label for="webdavAutoSync">每日自动上传</label>
                             </div>
+                            <div class="form-group">
+                                <label for="webdav-sync-interval">同步间隔 (分钟):</label>
+                                <input type="number" id="webdav-sync-interval" min="1" value="1440" style="width: 80px; margin-left: 10px;">
+                            </div>
                             <div class="button-group">
                                 <button type="button" id="saveWebdavSettings">保存设置</button>
                                 <button type="button" id="testWebdavConnection">测试连接</button>
+                            </div>
+                            <div class="form-group">
+                                <p>上次同步: <span id="last-sync-time">从未</span></p>
                             </div>
                         </div>
                     </div>
