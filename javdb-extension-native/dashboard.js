@@ -1,6 +1,6 @@
 // import './dashboard.css';
 import { getSettings, saveSettings, getValue, setValue } from './storage.js';
-import { STORAGE_KEYS } from './config.js';
+import { STORAGE_KEYS, VIDEO_STATUS } from './config.js';
 // import * as WebDAV from './lib/webdav.js';
 // const { createClient } = WebDAV;
 // import httpAdapter from 'axios/lib/adapters/xhr.js';
@@ -9,19 +9,13 @@ import { STORAGE_KEYS } from './config.js';
 // Force axios to use the XHR adapter in the browser environment.
 // axios.defaults.adapter = httpAdapter;
 
-const CONFIG = {
-    VERSION: '1.0.1', // Keep version in sync with manifest
-    HIDE_WATCHED_VIDEOS_KEY: 'hideWatchedVideos',
-    HIDE_VIEWED_VIDEOS_KEY: 'hideViewedVideos',
-    HIDE_VR_VIDEOS_KEY: 'hideVRVideos',
-    // Note: The concept of STORED_IDS_KEY and BROWSE_HISTORY_KEY from userscript
-    // is replaced by a unified 'viewed' object in the extension,
-    // which contains richer data (id, title, status, timestamp).
-    WEBDEV_SETTINGS_KEY: 'webdavSettings'
+const STATE = {
+    settings: {},
+    records: []
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const settings = await getSettings();
+    STATE.settings = await getSettings();
     
     // Populate WebDAV settings using existing IDs from dashboard.html
     const webdavEnabled = document.getElementById('webdavEnabled');
@@ -33,31 +27,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const webdavSyncInterval = document.getElementById('webdav-sync-interval'); 
     const lastSyncTime = document.getElementById('last-sync-time');
 
-    if (webdavEnabled) webdavEnabled.checked = settings.webdav?.enabled || false;
-    if (webdavUrl) webdavUrl.value = settings.webdav?.url || '';
-    if (webdavUsername) webdavUsername.value = settings.webdav?.username || '';
-    if (webdavPassword) webdavPassword.value = settings.webdav?.password || '';
-    if (webdavAutoSync) webdavAutoSync.checked = settings.webdav?.autoSync || false;
-    if (webdavSyncInterval) webdavSyncInterval.value = settings.webdav?.syncInterval || 1440;
-    if (lastSyncTime) lastSyncTime.textContent = settings.webdav?.lastSync ? new Date(settings.webdav.lastSync).toLocaleString() : 'Never';
+    if (webdavEnabled) webdavEnabled.checked = STATE.settings.webdav?.enabled || false;
+    if (webdavUrl) webdavUrl.value = STATE.settings.webdav?.url || '';
+    if (webdavUsername) webdavUsername.value = STATE.settings.webdav?.username || '';
+    if (webdavPassword) webdavPassword.value = STATE.settings.webdav?.password || '';
+    if (webdavAutoSync) webdavAutoSync.checked = STATE.settings.webdav?.autoSync || false;
+    if (webdavSyncInterval) webdavSyncInterval.value = STATE.settings.webdav?.syncInterval || 1440;
+    if (lastSyncTime) lastSyncTime.textContent = STATE.settings.webdav?.lastSync ? new Date(STATE.settings.webdav.lastSync).toLocaleString() : 'Never';
 
     // Save WebDAV settings
     const saveButton = document.getElementById('saveWebdavSettings');
     if(saveButton) {
         saveButton.addEventListener('click', async () => {
-            const currentSettings = await getSettings();
-            const newSettings = {
-                ...currentSettings,
-                webdav: {
-                    enabled: webdavEnabled.checked,
-                    url: webdavUrl.value,
-                    username: webdavUsername.value,
-                    password: webdavPassword.value,
-                    autoSync: webdavAutoSync.checked,
-                    syncInterval: webdavSyncInterval ? webdavSyncInterval.value : 1440
-                }
+            STATE.settings.webdav = {
+                enabled: webdavEnabled.checked,
+                url: webdavUrl.value,
+                username: webdavUsername.value,
+                password: webdavPassword.value,
+                autoSync: webdavAutoSync.checked,
+                syncInterval: webdavSyncInterval ? webdavSyncInterval.value : 1440
             };
-            await saveSettings(newSettings);
+            await saveSettings(STATE.settings);
             alert('Settings saved!');
             chrome.runtime.sendMessage({ type: 'setup-alarms' });
         });
@@ -138,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeTabs();
     initDashboardLogic();
     initSettingsLogic(); // Combines display and webdav settings
+    initSearchEngineSettings(); // Initialize search engine settings
     initAdvancedSettingsLogic();
     initSidebar(); // For stats and info
     initHelpPanel();
@@ -188,7 +179,7 @@ function initializeTabs() {
 function initSidebar() {
     const infoContainer = document.getElementById('infoContainer');
     infoContainer.innerHTML = `
-        <div>Version: ${CONFIG.VERSION}</div>
+        <div>Version: ${STATE.settings.version || 'N/A'}</div>
         <div>Author: Ryen</div>
     `;
     // Stats overview is now handled by initDashboardLogic
@@ -255,13 +246,12 @@ async function initDashboardLogic() {
     const importFile = document.getElementById('importFile');
     const exportBtn = document.getElementById('exportBtn');
 
-    let allRecords = [];
     let currentPage = 1;
     const recordsPerPage = 20;
 
     async function loadRecords() {
         const viewedData = await getValue('viewed', {});
-        allRecords = Object.values(viewedData);
+        STATE.records = Object.values(viewedData);
         render();
     }
 
@@ -269,7 +259,7 @@ async function initDashboardLogic() {
         const searchTerm = searchInput.value.toLowerCase();
         const filterValue = filterSelect.value;
         
-        let filteredRecords = allRecords.filter(record => {
+        let filteredRecords = STATE.records.filter(record => {
             const title = record.title || '';
             const id = record.id || '';
             const matchesSearch = title.toLowerCase().includes(searchTerm) || id.toLowerCase().includes(searchTerm);
@@ -279,19 +269,21 @@ async function initDashboardLogic() {
 
         filteredRecords.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-        renderStats(allRecords); // Pass all records for global stats
+        renderStats(STATE.records); // Pass all records for global stats
         renderVideoList(filteredRecords);
         renderPagination(filteredRecords.length);
     }
 
     function renderStats(records) {
         const total = records.length;
-        const viewedCount = records.filter(r => r.status === 'viewed').length;
-        const laterCount = records.filter(r => r.status === 'later').length;
+        const viewedCount = records.filter(r => r.status === VIDEO_STATUS.VIEWED).length;
+        const wantCount = records.filter(r => r.status === VIDEO_STATUS.WANT).length;
+        const browsedCount = records.filter(r => r.status === VIDEO_STATUS.BROWSED).length;
         statsOverview.innerHTML = `
             <div><span class="stat-value">${total}</span><span class="stat-label">总记录</span></div>
             <div><span class="stat-value">${viewedCount}</span><span class="stat-label">已观看</span></div>
-            <div><span class="stat-value">${laterCount}</span><span class="stat-label">稍后看</span></div>
+            <div><span class="stat-value">${wantCount}</span><span class="stat-label">我想看</span></div>
+            <div><span class="stat-value">${browsedCount}</span><span class="stat-label">已浏览</span></div>
         `;
     }
 
@@ -307,10 +299,26 @@ async function initDashboardLogic() {
 
         pageRecords.forEach(record => {
             const li = document.createElement('li');
+            let statusText = '未知';
+            switch (record.status) {
+                case VIDEO_STATUS.VIEWED: statusText = '已观看'; break;
+                case VIDEO_STATUS.WANT: statusText = '我想看'; break;
+                case VIDEO_STATUS.BROWSED: statusText = '已浏览'; break;
+            }
+
+            const searchLinksHtml = STATE.settings.searchEngines.map(engine => {
+                const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
+                const iconHtml = engine.iconUrl 
+                    ? `<img src="${engine.iconUrl}" alt="${engine.name}" class="search-engine-icon">`
+                    : `<i class="fas fa-link"></i>`;
+                return `<a href="${searchUrl}" target="_blank" title="在 ${engine.name} 中搜索">${iconHtml}</a>`;
+            }).join('');
+
             li.innerHTML = `
-                <a href="https://javdb.com/v/${record.id}" target="_blank" title="${record.id} - ${record.title}">${record.id} - ${record.title}</a>
-                <span class="status-tag">${record.status === 'viewed' ? '已观看' : '稍后看'}</span>
+                <div class="video-info" title="${record.id} - ${record.title}">${record.id} - ${record.title}</div>
+                <span class="status-tag">${statusText}</span>
                 <span class="timestamp">${new Date(record.timestamp).toLocaleString()}</span>
+                <div class="search-links">${searchLinksHtml}</div>
             `;
             videoList.appendChild(li);
         });
@@ -321,16 +329,69 @@ async function initDashboardLogic() {
         const totalPages = Math.ceil(totalRecords / recordsPerPage);
         if (totalPages <= 1) return;
 
-        for (let i = 1; i <= totalPages; i++) {
-            const pageBtn = document.createElement('button');
-            pageBtn.textContent = i;
-            pageBtn.disabled = (i === currentPage);
-            pageBtn.addEventListener('click', () => {
-                currentPage = i;
-                render();
-            });
-            paginationContainer.appendChild(pageBtn);
+        function createButton(text, page, isDisabled = false, isActive = false) {
+            const btn = document.createElement('button');
+            btn.textContent = text;
+            btn.disabled = isDisabled;
+            if (isActive) btn.classList.add('active');
+            if (text === "...") {
+                btn.classList.add('ellipsis');
+                btn.disabled = true;
+            } else {
+                 btn.addEventListener('click', () => {
+                    if (page) {
+                        currentPage = page;
+                        render();
+                    }
+                });
+            }
+            return btn;
         }
+
+        const pageButtons = [];
+        const maxPagesToShow = 5; // The number of actual page number buttons to show
+
+        // Previous and First
+        pageButtons.push(createButton('«', 1, currentPage === 1));
+        pageButtons.push(createButton('‹', currentPage - 1, currentPage === 1));
+        
+        if (totalPages <= maxPagesToShow + 2) { // Show all pages if not too many
+            for (let i = 1; i <= totalPages; i++) {
+                pageButtons.push(createButton(i, i, false, i === currentPage));
+            }
+        } else {
+            // Logic for lots of pages
+            if (currentPage < maxPagesToShow) {
+                // Near the start
+                for (let i = 1; i <= maxPagesToShow; i++) {
+                    pageButtons.push(createButton(i, i, false, i === currentPage));
+                }
+                pageButtons.push(createButton("..."));
+                pageButtons.push(createButton(totalPages, totalPages, false, totalPages === currentPage));
+            } else if (currentPage > totalPages - maxPagesToShow + 1) {
+                // Near the end
+                pageButtons.push(createButton(1, 1, false, 1 === currentPage));
+                pageButtons.push(createButton("..."));
+                for (let i = totalPages - maxPagesToShow + 1; i <= totalPages; i++) {
+                    pageButtons.push(createButton(i, i, false, i === currentPage));
+                }
+            } else {
+                // In the middle
+                pageButtons.push(createButton(1, 1, false, 1 === currentPage));
+                pageButtons.push(createButton("..."));
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pageButtons.push(createButton(i, i, false, i === currentPage));
+                }
+                pageButtons.push(createButton("..."));
+                pageButtons.push(createButton(totalPages, totalPages, false, totalPages === currentPage));
+            }
+        }
+
+        // Next and Last
+        pageButtons.push(createButton('›', currentPage + 1, currentPage === totalPages));
+        pageButtons.push(createButton('»', totalPages, currentPage === totalPages));
+
+        pageButtons.forEach(btn => paginationContainer.appendChild(btn));
     }
 
     clearAllBtn.addEventListener('click', async () => {
@@ -344,7 +405,6 @@ async function initDashboardLogic() {
     // --- Import / Export ---
     exportBtn.addEventListener('click', async () => {
         const records = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
-        const settings = await getSettings();
 
         if (Object.keys(records).length === 0) {
             showToast("没有记录可导出。", 'info');
@@ -352,7 +412,7 @@ async function initDashboardLogic() {
         }
 
         const dataToExport = {
-            settings: settings,
+            settings: STATE.settings,
             data: records
         };
 
@@ -383,14 +443,69 @@ async function initDashboardLogic() {
                 // New format with settings and data
                 if (importData.settings && importData.data) {
                     if (confirm(`即将从文件恢复设置和 ${Object.keys(importData.data).length} 条记录。这将覆盖所有现有数据，确定吗？`)) {
-                        await saveSettings(importData.settings);
+                        STATE.settings = importData.settings;
+                        await saveSettings(STATE.settings);
                         await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
                         await loadRecords();
                         await initSettingsLogic(); // Reload settings on screen
                         showToast("设置和数据导入成功！", 'success');
                     }
                 } 
-                // Legacy format (only data)
+                // Tampermonkey script format { myIds: [], videoBrowseHistory: [] }
+                else if (Array.isArray(importData.myIds) || Array.isArray(importData.videoBrowseHistory)) {
+                    const myIds = new Set(importData.myIds || []);
+                    const videoBrowseHistory = new Set(importData.videoBrowseHistory || []);
+                    
+                    const totalCount = myIds.size + videoBrowseHistory.size;
+
+                    if (confirm(`检测到油猴脚本备份文件。即将合并 ${totalCount} 条记录。这将与您当前的观看记录合并，确定吗？`)) {
+                        const existingData = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
+                        let newRecordsCount = 0;
+                        
+                        myIds.forEach(id => {
+                            if (!existingData[id]) {
+                                existingData[id] = { id, title: 'N/A (Imported)', status: VIDEO_STATUS.VIEWED, timestamp: Date.now() };
+                                newRecordsCount++;
+                            } else if (existingData[id].status !== VIDEO_STATUS.VIEWED) {
+                                existingData[id].status = VIDEO_STATUS.VIEWED; // Upgrade status
+                            }
+                        });
+
+                        videoBrowseHistory.forEach(id => {
+                            if (!existingData[id]) {
+                                existingData[id] = { id, title: 'N/A (Imported)', status: VIDEO_STATUS.BROWSED, timestamp: Date.now() };
+                                newRecordsCount++;
+                            }
+                        });
+
+                        await setValue(STORAGE_KEYS.VIEWED_RECORDS, existingData);
+                        await loadRecords();
+                        showToast(`成功合并 ${newRecordsCount} 条新记录！`, 'success');
+                    }
+                }
+                // Tampermonkey script format (or other simple array of objects with id) [ { id: '...' }, ... ]
+                else if (Array.isArray(importData)) {
+                    const validRecords = importData.filter(item => item && item.id);
+                     if (confirm(`检测到旧版备份文件（数组格式）。即将合并 ${validRecords.length} 条记录。这将与您当前的观看记录合并，确定吗？`)) {
+                        const existingData = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
+                        let newRecordsCount = 0;
+                        validRecords.forEach(record => {
+                            if (!existingData[record.id]) {
+                                existingData[record.id] = {
+                                    id: record.id,
+                                    title: record.title || 'N/A (Imported)',
+                                    status: 'viewed',
+                                    timestamp: Date.now()
+                                };
+                                newRecordsCount++;
+                            }
+                        });
+                        await setValue(STORAGE_KEYS.VIEWED_RECORDS, existingData);
+                        await loadRecords();
+                        showToast(`成功合并 ${newRecordsCount} 条新记录！`, 'success');
+                    }
+                }
+                // Legacy format (only data object)
                 else {
                      if (confirm(`检测到旧版备份文件。即将导入 ${Object.keys(importData).length} 条记录。这将覆盖您当前的观看记录（但保留设置），确定吗？`)) {
                         await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
@@ -412,6 +527,64 @@ async function initDashboardLogic() {
 }
 
 // =================================================================
+// =================== SEARCH ENGINE SETTINGS ======================
+// =================================================================
+async function initSearchEngineSettings() {
+    const listContainer = document.getElementById('search-engine-list');
+    const addBtn = document.getElementById('add-search-engine');
+
+    function render() {
+        listContainer.innerHTML = '';
+        STATE.settings.searchEngines.forEach((engine, index) => {
+            const engineDiv = document.createElement('div');
+            engineDiv.className = 'search-engine-item';
+            engineDiv.innerHTML = `
+                <input type="text" placeholder="名称 (e.g., JavDB)" value="${engine.name}" data-key="name" data-index="${index}">
+                <input type="text" placeholder="URL 模板" value="${engine.urlTemplate}" data-key="urlTemplate" data-index="${index}" class="url-template-input">
+                <input type="text" placeholder="图标 URL (可选)" value="${engine.iconUrl || ''}" data-key="iconUrl" data-index="${index}">
+                <button class="delete-engine" data-index="${index}"><i class="fas fa-trash"></i></button>
+            `;
+            listContainer.appendChild(engineDiv);
+        });
+
+        attachEventListeners();
+    }
+
+    function attachEventListeners() {
+        document.querySelectorAll('.search-engine-item input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const { index, key } = e.target.dataset;
+                STATE.settings.searchEngines[index][key] = e.target.value;
+                save();
+            });
+        });
+
+        document.querySelectorAll('.delete-engine').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const index = e.currentTarget.dataset.index;
+                if (confirm(`确定要删除搜索引擎 "${STATE.settings.searchEngines[index].name}" 吗？`)) {
+                    STATE.settings.searchEngines.splice(index, 1);
+                    save().then(render);
+                }
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', () => {
+        STATE.settings.searchEngines.push({ name: '', urlTemplate: '', iconUrl: '' });
+        render();
+    });
+
+    async function save() {
+        await saveSettings(STATE.settings);
+        showToast('搜索引擎设置已保存', 'success');
+    }
+
+    render();
+}
+
+
+// =================================================================
 // ==================== ADVANCED SETTINGS LOGIC ====================
 // =================================================================
 async function initAdvancedSettingsLogic() {
@@ -420,8 +593,7 @@ async function initAdvancedSettingsLogic() {
     const saveJsonBtn = document.getElementById('saveJsonBtn');
 
     async function loadConfig() {
-        const settings = await getSettings();
-        jsonConfigTextArea.value = JSON.stringify(settings, null, 2);
+        jsonConfigTextArea.value = JSON.stringify(STATE.settings, null, 2);
     }
 
     editJsonBtn.addEventListener('click', () => {
@@ -434,7 +606,8 @@ async function initAdvancedSettingsLogic() {
     saveJsonBtn.addEventListener('click', async () => {
         try {
             const newSettings = JSON.parse(jsonConfigTextArea.value);
-            await saveSettings(newSettings);
+            STATE.settings = newSettings;
+            await saveSettings(STATE.settings);
             
             jsonConfigTextArea.readOnly = true;
             editJsonBtn.classList.remove('hidden');
@@ -510,9 +683,9 @@ let settingsEventListenersBound = false;
 
 async function initSettingsLogic() {
     // --- Element Cache ---
-    const hideWatchedCheckbox = document.getElementById('hideWatchedVideos');
-    const hideViewedCheckbox = document.getElementById('hideViewedVideos');
-    const hideVRCheckbox = document.getElementById('hideVRVideos');
+    const hideViewedCheckbox = document.getElementById('hideViewed');
+    const hideBrowsedCheckbox = document.getElementById('hideBrowsed');
+    const hideVRCheckbox = document.getElementById('hideVR');
     const webdavEnabled = document.getElementById('webdavEnabled');
     const webdavFieldsContainer = document.getElementById('webdav-fields-container');
     const urlInput = document.getElementById('webdavUrl');
@@ -533,19 +706,17 @@ async function initSettingsLogic() {
     
     // --- Load Functions ---
     async function loadDisplaySettings() {
-        const settings = await getSettings();
-        hideWatchedCheckbox.checked = settings.display.hideWatched;
-        hideViewedCheckbox.checked = settings.display.hideViewed;
-        hideVRCheckbox.checked = settings.display.hideVR;
+        hideViewedCheckbox.checked = STATE.settings.display.hideViewed;
+        hideBrowsedCheckbox.checked = STATE.settings.display.hideBrowsed;
+        hideVRCheckbox.checked = STATE.settings.display.hideVR;
     }
 
     async function loadWebdavSettings() {
-        const settings = await getSettings();
-        webdavEnabled.checked = settings.webdav.enabled;
-        urlInput.value = settings.webdav.url || '';
-        userInput.value = settings.webdav.username || '';
-        passInput.value = settings.webdav.password || '';
-        autoSyncCheckbox.checked = settings.webdav.autoSync;
+        webdavEnabled.checked = STATE.settings.webdav.enabled;
+        urlInput.value = STATE.settings.webdav.url || '';
+        userInput.value = STATE.settings.webdav.username || '';
+        passInput.value = STATE.settings.webdav.password || '';
+        autoSyncCheckbox.checked = STATE.settings.webdav.autoSync;
         toggleWebdavFields();
     }
 
@@ -555,24 +726,22 @@ async function initSettingsLogic() {
     
     // --- Action Functions ---
     async function saveDisplaySetting(key, value) {
-        const settings = await getSettings();
-        settings.display[key] = value;
-        await saveSettings(settings);
+        STATE.settings.display[key] = value;
+        await saveSettings(STATE.settings);
     }
 
     async function saveWebdavConfig() {
-        const settings = await getSettings();
-        settings.webdav = {
+        STATE.settings.webdav = {
             enabled: webdavEnabled.checked,
             url: urlInput.value.trim(),
             username: userInput.value.trim(),
             password: passInput.value,
             autoSync: autoSyncCheckbox.checked,
         };
-        await saveSettings(settings);
+        await saveSettings(STATE.settings);
         log('WebDAV 设置已保存');
         showToast('WebDAV 设置已保存', 'success');
-        return settings.webdav;
+        return STATE.settings.webdav;
     }
 
     async function testConnection() {
@@ -620,87 +789,23 @@ async function initSettingsLogic() {
         });
     }
 
-    async function listRemoteFiles() {
-        // This function needs to be rewritten using fetch API.
-        // Temporarily disabled.
-        showToast('此功能正在重构中...', 'info');
-        return;
-
-        const settings = await getSettings();
-        if (!settings.webdav || !settings.webdav.enabled || !settings.webdav.url) {
-            fileListContainer.classList.add('hidden');
-            return;
-        }
-
-        log('正在获取云端文件列表...');
-        fileListContainer.classList.remove('hidden');
-        fileList.innerHTML = '<li>加载中...</li>';
-
-        try {
-            // This part needs to be rewritten using fetch API.
-            // Temporarily disabled.
-            showToast('此功能正在重构中...', 'info');
-            return;
-
-            // const client = createClient(settings.webdav.url, {
-            //     username: settings.webdav.username,
-            //     password: settings.webdav.password
-            // });
-            // const dirItems = (await client.getDirectoryContents('/'))
-            //     .filter(item => item.type === 'file' && item.basename.endsWith('.json'));
-            
-            // fileList.innerHTML = '';
-            // if (dirItems.length === 0) {
-            //     fileList.innerHTML = '<li>未找到任何 .json 备份文件。</li>';
-            //     return;
-            // }
-            
-            // dirItems.sort((a,b) => new Date(b.lastmod) - new Date(a.lastmod)).forEach(item => {
-            //     const li = document.createElement('li');
-            //     li.textContent = `${item.basename} (${new Date(item.lastmod).toLocaleString()})`;
-            //     li.dataset.filename = item.filename;
-            //     li.addEventListener('click', () => {
-            //         if(confirm(`确定要从 ${item.basename} 恢复数据吗？此操作会覆盖本地所有观看记录。`)) {
-            //             log(`请求从 ${item.basename} 恢复...`);
-            //             chrome.runtime.sendMessage({ type: 'webdav-restore', filename: item.filename }, (response) => {
-            //                 if (response && response.success) {
-            //                     log(`✅ 从 ${item.basename} 恢复成功！`);
-            //                     showToast(`✅ 成功从 ${item.basename} 恢复数据!`, 'success');
-            //                     initDashboardLogic(); // Re-initialize to show new data
-            //                 } else {
-            //                     const errorMsg = response ? response.error : '未知错误';
-            //                     log(`❌ 恢复失败: ${errorMsg}`);
-            //                     showToast(`❌ 恢复失败: ${errorMsg}`, 'error');
-            //                 }
-            //             });
-            //         }
-            //     });
-            //     fileList.appendChild(li);
-            // });
-            log(`✅ 成功获取 ${dirItems.length} 个备份文件。`);
-        } catch (error) {
-            log(`❌ 获取文件列表失败: ${error.message}`);
-            fileList.innerHTML = '<li>获取列表失败。</li>';
-        }
-    }
-
     // --- Bind Events (only once) ---
     if (!settingsEventListenersBound) {
-        hideWatchedCheckbox.addEventListener('change', () => saveDisplaySetting('hideWatched', hideWatchedCheckbox.checked));
         hideViewedCheckbox.addEventListener('change', () => saveDisplaySetting('hideViewed', hideViewedCheckbox.checked));
+        hideBrowsedCheckbox.addEventListener('change', () => saveDisplaySetting('hideBrowsed', hideBrowsedCheckbox.checked));
         hideVRCheckbox.addEventListener('change', () => saveDisplaySetting('hideVR', hideVRCheckbox.checked));
 
         webdavEnabled.addEventListener('change', async () => {
             toggleWebdavFields();
-            const settings = await getSettings();
-            settings.webdav.enabled = webdavEnabled.checked;
-            await saveSettings(settings);
+            STATE.settings.webdav.enabled = webdavEnabled.checked;
+            await saveSettings(STATE.settings);
         });
 
         saveWebdavSettingsBtn.addEventListener('click', saveWebdavConfig);
         testWebdavConnectionBtn.addEventListener('click', testConnection);
         syncNowBtn.addEventListener('click', syncUp);
-        syncDownBtn.addEventListener('click', listRemoteFiles);
+        // The 'syncDown' button's event listener is already correctly set at the top of the file.
+        // The 'listRemoteFiles' function and its listener here were part of an incomplete refactor and have been removed.
 
         settingsEventListenersBound = true;
     }

@@ -2,11 +2,11 @@
 // 注入到 javdb.com 页面，负责页面 DOM 操作、UI 注入、状态标记等
 import { getValue, setValue, getSettings } from './storage.js';
 import { sleep } from './utils.js';
+import { VIDEO_STATUS } from './config.js';
 
 const STATE = {
     settings: {},
-    watchedIds: new Set(),
-    viewedIds: new Set(),
+    records: {}, // Unified records object
     isSearchPage: false,
     observer: null,
     debounceTimer: null,
@@ -32,15 +32,13 @@ async function initialize() {
     log('Extension initializing...');
 
     // 1. Fetch all necessary data and settings at once
-    const [settings, watched, viewed] = await Promise.all([
+    const [settings, records] = await Promise.all([
         getSettings(),
-        getValue('myIds', []),
-        getValue('videoBrowseHistory', [])
+        getValue('viewed', {})
     ]);
     STATE.settings = settings;
-    STATE.watchedIds = new Set(watched);
-    STATE.viewedIds = new Set(viewed);
-    log(`Loaded ${STATE.watchedIds.size} watched, ${STATE.viewedIds.size} viewed.`);
+    STATE.records = records;
+    log(`Loaded ${Object.keys(STATE.records).length} records.`);
 
     // 2. Check page context
     STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE);
@@ -90,18 +88,24 @@ function setupObserver() {
     STATE.observer.observe(targetNode, { childList: true, subtree: true });
 }
 
-function shouldHide(item) {
+function shouldHide(videoId) {
     if (STATE.isSearchPage) return false;
     
-    const { hideWatched, hideViewed, hideVR } = STATE.settings.display;
+    const { hideViewed, hideBrowsed, hideVR } = STATE.settings.display;
+    const record = STATE.records[videoId];
 
-    const isWatched = item.classList.contains('watched-item');
-    const isViewed = item.classList.contains('viewed-item');
-    const isVR = item.querySelector('.tag.is-link')?.textContent.trim() === 'VR' || item.querySelector('.panel-block.tags')?.innerText.includes('VR');
+    if (!record && !hideVR) return false; // No reason to hide if no record and not hiding VR
+
+    const isViewed = record && record.status === VIDEO_STATUS.VIEWED;
+    const isBrowsed = record && record.status === VIDEO_STATUS.BROWSED;
     
-    if (hideWatched && isWatched) return true;
-    if (hideViewed && isViewed && !isWatched) return true;
-    if (hideVR && isVR) return true;
+    // VR hiding logic needs to be based on item content, so we pass the item to shouldHide
+    // This part is a placeholder for a better implementation within processItem
+    // const isVR = item.querySelector('.tag.is-link')?.textContent.trim() === 'VR';
+    
+    if (hideViewed && isViewed) return true;
+    if (hideBrowsed && isBrowsed) return true;
+    // if (hideVR && isVR) return true; // VR logic handled in processItem
     
     return false;
 }
@@ -114,27 +118,42 @@ function processItem(item) {
     if (!videoId) return;
 
     // Remove existing tags to avoid duplication
-    item.querySelectorAll('.watched-tag, .viewed-tag').forEach(tag => tag.remove());
+    item.querySelectorAll('.custom-status-tag').forEach(tag => tag.remove());
 
     const tagContainer = item.querySelector(SELECTORS.TAGS_CONTAINER);
     if (!tagContainer) return;
     
-    if (STATE.watchedIds.has(videoId)) {
-        addTag(tagContainer, '我看過這部影片', 'is-success');
-        item.classList.add('watched-item');
-    } else if (STATE.viewedIds.has(videoId)) {
-        addTag(tagContainer, '已浏览', 'is-warning');
-        item.classList.add('viewed-item');
+    const record = STATE.records[videoId];
+
+    if (record) {
+        switch (record.status) {
+            case VIDEO_STATUS.VIEWED:
+                addTag(tagContainer, '已观看', 'is-success');
+                break;
+            case VIDEO_STATUS.WANT:
+                addTag(tagContainer, '我想看', 'is-info');
+                break;
+            case VIDEO_STATUS.BROWSED:
+                addTag(tagContainer, '已浏览', 'is-warning');
+                break;
+        }
     }
 
-    if (shouldHide(item)) {
+    // VR hiding logic
+    const isVR = item.querySelector('.tag.is-link')?.textContent.trim() === 'VR';
+    if (STATE.settings.display.hideVR && isVR) {
+        item.style.display = 'none';
+        return;
+    }
+    
+    if (shouldHide(videoId)) {
         item.style.display = 'none';
     }
 }
 
 function addTag(container, text, style) {
     const tag = document.createElement('span');
-    tag.className = `tag ${style} is-light watched-tag`;
+    tag.className = `tag ${style} is-light custom-status-tag`;
     tag.textContent = text;
     container.appendChild(tag);
 }
@@ -142,24 +161,33 @@ function addTag(container, text, style) {
 // --- Page-Specific Logic ---
 
 async function handleVideoDetailPage() {
-    const videoIdMatch = window.location.pathname.match(/\/v\/(\w+)/);
-    if (!videoIdMatch) return;
-    const videoId = videoIdMatch[1];
-    
-    const isWatched = STATE.watchedIds.has(videoId);
-    const isViewed = STATE.viewedIds.has(videoId);
+    // Extract video ID from the panel, as it's more reliable
+    const panelBlock = document.querySelector(SELECTORS.VIDEO_DETAIL_ID);
+    if (!panelBlock) return;
 
-    if (isWatched || isViewed) {
+    const idElement = panelBlock.querySelector('a[href*="/video_codes/"]');
+    if (!idElement) return;
+
+    const videoId = idElement.textContent + panelBlock.textContent.match(/-(\d+)/)?.[0];
+    if (!videoId) return;
+
+    const record = STATE.records[videoId];
+
+    if (record) {
         setFavicon(chrome.runtime.getURL("icons/jav.png"));
-    }
-    
-    if (!isWatched && !isViewed) {
+    } else {
+        // If no record exists, mark it as browsed after a delay
         setTimeout(async () => {
-            const currentViewed = await getValue('videoBrowseHistory', []);
-            if (!currentViewed.includes(videoId)) {
-                currentViewed.push(videoId);
-                await setValue('videoBrowseHistory', currentViewed);
-                log(`${videoId} added to viewed history.`);
+            const currentRecords = await getValue('viewed', {});
+            if (!currentRecords[videoId]) {
+                currentRecords[videoId] = {
+                    id: videoId,
+                    title: document.title, // A more meaningful title
+                    status: VIDEO_STATUS.BROWSED,
+                    timestamp: Date.now()
+                };
+                await setValue('viewed', currentRecords);
+                log(`${videoId} added to history as 'browsed'.`);
                 setFavicon(chrome.runtime.getURL("icons/jav.png"));
             }
         }, getRandomDelay(3000, 5000));
