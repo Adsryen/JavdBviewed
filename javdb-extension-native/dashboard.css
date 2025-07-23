@@ -209,7 +209,7 @@ button:disabled {
 }
 #videoList li {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto auto auto;
     gap: 15px;
     align-items: center;
     padding: 12px 15px;
@@ -217,6 +217,33 @@ button:disabled {
 }
 #videoList li:last-child {
     border-bottom: none;
+}
+#videoList li .video-info {
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#videoList li .search-links {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+#videoList li .search-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+#videoList li .search-links a:hover {
+    color: #007bff;
+}
+.search-engine-icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
 }
 #videoList li a {
     text-decoration: none;
@@ -241,16 +268,41 @@ button:disabled {
 .pagination {
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: 5px;
     margin-top: 20px;
 }
 .pagination button {
-    background-color: #6c757d;
-    min-width: 40px;
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    box-shadow: none;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
-.pagination button:disabled {
-    background-color: #4a9eff;
+.pagination button:not(:disabled):hover {
+    background-color: #f0f2f5;
+    border-color: #ccc;
+    transform: none; /* Override general button hover effect */
+}
+.pagination button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    cursor: default;
+}
+.pagination button:disabled:not(.active) {
+    background-color: #f8f9fa;
+    color: #adb5bd;
     opacity: 1;
+}
+.pagination button.ellipsis {
+    background: transparent;
+    border: none;
+    padding: 0 5px;
 }
 
 /* Advanced Settings Tab */
@@ -316,6 +368,41 @@ button:disabled {
     margin: 0 0 15px 0;
     max-width: 80%;
 }
+#search-engine-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.search-engine-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.search-engine-item input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+.search-engine-item .url-template-input {
+    flex-grow: 1;
+}
+.search-engine-item .delete-engine {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    box-shadow: none;
+}
+#add-search-engine {
+    background-color: #17a2b8;
+}
+#add-search-engine i {
+    margin-right: 8px;
+}
+
 .form-group {
     margin-bottom: 15px;
 }

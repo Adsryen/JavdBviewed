@@ -10,10 +10,16 @@ export const STORAGE_KEYS = {
     LOGS: 'persistent_logs'
 };
 
+export const VIDEO_STATUS = {
+    VIEWED: 'viewed', // 已观看
+    WANT: 'want',     // 我想看
+    BROWSED: 'browsed' // 已浏览
+};
+
 export const DEFAULT_SETTINGS = {
     display: {
-        hideWatched: false,
-        hideViewed: false,
+        hideViewed: false, // Corresponds to VIEWED status
+        hideBrowsed: false, // Corresponds to BROWSED status
         hideVR: false,
     },
     webdav: {
@@ -22,6 +28,19 @@ export const DEFAULT_SETTINGS = {
         username: '',
         password: '',
         autoSync: false,
+        syncInterval: 1440,
     },
+    searchEngines: [
+        {
+            name: 'JavDB',
+            urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all',
+            iconUrl: 'https://javdb.com/favicon-32x32.png'
+        },
+        {
+            name: 'Javbus',
+            urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce',
+            iconUrl: 'https://www.javbus.com/favicon.ico'
+        }
+    ],
     version: '1.0.1', // Default version
 }; 
