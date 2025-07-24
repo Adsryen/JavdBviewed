@@ -19,7 +19,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-loader-CBEmlLJ-.js"
+        "assets/content.ts-loader-ClciYFso.js"
       ],
       "matches": [
         "*://*.javdb.com/*"
@@ -50,8 +50,8 @@
       ],
       "resources": [
         "src/assets/jav.png",
-        "assets/storage-BU9Pj700.js",
-        "assets/content.ts-B1hHhRi6.js"
+        "assets/storage-BUa3Gg3q.js",
+        "assets/content.ts-BfrHZQ8g.js"
       ],
       "use_dynamic_url": false
     }
