@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 syncInterval: webdavSyncInterval ? webdavSyncInterval.value : 1440
             };
             await saveSettings(STATE.settings);
-            alert('Settings saved!');
+            showToast('设置已保存!', 'success');
             chrome.runtime.sendMessage({ type: 'setup-alarms' });
         });
     }
@@ -59,9 +59,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         testButton.addEventListener('click', () => {
             chrome.runtime.sendMessage({ type: 'webdav-test' }, response => {
                 if (response.success) {
-                    alert('Connection successful!');
+                    showToast('连接成功!', 'success');
                 } else {
-                    alert(`Connection failed: ${response.error}`);
+                    showToast(`连接失败: ${response.error}`, 'error');
                 }
             });
         });
@@ -73,10 +73,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         manualSyncButton.addEventListener('click', () => {
             chrome.runtime.sendMessage({ type: 'webdav-upload' }, response => {
                 if (response.success) {
-                    alert('Sync successful!');
+                    showToast('同步成功!', 'success');
                     if(lastSyncTime) lastSyncTime.textContent = new Date().toLocaleString();
                 } else {
-                    alert(`Sync failed: ${response.error}`);
+                    showToast(`同步失败: ${response.error}`, 'error');
                 }
             });
         });
@@ -89,8 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if(restoreButton) {
         restoreButton.addEventListener('click', () => {
+            showToast('正在从云端获取文件列表...', 'info', 2000);
             chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
                 if (response.success && fileList) {
+                    if (response.files.length === 0) {
+                        showToast('云端没有找到任何备份文件。', 'info');
+                        return;
+                    }
+
                     fileList.innerHTML = ''; // Clear previous list
                     response.files.forEach(file => {
                         const li = document.createElement('li');
@@ -98,23 +104,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                         li.dataset.path = file.path;
                         li.style.cursor = 'pointer';
                         li.addEventListener('click', () => {
-                            if (confirm(`Are you sure you want to restore from ${file.name}? This will overwrite your local data.`)) {
-                                chrome.runtime.sendMessage({ type: 'webdav-restore', filename: file.path }, restoreResponse => {
+                            const message = `您确定要从 ${file.name} 恢复吗？`;
+                            showConfirmationModal(message, { isRestore: true }, (options) => {
+                                // onConfirm with options
+                                showToast('正在恢复数据...', 'info');
+                                chrome.runtime.sendMessage({ 
+                                    type: 'webdav-restore', 
+                                    filename: file.path,
+                                    options: options // Pass user's choices to background
+                                }, restoreResponse => {
                                     if (restoreResponse.success) {
-                                        alert('Restore successful!');
+                                        showToast('恢复成功！页面即将刷新...', 'success');
                                         if (fileListContainer) fileListContainer.classList.add('hidden');
-                                        window.location.reload(); // Reload to reflect changes
+                                        setTimeout(() => window.location.reload(), 2000); // Reload to reflect changes
                                     } else {
-                                        alert(`Restore failed: ${restoreResponse.error}`);
+                                        showToast(`恢复失败: ${restoreResponse.error}`, 'error');
                                     }
                                 });
-                            }
+                            });
                         });
                         fileList.appendChild(li);
                     });
-                    if (fileListContainer) fileListContainer.classList.remove('hidden');
+                    
+                    // --- UX Improvement ---
+                    // 1. Switch to the 'Settings' tab.
+                    const settingsTabButton = document.querySelector('.tab-link[data-tab="tab-settings"]');
+                    if (settingsTabButton) {
+                        settingsTabButton.click();
+                    }
+
+                    // 2. Show the file list container and scroll to it.
+                    if (fileListContainer) {
+                        fileListContainer.classList.remove('hidden');
+                        // Use a short timeout to ensure the tab switch has completed and the element is visible.
+                        setTimeout(() => {
+                             fileListContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 150);
+                    }
                 } else {
-                    alert(`Failed to list files: ${response.error}`);
+                    showToast(`未能列出文件: ${response.error || '未知错误'}`, 'error');
                 }
             });
         });
@@ -134,23 +162,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     initHelpPanel();
 });
 
+function showConfirmationModal(message, config = {}, onConfirm, onCancel) {
+    const modal = document.getElementById('confirmationModal');
+    const modalMessage = document.getElementById('modalMessage');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const restoreOptions = document.getElementById('modalRestoreOptions');
+    const restoreSettingsCheckbox = document.getElementById('modalRestoreSettings');
+    const restoreRecordsCheckbox = document.getElementById('modalRestoreRecords');
+
+    modalMessage.innerText = message;
+    
+    // Show/hide restore options based on config
+    if (config.isRestore) {
+        restoreOptions.classList.remove('hidden');
+    } else {
+        restoreOptions.classList.add('hidden');
+    }
+
+    modal.classList.add('visible');
+
+    const confirmHandler = () => {
+        let options = null;
+        if (config.isRestore) {
+            options = {
+                restoreSettings: restoreSettingsCheckbox.checked,
+                restoreRecords: restoreRecordsCheckbox.checked
+            };
+            // Prevent confirming with no options selected
+            if (!options.restoreSettings && !options.restoreRecords) {
+                showToast("请至少选择一个恢复选项。", "error");
+                return;
+            }
+        }
+        if (onConfirm) onConfirm(options);
+        close();
+    };
+
+    const cancelHandler = () => {
+        if (onCancel) onCancel();
+        close();
+    };
+
+    const close = () => {
+        modal.classList.remove('visible');
+        confirmBtn.removeEventListener('click', confirmHandler);
+        cancelBtn.removeEventListener('click', cancelHandler);
+        modal.removeEventListener('click', outsideClickHandler);
+    };
+
+    const outsideClickHandler = (e) => {
+        if (e.target === modal) {
+            cancelHandler();
+        }
+    };
+
+    confirmBtn.addEventListener('click', confirmHandler);
+    cancelBtn.addEventListener('click', cancelHandler);
+    modal.addEventListener('click', outsideClickHandler);
+}
+
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('messageContainer');
     const toast = document.createElement('div');
-    toast.className = `toast-message ${type}`;
-    toast.textContent = message;
+    toast.className = `toast ${type}`; // Corrected class name
 
-    // Show the toast
+    // Add icon for better visual feedback
+    const icon = document.createElement('i');
+    const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-times-circle',
+        info: 'fas fa-info-circle'
+    };
+    if (icons[type]) {
+        icon.className = icons[type];
+        toast.prepend(icon);
+    }
+    
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(text);
+
     container.appendChild(toast);
+    
+    // Animate in
     setTimeout(() => {
         toast.classList.add('show');
-    }, 100); // Small delay to allow CSS transition
+    }, 10); 
 
-    // Hide and remove the toast
+    // Animate out and remove
     setTimeout(() => {
         toast.classList.remove('show');
-        // Remove from DOM after transition
-        toast.addEventListener('transitionend', () => toast.remove());
+        toast.addEventListener('transitionend', () => {
+            if (toast.parentElement) {
+                container.removeChild(toast);
+            }
+        });
     }, duration);
 }
 
@@ -442,14 +549,20 @@ async function initDashboardLogic() {
                 
                 // New format with settings and data
                 if (importData.settings && importData.data) {
-                    if (confirm(`即将从文件恢复设置和 ${Object.keys(importData.data).length} 条记录。这将覆盖所有现有数据，确定吗？`)) {
-                        STATE.settings = importData.settings;
-                        await saveSettings(STATE.settings);
-                        await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
+                    const message = `即将从文件恢复备份。\n文件包含 ${Object.keys(importData.data).length} 条记录。`;
+                    showConfirmationModal(message, { isRestore: true }, async (options) => {
+                        // onConfirm with options
+                        if (options.restoreSettings) {
+                            STATE.settings = importData.settings;
+                            await saveSettings(STATE.settings);
+                        }
+                        if (options.restoreRecords) {
+                            await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
+                        }
                         await loadRecords();
                         await initSettingsLogic(); // Reload settings on screen
-                        showToast("设置和数据导入成功！", 'success');
-                    }
+                        showToast("选择性导入成功！", 'success');
+                    });
                 } 
                 // Tampermonkey script format { myIds: [], videoBrowseHistory: [] }
                 else if (Array.isArray(importData.myIds) || Array.isArray(importData.videoBrowseHistory)) {
@@ -694,8 +807,9 @@ async function initSettingsLogic() {
     const autoSyncCheckbox = document.getElementById('webdavAutoSync');
     const saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings');
     const testWebdavConnectionBtn = document.getElementById('testWebdavConnection');
-    const syncNowBtn = document.getElementById('syncNow');
-    const syncDownBtn = document.getElementById('syncDown');
+    // REMOVED: Redundant button references
+    // const syncNowBtn = document.getElementById('syncNow'); 
+    // const syncDownBtn = document.getElementById('syncDown');
     const fileListContainer = document.getElementById('fileListContainer');
     const fileList = document.getElementById('fileList');
 
@@ -730,64 +844,8 @@ async function initSettingsLogic() {
         await saveSettings(STATE.settings);
     }
 
-    async function saveWebdavConfig() {
-        STATE.settings.webdav = {
-            enabled: webdavEnabled.checked,
-            url: urlInput.value.trim(),
-            username: userInput.value.trim(),
-            password: passInput.value,
-            autoSync: autoSyncCheckbox.checked,
-        };
-        await saveSettings(STATE.settings);
-        log('WebDAV 设置已保存');
-        showToast('WebDAV 设置已保存', 'success');
-        return STATE.settings.webdav;
-    }
-
-    async function testConnection() {
-        const webdavSettings = await saveWebdavConfig(); // Also saves before testing
-        if (!webdavSettings.enabled || !webdavSettings.url) {
-            showToast('WebDAV 未启用或 URL 为空，跳过测试。', 'info');
-            return;
-        }
-
-        log('正在测试 WebDAV 连接...');
-        try {
-            const response = await fetch(webdavSettings.url, {
-                method: 'PROPFIND',
-                headers: {
-                  'Authorization': 'Basic ' + btoa(`${webdavSettings.username}:${webdavSettings.password}`),
-                  'Depth': '0'
-                }
-            });
-
-            if (response.ok || response.status === 405) { // 207 Multi-Status is also OK. 405 can mean folder exists.
-                log('✅ WebDAV 连接成功！');
-                showToast('✅ WebDAV 连接成功！', 'success');
-                // listRemoteFiles();
-            } else {
-                throw new Error(`连接测试失败，状态码: ${response.status}`);
-            }
-        } catch (error) {
-            log('❌ WebDAV 连接失败: ' + error.message);
-            showToast('❌ WebDAV 连接失败: ' + error.message, 'error');
-        }
-    }
-
-    function syncUp() {
-        log('开始上传数据...');
-        chrome.runtime.sendMessage({ type: 'webdav-upload' }, (response) => {
-            if (response && response.success) {
-                log('✅ 上传成功！');
-                showToast('✅ 数据已成功上传至云端！', 'success');
-                // listRemoteFiles();
-            } else {
-                const errorMsg = response ? response.error : '未知错误';
-                log(`❌ 上传失败: ${errorMsg}`);
-                showToast(`❌ 上传失败: ${errorMsg}`, 'error');
-            }
-        });
-    }
+    // REMOVED: Redundant saveWebdavConfig, testConnection, and syncUp functions
+    // The logic is handled by the listeners set up in DOMContentLoaded
 
     // --- Bind Events (only once) ---
     if (!settingsEventListenersBound) {
@@ -801,12 +859,12 @@ async function initSettingsLogic() {
             await saveSettings(STATE.settings);
         });
 
-        saveWebdavSettingsBtn.addEventListener('click', saveWebdavConfig);
-        testWebdavConnectionBtn.addEventListener('click', testConnection);
-        syncNowBtn.addEventListener('click', syncUp);
-        // The 'syncDown' button's event listener is already correctly set at the top of the file.
-        // The 'listRemoteFiles' function and its listener here were part of an incomplete refactor and have been removed.
-
+        // REMOVED: Redundant event listeners for save, test, and sync buttons.
+        // These are already set correctly in the main DOMContentLoaded listener.
+        // saveWebdavSettingsBtn.addEventListener('click', saveWebdavConfig);
+        // testWebdavConnectionBtn.addEventListener('click', testConnection);
+        // syncNowBtn.addEventListener('click', syncUp);
+        
         settingsEventListenersBound = true;
     }
     

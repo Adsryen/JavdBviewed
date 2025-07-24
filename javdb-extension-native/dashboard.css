@@ -536,37 +536,46 @@ button:disabled {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 1000;
     display: flex;
-    flex-direction: column-reverse;
-    align-items: flex-end;
+    flex-direction: column;
     gap: 10px;
 }
-.toast-message {
-    padding: 12px 20px;
+
+.toast {
+    padding: 15px 20px;
     border-radius: 8px;
-    color: white;
+    color: #fff;
     font-size: 14px;
-    font-weight: 500;
-    word-wrap: break-word;
-    max-width: 300px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     opacity: 0;
-    transform: translateX(100%);
-    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    transform: translateY(20px);
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 250px;
 }
-.toast-message.show {
+
+.toast i {
+    font-size: 1.2em;
+}
+
+.toast.show {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
 }
-.toast-message.success {
-    background-color: #2ed573;
+
+.toast.success {
+    background-color: #28a745;
 }
-.toast-message.error {
-    background-color: #ff4a4a;
+
+.toast.error {
+    background-color: #dc3545;
 }
-.toast-message.info {
-    background-color: #4a9eff;
+
+.toast.info {
+    background-color: #17a2b8;
 }
 
 /* Help Panel (Modal) */
@@ -660,4 +669,117 @@ button:disabled {
 }
 .search-result {
     display: none;
+} 
+
+.button-like:hover {
+    background-color: #4cae4c;
+}
+
+/* =================================================================
+   =================== MODAL STYLES ================================
+   ================================================================= */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: #2c2c2c;
+    padding: 25px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.visible .modal-content {
+    transform: scale(1);
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: #e0e0e0;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.modal-content p {
+    color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    white-space: pre-wrap; /* Allows line breaks like \n to be rendered */
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+.modal-actions .button-like {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.modal-actions .button-like:hover {
+    transform: translateY(-2px);
+}
+
+.modal-actions .button-like.danger {
+    background-color: #d9534f;
+}
+
+.modal-actions .button-like.danger:hover {
+    background-color: #c9302c;
+}
+
+.modal-actions .button-like {
+    background-color: #555;
+}
+.modal-actions .button-like:hover {
+    background-color: #666;
+} 
+
+/* Ensure form-group styles from settings tab apply here too */
+.modal-content .form-group-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.modal-content .form-group-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+    height: 16px;
+    width: 16px;
+    accent-color: #5cb85c;
+}
+
+.modal-content .form-group-checkbox label {
+    font-size: 0.95em;
+    color: #ddd;
+    cursor: pointer;
 } 
