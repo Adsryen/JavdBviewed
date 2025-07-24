@@ -5,6 +5,7 @@
 // const { createClient } = WebDAV;
 import { getValue, setValue, getSettings, saveSettings } from './storage.js';
 import { STORAGE_KEYS } from './config.js';
+import { logger } from './lib/logger.js';
 // import axios from 'axios';
 // import httpAdapter from 'axios/lib/adapters/xhr.js';
 
@@ -12,9 +13,12 @@ import { STORAGE_KEYS } from './config.js';
 // axios.defaults.adapter = httpAdapter;
 
 async function performUpload() {
+    await logger.info('Attempting to perform WebDAV upload.');
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
-        return { success: false, error: "WebDAV is not enabled or URL is not configured." };
+        const errorMsg = "WebDAV is not enabled or URL is not configured.";
+        await logger.warn(errorMsg);
+        return { success: false, error: errorMsg };
     }
 
     try {
@@ -29,6 +33,8 @@ async function performUpload() {
         let fileUrl = settings.webdav.url;
         if (!fileUrl.endsWith('/')) fileUrl += '/';
         fileUrl += filename.startsWith('/') ? filename.substring(1) : filename;
+        
+        await logger.info(`Uploading to ${fileUrl}`);
 
         const response = await fetch(fileUrl, {
             method: 'PUT',
@@ -42,17 +48,22 @@ async function performUpload() {
         if (!response.ok) {
             throw new Error(`Upload failed with status: ${response.status}`);
         }
-
+        
+        await logger.info('WebDAV upload successful.');
         return { success: true };
     } catch (error) {
+        await logger.error('WebDAV upload failed.', { error: error.message });
         return { success: false, error: error.message };
     }
 }
 
 async function performRestore(filename, options = { restoreSettings: true, restoreRecords: true }) {
+    await logger.info(`Attempting to restore from WebDAV.`, { filename, options });
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
-        return { success: false, error: "WebDAV is not enabled or URL is not configured." };
+        const errorMsg = "WebDAV is not enabled or URL is not configured.";
+        await logger.warn(errorMsg);
+        return { success: false, error: errorMsg };
     }
 
     try {
@@ -73,7 +84,7 @@ async function performRestore(filename, options = { restoreSettings: true, resto
             finalUrl = new URL(filename, base).href;
         }
 
-        console.log(`Attempting to restore from WebDAV URL: ${finalUrl}`);
+        await logger.info(`Attempting to restore from WebDAV URL: ${finalUrl}`);
         
         const response = await fetch(finalUrl, {
             method: 'GET',
@@ -101,18 +112,22 @@ async function performRestore(filename, options = { restoreSettings: true, resto
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
         }
         // --- End of Selective Restore Logic ---
-
+        
+        await logger.info('Successfully restored from WebDAV.', { filename });
         return { success: true };
     } catch (error) {
-        console.error('Failed to restore from WebDAV:', error);
+        await logger.error('Failed to restore from WebDAV.', { error: error.message, filename });
         return { success: false, error: error.message };
     }
 }
 
 async function listFiles() {
+    await logger.info('Attempting to list files from WebDAV.');
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
-        return { success: false, error: "WebDAV is not enabled or URL is not configured." };
+        const errorMsg = "WebDAV is not enabled or URL is not configured.";
+        await logger.warn(errorMsg);
+        return { success: false, error: errorMsg };
     }
 
     try {
@@ -134,17 +149,18 @@ async function listFiles() {
         const text = await response.text();
         
         // Add logging for the raw response text
-        console.log("Received WebDAV PROPFIND response:", text);
+        await logger.debug("Received WebDAV PROPFIND response:", { response: text });
 
         // Custom lightweight XML parser to avoid DOMParser in Service Worker
         const files = parseWebDAVResponse(text);
         
         // Add logging for the parsed result
-        console.log("Parsed WebDAV files:", files);
+        await logger.debug("Parsed WebDAV files:", { files });
 
+        await logger.info(`Successfully listed ${files.length} backup files from WebDAV.`);
         return { success: true, files: files };
     } catch (error) {
-        console.error('Failed to list WebDAV files:', error);
+        await logger.error('Failed to list WebDAV files.', { error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -192,9 +208,12 @@ function parseWebDAVResponse(xmlString) {
 
 
 async function testWebDAVConnection() {
+    await logger.info('Testing WebDAV connection.');
     const settings = await getSettings();
     if (!settings.webdav.url || !settings.webdav.username || !settings.webdav.password) {
-        return { success: false, error: "WebDAV is not enabled or URL is not configured." };
+        const errorMsg = "WebDAV connection details are not fully configured.";
+        await logger.warn(errorMsg);
+        return { success: false, error: errorMsg };
     }
 
     try {
@@ -207,11 +226,15 @@ async function testWebDAVConnection() {
         });
 
         if (response.ok) {
+            await logger.info('WebDAV connection test successful.');
             return { success: true };
         } else {
-            return { success: false, error: `Connection test failed with status: ${response.status}` };
+            const errorMsg = `Connection test failed with status: ${response.status}`;
+            await logger.warn(errorMsg);
+            return { success: false, error: errorMsg };
         }
     } catch (error) {
+        await logger.error('WebDAV connection test failed.', { error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -232,33 +255,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'setup-alarms') {
         setupAlarms();
         return false; // No response needed
+    } else if (message.type === 'get-logs') {
+        getValue('extension_logs', []).then(logs => sendResponse({ success: true, logs }));
+        return true;
     }
 });
 
 async function triggerAutoSync() {
+    await logger.info('Checking if auto-sync should be triggered.');
     const settings = await getSettings();
     if (settings.webdav.enabled && settings.webdav.autoSync) {
-        console.log('Performing daily auto-sync...');
+        await logger.info('Performing daily auto-sync...');
         const response = await performUpload();
         if (response && response.success) {
-            console.log('Daily auto-sync successful.');
+            await logger.info('Daily auto-sync successful.');
             const newSettings = await getSettings();
             newSettings.webdav.lastSync = new Date().toISOString();
             await saveSettings(newSettings);
         } else {
-            console.error('Daily auto-sync failed:', response ? response.error : 'No response.');
+            await logger.error('Daily auto-sync failed.', { error: response ? response.error : 'No response.' });
         }
+    } else {
+        await logger.info('Auto-sync is disabled, skipping.');
     }
 }
 
 async function setupAlarms() {
+    await logger.info('Setting up alarms for auto-sync.');
     const settings = await getSettings();
     const interval = settings.webdav.syncInterval || 1440; // Default to 24 hours (1440 minutes)
 
     chrome.alarms.get('daily-webdav-sync', (alarm) => {
-        // If alarm exists and interval is different, clear it to reschedule
+        // This part remains tricky because it's a callback, not async/await.
+        // However, the logger calls that matter are in the async parts.
         if (alarm && alarm.periodInMinutes !== interval) {
-            chrome.alarms.clear('daily-webdav-sync');
+            chrome.alarms.clear('daily-webdav-sync', (wasCleared) => {
+                if (wasCleared) {
+                    logger.info('Cleared existing alarm due to interval change.');
+                }
+            });
         }
     });
 
@@ -268,9 +303,14 @@ async function setupAlarms() {
             delayInMinutes: 1,
             periodInMinutes: parseInt(interval, 10)
         });
+        await logger.info(`Created/updated auto-sync alarm with interval: ${interval} minutes.`);
     } else {
         // If auto-sync is disabled, make sure the alarm is cleared
-        chrome.alarms.clear('daily-webdav-sync');
+        chrome.alarms.clear('daily-webdav-sync', (wasCleared) => {
+             if (wasCleared) {
+                logger.info('Auto-sync is disabled, clearing any existing alarms.');
+             }
+        });
     }
 }
 
@@ -288,6 +328,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === 'daily-webdav-sync') {
-    triggerAutoSync();
+    // Use an IIFE to use async/await here.
+    (async () => {
+        await logger.info(`Alarm '${alarm.name}' triggered, starting auto-sync.`);
+        await triggerAutoSync();
+    })();
   }
 });

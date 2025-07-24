@@ -1,0 +1,166 @@
+/* General Body and Panel */
+body {
+    min-width: 340px;
+    max-width: 340px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f7f7f7;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+#panel {
+    background: #fff;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Title */
+.panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+#helpBtn {
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+#helpBtn:hover {
+    transform: scale(1.1);
+}
+
+/* Stats */
+.stats-container {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+.stats-container .count {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+.stats-container .label {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Main Controls */
+.main-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.toggle-button {
+    width: 100%;
+    padding: 10px 12px;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.toggle-button.active {
+    background-color: #ff4a4a; /* Red for "Hiding" */
+}
+
+.toggle-button.inactive {
+    background-color: #2ed573; /* Green for "Showing" */
+}
+
+/* Dashboard Link */
+.dashboard-link {
+    margin-bottom: 15px;
+}
+.dashboard-link .button {
+    width: 100%;
+    padding: 12px;
+    background-color: #4a9eff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.dashboard-link .button:hover {
+    background-color: #3d8ae5;
+    transform: translateY(-1px);
+}
+
+/* Version Info */
+#versionAuthorInfo {
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    color: #999;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Help Panel */
+#helpPanel {
+    display: none; /* Initially hidden */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    z-index: 10;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.help-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+.help-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+#closeHelpBtn {
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+    color: #999;
+}
+#closeHelpBtn:hover {
+    color: #333;
+}
+.help-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+}
+.help-body p {
+    margin: 0 0 10px;
+}
+.help-body strong {
+    color: #111;
+} 
