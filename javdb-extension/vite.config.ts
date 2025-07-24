@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-const { crx } = require('@crxjs/vite-plugin');
+import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.json';
 
 export default defineConfig({
@@ -8,11 +8,5 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
-    rollupOptions: {
-      input: {
-        popup: 'src/popup/popup.html',
-        dashboard: 'src/dashboard/dashboard.html',
-      },
-    },
   },
 }); 

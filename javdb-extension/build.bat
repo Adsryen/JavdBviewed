@@ -1,11 +1,11 @@
 @echo off
 echo Installing Node.js dependencies...
-call npm install
+call pnpm install
 
 echo.
 
 echo Building the extension with Webpack...
-call npm run build
+call pnpm run build
 
 echo.
 echo Build process finished.

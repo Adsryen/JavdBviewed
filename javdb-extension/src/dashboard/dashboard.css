@@ -303,7 +303,15 @@ button:disabled {
     background: transparent;
     border: none;
     padding: 0 5px;
+    box-shadow: none;
+    cursor: default;
 }
+
+.pagination button.ellipsis:hover {
+    transform: none;
+    background: transparent;
+}
+
 
 /* Advanced Settings Tab */
 #jsonConfig {
@@ -496,7 +504,7 @@ button:disabled {
 /* Data overview in sidebar */
 #stats-overview {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between; /* Changed from space-around for better even distribution */
     text-align: center;
     background-color: #fff;
     padding: 15px;
@@ -531,51 +539,60 @@ button:disabled {
     margin-top: 8px;
 }
 
-/* Message/Toast Notification Container */
+/* =================================================================
+   =================== TOAST NOTIFICATION STYLES ===================
+   ================================================================= */
+
 #messageContainer {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
+    bottom: 25px;
+    right: 25px;
+    z-index: 2000; /* Ensure it's above other elements */
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    align-items: flex-end; /* Align toasts to the right */
+    gap: 12px;
 }
 
 .toast {
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 14px;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease-in-out;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-width: 250px;
-}
-
-.toast i {
-    font-size: 1.2em;
+    gap: 12px;
+    padding: 16px 22px;
+    border-radius: 10px;
+    color: #fff;
+    font-family: "Microsoft YaHei", "Segoe UI", Roboto, sans-serif; /* Font stack that supports Chinese well */
+    font-size: 15px;
+    font-weight: 500;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    min-width: 280px;
+    max-width: 350px;
+    opacity: 0;
+    transform: translateX(100%); /* Start off-screen to the right */
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Bouncy effect */
 }
 
 .toast.show {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
 }
 
-.toast.success {
-    background-color: #28a745;
+.toast i {
+    font-size: 22px;
+    line-height: 1;
 }
 
-.toast.error {
-    background-color: #dc3545;
+.toast-info {
+    background: linear-gradient(to right, #2a9d8f, #264653);
 }
 
-.toast.info {
-    background-color: #17a2b8;
+.toast-error {
+    background: linear-gradient(to right, #e76f51, #d90429);
+}
+
+/* Use a different class for success to avoid conflict */
+.toast-success {
+    background: linear-gradient(to right, #2a9d8f, #4CAF50);
 }
 
 /* Help Panel (Modal) */
@@ -673,6 +690,16 @@ button:disabled {
 
 .button-like:hover {
     background-color: #4cae4c;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.hidden {
+    display: none;
 }
 
 /* =================================================================

@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>JavDB 助手管理面板</title>
+  <title>JavDB 助手管理面板</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script type="module" crossorigin src="/assets/dashboard-4jIz5JYb.js"></script>
+  <script type="module" crossorigin src="/assets/dashboard.html--ZOFKE_9.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="modulepreload" crossorigin href="/assets/storage-BU9Pj700.js">
-  <link rel="stylesheet" crossorigin href="/assets/dashboard-IBqogg78.css">
+  <link rel="modulepreload" crossorigin href="/assets/storage-BUa3Gg3q.js">
+  <link rel="stylesheet" crossorigin href="/assets/dashboard-lDqm0c8B.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -157,17 +157,20 @@
 
             <div id="tab-advanced-settings" class="tab-content">
                 <div class="card">
-                    <div class="settings-section">
-                        <h3>原始JSON配置</h3>
-                        <p class="settings-description">
-                            这里显示了插件的所有内部配置。除非您了解其具体作用，否则请勿修改。
-                            <strong>警告：不正确的修改可能导致插件功能异常。</strong>
-                        </p>
-                        <div class="button-group">
-                            <button id="editJsonBtn">启用编辑</button>
-                            <button id="saveJsonBtn" class="hidden">保存配置</button>
+                    <div class="setting-group">
+                        <h3>Advanced</h3>
+                        <div class="setting-item">
+                            <label for="jsonConfig">Raw JSON Configuration</label>
+                            <p class="description">For advanced users: directly edit the extension's settings. Be careful, as incorrect JSON can break the extension.</p>
+                            <textarea id="jsonConfig" readonly></textarea>
                         </div>
-                        <textarea id="jsonConfig" readonly></textarea>
+                        <div class="setting-item action-buttons">
+                            <button id="editJsonBtn" class="btn">Edit JSON</button>
+                            <button id="saveJsonBtn" class="btn btn-primary hidden">Save JSON</button>
+                            <button id="importJsonBtn" class="btn">Import from File</button>
+                            <input type="file" id="importFileInput" class="hidden" accept=".json">
+                            <button id="exportJsonBtn" class="btn">Export to File</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -239,6 +242,6 @@
           </div>
       </div>
   </div>
-
+
 </body>
 </html> 
