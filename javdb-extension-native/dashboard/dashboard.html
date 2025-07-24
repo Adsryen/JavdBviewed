@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>JavDB 助手管理面板</title>
-  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="./dashboard.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -174,10 +174,33 @@
                     <div class="settings-section">
                         <h4>日志记录</h4>
                         <p class="settings-description">此处显示插件运行期间的关键事件，便于问题排查。日志会自动保存。</p>
-                        <div class="button-group">
-                            <button id="clearLogsBtn" class="danger">清空日志</button>
+                        <div class="filters">
+                            <label for="log-level-filter">筛选等级:</label>
+                            <select id="log-level-filter">
+                                <option value="ALL">全部</option>
+                                <option value="INFO">信息</option>
+                                <option value="WARN">警告</option>
+                                <option value="ERROR">错误</option>
+                                <option value="DEBUG">调试</option>
+                            </select>
+                            <button id="refresh-logs-button" class="button-like">刷新</button>
+                            <button id="clear-logs-button" class="button-like danger">清空日志</button>
                         </div>
-                        <pre id="log"></pre>
+                        <div class="log-container">
+                            <table id="log-table">
+                                <thead>
+                                    <tr>
+                                        <th class="timestamp">时间</th>
+                                        <th class="level">等级</th>
+                                        <th class="message">消息</th>
+                                        <th class="data">数据</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log-body">
+                                    <!-- Log entries will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -214,6 +237,6 @@
       </div>
   </div>
 
-  <script src="dashboard.js" type="module"></script>
+  <script src="./dashboard.js" type="module"></script>
 </body>
 </html> 

@@ -1,41 +1,67 @@
 {
-  "manifest_version": 3,
-  "name": "JavDB viewed (Native)",
-  "version": "1.0.1",
-  "description": "Mark javdb videos as watched. (Native JS Version)",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "tabs",
-    "scripting",
-    "webRequest",
-    "alarms"
-  ],
-  "host_permissions": ["https://javdb.com/*", "*://*/*"],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://javdb.com/*"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    }
-  ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": "icons/favicon-16x16.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["lib/webdav.js", "icons/jav.png"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "icons": {
-    "16": "icons/favicon-16x16.png",
-    "48": "icons/favicon-16x16.png",
-    "128": "icons/favicon-16x16.png"
-  }
+    "manifest_version": 3,
+    "name": "JavDB Viewed Marker",
+    "version": "1.7.0",
+    "description": "Marks viewed videos on JavDB and provides advanced filtering and data management.",
+    "permissions": [
+        "storage",
+        "tabs",
+        "alarms",
+        "scripting"
+    ],
+    "host_permissions": [
+        "*://*/*",
+        "*://*.javdb.com/*",
+        "*://*.javlibrary.com/*"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.javdb.com/*",
+                "*://*.javlibrary.com/*"
+            ],
+            "js": ["content.js"]
+        }
+    ],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_icon": {
+            "16": "assets/icons/favicon-16x16.png",
+            "48": "assets/icons/favicon-16x16.png",
+            "128": "assets/icons/favicon-16x16.png"
+        }
+    },
+    "icons": {
+        "16": "assets/icons/favicon-16x16.png",
+        "48": "assets/icons/favicon-16x16.png",
+        "128": "assets/icons/favicon-16x16.png"
+    },
+    "options_ui": {
+        "page": "dashboard/dashboard.html",
+        "open_in_tab": true
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "config.js",
+                "storage.js",
+                "lib/utils.js",
+                "dashboard/dashboard.html",
+                "dashboard/dashboard.css",
+                "dashboard/dashboard.js",
+                "dashboard/components/global.js",
+                "dashboard/components/records.js",
+                "dashboard/components/settings.js",
+                "dashboard/components/advanced-settings.js",
+                "dashboard/components/logs.js",
+                "dashboard/components/logs.css",
+                "popup/*"
+            ],
+            "matches": ["<all_urls>"]
+        }
+    ]
 } 
