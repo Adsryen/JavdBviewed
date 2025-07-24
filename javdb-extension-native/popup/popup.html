@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>JavDB 助手</title>
+    <link rel="stylesheet" href="./popup.css">
+</head>
+<body>
+    <div id="panel">
+        <div id="title" class="panel-title">
+            <span>JavDB 助手</span>
+            <span id="helpBtn" title="功能说明">❓</span>
+        </div>
+
+        <div class="stats-container" id="idCountDisplay">
+            <!-- Data counts will be loaded here -->
+        </div>
+
+        <div class="main-controls">
+            <div id="toggleWatchedContainer"></div>
+            <div id="toggleViewedContainer"></div>
+            <div id="toggleVRContainer"></div>
+        </div>
+        
+        <div class="dashboard-link">
+            <button id="dashboard-button" class="button">
+                高级设置 & 数据管理
+            </button>
+        </div>
+
+        <div id="versionAuthorInfo"></div>
+    </div>
+
+    <div id="helpPanel" style="display: none;">
+        <!-- Help content will be loaded here -->
+    </div>
+
+    <script src="./popup.js" type="module"></script>
+</body>
+</html> 
