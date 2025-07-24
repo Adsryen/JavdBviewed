@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>JavDB 助手管理面板</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script type="module" crossorigin src="/assets/dashboard-4jIz5JYb.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/assets/storage-BU9Pj700.js">
+  <link rel="stylesheet" crossorigin href="/assets/dashboard-IBqogg78.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <h1 class="panel-title">JavDB 助手 <span id="helpBtn" title="功能说明">❓</span></h1>
+
+            <div class="sidebar-section">
+                <h4>数据概览</h4>
+                <div id="stats-overview">
+                    <!-- 统计信息将由 JS 动态填充 -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h4>本地备份</h4>
+                <div class="button-group-vertical">
+                    <label for="importFile" class="button-like">导入本地备份 (JSON)</label>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                    <button id="exportBtn">导出本地备份 (JSON)</button>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h4>WebDAV 同步</h4>
+                <div class="button-group-vertical">
+                    <button id="syncNow">立即上传至云端</button>
+                    <button id="syncDown">从云端恢复...</button>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h4>全局操作</h4>
+                <div class="button-group-vertical">
+                    <button id="clearAllBtn" class="danger">清空所有本地记录</button>
+                </div>
+            </div>
+
+            <div id="infoContainer">
+                <!-- 版本和作者信息将由 JS 动态填充 -->
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab-link active" data-tab="tab-records">番号库</button>
+                <button class="tab-link" data-tab="tab-settings">设置</button>
+                <button class="tab-link" data-tab="tab-advanced-settings">高级配置</button>
+                <button class="tab-link" data-tab="tab-logs">日志</button>
+            </div>
+    
+            <div id="tab-records" class="tab-content active">
+                <div class="card">
+                    <div class="search-and-filter">
+                        <input type="text" id="searchInput" placeholder="搜索番号、标题...">
+                        <select id="filterSelect">
+                            <option value="all">所有记录</option>
+                            <option value="viewed">已观看</option>
+                            <option value="want">我想看</option>
+                            <option value="browsed">已浏览</option>
+                        </select>
+                    </div>
+                    <div class="video-list-container">
+                        <ul id="videoList">
+                            <!-- 视频列表将由 JS 动态填充 -->
+                        </ul>
+                    </div>
+                    <div class="pagination">
+                        <!-- 分页控件将由 JS 动态填充 -->
+                    </div>
+                </div>
+            </div>
+    
+            <div id="tab-settings" class="tab-content">
+                <div class="card">
+                    <div class="settings-section">
+                        <h3>列表显示设置</h3>
+                        <p class="settings-description">控制在JavDB网站上访问时，是否自动隐藏符合条件的影片。</p>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideViewed">
+                            <label for="hideViewed">隐藏已标记"看过"的影片</label>
+                        </div>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideBrowsed">
+                            <label for="hideBrowsed">隐藏已浏览详情页的影片</label>
+                        </div>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideVR">
+                            <label for="hideVR">隐藏所有VR影片</label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section" id="search-engine-settings">
+                        <h3>搜索引擎设置</h3>
+                        <p class="settings-description">自定义点击番号后跳转的搜索网站。使用 <code>{{ID}}</code> 作为番号占位符。</p>
+                        <div id="search-engine-list">
+                            <!-- 搜索引擎列表将由 JS 动态填充 -->
+                        </div>
+                        <button id="add-search-engine" class="button-like">
+                            <i class="fas fa-plus"></i> 添加新的搜索引擎
+                        </button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>WebDAV 设置</h3>
+                        <p class="settings-description">通过WebDAV协议，将您的观看记录备份到兼容的云存储服务（如：坚果云、Nextcloud等）。</p>
+                        <div class="form-group">
+                            <label for="webdavEnabled">启用 WebDAV 同步</label>
+                            <input type="checkbox" id="webdavEnabled">
+                        </div>
+                        <div id="webdav-fields-container">
+                            <div class="form-group">
+                                <label for="webdavUrl">WebDAV 地址:</label>
+                                <input type="text" id="webdavUrl" placeholder="例如: https://dav.jianguoyun.com/dav/">
+                            </div>
+                            <div class="form-group">
+                                <label for="webdavUser">用户名:</label>
+                                <input type="text" id="webdavUser">
+                            </div>
+                            <div class="form-group">
+                                <label for="webdavPass">密码/应用密钥:</label>
+                                <input type="password" id="webdavPass">
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavAutoSync">
+                                <label for="webdavAutoSync">每日自动上传</label>
+                            </div>
+                            <div class="form-group">
+                                <label for="webdav-sync-interval">同步间隔 (分钟):</label>
+                                <input type="number" id="webdav-sync-interval" min="1" value="1440" style="width: 80px; margin-left: 10px;">
+                            </div>
+                            <div class="button-group">
+                                <button type="button" id="saveWebdavSettings">保存设置</button>
+                                <button type="button" id="testWebdavConnection">测试连接</button>
+                            </div>
+                            <div class="form-group">
+                                <p>上次同步: <span id="last-sync-time">从未</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="fileListContainer" class="settings-section hidden">
+                        <h4>云端文件列表 (点击恢复)</h4>
+                        <ul id="fileList"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-advanced-settings" class="tab-content">
+                <div class="card">
+                    <div class="settings-section">
+                        <h3>原始JSON配置</h3>
+                        <p class="settings-description">
+                            这里显示了插件的所有内部配置。除非您了解其具体作用，否则请勿修改。
+                            <strong>警告：不正确的修改可能导致插件功能异常。</strong>
+                        </p>
+                        <div class="button-group">
+                            <button id="editJsonBtn">启用编辑</button>
+                            <button id="saveJsonBtn" class="hidden">保存配置</button>
+                        </div>
+                        <textarea id="jsonConfig" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-logs" class="tab-content">
+                <div class="card">
+                    <div class="settings-section">
+                        <h4>日志记录</h4>
+                        <p class="settings-description">此处显示插件运行期间的关键事件，便于问题排查。日志会自动保存。</p>
+                        <div class="filters">
+                            <label for="log-level-filter">筛选等级:</label>
+                            <select id="log-level-filter">
+                                <option value="ALL">全部</option>
+                                <option value="INFO">信息</option>
+                                <option value="WARN">警告</option>
+                                <option value="ERROR">错误</option>
+                                <option value="DEBUG">调试</option>
+                            </select>
+                            <button id="refresh-logs-button" class="button-like">刷新</button>
+                            <button id="clear-logs-button" class="button-like danger">清空日志</button>
+                        </div>
+                        <div class="log-container">
+                            <table id="log-table">
+                                <thead>
+                                    <tr>
+                                        <th class="timestamp">时间</th>
+                                        <th class="level">等级</th>
+                                        <th class="message">消息</th>
+                                        <th class="data">数据</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log-body">
+                                    <!-- Log entries will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  
+  <div id="helpPanel"></div>
+  <div id="messageContainer"></div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmationModal" class="modal-overlay">
+      <div class="modal-content">
+          <h3 id="modalTitle">确认操作</h3>
+          <p id="modalMessage">您确定要继续吗？</p>
+
+          <!-- Restore options, hidden by default -->
+          <div id="modalRestoreOptions" class="hidden">
+              <p class="settings-description" style="margin-top: 15px; margin-bottom: 15px; text-align: left;">请选择要从备份文件中恢复的内容：</p>
+              <div class="form-group-checkbox">
+                  <input type="checkbox" id="modalRestoreSettings" checked>
+                  <label for="modalRestoreSettings">扩展设置 (WebDAV, 搜索引擎等)</label>
+              </div>
+              <div class="form-group-checkbox">
+                  <input type="checkbox" id="modalRestoreRecords" checked>
+                  <label for="modalRestoreRecords">观看记录 (已观看, 我想看等)</label>
+              </div>
+              <p class="settings-description" style="font-size: 0.8em; margin-top: 10px; text-align: left; color: #999;">注意：未勾选的项目将保留当前数据，不会被覆盖。</p>
+          </div>
+
+          <div class="modal-actions">
+              <button id="modalCancelBtn" class="button-like">取消</button>
+              <button id="modalConfirmBtn" class="button-like danger">确认</button>
+          </div>
+      </div>
+  </div>
+
+</body>
+</html> 

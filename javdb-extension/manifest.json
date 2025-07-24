@@ -1,33 +1,52 @@
 {
-  "manifest_version": 3,
-  "name": "JavDB viewed",
-  "version": "1.0.1",
-  "description": "Mark javdb videos as watched.",
-  "permissions": ["storage", "activeTab", "tabs", "scripting", "webRequest", "alarms"],
-  "host_permissions": ["https://javdb.com/*", "*://*/*"],
-  "background": {
-    "service_worker": "dist/background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://javdb.com/*"],
-      "js": ["dist/content.js"],
-      "run_at": "document_end"
-    }
-  ],
-  "action": {
-    "default_popup": "src/popup/popup.html",
-    "default_icon": "src/assets/favicon-16x16.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["dist/dashboard.html", "src/assets/jav.png"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "icons": {
-    "16": "src/assets/favicon-16x16.png",
-    "48": "src/assets/favicon-16x16.png",
-    "128": "src/assets/favicon-16x16.png"
-  }
+    "manifest_version": 3,
+    "name": "JavDB Viewed Marker",
+    "version": "1.7.0",
+    "description": "Marks viewed videos on JavDB and provides advanced filtering and data management.",
+    "permissions": [
+        "storage",
+        "tabs",
+        "alarms",
+        "scripting"
+    ],
+    "host_permissions": [
+        "*://*.javdb.com/*"
+    ],
+    "background": {
+        "service_worker": "src/background/background.ts",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.javdb.com/*"
+            ],
+            "js": ["src/content/content.ts"]
+        }
+    ],
+    "action": {
+        "default_popup": "src/popup/popup.html",
+        "default_icon": {
+            "16": "src/assets/favicon-16x16.png",
+            "48": "src/assets/favicon-16x16.png",
+            "128": "src/assets/favicon-16x16.png"
+        }
+    },
+    "icons": {
+        "16": "src/assets/favicon-16x16.png",
+        "48": "src/assets/favicon-16x16.png",
+        "128": "src/assets/favicon-16x16.png"
+    },
+    "options_ui": {
+        "page": "src/dashboard/dashboard.html",
+        "open_in_tab": true
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "src/assets/jav.png"
+            ],
+            "matches": ["*://*.javdb.com/*"]
+        }
+    ]
 } 
