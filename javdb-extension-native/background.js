@@ -49,18 +49,33 @@ async function performUpload() {
     }
 }
 
-async function performRestore(filename) {
+async function performRestore(filename, options = { restoreSettings: true, restoreRecords: true }) {
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
         return { success: false, error: "WebDAV is not enabled or URL is not configured." };
     }
 
     try {
-        let fileUrl = settings.webdav.url;
-        if (!fileUrl.endsWith('/')) fileUrl += '/';
-        fileUrl += filename.startsWith('/') ? filename.substring(1) : filename;
+        let finalUrl;
+        const webdavBaseUrl = settings.webdav.url;
+
+        // Intelligent URL construction
+        if (filename.startsWith('http://') || filename.startsWith('https://')) {
+            finalUrl = filename; // It's already a full URL
+        } else if (filename.startsWith('/')) {
+            // It's a root-relative path, combine with origin
+            const origin = new URL(webdavBaseUrl).origin;
+            finalUrl = new URL(filename, origin).href;
+        } else {
+            // It's a relative path, combine with the full WebDAV path
+            let base = webdavBaseUrl;
+            if (!base.endsWith('/')) base += '/';
+            finalUrl = new URL(filename, base).href;
+        }
+
+        console.log(`Attempting to restore from WebDAV URL: ${finalUrl}`);
         
-        const response = await fetch(fileUrl, {
+        const response = await fetch(finalUrl, {
             method: 'GET',
             headers: {
                 'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`)
@@ -74,14 +89,22 @@ async function performRestore(filename) {
         const fileContents = await response.text();
         const importData = JSON.parse(fileContents);
         
-        if (importData.settings && importData.data) {
+        // --- Selective Restore Logic ---
+        if (importData.settings && options.restoreSettings) {
             await saveSettings(importData.settings);
+        }
+        
+        if (importData.data && options.restoreRecords) {
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
-        } else {
+        } else if (options.restoreRecords) {
+            // Handle legacy format (root object is the data)
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
         }
+        // --- End of Selective Restore Logic ---
+
         return { success: true };
     } catch (error) {
+        console.error('Failed to restore from WebDAV:', error);
         return { success: false, error: error.message };
     }
 }
@@ -109,27 +132,64 @@ async function listFiles() {
         }
 
         const text = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(text, "application/xml");
-        const files = Array.from(xmlDoc.getElementsByTagName('d:response')).map(response => {
-            const href = response.getElementsByTagName('d:href')[0].textContent;
-            const lastModified = response.getElementsByTagName('d:getlastmodified')[0]?.textContent;
-            const isCollection = response.getElementsByTagName('d:resourcetype')[0]?.getElementsByTagName('d:collection').length > 0;
-            const displayName = decodeURIComponent(href.split('/').filter(Boolean).pop());
-            
-            return {
-                name: displayName,
-                path: href,
-                lastModified: lastModified ? new Date(lastModified).toLocaleString() : 'N/A',
-                isDirectory: isCollection,
-            };
-        }).filter(file => !file.isDirectory && file.name.includes('javdb-extension-backup')); // Only show backup files and not directories
+        
+        // Add logging for the raw response text
+        console.log("Received WebDAV PROPFIND response:", text);
+
+        // Custom lightweight XML parser to avoid DOMParser in Service Worker
+        const files = parseWebDAVResponse(text);
+        
+        // Add logging for the parsed result
+        console.log("Parsed WebDAV files:", files);
 
         return { success: true, files: files };
     } catch (error) {
+        console.error('Failed to list WebDAV files:', error);
         return { success: false, error: error.message };
     }
 }
+
+function parseWebDAVResponse(xmlString) {
+    const files = [];
+    // A more robust regex-based parser that strips namespace prefixes first.
+    const simplifiedXml = xmlString.replace(/<(\/)?\w+:/g, '<$1');
+
+    const responseRegex = /<response>(.*?)<\/response>/gs;
+    const hrefRegex = /<href>(.*?)<\/href>/;
+    const lastModifiedRegex = /<getlastmodified>(.*?)<\/getlastmodified>/;
+    const collectionRegex = /<resourcetype>\s*<collection\s*\/>\s*<\/resourcetype>/;
+
+    let match;
+    while ((match = responseRegex.exec(simplifiedXml)) !== null) {
+        const responseXml = match[1];
+
+        const hrefMatch = responseXml.match(hrefRegex);
+        if (hrefMatch) {
+            const href = hrefMatch[1];
+            const displayName = decodeURIComponent(href.split('/').filter(Boolean).pop());
+
+            // Skip directories/collections
+            if (collectionRegex.test(responseXml) || href.endsWith('/')) {
+                continue;
+            }
+            
+            // Filter for backup files
+            if (displayName.includes('javdb-extension-backup')) {
+                const lastModifiedMatch = responseXml.match(lastModifiedRegex);
+                const lastModified = lastModifiedMatch ? new Date(lastModifiedMatch[1]).toLocaleString() : 'N/A';
+                
+                files.push({
+                    name: displayName,
+                    path: href, // Use original href for download path
+                    lastModified: lastModified,
+                    isDirectory: false,
+                });
+            }
+        }
+    }
+    return files;
+}
+
 
 async function testWebDAVConnection() {
     const settings = await getSettings();
@@ -161,7 +221,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         performUpload().then(sendResponse);
         return true; 
     } else if (message.type === 'webdav-restore') {
-        performRestore(message.filename).then(sendResponse);
+        performRestore(message.filename, message.options).then(sendResponse);
         return true; 
     } else if (message.type === 'webdav-list-files') {
         listFiles().then(sendResponse);

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>JavDB 助手仪表盘</title>
+  <title>JavDB 助手管理面板</title>
   <link rel="stylesheet" href="dashboard.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -186,6 +186,33 @@
   
   <div id="helpPanel"></div>
   <div id="messageContainer"></div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmationModal" class="modal-overlay">
+      <div class="modal-content">
+          <h3 id="modalTitle">确认操作</h3>
+          <p id="modalMessage">您确定要继续吗？</p>
+
+          <!-- Restore options, hidden by default -->
+          <div id="modalRestoreOptions" class="hidden">
+              <p class="settings-description" style="margin-top: 15px; margin-bottom: 15px; text-align: left;">请选择要从备份文件中恢复的内容：</p>
+              <div class="form-group-checkbox">
+                  <input type="checkbox" id="modalRestoreSettings" checked>
+                  <label for="modalRestoreSettings">扩展设置 (WebDAV, 搜索引擎等)</label>
+              </div>
+              <div class="form-group-checkbox">
+                  <input type="checkbox" id="modalRestoreRecords" checked>
+                  <label for="modalRestoreRecords">观看记录 (已观看, 我想看等)</label>
+              </div>
+              <p class="settings-description" style="font-size: 0.8em; margin-top: 10px; text-align: left; color: #999;">注意：未勾选的项目将保留当前数据，不会被覆盖。</p>
+          </div>
+
+          <div class="modal-actions">
+              <button id="modalCancelBtn" class="button-like">取消</button>
+              <button id="modalConfirmBtn" class="button-like danger">确认</button>
+          </div>
+      </div>
+  </div>
 
   <script src="dashboard.js" type="module"></script>
 </body>
