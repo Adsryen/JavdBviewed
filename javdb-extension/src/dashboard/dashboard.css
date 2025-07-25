@@ -330,6 +330,7 @@ button:disabled {
     color: #c9d1d9;
     resize: vertical;
     transition: background-color 0.2s, color 0.2s;
+    box-sizing: border-box; /* Add this line to fix overflow */
 }
 
 #jsonConfig:read-only {
@@ -999,4 +1000,52 @@ button:disabled {
     padding: 40px;
     color: #777;
     font-size: 16px;
+}
+
+/* --- Advanced Settings Button Bar --- */
+
+.action-buttons-top {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.action-buttons-top .btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    color: #fff;
+}
+
+.action-buttons-top .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.action-buttons-top .btn:active:not(:disabled) {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Specific button colors */
+#editJsonBtn {
+    background-color: #17a2b8; /* Teal for 'Edit' */
+}
+
+#saveJsonBtn {
+    background-color: #28a745; /* Green for 'Save' */
+}
+
+#importJsonBtn {
+    background-color: #007bff; /* Blue for 'Import' */
+}
+
+#exportJsonBtn {
+    background-color: #6c757d; /* Gray for 'Export' */
 } 
