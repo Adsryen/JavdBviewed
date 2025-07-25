@@ -1,3 +1,5 @@
+import { ExtensionSettings } from '../types';
+
 export const STORAGE_KEYS = {
     // A single key for all viewed records, which is an object
     // where keys are video IDs and values are objects with { title, status, timestamp }.
@@ -16,24 +18,34 @@ export const VIDEO_STATUS = {
     BROWSED: 'browsed' // 已浏览
 } as const;
 
-export const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS: ExtensionSettings = {
     display: {
         hideViewed: false, // Corresponds to VIEWED status
         hideBrowsed: false, // Corresponds to BROWSED status
         hideVR: false,
     },
     webdav: {
-        enabled: false,
+        enabled: true,
         url: '',
         username: '',
         password: '',
         autoSync: false,
         syncInterval: 1440, // 24 hours in minutes
-        lastSync: null,
+        lastSync: ''
     },
     searchEngines: [
-        { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all', icon: 'https://javdb.com/favicon-32x32.png' },
-        { id: 'google', name: 'Google', urlTemplate: 'https://www.google.com/search?q={{ID}}', icon: 'https://www.google.com/favicon.ico' },
+        {
+            id: 'javdb',
+            icon: 'assets/favicon-32x32.png',
+            name: 'JavDB',
+            urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all'
+        },
+        {
+            id: 'javbus',
+            icon: 'assets/javbus.ico',
+            name: 'Javbus',
+            urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce'
+        }
     ],
     logging: {
         maxLogEntries: 1500,

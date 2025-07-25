@@ -380,6 +380,37 @@ button:disabled {
     margin: 0 0 15px 0;
     max-width: 80%;
 }
+.search-engine-header {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 0 10px 10px 10px;
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #555;
+}
+.engine-icon, .engine-name, .engine-url, .engine-icon-url, .engine-actions {
+    display: flex;
+    align-items: center;
+}
+.engine-icon {
+    width: 40px;
+    justify-content: center;
+}
+.engine-name {
+    width: 150px;
+}
+.engine-url {
+    flex-grow: 1;
+}
+.engine-icon-url {
+    width: 200px;
+}
+.engine-actions {
+    width: 80px;
+    justify-content: center;
+}
 #search-engine-list {
     display: flex;
     flex-direction: column;
@@ -391,13 +422,36 @@ button:disabled {
     gap: 10px;
     align-items: center;
 }
+.search-engine-item .icon-preview {
+    width: 40px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.search-engine-item .icon-preview img {
+    max-width: 20px;
+    max-height: 20px;
+    border-radius: 4px;
+}
 .search-engine-item input {
     padding: 8px 12px;
     border: 1px solid #ccc;
     border-radius: 6px;
 }
+.search-engine-item .name-input {
+    width: 150px;
+}
 .search-engine-item .url-template-input {
     flex-grow: 1;
+}
+.search-engine-item .icon-url-input {
+    width: 200px;
+}
+.search-engine-item .actions-container {
+    width: 80px;
+    display: flex;
+    justify-content: center;
 }
 .search-engine-item .delete-engine {
     background: none;
@@ -1181,4 +1235,60 @@ button:disabled {
 }
 .import-modal-footer .btn-default:hover {
     background-color: #e0e0e0;
+} 
+
+#search-engine-settings .button-like {
+    margin-top: 15px;
+}
+
+.form-group-search-engine {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 控制元素之间的间距 */
+    margin-bottom: 10px;
+}
+
+.search-engine-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0; /* 防止图标被压缩 */
+}
+
+.search-engine-name {
+    flex: 1; /* 名称输入框占据更多空间 */
+    min-width: 100px;
+}
+
+.search-engine-icon-url {
+    flex: 2; /* 图标URL输入框占据更多空间 */
+    min-width: 150px;
+}
+
+.search-engine-url {
+    flex: 3; /* URL模板输入框占据最多空间 */
+    min-width: 200px;
+}
+
+.remove-search-engine {
+    flex-shrink: 0; /* 防止删除按钮被压缩 */
+    padding: 5px 10px;
+    line-height: 1; /* 确保图标垂直居中 */
+}
+
+.button-like.danger i {
+    color: inherit; /* 使图标颜色与按钮文本颜色一致 */
+}
+
+.form-group-search-engine input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-group-search-engine input[type="text"]:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+    outline: none;
 } 
