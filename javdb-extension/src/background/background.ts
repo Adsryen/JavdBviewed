@@ -2,14 +2,49 @@
 
 import { getValue, setValue, getSettings, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
-import type { ExtensionSettings } from '../types';
+import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 
-// A simple logger replacement for now
+const MAX_LOG_ENTRIES = 200; // Limit the number of log entries to prevent storage bloat
+
+const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => void> = {
+    INFO: console.info,
+    WARN: console.warn,
+    ERROR: console.error,
+    DEBUG: console.debug,
+};
+
+async function log(level: LogLevel, message: string, data?: any) {
+    const logFunction = consoleMap[level] || console.log;
+    logFunction(`[${level}] ${message}`, data); // Keep console logging
+
+    try {
+        const logs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+        
+        const newLogEntry: LogEntry = {
+            timestamp: new Date().toISOString(),
+            level,
+            message,
+            data: data ? JSON.parse(JSON.stringify(data)) : null, // Deep copy to avoid storing complex objects
+        };
+
+        logs.push(newLogEntry);
+
+        // Trim logs if they exceed the max size
+        if (logs.length > MAX_LOG_ENTRIES) {
+            logs.splice(0, logs.length - MAX_LOG_ENTRIES);
+        }
+
+        await setValue(STORAGE_KEYS.LOGS, logs);
+    } catch (e) {
+        console.error("Failed to write to persistent log:", e);
+    }
+}
+
 const logger = {
-    info: (...args: any[]) => console.log('[INFO]', ...args),
-    warn: (...args: any[]) => console.warn('[WARN]', ...args),
-    error: (...args: any[]) => console.error('[ERROR]', ...args),
-    debug: (...args: any[]) => console.debug('[DEBUG]', ...args),
+    info: (message: string, data?: any) => log('INFO', message, data),
+    warn: (message: string, data?: any) => log('WARN', message, data),
+    error: (message: string, data?: any) => log('ERROR', message, data),
+    debug: (message: string, data?: any) => log('DEBUG', message, data),
 };
 
 interface WebDAVFile {
@@ -248,7 +283,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             setupAlarms();
             return false;
         case 'get-logs':
-            getValue('extension_logs', []).then(logs => sendResponse({ success: true, logs }));
+            getValue(STORAGE_KEYS.LOGS, []).then(logs => sendResponse({ success: true, logs }));
+            return true;
+        case 'clear-logs':
+            setValue(STORAGE_KEYS.LOGS, []).then(() => sendResponse({ success: true }));
             return true;
         default:
             return false;

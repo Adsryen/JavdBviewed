@@ -102,7 +102,16 @@ function initTabs(): void {
     };
 
     tabs.forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab));
+        tab.addEventListener('click', () => {
+            switchTab(tab);
+            // If the logs tab is now active, refresh the logs.
+            if (tab.getAttribute('data-tab') === 'tab-logs') {
+                const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
+                if (refreshButton) {
+                    refreshButton.click();
+                }
+            }
+        });
     });
 
     const currentHash = window.location.hash.substring(1) || 'tab-records';
@@ -264,10 +273,21 @@ function initRecordsTab(): void {
 function initSidebarActions(): void {
     const importFileInput = document.getElementById('importFile') as HTMLInputElement;
     const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
+    const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
+    const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
+    const fileList = document.getElementById('fileList') as HTMLUListElement;
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
-            const dataStr = JSON.stringify({ settings: STATE.settings, data: STATE.records }, null, 2);
+            const dataToExport = {
+                settings: STATE.settings,
+                // FIX: Export the records in object format for better compatibility
+                data: STATE.records.reduce((acc, record) => {
+                    acc[record.id] = record;
+                    return acc;
+                }, {} as Record<string, VideoRecord>)
+            };
+            const dataStr = JSON.stringify(dataToExport, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
             const anchor = document.createElement('a');
@@ -275,7 +295,7 @@ function initSidebarActions(): void {
             anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
             anchor.click();
             URL.revokeObjectURL(url);
-            showMessage('Data exported successfully.');
+            showMessage('Data exported successfully.', 'success');
         });
     }
     
@@ -299,10 +319,127 @@ function initSidebarActions(): void {
             reader.readAsText(file);
         });
     }
+
+    if (syncDownBtn) {
+        syncDownBtn.addEventListener('click', () => {
+            syncDownBtn.textContent = '正在获取列表...';
+            syncDownBtn.disabled = true;
+
+            chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
+                syncDownBtn.textContent = '从云端恢复...';
+                syncDownBtn.disabled = false;
+
+                if (response?.success) {
+                    if (response.files && response.files.length > 0) {
+                        fileList.innerHTML = ''; // Clear previous list
+                        response.files.forEach((file: any) => {
+                            const li = document.createElement('li');
+                            li.textContent = `${file.name} (${file.lastModified})`;
+                            li.dataset.filename = file.name; // Use name for restore
+                            li.dataset.filepath = file.path; // Keep full path if needed
+                            li.classList.add('file-item');
+                            li.addEventListener('click', () => handleFileRestoreClick(file));
+                            fileList.appendChild(li);
+                        });
+                        fileListContainer.classList.remove('hidden');
+                        showMessage('获取文件列表成功，请点击文件进行恢复。');
+                        // Switch to settings tab to show the list
+                        document.querySelector('.tab-link[data-tab="tab-settings"]')?.dispatchEvent(new MouseEvent('click'));
+                    } else {
+                        showMessage('在云端未找到任何备份文件。', 'warn');
+                    }
+                } else {
+                    showMessage(`获取文件列表失败: ${response.error}`, 'error');
+                }
+            });
+        });
+    }
+}
+
+// --- Confirmation Modal Logic ---
+
+function showConfirmationModal({ title, message, onConfirm, onCancel, showRestoreOptions = false, restoreOptions = { settings: true, records: true } }: {
+    title: string;
+    message: string;
+    onConfirm: (options?: { restoreSettings: boolean; restoreRecords: boolean }) => void;
+    onCancel?: () => void;
+    showRestoreOptions?: boolean;
+    restoreOptions?: { settings: boolean; records: boolean };
+}) {
+    const modal = document.getElementById('confirmationModal') as HTMLDivElement;
+    const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
+    const modalMessage = document.getElementById('modalMessage') as HTMLParagraphElement;
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
+    const modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
+    
+    // Restore options elements
+    const modalRestoreOptions = document.getElementById('modalRestoreOptions') as HTMLDivElement;
+    const restoreSettingsCheckbox = document.getElementById('modalRestoreSettings') as HTMLInputElement;
+    const restoreRecordsCheckbox = document.getElementById('modalRestoreRecords') as HTMLInputElement;
+
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+
+    // Handle restore options display
+    if (showRestoreOptions) {
+        restoreSettingsCheckbox.checked = restoreOptions.settings;
+        restoreRecordsCheckbox.checked = restoreOptions.records;
+        modalRestoreOptions.classList.remove('hidden');
+    } else {
+        modalRestoreOptions.classList.add('hidden');
+    }
+    
+    modal.style.display = 'flex';
+
+    // Use .cloneNode to remove previous event listeners
+    const newConfirmBtn = modalConfirmBtn.cloneNode(true) as HTMLButtonElement;
+    modalConfirmBtn.parentNode?.replaceChild(newConfirmBtn, modalConfirmBtn);
+
+    newConfirmBtn.onclick = () => {
+        if (showRestoreOptions) {
+            onConfirm({
+                restoreSettings: restoreSettingsCheckbox.checked,
+                restoreRecords: restoreRecordsCheckbox.checked
+            });
+        } else {
+            onConfirm();
+        }
+        modal.style.display = 'none';
+    };
+
+    modalCancelBtn.onclick = () => {
+        if (onCancel) onCancel();
+        modal.style.display = 'none';
+    };
 }
 
 
 // --- Unified Import/Export Logic ---
+
+function handleFileRestoreClick(file: { name: string, path: string }) {
+    showConfirmationModal({
+        title: '确认恢复',
+        message: `您确定要从文件 "${file.name}" 中恢复数据吗？此操作将覆盖本地数据。`,
+        showRestoreOptions: true,
+        onConfirm: (options) => {
+            if (!options) return;
+            if (!options.restoreRecords && !options.restoreSettings) {
+                showMessage('您没有选择任何要恢复的内容。', 'warn');
+                return;
+            }
+
+            showMessage('正在从云端恢复，请稍候...', 'info');
+            chrome.runtime.sendMessage({ type: 'webdav-restore', filename: file.path, options: options }, response => {
+                if (response?.success) {
+                    showMessage('数据恢复成功！页面即将刷新以应用更改。', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showMessage(`恢复失败: ${response.error}`, 'error');
+                }
+            });
+        }
+    });
+}
 
 async function applyImportedData(jsonData: string): Promise<void> {
     try {
@@ -555,12 +692,20 @@ function initLogsTab(): void {
     };
 
     const clearLogs = () => {
-        if (confirm('Are you sure you want to clear all logs? This cannot be undone.')) {
-            setValue(STORAGE_KEYS.LOGS, []).then(() => {
-                showMessage('Logs cleared successfully.');
-                fetchLogs();
-            });
-        }
+        showConfirmationModal({
+            title: '确认清空日志',
+            message: '您确定要清空所有日志记录吗？此操作不可撤销。',
+            onConfirm: () => {
+                chrome.runtime.sendMessage({ type: 'clear-logs' }, response => {
+                    if (response?.success) {
+                        showMessage('日志已成功清空。', 'success');
+                        fetchLogs(); // Re-fetch to show the empty state
+                    } else {
+                        showMessage('清空日志失败，请稍后重试。', 'error');
+                    }
+                });
+            }
+        });
     };
     
     logLevelFilter.addEventListener('change', renderLogs);
