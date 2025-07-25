@@ -31,7 +31,7 @@
                 <h4>WebDAV 同步</h4>
                 <div class="button-group-vertical">
                     <button id="syncNow">立即上传至云端</button>
-                    <button id="syncDown">从云端恢复...</button>
+                    <button id="syncDown">从云端恢复</button>
                 </div>
             </div>
             
@@ -190,19 +190,9 @@
                             <button id="clear-logs-button" class="button-like danger">清空日志</button>
                         </div>
                         <div class="log-container">
-                            <table id="log-table">
-                                <thead>
-                                    <tr>
-                                        <th class="timestamp">时间</th>
-                                        <th class="level">等级</th>
-                                        <th class="message">消息</th>
-                                        <th class="data">数据</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="log-body">
-                                    <!-- Log entries will be inserted here -->
-                                </tbody>
-                            </table>
+                            <div id="log-body">
+                                <!-- Log entries will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
