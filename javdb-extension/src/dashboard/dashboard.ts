@@ -27,7 +27,7 @@ async function initializeGlobalState(): Promise<void> {
     console.log("Global state initialized.", STATE);
 }
 
-function showMessage(message: string, type: 'info' | 'warn' | 'error' = 'info'): void {
+function showMessage(message: string, type: 'info' | 'warn' | 'error' | 'success' = 'info'): void {
     const container = document.getElementById('messageContainer');
     if (!container) {
         console.error("Message container not found!");
@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initLogsTab();
     initSidebarActions();
     initStatsOverview(); // Add this line
+    initInfoContainer();
 });
 
 function initTabs(): void {
@@ -149,6 +150,34 @@ function initStatsOverview(): void {
     `;
 }
 
+// --- Info Container ---
+function initInfoContainer(): void {
+    const infoContainer = document.getElementById('infoContainer');
+    if (!infoContainer) return;
+
+    const version = import.meta.env.VITE_APP_VERSION || 'N/A';
+    const versionState = import.meta.env.VITE_APP_VERSION_STATE || 'unknown';
+
+    const getStateTitle = (state: string): string => {
+        switch (state) {
+            case 'clean':
+                return '此版本基于一个干净的、已完全提交的 Git 工作区构建。';
+            case 'dev':
+                return '此版本包含已暂存但尚未提交的更改 (dev/staged)。';
+            case 'dirty':
+                return '警告：此版本包含未跟踪或未暂存的本地修改 (dirty)！';
+            default:
+                return '无法确定此版本的构建状态。';
+        }
+    };
+
+    infoContainer.innerHTML = `
+        <div class="info-item">
+            <span class="info-label">Version:</span>
+            <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${version}</span>
+        </div>
+    `;
+}
 
 // --- Records Tab ---
 

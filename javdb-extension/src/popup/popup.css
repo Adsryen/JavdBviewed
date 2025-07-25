@@ -111,10 +111,15 @@ body {
 
 /* Version Info */
 #versionAuthorInfo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
     padding-top: 10px;
     border-top: 1px solid #eee;
-    color: #999;
-    font-size: 12px;
+    color: #888;
+    font-size: 11px;
+    font-family: monospace;
     text-align: center;
 }
 

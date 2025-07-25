@@ -1,0 +1,12 @@
+import"./modulepreload-polyfill-B5Qt9EMX.js";import{a as w,S as D,V as h,g as v,b as L}from"./storage-Pif_YOsy.js";function S(){const s=document.getElementById("versionAuthorInfo");if(s){const d="1.10.3.1+966a7591-dirty-2025072511";s.textContent=`Version: ${d}`}}document.addEventListener("DOMContentLoaded",async()=>{const s=document.getElementById("dashboard-button"),d=document.getElementById("helpBtn"),i=document.getElementById("helpPanel"),y=document.getElementById("toggleWatchedContainer"),E=document.getElementById("toggleViewedContainer"),f=document.getElementById("toggleVRContainer"),C=document.getElementById("idCountDisplay"),B=document.getElementById("versionAuthorInfo");s&&s.addEventListener("click",()=>{chrome.runtime.openOptionsPage?chrome.runtime.openOptionsPage():window.open(chrome.runtime.getURL("dashboard/dashboard.html"))});async function c(e,n,l,r){const t=document.createElement("button");t.className="toggle-button";let o;const p=a=>{t.textContent=a?l:r,t.classList.toggle("active",!a)};o=await v(),p(o.display[e]),t.addEventListener("click",async()=>{o=await v();const a=!o.display[e];o.display[e]=a,await L(o),p(a),chrome.tabs.query({active:!0,currentWindow:!0},u=>{var g,m;(m=(g=u[0])==null?void 0:g.url)!=null&&m.includes("javdb")&&u[0].id&&chrome.tabs.reload(u[0].id)})}),n.innerHTML="",n.appendChild(t)}async function b(){const e=await w(D.VIEWED_RECORDS,{}),n=Object.values(e),l=n.filter(t=>t.status===h.VIEWED).length,r=n.filter(t=>t.status===h.WANT).length;C.innerHTML=`
+            <div><span class="count">${l}</span><span class="label">已观看</span></div>
+            <div><span class="count">${r}</span><span class="label">想看</span></div>
+        `}function I(){const e=`
+            <div class="help-header">
+                <h2>功能说明</h2>
+                <span id="closeHelpBtn" title="关闭">&times;</span>
+            </div>
+            <div class="help-body">
+                <p><strong>显示/隐藏开关:</strong> 快速切换在JavDB网站上是否隐藏特定类型的影片。更改后会自动刷新当前页面。</p>
+                <p><strong>高级设置:</strong> 点击进入功能更全面的仪表盘，进行数据管理、WebDAV备份同步、日志查看等高级操作。</p>
+            </div>`;i.innerHTML=e,d.addEventListener("click",()=>{i.style.display="block"});const n=i.querySelector("#closeHelpBtn");n&&n.addEventListener("click",()=>{i.style.display="none"})}async function V(){b(),c("hideViewed",y,"显示已看","隐藏已看"),c("hideBrowsed",E,"显示浏览","隐藏浏览"),c("hideVR",f,"显示VR","隐藏VR");const e=chrome.runtime.getManifest();B.textContent=`v${e.version}`,I()}V(),S()});
