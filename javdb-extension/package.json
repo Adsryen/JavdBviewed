@@ -4,10 +4,12 @@
   "version": "1.9.0",
   "description": "JavDB 插件",
   "scripts": {
-    "build": "rimraf dist-zip && tsx scripts/build.ts",
+    "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
     "version": "npm version"
   },
-  "dependencies": {},
+  "dependencies": {
+    "fs-extra": "^10.1.0"
+  },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.23",
     "@types/archiver": "^6.0.3",
@@ -19,5 +21,10 @@
     "tsx": "^4.16.2",
     "typescript": "^5.0.0",
     "vite": "^5.0.0"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
