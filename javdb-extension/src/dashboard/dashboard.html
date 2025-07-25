@@ -151,18 +151,17 @@
             <div id="tab-advanced-settings" class="tab-content">
                 <div class="card">
                     <div class="setting-group">
-                        <h3>Advanced</h3>
+                        <h3>高级配置</h3>
                         <div class="setting-item">
-                            <label for="jsonConfig">Raw JSON Configuration</label>
-                            <p class="description">For advanced users: directly edit the extension's settings. Be careful, as incorrect JSON can break the extension.</p>
+                            <p class="description">此功能面向高级用户，您可以直接编辑插件的配置。请谨慎操作，不正确的JSON格式可能会导致插件功能异常。</p>
+                            <div class="action-buttons-top">
+                                <button id="editJsonBtn" class="btn">编辑配置</button>
+                                <button id="saveJsonBtn" class="btn btn-primary hidden">保存配置</button>
+                                <button id="importJsonBtn" class="btn">导入文件</button>
+                                <input type="file" id="importFileInput" class="hidden" accept=".json">
+                                <button id="exportJsonBtn" class="btn">导出文件</button>
+                            </div>
                             <textarea id="jsonConfig" readonly></textarea>
-                        </div>
-                        <div class="setting-item action-buttons">
-                            <button id="editJsonBtn" class="btn">Edit JSON</button>
-                            <button id="saveJsonBtn" class="btn btn-primary hidden">Save JSON</button>
-                            <button id="importJsonBtn" class="btn">Import from File</button>
-                            <input type="file" id="importFileInput" class="hidden" accept=".json">
-                            <button id="exportJsonBtn" class="btn">Export to File</button>
                         </div>
                     </div>
                 </div>
