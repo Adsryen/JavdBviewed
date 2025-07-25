@@ -93,7 +93,6 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
             throw new Error(`Upload failed with status: ${response.status}`);
         }
         
-        await logger.info('WebDAV upload successful.');
         return { success: true };
     } catch (error: any) {
         await logger.error('WebDAV upload failed.', { error: error.message });
@@ -151,7 +150,6 @@ async function performRestore(filename: string, options = { restoreSettings: tru
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
         }
         
-        await logger.info('Successfully restored from WebDAV.', { filename });
         return { success: true };
     } catch (error: any) {
         await logger.error('Failed to restore from WebDAV.', { error: error.message, filename });
@@ -190,7 +188,6 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
         const files = parseWebDAVResponse(text);
         await logger.debug("Parsed WebDAV files:", { files });
 
-        await logger.info(`Successfully listed ${files.length} backup files from WebDAV.`);
         return { success: true, files: files };
     } catch (error: any) {
         await logger.error('Failed to list WebDAV files.', { error: error.message });
@@ -254,7 +251,6 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
         });
 
         if (response.ok) {
-            await logger.info('WebDAV connection test successful.');
             return { success: true };
         } else {
             const errorMsg = `Connection test failed with status: ${response.status}`;
