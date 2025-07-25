@@ -1,0 +1,138 @@
+/* Search and Filter */
+.search-and-filter {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+#searchInput {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+#filterSelect {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: white;
+}
+
+/* Video List */
+.video-list-container {
+    overflow-y: auto;
+    flex-grow: 1;
+    min-height: 300px; /* Ensure a minimum height */
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+}
+#videoList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#videoList li {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 15px;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+#videoList li:last-child {
+    border-bottom: none;
+}
+#videoList li .video-info {
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#videoList li .search-links {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+#videoList li .search-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+#videoList li .search-links a:hover {
+    color: #007bff;
+}
+.search-engine-icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+#videoList li a {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#videoList li a:hover {
+    text-decoration: underline;
+}
+#videoList li span {
+    font-size: 13px;
+    color: #666;
+    background-color: #f0f2f5;
+    padding: 3px 8px;
+    border-radius: 5px;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 20px;
+}
+.pagination button {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    box-shadow: none;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.pagination button:not(:disabled):hover {
+    background-color: #f0f2f5;
+    border-color: #ccc;
+    transform: none; /* Override general button hover effect */
+}
+.pagination button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    cursor: default;
+}
+.pagination button:disabled:not(.active) {
+    background-color: #f8f9fa;
+    color: #adb5bd;
+    opacity: 1;
+}
+.pagination button.ellipsis {
+    background: transparent;
+    border: none;
+    padding: 0 5px;
+    box-shadow: none;
+    cursor: default;
+}
+
+.pagination button.ellipsis:hover {
+    transform: none;
+    background: transparent;
+} 
