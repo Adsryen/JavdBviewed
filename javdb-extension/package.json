@@ -7,10 +7,11 @@
     "build": "tsx scripts/build.ts",
     "version": "npm version"
   },
-  "dependencies": {},
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0",
+    "@types/archiver": "^6.0.3",
     "@types/chrome": "^0.1.1",
+    "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.1.0",
     "archiver": "^7.0.1",
     "tsx": "^4.16.2",
