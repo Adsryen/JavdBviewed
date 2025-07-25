@@ -64,7 +64,7 @@ async function initializeGlobalState(): Promise<void> {
             if (settingsChanged) {
                 settings.searchEngines = migratedEngines;
                 await setValue(STORAGE_KEYS.SETTINGS, settings);
-                await logAsync('INFO', 'Successfully migrated and corrected search engine settings.');
+                await logAsync('INFO', '成功迁移并修正了搜索引擎设置。');
             }
         }
         // --- End Migration Logic ---
@@ -149,6 +149,8 @@ function initTabs(): void {
 
         tabButton.classList.add('active');
         document.getElementById(tabId)?.classList.add('active');
+
+        logAsync('INFO', `切换到标签页: ${tabId}`);
 
         if (history.pushState) {
             history.pushState(null, '', `#${tabId}`);
@@ -362,6 +364,7 @@ function initSidebarActions(): void {
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
+            logAsync('INFO', '用户点击了“导出到本地”按钮。');
             const dataToExport = {
                 settings: STATE.settings,
                 // FIX: Export the records in object format for better compatibility
@@ -379,6 +382,7 @@ function initSidebarActions(): void {
             anchor.click();
             URL.revokeObjectURL(url);
             showMessage('Data exported successfully.', 'success');
+            logAsync('INFO', '本地数据导出成功。');
         });
     }
     
@@ -387,8 +391,12 @@ function initSidebarActions(): void {
     if (importFileInput) {
         // This is the correct listener for the main import button in the sidebar.
         importFileInput.addEventListener('change', (event) => {
+            logAsync('INFO', '用户选择了本地文件进行导入。');
             const file = (event.target as HTMLInputElement).files?.[0];
-            if (!file) return;
+            if (!file) {
+                logAsync('WARN', '用户取消了文件选择。');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -397,10 +405,12 @@ function initSidebarActions(): void {
                     showImportModal(text);
                 } else {
                     showMessage('Failed to read file content.', 'error');
+                    logAsync('ERROR', '无法读取文件内容，内容非字符串。');
                 }
             };
             reader.onerror = () => {
                 showMessage(`Error reading file: ${reader.error}`, 'error');
+                logAsync('ERROR', '读取导入文件时发生错误。', { error: reader.error });
             };
             reader.readAsText(file);
 
@@ -413,6 +423,7 @@ function initSidebarActions(): void {
         syncDownBtn.addEventListener('click', () => {
             syncDownBtn.textContent = '正在获取列表...';
             syncDownBtn.disabled = true;
+            logAsync('INFO', '用户点击“从云端恢复”，开始获取文件列表。');
 
             chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
                 syncDownBtn.textContent = '从云端恢复';
@@ -432,6 +443,7 @@ function initSidebarActions(): void {
                         });
                         fileListContainer.classList.remove('hidden');
                         showMessage('获取文件列表成功，请点击文件进行恢复。');
+                        logAsync('INFO', '成功获取云端文件列表。', { fileCount: response.files.length });
                         // Switch to settings tab to show the list
                         const settingsTab = document.querySelector('.tab-link[data-tab="tab-settings"]');
                         if (settingsTab) {
@@ -443,9 +455,11 @@ function initSidebarActions(): void {
                         }
                     } else {
                         showMessage('在云端未找到任何备份文件。', 'warn');
+                        logAsync('WARN', '云端没有任何备份文件。');
                     }
                 } else {
                     showMessage(`获取文件列表失败: ${response.error}`, 'error');
+                    logAsync('ERROR', '从云端获取文件列表失败。', { error: response.error });
                 }
             });
         });
@@ -513,6 +527,7 @@ function showConfirmationModal({ title, message, onConfirm, onCancel, showRestor
 // --- Unified Import/Export Logic ---
 
 function handleFileRestoreClick(file: { name: string, path: string }) {
+    logAsync('INFO', '用户选择了一个云端文件准备恢复。', { filename: file.name });
     showConfirmationModal({
         title: '确认恢复',
         message: `您确定要从文件 "${file.name}" 中恢复数据吗？此操作将覆盖本地数据。`,
@@ -521,18 +536,25 @@ function handleFileRestoreClick(file: { name: string, path: string }) {
             if (!options) return;
             if (!options.restoreRecords && !options.restoreSettings) {
                 showMessage('您没有选择任何要恢复的内容。', 'warn');
+                logAsync('WARN', '用户在恢复时未选择任何内容。');
                 return;
             }
 
             showMessage('正在从云端恢复，请稍候...', 'info');
+            logAsync('INFO', '开始从云端恢复数据。', { filename: file.name, options });
             chrome.runtime.sendMessage({ type: 'webdav-restore', filename: file.path, options: options }, response => {
                 if (response?.success) {
                     showMessage('数据恢复成功！页面即将刷新以应用更改。', 'success');
+                    logAsync('INFO', '云端数据恢复成功。');
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
                     showMessage(`恢复失败: ${response.error}`, 'error');
+                    logAsync('ERROR', '云端数据恢复失败。', { error: response.error });
                 }
             });
+        },
+        onCancel: () => {
+            logAsync('INFO', '用户取消了云端恢复操作。');
         }
     });
 }
@@ -575,6 +597,7 @@ async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'overwrit
     const isBackgroundAlive = await pingBackground();
     if (!isBackgroundAlive) {
         showMessage('后台服务无响应，无法完成操作。请尝试重新加载扩展或浏览器。', 'error');
+        await logAsync('ERROR', '尝试从油猴脚本导入数据失败：后台服务无响应。');
         return;
     }
     
@@ -629,7 +652,7 @@ async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'overwrit
             newRecordsCount = Object.keys(newRecords).length;
 
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, finalRecords);
-            await logAsync('INFO', `油猴脚本覆盖导入完成`, { overwritten: overwrittenRecordsCount, new: newRecordsCount });
+            await logAsync('INFO', `油猴脚本覆盖导入完成。`, { overwritten: overwrittenRecordsCount, new: newRecordsCount });
 
         } else { // mode === 'merge'
             let addedCount = 0;
@@ -643,7 +666,7 @@ async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'overwrit
             
             if (newRecordsCount > 0) {
                  await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
-                 await logAsync('INFO', `油猴脚本合并导入完成`, { new: newRecordsCount });
+                 await logAsync('INFO', `油猴脚本合并导入完成。`, { new: newRecordsCount });
             }
         }
         
@@ -657,15 +680,18 @@ async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'overwrit
             setTimeout(() => window.location.reload(), 1500);
         } else {
             showMessage('油猴脚本备份中没有新的记录可供导入。您的数据已是最新。', 'info');
+            await logAsync('INFO', '油猴脚本导入操作完成，但没有新记录被添加。');
         }
 
     } catch (error: any) {
         showMessage(`应用油猴脚本备份时出错: ${error.message}`, 'error');
         console.error('Error applying tampermonkey data:', error);
+        await logAsync('ERROR', '应用油猴脚本备份时发生错误。', { error: error.message });
     }
 }
 
 async function applyImportedData(jsonData: string, importType: 'data' | 'settings' | 'all' = 'all'): Promise<void> {
+    logAsync('INFO', `开始导入拓展数据，类型: ${importType}`);
     try {
         const importData = JSON.parse(jsonData);
         let settingsChanged = false;
@@ -677,6 +703,7 @@ async function applyImportedData(jsonData: string, importType: 'data' | 'setting
         if (importData.myIds || importData.videoBrowseHistory) {
              // This case should be handled by `showImportModal` calling `applyTampermonkeyData` directly.
             showMessage('请使用油猴脚本导入选项。', 'warn');
+            logAsync('WARN', '用户尝试使用标准导入功能导入油猴脚本备份。');
             return;
         }
         // --- End of Tampermonkey Compatibility ---
@@ -684,6 +711,7 @@ async function applyImportedData(jsonData: string, importType: 'data' | 'setting
         if ((importType === 'settings' || importType === 'all') && importData.settings && typeof importData.settings === 'object') {
             await saveSettings(importData.settings);
             settingsChanged = true;
+            logAsync('INFO', '已成功从文件导入并应用新设置。');
         }
 
         if ((importType === 'data' || importType === 'all') && importData.data && typeof importData.data === 'object' && importData.data !== null) {
@@ -708,6 +736,7 @@ async function applyImportedData(jsonData: string, importType: 'data' | 'setting
             if (newRecordsCount > 0) {
                 await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
                 recordsChanged = true;
+                logAsync('INFO', `已成功从文件导入并合并了 ${newRecordsCount} 条新记录。`);
             }
         }
 
@@ -720,13 +749,16 @@ async function applyImportedData(jsonData: string, importType: 'data' | 'setting
 
 
             showMessage(successMessage, 'success');
+            logAsync('INFO', `拓展数据导入成功: ${successMessage}`);
             setTimeout(() => window.location.reload(), 2000);
         } else {
             showMessage('The selected file does not contain compatible "settings" or "data" fields to import.', 'warn');
+            logAsync('WARN', '拓展数据导入失败：文件中没有可用的 "settings" 或 "data" 字段。');
         }
     } catch (error: any) {
         showMessage(`Error applying imported data: ${error.message}`, 'error');
         console.error('Error applying imported data:', error);
+        logAsync('ERROR', '应用导入的数据时出错。', { error: error.message });
     }
 }
 
@@ -766,6 +798,7 @@ function showImportModal(jsonData: string): void {
             mergeBtn.textContent = '合并导入';
             mergeBtn.title = '只添加备份文件中新增的记录，不影响现有数据。';
             mergeBtn.onclick = () => {
+                logAsync('INFO', '用户选择“合并导入”油猴脚本数据。');
                 applyTampermonkeyData(jsonData, 'merge');
                 closeModal();
             };
@@ -775,6 +808,7 @@ function showImportModal(jsonData: string): void {
             overwriteBtn.textContent = '覆盖导入';
             overwriteBtn.title = '删除所有之前从油猴脚本导入的记录，然后导入本次备份文件的所有记录。';
             overwriteBtn.onclick = () => {
+                logAsync('INFO', '用户选择“覆盖导入”油猴脚本数据。');
                 applyTampermonkeyData(jsonData, 'overwrite');
                 closeModal();
             };
@@ -782,7 +816,10 @@ function showImportModal(jsonData: string): void {
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'btn btn-default';
             cancelBtn.textContent = '取消';
-            cancelBtn.onclick = closeModal;
+            cancelBtn.onclick = () => {
+                logAsync('INFO', '用户取消了油猴脚本数据导入。');
+                closeModal();
+            };
 
             modalFooter.appendChild(cancelBtn);
             modalFooter.appendChild(overwriteBtn);
@@ -795,6 +832,7 @@ function showImportModal(jsonData: string): void {
             importDataBtn.className = 'btn btn-link';
             importDataBtn.textContent = '仅导入数据';
             importDataBtn.onclick = () => {
+                logAsync('INFO', '用户选择“仅导入数据”。');
                 applyImportedData(jsonData, 'data');
                 closeModal();
             };
@@ -803,6 +841,7 @@ function showImportModal(jsonData: string): void {
             importSettingsBtn.className = 'btn btn-info';
             importSettingsBtn.textContent = '仅导入设置';
             importSettingsBtn.onclick = () => {
+                logAsync('INFO', '用户选择“仅导入设置”。');
                 applyImportedData(jsonData, 'settings');
                 closeModal();
             };
@@ -811,6 +850,7 @@ function showImportModal(jsonData: string): void {
             importAllBtn.className = 'btn btn-primary';
             importAllBtn.textContent = '全部导入';
             importAllBtn.onclick = () => {
+                logAsync('INFO', '用户选择“全部导入”。');
                 applyImportedData(jsonData, 'all');
                 closeModal();
             };
@@ -818,7 +858,10 @@ function showImportModal(jsonData: string): void {
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'btn btn-default';
             cancelBtn.textContent = '取消';
-            cancelBtn.onclick = closeModal;
+            cancelBtn.onclick = () => {
+                logAsync('INFO', '用户取消了拓展数据导入。');
+                closeModal();
+            };
 
             modalFooter.appendChild(cancelBtn);
             modalFooter.appendChild(importAllBtn);
@@ -963,17 +1006,21 @@ function initSettingsTab(): void {
         STATE.settings = newSettings;
         chrome.runtime.sendMessage({ type: 'setup-alarms' });
         showMessage('Settings saved successfully!');
+        logAsync('INFO', '用户设置已保存。', { settings: newSettings });
     }
 
     function handleTestWebDAV() {
+        logAsync('INFO', '用户点击了“测试 WebDAV 连接”按钮。');
         handleSaveSettings().then(() => {
             testWebdavConnectionBtn.textContent = 'Testing...';
             testWebdavConnectionBtn.disabled = true;
             chrome.runtime.sendMessage({ type: 'webdav-test' }, response => {
                 if (response.success) {
                     showMessage('WebDAV connection successful!');
+                    logAsync('INFO', 'WebDAV 连接测试成功。');
                 } else {
                     showMessage(`WebDAV connection failed: ${response.error}`, 'error');
+                    logAsync('ERROR', 'WebDAV 连接测试失败。', { error: response.error });
                 }
                 testWebdavConnectionBtn.textContent = 'Test Connection';
                 testWebdavConnectionBtn.disabled = false;
@@ -994,12 +1041,14 @@ function initSettingsTab(): void {
 
     const addSearchEngineBtn = document.getElementById('add-search-engine');
     addSearchEngineBtn?.addEventListener('click', () => {
-        STATE.settings.searchEngines.push({
+        const newEngine = {
             id: `engine-${Date.now()}`,
             name: 'New Engine',
             urlTemplate: 'https://example.com/search?q={{ID}}',
             icon: 'https://www.google.com/s2/favicons?domain=example.com'
-        });
+        };
+        STATE.settings.searchEngines.push(newEngine);
+        logAsync('INFO', '用户添加了一个新的搜索引擎。', { engine: newEngine });
         renderSearchEngines();
         handleSaveSettings();
     });
@@ -1010,6 +1059,8 @@ function initSettingsTab(): void {
         const removeButton = target.closest('.delete-engine');
         if (removeButton) {
             const index = parseInt(removeButton.getAttribute('data-index')!, 10);
+            const removedEngine = STATE.settings.searchEngines[index];
+            logAsync('INFO', '用户删除了一个搜索引擎。', { engine: removedEngine });
             STATE.settings.searchEngines.splice(index, 1);
             renderSearchEngines();
             handleSaveSettings();
@@ -1073,17 +1124,21 @@ function initAdvancedSettingsTab(): void {
         editJsonBtn.classList.add('hidden');
         saveJsonBtn.classList.remove('hidden');
         showMessage('JSON editing enabled. Be careful!', 'warn');
+        logAsync('INFO', '用户启用了高级设置中的 JSON 编辑模式。');
     }
 
     async function handleSaveJson() {
+        logAsync('INFO', '用户点击了“保存 JSON”按钮。');
         try {
             // 假设文本框中的内容是 settings 对象
             const settingsObject = JSON.parse(jsonConfigTextarea.value);
             // 将其包装在 { settings: ... } 结构中以供 applyImportedData 使用
             await applyImportedData(JSON.stringify({ settings: settingsObject }));
+            logAsync('INFO', 'JSON 配置已成功解析并应用。');
         } catch (error) {
             showMessage(`Error parsing or applying JSON: ${error.message}`, 'error');
             console.error("Failed to save JSON settings:", error);
+            logAsync('ERROR', '保存 JSON 配置时出错。', { error: error.message });
         } finally {
             // 保存后重置UI
             jsonConfigTextarea.readOnly = true;
@@ -1096,6 +1151,7 @@ function initAdvancedSettingsTab(): void {
     
     function handleExportData() {
         // 导出完整数据（设置+影片记录），与侧边栏导出功能保持一致
+        logAsync('INFO', '用户在“高级设置”中点击了导出按钮。');
         const dataToExport = {
             settings: STATE.settings,
             data: STATE.records.reduce((acc, record) => {
@@ -1112,6 +1168,7 @@ function initAdvancedSettingsTab(): void {
         anchor.click();
         URL.revokeObjectURL(url);
         showMessage('Full backup (settings + data) exported successfully.', 'success');
+        logAsync('INFO', '高级设置中的数据导出成功。');
     }
 
     editJsonBtn.addEventListener('click', enableJsonEdit);
@@ -1200,14 +1257,20 @@ function initLogsTab(): void {
             title: '确认清空日志',
             message: '您确定要清空所有日志记录吗？此操作不可撤销。',
             onConfirm: () => {
+                logAsync('INFO', '用户确认清空日志。');
                 chrome.runtime.sendMessage({ type: 'clear-logs' }, response => {
                     if (response?.success) {
                         showMessage('日志已成功清空。', 'success');
+                        logAsync('INFO', '日志已被成功清空。');
                         fetchLogs(); // Re-fetch to show the empty state
                     } else {
                         showMessage('清空日志失败，请稍后重试。', 'error');
+                        logAsync('ERROR', '清空日志时发生错误。', { error: response.error });
                     }
                 });
+            },
+            onCancel: () => {
+                logAsync('INFO', '用户取消了清空日志操作。');
             }
         });
     };
