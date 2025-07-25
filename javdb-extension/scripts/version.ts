@@ -64,10 +64,10 @@ function commitAndTagVersion(version: string) {
 function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit: boolean) {
     versionData.build = (versionData.build || 0) + 1;
 
-    // If this is a release commit, we consider the state "clean" for the build version string.
+    // Always get the real git state, regardless of release or not.
     const gitHash = getGitHash();
-    const gitState = isReleaseCommit ? '' : getGitState();
-    const simpleGitState = isReleaseCommit ? 'clean' : getSimpleGitState();
+    const gitState = getGitState();
+    const simpleGitState = getSimpleGitState();
     const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 12); // YYYYMMDDHHmm
     
     const { major, minor, patch, build } = versionData;
@@ -107,7 +107,7 @@ try {
         generateAndWriteBuildVersion(versionData, true);
 
         // Commit and tag the new version
-        commitAndTagVersion(versionData.version);
+        // commitAndTagVersion(versionData.version);
 
     } else {
         // This is a regular build (e.g., 'pnpm build'), not a release
