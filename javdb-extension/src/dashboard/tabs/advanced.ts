@@ -21,14 +21,18 @@ export function initAdvancedSettingsTab(): void {
 
     async function loadRawLogs() {
         try {
-            const logs = await getValue<LogEntry[]>('logs', []);
+            // 从 STATE 直接获取日志，而不是重新从 storage 读取
+            const logs = STATE.logs || [];
             rawLogsTextarea.value = JSON.stringify(logs, null, 2);
             rawLogsTextarea.classList.remove('hidden'); // Show the textarea
             showMessage('Raw logs refreshed.', 'success');
+            logAsync('INFO', '用户刷新并显示了原始日志。');
         } catch (error: any) {
-            rawLogsTextarea.value = `Error loading logs: ${error.message}`;
+            const errorMessage = `Error loading logs: ${error.message}`;
+            rawLogsTextarea.value = errorMessage;
             rawLogsTextarea.classList.remove('hidden'); // Also show on error
             showMessage('Failed to refresh raw logs.', 'error');
+            logAsync('ERROR', '显示原始日志时出错。', { error: error.message });
         }
     }
 

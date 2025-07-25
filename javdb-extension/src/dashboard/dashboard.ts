@@ -74,19 +74,19 @@ function initStatsOverview(): void {
     const browsedCount = STATE.records.filter(r => r.status === VIDEO_STATUS.BROWSED).length;
 
     container.innerHTML = `
-        <div>
+        <div data-stat="total">
             <span class="stat-value">${totalRecords}</span>
             <span class="stat-label">总记录</span>
         </div>
-        <div>
+        <div data-stat="viewed">
             <span class="stat-value">${viewedCount}</span>
             <span class="stat-label">已观看</span>
         </div>
-        <div>
+        <div data-stat="browsed">
             <span class="stat-value">${browsedCount}</span>
             <span class="stat-label">已浏览</span>
         </div>
-        <div>
+        <div data-stat="want">
             <span class="stat-value">${wantCount}</span>
             <span class="stat-label">想看</span>
         </div>

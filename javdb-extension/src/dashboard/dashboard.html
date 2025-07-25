@@ -113,10 +113,21 @@
                     <div class="settings-section">
                         <h3>WebDAV 设置</h3>
                         <p class="settings-description">通过WebDAV协议，将您的观看记录备份到兼容的云存储服务（如：坚果云、Nextcloud等）。</p>
-                        <div class="form-group">
-                            <label for="webdavEnabled">启用 WebDAV 同步</label>
-                            <input type="checkbox" id="webdavEnabled">
+                        <div class="form-group form-group-horizontal">
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavEnabled">
+                                <label for="webdavEnabled">启用 WebDAV 同步</label>
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavAutoSync">
+                                <label for="webdavAutoSync" style="margin-left: 20px;">自动上传</label>
+                            </div>
+                            <div class="form-group-inline">
+                                <label for="webdav-sync-interval">同步间隔 (分钟):</label>
+                                <input type="number" id="webdav-sync-interval" min="1" value="30" style="width: 80px; margin-left: 10px;">
+                            </div>
                         </div>
+
                         <div id="webdav-fields-container">
                             <div class="form-group">
                                 <label for="webdavUrl">WebDAV 地址:</label>
@@ -130,14 +141,7 @@
                                 <label for="webdavPass">密码/应用密钥:</label>
                                 <input type="password" id="webdavPass">
                             </div>
-                            <div class="form-group-checkbox">
-                                <input type="checkbox" id="webdavAutoSync">
-                                <label for="webdavAutoSync">每日自动上传</label>
-                            </div>
-                            <div class="form-group">
-                                <label for="webdav-sync-interval">同步间隔 (分钟):</label>
-                                <input type="number" id="webdav-sync-interval" min="1" value="1440" style="width: 80px; margin-left: 10px;">
-                            </div>
+                            
                             <div class="button-group">
                                 <button type="button" id="saveWebdavSettings">保存设置</button>
                                 <button type="button" id="testWebdavConnection">测试连接</button>

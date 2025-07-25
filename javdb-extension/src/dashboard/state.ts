@@ -1,6 +1,6 @@
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
-import type { ExtensionSettings, VideoRecord } from '../types';
+import type { ExtensionSettings, VideoRecord, LogEntry } from '../types';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 
@@ -9,12 +9,14 @@ import { showMessage } from './ui/toast';
 export interface DashboardState {
     settings: ExtensionSettings;
     records: VideoRecord[];
+    logs: LogEntry[];
     isInitialized: boolean;
 }
 
 export const STATE: DashboardState = {
     settings: DEFAULT_SETTINGS,
     records: [],
+    logs: [],
     isInitialized: false,
 };
 
@@ -73,6 +75,9 @@ export async function initializeGlobalState(): Promise<void> {
 
         const recordsData = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
         STATE.records = Object.values(recordsData);
+
+        const logsData = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+        STATE.logs = logsData;
     } catch (error: any) {
         console.error("Failed to initialize global state:", error);
         showMessage(`Failed to load settings: ${error.message}`, 'error');
