@@ -10,7 +10,12 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://*.javdb.com/*"
+    "*://*.javdb.com/*",
+    "https://dav.jianguoyun.com/*",
+    "https://*.teracloud.jp/*",
+    "https://*.webdav.yandex.com/*",
+    "https://*.nextcloud.com/*",
+    "https://*.owncloud.com/*"
   ],
   "background": {
     "service_worker": "service-worker-loader.js",
@@ -23,7 +28,8 @@
       ],
       "matches": [
         "*://*.javdb.com/*"
-      ]
+      ],
+      "run_at": "document_end"
     }
   ],
   "action": {
