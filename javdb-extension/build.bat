@@ -49,7 +49,9 @@ echo Build and packaging finished successfully!
 echo.
 
 :ask_for_release
-set /p "release_confirm=Do you want to create a GitHub Release now? (y/n) [N]: " || set "release_confirm=n"
+choice /c yn /m "Do you want to create a GitHub Release now?" /t 5 /d n
+if !errorlevel! equ 1 ( set "release_confirm=y" ) else ( set "release_confirm=n" )
+
 if /i not "!release_confirm!"=="y" (
     echo OK. Skipping GitHub Release.
     goto :successful_end

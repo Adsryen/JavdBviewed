@@ -4,8 +4,6 @@ import { getValue, setValue, getSettings, saveSettings } from '../utils/storage'
 import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 
-const MAX_LOG_ENTRIES = 200; // Limit the number of log entries to prevent storage bloat
-
 const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => void> = {
     INFO: console.info,
     WARN: console.warn,
@@ -18,7 +16,10 @@ async function log(level: LogLevel, message: string, data?: any) {
     logFunction(`[${level}] ${message}`, data); // Keep console logging
 
     try {
-        const logs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+        const [logs, settings] = await Promise.all([
+            getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []),
+            getSettings()
+        ]);
         
         const newLogEntry: LogEntry = {
             timestamp: new Date().toISOString(),
@@ -29,9 +30,10 @@ async function log(level: LogLevel, message: string, data?: any) {
 
         logs.push(newLogEntry);
 
-        // Trim logs if they exceed the max size
-        if (logs.length > MAX_LOG_ENTRIES) {
-            logs.splice(0, logs.length - MAX_LOG_ENTRIES);
+        // Use the maxLogEntries from settings
+        const maxEntries = settings.logging?.maxLogEntries || 1500;
+        if (logs.length > maxEntries) {
+            logs.splice(0, logs.length - maxEntries);
         }
 
         await setValue(STORAGE_KEYS.LOGS, logs);
@@ -287,6 +289,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return true;
         case 'clear-logs':
             setValue(STORAGE_KEYS.LOGS, []).then(() => sendResponse({ success: true }));
+            return true;
+        case 'log-message':
+            if (message.payload) {
+                const { level, message: msg, data } = message.payload;
+                log(level, msg, data).then(() => sendResponse({ success: true }));
+            }
+            return true; // Keep the message channel open for async response
+        case 'ping-background':
+            log('DEBUG', 'Background service pinged successfully.');
+            sendResponse({ success: true, message: 'pong' });
             return true;
         default:
             return false;

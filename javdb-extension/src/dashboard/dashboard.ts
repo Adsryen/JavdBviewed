@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSidebarActions();
     initStatsOverview(); // Add this line
     initInfoContainer();
+    initModal(); // Initialize the new modal
 });
 
 function initTabs(): void {
@@ -300,7 +301,6 @@ function initRecordsTab(): void {
 
 // --- Sidebar Actions ---
 function initSidebarActions(): void {
-    const importFileInput = document.getElementById('importFile') as HTMLInputElement;
     const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
     const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
@@ -328,16 +328,19 @@ function initSidebarActions(): void {
         });
     }
     
+    const importFileInput = document.getElementById('importFile') as HTMLInputElement;
+
     if (importFileInput) {
+        // This is the correct listener for the main import button in the sidebar.
         importFileInput.addEventListener('change', (event) => {
             const file = (event.target as HTMLInputElement).files?.[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
                 const text = e.target?.result;
                 if (typeof text === 'string') {
-                    await applyImportedData(text);
+                    showImportModal(text);
                 } else {
                     showMessage('Failed to read file content.', 'error');
                 }
@@ -346,6 +349,9 @@ function initSidebarActions(): void {
                 showMessage(`Error reading file: ${reader.error}`, 'error');
             };
             reader.readAsText(file);
+
+            // Reset file input to allow re-selection of the same file
+            importFileInput.value = '';
         });
     }
 
@@ -477,52 +483,306 @@ function handleFileRestoreClick(file: { name: string, path: string }) {
     });
 }
 
-async function applyImportedData(jsonData: string): Promise<void> {
+// A helper function to ping the background script and ensure it's active
+async function pingBackground(): Promise<boolean> {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'ping-background' });
+        if (response && response.success) {
+            console.log("Background service responded to ping.");
+            return true;
+        }
+    } catch (error: any) {
+        if (error.message.includes('Receiving end does not exist')) {
+            console.error("Ping failed: Background service is not active.", error);
+            return false;
+        }
+        console.error("An unexpected error occurred during ping:", error);
+    }
+    return false;
+}
+
+// A new async logger that wraps sendMessage in a Promise
+function logAsync(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+            type: 'log-message',
+            payload: { level, message, data }
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error(`logAsync failed: ${chrome.runtime.lastError.message}`);
+                // Resolve anyway to not break the flow
+            }
+            resolve();
+        });
+    });
+}
+
+async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'overwrite'): Promise<void> {
+    const isBackgroundAlive = await pingBackground();
+    if (!isBackgroundAlive) {
+        showMessage('后台服务无响应，无法完成操作。请尝试重新加载扩展或浏览器。', 'error');
+        return;
+    }
+    
+    try {
+        const importData = JSON.parse(jsonData);
+        if (!importData.myIds && !importData.videoBrowseHistory) {
+            showMessage('该文件不是有效的油猴脚本备份。', 'error');
+            return;
+        }
+
+        let currentRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+        let newRecordsCount = 0;
+        let overwrittenRecordsCount = 0;
+        const newRecords: Record<string, VideoRecord> = {};
+
+        // 1. Build a map of all records to be imported from the file
+        // Process "watched" first due to higher priority
+        const myIds = importData.myIds || [];
+        myIds.forEach((id: any) => {
+            const videoId = typeof id === 'object' ? id.id : id;
+            if (typeof videoId === 'string' && videoId) {
+                newRecords[videoId] = { id: videoId, status: 'viewed', tags: ['tampermonkey-import'] };
+            }
+        });
+
+        // Process "browsed" next, do not overwrite "watched"
+        const videoBrowseHistory = importData.videoBrowseHistory || [];
+        videoBrowseHistory.forEach((item: any) => {
+            const videoId = typeof item === 'object' && item.id ? item.id : item;
+            if (typeof videoId === 'string' && videoId && !newRecords[videoId]) {
+                newRecords[videoId] = { id: videoId, status: 'browsed', tags: ['tampermonkey-import'] };
+            }
+        });
+
+        // 2. Apply based on mode
+        await logAsync('INFO', `开始从油猴脚本导入数据，模式: ${mode}`, { totalInFile: Object.keys(newRecords).length });
+
+        if (mode === 'overwrite') {
+            const initialTotal = Object.keys(currentRecords).length;
+            // Filter out old tampermonkey imports
+            const baseRecords = Object.entries(currentRecords).reduce((acc, [key, value]) => {
+                if (!value.tags?.includes('tampermonkey-import')) {
+                    acc[key] = value;
+                }
+                return acc;
+            }, {} as Record<string, VideoRecord>);
+            
+            overwrittenRecordsCount = initialTotal - Object.keys(baseRecords).length;
+            
+            // Add all new records
+            const finalRecords = { ...baseRecords, ...newRecords };
+            newRecordsCount = Object.keys(newRecords).length;
+
+            await setValue(STORAGE_KEYS.VIEWED_RECORDS, finalRecords);
+            await logAsync('INFO', `油猴脚本覆盖导入完成`, { overwritten: overwrittenRecordsCount, new: newRecordsCount });
+
+        } else { // mode === 'merge'
+            let addedCount = 0;
+            Object.keys(newRecords).forEach(videoId => {
+                if (!currentRecords[videoId]) {
+                    currentRecords[videoId] = newRecords[videoId];
+                    addedCount++;
+                }
+            });
+            newRecordsCount = addedCount;
+            
+            if (newRecordsCount > 0) {
+                 await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
+                 await logAsync('INFO', `油猴脚本合并导入完成`, { new: newRecordsCount });
+            }
+        }
+        
+        // 3. Report result
+        if (newRecordsCount > 0 || overwrittenRecordsCount > 0) {
+            let successMessage = `成功合并导入 ${newRecordsCount} 条新记录。`;
+            if (mode === 'overwrite') {
+                 successMessage = `成功覆盖 ${overwrittenRecordsCount} 条旧记录，并导入 ${newRecordsCount} 条新记录。`;
+            }
+            showMessage(successMessage, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showMessage('油猴脚本备份中没有新的记录可供导入。您的数据已是最新。', 'info');
+        }
+
+    } catch (error: any) {
+        showMessage(`应用油猴脚本备份时出错: ${error.message}`, 'error');
+        console.error('Error applying tampermonkey data:', error);
+    }
+}
+
+async function applyImportedData(jsonData: string, importType: 'data' | 'settings' | 'all' = 'all'): Promise<void> {
     try {
         const importData = JSON.parse(jsonData);
         let settingsChanged = false;
         let recordsChanged = false;
 
-        if (importData.settings && typeof importData.settings === 'object') {
+        // --- Compatibility for Tampermonkey Script Backup ---
+        // This part is now handled by `applyTampermonkeyData` and can be removed or left for legacy if needed.
+        // For this change, we assume `showImportModal` directs tampermonkey files to the new function.
+        if (importData.myIds || importData.videoBrowseHistory) {
+             // This case should be handled by `showImportModal` calling `applyTampermonkeyData` directly.
+            showMessage('请使用油猴脚本导入选项。', 'warn');
+            return;
+        }
+        // --- End of Tampermonkey Compatibility ---
+
+        if ((importType === 'settings' || importType === 'all') && importData.settings && typeof importData.settings === 'object') {
             await saveSettings(importData.settings);
-            STATE.settings = await getSettings(); // Re-fetch to ensure deep merge
             settingsChanged = true;
         }
 
-        // FIX: Handle both array and object data formats for records
-        if (importData.data && typeof importData.data === 'object' && importData.data !== null) {
-            let recordsToSave: Record<string, VideoRecord>;
+        if ((importType === 'data' || importType === 'all') && importData.data && typeof importData.data === 'object' && importData.data !== null) {
+            const currentRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
             
-            if (Array.isArray(importData.data)) {
-                // Handle array format
-                STATE.records = importData.data;
-                recordsToSave = importData.data.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
-                    if (record && record.id) {
-                        acc[record.id] = record;
-                    }
+            // Merge logic: only add new records, don't overwrite existing ones
+            const incomingRecords = (Array.isArray(importData.data) 
+                ? importData.data.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
+                    if (record && record.id) acc[record.id] = record;
                     return acc;
-                }, {});
-            } else {
-                // Handle object format
-                recordsToSave = importData.data as Record<string, VideoRecord>;
-                STATE.records = Object.values(importData.data);
+                }, {})
+                : importData.data) as Record<string, VideoRecord>;
+
+            let newRecordsCount = 0;
+            for (const id in incomingRecords) {
+                if (!currentRecords[id]) {
+                    currentRecords[id] = incomingRecords[id];
+                    newRecordsCount++;
+                }
             }
 
-            await setValue(STORAGE_KEYS.VIEWED_RECORDS, recordsToSave);
-            recordsChanged = true;
+            if (newRecordsCount > 0) {
+                await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
+                recordsChanged = true;
+            }
         }
 
         if (settingsChanged || recordsChanged) {
-            showMessage('Data imported successfully. Page will reload to apply all changes.');
-            setTimeout(() => window.location.reload(), 1500);
+            let successMessage = 'Import successful. ';
+            if (settingsChanged && recordsChanged) successMessage += 'Settings and data records have been updated.';
+            else if (settingsChanged) successMessage += 'Settings have been updated.';
+            else if (recordsChanged) successMessage += 'New data records have been added.';
+            else successMessage = 'No new data to import. Your records are up to date.';
+
+
+            showMessage(successMessage, 'success');
+            setTimeout(() => window.location.reload(), 2000);
         } else {
-            showMessage('Imported file does not contain valid "settings" or "data" fields.', 'warn');
+            showMessage('The selected file does not contain compatible "settings" or "data" fields to import.', 'warn');
         }
     } catch (error: any) {
         showMessage(`Error applying imported data: ${error.message}`, 'error');
         console.error('Error applying imported data:', error);
     }
 }
+
+function initModal(): void {
+    const modal = document.getElementById('import-modal');
+    if (!modal) return;
+
+    // Close modal when clicking on the overlay
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.classList.remove('is-active');
+        }
+    });
+}
+
+function showImportModal(jsonData: string): void {
+    const modal = document.getElementById('import-modal') as HTMLElement;
+    const modalText = document.getElementById('modal-text') as HTMLElement;
+    const modalFooter = modal.querySelector('.import-modal-footer') as HTMLElement;
+    if (!modal || !modalText || !modalFooter) return;
+
+    modalFooter.innerHTML = ''; // Clear previous buttons
+
+    const closeModal = () => modal.classList.remove('is-active');
+
+    try {
+        const data = JSON.parse(jsonData);
+
+        const isTampermonkey = data.myIds || data.videoBrowseHistory;
+        const isExtension = data.settings || data.data;
+
+        if (isTampermonkey) {
+            modalText.innerHTML = `检测到 <a href="https://sleazyfork.org/zh-CN/scripts/505534-javdb%E5%88%97%E8%A1%A8%E9%A1%B5%E6%98%BE%E7%A4%BA%E6%98%AF%E5%90%A6%E5%B7%B2%E7%9C%8B" target="_blank" rel="noopener noreferrer"><strong>油猴脚本</strong></a> 备份文件。<br>请选择导入模式：`;
+
+            const mergeBtn = document.createElement('button');
+            mergeBtn.className = 'btn btn-success';
+            mergeBtn.textContent = '合并导入';
+            mergeBtn.title = '只添加备份文件中新增的记录，不影响现有数据。';
+            mergeBtn.onclick = () => {
+                applyTampermonkeyData(jsonData, 'merge');
+                closeModal();
+            };
+
+            const overwriteBtn = document.createElement('button');
+            overwriteBtn.className = 'btn btn-warning'; // Changed from btn-danger
+            overwriteBtn.textContent = '覆盖导入';
+            overwriteBtn.title = '删除所有之前从油猴脚本导入的记录，然后导入本次备份文件的所有记录。';
+            overwriteBtn.onclick = () => {
+                applyTampermonkeyData(jsonData, 'overwrite');
+                closeModal();
+            };
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-default';
+            cancelBtn.textContent = '取消';
+            cancelBtn.onclick = closeModal;
+
+            modalFooter.appendChild(cancelBtn);
+            modalFooter.appendChild(overwriteBtn);
+            modalFooter.appendChild(mergeBtn);
+
+        } else if (isExtension) {
+            modalText.innerHTML = '检测到 <strong>本拓展</strong> 的备份文件。<br>请选择要导入的内容：';
+
+            const importDataBtn = document.createElement('button');
+            importDataBtn.className = 'btn btn-link';
+            importDataBtn.textContent = '仅导入数据';
+            importDataBtn.onclick = () => {
+                applyImportedData(jsonData, 'data');
+                closeModal();
+            };
+
+            const importSettingsBtn = document.createElement('button');
+            importSettingsBtn.className = 'btn btn-info';
+            importSettingsBtn.textContent = '仅导入设置';
+            importSettingsBtn.onclick = () => {
+                applyImportedData(jsonData, 'settings');
+                closeModal();
+            };
+
+            const importAllBtn = document.createElement('button');
+            importAllBtn.className = 'btn btn-primary';
+            importAllBtn.textContent = '全部导入';
+            importAllBtn.onclick = () => {
+                applyImportedData(jsonData, 'all');
+                closeModal();
+            };
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-default';
+            cancelBtn.textContent = '取消';
+            cancelBtn.onclick = closeModal;
+
+            modalFooter.appendChild(cancelBtn);
+            modalFooter.appendChild(importAllBtn);
+            modalFooter.appendChild(importDataBtn);
+            modalFooter.appendChild(importSettingsBtn);
+
+        } else {
+            showMessage('无法识别的备份文件格式。', 'error');
+            return;
+        }
+
+        modal.classList.add('is-active');
+
+    } catch (error) {
+        showMessage('文件解析失败，请确认文件是有效的JSON格式。', 'error');
+    }
+}
+
 
 // --- Settings Tab ---
 
@@ -541,8 +801,10 @@ function initSettingsTab(): void {
     const hideBrowsed = document.getElementById('hideBrowsed') as HTMLInputElement;
     const hideVR = document.getElementById('hideVR') as HTMLInputElement;
 
+    const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
+
     function loadSettings() {
-        const { webdav, display } = STATE.settings;
+        const { webdav, display, logging } = STATE.settings;
         webdavEnabled.checked = webdav.enabled;
         webdavUrl.value = webdav.url;
         webdavUser.value = webdav.username;
@@ -555,6 +817,8 @@ function initSettingsTab(): void {
         hideViewed.checked = display.hideViewed;
         hideBrowsed.checked = display.hideBrowsed;
         hideVR.checked = display.hideVR;
+
+        maxLogEntries.value = String(logging?.maxLogEntries || 1500);
     }
 
     async function handleSaveSettings() {
@@ -573,6 +837,9 @@ function initSettingsTab(): void {
                 hideViewed: hideViewed.checked,
                 hideBrowsed: hideBrowsed.checked,
                 hideVR: hideVR.checked
+            },
+            logging: {
+                maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
             }
         };
         await saveSettings(newSettings);
@@ -606,6 +873,7 @@ function initSettingsTab(): void {
     hideViewed.addEventListener('change', handleSaveSettings);
     hideBrowsed.addEventListener('change', handleSaveSettings);
     hideVR.addEventListener('change', handleSaveSettings);
+    maxLogEntries.addEventListener('change', handleSaveSettings);
 
     loadSettings();
 }
@@ -617,12 +885,33 @@ function initAdvancedSettingsTab(): void {
     const editJsonBtn = document.getElementById('editJsonBtn') as HTMLButtonElement;
     const saveJsonBtn = document.getElementById('saveJsonBtn') as HTMLButtonElement;
     const exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
-    const importJsonBtn = document.getElementById('importJsonBtn') as HTMLButtonElement;
-    const importFileInput = document.getElementById('importFileInput') as HTMLInputElement;
+    const rawLogsTextarea = document.getElementById('rawLogsTextarea') as HTMLTextAreaElement;
+    const refreshRawLogsBtn = document.getElementById('refreshRawLogsBtn') as HTMLButtonElement;
+    const testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
 
-    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !importJsonBtn || !importFileInput) {
+    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
+    }
+
+    async function loadRawLogs() {
+        try {
+            const logs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+            rawLogsTextarea.value = JSON.stringify(logs, null, 2);
+            rawLogsTextarea.classList.remove('hidden'); // Show the textarea
+            showMessage('Raw logs refreshed.', 'success');
+        } catch (error: any) {
+            rawLogsTextarea.value = `Error loading logs: ${error.message}`;
+            rawLogsTextarea.classList.remove('hidden'); // Also show on error
+            showMessage('Failed to refresh raw logs.', 'error');
+        }
+    }
+
+    async function handleTestLog() {
+        console.log("Attempting to send a test log message...");
+        await logAsync('INFO', 'This is a test log from the dashboard.', { timestamp: new Date().toLocaleTimeString() });
+        showMessage('Test log sent. Refreshing raw logs...', 'success');
+        await loadRawLogs();
     }
 
     function loadJsonConfig() {
@@ -677,35 +966,14 @@ function initAdvancedSettingsTab(): void {
         showMessage('Full backup (settings + data) exported successfully.', 'success');
     }
 
-    // 处理从文件导入的逻辑，此功能现在是直接应用数据，而不是加载到文本框
-    async function handleFileImport(event: Event) {
-        const file = (event.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const text = e.target?.result;
-            if (typeof text === 'string') {
-                await applyImportedData(text);
-            } else {
-                showMessage('Failed to read file content.', 'error');
-            }
-        };
-        reader.onerror = () => {
-            showMessage(`Error reading file: ${reader.error}`, 'error');
-        };
-        reader.readAsText(file);
-        // 重置文件输入，以便可以重新选择相同的文件
-        (event.target as HTMLInputElement).value = '';
-    }
-
     editJsonBtn.addEventListener('click', enableJsonEdit);
     saveJsonBtn.addEventListener('click', handleSaveJson);
     exportJsonBtn.addEventListener('click', handleExportData);
-    importJsonBtn.addEventListener('click', () => importFileInput.click());
-    importFileInput.addEventListener('change', handleFileImport);
+    refreshRawLogsBtn.addEventListener('click', loadRawLogs);
+    testLogBtn.addEventListener('click', handleTestLog);
     
     loadJsonConfig();
+    // loadRawLogs(); // Removed initial auto-load for performance
 }
 
 // --- Logs Tab ---
