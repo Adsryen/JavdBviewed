@@ -5,6 +5,7 @@ import path from 'path';
 
 export default defineConfig({
   root: 'src',
+  envDir: '..',
   plugins: [
     crx({ manifest }),
   ],

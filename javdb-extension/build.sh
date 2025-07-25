@@ -61,7 +61,7 @@ main_menu() {
 confirm_version() {
     echo
     echo "You have selected a $version_type release. This will create a new git commit and tag."
-    read -p "Are you sure? (y/n): " confirm
+    read -p "Are you sure? (y/n) [Y]: " confirm || confirm="y"
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
         echo "Action cancelled."
         main_menu
@@ -87,7 +87,7 @@ install_and_build() {
 }
 
 ask_for_release() {
-    read -p "Do you want to create a GitHub Release now? (y/n): " release_confirm
+    read -p "Do you want to create a GitHub Release now? (y/n) [N]: " release_confirm || release_confirm="n"
     if [[ ! "$release_confirm" =~ ^[Yy]$ ]]; then
         echo "OK. Skipping GitHub Release."
         return
