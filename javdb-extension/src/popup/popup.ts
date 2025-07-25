@@ -1,8 +1,16 @@
-import { getSettings, saveSettings, getValue } from '../utils/storage';
+import { getSettings, saveSettings, getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, VIDEO_STATUS } from '../utils/config';
 import type { ExtensionSettings, VideoRecord } from '../types';
 
-document.addEventListener('DOMContentLoaded', () => {
+function initVersionInfo() {
+    const versionContainer = document.getElementById('versionAuthorInfo');
+    if (versionContainer) {
+        const version = import.meta.env.VITE_APP_VERSION || 'N/A';
+        versionContainer.textContent = `Version: ${version}`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     const dashboardButton = document.getElementById('dashboard-button') as HTMLButtonElement;
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
     const helpPanel = document.getElementById('helpPanel') as HTMLDivElement;
@@ -113,4 +121,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initialize();
+    initVersionInfo();
 }); 

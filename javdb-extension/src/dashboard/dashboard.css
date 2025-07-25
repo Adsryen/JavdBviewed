@@ -526,17 +526,47 @@ button:disabled {
     margin-top: 5px;
 }
 
-/* Info container in sidebar */
+/* Page Footer Info */
 #infoContainer {
-    margin-top: auto;
-    padding-top: 20px;
-    border-top: 1px solid #e0e0e0;
-    color: #666;
-    font-size: 12px;
-    text-align: left;
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px 0;
+    text-align: center;
+    color: #aaa;
+    font-size: 13px;
+    font-family: monospace;
+    border-top: 1px solid #f0f0f0;
 }
-#infoContainer div {
-    margin-top: 8px;
+.info-item {
+    display: inline-block;
+}
+.info-label, .info-value {
+    display: inline;
+}
+.info-label {
+    color: #888;
+}
+.info-value {
+    color: #666;
+    background-color: transparent; /* 移除背景色 */
+    padding: 3px 8px;
+    border-radius: 5px;
+    margin-left: 8px;
+    font-weight: bold; /* 加粗以突出 */
+}
+
+/* Version State Colors */
+.version-state-clean {
+    color: #2c3e50; /* 深灰近黑 */
+}
+.version-state-dev {
+    color: #3498db; /* 蓝色 */
+}
+.version-state-dirty {
+    color: #e67e22; /* 橙色 */
+}
+.version-state-unknown {
+    color: #95a5a6; /* 灰色 */
 }
 
 /* =================================================================
