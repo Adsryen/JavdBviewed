@@ -141,6 +141,33 @@
                         </div>
                     </div>
 
+                    <div class="settings-section">
+                        <h3>日志设置</h3>
+                        <p class="settings-description">配置扩展程序的日志记录行为。</p>
+                        <div class="form-group">
+                            <label for="maxLogEntries">最大日志记录数:</label>
+                            <input type="number" id="maxLogEntries" min="100" max="10000">
+                            <p class="input-description">设置保留在存储中的最大日志条数，以防止占用过多空间。有效范围 100 - 10000。</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>显示选项</h3>
+                        <p class="settings-description">自定义在 JavDB 网站上隐藏的内容。</p>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideViewed">
+                            <label for="hideViewed">隐藏已标记"看过"的影片</label>
+                        </div>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideBrowsed">
+                            <label for="hideBrowsed">隐藏已浏览详情页的影片</label>
+                        </div>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="hideVR">
+                            <label for="hideVR">隐藏所有VR影片</label>
+                        </div>
+                    </div>
+
                     <div id="fileListContainer" class="settings-section hidden">
                         <h4>云端文件列表 (点击恢复)</h4>
                         <ul id="fileList"></ul>
@@ -150,19 +177,23 @@
 
             <div id="tab-advanced-settings" class="tab-content">
                 <div class="card">
-                    <div class="setting-group">
-                        <h3>高级配置</h3>
-                        <div class="setting-item">
-                            <p class="description">此功能面向高级用户，您可以直接编辑插件的配置。请谨慎操作，不正确的JSON格式可能会导致插件功能异常。</p>
-                            <div class="action-buttons-top">
-                                <button id="editJsonBtn" class="btn">编辑配置</button>
-                                <button id="saveJsonBtn" class="btn btn-primary hidden">保存配置</button>
-                                <button id="importJsonBtn" class="btn">导入文件</button>
-                                <input type="file" id="importFileInput" class="hidden" accept=".json">
-                                <button id="exportJsonBtn" class="btn">导出文件</button>
-                            </div>
-                            <textarea id="jsonConfig" readonly></textarea>
+                    <div class="settings-section">
+                        <h3>原始设置 (JSON)</h3>
+                        <div class="action-buttons-top">
+                            <button id="editJsonBtn" class="btn">编辑</button>
+                            <button id="saveJsonBtn" class="btn hidden">保存</button>
+                            <button id="exportJsonBtn" class="btn">导出完整备份</button>
                         </div>
+                        <textarea id="jsonConfig" readonly></textarea>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>原始日志 (Raw Logs)</h3>
+                        <div class="action-buttons-top">
+                            <button id="refreshRawLogsBtn" class="btn">显示/刷新日志</button>
+                            <button id="testLogBtn" class="btn">测试日志</button>
+                        </div>
+                        <textarea id="rawLogsTextarea" readonly class="hidden"></textarea>
                     </div>
                 </div>
             </div>
@@ -225,6 +256,30 @@
               <button id="modalCancelBtn" class="button-like">取消</button>
               <button id="modalConfirmBtn" class="button-like danger">确认</button>
           </div>
+      </div>
+  </div>
+
+  <main class="main-content">
+      <div id="dashboard-container" class="container is-fluid">
+          <!-- Tabs will be dynamically generated here -->
+          <div id="tabs-content" class="tabs-content">
+              <!-- Tab content will be dynamically loaded here -->
+          </div>
+      </div>
+  </main>
+
+  <!-- Modal for confirmation and choices -->
+  <div id="import-modal" class="import-modal-overlay">
+      <div class="import-modal-content">
+          <header class="import-modal-header">
+              <p class="title">导入确认</p>
+          </header>
+          <section id="modal-text" class="import-modal-body">
+              在这里显示确认信息或选项。
+          </section>
+          <footer class="import-modal-footer">
+              <!-- Buttons will be dynamically added here -->
+          </footer>
       </div>
   </div>
 

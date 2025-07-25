@@ -314,7 +314,8 @@ button:disabled {
 
 
 /* Advanced Settings Tab */
-#jsonConfig {
+#jsonConfig,
+#rawLogsTextarea {
     width: 100%;
     height: 400px;
     padding: 15px;
@@ -333,13 +334,15 @@ button:disabled {
     box-sizing: border-box; /* Add this line to fix overflow */
 }
 
-#jsonConfig:read-only {
+#jsonConfig:read-only,
+#rawLogsTextarea:read-only {
     background-color: #161b22;
     color: #8b949e;
     border-color: #30363d;
 }
 
-#jsonConfig:focus {
+#jsonConfig:focus,
+#rawLogsTextarea:focus {
     outline: none;
     border-color: #58a6ff;
     box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
@@ -1048,4 +1051,134 @@ button:disabled {
 
 #exportJsonBtn {
     background-color: #6c757d; /* Gray for 'Export' */
+}
+
+#refreshRawLogsBtn {
+    background-color: #007bff; /* Blue for 'Refresh' */
+}
+
+#testLogBtn {
+    background-color: #17a2b8; /* Teal for 'Test' */
+}
+
+.tabs-content {
+    padding-top: 20px;
+}
+
+/* Custom Modal Styles - Self-contained and specific */
+.import-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0s 0.3s;
+}
+
+.import-modal-overlay.is-active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
+}
+
+.import-modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    width: 90%;
+    max-width: 480px;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.import-modal-overlay.is-active .import-modal-content {
+    transform: scale(1);
+}
+
+.import-modal-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.import-modal-header .title {
+    font-size: 1.25em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.import-modal-body {
+    padding: 25px;
+    line-height: 1.6;
+    color: #555;
+}
+
+.import-modal-body strong {
+    color: #007bff;
+}
+
+.import-modal-footer {
+    padding: 15px 25px;
+    background-color: #f7f7f7;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.import-modal-footer .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.import-modal-footer .btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+}
+
+.import-modal-footer .btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+.import-modal-footer .btn-success {
+    background-color: #28a745;
+    color: white;
+}
+.import-modal-footer .btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+.import-modal-footer .btn-warning {
+    background-color: #f0ad4e;
+    color: white;
+}
+.import-modal-footer .btn-danger {
+    background-color: #d9534f;
+    color: white;
+}
+.import-modal-footer .btn-link {
+    background-color: #5bc0de;
+    color: white;
+}
+.import-modal-footer .btn-default {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ccc;
+}
+.import-modal-footer .btn-default:hover {
+    background-color: #e0e0e0;
 } 
