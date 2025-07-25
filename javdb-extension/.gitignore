@@ -2,8 +2,10 @@
 /node_modules
 
 # Build output
-/dist
-/dist-zip
+## Build files
+dist
+dist-*
+*.local
 
 # Local environment variables
 .env.local
@@ -30,3 +32,6 @@ yarn-error.log*
 
 # build.bat
 build.bat
+
+# key.pem
+*.pem

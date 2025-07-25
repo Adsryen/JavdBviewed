@@ -7,7 +7,7 @@ import archiver from 'archiver';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const distDir = resolve(root, 'dist');
-const distZipDir = resolve(root, 'dist-zip'); // New directory for zip files
+const distZipDir = resolve(root, 'dist-zip');
 
 async function getVersion() {
     const packageJsonPath = resolve(root, 'package.json');
@@ -25,13 +25,9 @@ async function getVersion() {
 
 async function main() {
     try {
-        // 0. Clean up previous builds
-        console.log('Cleaning up old build directories...');
-        await fs.emptyDir(distDir);
-        await fs.emptyDir(distZipDir);
-
-        console.log('Starting Vite build...');
-        // 1. Run Vite build
+        console.log('Starting build process...');
+        
+        // 1. Run Vite build (it will clean and create the dist directory)
         await build();
         console.log('Vite build finished successfully.');
 
@@ -43,11 +39,7 @@ async function main() {
         // 3. Create a zip file of the dist directory contents
         console.log(`\nCreating zip file at ${zipPath}...`);
         
-        // Ensure dist directory exists
-        if (!fs.existsSync(distDir)) {
-            console.error('ERROR: dist directory not found. Cannot create zip.');
-            process.exit(1);
-        }
+        await fs.ensureDir(distZipDir); // Ensure the zip output directory exists
 
         const output = fs.createWriteStream(zipPath);
         const archive = archiver('zip', {

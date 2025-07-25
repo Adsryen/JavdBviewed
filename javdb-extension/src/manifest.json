@@ -18,7 +18,7 @@
         "https://*.owncloud.com/*"
     ],
     "background": {
-        "service_worker": "src/background/background.ts",
+        "service_worker": "background/background.ts",
         "type": "module"
     },
     "content_scripts": [
@@ -27,32 +27,32 @@
                 "*://*.javdb.com/*"
             ],
             "js": [
-                "src/content/content.ts"
+                "content/content.ts"
             ],
             "run_at": "document_end"
         }
     ],
     "action": {
-        "default_popup": "src/popup/popup.html",
+        "default_popup": "popup/popup.html",
         "default_icon": {
-            "16": "src/assets/favicon-16x16.png",
-            "48": "src/assets/favicon-16x16.png",
-            "128": "src/assets/favicon-16x16.png"
+            "16": "assets/favicon-16x16.png",
+            "48": "assets/favicon-16x16.png",
+            "128": "assets/favicon-16x16.png"
         }
     },
     "icons": {
-        "16": "src/assets/favicon-16x16.png",
-        "48": "src/assets/favicon-16x16.png",
-        "128": "src/assets/favicon-16x16.png"
+        "16": "assets/favicon-16x16.png",
+        "48": "assets/favicon-16x16.png",
+        "128": "assets/favicon-16x16.png"
     },
     "options_ui": {
-        "page": "src/dashboard/dashboard.html",
+        "page": "dashboard/dashboard.html",
         "open_in_tab": true
     },
     "web_accessible_resources": [
         {
             "resources": [
-                "src/assets/jav.png"
+                "assets/jav.png"
             ],
             "matches": ["*://*.javdb.com/*"]
         }
