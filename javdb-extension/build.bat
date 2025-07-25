@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 
 :menu
@@ -54,7 +54,7 @@ if /i not "%confirm%"=="y" (
 echo.
 echo Updating version with 'node scripts/version.js %version_type%'...
 call node scripts/version.js %version_type%
-if errorlevel 1 (
+if !errorlevel! neq 0 (
     echo ERROR: Version update failed.
     goto :error
 )
@@ -69,7 +69,7 @@ echo.
 
 echo Generating build version...
 call node scripts/version.js
-if errorlevel 1 (
+if !errorlevel! neq 0 (
     echo ERROR: Version generation failed.
     goto :error
 )
@@ -78,7 +78,7 @@ if errorlevel 1 (
 echo.
 echo Installing/updating dependencies with pnpm...
 call pnpm install
-if errorlevel 1 (
+if !errorlevel! neq 0 (
     echo ERROR: pnpm install failed.
     goto :error
 )
@@ -86,13 +86,38 @@ echo.
 
 echo Building the extension with Vite...
 call pnpm run build
-if errorlevel 1 (
+if !errorlevel! neq 0 (
     echo ERROR: Vite build failed.
     goto :error
 )
 echo.
 echo =================================================
 echo  Build process finished successfully!
+echo =================================================
+echo.
+
+rem Only proceed to release if a version was actually updated.
+if not defined version_type (
+    echo A release can only be created after a version update (options 1-3^).
+    echo This was a 'Just Build' run. Aborting release.
+    goto :successful_end
+)
+
+:create_release
+call node scripts/release.js %version_type%
+if !errorlevel! neq 0 (
+    echo.
+    echo ################################################
+    echo #  An error occurred during the release process. #
+    echo ################################################
+    echo.
+    pause
+    exit /b 1
+)
+
+:successful_end
+echo =================================================
+echo  Process finished successfully!
 echo =================================================
 echo.
 goto :eof
