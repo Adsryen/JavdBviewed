@@ -83,7 +83,13 @@ function main() {
         process.exit(1);
     }
 
-    // 2. Increment the build number
+    // Ensure version field is present
+    versionData.version = `${versionData.major}.${versionData.minor}.${versionData.patch}`;
+
+    // 2. Increment the build number (if it exists)
+    if (typeof versionData.build !== 'number') {
+        versionData.build = 0;
+    }
     versionData.build += 1;
 
     // 3. Get Git info
@@ -137,8 +143,11 @@ if (['major', 'minor', 'patch'].includes(arg)) {
         versionData.build = 0;
     }
     
+    // Also update the simple version string
+    versionData.version = `${versionData.major}.${versionData.minor}.${versionData.patch}`;
+    
     fs.writeFileSync(versionFilePath, JSON.stringify(versionData, null, 2), 'utf8');
-    console.log(`Version bumped to ${versionData.major}.${versionData.minor}.${versionData.patch}`);
+    console.log(`Version bumped to ${versionData.version}`);
     // After bumping, we still run main to generate the first build of the new version
     main();
 } else {
