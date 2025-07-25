@@ -27,7 +27,7 @@ if "%choice%"=="1" ( set "version_type=major" ) else if "%choice%"=="2" ( set "v
 :confirm_version
 echo.
 echo You have selected a %version_type% release. This will create a new git commit and tag.
-set /p "confirm=Are you sure? (y/n): "
+set /p "confirm=Are you sure? (y/n) [Y]: " || set "confirm=y"
 if /i not "!confirm!"=="y" (
     echo Action cancelled.
     goto :menu
@@ -49,7 +49,7 @@ echo Build and packaging finished successfully!
 echo.
 
 :ask_for_release
-set /p "release_confirm=Do you want to create a GitHub Release now? (y/n): "
+set /p "release_confirm=Do you want to create a GitHub Release now? (y/n) [N]: " || set "release_confirm=n"
 if /i not "!release_confirm!"=="y" (
     echo OK. Skipping GitHub Release.
     goto :successful_end
