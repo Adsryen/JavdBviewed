@@ -77,8 +77,8 @@ function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit:
     const envContent = `VITE_APP_VERSION=${fullVersion}\nVITE_APP_VERSION_STATE=${simpleGitState}\n`;
     fs.writeFileSync(viteEnvFilePath, envContent, 'utf8');
     
-    console.log(`Version updated to: ${fullVersion}`);
-    console.log(`Version written to ${path.basename(viteEnvFilePath)} for Vite.`);
+    console.log(`\x1b[32mVersion updated to: ${fullVersion}\x1b[0m`);
+    console.log(`\x1b[32mVersion written to ${path.basename(viteEnvFilePath)} for Vite.\x1b[0m`);
 }
 
 // --- Main Execution Logic ---
@@ -101,7 +101,7 @@ try {
         versionData.build = 0; // Reset build number on new version
         versionData.version = `${versionData.major}.${versionData.minor}.${versionData.patch}`;
         
-        console.log(`Version bumped to ${versionData.version}`);
+        console.log(`\x1b[32mVersion bumped to ${versionData.version}\x1b[0m`);
 
         // Generate versions, assuming this will be a clean commit
         generateAndWriteBuildVersion(versionData, true);

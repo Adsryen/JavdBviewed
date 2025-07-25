@@ -626,7 +626,8 @@ function initAdvancedSettingsTab(): void {
     }
 
     function loadJsonConfig() {
-        jsonConfigTextarea.value = JSON.stringify({ settings: STATE.settings, data: STATE.records }, null, 2);
+        // 只显示设置，不显示数据
+        jsonConfigTextarea.value = JSON.stringify(STATE.settings, null, 2);
     }
 
     function enableJsonEdit() {
@@ -638,15 +639,34 @@ function initAdvancedSettingsTab(): void {
     }
 
     async function handleSaveJson() {
-        await applyImportedData(jsonConfigTextarea.value);
-        // Reset the UI after attempting to save
-        jsonConfigTextarea.readOnly = true;
-        saveJsonBtn.classList.add('hidden');
-        editJsonBtn.classList.remove('hidden');
+        try {
+            // 假设文本框中的内容是 settings 对象
+            const settingsObject = JSON.parse(jsonConfigTextarea.value);
+            // 将其包装在 { settings: ... } 结构中以供 applyImportedData 使用
+            await applyImportedData(JSON.stringify({ settings: settingsObject }));
+        } catch (error) {
+            showMessage(`Error parsing or applying JSON: ${error.message}`, 'error');
+            console.error("Failed to save JSON settings:", error);
+        } finally {
+            // 保存后重置UI
+            jsonConfigTextarea.readOnly = true;
+            saveJsonBtn.classList.add('hidden');
+            editJsonBtn.classList.remove('hidden');
+            // 重新加载配置以确认更改（applyImportedData 成功后会刷新页面，但这作为一个保险措施）
+            loadJsonConfig();
+        }
     }
     
     function handleExportData() {
-        const dataStr = jsonConfigTextarea.value;
+        // 导出完整数据（设置+影片记录），与侧边栏导出功能保持一致
+        const dataToExport = {
+            settings: STATE.settings,
+            data: STATE.records.reduce((acc, record) => {
+                acc[record.id] = record;
+                return acc;
+            }, {} as Record<string, VideoRecord>)
+        };
+        const dataStr = JSON.stringify(dataToExport, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
         const anchor = document.createElement('a');
@@ -654,31 +674,36 @@ function initAdvancedSettingsTab(): void {
         anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
         anchor.click();
         URL.revokeObjectURL(url);
-        showMessage('Current JSON data exported successfully.');
+        showMessage('Full backup (settings + data) exported successfully.', 'success');
     }
 
-    function handleFileSelectedForTextarea(event: Event) {
+    // 处理从文件导入的逻辑，此功能现在是直接应用数据，而不是加载到文本框
+    async function handleFileImport(event: Event) {
         const file = (event.target as HTMLInputElement).files?.[0];
         if (!file) return;
         
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const text = e.target?.result;
             if (typeof text === 'string') {
-                jsonConfigTextarea.value = text;
-                // Automatically enable editing after loading a file
-                enableJsonEdit();
-                showMessage('File loaded into editor. Review and click "Save JSON" to apply.', 'info');
+                await applyImportedData(text);
+            } else {
+                showMessage('Failed to read file content.', 'error');
             }
         };
+        reader.onerror = () => {
+            showMessage(`Error reading file: ${reader.error}`, 'error');
+        };
         reader.readAsText(file);
+        // 重置文件输入，以便可以重新选择相同的文件
+        (event.target as HTMLInputElement).value = '';
     }
 
     editJsonBtn.addEventListener('click', enableJsonEdit);
     saveJsonBtn.addEventListener('click', handleSaveJson);
     exportJsonBtn.addEventListener('click', handleExportData);
     importJsonBtn.addEventListener('click', () => importFileInput.click());
-    importFileInput.addEventListener('change', handleFileSelectedForTextarea);
+    importFileInput.addEventListener('change', handleFileImport);
     
     loadJsonConfig();
 }
