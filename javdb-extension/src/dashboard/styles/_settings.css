@@ -1,0 +1,295 @@
+/* Advanced Settings Tab */
+#jsonConfig,
+#rawLogsTextarea {
+    width: 100%;
+    height: 400px;
+    padding: 15px;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    resize: vertical;
+    transition: background-color 0.2s, color 0.2s;
+    box-sizing: border-box; /* Add this line to fix overflow */
+}
+
+#jsonConfig:read-only,
+#rawLogsTextarea:read-only {
+    background-color: #161b22;
+    color: #8b949e;
+    border-color: #30363d;
+}
+
+#jsonConfig:focus,
+#rawLogsTextarea:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+}
+
+.button-group {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+#tab-advanced-settings .button-group {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+/* Settings Tab Styles */
+.settings-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.settings-section h3 {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+}
+.settings-description {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 15px 0;
+    max-width: 80%;
+}
+.search-engine-header {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 0 10px 10px 10px;
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #555;
+}
+.engine-icon, .engine-name, .engine-url, .engine-icon-url, .engine-actions {
+    display: flex;
+    align-items: center;
+}
+.engine-icon {
+    width: 40px;
+    justify-content: center;
+}
+.engine-name {
+    width: 150px;
+}
+.engine-url {
+    flex-grow: 1;
+}
+.engine-icon-url {
+    width: 200px;
+}
+.engine-actions {
+    width: 80px;
+    justify-content: center;
+}
+#search-engine-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.search-engine-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.search-engine-item .icon-preview {
+    width: 40px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.search-engine-item .icon-preview img {
+    max-width: 20px;
+    max-height: 20px;
+    border-radius: 4px;
+}
+.search-engine-item input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+.search-engine-item .name-input {
+    width: 150px;
+}
+.search-engine-item .url-template-input {
+    flex-grow: 1;
+}
+.search-engine-item .icon-url-input {
+    width: 200px;
+}
+.search-engine-item .actions-container {
+    width: 80px;
+    display: flex;
+    justify-content: center;
+}
+.search-engine-item .delete-engine {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    box-shadow: none;
+}
+#add-search-engine {
+    background-color: #17a2b8;
+}
+#add-search-engine i {
+    margin-right: 8px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label, .form-group-checkbox label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+.form-group input[type="text"], 
+.form-group input[type="password"] {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.form-group-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+}
+.form-group-checkbox label {
+    margin-bottom: 0;
+    font-weight: normal;
+}
+#webdav-fields-container.hidden {
+    display: none;
+}
+
+#search-engine-settings .button-like {
+    margin-top: 15px;
+}
+
+.form-group-search-engine {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 控制元素之间的间距 */
+    margin-bottom: 10px;
+}
+
+.search-engine-name {
+    flex: 1; /* 名称输入框占据更多空间 */
+    min-width: 100px;
+}
+
+.search-engine-icon-url {
+    flex: 2; /* 图标URL输入框占据更多空间 */
+    min-width: 150px;
+}
+
+.search-engine-url {
+    flex: 3; /* URL模板输入框占据最多空间 */
+    min-width: 200px;
+}
+
+.remove-search-engine {
+    flex-shrink: 0; /* 防止删除按钮被压缩 */
+    padding: 5px 10px;
+    line-height: 1; /* 确保图标垂直居中 */
+}
+
+.button-like.danger i {
+    color: inherit; /* 使图标颜色与按钮文本颜色一致 */
+}
+
+.form-group-search-engine input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-group-search-engine input[type="text"]:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+    outline: none;
+}
+
+/* --- Advanced Settings Button Bar --- */
+.action-buttons-top {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.action-buttons-top .btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    color: #fff;
+}
+
+.action-buttons-top .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.action-buttons-top .btn:active:not(:disabled) {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Specific button colors */
+#editJsonBtn {
+    background-color: #17a2b8; /* Teal for 'Edit' */
+}
+
+#saveJsonBtn {
+    background-color: #28a745; /* Green for 'Save' */
+}
+
+#importJsonBtn {
+    background-color: #007bff; /* Blue for 'Import' */
+}
+
+#exportJsonBtn {
+    background-color: #6c757d; /* Gray for 'Export' */
+}
+
+#refreshRawLogsBtn {
+    background-color: #007bff; /* Blue for 'Refresh' */
+}
+
+#testLogBtn {
+    background-color: #17a2b8; /* Teal for 'Test' */
+} 

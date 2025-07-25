@@ -42,4 +42,5 @@ export interface VideoRecord {
     title: string;
     status: VideoStatus;
     timestamp: number;
+    tags?: string[];
 } 
