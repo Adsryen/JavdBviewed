@@ -3,6 +3,7 @@
 
 # Build output
 /dist
+/dist-zip
 
 # Local environment variables
 .env.local
