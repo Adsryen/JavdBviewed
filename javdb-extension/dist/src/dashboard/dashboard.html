@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>JavDB 助手管理面板</title>
+  <title>JavDB 助手管理面板</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script type="module" crossorigin src="/assets/dashboard.html-JzpIhB1e.js"></script>
+  <script type="module" crossorigin src="/assets/dashboard.html-BUYyD-cK.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
   <link rel="modulepreload" crossorigin href="/assets/storage-BUa3Gg3q.js">
-  <link rel="stylesheet" crossorigin href="/assets/dashboard-lDqm0c8B.css">
+  <link rel="stylesheet" crossorigin href="/assets/dashboard-BAaapCEb.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -34,7 +34,7 @@
                 <h4>WebDAV 同步</h4>
                 <div class="button-group-vertical">
                     <button id="syncNow">立即上传至云端</button>
-                    <button id="syncDown">从云端恢复...</button>
+                    <button id="syncDown">从云端恢复</button>
                 </div>
             </div>
             
@@ -193,19 +193,9 @@
                             <button id="clear-logs-button" class="button-like danger">清空日志</button>
                         </div>
                         <div class="log-container">
-                            <table id="log-table">
-                                <thead>
-                                    <tr>
-                                        <th class="timestamp">时间</th>
-                                        <th class="level">等级</th>
-                                        <th class="message">消息</th>
-                                        <th class="data">数据</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="log-body">
-                                    <!-- Log entries will be inserted here -->
-                                </tbody>
-                            </table>
+                            <div id="log-body">
+                                <!-- Log entries will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -242,6 +232,6 @@
           </div>
       </div>
   </div>
-
+
 </body>
 </html> 
