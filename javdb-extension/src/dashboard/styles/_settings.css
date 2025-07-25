@@ -185,6 +185,20 @@
     margin-bottom: 0;
     font-weight: normal;
 }
+
+.form-group-horizontal {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
 #webdav-fields-container.hidden {
     display: none;
 }
