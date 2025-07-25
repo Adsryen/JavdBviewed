@@ -42,6 +42,5 @@ export const DEFAULT_SETTINGS = {
             urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce',
             iconUrl: 'https://www.javbus.com/favicon.ico'
         }
-    ],
-    version: '1.0.1', // Default version
+    ]
 }; 
