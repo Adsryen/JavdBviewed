@@ -28,19 +28,14 @@ export const DEFAULT_SETTINGS = {
         username: '',
         password: '',
         autoSync: false,
-        syncInterval: 1440,
-        lastSync: '', // Add lastSync property
+        syncInterval: 1440, // 24 hours in minutes
+        lastSync: null,
     },
     searchEngines: [
-        {
-            name: 'JavDB',
-            urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all',
-            iconUrl: 'https://javdb.com/favicon-32x32.png'
-        },
-        {
-            name: 'Javbus',
-            urlTemplate: 'https://www.javbus.com/search/{{ID}}&type=&parent=ce',
-            iconUrl: 'https://www.javbus.com/favicon.ico'
-        }
-    ]
+        { id: 'javdb', name: 'JavDB', urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all', icon: 'https://javdb.com/favicon-32x32.png' },
+        { id: 'google', name: 'Google', urlTemplate: 'https://www.google.com/search?q={{ID}}', icon: 'https://www.google.com/favicon.ico' },
+    ],
+    logging: {
+        maxLogEntries: 1500,
+    },
 }; 
