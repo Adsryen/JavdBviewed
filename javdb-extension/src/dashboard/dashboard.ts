@@ -20,9 +20,63 @@ const STATE: DashboardState = {
 
 async function initializeGlobalState(): Promise<void> {
     if (STATE.isInitialized) return;
-    STATE.settings = await getSettings();
-    const recordsData = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-    STATE.records = Object.values(recordsData);
+
+    try {
+        let settings = await getValue<ExtensionSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+
+        // --- Settings Migration Logic ---
+        let settingsChanged = false;
+        if (settings.searchEngines && Array.isArray(settings.searchEngines)) {
+            const migratedEngines = settings.searchEngines.map((engine: any) => {
+                let currentEngine = { ...engine };
+                let hasChanged = false;
+
+                // 1. Migrate from iconUrl to icon
+                if (currentEngine.iconUrl && !currentEngine.icon) {
+                    currentEngine.icon = currentEngine.iconUrl;
+                    delete currentEngine.iconUrl;
+                    hasChanged = true;
+                }
+
+                // 2. Correct the icon path for default engines if they are using a remote URL
+                if (currentEngine.name === 'JavDB' && currentEngine.icon !== 'assets/favicon-32x32.png') {
+                    currentEngine.icon = 'assets/favicon-32x32.png';
+                    hasChanged = true;
+                }
+                if (currentEngine.name === 'Javbus' && currentEngine.icon !== 'assets/javbus.ico') {
+                    currentEngine.icon = 'assets/javbus.ico';
+                    hasChanged = true;
+                }
+
+                // 3. Ensure ID exists
+                if (!currentEngine.id) {
+                    currentEngine.id = `engine-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                    hasChanged = true;
+                }
+
+                if(hasChanged) {
+                    settingsChanged = true;
+                }
+                return currentEngine;
+            });
+
+
+            if (settingsChanged) {
+                settings.searchEngines = migratedEngines;
+                await setValue(STORAGE_KEYS.SETTINGS, settings);
+                await logAsync('INFO', 'Successfully migrated and corrected search engine settings.');
+            }
+        }
+        // --- End Migration Logic ---
+
+        STATE.settings = settings;
+
+        const recordsData = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+        STATE.records = Object.values(recordsData);
+    } catch (error: any) {
+        console.error("Failed to initialize global state:", error);
+        showMessage(`Failed to load settings: ${error.message}`, 'error');
+    }
     STATE.isInitialized = true;
     console.log("Global state initialized.", STATE);
 }
@@ -803,8 +857,65 @@ function initSettingsTab(): void {
 
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
 
+    function renderSearchEngines() {
+        const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
+        if (!searchEngineList) return;
+
+        searchEngineList.innerHTML = ''; // Clear existing entries
+
+        STATE.settings.searchEngines?.forEach((engine, index) => {
+            if (!engine) {
+                console.warn('Skipping invalid search engine entry at index:', index, engine);
+                return; // Skips the current iteration
+            }
+
+            const engineDiv = document.createElement('div');
+            engineDiv.className = 'search-engine-item';
+
+            const iconSrc = engine.icon.startsWith('assets/')
+                ? chrome.runtime.getURL(engine.icon)
+                : engine.icon || 'assets/icon.png';
+
+            engineDiv.innerHTML = `
+                <div class="icon-preview">
+                    <img src="${iconSrc}" alt="${engine.name}" onerror="this.onerror=null; this.src='${chrome.runtime.getURL('assets/icon.png')}';">
+                </div>
+                <input type="text" value="${engine.name}" class="name-input" data-index="${index}" placeholder="名称">
+                <input type="text" value="${engine.urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板">
+                <input type="text" value="${engine.icon}" class="icon-url-input" data-index="${index}" placeholder="Icon URL">
+                <div class="actions-container">
+                    <button class="button-like danger delete-engine" data-index="${index}"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+            searchEngineList.appendChild(engineDiv);
+        });
+    }
+
+    function updateSearchEnginesFromUI() {
+        const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
+        const nameInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.name-input');
+        const urlInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.url-template-input');
+        const iconUrlInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.icon-url-input');
+        
+        const newEngines: any[] = [];
+        nameInputs.forEach((nameInput, index) => {
+            const urlInput = urlInputs[index];
+            const iconUrlInput = iconUrlInputs[index];
+            if (nameInput.value && urlInput.value) {
+                const originalEngine = STATE.settings.searchEngines[index] || {};
+                newEngines.push({
+                    id: originalEngine.id || `engine-${Date.now()}-${index}`,
+                    name: nameInput.value,
+                    urlTemplate: urlInput.value,
+                    icon: iconUrlInput.value || ''
+                });
+            }
+        });
+        STATE.settings.searchEngines = newEngines;
+    }
+
     function loadSettings() {
-        const { webdav, display, logging } = STATE.settings;
+        const { webdav, display, logging, searchEngines } = STATE.settings;
         webdavEnabled.checked = webdav.enabled;
         webdavUrl.value = webdav.url;
         webdavUser.value = webdav.username;
@@ -819,9 +930,14 @@ function initSettingsTab(): void {
         hideVR.checked = display.hideVR;
 
         maxLogEntries.value = String(logging?.maxLogEntries || 1500);
+
+        if (searchEngines) {
+            renderSearchEngines();
+        }
     }
 
     async function handleSaveSettings() {
+        updateSearchEnginesFromUI(); // Update search engines from UI before saving
         const newSettings: ExtensionSettings = {
             ...STATE.settings,
             webdav: {
@@ -840,7 +956,8 @@ function initSettingsTab(): void {
             },
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
-            }
+            },
+            searchEngines: STATE.settings.searchEngines
         };
         await saveSettings(newSettings);
         STATE.settings = newSettings;
@@ -874,6 +991,37 @@ function initSettingsTab(): void {
     hideBrowsed.addEventListener('change', handleSaveSettings);
     hideVR.addEventListener('change', handleSaveSettings);
     maxLogEntries.addEventListener('change', handleSaveSettings);
+
+    const addSearchEngineBtn = document.getElementById('add-search-engine');
+    addSearchEngineBtn?.addEventListener('click', () => {
+        STATE.settings.searchEngines.push({
+            id: `engine-${Date.now()}`,
+            name: 'New Engine',
+            urlTemplate: 'https://example.com/search?q={{ID}}',
+            icon: 'https://www.google.com/s2/favicons?domain=example.com'
+        });
+        renderSearchEngines();
+        handleSaveSettings();
+    });
+
+    const searchEngineList = document.getElementById('search-engine-list');
+    searchEngineList?.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        const removeButton = target.closest('.delete-engine');
+        if (removeButton) {
+            const index = parseInt(removeButton.getAttribute('data-index')!, 10);
+            STATE.settings.searchEngines.splice(index, 1);
+            renderSearchEngines();
+            handleSaveSettings();
+        }
+    });
+
+    searchEngineList?.addEventListener('input', (event) => {
+        const target = event.target as HTMLInputElement;
+        if (target.classList.contains('name-input') || target.classList.contains('url-template-input') || target.classList.contains('icon-url-input')) {
+            handleSaveSettings();
+        }
+    });
 
     loadSettings();
 }

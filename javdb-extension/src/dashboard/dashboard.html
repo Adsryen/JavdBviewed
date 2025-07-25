@@ -95,6 +95,13 @@
                     <div class="settings-section" id="search-engine-settings">
                         <h3>搜索引擎设置</h3>
                         <p class="settings-description">自定义点击番号后跳转的搜索网站。使用 <code>{{ID}}</code> 作为番号占位符。</p>
+                        <div class="search-engine-header">
+                            <div class="engine-icon">图标</div>
+                            <div class="engine-name">搜索引擎名称</div>
+                            <div class="engine-url">URL模板</div>
+                            <div class="engine-icon-url">图标地址</div>
+                            <div class="engine-actions">操作</div>
+                        </div>
                         <div id="search-engine-list">
                             <!-- 搜索引擎列表将由 JS 动态填充 -->
                         </div>
@@ -148,23 +155,6 @@
                             <label for="maxLogEntries">最大日志记录数:</label>
                             <input type="number" id="maxLogEntries" min="100" max="10000">
                             <p class="input-description">设置保留在存储中的最大日志条数，以防止占用过多空间。有效范围 100 - 10000。</p>
-                        </div>
-                    </div>
-
-                    <div class="settings-section">
-                        <h3>显示选项</h3>
-                        <p class="settings-description">自定义在 JavDB 网站上隐藏的内容。</p>
-                        <div class="form-group-checkbox">
-                            <input type="checkbox" id="hideViewed">
-                            <label for="hideViewed">隐藏已标记"看过"的影片</label>
-                        </div>
-                        <div class="form-group-checkbox">
-                            <input type="checkbox" id="hideBrowsed">
-                            <label for="hideBrowsed">隐藏已浏览详情页的影片</label>
-                        </div>
-                        <div class="form-group-checkbox">
-                            <input type="checkbox" id="hideVR">
-                            <label for="hideVR">隐藏所有VR影片</label>
                         </div>
                     </div>
 
