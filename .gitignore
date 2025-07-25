@@ -1,0 +1,22 @@
+# Ignore files from the browser extension project
+javdb-extension/node_modules/
+javdb-extension/dist/
+javdb-extension/.env.local
+javdb-extension/key.pem
+javdb-extension/npm-debug.log*
+javdb-extension/pnpm-debug.log*
+javdb-extension/yarn-debug.log*
+javdb-extension/yarn-error.log*
+
+# General IDE and OS files to ignore globally
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+ehthumbs.db
+Thumbs.db
+.DS_Store 
