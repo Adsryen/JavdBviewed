@@ -38,8 +38,6 @@ function initTabs(): void {
         tabButton.classList.add('active');
         document.getElementById(tabId)?.classList.add('active');
 
-        logAsync('INFO', `切换到标签页: ${tabId}`);
-
         if (history.pushState) {
             history.pushState(null, '', `#${tabId}`);
         } else {
@@ -126,6 +124,33 @@ function initSidebarActions(): void {
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
     const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
     const fileList = document.getElementById('fileList') as HTMLUListElement;
+    const clearAllBtn = document.getElementById('clearAllBtn') as HTMLButtonElement;
+
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认清空所有本地记录',
+                message: '您确定要清空所有本地记录吗？此操作不可撤销，且无法通过 WebDAV 恢复！',
+                onConfirm: () => {
+                    logAsync('INFO', '用户确认清空所有本地记录。');
+                    chrome.runtime.sendMessage({ type: 'clear-all-records' }, response => {
+                        if (response?.success) {
+                            showMessage('所有本地记录已成功清空。', 'success');
+                            logAsync('INFO', '所有本地记录已被成功清空。');
+                            // Refresh the page or relevant parts to reflect the change
+                            location.reload(); 
+                        } else {
+                            showMessage('清空记录失败，请稍后重试。', 'error');
+                            logAsync('ERROR', '清空所有本地记录时发生错误。', { error: response.error });
+                        }
+                    });
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了清空所有本地记录的操作。');
+                }
+            });
+        });
+    }
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
@@ -196,10 +221,16 @@ function initSidebarActions(): void {
                         fileList.innerHTML = ''; // Clear previous list
                         response.files.forEach((file: any) => {
                             const li = document.createElement('li');
-                            li.textContent = `${file.name} (${file.lastModified})`;
                             li.dataset.filename = file.name;
                             li.dataset.filepath = file.path;
                             li.classList.add('file-item');
+
+                            li.innerHTML = `
+                                <i class="fas fa-file-alt file-icon"></i>
+                                <span class="file-name">${file.name}</span>
+                                <span class="file-date">${file.lastModified}</span>
+                            `;
+
                             li.addEventListener('click', () => handleFileRestoreClick(file));
                             fileList.appendChild(li);
                         });

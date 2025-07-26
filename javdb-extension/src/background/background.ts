@@ -71,8 +71,12 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
             settings: settings,
             data: recordsToSync
         };
-        const date = new Date().toISOString().split('T')[0];
-        const filename = `/javdb-extension-backup-${date}.json`;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const date = `${year}-${month}-${day}`;
+        const filename = `javdb-extension-backup-${date}.json`;
         
         let fileUrl = settings.webdav.url;
         if (!fileUrl.endsWith('/')) fileUrl += '/';
@@ -285,6 +289,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return true;
         case 'clear-logs':
             setValue(STORAGE_KEYS.LOGS, []).then(() => sendResponse({ success: true }));
+            return true;
+        case 'clear-all-records':
+            setValue(STORAGE_KEYS.VIEWED_RECORDS, {}).then(() => sendResponse({ success: true }));
             return true;
         case 'log-message':
             if (message.payload) {

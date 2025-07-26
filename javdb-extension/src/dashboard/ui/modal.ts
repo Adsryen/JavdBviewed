@@ -9,8 +9,8 @@ export function showConfirmationModal({ title, message, onConfirm, onCancel, sho
     const modal = document.getElementById('confirmationModal') as HTMLDivElement;
     const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
     const modalMessage = document.getElementById('modalMessage') as HTMLParagraphElement;
-    const modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
-    const modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
+    let modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
+    let modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
     
     // Restore options elements
     const modalRestoreOptions = document.getElementById('modalRestoreOptions') as HTMLDivElement;
@@ -29,13 +29,18 @@ export function showConfirmationModal({ title, message, onConfirm, onCancel, sho
         modalRestoreOptions.classList.add('hidden');
     }
     
-    modal.style.display = 'flex';
+    modal.classList.add('visible');
 
     // Use .cloneNode to remove previous event listeners
-    const newConfirmBtn = modalConfirmBtn.cloneNode(true) as HTMLButtonElement;
+    let newConfirmBtn = modalConfirmBtn.cloneNode(true) as HTMLButtonElement;
     modalConfirmBtn.parentNode?.replaceChild(newConfirmBtn, modalConfirmBtn);
+    modalConfirmBtn = newConfirmBtn;
 
-    newConfirmBtn.onclick = () => {
+    const newCancelBtn = modalCancelBtn.cloneNode(true) as HTMLButtonElement;
+    modalCancelBtn.parentNode?.replaceChild(newCancelBtn, modalCancelBtn);
+    modalCancelBtn = newCancelBtn;
+
+    modalConfirmBtn.onclick = () => {
         if (showRestoreOptions) {
             onConfirm({
                 restoreSettings: restoreSettingsCheckbox.checked,
@@ -44,11 +49,11 @@ export function showConfirmationModal({ title, message, onConfirm, onCancel, sho
         } else {
             onConfirm();
         }
-        modal.style.display = 'none';
+        modal.classList.remove('visible');
     };
 
     modalCancelBtn.onclick = () => {
         if (onCancel) onCancel();
-        modal.style.display = 'none';
+        modal.classList.remove('visible');
     };
 } 

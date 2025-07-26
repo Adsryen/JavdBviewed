@@ -163,7 +163,8 @@
     font-weight: 500;
 }
 .form-group input[type="text"], 
-.form-group input[type="password"] {
+.form-group input[type="password"],
+.form-group input[type="number"] {
     width: 100%;
     max-width: 500px;
     padding: 10px 12px;
@@ -171,6 +172,12 @@
     border-radius: 8px;
     box-sizing: border-box;
 }
+
+.form-group input.number-input {
+    max-width: 120px;
+    text-align: center;
+}
+
 .form-group-checkbox {
     display: flex;
     align-items: center;
@@ -201,6 +208,53 @@
 
 #webdav-fields-container.hidden {
     display: none;
+}
+
+#fileListContainer {
+    margin-top: 20px;
+}
+
+#fileList {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-item:hover {
+    background-color: #f5f5f5;
+}
+
+.file-icon {
+    color: #6c757d;
+    font-size: 18px;
+    margin-right: 15px;
+}
+
+.file-name {
+    flex-grow: 1;
+    font-weight: 500;
+    color: #333;
+}
+
+.file-date {
+    font-size: 13px;
+    color: #888;
 }
 
 #search-engine-settings .button-like {
