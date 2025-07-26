@@ -153,8 +153,8 @@ export async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'o
     }
 }
 
-export async function applyImportedData(jsonData: string, importType: 'data' | 'settings' | 'all' = 'all'): Promise<void> {
-    logAsync('INFO', `开始导入拓展数据，类型: ${importType}`);
+export async function applyImportedData(jsonData: string, importType: 'data' | 'settings' | 'all' = 'all', mode: 'merge' | 'overwrite' = 'merge'): Promise<void> {
+    logAsync('INFO', `开始导入拓展数据，类型: ${importType}, 模式: ${mode}`);
     try {
         const importData = JSON.parse(jsonData);
         let settingsChanged = false;
@@ -173,7 +173,7 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
         }
 
         if ((importType === 'data' || importType === 'all') && importData.data && typeof importData.data === 'object' && importData.data !== null) {
-            const currentRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+            let currentRecords = mode === 'merge' ? await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {}) : {};
             
             const incomingRecords = (Array.isArray(importData.data) 
                 ? importData.data.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
@@ -183,17 +183,30 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
                 : importData.data) as Record<string, VideoRecord>;
 
             let newRecordsCount = 0;
-            for (const id in incomingRecords) {
-                if (!currentRecords[id]) {
-                    currentRecords[id] = incomingRecords[id];
-                    newRecordsCount++;
+            let updatedRecords: Record<string, VideoRecord>;
+
+            if (mode === 'overwrite') {
+                updatedRecords = incomingRecords;
+                newRecordsCount = Object.keys(updatedRecords).length;
+                await logAsync('INFO', `已准备覆盖所有记录，共 ${newRecordsCount} 条。`);
+            } else { // merge mode
+                updatedRecords = { ...currentRecords };
+                for (const id in incomingRecords) {
+                    if (!updatedRecords[id]) {
+                        updatedRecords[id] = incomingRecords[id];
+                        newRecordsCount++;
+                    }
                 }
             }
 
-            if (newRecordsCount > 0) {
-                await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
+            if (newRecordsCount > 0 || mode === 'overwrite') {
+                await setValue(STORAGE_KEYS.VIEWED_RECORDS, updatedRecords);
                 recordsChanged = true;
-                logAsync('INFO', `已成功从文件导入并合并了 ${newRecordsCount} 条新记录。`);
+                if (mode === 'overwrite') {
+                    logAsync('INFO', `已成功从文件覆盖了所有记录，共 ${newRecordsCount} 条。`);
+                } else {
+                    logAsync('INFO', `已成功从文件导入并合并了 ${newRecordsCount} 条新记录。`);
+                }
             }
         }
 

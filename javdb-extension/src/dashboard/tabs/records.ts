@@ -5,10 +5,11 @@ import type { VideoRecord, VideoStatus } from '../../types';
 export function initRecordsTab(): void {
     const searchInput = document.getElementById('searchInput') as HTMLInputElement;
     const filterSelect = document.getElementById('filterSelect') as HTMLSelectElement;
+    const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
     const videoList = document.getElementById('videoList') as HTMLUListElement;
     const paginationContainer = document.querySelector('.pagination') as HTMLDivElement;
 
-    if (!searchInput || !videoList) return;
+    if (!searchInput || !videoList || !sortSelect) return;
 
     let currentPage = 1;
     const recordsPerPage = 20;
@@ -25,30 +26,74 @@ export function initRecordsTab(): void {
             const matchesFilter = filterValue === 'all' || record.status === filterValue;
             return matchesSearch && matchesFilter;
         });
+
+        // Add sorting logic
+        const sortValue = sortSelect.value;
+        filteredRecords.sort((a, b) => {
+            switch (sortValue) {
+                case 'timestamp_asc':
+                    return a.timestamp - b.timestamp;
+                case 'id_asc':
+                    return a.id.localeCompare(b.id);
+                case 'id_desc':
+                    return b.id.localeCompare(a.id);
+                case 'timestamp_desc':
+                default:
+                    return b.timestamp - a.timestamp;
+            }
+        });
     }
 
     function renderVideoList() {
         videoList.innerHTML = '';
         if (filteredRecords.length === 0) {
-            videoList.innerHTML = '<li class="empty-list">No records match your criteria.</li>';
+            videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
             return;
         }
 
         const startIndex = (currentPage - 1) * recordsPerPage;
         const recordsToRender = filteredRecords.slice(startIndex, startIndex + recordsPerPage);
 
-        const searchEngine = STATE.settings.searchEngines[0];
-
         recordsToRender.forEach(record => {
             const li = document.createElement('li');
             li.className = 'video-item';
-            const searchUrl = searchEngine ? searchEngine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id)) : '#';
+
+            // Create a container for search engine icons
+            const iconsContainer = document.createElement('div');
+            iconsContainer.className = 'video-search-icons';
+
+            STATE.settings.searchEngines.forEach(engine => {
+                const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
+                const icon = document.createElement('a');
+                icon.href = searchUrl;
+                icon.target = '_blank';
+                icon.title = `Search on ${engine.name}`;
+
+                const img = document.createElement('img');
+                img.src = engine.icon.startsWith('assets/')
+                    ? chrome.runtime.getURL(engine.icon)
+                    : engine.icon;
+                img.alt = engine.name;
+                img.onerror = () => { // Fallback icon
+                    img.src = chrome.runtime.getURL('assets/icon.png');
+                };
+
+                icon.appendChild(img);
+                iconsContainer.appendChild(icon);
+            });
+
+            const date = new Date(record.timestamp);
+            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
             li.innerHTML = `
-                <span class="video-id"><a href="${searchUrl}" target="_blank">${record.id}</a></span>
+                <span class="video-id">${record.id}</span>
                 <span class="video-title">${record.title}</span>
+                <span class="video-date">${formattedDate}</span>
                 <span class="video-status status-${record.status}">${record.status}</span>
             `;
+
+            // Append the icons container to the list item
+            li.appendChild(iconsContainer);
             videoList.appendChild(li);
         });
     }
@@ -129,6 +174,7 @@ export function initRecordsTab(): void {
 
     searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
+    sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
 
     updateFilteredRecords();
     render();
