@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSidebarActions();
     initStatsOverview();
     initInfoContainer();
+    initHelpSystem();
     initModal();
 });
 
@@ -122,6 +123,109 @@ function initInfoContainer(): void {
             <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${version}</span>
         </div>
     `;
+}
+
+function initHelpSystem(): void {
+    const helpBtn = document.getElementById('helpBtn');
+    const helpPanel = document.getElementById('helpPanel');
+    const closeHelpBtn = document.getElementById('closeHelpBtn');
+    const helpBody = helpPanel?.querySelector('.help-body');
+
+    if (!helpBtn || !helpPanel || !closeHelpBtn || !helpBody) return;
+
+    // 帮助内容
+    const helpContent = `
+        <h3><i class="fas fa-database"></i> 数据管理</h3>
+        <ul>
+            <li><strong>记录管理：</strong>查看、编辑、删除已保存的视频记录，支持批量操作和状态筛选</li>
+            <li><strong>数据导入/导出：</strong>支持JSON格式的数据备份和恢复，兼容旧版本数据格式</li>
+            <li><strong>数据统计：</strong>实时显示已观看、已浏览、想看等各类视频的数量统计</li>
+        </ul>
+
+        <h3><i class="fas fa-cog"></i> 设置配置</h3>
+        <ul>
+            <li><strong>显示设置：</strong>控制在JavDB网站上是否自动隐藏已观看、已浏览或VR类型的影片</li>
+            <li><strong>WebDAV同步：</strong>配置云端存储服务，实现多设备间的数据同步备份</li>
+            <li><strong>搜索引擎：</strong>自定义外部搜索引擎，快速跳转到其他影片数据库网站</li>
+        </ul>
+
+        <h3><i class="fas fa-cloud"></i> WebDAV 同步</h3>
+        <ul>
+            <li><strong>自动同步：</strong>支持定时自动上传和下载数据，保持多设备数据一致性</li>
+            <li><strong>手动同步：</strong>随时手动执行上传/下载操作，支持增量同步</li>
+            <li><strong>兼容性：</strong>支持坚果云、TeraCloud、Yandex等主流WebDAV服务</li>
+        </ul>
+
+        <h3><i class="fas fa-list-alt"></i> 日志系统</h3>
+        <ul>
+            <li><strong>操作日志：</strong>记录所有重要操作和错误信息，便于问题排查</li>
+            <li><strong>日志筛选：</strong>支持按日志级别（INFO、WARN、ERROR）筛选显示</li>
+            <li><strong>日志管理：</strong>自动清理过期日志，支持手动清空和导出</li>
+        </ul>
+
+        <h3><i class="fas fa-network-wired"></i> 网络测试</h3>
+        <ul>
+            <li><strong>连接测试：</strong>测试WebDAV服务器连接状态和响应时间</li>
+            <li><strong>性能监控：</strong>监控同步操作的网络性能和成功率</li>
+            <li><strong>故障诊断：</strong>提供详细的网络错误信息和解决建议</li>
+        </ul>
+
+        <h3><i class="fas fa-tools"></i> 高级功能</h3>
+        <ul>
+            <li><strong>数据结构检查：</strong>自动检测和修复数据格式问题，确保数据完整性</li>
+            <li><strong>数据迁移：</strong>支持从旧版本格式自动迁移到新版本数据结构</li>
+            <li><strong>JSON编辑：</strong>高级用户可直接编辑原始JSON数据，支持语法高亮</li>
+        </ul>
+
+        <h3><i class="fas fa-keyboard"></i> 快捷操作</h3>
+        <ul>
+            <li><strong>批量选择：</strong>使用Ctrl+点击或Shift+点击进行多选操作</li>
+            <li><strong>快速筛选：</strong>点击状态标签快速筛选对应状态的记录</li>
+            <li><strong>搜索功能：</strong>支持按视频ID、标题等关键词快速搜索</li>
+        </ul>
+
+        <h3><i class="fas fa-question-circle"></i> 常见问题</h3>
+        <ul>
+            <li><strong>数据丢失：</strong>如果数据意外丢失，可尝试从WebDAV云端恢复</li>
+            <li><strong>同步失败：</strong>检查网络连接和WebDAV配置，查看日志获取详细错误信息</li>
+            <li><strong>性能问题：</strong>大量数据时建议定期清理无用记录，保持数据库精简</li>
+        </ul>
+
+        <div class="help-footer">
+            <p><i class="fas fa-info-circle"></i> <strong>提示：</strong>所有数据都存储在本地浏览器中，请定期备份重要数据。</p>
+            <p><i class="fas fa-github"></i> 如遇到问题或有功能建议，欢迎在GitHub项目页面提交Issue。</p>
+        </div>
+    `;
+
+    helpBody.innerHTML = helpContent;
+
+    // 显示帮助面板
+    helpBtn.addEventListener('click', () => {
+        helpPanel.classList.remove('hidden');
+        helpPanel.classList.add('visible');
+    });
+
+    // 关闭帮助面板
+    const closeHelp = () => {
+        helpPanel.classList.remove('visible');
+        helpPanel.classList.add('hidden');
+    };
+
+    closeHelpBtn.addEventListener('click', closeHelp);
+
+    // 点击背景关闭
+    helpPanel.addEventListener('click', (e) => {
+        if (e.target === helpPanel) {
+            closeHelp();
+        }
+    });
+
+    // ESC键关闭
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && helpPanel.classList.contains('visible')) {
+            closeHelp();
+        }
+    });
 }
 
 function initSidebarActions(): void {
