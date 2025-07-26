@@ -31,7 +31,8 @@ const SELECTORS = {
     FAVICON: "link[rel~='icon']",
     VIDEO_DETAIL_ID: '.panel-block.first-block',
     VIDEO_DETAIL_RELEASE_DATE: '.movie-meta-info > span:nth-child(2)',
-    VIDEO_DETAIL_TAGS: '.panel-block .tags .tag',
+    VIDEO_DETAIL_TAGS: '.panel-block.genre .value a',
+    VIDEO_DETAIL_COVER_IMAGE: '.column-video-cover img.video-cover, .column-video-cover a[data-fancybox="gallery"]',
     SEARCH_RESULT_PAGE: '.container .column.is-9',
     EXPORT_TOOLBAR: '.toolbar, .breadcrumb ul',
 };
@@ -400,6 +401,21 @@ async function handleVideoDetailPage(): Promise<void> {
                 .map(tag => tag.innerText.trim())
                 .filter(Boolean);
 
+            // 获取封面图片链接
+            let javdbImage: string | undefined;
+            const coverImageElement = document.querySelector<HTMLImageElement>('.column-video-cover img.video-cover');
+            if (coverImageElement && coverImageElement.src) {
+                javdbImage = coverImageElement.src;
+                log(`Found cover image: ${javdbImage}`);
+            } else {
+                // 尝试从 fancybox 链接获取
+                const fancyboxElement = document.querySelector<HTMLAnchorElement>('.column-video-cover a[data-fancybox="gallery"]');
+                if (fancyboxElement && fancyboxElement.href) {
+                    javdbImage = fancyboxElement.href;
+                    log(`Found cover image from fancybox: ${javdbImage}`);
+                }
+            }
+
             const newRecord: VideoRecord = {
                 id: videoId,
                 title: title,
@@ -409,6 +425,7 @@ async function handleVideoDetailPage(): Promise<void> {
                 tags: tags,
                 releaseDate: releaseDateElement?.textContent?.trim() || undefined,
                 javdbUrl: currentUrl,
+                javdbImage: javdbImage,
             };
 
             STATE.records[videoId] = newRecord;

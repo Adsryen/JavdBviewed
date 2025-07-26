@@ -119,6 +119,103 @@ button:disabled {
     gap: 10px;
 }
 
+/* WebDAV Sync Container */
+.webdav-sync-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.sync-status {
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    font-size: 12px;
+}
+
+.sync-time-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    color: #6c757d;
+}
+
+.sync-time-info i {
+    font-size: 11px;
+    color: #adb5bd;
+}
+
+.sync-label {
+    font-weight: 500;
+}
+
+.sync-time {
+    color: #495057;
+    font-weight: 600;
+}
+
+.sync-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    transition: background-color 0.3s ease;
+}
+
+.sync-status-text {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Sync status variants */
+.sync-status.synced .sync-dot {
+    background-color: #28a745;
+}
+
+.sync-status.synced .sync-status-text {
+    color: #28a745;
+}
+
+.sync-status.syncing .sync-dot {
+    background-color: #ffc107;
+    animation: pulse 1.5s infinite;
+}
+
+.sync-status.syncing .sync-status-text {
+    color: #ffc107;
+}
+
+.sync-status.error .sync-dot {
+    background-color: #dc3545;
+}
+
+.sync-status.error .sync-status-text {
+    color: #dc3545;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
 /* Title */
 .panel-title {
     display: flex;

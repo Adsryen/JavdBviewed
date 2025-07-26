@@ -178,14 +178,15 @@ function parseSearchResults(html: string, videoId: string): { href: string; titl
 }
 
 /**
- * Parses detail page HTML to extract release date and tags.
+ * Parses detail page HTML to extract release date, tags, and cover image.
  * @param html The detail page HTML content.
- * @returns Object containing release date and tags.
+ * @returns Object containing release date, tags, and cover image URL.
  */
-function parseDetailPage(html: string): { releaseDate?: string; tags: string[] } {
+function parseDetailPage(html: string): { releaseDate?: string; tags: string[]; javdbImage?: string } {
     log(`[parseDetailPage] Parsing detail page`);
 
     let releaseDate: string | undefined;
+    let javdbImage: string | undefined;
     const tags: string[] = [];
 
     // Extract release date using regex
@@ -193,6 +194,30 @@ function parseDetailPage(html: string): { releaseDate?: string; tags: string[] }
     if (releaseDateMatch) {
         releaseDate = releaseDateMatch[1].trim();
         log(`[parseDetailPage] Found release date: ${releaseDate}`);
+    }
+
+    // Extract cover image URL
+    // Looking for pattern: <a data-fancybox="gallery" href="https://c0.jdbstatic.com/covers/...">
+    // or <img src="https://c0.jdbstatic.com/covers/..." class="video-cover" />
+    const coverImageMatch = html.match(/(?:data-fancybox="gallery"\s+href|<img[^>]*src)="(https:\/\/[^"]*\.jdbstatic\.com\/covers\/[^"]+)"/);
+    if (coverImageMatch) {
+        javdbImage = coverImageMatch[1];
+        log(`[parseDetailPage] Found cover image: ${javdbImage}`);
+    } else {
+        log(`[parseDetailPage] No cover image found, trying alternative patterns`);
+        // Try alternative pattern for img src
+        const altCoverMatch = html.match(/<img[^>]*class="video-cover"[^>]*src="([^"]+)"/);
+        if (altCoverMatch) {
+            javdbImage = altCoverMatch[1];
+            log(`[parseDetailPage] Found cover image (alternative pattern): ${javdbImage}`);
+        } else {
+            // Try another pattern for fancybox href
+            const fancyboxMatch = html.match(/<a[^>]*data-fancybox="gallery"[^>]*href="([^"]+)"/);
+            if (fancyboxMatch) {
+                javdbImage = fancyboxMatch[1];
+                log(`[parseDetailPage] Found cover image (fancybox pattern): ${javdbImage}`);
+            }
+        }
     }
 
     // Extract tags using regex - look for panel-block containing "類別:"
@@ -235,7 +260,7 @@ function parseDetailPage(html: string): { releaseDate?: string; tags: string[] }
         }
     }
 
-    return { releaseDate, tags };
+    return { releaseDate, tags, javdbImage };
 }
 
 /**
@@ -267,10 +292,10 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
     log(`[refreshRecordById] Step 2: Scraping detail page: ${detailPageUrl}`);
     const detailHtml = await fetchHtml(detailPageUrl);
 
-    // Parse detail page to extract release date and tags
-    const { releaseDate, tags } = parseDetailPage(detailHtml);
+    // Parse detail page to extract release date, tags, and cover image
+    const { releaseDate, tags, javdbImage } = parseDetailPage(detailHtml);
 
-    log(`[refreshRecordById] Scraped data - Release Date: ${releaseDate || 'Not Found'}, Tags count: ${tags.length}`);
+    log(`[refreshRecordById] Scraped data - Release Date: ${releaseDate || 'Not Found'}, Tags count: ${tags.length}, Cover Image: ${javdbImage || 'Not Found'}`);
     log(`[refreshRecordById] Found tags: ${tags.join(', ')}`);
 
     // Use data-title as the primary title source
@@ -296,6 +321,7 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
         tags: tags.length > 0 ? tags : existingRecord.tags,
         releaseDate: releaseDate || existingRecord.releaseDate,
         javdbUrl: detailPageUrl,
+        javdbImage: javdbImage || existingRecord.javdbImage,
         updatedAt: now,
     };
     log('[refreshRecordById] Constructed updated record:', updatedRecord);

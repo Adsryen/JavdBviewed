@@ -58,4 +58,5 @@ export interface VideoRecord {
   updatedAt: number; // 最后更新时间 (Unix timestamp)
   releaseDate?: string; // 发行日期 (可选)
   javdbUrl?: string; // 对应JavDB页面的URL
+  javdbImage?: string; // 封面图片链接 (可选)
 }

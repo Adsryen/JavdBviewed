@@ -99,7 +99,13 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
         if (!response.ok) {
             throw new Error(`Upload failed with status: ${response.status}`);
         }
-        
+
+        // Update last sync time
+        const updatedSettings = await getSettings();
+        updatedSettings.webdav.lastSync = new Date().toISOString();
+        await saveSettings(updatedSettings);
+        await logger.info('WebDAV upload successful, updated last sync time.');
+
         return { success: true };
     } catch (error: any) {
         await logger.error('WebDAV upload failed.', { error: error.message });
@@ -277,6 +283,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
         switch (message.type) {
             case 'ping':
+            case 'ping-background':
                 console.log('[Background] Ping received, sending pong.');
                 sendResponse({ success: true, message: 'pong' });
                 return true;
@@ -289,6 +296,83 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     })
                     .catch(error => {
                         console.error('[Background] Failed to get logs:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'log-message':
+                console.log('[Background] Processing log-message request.');
+                const { payload } = message;
+                if (payload && payload.level && payload.message) {
+                    log(payload.level, payload.message, payload.data)
+                        .then(() => {
+                            sendResponse({ success: true });
+                        })
+                        .catch(error => {
+                            console.error('[Background] Failed to log message:', error);
+                            sendResponse({ success: false, error: error.message });
+                        });
+                } else {
+                    sendResponse({ success: false, error: 'Invalid log message payload' });
+                }
+                return true;
+            case 'webdav-list-files':
+                console.log('[Background] Processing webdav-list-files request.');
+                listFiles()
+                    .then(result => {
+                        console.log(`[Background] WebDAV list files result:`, result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to list WebDAV files:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'webdav-restore':
+                console.log('[Background] Processing webdav-restore request.');
+                const { filename, options } = message;
+                performRestore(filename, options)
+                    .then(result => {
+                        console.log(`[Background] WebDAV restore result:`, result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to restore from WebDAV:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'webdav-test':
+                console.log('[Background] Processing webdav-test request.');
+                testConnection()
+                    .then(result => {
+                        console.log(`[Background] WebDAV test result:`, result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to test WebDAV connection:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'webdav-upload':
+                console.log('[Background] Processing webdav-upload request.');
+                performUpload()
+                    .then(result => {
+                        console.log(`[Background] WebDAV upload result:`, result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to upload to WebDAV:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'clear-all-records':
+                console.log('[Background] Processing clear-all-records request.');
+                setValue(STORAGE_KEYS.VIEWED_RECORDS, {})
+                    .then(() => {
+                        console.log('[Background] All records cleared successfully.');
+                        sendResponse({ success: true });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to clear all records:', error);
                         sendResponse({ success: false, error: error.message });
                     });
                 return true;

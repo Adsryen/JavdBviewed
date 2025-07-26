@@ -29,9 +29,22 @@
 
             <div class="sidebar-section">
                 <h4>WebDAV 同步</h4>
-                <div class="button-group-vertical">
-                    <button id="syncNow">立即上传至云端</button>
-                    <button id="syncDown">从云端恢复</button>
+                <div class="webdav-sync-container">
+                    <div class="button-group-vertical">
+                        <button id="syncNow">立即上传至云端</button>
+                        <button id="syncDown">从云端恢复</button>
+                    </div>
+                    <div class="sync-status">
+                        <div class="sync-time-info">
+                            <i class="fas fa-clock"></i>
+                            <span class="sync-label">上次同步:</span>
+                            <span id="lastSyncTime" class="sync-time">从未</span>
+                        </div>
+                        <div class="sync-indicator" id="syncIndicator">
+                            <span class="sync-dot"></span>
+                            <span class="sync-status-text">未同步</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -63,8 +76,10 @@
                             <option value="want">我想看</option>
                         </select>
                         <select id="sortSelect">
-                            <option value="createdAt_desc">按日期排序 (最新)</option>
-                            <option value="createdAt_asc">按日期排序 (最旧)</option>
+                            <option value="updatedAt_desc">按更新时间排序 (最新)</option>
+                            <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
+                            <option value="createdAt_desc">按创建时间排序 (最新)</option>
+                            <option value="createdAt_asc">按创建时间排序 (最旧)</option>
                             <option value="id_asc">按番号排序 (A-Z)</option>
                             <option value="id_desc">按番号排序 (Z-A)</option>
                         </select>

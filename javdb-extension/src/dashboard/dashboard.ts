@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initInfoContainer();
     initHelpSystem();
     initModal();
+    updateSyncStatus();
 });
 
 function initTabs(): void {
@@ -228,8 +229,84 @@ function initHelpSystem(): void {
     });
 }
 
+function updateSyncStatus(): void {
+    const lastSyncTimeElement = document.getElementById('lastSyncTime') as HTMLSpanElement;
+    const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
+    const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
+
+    // Get last sync time from settings
+    const lastSync = STATE.settings.webdav.lastSync || '';
+
+    // Update sidebar sync status
+    if (lastSyncTimeElement && syncIndicator) {
+        updateSyncDisplay(lastSyncTimeElement, syncIndicator, lastSync);
+    }
+
+    // Update settings page sync time
+    if (lastSyncTimeSettings) {
+        lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '从未';
+    }
+}
+
+function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: HTMLDivElement, lastSync: string): void {
+    if (lastSync) {
+        const syncDate = new Date(lastSync);
+        const now = new Date();
+        const diffMs = now.getTime() - syncDate.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+
+        let timeText = '';
+        if (diffDays > 0) {
+            timeText = `${diffDays}天前`;
+        } else if (diffHours > 0) {
+            timeText = `${diffHours}小时前`;
+        } else {
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            if (diffMinutes > 0) {
+                timeText = `${diffMinutes}分钟前`;
+            } else {
+                timeText = '刚刚';
+            }
+        }
+
+        lastSyncTimeElement.textContent = timeText;
+        lastSyncTimeElement.title = syncDate.toLocaleString('zh-CN');
+
+        // Update sync status
+        syncIndicator.className = 'sync-indicator';
+        if (diffDays > 7) {
+            syncIndicator.classList.add('error');
+            syncIndicator.querySelector('.sync-status-text')!.textContent = '需要同步';
+        } else if (diffDays > 1) {
+            syncIndicator.classList.add('synced');
+            syncIndicator.querySelector('.sync-status-text')!.textContent = '已同步';
+        } else {
+            syncIndicator.classList.add('synced');
+            syncIndicator.querySelector('.sync-status-text')!.textContent = '最新';
+        }
+    } else {
+        lastSyncTimeElement.textContent = '从未';
+        lastSyncTimeElement.title = '尚未进行过同步';
+        syncIndicator.className = 'sync-indicator';
+        syncIndicator.querySelector('.sync-status-text')!.textContent = '未同步';
+    }
+}
+
+function setSyncingStatus(isUploading: boolean = false): void {
+    const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
+    if (!syncIndicator) return;
+
+    syncIndicator.className = 'sync-indicator syncing';
+    const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+    if (statusText) {
+        statusText.textContent = isUploading ? '上传中...' : '同步中...';
+    }
+}
+
 function initSidebarActions(): void {
     const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
+    const syncNowBtn = document.getElementById('syncNow') as HTMLButtonElement;
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
     const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
     const fileList = document.getElementById('fileList') as HTMLUListElement;
@@ -315,10 +392,41 @@ function initSidebarActions(): void {
         });
     }
 
+    if (syncNowBtn) {
+        syncNowBtn.addEventListener('click', () => {
+            syncNowBtn.textContent = '正在上传...';
+            syncNowBtn.disabled = true;
+            setSyncingStatus(true);
+            logAsync('INFO', '用户点击"立即上传至云端"，开始上传数据。');
+
+            chrome.runtime.sendMessage({ type: 'webdav-upload' }, response => {
+                syncNowBtn.textContent = '立即上传至云端';
+                syncNowBtn.disabled = false;
+
+                if (response?.success) {
+                    showMessage('数据已成功上传至云端！', 'success');
+                    logAsync('INFO', '数据成功上传至云端。');
+                    // Update sync status after successful upload
+                    setTimeout(() => {
+                        updateSyncStatus();
+                    }, 500);
+                } else {
+                    showMessage(`上传失败: ${response.error}`, 'error');
+                    logAsync('ERROR', '数据上传至云端失败。', { error: response.error });
+                    // Reset sync status on error
+                    setTimeout(() => {
+                        updateSyncStatus();
+                    }, 500);
+                }
+            });
+        });
+    }
+
     if (syncDownBtn) {
         syncDownBtn.addEventListener('click', () => {
             syncDownBtn.textContent = '正在获取列表...';
             syncDownBtn.disabled = true;
+            setSyncingStatus(false);
             logAsync('INFO', '用户点击“从云端恢复”，开始获取文件列表。');
 
             chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
@@ -361,7 +469,18 @@ function initSidebarActions(): void {
                     showMessage(`获取文件列表失败: ${response.error}`, 'error');
                     logAsync('ERROR', '从云端获取文件列表失败。', { error: response.error });
                 }
+
+                // Reset sync status after operation
+                setTimeout(() => {
+                    updateSyncStatus();
+                }, 500);
             });
         });
     }
-} 
+}
+
+// Export functions for use in other modules
+export { updateSyncStatus };
+
+// Make updateSyncStatus available globally
+(window as any).updateSyncStatus = updateSyncStatus;
