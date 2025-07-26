@@ -2,6 +2,7 @@
 
 import { getSettings, getValue, setValue } from '../utils/storage';
 import { VIDEO_STATUS } from '../utils/config';
+import { safeUpdateStatus } from '../utils/statusPriority';
 import type { ExtensionSettings, VideoRecord } from '../types';
 
 interface ContentState {
@@ -37,6 +38,87 @@ const SELECTORS = {
 
 const log = (...args: any[]) => console.log('[JavDB Ext]', ...args);
 
+// 弹幕提示相关配置
+const TOAST_CONFIG = {
+    FADE_DURATION: 500,
+    DISPLAY_DURATION: 3000,
+    MAX_MESSAGES: 3,
+    Z_INDEX: 10000
+};
+
+// --- Toast Message System ---
+
+function createToastContainer(): HTMLElement {
+    let container = document.getElementById('javdb-ext-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'javdb-ext-toast-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: ${TOAST_CONFIG.Z_INDEX};
+            pointer-events: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+function showToast(message: string, bgColor = 'rgba(76, 175, 80, 0.9)', textColor = 'white'): void {
+    const container = createToastContainer();
+
+    // 限制最大消息数量
+    while (container.children.length >= TOAST_CONFIG.MAX_MESSAGES) {
+        const firstChild = container.firstChild as HTMLElement;
+        if (firstChild) {
+            fadeOutToast(firstChild);
+        }
+    }
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        background-color: ${bgColor};
+        color: ${textColor};
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+        word-wrap: break-word;
+        max-width: 300px;
+    `;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    // 触发动画
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(0)';
+    });
+
+    // 自动消失
+    setTimeout(() => {
+        fadeOutToast(toast);
+    }, TOAST_CONFIG.DISPLAY_DURATION);
+}
+
+function fadeOutToast(toast: HTMLElement): void {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, TOAST_CONFIG.FADE_DURATION);
+}
+
 // --- Core Logic ---
 
 async function initialize(): Promise<void> {
@@ -58,6 +140,9 @@ async function initialize(): Promise<void> {
     const faviconLink = document.querySelector<HTMLLinkElement>(SELECTORS.FAVICON);
     if (faviconLink) {
         STATE.originalFaviconUrl = faviconLink.href;
+        log(`Original favicon URL saved: ${STATE.originalFaviconUrl}`);
+    } else {
+        log('No favicon link found');
     }
 
     processVisibleItems();
@@ -65,8 +150,16 @@ async function initialize(): Promise<void> {
 
     if (window.location.pathname.startsWith('/v/')) {
         await handleVideoDetailPage();
+
+        // 初始状态检查
+        setTimeout(() => {
+            checkAndUpdateVideoStatus();
+        }, 1000);
+
+        // 定期检查状态（每2秒）
+        setInterval(checkAndUpdateVideoStatus, 2000);
     }
-    
+
     initExportFeature();
 }
 
@@ -157,24 +250,40 @@ function addTag(container: HTMLElement, text: string, style: string): void {
 
 async function handleVideoDetailPage(): Promise<void> {
     log('Analyzing video detail page...');
-    const panelBlock = document.querySelector<HTMLElement>(SELECTORS.VIDEO_DETAIL_ID);
-    if (!panelBlock) {
-        log('Could not find video detail panel block. Aborting.');
-        return;
+
+    // 尝试多种方式获取视频ID
+    let videoId: string | undefined;
+
+    // 方法1: 从页面标题中获取 (新的页面结构)
+    const titleElement = document.querySelector<HTMLElement>('h2.title.is-4 strong:first-child');
+    if (titleElement) {
+        videoId = titleElement.textContent?.trim();
+        log(`Found video ID from title: ${videoId}`);
     }
 
-    // Extracting video ID more robustly
-    const idAnchor = panelBlock.querySelector<HTMLAnchorElement>('a[href*="/video_codes/"]');
-    const fullIdText = panelBlock.querySelector<HTMLElement>('.title.is-4');
-    
-    if (!idAnchor || !fullIdText) {
-        log('Could not find video ID elements. Aborting.');
-        return;
-    }
-
-    const videoId = fullIdText.textContent?.trim();
+    // 方法2: 从panel-block中获取 (旧的页面结构)
     if (!videoId) {
-        log('Video ID is empty. Aborting.');
+        const panelBlock = document.querySelector<HTMLElement>(SELECTORS.VIDEO_DETAIL_ID);
+        if (panelBlock) {
+            const fullIdText = panelBlock.querySelector<HTMLElement>('.title.is-4');
+            if (fullIdText) {
+                videoId = fullIdText.textContent?.trim();
+                log(`Found video ID from panel-block: ${videoId}`);
+            }
+        }
+    }
+
+    // 方法3: 从URL中提取
+    if (!videoId) {
+        const urlMatch = window.location.pathname.match(/\/v\/([^\/]+)/);
+        if (urlMatch) {
+            videoId = urlMatch[1].toUpperCase();
+            log(`Found video ID from URL: ${videoId}`);
+        }
+    }
+
+    if (!videoId) {
+        log('Could not find video ID using any method. Aborting.');
         return;
     }
     
@@ -190,13 +299,30 @@ async function handleVideoDetailPage(): Promise<void> {
             record.javdbUrl = currentUrl;
             log(`Added missing javdbUrl for ${videoId}.`);
         }
-        // Optionally, upgrade status from 'want' to 'browsed'
-        if (record.status === 'want') {
-            record.status = VIDEO_STATUS.BROWSED;
-            log(`Updated status for ${videoId} from 'want' to 'browsed'.`);
+
+        // 尝试将状态升级为'browsed'，但只有在优先级允许的情况下
+        const oldStatus = record.status;
+        const newStatus = safeUpdateStatus(record.status, VIDEO_STATUS.BROWSED);
+        let statusChanged = false;
+
+        if (newStatus !== oldStatus) {
+            record.status = newStatus;
+            statusChanged = true;
+            log(`Updated status for ${videoId} from '${oldStatus}' to '${newStatus}' (priority upgrade).`);
+        } else {
+            log(`Status for ${videoId} remains '${record.status}' (no upgrade needed or not allowed).`);
         }
+
         await setValue('viewed', STATE.records);
         log(`Updated 'updatedAt' for ${videoId}.`);
+
+        // 显示相应的弹幕提示
+        if (statusChanged) {
+            showToast(`状态已更新: ${videoId}`, 'rgba(54, 162, 235, 0.9)');
+        } else {
+            showToast(`无需更新: ${videoId}`, 'rgba(108, 117, 125, 0.9)');
+        }
+
         setFavicon(chrome.runtime.getURL("assets/jav.png"));
     } else {
         log(`No record found for ${videoId}. Scheduling to add as 'browsed'.`);
@@ -227,24 +353,169 @@ async function handleVideoDetailPage(): Promise<void> {
             STATE.records[videoId] = newRecord;
             await setValue('viewed', STATE.records);
             log(`Successfully added new record for ${videoId}`, newRecord);
+
+            // 显示成功记录提示
+            showToast(`成功记录番号: ${videoId}`, 'rgba(76, 175, 80, 0.9)');
+
             setFavicon(chrome.runtime.getURL("assets/jav.png"));
         }, getRandomDelay(2000, 4000));
+    }
+}
+
+// --- Status Check and Visual Feedback ---
+
+function checkAndUpdateVideoStatus(): void {
+    // 只在视频详情页执行
+    if (!window.location.pathname.startsWith('/v/')) {
+        return;
+    }
+
+    // 尝试多种方式获取视频ID
+    let videoId: string | undefined;
+
+    // 方法1: 从页面标题中获取 (新的页面结构)
+    const titleElement = document.querySelector<HTMLElement>('h2.title.is-4 strong:first-child');
+    if (titleElement) {
+        videoId = titleElement.textContent?.trim();
+    }
+
+    // 方法2: 从panel-block中获取 (旧的页面结构)
+    if (!videoId) {
+        const panelBlock = document.querySelector<HTMLElement>(SELECTORS.VIDEO_DETAIL_ID);
+        if (panelBlock) {
+            const fullIdText = panelBlock.querySelector<HTMLElement>('.title.is-4');
+            if (fullIdText) {
+                videoId = fullIdText.textContent?.trim();
+            }
+        }
+    }
+
+    // 方法3: 从URL中提取
+    if (!videoId) {
+        const urlMatch = window.location.pathname.match(/\/v\/([^\/]+)/);
+        if (urlMatch) {
+            videoId = urlMatch[1].toUpperCase();
+        }
+    }
+
+    if (!videoId) {
+        return;
+    }
+
+    const record = STATE.records[videoId];
+    const isRecorded = !!record;
+
+    // 更新favicon（只在需要时）
+    updateFaviconForStatus(isRecorded);
+
+    // 更新页面标题（只在需要时）
+    if (isRecorded) {
+        updatePageTitleWithStatus(videoId, record.status);
+    } else {
+        // 如果没有记录，确保标题没有状态标记
+        if (currentTitleStatus !== null) {
+            const currentTitle = document.title;
+            if (currentTitle.includes('[已观看]') || currentTitle.includes('[我想看]') || currentTitle.includes('[已浏览]')) {
+                const cleanTitle = currentTitle.replace(/ \[.*?\]$/, '');
+                if (cleanTitle !== currentTitle) {
+                    log(`Removing status from title: "${currentTitle}" -> "${cleanTitle}"`);
+                    document.title = cleanTitle;
+                    currentTitleStatus = null;
+                }
+            }
+        }
+    }
+}
+
+function updateFaviconForStatus(isRecorded: boolean): void {
+    const targetState = isRecorded ? 'extension' : 'original';
+
+    // 如果状态没有改变，跳过设置
+    if (currentFaviconState === targetState) {
+        return;
+    }
+
+    if (isRecorded) {
+        // 使用扩展的图标作为已记录状态的favicon
+        const extensionIconUrl = chrome.runtime.getURL("assets/jav.png");
+        log(`Setting favicon to extension icon: ${extensionIconUrl}`);
+        setFavicon(extensionIconUrl);
+        currentFaviconState = 'extension';
+    } else {
+        // 恢复原始favicon
+        if (STATE.originalFaviconUrl) {
+            log(`Restoring original favicon: ${STATE.originalFaviconUrl}`);
+            setFavicon(STATE.originalFaviconUrl);
+            currentFaviconState = 'original';
+        } else {
+            log('No original favicon URL to restore');
+        }
+    }
+}
+
+function updatePageTitleWithStatus(_videoId: string, status: string): void {
+    // 如果状态没有改变，跳过设置
+    if (currentTitleStatus === status) {
+        return;
+    }
+
+    const originalTitle = document.title.replace(/ \[.*?\]$/, ''); // 移除之前的状态标记
+    let statusText = '';
+
+    switch (status) {
+        case VIDEO_STATUS.VIEWED:
+            statusText = '[已观看]';
+            break;
+        case VIDEO_STATUS.WANT:
+            statusText = '[我想看]';
+            break;
+        case VIDEO_STATUS.BROWSED:
+            statusText = '[已浏览]';
+            break;
+    }
+
+    if (statusText) {
+        const newTitle = `${originalTitle} ${statusText}`;
+        log(`Updating page title from "${document.title}" to "${newTitle}"`);
+        document.title = newTitle;
+        currentTitleStatus = status;
+
+        // 确保标题真的被设置了
+        setTimeout(() => {
+            if (document.title !== newTitle) {
+                log(`Title not set correctly, retrying...`);
+                document.title = newTitle;
+            }
+        }, 100);
     }
 }
 
 // --- Utils ---
 
 function setFavicon(url: string): void {
-    let link = document.querySelector<HTMLLinkElement>(SELECTORS.FAVICON);
-    if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-    }
-    if (url.endsWith('.png')) {
-        link.type = 'image/png';
-    }
-    link.href = url;
+    // 移除所有现有的favicon链接
+    document.querySelectorAll('link[rel*="icon"]').forEach(link => link.remove());
+
+    // 创建新的favicon链接
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = url.endsWith('.png') ? 'image/png' : 'image/x-icon';
+    link.href = url + '?t=' + Date.now(); // 添加时间戳防止缓存
+
+    // 添加到head
+    document.head.appendChild(link);
+
+    // 强制刷新favicon（Chrome特定的hack）
+    const oldLink = document.createElement('link');
+    oldLink.rel = 'icon';
+    oldLink.href = 'data:image/x-icon;base64,';
+    document.head.appendChild(oldLink);
+
+    setTimeout(() => {
+        oldLink.remove();
+    }, 100);
+
+    log(`Favicon set to: ${url}`);
 }
 
 function getRandomDelay(min: number, max: number): number {
@@ -392,4 +663,22 @@ function finishExport(): void {
 }
 
 // --- Entry Point ---
-initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err)); 
+
+// 防止重复初始化
+let isInitialized = false;
+
+// 跟踪当前状态，避免重复设置
+let currentFaviconState: 'original' | 'extension' | null = null;
+let currentTitleStatus: string | null = null;
+
+export function onExecute() {
+    if (isInitialized) {
+        log('Extension already initialized, skipping...');
+        return;
+    }
+    isInitialized = true;
+    initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
+}
+
+// 立即执行初始化
+onExecute();
