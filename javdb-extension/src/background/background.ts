@@ -25,7 +25,7 @@ async function log(level: LogLevel, message: string, data?: any) {
             timestamp: new Date().toISOString(),
             level,
             message,
-            data: data ? JSON.parse(JSON.stringify(data)) : null, // Deep copy to avoid storing complex objects
+            data: data, // No longer attempting a deep copy that fails on circular references
         };
 
         logs.push(newLogEntry);

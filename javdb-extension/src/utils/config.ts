@@ -9,7 +9,10 @@ export const STORAGE_KEYS = {
     SETTINGS: 'settings',
 
     // Key for storing persistent logs.
-    LOGS: 'persistent_logs'
+    LOGS: 'persistent_logs',
+
+    // Key for storing last import statistics.
+    LAST_IMPORT_STATS: 'last_import_stats'
 } as const;
 
 export const VIDEO_STATUS = {
@@ -50,4 +53,5 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     logging: {
         maxLogEntries: 1500,
     },
+    version: '0.0.0'
 }; 

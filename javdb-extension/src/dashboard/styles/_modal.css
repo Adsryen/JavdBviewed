@@ -98,7 +98,7 @@
     padding: 25px;
     border-radius: 8px;
     width: 90%;
-    max-width: 450px;
+    max-width: 700px; /* Increased from 450px for better diff viewing */
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     transform: scale(0.95);
     transition: transform 0.3s ease;
@@ -135,11 +135,22 @@
     border-radius: 5px;
     cursor: pointer;
     font-weight: bold;
+    color: #fff;
     transition: background-color 0.2s, transform 0.2s;
+    background-color: #6c757d; /* Default/Cancel: Neutral grey */
 }
 
 .modal-actions .button-like:hover {
     transform: translateY(-2px);
+    background-color: #5a6268; /* Darker grey on hover */
+}
+
+.modal-actions .button-like.primary {
+    background-color: #0d6efd; /* Confirm: A clear, standard blue */
+}
+
+.modal-actions .button-like.primary:hover {
+    background-color: #0b5ed7;
 }
 
 .modal-actions .button-like.danger {
@@ -150,12 +161,61 @@
     background-color: #c9302c;
 }
 
-.modal-actions .button-like {
-    background-color: #555;
+/* Diff view styles for data check modal */
+.diff-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    text-align: left;
 }
-.modal-actions .button-like:hover {
-    background-color: #666;
-} 
+
+.diff-view h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #a0a0a0;
+    font-weight: 600;
+}
+
+.diff-view pre {
+    background-color: #1e1e1e; /* Darker background for the code block */
+    color: #d4d4d4; /* Light text for readability */
+    padding: 15px;
+    border-radius: 6px;
+    font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    border: 1px solid #4f4f4f;
+    min-height: 200px;
+    max-height: 35vh;
+    overflow-y: auto;
+}
+
+/* Custom scrollbar for the pre element */
+.diff-view pre::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.diff-view pre::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+.diff-view pre::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 4px;
+    border: 2px solid #2a2a2a;
+}
+
+.diff-view pre::-webkit-scrollbar-thumb:hover {
+    background-color: #777;
+}
+
 
 /* Ensure form-group styles from settings tab apply here too */
 .modal-content .form-group-checkbox {
