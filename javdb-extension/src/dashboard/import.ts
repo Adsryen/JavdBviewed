@@ -3,7 +3,39 @@ import { STORAGE_KEYS } from '../utils/config';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { showConfirmationModal } from './ui/modal';
-import type { VideoRecord } from '../types';
+import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
+
+function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
+  if ('timestamp' in record && typeof record.timestamp === 'number') {
+    const oldRecord = record as any;
+    
+    let newStatus: VideoStatus = 'browsed';
+    if (oldRecord.status === 'viewed') {
+      newStatus = 'viewed';
+    }
+
+    return {
+      id: oldRecord.id,
+      title: oldRecord.title || oldRecord.id,
+      status: newStatus,
+      tags: oldRecord.tags || [],
+      createdAt: oldRecord.timestamp,
+      updatedAt: oldRecord.timestamp,
+      releaseDate: oldRecord.releaseDate,
+      actors: oldRecord.actors,
+      url: oldRecord.url,
+    };
+  }
+
+  const now = Date.now();
+  return {
+    title: record.id,
+    tags: [],
+    createdAt: now,
+    updatedAt: now,
+    ...record,
+  };
+}
 
 export function handleFileRestoreClick(file: { name: string, path: string }) {
     logAsync('INFO', '用户选择了一个云端文件准备恢复。', { filename: file.name });
@@ -82,7 +114,15 @@ export async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'o
         myIds.forEach((id: any) => {
             const videoId = typeof id === 'object' ? id.id : id;
             if (typeof videoId === 'string' && videoId) {
-                newRecords[videoId] = { id: videoId, title: videoId, status: 'viewed', tags: ['tampermonkey-import'], timestamp: Date.now() };
+                const now = Date.now();
+                newRecords[videoId] = { 
+                    id: videoId, 
+                    title: videoId, 
+                    status: 'viewed', 
+                    tags: ['tampermonkey-import'], 
+                    createdAt: now, 
+                    updatedAt: now 
+                };
             }
         });
 
@@ -91,7 +131,15 @@ export async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'o
         videoBrowseHistory.forEach((item: any) => {
             const videoId = typeof item === 'object' && item.id ? item.id : item;
             if (typeof videoId === 'string' && videoId && !newRecords[videoId]) {
-                newRecords[videoId] = { id: videoId, title: videoId, status: 'browsed', tags: ['tampermonkey-import'], timestamp: Date.now() };
+                const now = Date.now();
+                newRecords[videoId] = { 
+                    id: videoId, 
+                    title: videoId, 
+                    status: 'browsed', 
+                    tags: ['tampermonkey-import'], 
+                    createdAt: now, 
+                    updatedAt: now 
+                };
             }
         });
 
@@ -177,10 +225,13 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
             
             const incomingRecords = (Array.isArray(importData.data) 
                 ? importData.data.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
-                    if (record && record.id) acc[record.id] = record;
+                    if (record && record.id) acc[record.id] = migrateRecord(record);
                     return acc;
                 }, {})
-                : importData.data) as Record<string, VideoRecord>;
+                : Object.entries(importData.data as Record<string, OldVideoRecord | VideoRecord>).reduce((acc, [key, record]) => {
+                    acc[key] = migrateRecord(record);
+                    return acc;
+                }, {} as Record<string, VideoRecord>)) as Record<string, VideoRecord>;
 
             let newRecordsCount = 0;
             let updatedRecords: Record<string, VideoRecord>;

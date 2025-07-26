@@ -1,9 +1,11 @@
 import { STATE } from '../state';
-import { getValue } from '../../utils/storage';
+import { getValue, setValue } from '../../utils/storage';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
 import { applyImportedData } from '../import';
-import type { LogEntry, VideoRecord } from '../../types';
+import type { LogEntry, VideoRecord, OldVideoRecord, VideoStatus } from '../../types';
+import { STORAGE_KEYS } from '../../utils/config';
+
 
 export function initAdvancedSettingsTab(): void {
     const jsonConfigTextarea = document.getElementById('jsonConfig') as HTMLTextAreaElement;
@@ -17,11 +19,127 @@ export function initAdvancedSettingsTab(): void {
     const refreshRawRecordsBtn = document.getElementById('refreshRawRecordsBtn') as HTMLButtonElement;
     const editRawRecordsBtn = document.getElementById('editRawRecordsBtn') as HTMLButtonElement;
     const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
+    const checkDataStructureBtn = document.getElementById('checkDataStructureBtn') as HTMLButtonElement;
 
     if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !editRawRecordsBtn || !saveRawRecordsBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
     }
+    
+    checkDataStructureBtn.addEventListener('click', () => {
+        const migrationModal = document.getElementById('migration-modal') as HTMLElement;
+        const confirmBtn = document.getElementById('migration-confirm-btn') as HTMLButtonElement;
+        const cancelBtn = document.getElementById('migration-cancel-btn') as HTMLButtonElement;
+        const progressContainer = document.getElementById('migration-progress-container') as HTMLElement;
+        const progressBar = document.getElementById('migration-progress-bar') as HTMLElement;
+        const statusText = document.getElementById('migration-status-text') as HTMLParagraphElement;
+        const modalActions = document.getElementById('migration-modal-actions') as HTMLElement;
+        const modalMessage = document.getElementById('migration-modal-message') as HTMLParagraphElement;
+
+        if (!migrationModal) return;
+
+        // Reset modal to its initial state
+        modalActions.innerHTML = '';
+        const initialConfirmBtn = document.createElement('button');
+        initialConfirmBtn.id = 'migration-confirm-btn';
+        initialConfirmBtn.className = 'button-like primary';
+        initialConfirmBtn.textContent = '开始迁移';
+        
+        const initialCancelBtn = document.createElement('button');
+        initialCancelBtn.id = 'migration-cancel-btn';
+        initialCancelBtn.className = 'button-like';
+        initialCancelBtn.textContent = '稍后提醒';
+
+        modalActions.appendChild(initialCancelBtn);
+        modalActions.appendChild(initialConfirmBtn);
+        progressContainer.classList.add('hidden');
+        modalActions.classList.remove('hidden');
+
+
+        getValue<Record<string, OldVideoRecord | VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {}).then(records => {
+            const recordsArray = Object.values(records);
+
+            if (recordsArray.length === 0 || !('timestamp' in recordsArray[0])) {
+                modalMessage.textContent = '未检测到需要迁移的旧版数据。您的数据结构已是最新。';
+                modalActions.innerHTML = ''; 
+                const okBtn = document.createElement('button');
+                okBtn.textContent = '好的';
+                okBtn.className = 'button-like';
+                okBtn.onclick = () => {
+                    migrationModal.classList.add('hidden');
+                    migrationModal.classList.remove('visible');
+                };
+                modalActions.appendChild(okBtn);
+                migrationModal.classList.remove('hidden');
+                migrationModal.classList.add('visible');
+                return;
+            }
+
+            modalMessage.textContent = '检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。';
+            migrationModal.classList.remove('hidden');
+            migrationModal.classList.add('visible');
+
+            const onCancel = () => {
+                migrationModal.classList.add('hidden');
+                migrationModal.classList.remove('visible');
+                initialConfirmBtn.removeEventListener('click', onConfirm);
+                initialCancelBtn.removeEventListener('click', onCancel);
+            };
+
+            const onConfirm = async () => {
+                modalActions.classList.add('hidden');
+                progressContainer.classList.remove('hidden');
+                await logAsync('INFO', '用户同意数据迁移。');
+                
+                const totalRecords = recordsArray.length;
+                const migratedRecords: Record<string, VideoRecord> = {};
+                
+                for (let i = 0; i < totalRecords; i++) {
+                    const record = recordsArray[i];
+                    const oldRecord = record as any;
+                    let newStatus: VideoStatus = 'browsed';
+                    if (oldRecord.status === 'viewed') newStatus = 'viewed';
+                    else if (oldRecord.status === 'want') newStatus = 'want';
+
+                    migratedRecords[record.id] = {
+                        id: oldRecord.id,
+                        title: oldRecord.title || oldRecord.id,
+                        status: newStatus,
+                        tags: oldRecord.tags || [],
+                        createdAt: oldRecord.timestamp,
+                        updatedAt: oldRecord.timestamp,
+                        releaseDate: oldRecord.releaseDate,
+                        actors: oldRecord.actors,
+                        url: oldRecord.url,
+                    };
+                    
+                    const percentage = Math.round(((i + 1) / totalRecords) * 100);
+                    
+                    requestAnimationFrame(() => {
+                        progressBar.style.width = `${percentage}%`;
+                        statusText.textContent = `正在处理: ${i + 1} / ${totalRecords}`;
+                    });
+
+                    if (i % 20 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0)); 
+                    }
+                }
+
+                await setValue(STORAGE_KEYS.VIEWED_RECORDS, migratedRecords);
+                
+                progressBar.style.backgroundColor = '#28a745';
+                statusText.textContent = '迁移完成！页面即将刷新...';
+                await logAsync('INFO', '数据迁移成功。');
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            };
+
+            initialConfirmBtn.addEventListener('click', onConfirm, { once: true });
+            initialCancelBtn.addEventListener('click', onCancel, { once: true });
+        });
+    });
 
     async function loadRawLogs() {
         try {

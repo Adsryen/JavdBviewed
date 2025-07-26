@@ -59,11 +59,11 @@
                             <option value="all">所有状态</option>
                             <option value="viewed">已观看</option>
                             <option value="browsed">已浏览</option>
-                            <option value="bookmarked">已收藏</option>
+                            <option value="want">我想看</option>
                         </select>
                         <select id="sortSelect">
-                            <option value="timestamp_desc">按日期排序 (最新)</option>
-                            <option value="timestamp_asc">按日期排序 (最旧)</option>
+                            <option value="createdAt_desc">按日期排序 (最新)</option>
+                            <option value="createdAt_asc">按日期排序 (最旧)</option>
                             <option value="id_asc">按番号排序 (A-Z)</option>
                             <option value="id_desc">按番号排序 (Z-A)</option>
                         </select>
@@ -191,6 +191,7 @@
                         <h3>原始番号库数据 (Raw Records)</h3>
                         <div class="action-buttons-top">
                             <button id="refreshRawRecordsBtn" class="btn">显示/刷新</button>
+                            <button id="checkDataStructureBtn" class="btn">检查数据结构</button>
                             <button id="editRawRecordsBtn" class="btn">编辑</button>
                             <button id="saveRawRecordsBtn" class="btn hidden">保存</button>
                         </div>
@@ -267,6 +268,26 @@
               <button id="modalConfirmBtn" class="button-like danger">确认</button>
           </div>
       </div>
+  </div>
+
+  <!-- Data Migration Modal -->
+  <div id="migration-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 id="migration-modal-title">数据迁移</h3>
+      <p id="migration-modal-message">检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。</p>
+      
+      <div id="migration-progress-container" class="hidden">
+        <div class="progress-bar-container">
+          <div id="migration-progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="migration-status-text">正在迁移...</p>
+      </div>
+
+      <div id="migration-modal-actions" class="modal-actions">
+        <button id="migration-cancel-btn" class="button-like">稍后提醒</button>
+        <button id="migration-confirm-btn" class="button-like primary">开始迁移</button>
+      </div>
+    </div>
   </div>
 
   <main class="main-content">

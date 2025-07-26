@@ -9,6 +9,9 @@ import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { VIDEO_STATUS } from '../utils/config';
+import { setValue, getValue } from '../utils/storage';
+import { STORAGE_KEYS } from '../utils/config';
+import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
@@ -138,7 +141,7 @@ function initSidebarActions(): void {
                             showMessage('所有本地记录已成功清空。', 'success');
                             logAsync('INFO', '所有本地记录已被成功清空。');
                             // Refresh the page or relevant parts to reflect the change
-                            location.reload(); 
+                            location.reload();
                         } else {
                             showMessage('清空记录失败，请稍后重试。', 'error');
                             logAsync('ERROR', '清空所有本地记录时发生错误。', { error: response.error });
@@ -174,7 +177,7 @@ function initSidebarActions(): void {
             logAsync('INFO', '本地数据导出成功。');
         });
     }
-    
+
     const importFileInput = document.getElementById('importFile') as HTMLInputElement;
 
     if (importFileInput) {
