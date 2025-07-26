@@ -49,6 +49,7 @@
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-advanced-settings">高级配置</button>
                 <button class="tab-link" data-tab="tab-logs">日志</button>
+                <button class="tab-link" data-tab="tab-network-test">网络测试</button>
             </div>
     
             <div id="tab-records" class="tab-content active">
@@ -78,7 +79,30 @@
                     </div>
                 </div>
             </div>
-    
+
+            <div id="tab-network-test" class="tab-content">
+                <div class="card">
+                    <div class="settings-section">
+                        <h3>网络延迟测试 (Ping)</h3>
+                        <p class="settings-description">测试连接到指定服务器的延迟。输入一个URL，然后点击“开始测试”。</p>
+                        <div class="form-group-inline">
+                            <div class="input-with-icon">
+                                <i class="fas fa-link icon"></i>
+                                <input type="text" id="ping-url" placeholder="例如: https://javdb.com" value="https://javdb.com">
+                            </div>
+                            <button id="start-ping-test" class="button-like">
+                                <span class="button-text">开始测试</span>
+                                <div class="spinner hidden"></div>
+                            </button>
+                        </div>
+                        <div id="ping-results-container" style="margin-top: 20px;">
+                            <h4>测试结果:</h4>
+                            <div id="ping-results"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="tab-settings" class="tab-content">
                 <div class="card">
                     <div class="settings-section">
