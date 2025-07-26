@@ -13,8 +13,12 @@ export function initAdvancedSettingsTab(): void {
     const rawLogsTextarea = document.getElementById('rawLogsTextarea') as HTMLTextAreaElement;
     const refreshRawLogsBtn = document.getElementById('refreshRawLogsBtn') as HTMLButtonElement;
     const testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
+    const rawRecordsTextarea = document.getElementById('rawRecordsTextarea') as HTMLTextAreaElement;
+    const refreshRawRecordsBtn = document.getElementById('refreshRawRecordsBtn') as HTMLButtonElement;
+    const editRawRecordsBtn = document.getElementById('editRawRecordsBtn') as HTMLButtonElement;
+    const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
 
-    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn) {
+    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !editRawRecordsBtn || !saveRawRecordsBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
     }
@@ -41,6 +45,59 @@ export function initAdvancedSettingsTab(): void {
         await logAsync('INFO', 'This is a test log from the dashboard.', { timestamp: new Date().toLocaleTimeString() });
         showMessage('Test log sent. Refreshing raw logs...', 'success');
         await loadRawLogs();
+    }
+
+    function loadRawRecords() {
+        try {
+            const records = STATE.records || [];
+            rawRecordsTextarea.value = JSON.stringify(records, null, 2);
+            rawRecordsTextarea.classList.remove('hidden'); // Show the textarea
+            showMessage('Raw records refreshed.', 'success');
+            logAsync('INFO', '用户刷新并显示了原始番号库数据。');
+        } catch (error: any) {
+            const errorMessage = `Error loading records: ${error.message}`;
+            rawRecordsTextarea.value = errorMessage;
+            rawRecordsTextarea.classList.remove('hidden'); // Also show on error
+            showMessage('Failed to refresh raw records.', 'error');
+            logAsync('ERROR', '显示原始番号库数据时出错。', { error: error.message });
+        }
+    }
+
+    function enableRawRecordsEdit() {
+        rawRecordsTextarea.readOnly = false;
+        rawRecordsTextarea.focus();
+        editRawRecordsBtn.classList.add('hidden');
+        saveRawRecordsBtn.classList.remove('hidden');
+        showMessage('Raw records editing enabled. Be careful!', 'warn');
+        logAsync('INFO', '用户启用了高级设置中的原始番号库数据编辑模式。');
+    }
+
+    async function handleSaveRawRecords() {
+        logAsync('INFO', '用户点击了“保存原始番号库数据”按钮。');
+        try {
+            const recordsObject = JSON.parse(rawRecordsTextarea.value);
+            // Construct a format that applyImportedData can understand
+            const dataToImport = {
+                data: recordsObject.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
+                    acc[record.id] = record;
+                    return acc;
+                }, {})
+            };
+            // Use applyImportedData to process the records, with overwrite mode
+            await applyImportedData(JSON.stringify(dataToImport), 'data', 'overwrite');
+            showMessage('Raw records saved successfully. The page will now reload.', 'success');
+            logAsync('INFO', '原始番号库数据已成功解析并应用。');
+        } catch (error: any) {
+            showMessage(`Error parsing or applying records JSON: ${error.message}`, 'error');
+            console.error("Failed to save raw records:", error);
+            logAsync('ERROR', '保存原始番号库数据时出错。', { error: error.message });
+        } finally {
+            // Reset UI after attempting to save
+            rawRecordsTextarea.readOnly = true;
+            saveRawRecordsBtn.classList.add('hidden');
+            editRawRecordsBtn.classList.remove('hidden');
+            loadRawRecords(); // Re-load to show the current state
+        }
     }
 
     function loadJsonConfig() {
@@ -106,6 +163,9 @@ export function initAdvancedSettingsTab(): void {
     exportJsonBtn.addEventListener('click', handleExportData);
     refreshRawLogsBtn.addEventListener('click', loadRawLogs);
     testLogBtn.addEventListener('click', handleTestLog);
+    refreshRawRecordsBtn.addEventListener('click', loadRawRecords);
+    editRawRecordsBtn.addEventListener('click', enableRawRecordsEdit);
+    saveRawRecordsBtn.addEventListener('click', handleSaveRawRecords);
     
     loadJsonConfig();
     // loadRawLogs(); // Removed initial auto-load for performance
