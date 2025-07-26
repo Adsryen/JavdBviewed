@@ -24,13 +24,54 @@
 
 /* Video List */
 .video-list-container {
-    overflow-y: auto;
-    flex-grow: 1;
-    min-height: 300px; /* Ensure a minimum height */
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background-color: var(--background-secondary);
+    border-top: 1px solid #e8e8e8;
+    border-bottom: 1px solid #e8e8e8;
 }
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.records-per-page-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.records-per-page-selector label {
+    font-size: 14px;
+    color: #555;
+}
+
+.records-per-page-selector select {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.records-per-page-selector select:hover {
+    border-color: #999;
+}
+
+.records-per-page-selector select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
 #videoList {
     list-style: none;
     padding: 0;
@@ -39,6 +80,7 @@
 
 .video-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
@@ -119,12 +161,6 @@
 }
 
 /* Pagination */
-.pagination {
-    display: flex;
-    justify-content: center;
-    gap: 5px;
-    margin-top: 20px;
-}
 .pagination button {
     background-color: var(--background-color);
     color: var(--text-color);

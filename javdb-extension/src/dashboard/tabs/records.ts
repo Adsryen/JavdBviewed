@@ -1,5 +1,5 @@
 import { STATE } from '../state';
-import { VIDEO_STATUS } from '../../utils/config';
+import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
 
 export function initRecordsTab(): void {
@@ -8,12 +8,16 @@ export function initRecordsTab(): void {
     const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
     const videoList = document.getElementById('videoList') as HTMLUListElement;
     const paginationContainer = document.querySelector('.pagination') as HTMLDivElement;
+    const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
-    if (!searchInput || !videoList || !sortSelect) return;
+
+    if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
     let currentPage = 1;
-    const recordsPerPage = 20;
+    let recordsPerPage = STATE.settings.recordsPerPage || 10;
     let filteredRecords: VideoRecord[] = [];
+
+    recordsPerPageSelect.value = String(recordsPerPage);
 
     function updateFilteredRecords() {
         const searchTerm = searchInput.value.toLowerCase();
@@ -175,6 +179,14 @@ export function initRecordsTab(): void {
     searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
     sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
+
+    recordsPerPageSelect.addEventListener('change', () => {
+        recordsPerPage = parseInt(recordsPerPageSelect.value, 10);
+        STATE.settings.recordsPerPage = recordsPerPage;
+        chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
+        currentPage = 1;
+        render();
+    });
 
     updateFilteredRecords();
     render();

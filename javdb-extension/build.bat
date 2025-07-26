@@ -17,7 +17,7 @@ echo   [4] Just Build ^(build without changing the version number^) ^(仅构建^
 echo   [5] Exit ^(退出^)
 echo.
 
-set /p "choice=Enter your choice [1-5]: "
+set /p "choice=Enter your choice (1-5) [3]: " || set "choice=3"
 
 if "%choice%"=="1" ( set "version_type=major" ) else if "%choice%"=="2" ( set "version_type=minor" ) else if "%choice%"=="3" ( set "version_type=patch" ) else if "%choice%"=="4" ( goto :install_and_build ) else if "%choice%"=="5" ( goto :eof ) else (
     echo Invalid choice.
