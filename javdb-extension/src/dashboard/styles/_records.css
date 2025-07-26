@@ -112,7 +112,7 @@
 }
 
 .video-item .video-date {
-    flex: 0 0 100px;
+    flex: 0 0 150px;
     font-size: 0.85rem;
     color: var(--text-secondary);
     text-align: right;
@@ -200,4 +200,25 @@
 .pagination button.ellipsis:hover {
     transform: none;
     background: transparent;
+}
+
+/* JSON Tooltip */
+#json-tooltip {
+    position: fixed;
+    display: none;
+    background-color: var(--background-color-tooltip, #fff);
+    color: var(--text-color-tooltip, #333);
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: var(--border-radius, 8px);
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    z-index: 1000;
+    width: 400px;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: none; /* So it doesn't interfere with mouse events */
 } 
