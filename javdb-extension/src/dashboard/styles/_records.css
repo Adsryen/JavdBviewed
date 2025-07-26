@@ -7,16 +7,19 @@
 #searchInput {
     flex-grow: 1;
     padding: 10px 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     font-size: 14px;
+    background-color: var(--background-color);
+    color: var(--text-color);
 }
-#filterSelect {
+#filterSelect, #sortSelect {
     padding: 10px 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     font-size: 14px;
-    background-color: white;
+    background-color: var(--background-color);
+    color: var(--text-color);
 }
 
 /* Video List */
@@ -24,69 +27,95 @@
     overflow-y: auto;
     flex-grow: 1;
     min-height: 300px; /* Ensure a minimum height */
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--background-secondary);
 }
 #videoList {
     list-style: none;
     padding: 0;
     margin: 0;
 }
-#videoList li {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 15px;
+
+.video-item {
+    display: flex;
     align-items: center;
-    padding: 12px 15px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
 }
-#videoList li:last-child {
+
+.video-item:last-child {
     border-bottom: none;
 }
-#videoList li .video-info {
-    text-decoration: none;
-    font-weight: 500;
+
+.video-item:hover {
+    background-color: var(--background-hover);
+}
+
+.video-item .video-id {
+    flex: 0 0 120px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.video-item .video-title {
+    flex: 1 1 auto;
+    margin: 0 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: var(--text-secondary);
 }
-#videoList li .search-links {
+
+.video-item .video-date {
+    flex: 0 0 100px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.video-item .video-status {
+    flex: 0 0 100px;
+    text-align: right;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    color: white;
+    text-transform: capitalize;
+}
+
+.video-search-icons {
     display: flex;
-    gap: 10px;
     align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    margin-left: 1rem;
 }
-#videoList li .search-links a {
+
+.video-search-icons a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #6c757d;
-    transition: color 0.2s;
+    transition: transform 0.2s ease-in-out;
 }
-#videoList li .search-links a:hover {
-    color: #007bff;
-}
-.search-engine-icon {
-    width: 16px;
-    height: 16px;
+
+.video-search-icons img {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
     vertical-align: middle;
 }
-#videoList li a {
-    text-decoration: none;
-    color: #007bff;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+.video-search-icons a:hover {
+    transform: scale(1.25);
 }
-#videoList li a:hover {
-    text-decoration: underline;
-}
-#videoList li span {
-    font-size: 13px;
-    color: #666;
-    background-color: #f0f2f5;
-    padding: 3px 8px;
-    border-radius: 5px;
+
+.empty-list {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
 }
 
 /* Pagination */
@@ -97,9 +126,9 @@
     margin-top: 20px;
 }
 .pagination button {
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ddd;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
     min-width: 38px;
     height: 38px;
     padding: 0 12px;
@@ -109,19 +138,19 @@
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 .pagination button:not(:disabled):hover {
-    background-color: #f0f2f5;
-    border-color: #ccc;
+    background-color: var(--background-hover);
+    border-color: var(--border-color-hover);
     transform: none; /* Override general button hover effect */
 }
 .pagination button.active {
-    background-color: #007bff;
+    background-color: var(--primary-color);
     color: white;
-    border-color: #007bff;
+    border-color: var(--primary-color);
     cursor: default;
 }
 .pagination button:disabled:not(.active) {
-    background-color: #f8f9fa;
-    color: #adb5bd;
+    background-color: var(--background-disabled);
+    color: var(--text-disabled);
     opacity: 1;
 }
 .pagination button.ellipsis {

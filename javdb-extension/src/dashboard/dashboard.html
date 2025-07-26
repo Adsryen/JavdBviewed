@@ -54,12 +54,18 @@
             <div id="tab-records" class="tab-content active">
                 <div class="card">
                     <div class="search-and-filter">
-                        <input type="text" id="searchInput" placeholder="搜索番号、标题...">
+                        <input type="text" id="searchInput" placeholder="搜索番号或标题...">
                         <select id="filterSelect">
-                            <option value="all">所有记录</option>
+                            <option value="all">所有状态</option>
                             <option value="viewed">已观看</option>
-                            <option value="want">我想看</option>
                             <option value="browsed">已浏览</option>
+                            <option value="bookmarked">已收藏</option>
+                        </select>
+                        <select id="sortSelect">
+                            <option value="timestamp_desc">按日期排序 (最新)</option>
+                            <option value="timestamp_asc">按日期排序 (最旧)</option>
+                            <option value="id_asc">按番号排序 (A-Z)</option>
+                            <option value="id_desc">按番号排序 (Z-A)</option>
                         </select>
                     </div>
                     <div class="video-list-container">
@@ -179,6 +185,16 @@
                             <button id="exportJsonBtn" class="btn">导出完整备份</button>
                         </div>
                         <textarea id="jsonConfig" readonly></textarea>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>原始番号库数据 (Raw Records)</h3>
+                        <div class="action-buttons-top">
+                            <button id="refreshRawRecordsBtn" class="btn">显示/刷新</button>
+                            <button id="editRawRecordsBtn" class="btn">编辑</button>
+                            <button id="saveRawRecordsBtn" class="btn hidden">保存</button>
+                        </div>
+                        <textarea id="rawRecordsTextarea" readonly class="hidden"></textarea>
                     </div>
 
                     <div class="settings-section">
