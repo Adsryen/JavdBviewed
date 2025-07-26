@@ -30,7 +30,7 @@
                 "*://*.javdb.com/*"
             ],
             "js": [
-                "content/content.ts"
+                "content/index.ts"
             ],
             "run_at": "document_end"
         }
