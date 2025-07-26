@@ -35,6 +35,7 @@ export type VideoStatus = 'viewed' | 'browsed' | 'want';
  */
 export interface OldVideoRecord {
   id: string;
+  title?: string; // Add optional title
   status: 'viewed' | 'unviewed';
   tags?: string[];
 }
@@ -56,6 +57,4 @@ export interface VideoRecord {
   createdAt: number; // 创建时间 (Unix timestamp)
   updatedAt: number; // 最后更新时间 (Unix timestamp)
   releaseDate?: string; // 发行日期 (可选)
-  actors?: string[]; // 演员 (可选)
-  url?: string; // 原始链接 (可选)
 }

@@ -349,6 +349,44 @@
       </div>
   </div>
 
-  <script src="./dashboard.ts" type="module"></script>
+  <!-- Migration/Data Check Modal -->
+  <div id="migration-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+          <h3 class="modal-title">数据迁移</h3>
+          <p id="migration-modal-message">检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。</p>
+          <div id="migration-progress-container" class="progress-container hidden">
+              <div id="migration-progress-bar" class="progress-bar"></div>
+              <p id="migration-status-text">正在处理...</p>
+          </div>
+          <div class="modal-actions" id="migration-modal-actions">
+              <button id="migration-cancel-btn" class="button-like">稍后提醒</button>
+              <button id="migration-confirm-btn" class="button-like primary">开始迁移</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Data Structure Check Confirmation Modal -->
+  <div id="data-check-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+          <h3 class="modal-title">确认数据结构修复</h3>
+          <p id="data-check-modal-message"></p>
+          <div class="diff-container">
+              <div class="diff-view">
+                  <h4>修复前</h4>
+                  <pre id="data-check-diff-before"></pre>
+              </div>
+              <div class="diff-view">
+                  <h4>修复后</h4>
+                  <pre id="data-check-diff-after"></pre>
+              </div>
+          </div>
+          <div class="modal-actions" id="data-check-modal-actions">
+              <button id="data-check-cancel-btn" class="button-like">取消</button>
+              <button id="data-check-confirm-btn" class="button-like primary">确认修复</button>
+          </div>
+      </div>
+  </div>
+
+  <script type="module" src="dashboard.ts"></script>
 </body>
 </html> 

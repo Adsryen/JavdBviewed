@@ -7,6 +7,15 @@ import type { LogEntry, VideoRecord, OldVideoRecord, VideoStatus } from '../../t
 import { STORAGE_KEYS } from '../../utils/config';
 
 
+const DEFAULT_VIDEO_RECORD: Omit<VideoRecord, 'id'> = {
+    title: '',
+    status: 'browsed',
+    tags: [],
+    createdAt: 0,
+    updatedAt: 0,
+    releaseDate: undefined,
+};
+
 export function initAdvancedSettingsTab(): void {
     const jsonConfigTextarea = document.getElementById('jsonConfig') as HTMLTextAreaElement;
     const editJsonBtn = document.getElementById('editJsonBtn') as HTMLButtonElement;
@@ -21,124 +30,158 @@ export function initAdvancedSettingsTab(): void {
     const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
     const checkDataStructureBtn = document.getElementById('checkDataStructureBtn') as HTMLButtonElement;
 
-    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !editRawRecordsBtn || !saveRawRecordsBtn) {
+    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !editRawRecordsBtn || !saveRawRecordsBtn || !checkDataStructureBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
     }
     
     checkDataStructureBtn.addEventListener('click', () => {
-        const migrationModal = document.getElementById('migration-modal') as HTMLElement;
-        const confirmBtn = document.getElementById('migration-confirm-btn') as HTMLButtonElement;
-        const cancelBtn = document.getElementById('migration-cancel-btn') as HTMLButtonElement;
-        const progressContainer = document.getElementById('migration-progress-container') as HTMLElement;
-        const progressBar = document.getElementById('migration-progress-bar') as HTMLElement;
-        const statusText = document.getElementById('migration-status-text') as HTMLParagraphElement;
-        const modalActions = document.getElementById('migration-modal-actions') as HTMLElement;
-        const modalMessage = document.getElementById('migration-modal-message') as HTMLParagraphElement;
+        // All previous logs indicated the logic inside this async IIFE works,
+        // so the fire-and-forget pattern is correct. The issue was purely CSS class handling.
+        (async () => {
+            try {
+                const modal = document.getElementById('data-check-modal') as HTMLElement;
+                if (!modal) {
+                    console.error('Data check modal element not found!');
+                    showMessage('无法找到数据检查窗口，请刷新页面后重试。', 'error');
+                    return;
+                }
 
-        if (!migrationModal) return;
+                const message = modal.querySelector('#data-check-modal-message') as HTMLElement;
+                const diffContainer = modal.querySelector('.diff-container') as HTMLElement;
+                const actions = modal.querySelector('.modal-actions') as HTMLElement;
+                const confirmBtn = modal.querySelector('#data-check-confirm-btn') as HTMLButtonElement;
+                const cancelBtn = modal.querySelector('#data-check-cancel-btn') as HTMLButtonElement;
 
-        // Reset modal to its initial state
-        modalActions.innerHTML = '';
-        const initialConfirmBtn = document.createElement('button');
-        initialConfirmBtn.id = 'migration-confirm-btn';
-        initialConfirmBtn.className = 'button-like primary';
-        initialConfirmBtn.textContent = '开始迁移';
-        
-        const initialCancelBtn = document.createElement('button');
-        initialCancelBtn.id = 'migration-cancel-btn';
-        initialCancelBtn.className = 'button-like';
-        initialCancelBtn.textContent = '稍后提醒';
+                if (!message || !diffContainer || !actions || !confirmBtn || !cancelBtn) {
+                    console.error('数据检查窗口内部组件不完整');
+                    showMessage('数据检查窗口内部组件不完整，请刷新页面后重试。', 'error');
+                    return;
+                }
 
-        modalActions.appendChild(initialCancelBtn);
-        modalActions.appendChild(initialConfirmBtn);
-        progressContainer.classList.add('hidden');
-        modalActions.classList.remove('hidden');
-
-
-        getValue<Record<string, OldVideoRecord | VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {}).then(records => {
-            const recordsArray = Object.values(records);
-
-            if (recordsArray.length === 0 || !('timestamp' in recordsArray[0])) {
-                modalMessage.textContent = '未检测到需要迁移的旧版数据。您的数据结构已是最新。';
-                modalActions.innerHTML = ''; 
-                const okBtn = document.createElement('button');
-                okBtn.textContent = '好的';
-                okBtn.className = 'button-like';
-                okBtn.onclick = () => {
-                    migrationModal.classList.add('hidden');
-                    migrationModal.classList.remove('visible');
-                };
-                modalActions.appendChild(okBtn);
-                migrationModal.classList.remove('hidden');
-                migrationModal.classList.add('visible');
-                return;
-            }
-
-            modalMessage.textContent = '检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。';
-            migrationModal.classList.remove('hidden');
-            migrationModal.classList.add('visible');
-
-            const onCancel = () => {
-                migrationModal.classList.add('hidden');
-                migrationModal.classList.remove('visible');
-                initialConfirmBtn.removeEventListener('click', onConfirm);
-                initialCancelBtn.removeEventListener('click', onCancel);
-            };
-
-            const onConfirm = async () => {
-                modalActions.classList.add('hidden');
-                progressContainer.classList.remove('hidden');
-                await logAsync('INFO', '用户同意数据迁移。');
-                
+                const records = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                const recordsArray = Object.values(records);
                 const totalRecords = recordsArray.length;
-                const migratedRecords: Record<string, VideoRecord> = {};
+
+                if (totalRecords === 0) {
+                    showMessage('没有找到任何记录，无需检查。', 'info');
+                    return;
+                }
                 
+                // --- FIX: Use .visible class to show the modal ---
+                modal.classList.remove('hidden');
+                modal.classList.add('visible');
+                diffContainer.style.display = 'none';
+                actions.style.display = 'none';
+                message.textContent = `准备检查 ${totalRecords} 条记录...`;
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const recordsToFix: VideoRecord[] = [];
+                const fixedRecordsPreview: Record<string, VideoRecord> = {};
+
                 for (let i = 0; i < totalRecords; i++) {
                     const record = recordsArray[i];
-                    const oldRecord = record as any;
-                    let newStatus: VideoStatus = 'browsed';
-                    if (oldRecord.status === 'viewed') newStatus = 'viewed';
-                    else if (oldRecord.status === 'want') newStatus = 'want';
+                    let changed = false;
+                    const newRecord = { ...record };
 
-                    migratedRecords[record.id] = {
-                        id: oldRecord.id,
-                        title: oldRecord.title || oldRecord.id,
-                        status: newStatus,
-                        tags: oldRecord.tags || [],
-                        createdAt: oldRecord.timestamp,
-                        updatedAt: oldRecord.timestamp,
-                        releaseDate: oldRecord.releaseDate,
-                        actors: oldRecord.actors,
-                        url: oldRecord.url,
-                    };
-                    
-                    const percentage = Math.round(((i + 1) / totalRecords) * 100);
-                    
-                    requestAnimationFrame(() => {
-                        progressBar.style.width = `${percentage}%`;
-                        statusText.textContent = `正在处理: ${i + 1} / ${totalRecords}`;
-                    });
+                    for (const key of Object.keys(DEFAULT_VIDEO_RECORD) as Array<keyof typeof DEFAULT_VIDEO_RECORD>) {
+                        if (!(key in newRecord) || newRecord[key] === undefined || newRecord[key] === null) {
+                            (newRecord as any)[key] = DEFAULT_VIDEO_RECORD[key];
+                            changed = true;
+                        }
+                    }
 
-                    if (i % 20 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 0)); 
+                    if (!newRecord.createdAt || newRecord.createdAt === 0) {
+                        newRecord.createdAt = Date.now();
+                        changed = true;
+                    }
+                    if (!newRecord.updatedAt || newRecord.updatedAt === 0) {
+                        newRecord.updatedAt = newRecord.createdAt;
+                        changed = true;
+                    }
+                    if (typeof newRecord.title === 'undefined') {
+                        newRecord.title = '';
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        recordsToFix.push(record);
+                        fixedRecordsPreview[record.id] = newRecord;
+                    }
+                    
+                    if (i % 20 === 0 || i === totalRecords - 1) {
+                        message.textContent = `正在检查... (${i + 1}/${totalRecords})`;
+                        await new Promise(resolve => requestAnimationFrame(resolve));
                     }
                 }
 
-                await setValue(STORAGE_KEYS.VIEWED_RECORDS, migratedRecords);
-                
-                progressBar.style.backgroundColor = '#28a745';
-                statusText.textContent = '迁移完成！页面即将刷新...';
-                await logAsync('INFO', '数据迁移成功。');
+                if (recordsToFix.length > 0) {
+                    const diffBefore = modal.querySelector('#data-check-diff-before') as HTMLElement;
+                    const diffAfter = modal.querySelector('#data-check-diff-after') as HTMLElement;
 
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            };
+                    if (!diffBefore || !diffAfter) {
+                        console.error('Diff <pre> 元素未找到。');
+                        return;
+                    }
 
-            initialConfirmBtn.addEventListener('click', onConfirm, { once: true });
-            initialCancelBtn.addEventListener('click', onCancel, { once: true });
-        });
+                    message.textContent = `检查完成！发现 ${recordsToFix.length} 条记录的结构需要修复。这是一个示例：`;
+
+                    try {
+                        diffBefore.textContent = JSON.stringify(recordsToFix[0], null, 2);
+                        diffAfter.textContent = JSON.stringify(fixedRecordsPreview[recordsToFix[0].id], null, 2);
+                    } catch (e) {
+                        message.textContent = '无法显示修复示例，因为数据结构过于复杂或存在循环引用。';
+                    }
+
+                    diffContainer.style.display = '';
+                    actions.style.display = '';
+
+                    const hideModal = () => {
+                        modal.classList.remove('visible');
+                        modal.classList.add('hidden');
+                    };
+                    
+                    const onConfirm = async () => {
+                        hideModal();
+                        showMessage('正在修复记录...', 'info');
+                        const allRecords = { ...records, ...fixedRecordsPreview };
+                        await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+                        showMessage(`成功修复了 ${recordsToFix.length} 条记录。页面将刷新。`, 'success');
+                        logAsync('INFO', `数据结构修复完成，共修复 ${recordsToFix.length} 条记录。`);
+                        setTimeout(() => window.location.reload(), 1500);
+                    };
+
+                    const onCancel = () => {
+                        hideModal();
+                        logAsync('INFO', '用户取消了数据结构修复操作。');
+                    };
+
+                    confirmBtn.onclick = onConfirm;
+                    cancelBtn.onclick = onCancel;
+                } else {
+                    message.textContent = '数据结构检查完成，所有记录都符合标准，无需修复。';
+                    diffContainer.style.display = 'none';
+                    actions.style.display = '';
+
+                    const okBtn = document.createElement('button');
+                    okBtn.textContent = '好的';
+                    okBtn.className = 'button-like';
+                    okBtn.onclick = () => {
+                        modal.classList.remove('visible');
+                        modal.classList.add('hidden');
+                    };
+                    
+                    actions.innerHTML = '';
+                    actions.appendChild(okBtn);
+
+                    logAsync('INFO', '数据结构检查完成，未发现问题。');
+                }
+            } catch (error: any) {
+                showMessage(`检查数据结构时出错: ${error.message}`, 'error');
+                logAsync('ERROR', '检查数据结构时发生错误。', { error: error.message, stack: error.stack });
+            }
+        })();
     });
 
     async function loadRawLogs() {
