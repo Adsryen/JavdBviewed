@@ -25,6 +25,7 @@ export interface ExtensionSettings {
         maxLogEntries: number;
     };
     version: string;
+    recordsPerPage?: number;
 }
 
 export type VideoStatus = 'viewed' | 'browsed' | 'want';
