@@ -57,54 +57,69 @@ export function initRecordsTab(): void {
         paginationContainer.innerHTML = '';
         const pageCount = Math.ceil(filteredRecords.length / recordsPerPage);
         if (pageCount <= 1) return;
-    
-        const createPageButton = (page: number | string, active: boolean = false, disabled: boolean = false) => {
+        const goToPage = (page: number) => {
+            if (page < 1 || page > pageCount) return;
+            currentPage = page;
+            render();
+        };
+
+        const createButton = (
+            content: string | number,
+            page?: number,
+            options: { isDisabled?: boolean; isActive?: boolean; isEllipsis?: boolean; title?: string } = {}
+        ) => {
             const button = document.createElement('button');
-            button.textContent = String(page);
-            if (typeof page === 'number') {
-                button.className = `page-button ${active ? 'active' : ''}`;
-                button.addEventListener('click', () => {
-                    currentPage = page;
-                    render();
-                });
-            } else {
-                button.className = 'page-button ellipsis';
-                disabled = true;
+            button.innerHTML = String(content);
+            button.disabled = options.isDisabled ?? false;
+            if (options.title) {
+                button.title = options.title;
             }
-            if (disabled) {
-                button.disabled = true;
+
+            const classNames = ['page-button'];
+            if (options.isActive) classNames.push('active');
+            if (options.isEllipsis) classNames.push('ellipsis');
+            
+            button.className = classNames.join(' ');
+
+            if (page) {
+                button.addEventListener('click', () => goToPage(page));
             }
             paginationContainer.appendChild(button);
         };
-    
-        const maxPagesToShow = 7; // Max number of page buttons to show (including ellipsis)
-        if (pageCount <= maxPagesToShow) {
-            for (let i = 1; i <= pageCount; i++) {
-                createPageButton(i, i === currentPage);
-            }
-        } else {
-            // Logic for lots of pages: 1 ... 4 5 6 ... 99
-            let pages = new Set<number>();
-            pages.add(1);
-            pages.add(pageCount);
-            pages.add(currentPage);
-            for (let i = -1; i <= 1; i++) {
-                if (currentPage + i > 0 && currentPage + i <= pageCount) {
-                    pages.add(currentPage + i);
-                }
-            }
-            
-            let sortedPages = Array.from(pages).sort((a, b) => a - b);
-            
-            let lastPage: number | null = null;
-            for (const page of sortedPages) {
-                if (lastPage !== null && page - lastPage > 1) {
-                    createPageButton('...');
-                }
-                createPageButton(page, page === currentPage);
-                lastPage = page;
+
+        // First and Previous buttons
+        createButton('<i class="fas fa-angles-left"></i>', 1, { isDisabled: currentPage === 1, title: '首页' });
+        createButton('<i class="fas fa-angle-left"></i>', currentPage - 1, { isDisabled: currentPage === 1, title: '上一页' });
+
+        // Page numbers logic
+        const pagesToShow = new Set<number>();
+        pagesToShow.add(1);
+        pagesToShow.add(pageCount);
+
+        for (let i = -2; i <= 2; i++) {
+            const page = currentPage + i;
+            if (page > 1 && page < pageCount) {
+                pagesToShow.add(page);
             }
         }
+        if (currentPage > 1 && currentPage < pageCount) {
+            pagesToShow.add(currentPage);
+        }
+        
+        const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
+        
+        let lastPage: number | null = null;
+        for (const page of sortedPages) {
+            if (lastPage !== null && page - lastPage > 1) {
+                createButton('...', undefined, { isDisabled: true, isEllipsis: true });
+            }
+            createButton(page, page, { isActive: page === currentPage });
+            lastPage = page;
+        }
+
+        // Next and Last buttons
+        createButton('<i class="fas fa-angle-right"></i>', currentPage + 1, { isDisabled: currentPage === pageCount, title: '下一页' });
+        createButton('<i class="fas fa-angles-right"></i>', pageCount, { isDisabled: currentPage === pageCount, title: '末页' });
     }
 
     function render() {
