@@ -21,6 +21,14 @@ export const VIDEO_STATUS = {
     BROWSED: 'browsed' // 已浏览
 } as const;
 
+// 状态优先级定义：数字越大优先级越高
+// 已看 > 想看 > 已浏览
+export const STATUS_PRIORITY = {
+    [VIDEO_STATUS.BROWSED]: 1, // 已浏览 - 最低优先级
+    [VIDEO_STATUS.WANT]: 2,    // 我想看 - 中等优先级
+    [VIDEO_STATUS.VIEWED]: 3   // 已观看 - 最高优先级
+} as const;
+
 export const DEFAULT_SETTINGS: ExtensionSettings = {
     display: {
         hideViewed: false, // Corresponds to VIEWED status
