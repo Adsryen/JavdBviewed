@@ -13,7 +13,9 @@ const DEFAULT_VIDEO_RECORD: Omit<VideoRecord, 'id'> = {
     tags: [],
     createdAt: 0,
     updatedAt: 0,
-    releaseDate: undefined,
+    releaseDate: null,
+    javdbUrl: null,
+    javdbImage: null,
 };
 
 export function initAdvancedSettingsTab(): void {
@@ -84,30 +86,37 @@ export function initAdvancedSettingsTab(): void {
                     const record = recordsArray[i];
                     let changed = false;
                     const newRecord = { ...record };
+                    const addedFields: string[] = [];
 
                     for (const key of Object.keys(DEFAULT_VIDEO_RECORD) as Array<keyof typeof DEFAULT_VIDEO_RECORD>) {
-                        if (!(key in newRecord) || newRecord[key] === undefined || newRecord[key] === null) {
+                        if (!(key in newRecord) || newRecord[key] === undefined) {
                             (newRecord as any)[key] = DEFAULT_VIDEO_RECORD[key];
+                            addedFields.push(key);
                             changed = true;
                         }
                     }
 
-                    if (!newRecord.createdAt || newRecord.createdAt === 0) {
+                    // 只处理完全缺失的字段，不修改已有数据
+                    if (!('createdAt' in newRecord) || typeof newRecord.createdAt === 'undefined') {
                         newRecord.createdAt = Date.now();
+                        addedFields.push('createdAt');
                         changed = true;
                     }
-                    if (!newRecord.updatedAt || newRecord.updatedAt === 0) {
-                        newRecord.updatedAt = newRecord.createdAt;
+                    if (!('updatedAt' in newRecord) || typeof newRecord.updatedAt === 'undefined') {
+                        newRecord.updatedAt = newRecord.createdAt || Date.now();
+                        addedFields.push('updatedAt');
                         changed = true;
                     }
-                    if (typeof newRecord.title === 'undefined') {
+                    if (!('title' in newRecord) || typeof newRecord.title === 'undefined') {
                         newRecord.title = '';
+                        addedFields.push('title');
                         changed = true;
                     }
 
                     if (changed) {
                         recordsToFix.push(record);
                         fixedRecordsPreview[record.id] = newRecord;
+                        console.log(`[数据结构检查] 记录 ${record.id} 需要修复，添加字段: ${addedFields.join(', ')}`);
                     }
                     
                     if (i % 20 === 0 || i === totalRecords - 1) {
@@ -128,8 +137,19 @@ export function initAdvancedSettingsTab(): void {
                     message.textContent = `检查完成！发现 ${recordsToFix.length} 条记录的结构需要修复。这是一个示例：`;
 
                     try {
-                        diffBefore.textContent = JSON.stringify(recordsToFix[0], null, 2);
-                        diffAfter.textContent = JSON.stringify(fixedRecordsPreview[recordsToFix[0].id], null, 2);
+                        // 使用自定义的 JSON 序列化来显示 undefined 和 null 值
+                        const jsonReplacer = (key: string, value: any) => {
+                            if (value === undefined) {
+                                return 'undefined';
+                            }
+                            if (value === null) {
+                                return null; // 保持 null 值显示
+                            }
+                            return value;
+                        };
+
+                        diffBefore.textContent = JSON.stringify(recordsToFix[0], jsonReplacer, 2);
+                        diffAfter.textContent = JSON.stringify(fixedRecordsPreview[recordsToFix[0].id], jsonReplacer, 2);
                     } catch (e) {
                         message.textContent = '无法显示修复示例，因为数据结构过于复杂或存在循环引用。';
                     }
@@ -145,8 +165,25 @@ export function initAdvancedSettingsTab(): void {
                     const onConfirm = async () => {
                         hideModal();
                         showMessage('正在修复记录...', 'info');
+
+                        // 调试日志：显示修复前后的数据
+                        console.log('[数据结构修复] 修复前记录数量:', Object.keys(records).length);
+                        console.log('[数据结构修复] 待修复记录数量:', recordsToFix.length);
+                        console.log('[数据结构修复] 修复预览数据:', fixedRecordsPreview);
+
                         const allRecords = { ...records, ...fixedRecordsPreview };
+                        console.log('[数据结构修复] 合并后记录数量:', Object.keys(allRecords).length);
+
+                        // 显示一个修复示例
+                        const firstFixedId = Object.keys(fixedRecordsPreview)[0];
+                        if (firstFixedId) {
+                            console.log('[数据结构修复] 修复示例 - 原记录:', records[firstFixedId]);
+                            console.log('[数据结构修复] 修复示例 - 新记录:', fixedRecordsPreview[firstFixedId]);
+                        }
+
                         await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+                        console.log('[数据结构修复] 数据已保存到存储');
+
                         showMessage(`成功修复了 ${recordsToFix.length} 条记录。页面将刷新。`, 'success');
                         logAsync('INFO', `数据结构修复完成，共修复 ${recordsToFix.length} 条记录。`);
                         setTimeout(() => window.location.reload(), 1500);

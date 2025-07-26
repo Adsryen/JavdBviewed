@@ -81,11 +81,12 @@
 .video-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: 12px 15px;
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s ease;
     gap: 10px;
+    min-height: 60px;
 }
 
 .video-item:last-child {
@@ -160,18 +161,53 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.video-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+.video-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: #f0f0f0;
+    color: #666;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+}
+
+.video-tag:hover {
+    background-color: #e8e8e8;
+    color: #333;
+}
+
 .video-title {
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
     font-size: 0.9rem;
+    max-width: 100%;
 }
 
 .video-date {
     font-size: 0.85rem;
     color: var(--text-tertiary);
     white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 2px;
+    cursor: help;
+    transition: color 0.2s ease;
+}
+
+.video-date:hover {
+    color: var(--text-secondary);
 }
 
 .video-status {
@@ -181,6 +217,72 @@
     font-weight: 500;
     text-transform: capitalize;
     white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+/* Status color variants */
+.status-viewed {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-browsed {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-want {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* Image Tooltip Styles */
+.image-tooltip {
+    position: fixed;
+    z-index: 10000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    max-width: 300px;
+    max-height: 400px;
+}
+
+.image-tooltip-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.image-tooltip-content img {
+    width: 100%;
+    height: auto;
+    max-width: 300px;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.image-tooltip-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px;
+    color: #666;
+    font-size: 14px;
+    background: white;
+    border-radius: 4px;
+    transition: opacity 0.3s ease;
 }
 
 .video-controls {

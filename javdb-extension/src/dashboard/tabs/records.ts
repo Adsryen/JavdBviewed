@@ -12,12 +12,21 @@ export function initRecordsTab(): void {
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
     let tooltipElement: HTMLPreElement | null = null;
+    let imageTooltipElement: HTMLDivElement | null = null;
 
     function createTooltip() {
         if (tooltipElement) return;
         tooltipElement = document.createElement('pre');
         tooltipElement.id = 'json-tooltip';
         document.body.appendChild(tooltipElement);
+    }
+
+    function createImageTooltip() {
+        if (imageTooltipElement) return;
+        imageTooltipElement = document.createElement('div');
+        imageTooltipElement.id = 'image-tooltip';
+        imageTooltipElement.className = 'image-tooltip';
+        document.body.appendChild(imageTooltipElement);
     }
 
     function removeTooltip() {
@@ -27,7 +36,15 @@ export function initRecordsTab(): void {
         }
     }
 
+    function removeImageTooltip() {
+        if (imageTooltipElement) {
+            imageTooltipElement.remove();
+            imageTooltipElement = null;
+        }
+    }
+
     createTooltip();
+    createImageTooltip();
 
     if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
@@ -53,15 +70,19 @@ export function initRecordsTab(): void {
         const sortValue = sortSelect.value;
         filteredRecords.sort((a, b) => {
             switch (sortValue) {
+                case 'createdAt_desc':
+                    return b.createdAt - a.createdAt;
                 case 'createdAt_asc':
                     return a.createdAt - b.createdAt;
+                case 'updatedAt_asc':
+                    return a.updatedAt - b.updatedAt;
                 case 'id_asc':
                     return a.id.localeCompare(b.id);
                 case 'id_desc':
                     return b.id.localeCompare(a.id);
-                case 'createdAt_desc':
+                case 'updatedAt_desc':
                 default:
-                    return b.createdAt - a.createdAt;
+                    return b.updatedAt - a.updatedAt;
             }
         });
     }
@@ -105,8 +126,17 @@ export function initRecordsTab(): void {
                 iconsContainer.appendChild(icon);
             });
 
-            const date = new Date(record.createdAt);
-            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            const createdDate = new Date(record.createdAt);
+            const updatedDate = new Date(record.updatedAt);
+            const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+            const formattedCreatedDate = formatDate(createdDate);
+            const formattedUpdatedDate = formatDate(updatedDate);
+
+            // 如果创建时间和更新时间相同，只显示一个时间
+            const timeDisplay = record.createdAt === record.updatedAt
+                ? `创建: ${formattedCreatedDate}`
+                : `创建: ${formattedCreatedDate}\n更新: ${formattedUpdatedDate}`;
 
             const refreshButton = document.createElement('button');
             refreshButton.className = 'refresh-button';
@@ -203,14 +233,20 @@ export function initRecordsTab(): void {
                 videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
             }
 
+            // 生成tags HTML
+            const tagsHtml = record.tags && record.tags.length > 0
+                ? `<div class="video-tags">${record.tags.map(tag => `<span class="video-tag">${tag}</span>`).join('')}</div>`
+                : '';
+
             li.innerHTML = `
                 <div class="video-content-wrapper">
                     <div class="video-id-container">
                         ${videoIdHtml}
                     </div>
+                    ${tagsHtml}
                     <span class="video-title">${record.title}</span>
                 </div>
-                <span class="video-date">${formattedDate}</span>
+                <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
                 <span class="video-status status-${record.status}">${record.status}</span>
             `;
 
@@ -218,6 +254,75 @@ export function initRecordsTab(): void {
             const videoIdContainer = li.querySelector('.video-id-container');
             if (videoIdContainer) {
                 videoIdContainer.appendChild(jsonIcon);
+            }
+
+            // 添加图片悬浮功能到video-id-link
+            const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
+            if (videoIdLink && record.javdbImage) {
+                videoIdLink.addEventListener('mouseenter', (e) => {
+                    if (!imageTooltipElement) return;
+
+                    // 创建图片悬浮内容
+                    const tooltipContent = document.createElement('div');
+                    tooltipContent.className = 'image-tooltip-content';
+
+                    const img = document.createElement('img');
+                    img.src = record.javdbImage;
+                    img.alt = record.title;
+                    img.style.opacity = '0';
+
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'image-tooltip-loading';
+                    loadingDiv.textContent = '加载中...';
+
+                    // 添加图片加载事件监听器
+                    img.addEventListener('load', () => {
+                        img.style.opacity = '1';
+                        loadingDiv.style.display = 'none';
+                    });
+
+                    img.addEventListener('error', () => {
+                        img.style.display = 'none';
+                        loadingDiv.textContent = '图片加载失败';
+                    });
+
+                    tooltipContent.appendChild(img);
+                    tooltipContent.appendChild(loadingDiv);
+
+                    // 清空并添加新内容
+                    imageTooltipElement.innerHTML = '';
+                    imageTooltipElement.appendChild(tooltipContent);
+
+                    imageTooltipElement.style.display = 'block';
+                    imageTooltipElement.style.opacity = '0';
+
+                    // 位置更新
+                    const updateImageTooltipPosition = (event: MouseEvent) => {
+                        if (!imageTooltipElement) return;
+                        const x = event.clientX + 15;
+                        const y = event.clientY + 15;
+                        imageTooltipElement.style.left = `${x}px`;
+                        imageTooltipElement.style.top = `${y}px`;
+                    };
+
+                    updateImageTooltipPosition(e);
+
+                    // 延迟显示，避免快速移动时闪烁
+                    setTimeout(() => {
+                        if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
+                            imageTooltipElement.style.opacity = '1';
+                        }
+                    }, 200);
+
+                    videoIdLink.addEventListener('mousemove', updateImageTooltipPosition);
+                });
+
+                videoIdLink.addEventListener('mouseleave', () => {
+                    if (imageTooltipElement) {
+                        imageTooltipElement.style.display = 'none';
+                        imageTooltipElement.style.opacity = '0';
+                    }
+                });
             }
 
             // Append the icons container to the list item
@@ -338,4 +443,10 @@ export function initRecordsTab(): void {
 
     updateFilteredRecords();
     render();
-} 
+
+    // 清理函数，在页面切换时调用
+    return function cleanup() {
+        removeTooltip();
+        removeImageTooltip();
+    };
+}
