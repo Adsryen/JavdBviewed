@@ -29,6 +29,8 @@ const SELECTORS = {
     TAGS_CONTAINER: '.tags.has-addons',
     FAVICON: "link[rel~='icon']",
     VIDEO_DETAIL_ID: '.panel-block.first-block',
+    VIDEO_DETAIL_RELEASE_DATE: '.movie-meta-info > span:nth-child(2)',
+    VIDEO_DETAIL_TAGS: '.panel-block .tags .tag',
     SEARCH_RESULT_PAGE: '.container .column.is-9',
     EXPORT_TOOLBAR: '.toolbar, .breadcrumb ul',
 };
@@ -154,35 +156,79 @@ function addTag(container: HTMLElement, text: string, style: string): void {
 // --- Page-Specific Logic ---
 
 async function handleVideoDetailPage(): Promise<void> {
+    log('Analyzing video detail page...');
     const panelBlock = document.querySelector<HTMLElement>(SELECTORS.VIDEO_DETAIL_ID);
-    if (!panelBlock) return;
+    if (!panelBlock) {
+        log('Could not find video detail panel block. Aborting.');
+        return;
+    }
 
-    const idElement = panelBlock.querySelector<HTMLAnchorElement>('a[href*="/video_codes/"]');
-    if (!idElement) return;
+    // Extracting video ID more robustly
+    const idAnchor = panelBlock.querySelector<HTMLAnchorElement>('a[href*="/video_codes/"]');
+    const fullIdText = panelBlock.querySelector<HTMLElement>('.title.is-4');
+    
+    if (!idAnchor || !fullIdText) {
+        log('Could not find video ID elements. Aborting.');
+        return;
+    }
 
-    const videoIdMatch = panelBlock.textContent?.match(/-(\d+)/);
-    const videoId = idElement.textContent + (videoIdMatch ? videoIdMatch[0] : '');
-    if (!videoId) return;
-
+    const videoId = fullIdText.textContent?.trim();
+    if (!videoId) {
+        log('Video ID is empty. Aborting.');
+        return;
+    }
+    
+    log(`Found video ID: ${videoId}`);
     const record = STATE.records[videoId];
+    const now = Date.now();
+    const currentUrl = window.location.href;
 
     if (record) {
-        setFavicon(chrome.runtime.getURL("icons/jav.png"));
+        log(`Record for ${videoId} already exists. Status: ${record.status}.`);
+        record.updatedAt = now;
+        if (!record.javdbUrl) {
+            record.javdbUrl = currentUrl;
+            log(`Added missing javdbUrl for ${videoId}.`);
+        }
+        // Optionally, upgrade status from 'want' to 'browsed'
+        if (record.status === 'want') {
+            record.status = VIDEO_STATUS.BROWSED;
+            log(`Updated status for ${videoId} from 'want' to 'browsed'.`);
+        }
+        await setValue('viewed', STATE.records);
+        log(`Updated 'updatedAt' for ${videoId}.`);
+        setFavicon(chrome.runtime.getURL("assets/jav.png"));
     } else {
+        log(`No record found for ${videoId}. Scheduling to add as 'browsed'.`);
         setTimeout(async () => {
-            const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
-            if (!currentRecords[videoId]) {
-                currentRecords[videoId] = {
-                    id: videoId,
-                    title: document.title,
-                    status: VIDEO_STATUS.BROWSED,
-                    timestamp: Date.now()
-                };
-                await setValue('viewed', currentRecords);
-                log(`${videoId} added to history as 'browsed'.`);
-                setFavicon(chrome.runtime.getURL("icons/jav.png"));
+            // Re-check in case it was added in the meantime
+            if (STATE.records[videoId]) {
+                log(`${videoId} was added while waiting for timeout. Aborting duplicate add.`);
+                return;
             }
-        }, getRandomDelay(3000, 5000));
+
+            const title = document.title.replace(/ \| JavDB.*/, '').trim();
+            const releaseDateElement = document.querySelector<HTMLElement>(SELECTORS.VIDEO_DETAIL_RELEASE_DATE);
+            const tags = Array.from(document.querySelectorAll<HTMLAnchorElement>(SELECTORS.VIDEO_DETAIL_TAGS))
+                .map(tag => tag.innerText.trim())
+                .filter(Boolean);
+
+            const newRecord: VideoRecord = {
+                id: videoId,
+                title: title,
+                status: VIDEO_STATUS.BROWSED,
+                createdAt: now,
+                updatedAt: now,
+                tags: tags,
+                releaseDate: releaseDateElement?.textContent?.trim() || undefined,
+                javdbUrl: currentUrl,
+            };
+
+            STATE.records[videoId] = newRecord;
+            await setValue('viewed', STATE.records);
+            log(`Successfully added new record for ${videoId}`, newRecord);
+            setFavicon(chrome.runtime.getURL("assets/jav.png"));
+        }, getRandomDelay(2000, 4000));
     }
 }
 

@@ -10,15 +10,17 @@ const distDir = resolve(root, 'dist');
 const distZipDir = resolve(root, 'dist-zip');
 
 async function getVersion() {
-    const packageJsonPath = resolve(root, 'package.json');
-    if (fs.existsSync(packageJsonPath)) {
-        const packageJson = await fs.readJson(packageJsonPath);
-        return packageJson.version;
-    }
+    // First try version.json (updated by version script)
     const versionJsonPath = resolve(root, 'version.json');
     if (fs.existsSync(versionJsonPath)) {
         const versionJson = await fs.readJson(versionJsonPath);
         return versionJson.version;
+    }
+    // Fallback to package.json
+    const packageJsonPath = resolve(root, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+        const packageJson = await fs.readJson(packageJsonPath);
+        return packageJson.version;
     }
     throw new Error('Could not find version information.');
 }
