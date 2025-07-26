@@ -3,6 +3,9 @@
 import { getValue, setValue, getSettings, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
+import { refreshRecordById } from './sync';
+
+console.log('[Background] Service Worker starting up or waking up.');
 
 const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => void> = {
     INFO: console.info,
@@ -268,43 +271,61 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    switch (message.type) {
-        case 'webdav-upload':
-            performUpload().then(sendResponse);
-            return true;
-        case 'webdav-restore':
-            performRestore(message.filename, message.options).then(sendResponse);
-            return true;
-        case 'webdav-list-files':
-            listFiles().then(sendResponse);
-            return true;
-        case 'webdav-test':
-            testWebDAVConnection().then(sendResponse);
-            return true;
-        case 'setup-alarms':
-            setupAlarms();
-            return false;
-        case 'get-logs':
-            getValue(STORAGE_KEYS.LOGS, []).then(logs => sendResponse({ success: true, logs }));
-            return true;
-        case 'clear-logs':
-            setValue(STORAGE_KEYS.LOGS, []).then(() => sendResponse({ success: true }));
-            return true;
-        case 'clear-all-records':
-            setValue(STORAGE_KEYS.VIEWED_RECORDS, {}).then(() => sendResponse({ success: true }));
-            return true;
-        case 'log-message':
-            if (message.payload) {
-                const { level, message: msg, data } = message.payload;
-                log(level, msg, data).then(() => sendResponse({ success: true }));
-            }
-            return true; // Keep the message channel open for async response
-        case 'ping-background':
-            log('DEBUG', 'Background service pinged successfully.');
-            sendResponse({ success: true, message: 'pong' });
-            return true;
-        default:
-            return false;
+    console.log(`[Background] onMessage listener triggered. Received message:`, message);
+    console.log(`[Background] Message type: ${message.type}`);
+
+    try {
+        switch (message.type) {
+            case 'ping':
+                console.log('[Background] Ping received, sending pong.');
+                sendResponse({ success: true, message: 'pong' });
+                return true;
+            case 'get-logs':
+                console.log('[Background] Processing get-logs request.');
+                getValue(STORAGE_KEYS.LOGS, [])
+                    .then(logs => {
+                        console.log(`[Background] Retrieved ${logs.length} log entries.`);
+                        sendResponse({ success: true, logs });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to get logs:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'refresh-record':
+                const { videoId } = message;
+                console.log(`[Background] Processing refresh-record for videoId: ${videoId}`);
+
+                if (!videoId) {
+                    console.error('[Background] Refresh request missing videoId. Sending error response.');
+                    sendResponse({ success: false, error: 'No videoId provided.' });
+                    return true;
+                }
+
+                console.log(`[Background] About to call refreshRecordById for: ${videoId}`);
+
+                refreshRecordById(videoId)
+                    .then(updatedRecord => {
+                        console.log(`[Background] refreshRecordById successful for ${videoId}. Sending success response.`);
+                        console.log(`[Background] Updated record:`, updatedRecord);
+                        sendResponse({ success: true, record: updatedRecord });
+                    })
+                    .catch(error => {
+                        console.error(`[Background] refreshRecordById failed for ${videoId}:`, error);
+                        console.error(`[Background] Error stack:`, error.stack);
+                        sendResponse({ success: false, error: error.message });
+                    });
+
+                // Return true to indicate that the response will be sent asynchronously.
+                return true;
+            default:
+                console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
+                return false;
+        }
+    } catch (error) {
+        console.error(`[Background] Error in message handler:`, error);
+        sendResponse({ success: false, error: 'Internal error in background script' });
+        return true;
     }
 });
 

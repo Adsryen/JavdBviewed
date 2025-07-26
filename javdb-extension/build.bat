@@ -19,14 +19,14 @@ echo.
 
 set /p "choice=Enter your choice (1-5) [3]: " || set "choice=3"
 
-if "%choice%"=="1" ( set "version_type=major" ) else if "%choice%"=="2" ( set "version_type=minor" ) else if "%choice%"=="3" ( set "version_type=patch" ) else if "%choice%"=="4" ( goto :install_and_build ) else if "%choice%"=="5" ( goto :eof ) else (
+if "!choice!"=="1" ( set "version_type=major" ) else if "!choice!"=="2" ( set "version_type=minor" ) else if "!choice!"=="3" ( set "version_type=patch" ) else if "!choice!"=="4" ( goto :install_and_build ) else if "!choice!"=="5" ( goto :eof ) else (
     echo Invalid choice.
     goto :menu
 )
 
 :confirm_version
 echo.
-echo You have selected a %version_type% release. This will create a new git commit and tag.
+echo You have selected a !version_type! release. This will create a new git commit and tag.
 set /p "confirm=Are you sure? (y/n) [Y]: " || set "confirm=y"
 if /i not "!confirm!"=="y" (
     echo Action cancelled.
@@ -34,7 +34,7 @@ if /i not "!confirm!"=="y" (
 )
 echo.
 echo Updating version...
-call pnpm tsx scripts/version.ts %version_type%
+call pnpm tsx scripts/version.ts !version_type!
 if !errorlevel! neq 0 ( goto :error )
 
 :install_and_build
@@ -49,8 +49,12 @@ echo Build and packaging finished successfully!
 echo.
 
 :ask_for_release
-choice /c yn /m "Do you want to create a GitHub Release now?" /t 5 /d n
-if !errorlevel! equ 1 ( set "release_confirm=y" ) else ( set "release_confirm=n" )
+echo.
+echo Do you want to create a GitHub Release now?
+echo   [Y] Yes, create release
+echo   [N] No, skip release (default)
+echo.
+set /p "release_confirm=Enter your choice (Y,N) [N]?" || set "release_confirm=n"
 
 if /i not "!release_confirm!"=="y" (
     echo OK. Skipping GitHub Release.
@@ -96,6 +100,9 @@ git push && git push --tags
 if !errorlevel! neq 0 ( goto :error )
 
 echo Creating release and uploading !zip_name!...
+echo Debug: tag_name=!tag_name!
+echo Debug: zip_path=!zip_path!
+echo Debug: version_type=!version_type!
 gh release create !tag_name! "!zip_path!" --title "Release !tag_name!" --notes "New !version_type! release."
 if !errorlevel! neq 0 ( goto :error )
 
