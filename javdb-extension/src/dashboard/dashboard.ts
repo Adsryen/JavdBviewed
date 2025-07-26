@@ -5,6 +5,7 @@ import { initRecordsTab } from './tabs/records';
 import { initSettingsTab } from './tabs/settings';
 import { initAdvancedSettingsTab } from './tabs/advanced';
 import { initLogsTab } from './tabs/logs';
+import { initializeNetworkTestTab } from './tabs/network';
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSettingsTab();
     initAdvancedSettingsTab();
     initLogsTab();
+    initializeNetworkTestTab();
     initSidebarActions();
     initStatsOverview();
     initInfoContainer();

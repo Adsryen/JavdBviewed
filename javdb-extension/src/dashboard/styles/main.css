@@ -298,4 +298,119 @@ button.primary {
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+/* Network Test Styles */
+#start-ping-test {
+    position: relative;
+    min-width: 120px;
+}
+
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s ease-in-out infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -10px;
+    margin-left: -10px;
+}
+
+#ping-results {
+    margin-top: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 100px;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+}
+
+.ping-result-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ping-result-item:last-child {
+    border-bottom: none;
+}
+
+.ping-result-item .icon {
+    margin-right: 12px;
+    font-size: 16px;
+}
+
+.ping-result-item.success .icon {
+    color: #28a745; /* Green */
+}
+
+.ping-result-item.failure .icon {
+    color: #dc3545; /* Red */
+}
+
+.ping-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #eef7ff;
+    border: 1px solid #bce8f1;
+    border-radius: 8px;
+}
+
+.ping-summary h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #31708f;
+}
+
+.ping-summary p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+} 
+
+/* Input with icon */
+.input-with-icon {
+    position: relative;
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.input-with-icon .icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 10px 15px 10px 40px; /* Left padding for icon */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    box-sizing: border-box; /* Add this to fix width issue */
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 } 

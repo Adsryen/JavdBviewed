@@ -18,7 +18,7 @@
         "https://*.owncloud.com/*"
     ],
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:;"
+        "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; connect-src 'self' https://*.javdb.com https://dav.jianguoyun.com https://*.teracloud.jp https://*.webdav.yandex.com https://*.nextcloud.com https://*.owncloud.com;"
     },
     "background": {
         "service_worker": "background/background.ts",
