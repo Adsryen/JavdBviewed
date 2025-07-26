@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON图标测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .video-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            background-color: white;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        .video-content-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .video-id-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .video-id-link {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin: -2px -4px;
+        }
+
+        .video-id-link:hover {
+            color: #0056b3;
+            background-color: rgba(0, 123, 255, 0.1);
+            text-decoration: underline;
+        }
+
+        .video-id-text {
+            font-weight: bold;
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .json-info-icon {
+            font-size: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: all 0.2s ease;
+            padding: 2px 6px;
+            border-radius: 4px;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 18px;
+            color: #666;
+            border: 1px solid transparent;
+        }
+
+        .json-info-icon:hover {
+            opacity: 1;
+            background-color: #f0f8ff;
+            border-color: #ddd;
+            color: #333;
+            transform: scale(1.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .video-title {
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.9rem;
+        }
+
+        .video-date {
+            font-size: 0.85rem;
+            color: #999;
+            white-space: nowrap;
+        }
+
+        #json-tooltip {
+            position: fixed;
+            display: none;
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            z-index: 1000;
+            width: 400px;
+            max-height: 400px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>优化后的番号列表测试</h1>
+    <p>功能测试：</p>
+    <ul>
+        <li>有 <code>javdbUrl</code> 的番号显示为蓝色链接，点击可跳转</li>
+        <li>没有 <code>javdbUrl</code> 的番号显示为灰色文本，不可点击</li>
+        <li>将鼠标悬停在番号ID右侧的 <code>{ }</code> 图标上查看JSON数据</li>
+    </ul>
+
+    <div class="video-item">
+        <div class="video-content-wrapper">
+            <div class="video-id-container">
+                <a href="https://javdb.com/v/abc123" target="_blank" class="video-id-link">SSIS-123</a>
+                <span class="json-info-icon" title="查看原始JSON数据">{ }</span>
+            </div>
+            <span class="video-title">测试视频标题（有链接）</span>
+        </div>
+        <span class="video-date">2024-01-15 10:30</span>
+    </div>
+
+    <div class="video-item">
+        <div class="video-content-wrapper">
+            <div class="video-id-container">
+                <span class="video-id-text">MIDV-456</span>
+                <span class="json-info-icon" title="查看原始JSON数据">{ }</span>
+            </div>
+            <span class="video-title">另一个测试视频标题（无链接）</span>
+        </div>
+        <span class="video-date">2024-01-16 14:20</span>
+    </div>
+
+    <div class="video-item">
+        <div class="video-content-wrapper">
+            <div class="video-id-container">
+                <span class="video-id-text">EMPTY-URL</span>
+                <span class="json-info-icon" title="查看原始JSON数据">{ }</span>
+            </div>
+            <span class="video-title">空URL测试（javdbUrl为空字符串）</span>
+        </div>
+        <span class="video-date">2024-01-17 09:15</span>
+    </div>
+
+    <pre id="json-tooltip"></pre>
+
+    <script>
+        const tooltipElement = document.getElementById('json-tooltip');
+        const jsonIcons = document.querySelectorAll('.json-info-icon');
+
+        // 模拟JSON数据
+        const sampleDataWithUrl = {
+            id: "SSIS-123",
+            title: "测试视频标题（有链接）",
+            status: "viewed",
+            createdAt: "2024-01-15T10:30:00Z",
+            javdbUrl: "https://javdb.com/v/abc123",
+            tags: ["tag1", "tag2"],
+            metadata: {
+                duration: "120分钟",
+                studio: "测试工作室"
+            }
+        };
+
+        const sampleDataWithoutUrl = {
+            id: "MIDV-456",
+            title: "另一个测试视频标题（无链接）",
+            status: "want",
+            createdAt: "2024-01-16T14:20:00Z",
+            javdbUrl: null,
+            tags: ["tag3", "tag4"],
+            metadata: {
+                duration: "150分钟",
+                studio: "另一个工作室"
+            }
+        };
+
+        const sampleDataWithEmptyUrl = {
+            id: "EMPTY-URL",
+            title: "空URL测试（javdbUrl为空字符串）",
+            status: "browsed",
+            createdAt: "2024-01-17T09:15:00Z",
+            javdbUrl: "",
+            tags: ["tag5"],
+            metadata: {
+                duration: "90分钟",
+                studio: "测试工作室"
+            }
+        };
+
+        function updateTooltipPosition(e) {
+            if (!tooltipElement) return;
+            const x = e.clientX + 15;
+            const y = e.clientY + 15;
+            const tooltipWidth = tooltipElement.offsetWidth;
+            const tooltipHeight = tooltipElement.offsetHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let newX = x;
+            let newY = y;
+
+            if (x + tooltipWidth > viewportWidth) {
+                newX = viewportWidth - tooltipWidth - 15;
+            }
+            if (y + tooltipHeight > viewportHeight) {
+                newY = viewportHeight - tooltipHeight - 15;
+            }
+
+            tooltipElement.style.left = `${newX}px`;
+            tooltipElement.style.top = `${newY}px`;
+        }
+
+        jsonIcons.forEach((icon, index) => {
+            let data;
+            switch(index) {
+                case 0:
+                    data = sampleDataWithUrl;
+                    break;
+                case 1:
+                    data = sampleDataWithoutUrl;
+                    break;
+                case 2:
+                    data = sampleDataWithEmptyUrl;
+                    break;
+                default:
+                    data = sampleDataWithUrl;
+            }
+
+            icon.addEventListener('mouseenter', (e) => {
+                tooltipElement.textContent = JSON.stringify(data, null, 2);
+                tooltipElement.style.display = 'block';
+                updateTooltipPosition(e);
+            });
+
+            icon.addEventListener('mouseleave', () => {
+                tooltipElement.style.display = 'none';
+            });
+
+            icon.addEventListener('mousemove', (e) => {
+                updateTooltipPosition(e);
+            });
+        });
+    </script>
+</body>
+</html>

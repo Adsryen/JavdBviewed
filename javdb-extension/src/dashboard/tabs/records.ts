@@ -1,6 +1,7 @@
 import { STATE } from '../state';
 import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
+import { showMessage } from '../ui/toast';
 
 export function initRecordsTab(): void {
     const searchInput = document.getElementById('searchInput') as HTMLInputElement;
@@ -79,22 +80,6 @@ export function initRecordsTab(): void {
             const li = document.createElement('li');
             li.className = 'video-item';
 
-            li.addEventListener('mouseenter', (e) => {
-                if (!tooltipElement) return;
-                tooltipElement.textContent = JSON.stringify(record, null, 2);
-                tooltipElement.style.display = 'block';
-                updateTooltipPosition(e);
-            });
-
-            li.addEventListener('mouseleave', () => {
-                if (!tooltipElement) return;
-                tooltipElement.style.display = 'none';
-            });
-
-            li.addEventListener('mousemove', (e) => {
-                updateTooltipPosition(e);
-            });
-
 
             // Create a container for search engine icons
             const iconsContainer = document.createElement('div');
@@ -123,15 +108,121 @@ export function initRecordsTab(): void {
             const date = new Date(record.createdAt);
             const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
+            const refreshButton = document.createElement('button');
+            refreshButton.className = 'refresh-button';
+            refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            refreshButton.title = '同步数据 - 从JavDB获取最新信息';
+            refreshButton.addEventListener('click', async (e) => {
+                e.stopPropagation(); 
+                
+                refreshButton.classList.add('is-loading');
+                refreshButton.disabled = true;
+                refreshButton.title = '正在同步数据...';
+
+                try {
+                    // First test if background script is responding
+                    console.log(`[Dashboard] Testing background script connection...`);
+                    const pingResponse = await chrome.runtime.sendMessage({ type: 'ping' });
+                    console.log(`[Dashboard] Ping response:`, pingResponse);
+
+                    if (!pingResponse || !pingResponse.success) {
+                        throw new Error('后台脚本无响应，请重新加载扩展');
+                    }
+
+                    console.log(`[Dashboard] Sending refresh request for videoId: ${record.id}`);
+                    const response = await chrome.runtime.sendMessage({
+                        type: 'refresh-record',
+                        videoId: record.id
+                    });
+
+                    console.log(`[Dashboard] Received response for ${record.id}:`, response);
+
+                    if (response?.success) {
+                        // Find the record in the main STATE and update it
+                        const recordIndex = STATE.records.findIndex(r => r.id === record.id);
+                        if (recordIndex !== -1) {
+                            STATE.records[recordIndex] = response.record;
+                        }
+                        updateFilteredRecords();
+                        render();
+                        showMessage(`'${record.id}' 已成功刷新。`, 'success');
+                    } else {
+                        // Handle cases where response is undefined or success is false
+                        const errorMessage = response?.error || '刷新请求未收到响应或失败';
+                        console.error(`[Dashboard] Refresh failed for ${record.id}:`, errorMessage);
+                        throw new Error(errorMessage);
+                    }
+                } catch (error: any) {
+                    console.error(`[Dashboard] Error during refresh for ${record.id}:`, error);
+                    showMessage(`刷新 '${record.id}' 失败: ${error.message}`, 'error');
+                } finally {
+                    console.log(`[Dashboard] Finalizing refresh UI for ${record.id}`);
+                    // This button might not exist anymore if the list was re-rendered, so check first.
+                    const newButton = document.querySelector(`[data-record-id="${record.id}"] .refresh-button`) as HTMLButtonElement;
+                    if (newButton) {
+                        newButton.classList.remove('is-loading');
+                        newButton.removeAttribute('disabled');
+                        newButton.title = '同步数据 - 从JavDB获取最新信息';
+                    }
+                }
+            });
+
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'video-controls';
+            controlsContainer.appendChild(iconsContainer);
+            controlsContainer.appendChild(refreshButton);
+
+            // Create JSON info icon
+            const jsonIcon = document.createElement('span');
+            jsonIcon.className = 'json-info-icon';
+            jsonIcon.innerHTML = '{ }';
+            jsonIcon.title = '查看原始JSON数据';
+
+            // Add hover events for JSON tooltip
+            jsonIcon.addEventListener('mouseenter', (e) => {
+                if (!tooltipElement) return;
+                tooltipElement.textContent = JSON.stringify(record, null, 2);
+                tooltipElement.style.display = 'block';
+                updateTooltipPosition(e);
+            });
+
+            jsonIcon.addEventListener('mouseleave', () => {
+                if (!tooltipElement) return;
+                tooltipElement.style.display = 'none';
+            });
+
+            jsonIcon.addEventListener('mousemove', (e) => {
+                updateTooltipPosition(e);
+            });
+
+            // Create the video ID element (with or without link based on javdbUrl)
+            let videoIdHtml = '';
+            if (record.javdbUrl && record.javdbUrl.trim() !== '' && record.javdbUrl !== '#') {
+                videoIdHtml = `<a href="${record.javdbUrl}" target="_blank" class="video-id-link">${record.id}</a>`;
+            } else {
+                videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
+            }
+
             li.innerHTML = `
-                <span class="video-id">${record.id}</span>
-                <span class="video-title">${record.title}</span>
+                <div class="video-content-wrapper">
+                    <div class="video-id-container">
+                        ${videoIdHtml}
+                    </div>
+                    <span class="video-title">${record.title}</span>
+                </div>
                 <span class="video-date">${formattedDate}</span>
                 <span class="video-status status-${record.status}">${record.status}</span>
             `;
 
+            // Insert the JSON icon after the video ID
+            const videoIdContainer = li.querySelector('.video-id-container');
+            if (videoIdContainer) {
+                videoIdContainer.appendChild(jsonIcon);
+            }
+
             // Append the icons container to the list item
-            li.appendChild(iconsContainer);
+            li.appendChild(controlsContainer);
+            li.dataset.recordId = record.id;
             videoList.appendChild(li);
         });
     }

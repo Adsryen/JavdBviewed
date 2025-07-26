@@ -25,6 +25,9 @@
   "pnpm": {
     "neverBuiltDependencies": [
       "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "esbuild"
     ]
   }
 }
