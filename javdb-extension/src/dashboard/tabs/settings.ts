@@ -4,6 +4,9 @@ import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
 import type { ExtensionSettings } from '../../types';
 
+// Import updateSyncStatus function
+declare function updateSyncStatus(): void;
+
 export function initSettingsTab(): void {
     const webdavEnabled = document.getElementById('webdavEnabled') as HTMLInputElement;
     const webdavUrl = document.getElementById('webdavUrl') as HTMLInputElement;
@@ -128,6 +131,11 @@ export function initSettingsTab(): void {
         chrome.runtime.sendMessage({ type: 'setup-alarms' });
         showMessage('Settings saved successfully!');
         logAsync('INFO', '用户设置已保存。', { settings: newSettings });
+
+        // Update sync status display
+        if (typeof updateSyncStatus === 'function') {
+            updateSyncStatus();
+        }
     }
 
     function handleTestWebDAV() {
