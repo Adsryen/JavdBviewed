@@ -1,6 +1,5 @@
 /* Help Panel (Modal) */
 #helpPanel {
-    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -8,64 +7,132 @@
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.6);
     z-index: 1000;
-    overflow-y: auto;
+    display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
     box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 #helpPanel.visible {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
 }
 #helpPanel .help-content-wrapper {
     background: white;
-    padding: 30px;
-    border-radius: 12px;
-    max-width: 800px;
-    width: 90%;
+    padding: 0;
+    border-radius: 16px;
+    max-width: 900px;
+    width: 95%;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
     position: relative;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+#helpPanel.visible .help-content-wrapper {
+    transform: scale(1);
 }
 #helpPanel .help-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
+    padding: 25px 30px;
+    margin: 0;
+    border-bottom: 1px solid #e8e8e8;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px 16px 0 0;
 }
 #helpPanel h2 {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 600;
     margin: 0;
+    color: white;
 }
 #closeHelpBtn {
     cursor: pointer;
     font-size: 28px;
     font-weight: bold;
     line-height: 1;
-    color: #999;
+    color: rgba(255, 255, 255, 0.8);
     background: none;
     border: none;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
 }
 #closeHelpBtn:hover {
-    color: #333;
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+#helpPanel .help-body {
+    padding: 30px;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
 }
 #helpPanel h3 {
     font-size: 18px;
     font-weight: 600;
-    margin-top: 25px;
-    margin-bottom: 12px;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #f0f0f0;
+}
+#helpPanel h3:first-child {
+    margin-top: 0;
+}
+#helpPanel h3 i {
+    color: #667eea;
+    font-size: 20px;
 }
 #helpPanel ul {
-    padding-left: 20px;
-    list-style-type: disc;
+    padding-left: 0;
+    list-style: none;
+    margin-bottom: 25px;
 }
 #helpPanel li {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     line-height: 1.7;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+#helpPanel li:hover {
+    background: #e3f2fd;
+    transform: translateX(5px);
+}
+#helpPanel li strong {
+    color: #333;
+    font-weight: 600;
+}
+#helpPanel .help-footer {
+    margin-top: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+#helpPanel .help-footer p {
+    margin: 8px 0;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#helpPanel .help-footer i {
+    color: #667eea;
+    font-size: 16px;
 }
 
 /* =================================================================

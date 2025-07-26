@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleWatchedContainer = document.getElementById('toggleWatchedContainer') as HTMLDivElement;
     const toggleViewedContainer = document.getElementById('toggleViewedContainer') as HTMLDivElement;
     const toggleVRContainer = document.getElementById('toggleVRContainer') as HTMLDivElement;
-    const idCountDisplay = document.getElementById('idCountDisplay') as HTMLDivElement;
+
     const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
 
     // Open Dashboard
@@ -35,16 +35,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function createToggleButton(
         key: keyof ExtensionSettings['display'],
         container: HTMLElement,
-        textActive: string,
-        textInactive: string
+        textShowing: string,
+        textHiding: string
     ) {
         const button = document.createElement('button');
         button.className = 'toggle-button';
         let settings: ExtensionSettings;
 
-        const updateState = (isActive: boolean) => {
-            button.textContent = isActive ? textActive : textInactive;
-            button.classList.toggle('active', !isActive);
+        const updateState = (isHiding: boolean) => {
+            // isHiding=true means the feature is enabled (hiding content)
+            // isHiding=false means the feature is disabled (showing content)
+            button.textContent = isHiding ? `当前：${textHiding}` : `当前：${textShowing}`;
+            button.classList.toggle('active', isHiding);
         };
 
         settings = await getSettings();
@@ -68,18 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         container.innerHTML = '';
         container.appendChild(button);
-    }
-
-    // Info Displays
-    async function updateCountDisplay() {
-        const viewedData = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-        const records = Object.values(viewedData);
-        const viewedCount = records.filter(r => r.status === VIDEO_STATUS.VIEWED).length;
-        const wantCount = records.filter(r => r.status === VIDEO_STATUS.WANT).length;
-        idCountDisplay.innerHTML = `
-            <div><span class="count">${viewedCount}</span><span class="label">已观看</span></div>
-            <div><span class="count">${wantCount}</span><span class="label">想看</span></div>
-        `;
     }
 
     // Help Panel
@@ -109,10 +99,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Initializer Function
     async function initialize() {
-        updateCountDisplay();
-        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看', '隐藏已看');
-        createToggleButton('hideBrowsed', toggleViewedContainer, '显示浏览', '隐藏浏览');
-        createToggleButton('hideVR', toggleVRContainer, '显示VR', '隐藏VR');
+        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的番号', '隐藏已看的番号');
+        createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的番号', '隐藏已浏览的番号');
+        createToggleButton('hideVR', toggleVRContainer, '显示VR番号', '隐藏VR番号');
         
         const manifest = chrome.runtime.getManifest();
         versionAuthorInfo.textContent = `v${manifest.version}`;

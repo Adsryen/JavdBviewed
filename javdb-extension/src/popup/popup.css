@@ -38,25 +38,7 @@ body {
     transform: scale(1.1);
 }
 
-/* Stats */
-.stats-container {
-    display: flex;
-    justify-content: space-around;
-    text-align: center;
-    margin-bottom: 15px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-}
-.stats-container .count {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-}
-.stats-container .label {
-    font-size: 12px;
-    color: #666;
-}
+
 
 /* Main Controls */
 .main-controls {
@@ -80,11 +62,11 @@ body {
 }
 
 .toggle-button.active {
-    background-color: #ff4a4a; /* Red for "Hiding" */
+    background-color: #808080; /* Gray for "Hiding" - matches web version */
 }
 
-.toggle-button.inactive {
-    background-color: #2ed573; /* Green for "Showing" */
+.toggle-button:not(.active) {
+    background-color: #2ed573; /* Green for "Showing" - matches web version */
 }
 
 /* Dashboard Link */
