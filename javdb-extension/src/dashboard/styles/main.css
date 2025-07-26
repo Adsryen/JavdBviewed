@@ -107,7 +107,7 @@ button:disabled {
 }
 
 /* Info/Toggle Actions: Teal */
-#editJsonBtn {
+#editJsonBtn, #checkDataStructureBtn {
     background-color: #17a2b8;
 }
 
