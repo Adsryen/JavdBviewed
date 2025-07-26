@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from '../utils/config';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { showConfirmationModal } from './ui/modal';
+import { getHigherPriorityStatus } from '../utils/statusPriority';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
@@ -96,6 +97,7 @@ export async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'o
         let currentRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
         let newRecordsCount = 0;
         let overwrittenRecordsCount = 0;
+        let upgradedCount = 0;
         const newRecords: Record<string, VideoRecord> = {};
 
         // 1. Build a map of all records to be imported from the file
@@ -157,25 +159,41 @@ export async function applyTampermonkeyData(jsonData: string, mode: 'merge' | 'o
 
         } else { // mode === 'merge'
             let addedCount = 0;
-            Object.keys(newRecords).forEach(videoId => {
+            for (const videoId of Object.keys(newRecords)) {
                 if (!currentRecords[videoId]) {
+                    // 新记录，直接添加
                     currentRecords[videoId] = newRecords[videoId];
                     addedCount++;
+                } else {
+                    // 记录已存在，检查是否可以升级状态
+                    const currentStatus = currentRecords[videoId].status;
+                    const newStatus = newRecords[videoId].status;
+                    const finalStatus = getHigherPriorityStatus(currentStatus, newStatus);
+
+                    if (finalStatus !== currentStatus) {
+                        // 状态可以升级
+                        currentRecords[videoId].status = finalStatus;
+                        currentRecords[videoId].updatedAt = Date.now();
+                        upgradedCount++;
+                        await logAsync('INFO', `状态升级: ${videoId} 从 '${currentStatus}' 升级到 '${finalStatus}'`);
+                    }
                 }
-            });
+            }
             newRecordsCount = addedCount;
             
-            if (newRecordsCount > 0) {
+            if (newRecordsCount > 0 || upgradedCount > 0) {
                  await setValue(STORAGE_KEYS.VIEWED_RECORDS, currentRecords);
-                 await logAsync('INFO', `油猴脚本合并导入完成。`, { new: newRecordsCount });
+                 await logAsync('INFO', `油猴脚本合并导入完成。`, { new: newRecordsCount, upgraded: upgradedCount });
             }
         }
         
         // 3. Report result
-        if (newRecordsCount > 0 || overwrittenRecordsCount > 0) {
+        if (newRecordsCount > 0 || overwrittenRecordsCount > 0 || (mode === 'merge' && upgradedCount > 0)) {
             let successMessage = `成功合并导入 ${newRecordsCount} 条新记录。`;
             if (mode === 'overwrite') {
                  successMessage = `成功覆盖 ${overwrittenRecordsCount} 条旧记录，并导入 ${newRecordsCount} 条新记录。`;
+            } else if (mode === 'merge' && upgradedCount > 0) {
+                successMessage = `成功合并导入 ${newRecordsCount} 条新记录，升级 ${upgradedCount} 条记录状态。`;
             }
             showMessage(successMessage, 'success');
             setTimeout(() => window.location.reload(), 1500);
