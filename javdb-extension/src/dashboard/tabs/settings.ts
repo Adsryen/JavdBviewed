@@ -129,6 +129,16 @@ export function initSettingsTab(): void {
         await saveSettings(newSettings);
         STATE.settings = newSettings;
         chrome.runtime.sendMessage({ type: 'setup-alarms' });
+
+        // 通知所有JavDB标签页设置已更新
+        chrome.tabs.query({ url: '*://javdb.com/*' }, (tabs) => {
+            tabs.forEach(tab => {
+                if (tab.id) {
+                    chrome.tabs.sendMessage(tab.id, { type: 'settings-updated' });
+                }
+            });
+        });
+
         showMessage('Settings saved successfully!');
         logAsync('INFO', '用户设置已保存。', { settings: newSettings });
 

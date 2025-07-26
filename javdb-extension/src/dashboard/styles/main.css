@@ -10,7 +10,7 @@ body {
 .dashboard-container {
     display: flex;
     width: 100%;
-    max-width: 1400px;
+    max-width: 1600px; /* 增加面板宽度 */
     margin: 20px auto;
     background: #fff;
     border-radius: 16px;

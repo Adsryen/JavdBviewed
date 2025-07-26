@@ -59,9 +59,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             await saveSettings(settings);
             updateState(newState);
 
+            // 发送消息通知内容脚本设置已更新
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs[0]?.url?.includes('javdb')) {
                     if (tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, { type: 'settings-updated' });
+                        // 仍然刷新页面以确保所有更改生效
                         chrome.tabs.reload(tabs[0].id);
                     }
                 }
