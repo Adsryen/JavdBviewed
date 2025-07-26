@@ -7,9 +7,26 @@ export function initRecordsTab(): void {
     const filterSelect = document.getElementById('filterSelect') as HTMLSelectElement;
     const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
     const videoList = document.getElementById('videoList') as HTMLUListElement;
-    const paginationContainer = document.querySelector('.pagination') as HTMLDivElement;
+    const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
+    let tooltipElement: HTMLPreElement | null = null;
+
+    function createTooltip() {
+        if (tooltipElement) return;
+        tooltipElement = document.createElement('pre');
+        tooltipElement.id = 'json-tooltip';
+        document.body.appendChild(tooltipElement);
+    }
+
+    function removeTooltip() {
+        if (tooltipElement) {
+            tooltipElement.remove();
+            tooltipElement = null;
+        }
+    }
+
+    createTooltip();
 
     if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
@@ -62,6 +79,23 @@ export function initRecordsTab(): void {
             const li = document.createElement('li');
             li.className = 'video-item';
 
+            li.addEventListener('mouseenter', (e) => {
+                if (!tooltipElement) return;
+                tooltipElement.textContent = JSON.stringify(record, null, 2);
+                tooltipElement.style.display = 'block';
+                updateTooltipPosition(e);
+            });
+
+            li.addEventListener('mouseleave', () => {
+                if (!tooltipElement) return;
+                tooltipElement.style.display = 'none';
+            });
+
+            li.addEventListener('mousemove', (e) => {
+                updateTooltipPosition(e);
+            });
+
+
             // Create a container for search engine icons
             const iconsContainer = document.createElement('div');
             iconsContainer.className = 'video-search-icons';
@@ -87,7 +121,7 @@ export function initRecordsTab(): void {
             });
 
             const date = new Date(record.createdAt);
-            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
             li.innerHTML = `
                 <span class="video-id">${record.id}</span>
@@ -100,6 +134,29 @@ export function initRecordsTab(): void {
             li.appendChild(iconsContainer);
             videoList.appendChild(li);
         });
+    }
+
+    function updateTooltipPosition(e: MouseEvent) {
+        if (!tooltipElement) return;
+        const x = e.clientX + 15;
+        const y = e.clientY + 15;
+        const tooltipWidth = tooltipElement.offsetWidth;
+        const tooltipHeight = tooltipElement.offsetHeight;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let newX = x;
+        let newY = y;
+
+        if (x + tooltipWidth > viewportWidth) {
+            newX = viewportWidth - tooltipWidth - 15;
+        }
+        if (y + tooltipHeight > viewportHeight) {
+            newY = viewportHeight - tooltipHeight - 15;
+        }
+
+        tooltipElement.style.left = `${newX}px`;
+        tooltipElement.style.top = `${newY}px`;
     }
 
     function renderPagination() {
