@@ -6,35 +6,25 @@ import { showConfirmationModal } from './ui/modal';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
-  if ('timestamp' in record && typeof record.timestamp === 'number') {
-    const oldRecord = record as any;
-    
-    let newStatus: VideoStatus = 'browsed';
-    if (oldRecord.status === 'viewed') {
-      newStatus = 'viewed';
-    }
-
-    return {
-      id: oldRecord.id,
-      title: oldRecord.title || oldRecord.id,
-      status: newStatus,
-      tags: oldRecord.tags || [],
-      createdAt: oldRecord.timestamp,
-      updatedAt: oldRecord.timestamp,
-      releaseDate: oldRecord.releaseDate,
-      actors: oldRecord.actors,
-      url: oldRecord.url,
-    };
-  }
-
   const now = Date.now();
-  return {
-    title: record.id,
-    tags: [],
-    createdAt: now,
-    updatedAt: now,
+  
+  let status: VideoStatus = 'browsed';
+  if (record.status === 'viewed') status = 'viewed';
+  else if (record.status === 'want') status = 'want';
+
+  const baseRecord: Partial<VideoRecord> = {
     ...record,
+    status,
+    title: record.title || record.id,
+    tags: record.tags || [],
   };
+
+  if (!baseRecord.createdAt) {
+    baseRecord.createdAt = now;
+  }
+  baseRecord.updatedAt = now;
+
+  return baseRecord as VideoRecord;
 }
 
 export function handleFileRestoreClick(file: { name: string, path: string }) {
@@ -221,7 +211,8 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
         }
 
         if ((importType === 'data' || importType === 'all') && importData.data && typeof importData.data === 'object' && importData.data !== null) {
-            let currentRecords = mode === 'merge' ? await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {}) : {};
+            const initialRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+            let currentRecords = mode === 'merge' ? { ...initialRecords } : {};
             
             const incomingRecords = (Array.isArray(importData.data) 
                 ? importData.data.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
@@ -234,43 +225,85 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
                 }, {} as Record<string, VideoRecord>)) as Record<string, VideoRecord>;
 
             let newRecordsCount = 0;
-            let updatedRecords: Record<string, VideoRecord>;
+            let updatedRecordsCount = 0;
+            let finalRecords: Record<string, VideoRecord>;
 
             if (mode === 'overwrite') {
-                updatedRecords = incomingRecords;
-                newRecordsCount = Object.keys(updatedRecords).length;
+                finalRecords = incomingRecords;
+                newRecordsCount = Object.keys(finalRecords).length;
                 await logAsync('INFO', `已准备覆盖所有记录，共 ${newRecordsCount} 条。`);
             } else { // merge mode
-                updatedRecords = { ...currentRecords };
+                finalRecords = { ...currentRecords };
+                const now = Date.now();
                 for (const id in incomingRecords) {
-                    if (!updatedRecords[id]) {
-                        updatedRecords[id] = incomingRecords[id];
+                    const incomingRecord = incomingRecords[id];
+                    if (finalRecords[id]) {
+                        const existingRecord = finalRecords[id];
+                        finalRecords[id] = {
+                            ...existingRecord,
+                            ...incomingRecord,
+                            createdAt: existingRecord.createdAt,
+                            updatedAt: now,
+                        };
+                        updatedRecordsCount++;
+                    } else {
+                        finalRecords[id] = {
+                            ...incomingRecord,
+                            createdAt: now,
+                            updatedAt: now,
+                        };
                         newRecordsCount++;
                     }
                 }
             }
 
-            if (newRecordsCount > 0 || mode === 'overwrite') {
-                await setValue(STORAGE_KEYS.VIEWED_RECORDS, updatedRecords);
+            if (newRecordsCount > 0 || updatedRecordsCount > 0 || mode === 'overwrite') {
+                await setValue(STORAGE_KEYS.VIEWED_RECORDS, finalRecords);
+                await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, { newRecordsCount, updatedRecordsCount });
                 recordsChanged = true;
+
                 if (mode === 'overwrite') {
                     logAsync('INFO', `已成功从文件覆盖了所有记录，共 ${newRecordsCount} 条。`);
                 } else {
-                    logAsync('INFO', `已成功从文件导入并合并了 ${newRecordsCount} 条新记录。`);
+                    logAsync('INFO', `已成功从文件导入数据：新增 ${newRecordsCount} 条，更新 ${updatedRecordsCount} 条。`);
                 }
             }
         }
 
         if (settingsChanged || recordsChanged) {
-            let successMessage = 'Import successful. ';
-            if (settingsChanged && recordsChanged) successMessage += 'Settings and data records have been updated.';
-            else if (settingsChanged) successMessage += 'Settings have been updated.';
-            else if (recordsChanged) successMessage += 'New data records have been added.';
-            else successMessage = 'No new data to import. Your records are up to date.';
+            let successMessage = '导入成功。';
 
+            if (recordsChanged) {
+                const stats = await getValue<{ newRecordsCount: number, updatedRecordsCount: number }>(STORAGE_KEYS.LAST_IMPORT_STATS, { newRecordsCount: 0, updatedRecordsCount: 0 });
+                const { newRecordsCount, updatedRecordsCount } = stats;
 
+                if (mode === 'overwrite') {
+                    successMessage += `已覆盖所有数据，共导入 ${newRecordsCount} 条记录。`;
+                } else {
+                    const parts = [];
+                    if (newRecordsCount > 0) parts.push(`新增 ${newRecordsCount} 条记录`);
+                    if (updatedRecordsCount > 0) parts.push(`更新 ${updatedRecordsCount} 条记录`);
+                    if (parts.length > 0) {
+                        successMessage += parts.join('，') + '。';
+                    } else if (!settingsChanged) {
+                        successMessage = '没有新的数据可供导入。您的记录已是最新。';
+                    }
+                }
+            }
+
+            if (settingsChanged && recordsChanged && successMessage.includes('新增')) {
+                successMessage += '同时设置已更新。';
+            } else if (settingsChanged) {
+                successMessage = '设置已成功更新。';
+            }
+            
+            if (!recordsChanged && !settingsChanged) {
+                 successMessage = '没有新的数据可供导入。您的记录已是最新。';
+            }
+            
             showMessage(successMessage, 'success');
             logAsync('INFO', `拓展数据导入成功: ${successMessage}`);
+            
             setTimeout(() => window.location.reload(), 2000);
         } else {
             showMessage('The selected file does not contain compatible "settings" or "data" fields to import.', 'warn');
