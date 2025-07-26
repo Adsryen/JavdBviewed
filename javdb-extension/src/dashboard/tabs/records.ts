@@ -31,15 +31,15 @@ export function initRecordsTab(): void {
         const sortValue = sortSelect.value;
         filteredRecords.sort((a, b) => {
             switch (sortValue) {
-                case 'timestamp_asc':
-                    return a.timestamp - b.timestamp;
+                case 'createdAt_asc':
+                    return a.createdAt - b.createdAt;
                 case 'id_asc':
                     return a.id.localeCompare(b.id);
                 case 'id_desc':
                     return b.id.localeCompare(a.id);
-                case 'timestamp_desc':
+                case 'createdAt_desc':
                 default:
-                    return b.timestamp - a.timestamp;
+                    return b.createdAt - a.createdAt;
             }
         });
     }
@@ -82,7 +82,7 @@ export function initRecordsTab(): void {
                 iconsContainer.appendChild(icon);
             });
 
-            const date = new Date(record.timestamp);
+            const date = new Date(record.createdAt);
             const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
             li.innerHTML = `
