@@ -12,7 +12,10 @@ export const STORAGE_KEYS = {
     LOGS: 'persistent_logs',
 
     // Key for storing last import statistics.
-    LAST_IMPORT_STATS: 'last_import_stats'
+    LAST_IMPORT_STATS: 'last_import_stats',
+
+    // Key for storing user profile information.
+    USER_PROFILE: 'user_profile'
 } as const;
 
 export const VIDEO_STATUS = {

@@ -334,15 +334,20 @@ export function initAdvancedSettingsTab(): void {
         }
     }
     
-    function handleExportData() {
-        // 导出完整数据（设置+影片记录），与侧边栏导出功能保持一致
+    async function handleExportData() {
+        // 导出完整数据（设置+影片记录+用户账号信息），与侧边栏导出功能保持一致
         logAsync('INFO', '用户在“高级设置”中点击了导出按钮。');
+
+        // 获取用户账号信息
+        const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+
         const dataToExport = {
             settings: STATE.settings,
             data: STATE.records.reduce((acc, record) => {
                 acc[record.id] = record;
                 return acc;
-            }, {} as Record<string, VideoRecord>)
+            }, {} as Record<string, VideoRecord>),
+            userProfile: userProfile
         };
         const dataStr = JSON.stringify(dataToExport, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -352,8 +357,8 @@ export function initAdvancedSettingsTab(): void {
         anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
         anchor.click();
         URL.revokeObjectURL(url);
-        showMessage('Full backup (settings + data) exported successfully.', 'success');
-        logAsync('INFO', '高级设置中的数据导出成功。');
+        showMessage('完整备份导出成功（包含账号信息）', 'success');
+        logAsync('INFO', '高级设置中的数据导出成功，包含用户账号信息。');
     }
 
     editJsonBtn.addEventListener('click', enableJsonEdit);

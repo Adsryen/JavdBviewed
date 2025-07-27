@@ -749,8 +749,15 @@
 
 .restore-options-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
+}
+
+/* 当屏幕较小时，改为2列布局 */
+@media (max-width: 1024px) {
+    .restore-options-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 .restore-options .form-group-checkbox {
