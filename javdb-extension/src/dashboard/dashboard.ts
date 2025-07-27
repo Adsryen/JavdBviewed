@@ -10,6 +10,7 @@ import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import { VIDEO_STATUS } from '../utils/config';
+import { showWebDAVRestoreModal } from './webdavRestore';
 import { setValue, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
@@ -424,57 +425,8 @@ function initSidebarActions(): void {
 
     if (syncDownBtn) {
         syncDownBtn.addEventListener('click', () => {
-            syncDownBtn.textContent = '正在获取列表...';
-            syncDownBtn.disabled = true;
-            setSyncingStatus(false);
-            logAsync('INFO', '用户点击“从云端恢复”，开始获取文件列表。');
-
-            chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
-                syncDownBtn.textContent = '从云端恢复';
-                syncDownBtn.disabled = false;
-
-                if (response?.success) {
-                    if (response.files && response.files.length > 0) {
-                        fileList.innerHTML = ''; // Clear previous list
-                        response.files.forEach((file: any) => {
-                            const li = document.createElement('li');
-                            li.dataset.filename = file.name;
-                            li.dataset.filepath = file.path;
-                            li.classList.add('file-item');
-
-                            li.innerHTML = `
-                                <i class="fas fa-file-alt file-icon"></i>
-                                <span class="file-name">${file.name}</span>
-                                <span class="file-date">${file.lastModified}</span>
-                            `;
-
-                            li.addEventListener('click', () => handleFileRestoreClick(file));
-                            fileList.appendChild(li);
-                        });
-                        fileListContainer.classList.remove('hidden');
-                        showMessage('获取文件列表成功，请点击文件进行恢复。');
-                        logAsync('INFO', '成功获取云端文件列表。', { fileCount: response.files.length });
-                        const settingsTab = document.querySelector('.tab-link[data-tab="tab-settings"]');
-                        if (settingsTab) {
-                            (settingsTab as HTMLButtonElement).click();
-                            setTimeout(() => {
-                                fileListContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }, 100);
-                        }
-                    } else {
-                        showMessage('在云端未找到任何备份文件。', 'warn');
-                        logAsync('WARN', '云端没有任何备份文件。');
-                    }
-                } else {
-                    showMessage(`获取文件列表失败: ${response.error}`, 'error');
-                    logAsync('ERROR', '从云端获取文件列表失败。', { error: response.error });
-                }
-
-                // Reset sync status after operation
-                setTimeout(() => {
-                    updateSyncStatus();
-                }, 500);
-            });
+            logAsync('INFO', '用户点击"从云端恢复"，打开恢复弹窗。');
+            showWebDAVRestoreModal();
         });
     }
 }

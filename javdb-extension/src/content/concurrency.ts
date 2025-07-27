@@ -107,7 +107,7 @@ class ConcurrencyManager {
 
         if (earliestOperation && earliestKey) {
             this.operationQueue.delete(earliestKey);
-            const operationId = this.executeOperation(earliestOperation.videoId, earliestOperation.type);
+            this.executeOperation(earliestOperation.videoId, earliestOperation.type);
             earliestOperation.resolve();
         }
     }

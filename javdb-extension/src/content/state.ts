@@ -33,7 +33,7 @@ export const SELECTORS = {
     TAGS_CONTAINER: '.tags.has-addons',
     FAVICON: "link[rel~='icon']",
     VIDEO_DETAIL_ID: '.panel-block.first-block',
-    VIDEO_DETAIL_RELEASE_DATE: '.movie-meta-info > span:nth-child(2)',
+    VIDEO_DETAIL_RELEASE_DATE: '.panel-block .value', // 通用选择器，需要在代码中进一步筛选包含日期的元素
     VIDEO_DETAIL_TAGS: '.panel-block.genre .value a', // 主选择器，匹配: <div class="panel-block genre"><span class="value"><a>标签</a></span></div>
     VIDEO_DETAIL_COVER_IMAGE: '.column-video-cover img.video-cover, .column-video-cover a[data-fancybox="gallery"]',
     SEARCH_RESULT_PAGE: '.container .column.is-9',

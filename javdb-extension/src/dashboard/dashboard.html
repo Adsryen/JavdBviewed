@@ -146,18 +146,34 @@
                     <div class="settings-section">
                         <h3>WebDAV 设置</h3>
                         <p class="settings-description">通过WebDAV协议，将您的观看记录备份到兼容的云存储服务（如：坚果云、Nextcloud等）。</p>
-                        <div class="form-group form-group-horizontal">
-                            <div class="form-group-checkbox">
-                                <input type="checkbox" id="webdavEnabled">
-                                <label for="webdavEnabled">启用 WebDAV 同步</label>
+                        <div class="webdav-controls-container">
+                            <div class="webdav-controls-row">
+                                <div class="form-group-checkbox webdav-enable-control">
+                                    <input type="checkbox" id="webdavEnabled">
+                                    <label for="webdavEnabled">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        启用 WebDAV 同步
+                                    </label>
+                                </div>
                             </div>
-                            <div class="form-group-checkbox">
-                                <input type="checkbox" id="webdavAutoSync">
-                                <label for="webdavAutoSync" style="margin-left: 20px;">自动上传</label>
-                            </div>
-                            <div class="form-group-inline">
-                                <label for="webdav-sync-interval">同步间隔 (分钟):</label>
-                                <input type="number" id="webdav-sync-interval" class="number-input" min="1" value="30">
+
+                            <div class="webdav-controls-row webdav-sub-controls" id="webdavSubControls">
+                                <div class="form-group-checkbox webdav-auto-control">
+                                    <input type="checkbox" id="webdavAutoSync">
+                                    <label for="webdavAutoSync">
+                                        <i class="fas fa-sync-alt"></i>
+                                        自动上传
+                                    </label>
+                                </div>
+
+                                <div class="form-group-inline webdav-interval-control">
+                                    <label for="webdav-sync-interval">
+                                        <i class="fas fa-clock"></i>
+                                        同步间隔:
+                                    </label>
+                                    <input type="number" id="webdav-sync-interval" class="number-input" min="1" max="1440" value="30">
+                                    <span class="input-suffix">分钟</span>
+                                </div>
                             </div>
                         </div>
 
@@ -414,6 +430,91 @@
       </div>
   </div>
 
+  <!-- WebDAV 恢复弹窗 -->
+  <div id="webdavRestoreModal" class="modal-overlay hidden">
+      <div class="modal-content webdav-restore-modal">
+          <div class="modal-header">
+              <h3>
+                  <i class="fas fa-cloud-download-alt"></i>
+                  从云端恢复数据
+              </h3>
+              <button class="modal-close" id="webdavRestoreModalClose">&times;</button>
+          </div>
+
+          <div class="modal-body">
+              <div id="webdavRestoreLoading" class="restore-loading hidden">
+                  <div class="loading-spinner">
+                      <i class="fas fa-spinner fa-spin"></i>
+                  </div>
+                  <p>正在获取云端文件列表...</p>
+              </div>
+
+              <div id="webdavRestoreContent" class="restore-content hidden">
+                  <div class="restore-description">
+                      <p>选择要恢复的备份文件。恢复操作将覆盖本地数据，请谨慎操作。</p>
+                  </div>
+
+                  <div class="file-list-container">
+                      <div class="file-list-header">
+                          <h4>
+                              <i class="fas fa-folder-open"></i>
+                              可用的备份文件
+                          </h4>
+                      </div>
+                      <ul id="webdavFileList" class="webdav-file-list">
+                          <!-- 文件列表将动态生成 -->
+                      </ul>
+                  </div>
+
+                  <div id="webdavRestoreOptions" class="restore-options hidden">
+                      <h4>
+                          <i class="fas fa-cog"></i>
+                          恢复选项
+                      </h4>
+                      <div class="restore-options-grid">
+                          <div class="form-group-checkbox">
+                              <input type="checkbox" id="webdavRestoreSettings" checked>
+                              <label for="webdavRestoreSettings">
+                                  <i class="fas fa-cogs"></i>
+                                  扩展设置
+                              </label>
+                              <small>WebDAV配置、搜索引擎、显示设置等</small>
+                          </div>
+                          <div class="form-group-checkbox">
+                              <input type="checkbox" id="webdavRestoreRecords" checked>
+                              <label for="webdavRestoreRecords">
+                                  <i class="fas fa-database"></i>
+                                  观看记录
+                              </label>
+                              <small>已观看、我想看、已浏览等状态记录</small>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div id="webdavRestoreError" class="restore-error hidden">
+                  <div class="error-icon">
+                      <i class="fas fa-exclamation-triangle"></i>
+                  </div>
+                  <h4>获取文件列表失败</h4>
+                  <p id="webdavRestoreErrorMessage">请检查WebDAV设置是否正确。</p>
+                  <button id="webdavRestoreRetry" class="btn btn-primary">
+                      <i class="fas fa-redo"></i>
+                      重试
+                  </button>
+              </div>
+          </div>
+
+          <div class="modal-footer">
+              <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
+              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
+                  <i class="fas fa-download"></i>
+                  开始恢复
+              </button>
+          </div>
+      </div>
+  </div>
+
   <script type="module" src="dashboard.ts"></script>
 </body>
-</html> 
+</html>

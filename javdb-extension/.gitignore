@@ -35,3 +35,6 @@ build.bat
 
 # key.pem
 *.pem
+
+# md
+*.md

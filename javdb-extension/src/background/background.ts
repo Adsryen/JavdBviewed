@@ -57,6 +57,7 @@ interface WebDAVFile {
     path: string;
     lastModified: string;
     isDirectory: boolean;
+    size?: number;
 }
 
 async function performUpload(): Promise<{ success: boolean; error?: string }> {
@@ -215,6 +216,7 @@ function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
     const responseRegex = /<response>(.*?)<\/response>/gs;
     const hrefRegex = /<href>(.*?)<\/href>/;
     const lastModifiedRegex = /<getlastmodified>(.*?)<\/getlastmodified>/;
+    const contentLengthRegex = /<getcontentlength>(.*?)<\/getcontentlength>/;
     const collectionRegex = /<resourcetype>\s*<collection\s*\/>\s*<\/resourcetype>/;
 
     let match;
@@ -228,16 +230,20 @@ function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
             if (collectionRegex.test(responseXml) || href.endsWith('/')) {
                 continue;
             }
-            
+
             if (displayName.includes('javdb-extension-backup')) {
                 const lastModifiedMatch = responseXml.match(lastModifiedRegex);
                 const lastModified = lastModifiedMatch ? new Date(lastModifiedMatch[1]).toLocaleString() : 'N/A';
-                
+
+                const contentLengthMatch = responseXml.match(contentLengthRegex);
+                const size = contentLengthMatch ? parseInt(contentLengthMatch[1], 10) : undefined;
+
                 files.push({
                     name: displayName,
                     path: href,
                     lastModified: lastModified,
                     isDirectory: false,
+                    size: size,
                 });
             }
         }
