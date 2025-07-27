@@ -1,0 +1,278 @@
+/* Data Sync Section */
+.data-sync-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.sync-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.sync-option-btn {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    padding: 16px 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 85px;
+    justify-content: center;
+}
+
+.sync-option-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    border-color: #007bff;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.sync-option-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.sync-option-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+}
+
+.sync-option-btn i {
+    font-size: 20px;
+    color: #495057;
+    transition: all 0.3s ease;
+}
+
+.sync-option-btn:hover:not(:disabled) i {
+    color: #007bff;
+    transform: scale(1.1);
+}
+
+.sync-btn-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #343a40;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.sync-option-btn small {
+    font-size: 11px;
+    color: #6c757d;
+    margin: 0;
+    line-height: 1.1;
+}
+
+.sync-option-btn:hover:not(:disabled) small {
+    color: #495057;
+}
+
+/* 特定按钮的颜色主题 */
+.sync-option-btn#syncAllData:hover:not(:disabled) {
+    border-color: #28a745;
+}
+
+.sync-option-btn#syncAllData:hover:not(:disabled) i {
+    color: #28a745;
+}
+
+.sync-option-btn#syncViewedData:hover:not(:disabled) {
+    border-color: #28a745;
+}
+
+.sync-option-btn#syncViewedData:hover:not(:disabled) i {
+    color: #28a745;
+}
+
+.sync-option-btn#syncWantData:hover:not(:disabled) {
+    border-color: #ffc107;
+}
+
+.sync-option-btn#syncWantData:hover:not(:disabled) i {
+    color: #ffc107;
+}
+
+.sync-option-btn#syncActorsData:hover:not(:disabled) {
+    border-color: #6f42c1;
+}
+
+.sync-option-btn#syncActorsData:hover:not(:disabled) i {
+    color: #6f42c1;
+}
+
+/* 同步状态信息 */
+.sync-status-info {
+    margin-top: 10px;
+}
+
+.sync-progress {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.sync-result {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.sync-result i {
+    color: #155724;
+    font-size: 14px;
+}
+
+.sync-result span {
+    font-size: 12px;
+    color: #155724;
+    font-weight: 500;
+}
+
+/* 错误状态 */
+.sync-result.error {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    border-color: #f5c6cb;
+}
+
+.sync-result.error i,
+.sync-result.error span {
+    color: #721c24;
+}
+
+/* 加载状态的按钮 */
+.sync-option-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.sync-option-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 320px) {
+    .sync-options-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .sync-option-btn {
+        padding: 14px 10px;
+        min-height: 75px;
+    }
+    
+    .sync-option-btn i {
+        font-size: 18px;
+    }
+    
+    .sync-btn-text {
+        font-size: 12px;
+    }
+    
+    .sync-option-btn small {
+        font-size: 10px;
+    }
+}
+
+/* 悬浮效果增强 */
+.sync-option-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.5s ease;
+}
+
+.sync-option-btn:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+/* 禁用状态的特殊样式 */
+.sync-option-btn:disabled::after {
+    content: '即将推出';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(108, 117, 125, 0.9);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* 数据同步区域的整体动画 */
+.data-sync-container {
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 成功同步的脉冲效果 */
+.sync-result.success {
+    animation: pulse 2s ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
