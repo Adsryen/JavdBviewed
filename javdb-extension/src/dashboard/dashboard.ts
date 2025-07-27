@@ -14,6 +14,7 @@ import { showWebDAVRestoreModal } from './webdavRestore';
 import { setValue, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { initUserProfileSection } from './userProfile';
+import { initDataSyncSection } from './dataSync';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeNetworkTestTab();
     initSidebarActions();
     initUserProfileSection();
+    initDataSyncSection();
     initStatsOverview();
     initInfoContainer();
     initHelpSystem();
@@ -146,18 +148,34 @@ function initHelpSystem(): void {
             <li><strong>数据统计：</strong>实时显示已观看、已浏览、想看等各类视频的数量统计</li>
         </ul>
 
+        <h3><i class="fas fa-user-circle"></i> 账号信息</h3>
+        <ul>
+            <li><strong>账号登录：</strong>获取并显示JavDB账号信息，包括邮箱、用户名、用户类型</li>
+            <li><strong>信息管理：</strong>支持刷新账号信息和退出登录功能</li>
+            <li><strong>数据安全：</strong>登录信息仅用于数据同步，本地安全存储</li>
+        </ul>
+
+        <h3><i class="fas fa-sync-alt"></i> 数据同步</h3>
+        <ul>
+            <li><strong>同步全部：</strong>同步所有已观看和想看的视频数据到JavDB账号</li>
+            <li><strong>分类同步：</strong>支持单独同步已观看或想看数据</li>
+            <li><strong>演员收藏：</strong>同步收藏演员数据（功能即将推出）</li>
+            <li><strong>实时进度：</strong>显示同步进度和结果反馈</li>
+        </ul>
+
         <h3><i class="fas fa-cog"></i> 设置配置</h3>
         <ul>
             <li><strong>显示设置：</strong>控制在JavDB网站上是否自动隐藏已观看、已浏览或VR类型的影片</li>
-            <li><strong>WebDAV同步：</strong>配置云端存储服务，实现多设备间的数据同步备份</li>
+            <li><strong>WebDAV备份：</strong>配置云端存储服务，实现多设备间的数据备份</li>
             <li><strong>搜索引擎：</strong>自定义外部搜索引擎，快速跳转到其他影片数据库网站</li>
         </ul>
 
-        <h3><i class="fas fa-cloud"></i> WebDAV 同步</h3>
+        <h3><i class="fas fa-cloud"></i> WebDAV 备份</h3>
         <ul>
-            <li><strong>自动同步：</strong>支持定时自动上传和下载数据，保持多设备数据一致性</li>
-            <li><strong>手动同步：</strong>随时手动执行上传/下载操作，支持增量同步</li>
+            <li><strong>自动备份：</strong>支持定时自动上传和下载数据，保持多设备数据一致性</li>
+            <li><strong>手动备份：</strong>随时手动执行上传/下载操作，支持增量备份</li>
             <li><strong>兼容性：</strong>支持坚果云、TeraCloud、Yandex等主流WebDAV服务</li>
+            <li><strong>完整备份：</strong>包含设置、记录、账号信息的完整数据备份</li>
         </ul>
 
         <h3><i class="fas fa-list-alt"></i> 日志系统</h3>

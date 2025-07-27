@@ -25,6 +25,46 @@
                 </div>
             </div>
 
+            <div class="sidebar-section" id="data-sync-section" style="display: none;">
+                <h4>数据同步</h4>
+                <div class="data-sync-container">
+                    <div class="sync-options-grid">
+                        <button id="syncAllData" class="sync-option-btn" title="同步所有视频数据">
+                            <i class="fas fa-sync-alt"></i>
+                            <span class="sync-btn-text">同步全部</span>
+                            <small>已观看 + 想看</small>
+                        </button>
+                        <button id="syncViewedData" class="sync-option-btn" title="仅同步已观看数据">
+                            <i class="fas fa-eye"></i>
+                            <span class="sync-btn-text">同步已观看</span>
+                            <small>已观看视频</small>
+                        </button>
+                        <button id="syncWantData" class="sync-option-btn" title="仅同步想看数据">
+                            <i class="fas fa-star"></i>
+                            <span class="sync-btn-text">同步想看</span>
+                            <small>想看视频</small>
+                        </button>
+                        <button id="syncActorsData" class="sync-option-btn" title="同步收藏演员数据" disabled>
+                            <i class="fas fa-users"></i>
+                            <span class="sync-btn-text">同步演员</span>
+                            <small>收藏演员</small>
+                        </button>
+                    </div>
+                    <div class="sync-status-info">
+                        <div class="sync-progress" id="syncProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <span class="progress-text" id="progressText">准备同步...</span>
+                        </div>
+                        <div class="sync-result" id="syncResult" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="syncResultText">同步完成</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="sidebar-section">
                 <h4>本地备份</h4>
                 <div class="button-group-vertical">
@@ -35,7 +75,7 @@
             </div>
 
             <div class="sidebar-section">
-                <h4>WebDAV 同步</h4>
+                <h4>WebDAV 备份</h4>
                 <div class="webdav-sync-container">
                     <div class="button-group-vertical">
                         <button id="syncNow">立即上传至云端</button>
