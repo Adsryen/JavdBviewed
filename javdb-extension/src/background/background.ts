@@ -582,11 +582,15 @@ function parseUserProfileFromHTML(html: string): any {
         const userTypeMatch = html.match(/<span class="label">用戶類型:<\/span>\s*([^<,]+)/);
         const userType = userTypeMatch ? userTypeMatch[1].trim() : '';
 
+        // 提取服务器端统计数据
+        const serverStats = parseServerStatsFromHTML(html);
+
         return {
             email,
             username,
             userType,
-            isLoggedIn: true
+            isLoggedIn: true,
+            serverStats
         };
 
     } catch (error: any) {
@@ -596,6 +600,42 @@ function parseUserProfileFromHTML(html: string): any {
             username: '',
             userType: '',
             isLoggedIn: false
+        };
+    }
+}
+
+/**
+ * 从HTML中解析服务器端统计数据
+ */
+function parseServerStatsFromHTML(html: string): any {
+    try {
+        // 提取想看数量：想看(33)
+        const wantMatch = html.match(/<a[^>]*href="\/users\/want_watch_videos"[^>]*>想看\((\d+)\)<\/a>/);
+        const wantCount = wantMatch ? parseInt(wantMatch[1], 10) : 0;
+
+        // 提取看过数量：看過(3805)
+        const watchedMatch = html.match(/<a[^>]*href="\/users\/watched_videos"[^>]*>看過\((\d+)\)<\/a>/);
+        const watchedCount = watchedMatch ? parseInt(watchedMatch[1], 10) : 0;
+
+        // 提取清单数量（可选）：我的清單
+        // 注意：清单可能没有数量显示，所以这里设为可选
+        const listsMatch = html.match(/<a[^>]*href="\/users\/lists"[^>]*>我的清單\((\d+)\)<\/a>/);
+        const listsCount = listsMatch ? parseInt(listsMatch[1], 10) : undefined;
+
+        return {
+            wantCount,
+            watchedCount,
+            listsCount,
+            lastSyncTime: Date.now()
+        };
+
+    } catch (error: any) {
+        console.error('解析服务器端统计数据失败:', error);
+        return {
+            wantCount: 0,
+            watchedCount: 0,
+            listsCount: undefined,
+            lastSyncTime: Date.now()
         };
     }
 }

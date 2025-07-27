@@ -80,30 +80,58 @@ export function initUserProfileSection(): void {
     container.innerHTML = `
         <div class="user-profile-container">
             <div id="user-profile-info" class="user-profile-info" style="display: none;">
-                <div class="user-avatar">
-                    <i class="fas fa-user-circle"></i>
+                <div class="user-basic-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-email">
+                            <i class="fas fa-envelope"></i>
+                            <span id="user-email-text">-</span>
+                        </div>
+                        <div class="user-name">
+                            <i class="fas fa-user"></i>
+                            <span id="user-name-text">-</span>
+                        </div>
+                        <div class="user-type">
+                            <i class="fas fa-crown"></i>
+                            <span id="user-type-text">-</span>
+                        </div>
+                    </div>
+                    <div class="user-actions">
+                        <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button id="logout-btn" class="logout-btn" title="退出登录">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="user-details">
-                    <div class="user-email">
-                        <i class="fas fa-envelope"></i>
-                        <span id="user-email-text">-</span>
+                <div class="user-server-stats" id="user-server-stats" style="display: none;">
+                    <div class="stats-title">
+                        <i class="fas fa-server"></i>
+                        <span>服务器数据</span>
                     </div>
-                    <div class="user-name">
-                        <i class="fas fa-user"></i>
-                        <span id="user-name-text">-</span>
+                    <div class="stats-grid">
+                        <div class="stat-item want-stat">
+                            <i class="fas fa-star"></i>
+                            <div class="stat-content">
+                                <span class="stat-label">想看</span>
+                                <span class="stat-value" id="server-want-count">-</span>
+                            </div>
+                        </div>
+                        <div class="stat-item watched-stat">
+                            <i class="fas fa-check"></i>
+                            <div class="stat-content">
+                                <span class="stat-label">看过</span>
+                                <span class="stat-value" id="server-watched-count">-</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="user-type">
-                        <i class="fas fa-crown"></i>
-                        <span id="user-type-text">-</span>
+                    <div class="stats-sync-time">
+                        <i class="fas fa-clock"></i>
+                        <span id="stats-sync-time-text">-</span>
                     </div>
-                </div>
-                <div class="user-actions">
-                    <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <button id="logout-btn" class="logout-btn" title="退出登录">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
                 </div>
             </div>
             <div id="user-login-prompt" class="user-login-prompt">
@@ -255,12 +283,73 @@ function displayUserProfile(profile: UserProfile): void {
     if (nameElement) nameElement.textContent = profile.username || '-';
     if (typeElement) typeElement.textContent = profile.userType || '-';
 
+    // 更新服务器统计数据
+    updateServerStats(profile.serverStats);
+
     // 显示用户信息，隐藏登录提示
     infoContainer.style.display = 'block';
     loginPrompt.style.display = 'none';
 
     // 刷新数据同步区域
     refreshDataSyncSection();
+}
+
+/**
+ * 更新服务器统计数据显示
+ */
+function updateServerStats(serverStats?: any): void {
+    const statsContainer = document.getElementById('user-server-stats');
+    const wantCountElement = document.getElementById('server-want-count');
+    const watchedCountElement = document.getElementById('server-watched-count');
+    const syncTimeElement = document.getElementById('stats-sync-time-text');
+
+    if (!statsContainer) return;
+
+    if (serverStats && wantCountElement && watchedCountElement && syncTimeElement) {
+        // 更新统计数据
+        wantCountElement.textContent = formatCount(serverStats.wantCount || 0);
+        watchedCountElement.textContent = formatCount(serverStats.watchedCount || 0);
+
+        // 更新同步时间
+        const syncTimeText = serverStats.lastSyncTime ?
+            formatSyncTime(serverStats.lastSyncTime) : '未同步';
+        syncTimeElement.textContent = syncTimeText;
+
+        // 显示统计数据容器
+        statsContainer.style.display = 'block';
+    } else {
+        // 隐藏统计数据容器
+        statsContainer.style.display = 'none';
+    }
+}
+
+/**
+ * 格式化数量显示（显示详细数字）
+ */
+function formatCount(count: number): string {
+    // 添加千位分隔符，显示完整数字
+    return count.toLocaleString('zh-CN');
+}
+
+/**
+ * 格式化同步时间显示
+ */
+function formatSyncTime(timestamp: number): string {
+    const now = Date.now();
+    const diff = now - timestamp;
+
+    if (diff < 60000) { // 1分钟内
+        return '刚刚同步';
+    } else if (diff < 3600000) { // 1小时内
+        const minutes = Math.floor(diff / 60000);
+        return `${minutes}分钟前`;
+    } else if (diff < 86400000) { // 24小时内
+        const hours = Math.floor(diff / 3600000);
+        return `${hours}小时前`;
+    } else {
+        const days = Math.floor(diff / 86400000);
+        return `${days}天前`;
+    }
 }
 
 /**
