@@ -420,4 +420,605 @@
 }
 .import-modal-footer .btn-default:hover {
     background-color: #e0e0e0;
-} 
+}
+
+/* WebDAV 恢复弹窗样式 - 优化版 */
+.webdav-restore-modal {
+    max-width: 900px;
+    width: 95%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.webdav-restore-modal .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.webdav-restore-modal .modal-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+    backdrop-filter: blur(10px);
+}
+
+.webdav-restore-modal .modal-header h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.webdav-restore-modal .modal-header h3 i {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.webdav-restore-modal .modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.webdav-restore-modal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+.webdav-restore-modal .modal-body {
+    padding: 30px;
+    flex: 1;
+    overflow-y: auto;
+    background: #fafbfc;
+}
+
+.webdav-restore-modal .modal-footer {
+    padding: 24px 30px;
+    border-top: 1px solid #e1e5e9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+}
+
+/* 加载状态 - 优化版 */
+.restore-loading {
+    text-align: center;
+    padding: 60px 30px;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    border-radius: 12px;
+    border: 1px solid #e1e8ed;
+}
+
+.loading-spinner {
+    font-size: 40px;
+    color: #667eea;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.restore-loading p {
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 恢复内容区域 - 优化版 */
+.restore-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.restore-description {
+    background: linear-gradient(135deg, #fff7e6 0%, #fef3e2 100%);
+    border: 1px solid #f0c674;
+    border-radius: 10px;
+    padding: 16px 20px;
+    position: relative;
+}
+
+.restore-description::before {
+    content: '⚠️';
+    position: absolute;
+    left: 20px;
+    top: 16px;
+    font-size: 16px;
+}
+
+.restore-description p {
+    color: #8b4513;
+    margin: 0 0 0 30px;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+/* 文件列表容器 - 优化版 */
+.file-list-container {
+    border: 2px solid #e1e8ed;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.file-list-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 18px 24px;
+    border-bottom: none;
+}
+
+.file-list-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.file-list-header h4 i {
+    color: #ffd700;
+    font-size: 20px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.webdav-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #ffffff;
+}
+
+.webdav-file-item {
+    display: flex;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid #f0f2f5;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    background: #ffffff;
+}
+
+.webdav-file-item:last-child {
+    border-bottom: none;
+}
+
+.webdav-file-item:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    margin-left: 4px;
+    margin-right: -4px;
+}
+
+.webdav-file-item.selected {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    box-shadow: inset 6px 0 0 #ffd700, 0 4px 16px rgba(102, 126, 234, 0.3);
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.webdav-file-item .file-icon {
+    font-size: 22px;
+    color: #667eea;
+    margin-right: 16px;
+    width: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.webdav-file-item.selected .file-icon {
+    color: #ffd700;
+    transform: scale(1.1);
+}
+
+.webdav-file-item .file-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.webdav-file-item .file-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+    line-height: 1.3;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.webdav-file-item.selected .file-name {
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.webdav-file-item .file-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.webdav-file-item .file-date {
+    font-size: 13px;
+    color: #7f8c8d;
+    font-weight: 500;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.webdav-file-item .file-size {
+    font-size: 12px;
+    color: #95a5a6;
+    font-weight: 600;
+    background: rgba(149, 165, 166, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.webdav-file-item.selected .file-date {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.webdav-file-item.selected .file-size {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.2);
+}
+
+/* 恢复选项 - 优化版 */
+.restore-options {
+    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+    border: 2px solid #b3d9ff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 8px;
+}
+
+.restore-options h4 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.restore-options h4 i {
+    color: #27ae60;
+    font-size: 20px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.restore-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.restore-options .form-group-checkbox {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    border: 2px solid #d1ecf1;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.restore-options .form-group-checkbox::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.restore-options .form-group-checkbox:hover {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+}
+
+.restore-options .form-group-checkbox:hover::before {
+    transform: scaleY(1);
+}
+
+.restore-options .form-group-checkbox input[type="checkbox"]:checked + label {
+    color: #667eea;
+}
+
+.restore-options .form-group-checkbox label {
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.restore-options .form-group-checkbox label i {
+    font-size: 18px;
+    color: #667eea;
+    transition: all 0.3s ease;
+}
+
+.restore-options .form-group-checkbox:hover label i {
+    transform: scale(1.1);
+    color: #764ba2;
+}
+
+.restore-options .form-group-checkbox small {
+    color: #5a6c7d;
+    font-size: 13px;
+    line-height: 1.5;
+    display: block;
+    margin-left: 32px;
+    font-weight: 500;
+}
+
+/* 错误状态 - 优化版 */
+.restore-error {
+    text-align: center;
+    padding: 50px 30px;
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    border: 2px solid #feb2b2;
+    border-radius: 12px;
+}
+
+.restore-error .error-icon {
+    font-size: 56px;
+    color: #e53e3e;
+    margin-bottom: 20px;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.restore-error h4 {
+    color: #c53030;
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.restore-error p {
+    color: #744210;
+    margin: 0 0 24px 0;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+/* 按钮样式 - 优化版 */
+.webdav-restore-modal .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.webdav-restore-modal .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.webdav-restore-modal .btn:hover::before {
+    left: 100%;
+}
+
+.webdav-restore-modal .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.webdav-restore-modal .btn:disabled::before {
+    display: none;
+}
+
+.webdav-restore-modal .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.webdav-restore-modal .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.webdav-restore-modal .btn-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.webdav-restore-modal .btn-secondary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+}
+
+/* 响应式设计 - 优化版 */
+@media (max-width: 768px) {
+    .webdav-restore-modal {
+        width: 96%;
+        max-height: 92vh;
+        margin: 20px auto;
+    }
+
+    .webdav-restore-modal .modal-header {
+        padding: 20px 24px;
+    }
+
+    .webdav-restore-modal .modal-header h3 {
+        font-size: 20px;
+    }
+
+    .webdav-restore-modal .modal-body {
+        padding: 24px 20px;
+    }
+
+    .restore-options-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .restore-options {
+        padding: 20px;
+    }
+
+    .webdav-restore-modal .modal-footer {
+        flex-direction: column-reverse;
+        padding: 20px 24px;
+        gap: 12px;
+    }
+
+    .webdav-restore-modal .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+        font-size: 16px;
+    }
+
+    .webdav-file-item {
+        padding: 16px 20px;
+    }
+
+    .webdav-file-item .file-name {
+        font-size: 15px;
+    }
+
+    .webdav-file-item .file-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .webdav-file-item .file-size {
+        align-self: flex-end;
+    }
+
+    .file-list-header {
+        padding: 16px 20px;
+    }
+
+    .file-list-header h4 {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .webdav-restore-modal {
+        width: 98%;
+        margin: 10px auto;
+    }
+
+    .webdav-restore-modal .modal-header {
+        padding: 18px 20px;
+    }
+
+    .webdav-restore-modal .modal-body {
+        padding: 20px 16px;
+    }
+
+    .restore-options {
+        padding: 16px;
+    }
+
+    .restore-options .form-group-checkbox {
+        padding: 16px;
+    }
+
+    .webdav-restore-modal .modal-footer {
+        padding: 18px 20px;
+    }
+}

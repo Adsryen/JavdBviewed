@@ -90,6 +90,9 @@ export function initSettingsTab(): void {
         webdavAutoSync.checked = webdav.autoSync;
         webdavSyncInterval.value = String(webdav.syncInterval);
         lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
+
+        // 更新UI状态
+        updateWebDAVControlsState();
         (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = webdav.enabled ? 'block' : 'none';
 
         hideViewed.checked = display.hideViewed;
@@ -167,8 +170,21 @@ export function initSettingsTab(): void {
         });
     }
 
+    // 更新WebDAV控件状态的函数
+    function updateWebDAVControlsState() {
+        const webdavSubControls = document.getElementById('webdavSubControls');
+        if (webdavSubControls) {
+            if (webdavEnabled.checked) {
+                webdavSubControls.classList.add('enabled');
+            } else {
+                webdavSubControls.classList.remove('enabled');
+            }
+        }
+    }
+
     saveWebdavSettingsBtn.addEventListener('click', handleSaveSettings);
     webdavEnabled.addEventListener('change', () => {
+        updateWebDAVControlsState();
         (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = webdavEnabled.checked ? 'block' : 'none';
     });
     testWebdavConnectionBtn.addEventListener('click', handleTestWebDAV);
