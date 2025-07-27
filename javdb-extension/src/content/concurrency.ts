@@ -1,6 +1,8 @@
 // src/content/concurrency.ts
 
 import { STATE, log } from './state';
+import { getValue, setValue } from '../utils/storage';
+import type { VideoRecord } from '../types';
 
 // 操作队列管理
 interface VideoOperation {
@@ -11,6 +13,307 @@ interface VideoOperation {
     resolve: () => void;
     reject: (error: any) => void;
 }
+
+// 存储操作管理器 - 解决并发存储冲突
+class StorageManager {
+    private operationQueue: Promise<any> = Promise.resolve();
+    private maxRetries = 3;
+    private retryDelay = 500;
+
+    // 原子性更新记录
+    async updateRecord(
+        videoId: string,
+        updateFn: (currentRecords: Record<string, VideoRecord>) => VideoRecord,
+        operationId: string
+    ): Promise<{ success: boolean; error?: string }> {
+        return this.operationQueue = this.operationQueue.then(async () => {
+            const startTime = Date.now();
+            let lastError: any;
+
+            for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+                try {
+                    log(`[StorageManager] Attempt ${attempt} to update ${videoId} (operation ${operationId})`);
+
+                    // 1. 从存储读取最新数据
+                    const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                    log(`[StorageManager] Read ${Object.keys(currentRecords).length} records from storage`);
+
+                    // 2. 应用更新函数
+                    const updatedRecord = updateFn(currentRecords);
+                    const recordsToSave = { ...currentRecords, [videoId]: updatedRecord };
+
+                    // 3. 保存到存储
+                    await setValue('viewed', recordsToSave);
+                    log(`[StorageManager] Saved records to storage`);
+
+                    // 4. 验证保存是否成功
+                    await new Promise(resolve => setTimeout(resolve, 100)); // 短暂等待确保存储完成
+                    const verifyRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                    const savedRecord = verifyRecords[videoId];
+
+                    if (!savedRecord) {
+                        throw new Error(`Record ${videoId} not found after save`);
+                    }
+
+                    // 验证关键字段
+                    const success = savedRecord.id === updatedRecord.id &&
+                                  savedRecord.status === updatedRecord.status &&
+                                  savedRecord.title === updatedRecord.title;
+
+                    if (!success) {
+                        throw new Error(`Record verification failed for ${videoId}`);
+                    }
+
+                    // 5. 更新内存状态
+                    STATE.records = verifyRecords;
+                    log(`[StorageManager] Successfully updated ${videoId} (operation ${operationId})`);
+
+                    // 记录成功操作（将在后面定义concurrencyMonitor）
+                    const duration = Date.now() - startTime;
+                    // concurrencyMonitor.recordOperation(operationId, videoId, 'update', attempt, true, duration);
+
+                    return { success: true };
+
+                } catch (error) {
+                    lastError = error;
+                    log(`[StorageManager] Attempt ${attempt} failed for ${videoId}:`, error);
+
+                    if (attempt < this.maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                    }
+                }
+            }
+
+            // 记录失败操作（将在后面定义concurrencyMonitor）
+            const duration = Date.now() - startTime;
+            // concurrencyMonitor.recordOperation(operationId, videoId, 'update', this.maxRetries, false, duration);
+
+            log(`[StorageManager] All attempts failed for ${videoId} (operation ${operationId}):`, lastError);
+            return { success: false, error: lastError?.message || 'Unknown error' };
+        });
+    }
+
+    // 原子性添加新记录
+    async addRecord(
+        videoId: string,
+        newRecord: VideoRecord,
+        operationId: string
+    ): Promise<{ success: boolean; error?: string; alreadyExists?: boolean }> {
+        return this.operationQueue = this.operationQueue.then(async () => {
+            const startTime = Date.now();
+            let lastError: any;
+
+            for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+                try {
+                    log(`[StorageManager] Attempt ${attempt} to add ${videoId} (operation ${operationId})`);
+
+                    // 1. 从存储读取最新数据
+                    const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+
+                    // 2. 检查是否已存在
+                    if (currentRecords[videoId]) {
+                        log(`[StorageManager] Record ${videoId} already exists, skipping add`);
+                        STATE.records = currentRecords; // 更新内存状态
+
+                        // 记录为成功操作（虽然是重复）
+                        const duration = Date.now() - startTime;
+                        // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);
+
+                        return { success: true, alreadyExists: true };
+                    }
+
+                    // 3. 添加新记录
+                    const recordsToSave = { ...currentRecords, [videoId]: newRecord };
+                    await setValue('viewed', recordsToSave);
+
+                    // 4. 验证保存是否成功
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    const verifyRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                    const savedRecord = verifyRecords[videoId];
+
+                    if (!savedRecord) {
+                        throw new Error(`Record ${videoId} not found after save`);
+                    }
+
+                    // 验证关键字段
+                    const success = savedRecord.id === newRecord.id &&
+                                  savedRecord.status === newRecord.status &&
+                                  savedRecord.title === newRecord.title;
+
+                    if (!success) {
+                        throw new Error(`Record verification failed for ${videoId}`);
+                    }
+
+                    // 5. 更新内存状态
+                    STATE.records = verifyRecords;
+                    log(`[StorageManager] Successfully added ${videoId} (operation ${operationId})`);
+
+                    // 记录成功操作
+                    const duration = Date.now() - startTime;
+                    // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);
+
+                    return { success: true, alreadyExists: false };
+
+                } catch (error) {
+                    lastError = error;
+                    log(`[StorageManager] Attempt ${attempt} failed for ${videoId}:`, error);
+
+                    if (attempt < this.maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                    }
+                }
+            }
+
+            // 记录失败操作
+            const duration = Date.now() - startTime;
+            // concurrencyMonitor.recordOperation(operationId, videoId, 'add', this.maxRetries, false, duration);
+
+            log(`[StorageManager] All attempts failed for ${videoId} (operation ${operationId}):`, lastError);
+            return { success: false, error: lastError?.message || 'Unknown error' };
+        });
+    }
+}
+
+// 单例存储管理器
+export const storageManager = new StorageManager();
+
+// 并发操作统计
+interface ConcurrencyStats {
+    totalOperations: number;
+    successfulOperations: number;
+    failedOperations: number;
+    retriedOperations: number;
+    averageRetries: number;
+}
+
+class ConcurrencyMonitor {
+    private stats: ConcurrencyStats = {
+        totalOperations: 0,
+        successfulOperations: 0,
+        failedOperations: 0,
+        retriedOperations: 0,
+        averageRetries: 0
+    };
+
+    private operationHistory: Array<{
+        operationId: string;
+        videoId: string;
+        type: 'add' | 'update';
+        attempts: number;
+        success: boolean;
+        timestamp: number;
+        duration: number;
+    }> = [];
+
+    recordOperation(
+        operationId: string,
+        videoId: string,
+        type: 'add' | 'update',
+        attempts: number,
+        success: boolean,
+        duration: number
+    ): void {
+        this.stats.totalOperations++;
+        if (success) {
+            this.stats.successfulOperations++;
+        } else {
+            this.stats.failedOperations++;
+        }
+
+        if (attempts > 1) {
+            this.stats.retriedOperations++;
+        }
+
+        this.operationHistory.push({
+            operationId,
+            videoId,
+            type,
+            attempts,
+            success,
+            timestamp: Date.now(),
+            duration
+        });
+
+        // 保持历史记录在合理范围内
+        if (this.operationHistory.length > 1000) {
+            this.operationHistory.splice(0, 500);
+        }
+
+        // 更新平均重试次数
+        const totalRetries = this.operationHistory.reduce((sum, op) => sum + (op.attempts - 1), 0);
+        this.stats.averageRetries = totalRetries / this.stats.totalOperations;
+    }
+
+    getStats(): ConcurrencyStats {
+        return { ...this.stats };
+    }
+
+    getRecentOperations(limit: number = 50): typeof this.operationHistory {
+        return this.operationHistory.slice(-limit);
+    }
+
+    logStats(): void {
+        log('[ConcurrencyMonitor] Current stats:', this.stats);
+
+        const recentFailures = this.operationHistory
+            .slice(-20)
+            .filter(op => !op.success);
+
+        if (recentFailures.length > 0) {
+            log('[ConcurrencyMonitor] Recent failures:', recentFailures);
+        }
+    }
+}
+
+export const concurrencyMonitor = new ConcurrencyMonitor();
+
+// 现在重新启用StorageManager中的监控调用
+// 修改StorageManager的方法来使用监控
+const originalStorageManager = storageManager;
+
+// 重写updateRecord方法以包含监控
+const originalUpdateRecord = originalStorageManager.updateRecord.bind(originalStorageManager);
+(originalStorageManager as any).updateRecord = async function(
+    videoId: string,
+    updateFn: (currentRecords: Record<string, VideoRecord>) => VideoRecord,
+    operationId: string
+): Promise<{ success: boolean; error?: string }> {
+    const startTime = Date.now();
+    const result = await originalUpdateRecord(videoId, updateFn, operationId);
+    const duration = Date.now() - startTime;
+
+    // 估算重试次数（简化版本）
+    const attempts = result.success ? 1 : 3;
+    concurrencyMonitor.recordOperation(operationId, videoId, 'update', attempts, result.success, duration);
+
+    return result;
+};
+
+// 重写addRecord方法以包含监控
+const originalAddRecord = originalStorageManager.addRecord.bind(originalStorageManager);
+(originalStorageManager as any).addRecord = async function(
+    videoId: string,
+    newRecord: VideoRecord,
+    operationId: string
+): Promise<{ success: boolean; error?: string; alreadyExists?: boolean }> {
+    const startTime = Date.now();
+    const result = await originalAddRecord(videoId, newRecord, operationId);
+    const duration = Date.now() - startTime;
+
+    // 估算重试次数（简化版本）
+    const attempts = result.success ? 1 : 3;
+    concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempts, result.success, duration);
+
+    return result;
+};
+
+// 定期输出统计信息
+setInterval(() => {
+    const stats = concurrencyMonitor.getStats();
+    if (stats.totalOperations > 0) {
+        concurrencyMonitor.logStats();
+    }
+}, 30000); // 每30秒输出一次统计
 
 class ConcurrencyManager {
     private operationQueue: Map<string, VideoOperation> = new Map();

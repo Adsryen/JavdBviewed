@@ -1,12 +1,12 @@
 // src/content/videoDetail.ts
 
-import { setValue } from '../utils/storage';
+// import { setValue } from '../utils/storage'; // 不再直接使用，改用storageManager
 import { VIDEO_STATUS } from '../utils/config';
 import { safeUpdateStatus } from '../utils/statusPriority';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
-import { concurrencyManager } from './concurrency';
+import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
 import { setFavicon, getRandomDelay } from './utils';
 
@@ -99,9 +99,36 @@ async function handleExistingRecord(
         log(`Status for ${videoId} remains '${record.status}' (no upgrade needed or not allowed).`);
     }
 
-    // 尝试保存到存储
-    try {
-        await setValue('viewed', STATE.records);
+    // 使用存储管理器进行原子性更新
+    const result = await storageManager.updateRecord(
+        videoId,
+        (currentRecords) => {
+            const currentRecord = currentRecords[videoId];
+            if (!currentRecord) {
+                throw new Error(`Record ${videoId} not found in current storage`);
+            }
+
+            // 创建更新后的记录，应用所有变更
+            const updatedRecord = { ...currentRecord };
+
+            // 应用数据更新
+            if (latestData.title) updatedRecord.title = latestData.title;
+            if (latestData.tags) updatedRecord.tags = latestData.tags;
+            if (latestData.releaseDate !== undefined) updatedRecord.releaseDate = latestData.releaseDate;
+            updatedRecord.javdbUrl = currentUrl;
+            if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
+            updatedRecord.updatedAt = now;
+
+            // 尝试状态升级
+            const newStatus = safeUpdateStatus(currentRecord.status, VIDEO_STATUS.BROWSED);
+            updatedRecord.status = newStatus;
+
+            return updatedRecord;
+        },
+        operationId
+    );
+
+    if (result.success) {
         log(`Successfully saved updated record for ${videoId} (operation ${operationId})`);
 
         // 显示更新信息
@@ -116,11 +143,9 @@ async function handleExistingRecord(
         }
         setFavicon(chrome.runtime.getURL("assets/jav.png"));
 
-    } catch (saveError) {
-        log(`Failed to save updated record for ${videoId} (operation ${operationId}):`, saveError);
-        // 回滚所有变更
-        Object.assign(record, oldRecord);
-        showToast(`保存失败: ${videoId}`, 'error');
+    } else {
+        log(`Failed to save updated record for ${videoId} (operation ${operationId}): ${result.error}`);
+        showToast(`保存失败: ${videoId} - ${result.error}`, 'error');
     }
 }
 
@@ -152,21 +177,21 @@ async function handleNewRecord(
                 return;
             }
 
-            // 尝试保存新记录
-            try {
-                STATE.records[videoId] = newRecord;
-                await setValue('viewed', STATE.records);
-                log(`Successfully added new record for ${videoId} (operation ${operationId})`, newRecord);
+            // 使用存储管理器进行原子性添加
+            const result = await storageManager.addRecord(videoId, newRecord, delayedOperationId);
 
-                // 只有在成功保存后才显示弹幕和更新图标
-                showToast(`成功记录番号: ${videoId}`, 'success');
+            if (result.success) {
+                if (result.alreadyExists) {
+                    log(`${videoId} was added by another operation while waiting. Skipping duplicate add.`);
+                    showToast(`番号已存在: ${videoId}`, 'info');
+                } else {
+                    log(`Successfully added new record for ${videoId} (operation ${delayedOperationId})`, newRecord);
+                    showToast(`成功记录番号: ${videoId}`, 'success');
+                }
                 setFavicon(chrome.runtime.getURL("assets/jav.png"));
-
-            } catch (saveError) {
-                log(`Failed to save new record for ${videoId} (operation ${operationId}):`, saveError);
-                // 回滚记录添加
-                delete STATE.records[videoId];
-                showToast(`保存失败: ${videoId}`, 'error');
+            } else {
+                log(`Failed to save new record for ${videoId} (operation ${delayedOperationId}): ${result.error}`);
+                showToast(`保存失败: ${videoId} - ${result.error}`, 'error');
             }
         } finally {
             concurrencyManager.finishProcessingVideo(`${videoId}-delayed`, delayedOperationId);
