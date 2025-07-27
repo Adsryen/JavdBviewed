@@ -1,0 +1,245 @@
+/* User Profile Section */
+.user-profile-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 20px;
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    margin-bottom: 15px;
+}
+
+/* User Profile Info (when logged in) */
+.user-profile-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-avatar {
+    flex-shrink: 0;
+}
+
+.user-avatar i {
+    font-size: 48px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.user-details {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.user-details > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.user-details i {
+    font-size: 12px;
+    width: 14px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-email span,
+.user-name span,
+.user-type span {
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.user-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.refresh-btn,
+.logout-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-btn:hover,
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
+
+.refresh-btn:active,
+.logout-btn:active {
+    transform: translateY(0);
+}
+
+.logout-btn:hover {
+    background: rgba(220, 53, 69, 0.3);
+    border-color: rgba(220, 53, 69, 0.5);
+}
+
+/* User Login Prompt (when not logged in) */
+.user-login-prompt {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    text-align: left;
+}
+
+.login-icon {
+    flex-shrink: 0;
+}
+
+.login-icon i {
+    font-size: 36px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.login-text {
+    flex-grow: 1;
+}
+
+.login-text p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.login-notice {
+    font-size: 12px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-weight: 400 !important;
+    margin-bottom: 12px !important;
+    font-style: italic;
+}
+
+.login-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.login-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+.login-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.login-btn i {
+    font-size: 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 320px) {
+    .user-profile-container {
+        padding: 15px;
+    }
+    
+    .user-profile-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .user-actions {
+        flex-direction: row;
+        align-self: stretch;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+    
+    .login-text p {
+        font-size: 13px;
+    }
+    
+    .login-btn {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+}
+
+/* Animation for loading states */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Hover effects for better UX */
+.user-profile-container:hover {
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    transition: all 0.3s ease;
+}
+
+/* Focus states for accessibility */
+.login-btn:focus,
+.refresh-btn:focus,
+.logout-btn:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+}
+
+/* Text selection styling */
+.user-details span::selection {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Gradient animation for enhanced visual appeal */
+.user-profile-container {
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}

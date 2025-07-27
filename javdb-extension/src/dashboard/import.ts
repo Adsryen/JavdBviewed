@@ -228,6 +228,14 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
             logAsync('INFO', '已成功从文件导入并应用新设置。');
         }
 
+        // 处理用户账号信息导入
+        let userProfileChanged = false;
+        if ((importType === 'all') && importData.userProfile && typeof importData.userProfile === 'object') {
+            await setValue(STORAGE_KEYS.USER_PROFILE, importData.userProfile);
+            userProfileChanged = true;
+            logAsync('INFO', '已成功从文件导入用户账号信息。');
+        }
+
         if ((importType === 'data' || importType === 'all') && importData.data && typeof importData.data === 'object' && importData.data !== null) {
             const initialRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
             let currentRecords = mode === 'merge' ? { ...initialRecords } : {};
@@ -288,7 +296,7 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
             }
         }
 
-        if (settingsChanged || recordsChanged) {
+        if (settingsChanged || recordsChanged || userProfileChanged) {
             let successMessage = '导入成功。';
 
             if (recordsChanged) {
@@ -303,7 +311,7 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
                     if (updatedRecordsCount > 0) parts.push(`更新 ${updatedRecordsCount} 条记录`);
                     if (parts.length > 0) {
                         successMessage += parts.join('，') + '。';
-                    } else if (!settingsChanged) {
+                    } else if (!settingsChanged && !userProfileChanged) {
                         successMessage = '没有新的数据可供导入。您的记录已是最新。';
                     }
                 }
@@ -314,11 +322,19 @@ export async function applyImportedData(jsonData: string, importType: 'data' | '
             } else if (settingsChanged) {
                 successMessage = '设置已成功更新。';
             }
-            
-            if (!recordsChanged && !settingsChanged) {
+
+            if (userProfileChanged) {
+                if (settingsChanged || recordsChanged) {
+                    successMessage += '账号信息已更新。';
+                } else {
+                    successMessage = '账号信息已成功导入。';
+                }
+            }
+
+            if (!recordsChanged && !settingsChanged && !userProfileChanged) {
                  successMessage = '没有新的数据可供导入。您的记录已是最新。';
             }
-            
+
             showMessage(successMessage, 'success');
             logAsync('INFO', `拓展数据导入成功: ${successMessage}`);
             

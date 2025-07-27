@@ -187,15 +187,17 @@ function handleConfirmRestore(): void {
     
     const restoreSettings = (document.getElementById('webdavRestoreSettings') as HTMLInputElement)?.checked ?? true;
     const restoreRecords = (document.getElementById('webdavRestoreRecords') as HTMLInputElement)?.checked ?? true;
-    
-    if (!restoreSettings && !restoreRecords) {
+    const restoreUserProfile = (document.getElementById('webdavRestoreUserProfile') as HTMLInputElement)?.checked ?? true;
+
+    if (!restoreSettings && !restoreRecords && !restoreUserProfile) {
         showMessage('请至少选择一项要恢复的内容', 'warn');
         return;
     }
-    
+
     const options = {
         restoreSettings,
-        restoreRecords
+        restoreRecords,
+        restoreUserProfile
     };
     
     logAsync('INFO', '开始恢复数据', { filename: selectedFile.name, options });

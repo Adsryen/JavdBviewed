@@ -13,6 +13,7 @@ import { VIDEO_STATUS } from '../utils/config';
 import { showWebDAVRestoreModal } from './webdavRestore';
 import { setValue, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
+import { initUserProfileSection } from './userProfile';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initLogsTab();
     initializeNetworkTestTab();
     initSidebarActions();
+    initUserProfileSection();
     initStatsOverview();
     initInfoContainer();
     initHelpSystem();
@@ -340,14 +342,18 @@ function initSidebarActions(): void {
     }
 
     if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
+        exportBtn.addEventListener('click', async () => {
             logAsync('INFO', '用户点击了“导出到本地”按钮。');
+            // 获取用户账号信息
+            const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+
             const dataToExport = {
                 settings: STATE.settings,
                 data: STATE.records.reduce((acc, record) => {
                     acc[record.id] = record;
                     return acc;
-                }, {} as Record<string, VideoRecord>)
+                }, {} as Record<string, VideoRecord>),
+                userProfile: userProfile
             };
             const dataStr = JSON.stringify(dataToExport, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -357,8 +363,8 @@ function initSidebarActions(): void {
             anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
             anchor.click();
             URL.revokeObjectURL(url);
-            showMessage('Data exported successfully.', 'success');
-            logAsync('INFO', '本地数据导出成功。');
+            showMessage('数据导出成功（包含账号信息）', 'success');
+            logAsync('INFO', '本地数据导出成功，包含用户账号信息。');
         });
     }
 
