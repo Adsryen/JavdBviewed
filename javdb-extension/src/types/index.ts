@@ -67,4 +67,12 @@ export interface UserProfile {
   userType: string; // 用户类型
   isLoggedIn: boolean; // 是否已登录
   lastUpdated?: number; // 最后更新时间 (Unix timestamp)
+  serverStats?: UserServerStats; // 服务器端统计数据
+}
+
+export interface UserServerStats {
+  wantCount: number; // 想看数量
+  watchedCount: number; // 看过数量
+  listsCount?: number; // 清单数量（可选）
+  lastSyncTime: number; // 最后同步时间
 }
