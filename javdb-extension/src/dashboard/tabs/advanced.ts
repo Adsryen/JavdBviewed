@@ -28,11 +28,11 @@ export function initAdvancedSettingsTab(): void {
     const testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
     const rawRecordsTextarea = document.getElementById('rawRecordsTextarea') as HTMLTextAreaElement;
     const refreshRawRecordsBtn = document.getElementById('refreshRawRecordsBtn') as HTMLButtonElement;
-    const editRawRecordsBtn = document.getElementById('editRawRecordsBtn') as HTMLButtonElement;
-    const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
+    // const editRawRecordsBtn = document.getElementById('editRawRecordsBtn') as HTMLButtonElement;
+    // const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
     const checkDataStructureBtn = document.getElementById('checkDataStructureBtn') as HTMLButtonElement;
 
-    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !editRawRecordsBtn || !saveRawRecordsBtn || !checkDataStructureBtn) {
+    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || /* !editRawRecordsBtn || !saveRawRecordsBtn || */ !checkDataStructureBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
     }
@@ -261,42 +261,42 @@ export function initAdvancedSettingsTab(): void {
         }
     }
 
-    function enableRawRecordsEdit() {
-        rawRecordsTextarea.readOnly = false;
-        rawRecordsTextarea.focus();
-        editRawRecordsBtn.classList.add('hidden');
-        saveRawRecordsBtn.classList.remove('hidden');
-        showMessage('Raw records editing enabled. Be careful!', 'warn');
-        logAsync('INFO', '用户启用了高级设置中的原始番号库数据编辑模式。');
-    }
+    // function enableRawRecordsEdit() {
+    //     rawRecordsTextarea.readOnly = false;
+    //     rawRecordsTextarea.focus();
+    //     editRawRecordsBtn.classList.add('hidden');
+    //     saveRawRecordsBtn.classList.remove('hidden');
+    //     showMessage('Raw records editing enabled. Be careful!', 'warn');
+    //     logAsync('INFO', '用户启用了高级设置中的原始番号库数据编辑模式。');
+    // }
 
-    async function handleSaveRawRecords() {
-        logAsync('INFO', '用户点击了“保存原始番号库数据”按钮。');
-        try {
-            const recordsObject = JSON.parse(rawRecordsTextarea.value);
-            // Construct a format that applyImportedData can understand
-            const dataToImport = {
-                data: recordsObject.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
-                    acc[record.id] = record;
-                    return acc;
-                }, {})
-            };
-            // Use applyImportedData to process the records, with overwrite mode
-            await applyImportedData(JSON.stringify(dataToImport), 'data', 'overwrite');
-            showMessage('Raw records saved successfully. The page will now reload.', 'success');
-            logAsync('INFO', '原始番号库数据已成功解析并应用。');
-        } catch (error: any) {
-            showMessage(`Error parsing or applying records JSON: ${error.message}`, 'error');
-            console.error("Failed to save raw records:", error);
-            logAsync('ERROR', '保存原始番号库数据时出错。', { error: error.message });
-        } finally {
-            // Reset UI after attempting to save
-            rawRecordsTextarea.readOnly = true;
-            saveRawRecordsBtn.classList.add('hidden');
-            editRawRecordsBtn.classList.remove('hidden');
-            loadRawRecords(); // Re-load to show the current state
-        }
-    }
+    // async function handleSaveRawRecords() {
+    //     logAsync('INFO', '用户点击了“保存原始番号库数据”按钮。');
+    //     try {
+    //         const recordsObject = JSON.parse(rawRecordsTextarea.value);
+    //         // Construct a format that applyImportedData can understand
+    //         const dataToImport = {
+    //             data: recordsObject.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
+    //                 acc[record.id] = record;
+    //                 return acc;
+    //             }, {})
+    //         };
+    //         // Use applyImportedData to process the records, with overwrite mode
+    //         await applyImportedData(JSON.stringify(dataToImport), 'data', 'overwrite');
+    //         showMessage('Raw records saved successfully. The page will now reload.', 'success');
+    //         logAsync('INFO', '原始番号库数据已成功解析并应用。');
+    //     } catch (error: any) {
+    //         showMessage(`Error parsing or applying records JSON: ${error.message}`, 'error');
+    //         console.error("Failed to save raw records:", error);
+    //         logAsync('ERROR', '保存原始番号库数据时出错。', { error: error.message });
+    //     } finally {
+    //         // Reset UI after attempting to save
+    //         rawRecordsTextarea.readOnly = true;
+    //         saveRawRecordsBtn.classList.add('hidden');
+    //         editRawRecordsBtn.classList.remove('hidden');
+    //         loadRawRecords(); // Re-load to show the current state
+    //     }
+    // }
 
     function loadJsonConfig() {
         // 只显示设置，不显示数据
@@ -362,8 +362,8 @@ export function initAdvancedSettingsTab(): void {
     refreshRawLogsBtn.addEventListener('click', loadRawLogs);
     testLogBtn.addEventListener('click', handleTestLog);
     refreshRawRecordsBtn.addEventListener('click', loadRawRecords);
-    editRawRecordsBtn.addEventListener('click', enableRawRecordsEdit);
-    saveRawRecordsBtn.addEventListener('click', handleSaveRawRecords);
+    // editRawRecordsBtn.addEventListener('click', enableRawRecordsEdit);
+    // saveRawRecordsBtn.addEventListener('click', handleSaveRawRecords);
     
     loadJsonConfig();
     // loadRawLogs(); // Removed initial auto-load for performance

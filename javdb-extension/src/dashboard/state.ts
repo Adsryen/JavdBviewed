@@ -28,6 +28,15 @@ export async function initializeGlobalState(): Promise<void> {
 
         // --- Settings Migration Logic ---
         let settingsChanged = false;
+
+        // --- Version Sync Logic ---
+        const actualVersion = import.meta.env.VITE_APP_VERSION || 'N/A';
+        if (settings.version !== actualVersion) {
+            settings.version = actualVersion;
+            settingsChanged = true;
+            await logAsync('INFO', `版本号已更新到: ${actualVersion}`);
+        }
+        // --- End Version Sync Logic ---
         if (settings.searchEngines && Array.isArray(settings.searchEngines)) {
             const migratedEngines = settings.searchEngines.map((engine: any) => {
                 let currentEngine = { ...engine };
@@ -65,11 +74,15 @@ export async function initializeGlobalState(): Promise<void> {
 
             if (settingsChanged) {
                 settings.searchEngines = migratedEngines;
-                await setValue(STORAGE_KEYS.SETTINGS, settings);
-                await logAsync('INFO', '成功迁移并修正了搜索引擎设置。');
             }
         }
         // --- End Migration Logic ---
+
+        // Save settings if any changes were made
+        if (settingsChanged) {
+            await setValue(STORAGE_KEYS.SETTINGS, settings);
+            await logAsync('INFO', '设置已更新并保存。');
+        }
 
         STATE.settings = settings;
 
