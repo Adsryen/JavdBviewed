@@ -127,7 +127,8 @@ export function initSettingsTab(): void {
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
             },
-            searchEngines: STATE.settings.searchEngines
+            searchEngines: STATE.settings.searchEngines,
+            version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
         };
         await saveSettings(newSettings);
         STATE.settings = newSettings;
