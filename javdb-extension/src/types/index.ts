@@ -60,3 +60,11 @@ export interface VideoRecord {
   javdbUrl?: string; // 对应JavDB页面的URL
   javdbImage?: string; // 封面图片链接 (可选)
 }
+
+export interface UserProfile {
+  email: string; // 邮箱地址
+  username: string; // 用户名
+  userType: string; // 用户类型
+  isLoggedIn: boolean; // 是否已登录
+  lastUpdated?: number; // 最后更新时间 (Unix timestamp)
+}

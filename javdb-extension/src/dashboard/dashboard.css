@@ -4,5 +4,6 @@
 @import url('./styles/_settings.css');
 @import url('./styles/_logs.css');
 @import url('./styles/_toast.css');
-@import url('./styles/_modal.css'); 
-@import url('./styles/_stats.css'); 
+@import url('./styles/_modal.css');
+@import url('./styles/_stats.css');
+@import url('./styles/_userProfile.css');

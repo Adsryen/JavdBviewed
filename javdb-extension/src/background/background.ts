@@ -71,9 +71,11 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
 
     try {
         const recordsToSync = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
+        const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
         const dataToExport = {
             settings: settings,
-            data: recordsToSync
+            data: recordsToSync,
+            userProfile: userProfile
         };
         const now = new Date();
         const year = now.getFullYear();
@@ -114,7 +116,7 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     }
 }
 
-async function performRestore(filename: string, options = { restoreSettings: true, restoreRecords: true }): Promise<{ success: boolean; error?: string }> {
+async function performRestore(filename: string, options = { restoreSettings: true, restoreRecords: true, restoreUserProfile: true }): Promise<{ success: boolean; error?: string }> {
     await logger.info(`Attempting to restore from WebDAV.`, { filename, options });
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
@@ -157,11 +159,15 @@ async function performRestore(filename: string, options = { restoreSettings: tru
         if (importData.settings && options.restoreSettings) {
             await saveSettings(importData.settings);
         }
-        
+
         if (importData.data && options.restoreRecords) {
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
         } else if (options.restoreRecords) {
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
+        }
+
+        if (importData.userProfile && options.restoreUserProfile) {
+            await setValue(STORAGE_KEYS.USER_PROFILE, importData.userProfile);
         }
         
         return { success: true };
@@ -408,6 +414,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 // Return true to indicate that the response will be sent asynchronously.
                 return true;
+            case 'fetch-user-profile':
+                console.log('[Background] Processing fetch-user-profile request.');
+                fetchUserProfileFromJavDB()
+                    .then(profile => {
+                        console.log('[Background] User profile fetch result:', profile);
+                        sendResponse({ success: true, profile });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to fetch user profile:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
@@ -477,4 +495,107 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await logger.info(`Alarm '${alarm.name}' triggered, starting auto-sync.`);
     await triggerAutoSync();
   }
-}); 
+});
+
+/**
+ * 从JavDB获取用户账号信息
+ */
+async function fetchUserProfileFromJavDB(): Promise<any> {
+    const logger = {
+        info: (msg: string, data?: any) => log('INFO', msg, data),
+        error: (msg: string, data?: any) => log('ERROR', msg, data),
+        debug: (msg: string, data?: any) => log('DEBUG', msg, data)
+    };
+
+    try {
+        await logger.info('开始从JavDB获取用户账号信息');
+
+        const response = await fetch('https://javdb.com/users/profile', {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1'
+            },
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const html = await response.text();
+        await logger.debug('收到JavDB响应', { htmlLength: html.length });
+
+        // 解析HTML获取用户信息
+        const profile = parseUserProfileFromHTML(html);
+
+        if (!profile.isLoggedIn) {
+            throw new Error('用户未登录或登录状态已过期');
+        }
+
+        await logger.info('成功解析用户账号信息', profile);
+        return profile;
+
+    } catch (error: any) {
+        await logger.error('获取用户账号信息失败', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * 从HTML中解析用户账号信息
+ */
+function parseUserProfileFromHTML(html: string): any {
+    try {
+        // 检查是否已登录（查找个人信息标题）
+        const profileTitleMatch = html.match(/<h3[^>]*class="title[^"]*"[^>]*>個人信息<\/h3>/);
+        if (!profileTitleMatch) {
+            return {
+                email: '',
+                username: '',
+                userType: '',
+                isLoggedIn: false
+            };
+        }
+
+        // 提取邮箱地址
+        const emailMatch = html.match(/<span class="label">電郵地址:<\/span>\s*([^<]+)/);
+        const email = emailMatch ? emailMatch[1].trim() : '';
+
+        // 提取用户名
+        const usernameMatch = html.match(/<span class="label">用戶名:<\/span>\s*([^<]+)/);
+        const username = usernameMatch ? usernameMatch[1].trim() : '';
+
+        // 提取用户类型
+        const userTypeMatch = html.match(/<span class="label">用戶類型:<\/span>\s*([^<,]+)/);
+        const userType = userTypeMatch ? userTypeMatch[1].trim() : '';
+
+        return {
+            email,
+            username,
+            userType,
+            isLoggedIn: true
+        };
+
+    } catch (error: any) {
+        console.error('解析用户账号信息失败:', error);
+        return {
+            email: '',
+            username: '',
+            userType: '',
+            isLoggedIn: false
+        };
+    }
+}

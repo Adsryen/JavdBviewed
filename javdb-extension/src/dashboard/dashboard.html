@@ -12,6 +12,13 @@
             <h1 class="panel-title">JavDB 助手 <span id="helpBtn" title="功能说明">❓</span></h1>
 
             <div class="sidebar-section">
+                <h4>账号信息</h4>
+                <div id="user-profile-section">
+                    <!-- 账号信息将由 JS 动态填充 -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
                 <h4>数据概览</h4>
                 <div id="stats-overview">
                     <!-- 统计信息将由 JS 动态填充 -->
@@ -487,6 +494,14 @@
                                   观看记录
                               </label>
                               <small>已观看、我想看、已浏览等状态记录</small>
+                          </div>
+                          <div class="form-group-checkbox">
+                              <input type="checkbox" id="webdavRestoreUserProfile" checked>
+                              <label for="webdavRestoreUserProfile">
+                                  <i class="fas fa-user-circle"></i>
+                                  账号信息
+                              </label>
+                              <small>JavDB账号邮箱、用户名、用户类型等</small>
                           </div>
                       </div>
                   </div>
