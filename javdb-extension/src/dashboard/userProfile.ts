@@ -243,7 +243,7 @@ async function loadUserProfile(): Promise<void> {
 function displayUserProfile(profile: UserProfile): void {
     const infoContainer = document.getElementById('user-profile-info');
     const loginPrompt = document.getElementById('user-login-prompt');
-    
+
     if (!infoContainer || !loginPrompt) return;
 
     // 更新用户信息
@@ -258,6 +258,9 @@ function displayUserProfile(profile: UserProfile): void {
     // 显示用户信息，隐藏登录提示
     infoContainer.style.display = 'block';
     loginPrompt.style.display = 'none';
+
+    // 刷新数据同步区域
+    refreshDataSyncSection();
 }
 
 /**
@@ -266,10 +269,25 @@ function displayUserProfile(profile: UserProfile): void {
 function showLoginPrompt(): void {
     const infoContainer = document.getElementById('user-profile-info');
     const loginPrompt = document.getElementById('user-login-prompt');
-    
+
     if (!infoContainer || !loginPrompt) return;
 
     // 隐藏用户信息，显示登录提示
     infoContainer.style.display = 'none';
     loginPrompt.style.display = 'block';
+
+    // 刷新数据同步区域
+    refreshDataSyncSection();
+}
+
+/**
+ * 刷新数据同步区域（延迟导入避免循环依赖）
+ */
+function refreshDataSyncSection(): void {
+    // 使用动态导入避免循环依赖
+    import('./dataSync').then(({ refreshDataSyncSection }) => {
+        refreshDataSyncSection();
+    }).catch(error => {
+        logAsync('ERROR', '刷新数据同步区域失败', { error: error.message });
+    });
 }
