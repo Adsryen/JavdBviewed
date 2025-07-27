@@ -7,6 +7,8 @@ import { processVisibleItems, setupObserver } from './itemProcessor';
 import { handleVideoDetailPage } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
+import { concurrencyMonitor, storageManager } from './concurrency';
+import { testConcurrentOperations, testHighConcurrency } from './concurrencyTest';
 
 // --- Core Logic ---
 
@@ -82,3 +84,16 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
 
 // 立即执行初始化
 onExecute();
+
+// 在开发环境中暴露测试和监控功能到全局
+if (typeof window !== 'undefined') {
+    // 直接使用已导入的模块，避免动态导入的404错误
+    (window as any).concurrencyMonitor = concurrencyMonitor;
+    (window as any).storageManager = storageManager;
+    (window as any).testConcurrency = {
+        basic: testConcurrentOperations,
+        high: testHighConcurrency
+    };
+
+    log('Successfully exposed concurrency tools to window object');
+}
