@@ -30,6 +30,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
             ...DEFAULT_SETTINGS.webdav,
             ...(storedSettings.webdav || {}),
         },
+        dataSync: {
+            ...DEFAULT_SETTINGS.dataSync,
+            ...(storedSettings.dataSync || {}),
+        },
     };
 }
 
