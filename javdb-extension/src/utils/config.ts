@@ -47,6 +47,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         syncInterval: 1440, // 24 hours in minutes
         lastSync: ''
     },
+    dataSync: {
+        requestInterval: 3, // 请求间隔3秒，缓解服务器压力
+        batchSize: 20, // 每批处理20个视频
+        maxRetries: 3, // 最大重试3次
+    },
     searchEngines: [
         {
             id: 'javdb',
@@ -65,4 +70,4 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         maxLogEntries: 1500,
     },
     version: '0.0.0'
-}; 
+};

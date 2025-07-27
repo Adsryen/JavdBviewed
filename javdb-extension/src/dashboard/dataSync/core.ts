@@ -8,11 +8,11 @@ import { logAsync } from '../logger';
 import { showMessage } from '../ui/toast';
 import { getUserProfile } from '../userProfile';
 import type { VideoRecord, UserProfile } from '../../types';
-import type { 
-    SyncType, 
-    SyncStatus, 
-    SyncContext, 
-    SyncProgress, 
+import { SyncStatus } from './types';
+import type {
+    SyncType,
+    SyncContext,
+    SyncProgress,
     SyncResult,
     SyncConfig
 } from './types';
@@ -73,29 +73,55 @@ export class SyncManager {
         }
 
         const requestId = generateSyncRequestId();
-        logAsync('INFO', `开始同步操作`, { type, requestId });
+        logAsync('INFO', `开始同步操作`, { type, requestId, config });
 
         try {
             // 设置同步状态
             this.currentStatus = SyncStatus.SYNCING;
             this.abortController = new AbortController();
+            logAsync('INFO', '同步状态已设置为SYNCING');
 
             // 验证用户登录状态
+            logAsync('INFO', '开始验证用户登录状态...');
             const userProfile = await this.validateUser();
+            logAsync('INFO', '用户验证完成', {
+                email: userProfile.email,
+                isLoggedIn: userProfile.isLoggedIn
+            });
 
-            // 获取本地数据
-            const localRecords = await this.getLocalData();
-            const dataToSync = filterDataByType(localRecords, type);
+            // 对于想看同步，直接从服务器获取，不需要本地数据
+            let dataToSync: Record<string, VideoRecord> = {};
 
-            // 验证数据
-            if (!validateSyncData(dataToSync)) {
-                throw new Error('本地数据格式错误，无法进行同步');
+            if (type === 'want') {
+                logAsync('INFO', '想看同步模式：跳过本地数据获取，直接从服务器同步');
+                // 想看同步不需要本地数据，直接从服务器获取
+                dataToSync = {};
+            } else {
+                // 其他类型需要获取本地数据
+                logAsync('INFO', '开始获取本地数据...');
+                const localRecords = await this.getLocalData();
+                dataToSync = filterDataByType(localRecords, type);
+                logAsync('INFO', '本地数据获取完成', {
+                    totalRecords: Object.keys(localRecords).length,
+                    filteredRecords: Object.keys(dataToSync).length,
+                    syncType: type
+                });
+
+                // 验证数据
+                logAsync('INFO', '开始验证数据格式...');
+                if (!validateSyncData(dataToSync)) {
+                    throw new Error('本地数据格式错误，无法进行同步');
+                }
+                logAsync('INFO', '数据格式验证通过');
             }
 
             // 获取同步统计
+            logAsync('INFO', '开始获取同步统计...');
             const stats = await getSyncStats();
+            logAsync('INFO', '同步统计获取完成', stats);
 
             // 创建同步上下文
+            logAsync('INFO', '创建同步上下文...');
             const syncConfig = getSyncConfig(config);
             this.currentContext = {
                 type,
@@ -106,9 +132,16 @@ export class SyncManager {
                 onComplete,
                 onError
             };
+            logAsync('INFO', '同步上下文创建完成', {
+                type,
+                configBatchSize: syncConfig.batchSize,
+                dataCount: Object.keys(dataToSync).length
+            });
 
             // 执行同步
+            logAsync('INFO', '开始执行同步...');
             const result = await this.performSync(this.currentContext);
+            logAsync('INFO', '同步执行完成', result);
 
             // 更新状态
             this.currentStatus = result.success ? SyncStatus.SUCCESS : SyncStatus.ERROR;
@@ -141,18 +174,107 @@ export class SyncManager {
      */
     private async performSync(context: SyncContext): Promise<SyncResult> {
         const { type, data, config, onProgress } = context;
+        logAsync('INFO', 'performSync开始', { type, dataCount: Object.keys(data).length });
+
+        // 对于想看同步，直接调用API，不需要检查本地数据
+        if (type === 'want') {
+            logAsync('INFO', '想看同步：直接调用API获取服务器数据');
+
+            // 更新进度：准备阶段
+            onProgress?.({
+                percentage: 0,
+                message: '准备同步想看列表...',
+                current: 0,
+                total: 1
+            });
+
+            try {
+                // 获取用户信息
+                logAsync('INFO', '获取用户信息用于想看同步...');
+                const userProfile = await getUserProfile();
+                if (!userProfile) {
+                    throw new Error('无法获取用户信息');
+                }
+                logAsync('INFO', '用户信息获取成功', {
+                    email: userProfile.email,
+                    isLoggedIn: userProfile.isLoggedIn
+                });
+
+                // 直接调用API进行想看同步
+                logAsync('INFO', '调用API客户端进行想看同步');
+                const apiClient = getApiClient();
+                const syncResponse = await apiClient.syncData(
+                    type,
+                    [], // 想看同步不需要本地数据
+                    userProfile,
+                    config,
+                    (current, total) => {
+                        const percentage = 10 + (current / total) * 80;
+                        logAsync('INFO', `想看同步进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
+                        onProgress?.({
+                            percentage,
+                            message: '同步想看视频中...',
+                            current,
+                            total
+                        });
+                    }
+                );
+                logAsync('INFO', '想看同步API调用完成', syncResponse);
+
+                // 更新进度：完成
+                onProgress?.({
+                    percentage: 100,
+                    message: '想看同步完成',
+                    current: syncResponse.syncedCount,
+                    total: syncResponse.syncedCount
+                });
+
+                // 格式化结果消息
+                const message = formatSyncResultMessage(
+                    type,
+                    syncResponse.syncedCount,
+                    syncResponse.skippedCount,
+                    syncResponse.errorCount
+                );
+
+                return {
+                    success: true,
+                    message,
+                    syncedCount: syncResponse.syncedCount,
+                    skippedCount: syncResponse.skippedCount,
+                    errorCount: syncResponse.errorCount,
+                    details: syncResponse.errors ?
+                        `错误详情：${syncResponse.errors.map(e => e.error).join(', ')}` :
+                        undefined
+                };
+
+            } catch (error: any) {
+                logAsync('ERROR', '想看同步失败', { error: error.message });
+                throw new Error(`想看同步失败: ${error.message}`);
+            }
+        }
+
+        // 其他类型的同步逻辑
         const dataArray = sanitizeSyncData(data);
         const totalCount = dataArray.length;
+        logAsync('INFO', '数据清理完成', {
+            originalCount: Object.keys(data).length,
+            sanitizedCount: totalCount,
+            type
+        });
 
         // 检查是否有数据需要同步
         if (totalCount === 0) {
             const message = `没有需要同步的${getSyncTypeDisplayName(type)}`;
+            logAsync('INFO', '没有数据需要同步', { type, message });
             return {
                 success: true,
                 message,
                 syncedCount: 0
             };
         }
+
+        logAsync('INFO', `准备同步${totalCount}条${getSyncTypeDisplayName(type)}数据`);
 
         // 更新进度：准备阶段
         onProgress?.({
@@ -164,10 +286,15 @@ export class SyncManager {
 
         try {
             // 获取用户信息
+            logAsync('INFO', '获取用户信息用于同步...');
             const userProfile = await getUserProfile();
             if (!userProfile) {
                 throw new Error('无法获取用户信息');
             }
+            logAsync('INFO', '用户信息获取成功', {
+                email: userProfile.email,
+                isLoggedIn: userProfile.isLoggedIn
+            });
 
             // 更新进度：开始同步
             onProgress?.({
@@ -178,6 +305,7 @@ export class SyncManager {
             });
 
             // 调用API进行同步
+            logAsync('INFO', '调用API客户端进行同步', { type, totalCount });
             const apiClient = getApiClient();
             const syncResponse = await apiClient.syncData(
                 type,
@@ -187,6 +315,7 @@ export class SyncManager {
                 (current, total) => {
                     // API进度回调，映射到40%-90%的进度范围
                     const percentage = 40 + (current / total) * 50;
+                    logAsync('INFO', `同步进度更新: ${current}/${total} (${percentage.toFixed(1)}%)`);
                     onProgress?.({
                         percentage,
                         message: '同步中...',
@@ -195,6 +324,7 @@ export class SyncManager {
                     });
                 }
             );
+            logAsync('INFO', 'API同步调用完成', syncResponse);
 
             // 更新进度：完成
             onProgress?.({
