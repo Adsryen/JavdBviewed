@@ -70,28 +70,48 @@ if not defined version_type (
 echo.
 echo Creating GitHub Release...
 
-where gh >nul 2>nul
-if !errorlevel! neq 0 (
-    echo ERROR: GitHub CLI ('gh') is not installed or not in your PATH.
-    goto :error
+echo Checking GitHub CLI installation...
+gh --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo ################################################
+    echo # GitHub CLI not found                        #
+    echo ################################################
+    echo.
+    echo GitHub CLI is not installed or not working properly.
+    echo.
+    echo To install GitHub CLI:
+    echo   1. Visit: https://cli.github.com/
+    echo   2. Download and install for Windows
+    echo   3. Restart your terminal after installation
+    echo   4. Run: gh auth login
+    echo.
+    echo Alternative: Create release manually
+    echo   1. Go to your GitHub repository
+    echo   2. Click "Releases" then "Create a new release"
+    echo   3. Upload the zip file from dist-zip folder
+    echo.
+    echo Build completed successfully. Skipping GitHub Release creation.
+    goto :successful_end
 )
+echo GitHub CLI found and working.
 
-for /f "tokens=2 delims=:," %%i in ('findstr /c:"\"version\":" version.json') do (
-    set "version_str=%%i"
-    set "version_str=!version_str:"=!"
-    set "version_str=!version_str: =!"
-)
+REM 读取版本信息
+echo Reading version from version.json...
+powershell -Command "(Get-Content version.json | ConvertFrom-Json).version" > temp_version.txt
+set /p version_str=<temp_version.txt
+del temp_version.txt
 if not defined version_str (
     echo ERROR: Could not read version from version.json.
     goto :error
 )
 
 set "tag_name=v!version_str!"
-set "zip_name=javdb-extension.zip"
-set "zip_path=dist/!zip_name!"
+set "zip_name=javdb-extension-v!version_str!.zip"
+set "zip_path=dist-zip\!zip_name!"
 
 if not exist "!zip_path!" (
-    echo ERROR: Build artifact !zip_name! not found in dist/.
+    echo ERROR: Build artifact !zip_name! not found in dist-zip\.
     goto :error
 )
 
@@ -103,7 +123,23 @@ echo Creating release and uploading !zip_name!...
 echo Debug: tag_name=!tag_name!
 echo Debug: zip_path=!zip_path!
 echo Debug: version_type=!version_type!
-gh release create !tag_name! "!zip_path!" --title "Release !tag_name!" --notes "New !version_type! release."
+
+REM 检查变量是否为空
+if "!tag_name!"=="" (
+    echo ERROR: tag_name is empty
+    goto :error
+)
+if "!zip_path!"=="" (
+    echo ERROR: zip_path is empty
+    goto :error
+)
+if "!version_type!"=="" (
+    echo ERROR: version_type is empty
+    goto :error
+)
+
+echo Executing: gh release create "!tag_name!" "!zip_path!" --title "Release !tag_name!" --notes "New !version_type! release."
+gh release create "!tag_name!" "!zip_path!" --title "Release !tag_name!" --notes "New !version_type! release."
 if !errorlevel! neq 0 ( goto :error )
 
 echo GitHub Release created successfully!
