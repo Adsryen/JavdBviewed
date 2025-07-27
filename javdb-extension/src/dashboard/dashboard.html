@@ -249,6 +249,26 @@
                     </div>
 
                     <div class="settings-section">
+                        <h3>数据同步设置</h3>
+                        <p class="settings-description">配置从JavDB同步数据时的行为，包括请求间隔和批量处理设置。</p>
+                        <div class="form-group">
+                            <label for="dataSyncRequestInterval">请求间隔 (秒):</label>
+                            <input type="number" id="dataSyncRequestInterval" class="number-input" min="3" max="60" value="3">
+                            <p class="input-description">每次请求详情页之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="dataSyncBatchSize">批量处理大小:</label>
+                            <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="50" value="20">
+                            <p class="input-description">每批处理的视频数量，通常一页包含20个视频。</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="dataSyncMaxRetries">最大重试次数:</label>
+                            <input type="number" id="dataSyncMaxRetries" class="number-input" min="1" max="10" value="3">
+                            <p class="input-description">当请求失败时的最大重试次数。</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
                         <h3>日志设置</h3>
                         <p class="settings-description">配置扩展程序的日志记录行为。</p>
                         <div class="form-group">

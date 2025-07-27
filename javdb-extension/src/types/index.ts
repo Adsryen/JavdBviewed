@@ -15,6 +15,11 @@ export interface ExtensionSettings {
         syncInterval: number;
         lastSync: string | null;
     };
+    dataSync: {
+        requestInterval: number; // 请求间隔（秒），用于缓解服务器压力
+        batchSize: number; // 批量处理大小
+        maxRetries: number; // 最大重试次数
+    };
     searchEngines: {
         id: string;
         name: string;

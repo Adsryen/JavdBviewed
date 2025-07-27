@@ -9,7 +9,8 @@ import { getSyncManager } from './core';
 import type { SyncType } from './types';
 
 // 导出公共接口
-export type { SyncType, SyncStatus, SyncProgress, SyncResult } from './types';
+export { SyncStatus } from './types';
+export type { SyncType, SyncProgress, SyncResult } from './types';
 export { getSyncManager } from './core';
 export { getApiClient } from './api';
 
@@ -50,8 +51,8 @@ export async function refreshDataSyncSection(): Promise<void> {
  */
 function bindSyncEvents(): void {
     // 监听同步请求事件
-    document.addEventListener('sync-requested', handleSyncRequest);
-    
+    document.addEventListener('sync-requested', handleSyncRequest as EventListener);
+
     // 监听页面卸载事件，清理资源
     window.addEventListener('beforeunload', cleanup);
 }
@@ -59,8 +60,9 @@ function bindSyncEvents(): void {
 /**
  * 处理同步请求
  */
-async function handleSyncRequest(event: CustomEvent): Promise<void> {
-    const { type } = event.detail as { type: SyncType };
+async function handleSyncRequest(event: Event): Promise<void> {
+    const customEvent = event as CustomEvent;
+    const { type } = customEvent.detail as { type: SyncType };
     
     if (!type) {
         showMessage('同步类型无效', 'error');
@@ -83,7 +85,7 @@ async function handleSyncRequest(event: CustomEvent): Promise<void> {
         ui.showSyncProgress(true);
 
         // 执行同步
-        const result = await syncManager.sync(
+        await syncManager.sync(
             type,
             undefined, // 使用默认配置
             // 进度回调
@@ -227,7 +229,7 @@ export async function checkSyncAvailability(): Promise<{
 function cleanup(): void {
     try {
         // 移除事件监听器
-        document.removeEventListener('sync-requested', handleSyncRequest);
+        document.removeEventListener('sync-requested', handleSyncRequest as EventListener);
         window.removeEventListener('beforeunload', cleanup);
         
         // 重置状态

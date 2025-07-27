@@ -22,6 +22,11 @@ export function initSettingsTab(): void {
     const hideBrowsed = document.getElementById('hideBrowsed') as HTMLInputElement;
     const hideVR = document.getElementById('hideVR') as HTMLInputElement;
 
+    // 数据同步设置
+    const dataSyncRequestInterval = document.getElementById('dataSyncRequestInterval') as HTMLInputElement;
+    const dataSyncBatchSize = document.getElementById('dataSyncBatchSize') as HTMLInputElement;
+    const dataSyncMaxRetries = document.getElementById('dataSyncMaxRetries') as HTMLInputElement;
+
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
 
     function renderSearchEngines() {
@@ -82,7 +87,7 @@ export function initSettingsTab(): void {
     }
 
     function loadSettings() {
-        const { webdav, display, logging, searchEngines } = STATE.settings;
+        const { webdav, display, logging, searchEngines, dataSync } = STATE.settings;
         webdavEnabled.checked = webdav.enabled;
         webdavUrl.value = webdav.url;
         webdavUser.value = webdav.username;
@@ -98,6 +103,11 @@ export function initSettingsTab(): void {
         hideViewed.checked = display.hideViewed;
         hideBrowsed.checked = display.hideBrowsed;
         hideVR.checked = display.hideVR;
+
+        // 数据同步设置
+        dataSyncRequestInterval.value = String(dataSync?.requestInterval || 3);
+        dataSyncBatchSize.value = String(dataSync?.batchSize || 20);
+        dataSyncMaxRetries.value = String(dataSync?.maxRetries || 3);
 
         maxLogEntries.value = String(logging?.maxLogEntries || 1500);
 
@@ -123,6 +133,11 @@ export function initSettingsTab(): void {
                 hideViewed: hideViewed.checked,
                 hideBrowsed: hideBrowsed.checked,
                 hideVR: hideVR.checked
+            },
+            dataSync: {
+                requestInterval: parseInt(dataSyncRequestInterval.value, 10) || 3,
+                batchSize: parseInt(dataSyncBatchSize.value, 10) || 20,
+                maxRetries: parseInt(dataSyncMaxRetries.value, 10) || 3,
             },
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
