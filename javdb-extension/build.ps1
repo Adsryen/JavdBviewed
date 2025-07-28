@@ -4,6 +4,10 @@ param()
 # 设置控制台编码为UTF-8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+# 设置输入编码
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+# 确保当前会话使用UTF-8
+chcp 65001 | Out-Null
 
 function Show-Menu {
     Write-Host "=================================================" -ForegroundColor Cyan
@@ -12,12 +16,16 @@ function Show-Menu {
     Write-Host ""
     Write-Host "Please choose the type of build:" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  [1] Major Release (e.g., 1.x.x -> 2.0.0, for incompatible changes) (主版本)" -ForegroundColor White
-    Write-Host "  [2] Minor Release (e.g., x.1.x -> x.2.0, for new features) (次版本)" -ForegroundColor White
-    Write-Host "  [3] Patch Release (e.g., x.x.1 -> x.x.2, for bug fixes) (修订版)" -ForegroundColor White
+    Write-Host "  [1] Major Release (e.g., 1.x.x -> 2.0.0, for incompatible changes)" -ForegroundColor White
+    Write-Host "      Major Release - for incompatible changes" -ForegroundColor Gray
+    Write-Host "  [2] Minor Release (e.g., x.1.x -> x.2.0, for new features)" -ForegroundColor White
+    Write-Host "      Minor Release - for new features" -ForegroundColor Gray
+    Write-Host "  [3] Patch Release (e.g., x.x.1 -> x.x.2, for bug fixes)" -ForegroundColor White
+    Write-Host "      Patch Release - for bug fixes" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  [4] Just Build (build without changing the version number) (仅构建)" -ForegroundColor White
-    Write-Host "  [5] Exit (退出)" -ForegroundColor White
+    Write-Host "  [4] Just Build (build without changing the version number)" -ForegroundColor White
+    Write-Host "      Just Build - no version change" -ForegroundColor Gray
+    Write-Host "  [5] Exit" -ForegroundColor White
     Write-Host ""
 }
 
@@ -230,6 +238,33 @@ try {
     exit 1
 }
 
+# 获取最新提交信息
+Write-Host "Getting latest commit information..." -ForegroundColor Gray
+try {
+    $commitMessage = & git log -1 --pretty=format:"%s"
+    $commitBody = & git log -1 --pretty=format:"%b"
+    $commitHash = & git log -1 --pretty=format:"%h"
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to get commit information"
+    }
+
+    # 构建 Release 描述
+    $releaseNotes = "## $commitMessage`n`n"
+    if (![string]::IsNullOrWhiteSpace($commitBody)) {
+        $releaseNotes += "$commitBody`n`n"
+    }
+    $releaseNotes += "**Version:** $versionStr`n"
+    $releaseNotes += "**Commit:** $commitHash`n"
+    $releaseNotes += "**Build Type:** $versionType release"
+
+    Write-Host "Release notes preview:" -ForegroundColor Yellow
+    Write-Host $releaseNotes -ForegroundColor Gray
+} catch {
+    Write-Host "Warning: Could not get commit information, using default notes" -ForegroundColor Yellow
+    $releaseNotes = "New $versionType release."
+}
+
 # 创建release
 Write-Host "Creating release and uploading $zipName..." -ForegroundColor Gray
 Write-Host "Debug: tag_name=$tagName" -ForegroundColor DarkGray
@@ -253,10 +288,10 @@ if ([string]::IsNullOrWhiteSpace($versionType)) {
     exit 1
 }
 
-Write-Host "Executing: gh release create `"$tagName`" `"$zipPath`" --title `"Release $tagName`" --notes `"New $versionType release.`"" -ForegroundColor Gray
+Write-Host "Executing: gh release create `"$tagName`" `"$zipPath`" --title `"Release $tagName`" --notes `"$releaseNotes`"" -ForegroundColor Gray
 
 try {
-    & gh release create $tagName $zipPath --title "Release $tagName" --notes "New $versionType release."
+    & gh release create $tagName $zipPath --title "Release $tagName" --notes $releaseNotes
     if ($LASTEXITCODE -ne 0) {
         throw "GitHub release creation failed"
     }
