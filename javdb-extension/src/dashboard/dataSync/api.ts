@@ -13,7 +13,8 @@ import type {
 } from './types';
 import { SyncCancelledError } from './types';
 import { retry, delay, checkNetworkStatus } from './utils';
-import { getSettings } from '../../utils/storage';
+import { getSettings, getValue } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../utils/config';
 
 /**
  * 同步类型配置接口
@@ -404,6 +405,7 @@ export class SyncApiClient {
             const videoIds = await this.fetchAllVideoIds(
                 type,
                 totalPages,
+                config,
                 (current, total, stage) => onProgress?.(current, total, stage),
                 abortSignal
             );
@@ -549,12 +551,30 @@ export class SyncApiClient {
     private async fetchAllVideoIds(
         type: 'want' | 'viewed',
         totalPages: number,
+        config: SyncConfig,
         onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
         abortSignal?: AbortSignal
     ): Promise<string[]> {
         const allVideoIds: string[] = [];
         const syncConfig = await this.getSyncTypeConfig(type);
         logAsync('INFO', `开始获取${syncConfig.displayName}视频ID，总共${totalPages}页`);
+
+        // 增量同步相关变量
+        const isIncrementalMode = config.mode === 'incremental';
+        let existingRecordsCount = 0;
+        let shouldStopIncremental = false;
+        const incrementalTolerance = config.incrementalTolerance || 20;
+
+        // 如果是增量同步，先获取本地已存在的记录
+        let localRecords: Record<string, any> = {};
+        if (isIncrementalMode) {
+            try {
+                localRecords = await getValue<Record<string, any>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                logAsync('INFO', `增量同步模式：本地已有${Object.keys(localRecords).length}条记录`);
+            } catch (error: any) {
+                logAsync('WARN', '获取本地记录失败，将使用全量同步模式', { error: error.message });
+            }
+        }
 
         for (let page = 1; page <= totalPages; page++) {
             try {
@@ -566,7 +586,36 @@ export class SyncApiClient {
 
                 logAsync('INFO', `正在获取第${page}页${syncConfig.displayName}视频...`);
                 const videoIds = await this.fetchVideoIdsFromPage(type, page);
-                allVideoIds.push(...videoIds);
+
+                // 增量同步逻辑：检查当前页面的视频是否已存在
+                if (isIncrementalMode && !shouldStopIncremental) {
+                    const existingInCurrentPage = videoIds.filter(id => localRecords[id]);
+                    existingRecordsCount += existingInCurrentPage.length;
+
+                    logAsync('INFO', `第${page}页中有${existingInCurrentPage.length}个已存在的视频`, {
+                        page,
+                        existingInCurrentPage: existingInCurrentPage.slice(0, 5),
+                        totalExistingCount: existingRecordsCount
+                    });
+
+                    // 如果当前页面有已存在的记录，检查是否应该停止
+                    if (existingInCurrentPage.length > 0) {
+                        // 添加当前页面的所有视频ID
+                        allVideoIds.push(...videoIds);
+
+                        // 检查是否达到容忍度
+                        if (existingRecordsCount >= incrementalTolerance) {
+                            shouldStopIncremental = true;
+                            logAsync('INFO', `增量同步：已遇到${existingRecordsCount}个已存在记录，达到容忍度${incrementalTolerance}，停止获取更多页面`);
+                        }
+                    } else {
+                        // 当前页面没有已存在的记录，继续添加
+                        allVideoIds.push(...videoIds);
+                    }
+                } else {
+                    // 全量同步或已决定停止增量同步
+                    allVideoIds.push(...videoIds);
+                }
 
                 // 更新进度（页面获取进度）
                 onProgress?.(page, totalPages, 'pages');
@@ -578,6 +627,12 @@ export class SyncApiClient {
                     totalCount: allVideoIds.length,
                     videoIds: videoIds.slice(0, 5) // 显示前5个ID作为示例
                 });
+
+                // 如果是增量同步且应该停止，则跳出循环
+                if (isIncrementalMode && shouldStopIncremental) {
+                    logAsync('INFO', `增量同步提前结束，已获取${page}页，共${allVideoIds.length}个视频ID`);
+                    break;
+                }
 
                 // 页面间隔
                 if (page < totalPages) {
@@ -594,10 +649,17 @@ export class SyncApiClient {
             }
         }
 
-        logAsync('INFO', `所有页面获取完成`, {
+        const finalMessage = isIncrementalMode && shouldStopIncremental
+            ? `增量同步完成（提前结束）`
+            : `所有页面获取完成`;
+
+        logAsync('INFO', finalMessage, {
             totalPages,
+            actualPagesProcessed: isIncrementalMode && shouldStopIncremental ? 'early_stop' : totalPages,
             totalVideoIds: allVideoIds.length,
-            uniqueIds: [...new Set(allVideoIds)].length
+            uniqueIds: [...new Set(allVideoIds)].length,
+            syncMode: config.mode || 'full',
+            existingRecordsFound: isIncrementalMode ? existingRecordsCount : 'N/A'
         });
 
         return [...new Set(allVideoIds)]; // 去重

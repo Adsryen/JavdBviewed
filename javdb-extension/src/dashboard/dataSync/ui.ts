@@ -5,7 +5,7 @@
 import { logAsync } from '../logger';
 import { userService } from '../services/userService';
 import type { SyncType, SyncProgress, SyncResult } from './types';
-import type { SyncOption } from '../config/syncConfig';
+import type { SyncOption, SyncMode } from '../config/syncConfig';
 import { SYNC_OPTIONS } from '../config/syncConfig';
 
 /**
@@ -65,6 +65,7 @@ export class SyncUI {
         // 使用静态导入的同步选项配置
         container.innerHTML = SYNC_OPTIONS.map(option => this.createSyncOptionHTML(option)).join('');
         this.bindSyncEvents();
+        this.bindModeToggleEvents();
     }
 
     /**
@@ -73,9 +74,40 @@ export class SyncUI {
     private createSyncOptionHTML(option: SyncOption): string {
         const disabledAttr = option.enabled ? '' : 'disabled';
         const comingSoonLabel = option.comingSoon ? '<span class="coming-soon-label">即将推出</span>' : '';
-        
+
+        // 对于已观看和想看同步，创建带悬浮菜单的结构
+        if (option.type === 'viewed' || option.type === 'want') {
+            const modeOptionsId = option.type === 'viewed' ? 'viewedSyncModes' : 'wantSyncModes';
+            const typeName = option.type === 'viewed' ? '已观看' : '想看';
+
+            return `
+                <div class="sync-option-group">
+                    <button id="${option.id}" class="sync-option-btn main-sync-btn" ${disabledAttr}
+                            title="悬浮查看同步模式" data-sync-type="${option.type}">
+                        <i class="${option.icon}"></i>
+                        <span class="sync-btn-text">${option.title}</span>
+                        <small>悬浮选择模式</small>
+                        ${comingSoonLabel}
+                    </button>
+                    <div class="sync-mode-options" id="${modeOptionsId}" style="display: none;">
+                        <button class="sync-mode-btn" data-sync-type="${option.type}" data-sync-mode="full">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>全量同步</span>
+                            <small>同步所有${typeName}视频</small>
+                        </button>
+                        <button class="sync-mode-btn" data-sync-type="${option.type}" data-sync-mode="incremental">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>同步缺失</span>
+                            <small>只同步缺失的视频</small>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 其他类型的同步选项保持原样
         return `
-            <button id="${option.id}" class="sync-option-btn" ${disabledAttr} 
+            <button id="${option.id}" class="sync-option-btn" ${disabledAttr}
                     title="${option.title}" data-sync-type="${option.type}">
                 <i class="${option.icon}"></i>
                 <span class="sync-btn-text">${option.title}</span>
@@ -89,8 +121,45 @@ export class SyncUI {
      * 绑定同步按钮事件
      */
     private bindSyncEvents(): void {
-        const buttons = document.querySelectorAll('.sync-option-btn');
-        buttons.forEach(button => {
+        // 主同步按钮组的悬浮事件
+        const syncGroups = document.querySelectorAll('.sync-option-group');
+        syncGroups.forEach(group => {
+            const mainButton = group.querySelector('.main-sync-btn') as HTMLButtonElement;
+            const modeOptions = group.querySelector('.sync-mode-options') as HTMLElement;
+
+            if (mainButton && modeOptions) {
+                const syncType = mainButton.getAttribute('data-sync-type') as SyncType;
+
+                // 鼠标进入组时显示模式选项
+                group.addEventListener('mouseenter', () => {
+                    if (!mainButton.disabled) {
+                        this.showModeOptions(syncType);
+                    }
+                });
+
+                // 鼠标离开组时隐藏模式选项
+                group.addEventListener('mouseleave', () => {
+                    this.hideModeOptions(syncType);
+                });
+            }
+        });
+
+        // 同步模式按钮事件
+        const modeButtons = document.querySelectorAll('.sync-mode-btn');
+        modeButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const target = event.currentTarget as HTMLButtonElement;
+                const syncType = target.getAttribute('data-sync-type') as SyncType;
+                const syncMode = target.getAttribute('data-sync-mode') as SyncMode;
+                if (syncType && syncMode && !target.disabled) {
+                    this.handleSyncClick(syncType, syncMode);
+                }
+            });
+        });
+
+        // 其他同步按钮（不需要模式选择的）
+        const otherButtons = document.querySelectorAll('.sync-option-btn:not(.main-sync-btn)');
+        otherButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 const target = event.currentTarget as HTMLButtonElement;
                 const syncType = target.getAttribute('data-sync-type') as SyncType;
@@ -102,12 +171,82 @@ export class SyncUI {
     }
 
     /**
+     * 绑定模式切换事件
+     */
+    private bindModeToggleEvents(): void {
+        // 这个方法现在主要用于其他全局事件绑定
+        // 悬浮事件已经在 bindSyncEvents 中处理
+    }
+
+    /**
+     * 显示指定类型的模式选项
+     */
+    private showModeOptions(syncType: SyncType): void {
+        const modeOptionsId = syncType === 'viewed' ? 'viewedSyncModes' : 'wantSyncModes';
+        const modeOptions = document.getElementById(modeOptionsId);
+        const mainButton = document.querySelector(`[data-sync-type="${syncType}"].main-sync-btn`) as HTMLButtonElement;
+
+        if (modeOptions && mainButton) {
+            modeOptions.style.display = 'block';
+            modeOptions.classList.add('show');
+            mainButton.classList.add('expanded');
+            logAsync('DEBUG', `显示${syncType}同步模式选项`);
+        }
+    }
+
+    /**
+     * 隐藏指定类型的模式选项
+     */
+    private hideModeOptions(syncType: SyncType): void {
+        const modeOptionsId = syncType === 'viewed' ? 'viewedSyncModes' : 'wantSyncModes';
+        const modeOptions = document.getElementById(modeOptionsId);
+        const mainButton = document.querySelector(`[data-sync-type="${syncType}"].main-sync-btn`) as HTMLButtonElement;
+
+        if (modeOptions && mainButton) {
+            modeOptions.classList.remove('show');
+            mainButton.classList.remove('expanded');
+            // 延迟隐藏，让动画完成
+            setTimeout(() => {
+                if (!modeOptions.classList.contains('show')) {
+                    modeOptions.style.display = 'none';
+                }
+            }, 200);
+            logAsync('DEBUG', `隐藏${syncType}同步模式选项`);
+        }
+    }
+
+    /**
+     * 隐藏所有模式选项
+     */
+    private hideAllModeOptions(): void {
+        const modeOptions = document.querySelectorAll('.sync-mode-options');
+        const mainButtons = document.querySelectorAll('.main-sync-btn');
+
+        modeOptions.forEach(option => {
+            const element = option as HTMLElement;
+            element.classList.remove('show');
+            setTimeout(() => {
+                if (!element.classList.contains('show')) {
+                    element.style.display = 'none';
+                }
+            }, 200);
+        });
+
+        mainButtons.forEach(button => {
+            button.classList.remove('expanded');
+        });
+    }
+
+    /**
      * 处理同步按钮点击
      */
-    private async handleSyncClick(type: SyncType): Promise<void> {
+    private async handleSyncClick(type: SyncType, mode?: SyncMode): Promise<void> {
+        // 隐藏模式选项
+        this.hideAllModeOptions();
+
         // 触发自定义事件，让核心模块处理同步逻辑
         const event = new CustomEvent('sync-requested', {
-            detail: { type }
+            detail: { type, mode }
         });
         document.dispatchEvent(event);
     }
