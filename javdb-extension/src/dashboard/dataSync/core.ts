@@ -6,7 +6,7 @@ import { getValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { logAsync } from '../logger';
 import { showMessage } from '../ui/toast';
-import { getUserProfile } from '../userProfile';
+import { userService } from '../services/userService';
 import type { VideoRecord, UserProfile } from '../../types';
 import { SyncStatus } from './types';
 import type {
@@ -16,18 +16,21 @@ import type {
     SyncResult,
     SyncConfig
 } from './types';
-import { 
-    filterDataByType, 
-    getSyncStats, 
-    getSyncTypeDisplayName,
+import { SyncCancelledError } from './types';
+import {
+    filterDataByType,
+    getSyncStats,
     validateSyncData,
     sanitizeSyncData,
     formatSyncResultMessage,
-    getSyncConfig,
-    isSyncTypeSupported,
     validateUserPermissions,
     generateSyncRequestId
 } from './utils';
+import {
+    getSyncConfig,
+    isSyncTypeSupported,
+    getSyncTypeDisplayName
+} from '../config/syncConfig';
 import { getApiClient } from './api';
 
 /**
@@ -154,13 +157,20 @@ export class SyncManager {
 
         } catch (error: any) {
             this.currentStatus = SyncStatus.ERROR;
-            logAsync('ERROR', '同步操作失败', { type, error: error.message, requestId });
-            
+
+            if (error instanceof SyncCancelledError) {
+                // 用户取消，记录信息日志
+                logAsync('INFO', '同步操作被用户取消', { type, reason: error.message, requestId });
+            } else {
+                // 真正的错误
+                logAsync('ERROR', '同步操作失败', { type, error: error.message, requestId });
+            }
+
             const result: SyncResult = {
                 success: false,
                 message: error.message
             };
-            
+
             onError?.(error);
             return result;
         } finally {
@@ -180,18 +190,16 @@ export class SyncManager {
         if (type === 'want') {
             logAsync('INFO', '想看同步：直接调用API获取服务器数据');
 
-            // 更新进度：准备阶段
+            // 更新进度：准备阶段（不显示具体数字）
             onProgress?.({
                 percentage: 0,
-                message: '准备同步想看列表...',
-                current: 0,
-                total: 1
+                message: '准备同步想看列表...'
             });
 
             try {
                 // 获取用户信息
                 logAsync('INFO', '获取用户信息用于想看同步...');
-                const userProfile = await getUserProfile();
+                const userProfile = await userService.getUserProfile();
                 if (!userProfile) {
                     throw new Error('无法获取用户信息');
                 }
@@ -208,16 +216,31 @@ export class SyncManager {
                     [], // 想看同步不需要本地数据
                     userProfile,
                     config,
-                    (current, total) => {
-                        const percentage = 10 + (current / total) * 80;
-                        logAsync('INFO', `想看同步进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
+                    (current: number, total: number, stage?: 'pages' | 'details') => {
+                        // 每个阶段都是独立的0-100%进度
+                        const percentage = (current / total) * 100;
+                        let message: string;
+
+                        if (stage === 'pages') {
+                            message = `获取想看列表 (${current}/${total}页)...`;
+                            logAsync('INFO', `页面获取进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
+                        } else if (stage === 'details') {
+                            message = `同步想看视频 (${current}/${total})...`;
+                            logAsync('INFO', `详情获取进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
+                        } else {
+                            message = `同步进度 (${current}/${total})...`;
+                            logAsync('INFO', `同步进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
+                        }
+
                         onProgress?.({
                             percentage,
-                            message: '同步想看视频中...',
+                            message,
                             current,
-                            total
+                            total,
+                            stage
                         });
-                    }
+                    },
+                    this.abortController?.signal
                 );
                 logAsync('INFO', '想看同步API调用完成', syncResponse);
 
@@ -249,8 +272,13 @@ export class SyncManager {
                 };
 
             } catch (error: any) {
-                logAsync('ERROR', '想看同步失败', { error: error.message });
-                throw new Error(`想看同步失败: ${error.message}`);
+                if (error instanceof SyncCancelledError) {
+                    logAsync('INFO', '用户取消了想看同步', { reason: error.message });
+                    throw error; // 直接抛出，不包装
+                } else {
+                    logAsync('ERROR', '想看同步失败', { error: error.message });
+                    throw new Error(`想看同步失败: ${error.message}`);
+                }
             }
         }
 
@@ -287,7 +315,7 @@ export class SyncManager {
         try {
             // 获取用户信息
             logAsync('INFO', '获取用户信息用于同步...');
-            const userProfile = await getUserProfile();
+            const userProfile = await userService.getUserProfile();
             if (!userProfile) {
                 throw new Error('无法获取用户信息');
             }
@@ -354,7 +382,12 @@ export class SyncManager {
             };
 
         } catch (error: any) {
-            throw new Error(`同步失败: ${error.message}`);
+            if (error instanceof SyncCancelledError) {
+                // 用户取消，直接抛出，不包装
+                throw error;
+            } else {
+                throw new Error(`同步失败: ${error.message}`);
+            }
         }
     }
 
@@ -362,12 +395,12 @@ export class SyncManager {
      * 验证用户登录状态
      */
     private async validateUser(): Promise<UserProfile> {
-        const userProfile = await getUserProfile();
-        
+        const userProfile = await userService.getUserProfile();
+
         if (!validateUserPermissions(userProfile)) {
             throw new Error('请先登录 JavDB 账号');
         }
-        
+
         return userProfile!;
     }
 

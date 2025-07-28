@@ -5,8 +5,9 @@
 import { getValue } from '../../utils/storage';
 import { STORAGE_KEYS, VIDEO_STATUS } from '../../utils/config';
 import type { VideoRecord } from '../../types';
-import type { SyncType, SyncStats, SyncConfig } from './types';
-import { DEFAULT_SYNC_CONFIG } from './types';
+import type { SyncStats } from './types';
+import type { SyncType, SyncConfig } from '../config/syncConfig';
+import { DEFAULT_SYNC_CONFIG, getSyncConfig, isSyncTypeSupported, getSyncTypeDisplayName } from '../config/syncConfig';
 
 /**
  * 根据同步类型过滤数据
@@ -63,18 +64,7 @@ export async function getSyncStats(): Promise<SyncStats> {
     }
 }
 
-/**
- * 获取同步类型的显示名称
- */
-export function getSyncTypeDisplayName(type: SyncType): string {
-    switch (type) {
-        case 'all': return '全部数据';
-        case 'viewed': return '已观看数据';
-        case 'want': return '想看数据';
-        case 'actors': return '收藏演员';
-        default: return '数据';
-    }
-}
+// getSyncTypeDisplayName 已从配置模块导入
 
 /**
  * 验证同步数据
@@ -190,31 +180,9 @@ export function formatSyncResultMessage(
     return message;
 }
 
-/**
- * 获取同步配置
- */
-export function getSyncConfig(overrides?: Partial<SyncConfig>): SyncConfig {
-    return {
-        ...DEFAULT_SYNC_CONFIG,
-        ...overrides
-    };
-}
+// getSyncConfig 已从配置模块导入
 
-/**
- * 检查是否支持同步类型
- */
-export function isSyncTypeSupported(type: SyncType): boolean {
-    switch (type) {
-        case 'all':
-        case 'viewed':
-        case 'want':
-            return true;
-        case 'actors':
-            return false; // 暂未实现
-        default:
-            return false;
-    }
-}
+// isSyncTypeSupported 已从配置模块导入
 
 /**
  * 生成同步请求ID
