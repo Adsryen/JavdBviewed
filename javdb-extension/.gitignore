@@ -12,6 +12,7 @@ dist-*
 
 # CRX signing key
 key.pem
+*.crx
 
 # IDE and OS files
 .idea/

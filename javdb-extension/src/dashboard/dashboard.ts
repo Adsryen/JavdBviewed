@@ -22,9 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTabs();
     initRecordsTab();
     initSettingsTab();
-    initAdvancedSettingsTab();
     initLogsTab();
-    initializeNetworkTestTab();
     initSidebarActions();
     initUserProfileSection();
     initDataSyncSection();

@@ -354,7 +354,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return true;
             case 'webdav-test':
                 console.log('[Background] Processing webdav-test request.');
-                testConnection()
+                testWebDAVConnection()
                     .then(result => {
                         console.log(`[Background] WebDAV test result:`, result);
                         sendResponse(result);

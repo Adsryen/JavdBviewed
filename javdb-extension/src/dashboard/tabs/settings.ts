@@ -1,13 +1,23 @@
 import { STATE } from '../state';
-import { saveSettings } from '../../utils/storage';
+import { saveSettings, getValue, setValue } from '../../utils/storage';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
-import type { ExtensionSettings } from '../../types';
+import type { ExtensionSettings, VideoRecord, OldVideoRecord } from '../../types';
+import { STORAGE_KEYS } from '../../utils/config';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
 
 export function initSettingsTab(): void {
+    // Initialize settings navigation
+    initSettingsNavigation();
+
+    // Initialize network test functionality
+    initNetworkTestFunctionality();
+
+    // Initialize advanced settings functionality
+    initAdvancedSettingsFunctionality();
+
     const webdavEnabled = document.getElementById('webdavEnabled') as HTMLInputElement;
     const webdavUrl = document.getElementById('webdavUrl') as HTMLInputElement;
     const webdavUser = document.getElementById('webdavUser') as HTMLInputElement;
@@ -170,19 +180,51 @@ export function initSettingsTab(): void {
     function handleTestWebDAV() {
         logAsync('INFO', '用户点击了“测试 WebDAV 连接”按钮。');
         handleSaveSettings().then(() => {
-            testWebdavConnectionBtn.textContent = 'Testing...';
+            logAsync('INFO', '用户开始测试WebDAV连接');
+            showMessage('正在保存设置并测试连接...', 'info');
+            testWebdavConnectionBtn.textContent = '连接测试中...';
             testWebdavConnectionBtn.disabled = true;
+
+            logAsync('INFO', '正在向后台发送WebDAV连接测试请求');
+
             chrome.runtime.sendMessage({ type: 'webdav-test' }, response => {
-                if (response.success) {
-                    showMessage('WebDAV connection successful!');
-                    logAsync('INFO', 'WebDAV 连接测试成功。');
+                if (response && response.success) {
+                    showMessage('🎉 WebDAV连接测试成功！服务器响应正常', 'success');
+                    logAsync('INFO', 'WebDAV连接测试成功，服务器认证通过');
                 } else {
-                    showMessage(`WebDAV connection failed: ${response.error}`, 'error');
-                    logAsync('ERROR', 'WebDAV 连接测试失败。', { error: response.error });
+                    const errorMsg = response?.error || '未知错误';
+                    let userFriendlyMsg = '';
+
+                    // 根据错误类型提供更友好的提示
+                    if (errorMsg.includes('401')) {
+                        userFriendlyMsg = '❌ WebDAV连接失败：用户名或密码错误，请检查认证信息';
+                    } else if (errorMsg.includes('404')) {
+                        userFriendlyMsg = '❌ WebDAV连接失败：服务器地址不存在，请检查URL是否正确';
+                    } else if (errorMsg.includes('403')) {
+                        userFriendlyMsg = '❌ WebDAV连接失败：没有访问权限，请检查账户权限设置';
+                    } else if (errorMsg.includes('timeout') || errorMsg.includes('网络')) {
+                        userFriendlyMsg = '❌ WebDAV连接失败：网络超时，请检查网络连接和服务器状态';
+                    } else if (errorMsg.includes('not fully configured')) {
+                        userFriendlyMsg = '❌ WebDAV连接失败：配置信息不完整，请填写完整的服务器地址、用户名和密码';
+                    } else {
+                        userFriendlyMsg = `❌ WebDAV连接失败：${errorMsg}`;
+                    }
+
+                    showMessage(userFriendlyMsg, 'error');
+                    logAsync('ERROR', `WebDAV连接测试失败：${errorMsg}`, {
+                        originalError: errorMsg,
+                        userMessage: userFriendlyMsg
+                    });
                 }
-                testWebdavConnectionBtn.textContent = 'Test Connection';
+
+                testWebdavConnectionBtn.textContent = '测试连接';
                 testWebdavConnectionBtn.disabled = false;
             });
+        }).catch(error => {
+            showMessage('❌ 保存设置失败，无法进行连接测试', 'error');
+            logAsync('ERROR', `保存WebDAV设置失败：${error.message}`);
+            testWebdavConnectionBtn.textContent = '测试连接';
+            testWebdavConnectionBtn.disabled = false;
         });
     }
 
@@ -246,4 +288,605 @@ export function initSettingsTab(): void {
     });
 
     loadSettings();
-} 
+}
+
+function initSettingsNavigation(): void {
+    const navItems = document.querySelectorAll('.settings-nav-item');
+    const panels = document.querySelectorAll('.settings-panel');
+    const menuToggle = document.getElementById('settingsMenuToggle') as HTMLButtonElement;
+    const sidebar = document.getElementById('settingsSidebar') as HTMLDivElement;
+
+    // Handle navigation item clicks
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const sectionId = item.getAttribute('data-section');
+            if (!sectionId) return;
+
+            // Update active nav item
+            navItems.forEach(nav => nav.classList.remove('active'));
+            item.classList.add('active');
+
+            // Show corresponding panel
+            panels.forEach(panel => panel.classList.remove('active'));
+            const targetPanel = document.getElementById(sectionId);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+
+            // Close mobile menu if open
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('open');
+            }
+        });
+    });
+
+    // Handle mobile menu toggle
+    menuToggle?.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+    });
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (window.innerWidth <= 768 &&
+            !sidebar.contains(target) &&
+            !menuToggle.contains(target) &&
+            sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+        }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            sidebar.classList.remove('open');
+        }
+    });
+}
+
+function initNetworkTestFunctionality(): void {
+    const startButton = document.getElementById('start-ping-test') as HTMLButtonElement;
+    const urlInput = document.getElementById('ping-url') as HTMLInputElement;
+    const resultsContainer = document.getElementById('ping-results') as HTMLDivElement;
+    const buttonText = startButton?.querySelector('.button-text') as HTMLSpanElement;
+    const spinner = startButton?.querySelector('.spinner') as HTMLDivElement;
+
+    if (!startButton || !urlInput || !resultsContainer || !buttonText || !spinner) {
+        console.warn('Network test elements not found, skipping initialization');
+        return;
+    }
+
+    startButton.addEventListener('click', async () => {
+        const urlValue = urlInput.value.trim();
+        if (!urlValue) {
+            resultsContainer.innerHTML = '<div class="ping-result-item failure"><i class="fas fa-times-circle icon"></i><span>❌ 请输入有效的URL地址</span></div>';
+            showMessage('请先输入要测试的网址', 'warn');
+            return;
+        }
+
+        // 显示开始测试的提示
+        showMessage('🚀 开始网络延迟测试...', 'info');
+        logAsync('INFO', `用户开始测试网络连接: ${urlValue}`);
+
+        startButton.disabled = true;
+        buttonText.textContent = '测试中...';
+        spinner.classList.remove('hidden');
+        resultsContainer.innerHTML = '';
+
+        // 添加测试开始的提示
+        resultsContainer.innerHTML = '<div class="ping-result-item" style="background: #e3f2fd; border-color: #2196f3;"><i class="fas fa-rocket icon" style="color: #2196f3;"></i><span>🔄 正在准备网络测试...</span></div>';
+
+        const onProgress = (message: string, success: boolean, latency?: number) => {
+            const item = document.createElement('div');
+            item.classList.add('ping-result-item');
+            item.classList.add(success ? 'success' : 'failure');
+            const iconClass = success ? 'fa-check-circle' : 'fa-times-circle';
+            let content = `<i class="fas ${iconClass} icon"></i>`;
+
+            // 优化显示内容，提供更友好的中文提示
+            if (typeof latency !== 'undefined') {
+                if (success) {
+                    if (latency < 100) {
+                        content += `<span>✅ ${message} - 响应时间: ${latency}ms (优秀)</span>`;
+                    } else if (latency < 300) {
+                        content += `<span>✅ ${message} - 响应时间: ${latency}ms (良好)</span>`;
+                    } else {
+                        content += `<span>✅ ${message} - 响应时间: ${latency}ms (较慢)</span>`;
+                    }
+                } else {
+                    content += `<span>❌ ${message} - 耗时: ${latency}ms</span>`;
+                }
+            } else {
+                content += `<span>${success ? '🔄' : '❌'} ${message}</span>`;
+            }
+
+            item.innerHTML = content;
+            resultsContainer.appendChild(item);
+
+            // 记录详细的网络测试日志
+            logAsync(success ? 'INFO' : 'WARN', `网络测试: ${message}${latency ? ` (${latency}ms)` : ''}`);
+        };
+
+        const urlsToTest: string[] = [];
+        if (urlValue.match(/^https?:\/\//)) {
+            urlsToTest.push(urlValue);
+        } else {
+            urlsToTest.push(`https://${urlValue}`);
+            urlsToTest.push(`http://${urlValue}`);
+        }
+
+        for (const url of urlsToTest) {
+            await runPingTest(url, resultsContainer, onProgress);
+            // Add a separator if there are more tests to run
+            if (urlsToTest.length > 1 && url !== urlsToTest[urlsToTest.length - 1]) {
+                const separator = document.createElement('hr');
+                separator.style.marginTop = '20px';
+                separator.style.marginBottom = '20px';
+                separator.style.border = 'none';
+                separator.style.borderTop = '1px solid #ccc';
+                resultsContainer.appendChild(separator);
+            }
+        }
+
+        startButton.disabled = false;
+        buttonText.textContent = '开始测试';
+        spinner.classList.add('hidden');
+
+        // 显示测试完成的提示
+        showMessage('✅ 网络延迟测试完成！', 'success');
+        logAsync('INFO', `网络连接测试完成: ${urlValue}`);
+    });
+}
+
+async function ping(
+    url: string,
+    onProgress: (message: string, success: boolean, latency?: number) => void,
+    count = 4
+): Promise<number[]> {
+    const latencies: number[] = [];
+    const testUrl = url;
+
+    onProgress(`正在连接 ${testUrl}`, true);
+
+    for (let i = 0; i < count; i++) {
+        const startTime = Date.now();
+        try {
+            const cacheBuster = `?t=${new Date().getTime()}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+            await fetch(testUrl + cacheBuster, {
+                method: 'HEAD',
+                mode: 'no-cors',
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            const latency = Date.now() - startTime;
+            latencies.push(latency);
+            onProgress(`第${i + 1}次请求成功`, true, latency);
+
+            if (i < count - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        } catch (error) {
+            const latency = Date.now() - startTime;
+            let errorMessage = '未知错误';
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    errorMessage = '连接超时 (5秒)';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            onProgress(`第${i + 1}次请求失败: ${errorMessage}`, false, latency);
+            latencies.push(-1);
+        }
+    }
+    return latencies;
+}
+
+async function runPingTest(
+    url: string,
+    resultsContainer: HTMLDivElement,
+    onProgress: (message: string, success: boolean, latency?: number) => void
+) {
+    try {
+        const latencies = await ping(url, onProgress, 4);
+
+        // Remove the "Pinging..." message for this specific test
+        const pingingMessage = Array.from(resultsContainer.children).find(child => child.textContent?.includes(`正在 Ping ${url}`));
+        if (pingingMessage) {
+            resultsContainer.removeChild(pingingMessage);
+        }
+
+        const validLatencies = latencies.filter(l => l >= 0);
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'ping-summary';
+
+        if (validLatencies.length > 0) {
+            const sum = validLatencies.reduce((a, b) => a + b, 0);
+            const avg = Math.round(sum / validLatencies.length);
+            const min = Math.min(...validLatencies);
+            const max = Math.max(...validLatencies);
+            const loss = ((latencies.length - validLatencies.length) / latencies.length) * 100;
+
+            // Determine status colors based on performance
+            const avgClass = avg < 100 ? 'success' : avg < 300 ? 'warning' : 'danger';
+            const lossClass = loss === 0 ? 'success' : loss < 25 ? 'warning' : 'danger';
+
+            summaryDiv.innerHTML = `
+                <h5>网络测试统计 - ${url}</h5>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">平均延迟</div>
+                        <div class="stat-value ${avgClass}">${avg}ms</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">最短延迟</div>
+                        <div class="stat-value">${min}ms</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">最长延迟</div>
+                        <div class="stat-value">${max}ms</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">丢包率</div>
+                        <div class="stat-value ${lossClass}">${loss.toFixed(1)}%</div>
+                    </div>
+                </div>
+                <p><strong>数据包统计:</strong> 已发送 ${latencies.length} 个，已接收 ${validLatencies.length} 个，丢失 ${latencies.length - validLatencies.length} 个</p>
+            `;
+        } else {
+            summaryDiv.innerHTML = `
+                <h5>网络测试统计 - ${url}</h5>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">测试结果</div>
+                        <div class="stat-value danger">全部失败</div>
+                    </div>
+                </div>
+                <p style="color: #dc3545; font-weight: 500;">所有 ping 请求均失败。请检查 URL 或您的网络连接。</p>
+            `;
+        }
+        resultsContainer.appendChild(summaryDiv);
+    } catch (error) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'ping-result-item failure';
+        const message = error instanceof Error ? error.message : String(error);
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle icon"></i><span>测试 ${url} 过程中出现错误: ${message}</span>`;
+        resultsContainer.appendChild(errorDiv);
+    }
+}
+
+function initAdvancedSettingsFunctionality(): void {
+    const jsonConfigTextarea = document.getElementById('jsonConfig') as HTMLTextAreaElement;
+    const editJsonBtn = document.getElementById('editJsonBtn') as HTMLButtonElement;
+    const saveJsonBtn = document.getElementById('saveJsonBtn') as HTMLButtonElement;
+    const exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
+    const rawLogsTextarea = document.getElementById('rawLogsTextarea') as HTMLTextAreaElement;
+    const refreshRawLogsBtn = document.getElementById('refreshRawLogsBtn') as HTMLButtonElement;
+    const testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
+    const rawRecordsTextarea = document.getElementById('rawRecordsTextarea') as HTMLTextAreaElement;
+    const refreshRawRecordsBtn = document.getElementById('refreshRawRecordsBtn') as HTMLButtonElement;
+    const checkDataStructureBtn = document.getElementById('checkDataStructureBtn') as HTMLButtonElement;
+
+    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || !checkDataStructureBtn) {
+        console.error("One or more elements for Advanced Settings not found. Aborting init.");
+        return;
+    }
+
+    // Load initial settings
+    loadJsonConfig();
+
+    // Edit JSON button
+    editJsonBtn.addEventListener('click', () => {
+        jsonConfigTextarea.readOnly = false;
+        jsonConfigTextarea.style.backgroundColor = '#0d1117';
+        jsonConfigTextarea.style.color = '#c9d1d9';
+        editJsonBtn.classList.add('hidden');
+        saveJsonBtn.classList.remove('hidden');
+    });
+
+    // Save JSON button
+    saveJsonBtn.addEventListener('click', async () => {
+        try {
+            const configText = jsonConfigTextarea.value;
+            const parsedConfig = JSON.parse(configText);
+
+            // Update STATE and save
+            Object.assign(STATE.settings, parsedConfig);
+            await saveSettings(STATE.settings);
+
+            jsonConfigTextarea.readOnly = true;
+            jsonConfigTextarea.style.backgroundColor = '#161b22';
+            jsonConfigTextarea.style.color = '#8b949e';
+            saveJsonBtn.classList.add('hidden');
+            editJsonBtn.classList.remove('hidden');
+
+            showMessage('设置已保存', 'success');
+            logAsync('高级设置已通过JSON编辑器更新', 'INFO');
+        } catch (error) {
+            showMessage('JSON格式错误，请检查语法', 'error');
+            logAsync(`JSON格式错误: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
+        }
+    });
+
+    // Export JSON button
+    exportJsonBtn.addEventListener('click', async () => {
+        try {
+            const allData = {
+                settings: STATE.settings,
+                videoRecords: await getValue('videoRecords', {}),
+                userProfile: await getValue('userProfile', {}),
+                logs: await getValue('logs', [])
+            };
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `javdb-complete-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showMessage('完整备份已导出', 'success');
+            logAsync('用户导出了完整备份', 'INFO');
+        } catch (error) {
+            showMessage('导出失败', 'error');
+            logAsync(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
+        }
+    });
+
+    // Raw logs functionality
+    refreshRawLogsBtn.addEventListener('click', async () => {
+        try {
+            // 从 STATE 直接获取日志，而不是重新从 storage 读取
+            const logs = STATE.logs || [];
+            rawLogsTextarea.value = JSON.stringify(logs, null, 2);
+            rawLogsTextarea.classList.remove('hidden');
+            showMessage('日志数据已刷新', 'success');
+            logAsync('用户刷新并显示了原始日志。', 'INFO');
+        } catch (error) {
+            const errorMessage = `加载日志时出错: ${error instanceof Error ? error.message : '未知错误'}`;
+            rawLogsTextarea.value = errorMessage;
+            rawLogsTextarea.classList.remove('hidden');
+            showMessage('加载日志失败', 'error');
+            logAsync(`显示原始日志时出错: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
+        }
+    });
+
+    testLogBtn.addEventListener('click', async () => {
+        console.log("Attempting to send a test log message...");
+        await logAsync('这是一条来自dashboard的测试日志消息', 'INFO');
+        showMessage('测试日志已添加，正在刷新日志显示...', 'success');
+        // 刷新日志显示
+        setTimeout(async () => {
+            try {
+                const logs = STATE.logs || [];
+                rawLogsTextarea.value = JSON.stringify(logs, null, 2);
+                rawLogsTextarea.classList.remove('hidden');
+            } catch (error) {
+                console.error('刷新日志显示失败:', error);
+            }
+        }, 100);
+    });
+
+    // Raw records functionality
+    refreshRawRecordsBtn.addEventListener('click', () => {
+        try {
+            const records = STATE.records || [];
+            rawRecordsTextarea.value = JSON.stringify(records, null, 2);
+            rawRecordsTextarea.classList.remove('hidden');
+            showMessage('记录数据已刷新', 'success');
+            logAsync('用户刷新并显示了原始番号库数据。', 'INFO');
+        } catch (error) {
+            const errorMessage = `加载记录时出错: ${error instanceof Error ? error.message : '未知错误'}`;
+            rawRecordsTextarea.value = errorMessage;
+            rawRecordsTextarea.classList.remove('hidden');
+            showMessage('加载记录失败', 'error');
+            logAsync(`显示原始番号库数据时出错: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
+        }
+    });
+
+    checkDataStructureBtn.addEventListener('click', () => {
+        checkDataStructure();
+    });
+}
+
+async function loadJsonConfig(): Promise<void> {
+    const jsonConfigTextarea = document.getElementById('jsonConfig') as HTMLTextAreaElement;
+    if (!jsonConfigTextarea) return;
+
+    try {
+        const settings = STATE.settings;
+        jsonConfigTextarea.value = JSON.stringify(settings, null, 2);
+    } catch (error) {
+        jsonConfigTextarea.value = '// 加载设置时出错\n' + (error instanceof Error ? error.message : '未知错误');
+    }
+}
+
+const DEFAULT_VIDEO_RECORD: Omit<VideoRecord, 'id'> = {
+    title: '',
+    status: 'browsed',
+    tags: [],
+    createdAt: 0,
+    updatedAt: 0,
+    releaseDate: null,
+    javdbUrl: null,
+    javdbImage: null,
+};
+
+function checkDataStructure(): void {
+    (async () => {
+        try {
+            const modal = document.getElementById('data-check-modal') as HTMLElement;
+            if (!modal) {
+                console.error('Data check modal element not found!');
+                showMessage('无法找到数据检查窗口，请刷新页面后重试。', 'error');
+                return;
+            }
+
+            const message = modal.querySelector('#data-check-modal-message') as HTMLElement;
+            const diffContainer = modal.querySelector('.diff-container') as HTMLElement;
+            const actions = modal.querySelector('#data-check-modal-actions') as HTMLElement;
+            const confirmBtn = modal.querySelector('#data-check-confirm-btn') as HTMLButtonElement;
+            const cancelBtn = modal.querySelector('#data-check-cancel-btn') as HTMLButtonElement;
+
+            if (!message || !diffContainer || !actions || !confirmBtn || !cancelBtn) {
+                console.error('Data check modal elements not found!');
+                showMessage('数据检查窗口元素缺失，请刷新页面后重试。', 'error');
+                return;
+            }
+
+            // Show modal
+            modal.classList.remove('hidden');
+            modal.classList.add('visible');
+
+            // Hide diff and actions initially
+            diffContainer.style.display = 'none';
+            actions.style.display = 'none';
+
+            message.textContent = '正在检查数据结构...';
+
+            const records = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {}) as Record<string, VideoRecord | OldVideoRecord>;
+            const recordsArray = Object.values(records);
+            const totalRecords = recordsArray.length;
+
+            if (totalRecords === 0) {
+                message.textContent = '没有找到任何记录，无需检查。';
+                return;
+            }
+
+            const recordsToFix: (VideoRecord | OldVideoRecord)[] = [];
+            const fixedRecordsPreview: Record<string, VideoRecord> = {};
+
+            for (let i = 0; i < totalRecords; i++) {
+                const record = recordsArray[i];
+                if (!record || !record.id) continue;
+
+                let changed = false;
+                const addedFields: string[] = [];
+                const newRecord: VideoRecord = { ...DEFAULT_VIDEO_RECORD, ...record };
+
+                // Check and add missing fields
+                if (!('createdAt' in newRecord) || typeof newRecord.createdAt === 'undefined') {
+                    newRecord.createdAt = Date.now();
+                    addedFields.push('createdAt');
+                    changed = true;
+                }
+                if (!('updatedAt' in newRecord) || typeof newRecord.updatedAt === 'undefined') {
+                    newRecord.updatedAt = newRecord.createdAt || Date.now();
+                    addedFields.push('updatedAt');
+                    changed = true;
+                }
+                if (!('title' in newRecord) || typeof newRecord.title === 'undefined') {
+                    newRecord.title = '';
+                    addedFields.push('title');
+                    changed = true;
+                }
+
+                if (changed) {
+                    recordsToFix.push(record);
+                    fixedRecordsPreview[record.id] = newRecord;
+                    console.log(`[数据结构检查] 记录 ${record.id} 需要修复，添加字段: ${addedFields.join(', ')}`);
+                }
+
+                if (i % 20 === 0 || i === totalRecords - 1) {
+                    message.textContent = `正在检查... (${i + 1}/${totalRecords})`;
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                }
+            }
+
+            if (recordsToFix.length > 0) {
+                const diffBefore = modal.querySelector('#data-check-diff-before') as HTMLElement;
+                const diffAfter = modal.querySelector('#data-check-diff-after') as HTMLElement;
+
+                if (!diffBefore || !diffAfter) {
+                    console.error('Diff <pre> 元素未找到。');
+                    return;
+                }
+
+                message.textContent = `检查完成！发现 ${recordsToFix.length} 条记录的结构需要修复。这是一个示例：`;
+
+                try {
+                    // 使用自定义的 JSON 序列化来显示 undefined 和 null 值
+                    const jsonReplacer = (key: string, value: any) => {
+                        if (value === undefined) {
+                            return 'undefined';
+                        }
+                        if (value === null) {
+                            return null; // 保持 null 值显示
+                        }
+                        return value;
+                    };
+
+                    diffBefore.textContent = JSON.stringify(recordsToFix[0], jsonReplacer, 2);
+                    diffAfter.textContent = JSON.stringify(fixedRecordsPreview[recordsToFix[0].id], jsonReplacer, 2);
+                } catch (e) {
+                    message.textContent = '无法显示修复示例，因为数据结构过于复杂或存在循环引用。';
+                }
+
+                diffContainer.style.display = '';
+                actions.style.display = '';
+
+                const hideModal = () => {
+                    modal.classList.remove('visible');
+                    modal.classList.add('hidden');
+                };
+
+                const onConfirm = async () => {
+                    hideModal();
+                    showMessage('正在修复记录...', 'info');
+
+                    // 调试日志：显示修复前后的数据
+                    console.log('[数据结构修复] 修复前记录数量:', Object.keys(records).length);
+                    console.log('[数据结构修复] 待修复记录数量:', recordsToFix.length);
+                    console.log('[数据结构修复] 修复预览数据:', fixedRecordsPreview);
+
+                    const allRecords = { ...records, ...fixedRecordsPreview };
+                    console.log('[数据结构修复] 合并后记录数量:', Object.keys(allRecords).length);
+
+                    // 显示一个修复示例
+                    const firstFixedId = Object.keys(fixedRecordsPreview)[0];
+                    if (firstFixedId) {
+                        console.log('[数据结构修复] 修复示例 - 原记录:', records[firstFixedId]);
+                        console.log('[数据结构修复] 修复示例 - 新记录:', fixedRecordsPreview[firstFixedId]);
+                    }
+
+                    await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+                    console.log('[数据结构修复] 数据已保存到存储');
+
+                    showMessage(`成功修复了 ${recordsToFix.length} 条记录。页面将刷新。`, 'success');
+                    logAsync(`数据结构修复完成，共修复 ${recordsToFix.length} 条记录。`, 'INFO');
+                    setTimeout(() => window.location.reload(), 1500);
+                };
+
+                const onCancel = () => {
+                    hideModal();
+                    logAsync('用户取消了数据结构修复操作。', 'INFO');
+                };
+
+                confirmBtn.onclick = onConfirm;
+                cancelBtn.onclick = onCancel;
+            } else {
+                message.textContent = '数据结构检查完成，所有记录都符合标准，无需修复。';
+                setTimeout(() => {
+                    modal.classList.remove('visible');
+                    modal.classList.add('hidden');
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('[数据结构检查] 出现错误:', error);
+            showMessage('数据结构检查过程中出现错误，请查看控制台了解详情。', 'error');
+            logAsync(`数据结构检查错误: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
+        }
+    })();
+}
