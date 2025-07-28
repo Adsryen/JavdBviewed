@@ -11,6 +11,7 @@ import type {
     ApiResponse,
     SyncConfig
 } from './types';
+import { SyncCancelledError } from './types';
 import { retry, delay, checkNetworkStatus } from './utils';
 import { getSettings } from '../../utils/storage';
 
@@ -39,7 +40,8 @@ export class SyncApiClient {
         records: VideoRecord[],
         userProfile: UserProfile,
         config: SyncConfig,
-        onProgress?: (current: number, total: number) => void
+        onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
+        abortSignal?: AbortSignal
     ): Promise<SyncResponseData> {
         // 检查网络连接
         if (!checkNetworkStatus()) {
@@ -57,17 +59,26 @@ export class SyncApiClient {
         try {
             // 对于想看类型，使用真实API同步
             if (type === 'want') {
-                return await this.syncWantWatchVideos(userProfile, config, onProgress);
+                return await this.syncWantWatchVideos(userProfile, config, onProgress, abortSignal);
             }
 
             // 其他类型使用模拟同步
             return await this.simulateSync(type, records, config, onProgress);
         } catch (error: any) {
-            logAsync('ERROR', '同步数据失败', { 
-                error: error.message,
-                type,
-                recordCount: records.length 
-            });
+            if (error instanceof SyncCancelledError) {
+                // 用户取消，记录信息日志
+                logAsync('INFO', '同步被用户取消', {
+                    type,
+                    reason: error.message
+                });
+            } else {
+                // 真正的错误
+                logAsync('ERROR', '同步数据失败', {
+                    error: error.message,
+                    type,
+                    recordCount: records.length
+                });
+            }
             throw error;
         }
     }
@@ -303,7 +314,8 @@ export class SyncApiClient {
     private async syncWantWatchVideos(
         userProfile: UserProfile,
         config: SyncConfig,
-        onProgress?: (current: number, total: number) => void
+        onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
+        abortSignal?: AbortSignal
     ): Promise<SyncResponseData> {
         logAsync('INFO', '开始同步想看视频列表', { userEmail: userProfile.email });
 
@@ -344,7 +356,11 @@ export class SyncApiClient {
 
             // 3. 获取所有想看视频的ID列表
             logAsync('INFO', '开始获取想看视频ID列表...');
-            const videoIds = await this.fetchAllWantWatchVideoIds(totalPages, onProgress);
+            const videoIds = await this.fetchAllWantWatchVideoIds(
+                totalPages,
+                (current, total, stage) => onProgress?.(current, total, stage),
+                abortSignal
+            );
             logAsync('INFO', `获取到${videoIds.length}个想看视频ID`, {
                 videoIds: videoIds.slice(0, 10), // 只显示前10个ID作为示例
                 totalCount: videoIds.length
@@ -369,6 +385,11 @@ export class SyncApiClient {
             const errors: Array<{ recordId: string; error: string }> = [];
 
             for (let i = 0; i < videoIds.length; i++) {
+                // 检查是否已取消
+                if (abortSignal?.aborted) {
+                    throw new SyncCancelledError('用户取消了同步操作');
+                }
+
                 const urlVideoId = videoIds[i]; // 这是从URL中获取的ID
                 logAsync('INFO', `处理视频 ${i + 1}/${videoIds.length}: ${urlVideoId}`);
 
@@ -405,8 +426,8 @@ export class SyncApiClient {
                     logAsync('ERROR', `同步视频 ${urlVideoId} 失败`, { error: error.message });
                 }
 
-                // 更新进度
-                onProgress?.(i + 1, videoIds.length);
+                // 更新进度（详情获取进度）
+                onProgress?.(i + 1, videoIds.length, 'details');
 
                 // 请求间隔
                 if (i < videoIds.length - 1) {
@@ -429,7 +450,13 @@ export class SyncApiClient {
             };
 
         } catch (error: any) {
-            logAsync('ERROR', '同步想看视频失败', { error: error.message });
+            if (error instanceof SyncCancelledError) {
+                // 用户取消，记录信息日志
+                logAsync('INFO', '想看同步被用户取消', { reason: error.message });
+            } else {
+                // 真正的错误
+                logAsync('ERROR', '同步想看视频失败', { error: error.message });
+            }
             throw error;
         }
     }
@@ -475,19 +502,26 @@ export class SyncApiClient {
      */
     private async fetchAllWantWatchVideoIds(
         totalPages: number,
-        onProgress?: (current: number, total: number) => void
+        onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
+        abortSignal?: AbortSignal
     ): Promise<string[]> {
         const allVideoIds: string[] = [];
         logAsync('INFO', `开始获取想看视频ID，总共${totalPages}页`);
 
         for (let page = 1; page <= totalPages; page++) {
             try {
+                // 检查是否已取消
+                if (abortSignal?.aborted) {
+                    logAsync('INFO', `同步在第${page}页被取消`);
+                    throw new SyncCancelledError('用户取消了同步操作');
+                }
+
                 logAsync('INFO', `正在获取第${page}页想看视频...`);
                 const videoIds = await this.fetchWantWatchVideoIdsFromPage(page);
                 allVideoIds.push(...videoIds);
 
-                // 更新进度（页面获取进度占总进度的30%）
-                onProgress?.(Math.floor((page / totalPages) * 30), 100);
+                // 更新进度（页面获取进度）
+                onProgress?.(page, totalPages, 'pages');
 
                 logAsync('INFO', `获取第${page}页想看视频完成`, {
                     page,

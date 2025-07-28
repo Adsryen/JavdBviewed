@@ -7,6 +7,9 @@ import { showMessage } from '../ui/toast';
 import { SyncUI } from './ui';
 import { getSyncManager } from './core';
 import type { SyncType } from './types';
+import { SyncCancelledError } from './types';
+import { userService } from '../services/userService';
+import { on, emit } from '../services/eventBus';
 
 // 导出公共接口
 export { SyncStatus } from './types';
@@ -20,14 +23,17 @@ export { getApiClient } from './api';
 export async function initDataSyncSection(): Promise<void> {
     try {
         logAsync('INFO', '初始化数据同步功能');
-        
+
         // 初始化UI
         const ui = SyncUI.getInstance();
         await ui.init();
-        
+
         // 绑定同步事件
         bindSyncEvents();
-        
+
+        // 绑定事件总线监听器
+        bindEventBusListeners();
+
         logAsync('INFO', '数据同步功能初始化完成');
     } catch (error: any) {
         logAsync('ERROR', '数据同步功能初始化失败', { error: error.message });
@@ -53,8 +59,35 @@ function bindSyncEvents(): void {
     // 监听同步请求事件
     document.addEventListener('sync-requested', handleSyncRequest as EventListener);
 
+    // 监听取消同步事件
+    document.addEventListener('sync-cancel-requested', handleCancelSyncRequest as EventListener);
+
     // 监听页面卸载事件，清理资源
     window.addEventListener('beforeunload', cleanup);
+}
+
+/**
+ * 绑定事件总线监听器
+ */
+function bindEventBusListeners(): void {
+    // 监听数据同步刷新请求
+    on('data-sync-refresh-requested', () => {
+        logAsync('DEBUG', '收到数据同步刷新请求');
+        refreshDataSyncSection();
+    });
+
+    // 监听用户登录状态变化
+    on('user-login-status-changed', ({ isLoggedIn }) => {
+        logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
+        const ui = SyncUI.getInstance();
+        ui.checkUserLoginStatus();
+    });
+
+    // 监听用户退出登录
+    on('user-logout', () => {
+        logAsync('DEBUG', '用户退出登录，重置同步状态');
+        resetSyncState();
+    });
 }
 
 /**
@@ -63,7 +96,7 @@ function bindSyncEvents(): void {
 async function handleSyncRequest(event: Event): Promise<void> {
     const customEvent = event as CustomEvent;
     const { type } = customEvent.detail as { type: SyncType };
-    
+
     if (!type) {
         showMessage('同步类型无效', 'error');
         return;
@@ -112,14 +145,41 @@ async function handleSyncRequest(event: Event): Promise<void> {
         );
 
     } catch (error: any) {
-        logAsync('ERROR', '同步请求处理失败', { type, error: error.message });
-        ui.showSyncProgress(false);
-        ui.showError(error.message);
-        showMessage(error.message, 'error');
+        if (error instanceof SyncCancelledError) {
+            // 用户取消同步，显示信息而不是错误
+            logAsync('INFO', '同步被用户取消', { type, reason: error.message });
+            ui.showSyncProgress(false);
+            showMessage('同步已取消', 'info');
+        } else {
+            // 真正的错误
+            logAsync('ERROR', '同步请求处理失败', { type, error: error.message });
+            ui.showSyncProgress(false);
+            ui.showError(error.message);
+            showMessage(error.message, 'error');
+        }
     } finally {
         // 恢复UI状态
         ui.setButtonLoadingState(type, false);
         ui.setAllButtonsDisabled(false);
+    }
+}
+
+/**
+ * 处理取消同步请求
+ */
+async function handleCancelSyncRequest(): Promise<void> {
+    try {
+        logAsync('INFO', '收到取消同步请求');
+        const success = await cancelCurrentSync();
+
+        if (success) {
+            showMessage('同步已取消', 'info');
+        } else {
+            showMessage('取消同步失败', 'error');
+        }
+    } catch (error: any) {
+        logAsync('ERROR', '处理取消同步请求失败', { error: error.message });
+        showMessage('取消同步失败', 'error');
     }
 }
 
@@ -194,9 +254,8 @@ export async function checkSyncAvailability(): Promise<{
 }> {
     try {
         // 检查用户登录状态
-        const { getUserProfile } = await import('../userProfile');
-        const userProfile = await getUserProfile();
-        
+        const userProfile = await userService.getUserProfile();
+
         if (!userProfile || !userProfile.isLoggedIn) {
             return {
                 available: false,
