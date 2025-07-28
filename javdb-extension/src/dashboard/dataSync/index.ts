@@ -7,6 +7,7 @@ import { showMessage } from '../ui/toast';
 import { SyncUI } from './ui';
 import { getSyncManager } from './core';
 import type { SyncType } from './types';
+import type { SyncMode } from '../config/syncConfig';
 import { SyncCancelledError } from './types';
 import { userService } from '../services/userService';
 import { on, emit } from '../services/eventBus';
@@ -95,7 +96,7 @@ function bindEventBusListeners(): void {
  */
 async function handleSyncRequest(event: Event): Promise<void> {
     const customEvent = event as CustomEvent;
-    const { type } = customEvent.detail as { type: SyncType };
+    const { type, mode } = customEvent.detail as { type: SyncType; mode?: SyncMode };
 
     if (!type) {
         showMessage('同步类型无效', 'error');
@@ -120,7 +121,7 @@ async function handleSyncRequest(event: Event): Promise<void> {
         // 执行同步
         await syncManager.sync(
             type,
-            undefined, // 使用默认配置
+            mode ? { mode } : undefined, // 传递同步模式配置
             // 进度回调
             (progress) => {
                 ui.updateProgress(progress);

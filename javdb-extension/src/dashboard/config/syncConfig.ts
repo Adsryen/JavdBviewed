@@ -5,6 +5,17 @@
 // 同步类型
 export type SyncType = 'all' | 'viewed' | 'want' | 'actors';
 
+// 同步模式（用于已观看和想看同步）
+export type SyncMode = 'full' | 'incremental';
+
+// 同步模式配置
+export interface SyncModeOption {
+    mode: SyncMode;
+    title: string;
+    description: string;
+    icon: string;
+}
+
 // 同步选项配置
 export interface SyncOption {
     id: string;
@@ -23,6 +34,8 @@ export interface SyncConfig {
     retryCount: number; // 重试次数
     retryDelay: number; // 重试延迟（毫秒）
     timeout: number; // 超时时间（毫秒）
+    mode?: SyncMode; // 同步模式（可选）
+    incrementalTolerance?: number; // 增量同步容忍度（遇到已存在记录后还要同步的数量）
 }
 
 // 默认同步配置
@@ -30,7 +43,9 @@ export const DEFAULT_SYNC_CONFIG: SyncConfig = {
     batchSize: 50,
     retryCount: 3,
     retryDelay: 1000,
-    timeout: 30000
+    timeout: 30000,
+    mode: 'full',
+    incrementalTolerance: 20
 };
 
 // 同步选项配置
@@ -74,6 +89,22 @@ export const SYNC_OPTIONS: SyncOption[] = [
     }
 ];
 
+// 同步模式选项配置
+export const SYNC_MODE_OPTIONS: SyncModeOption[] = [
+    {
+        mode: 'full',
+        title: '全量同步',
+        description: '同步所有已观看视频（不管本地是否已存在）',
+        icon: 'fas fa-sync-alt'
+    },
+    {
+        mode: 'incremental',
+        title: '同步缺失',
+        description: '只同步缺失的视频（遇到已存在记录时停止）',
+        icon: 'fas fa-plus-circle'
+    }
+];
+
 /**
  * 获取同步配置
  */
@@ -82,6 +113,14 @@ export function getSyncConfig(overrides?: Partial<SyncConfig>): SyncConfig {
         ...DEFAULT_SYNC_CONFIG,
         ...overrides
     };
+}
+
+/**
+ * 获取同步模式显示名称
+ */
+export function getSyncModeDisplayName(mode: SyncMode): string {
+    const option = SYNC_MODE_OPTIONS.find(opt => opt.mode === mode);
+    return option?.title || mode;
 }
 
 /**

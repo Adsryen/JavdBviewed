@@ -3,21 +3,41 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .sync-options-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+/* 同步选项组 */
+.sync-option-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 悬浮时的提示效果 */
+.sync-option-group:hover .main-sync-btn {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    transform: translateY(-1px);
 }
 
 .sync-option-btn {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
     border: 2px solid #dee2e6;
     border-radius: 12px;
     padding: 16px 12px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -27,13 +47,39 @@
     overflow: hidden;
     min-height: 85px;
     justify-content: center;
+    width: 100%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 主同步按钮悬浮提示 */
+.main-sync-btn::after {
+    content: "悬浮查看模式";
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1001;
+}
+
+.main-sync-btn:hover::after {
+    opacity: 1;
 }
 
 .sync-option-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
     border-color: #007bff;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
 }
 
 .sync-option-btn:active:not(:disabled) {
@@ -47,9 +93,10 @@
 }
 
 .sync-option-btn i {
-    font-size: 20px;
+    font-size: 22px;
     color: #495057;
     transition: all 0.3s ease;
+    color: #6c757d;
 }
 
 .sync-option-btn:hover:not(:disabled) i {
@@ -58,11 +105,12 @@
 }
 
 .sync-btn-text {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #343a40;
     margin: 0;
     line-height: 1.2;
+    letter-spacing: 0.3px;
 }
 
 .sync-option-btn small {
@@ -107,6 +155,183 @@
 
 .sync-option-btn#syncActorsData:hover:not(:disabled) i {
     color: #6f42c1;
+}
+
+/* 同步模式选项 */
+.sync-mode-options {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    z-index: 1000;
+    margin-top: 4px;
+    min-width: 200px;
+    width: max-content;
+    max-width: 280px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+    animation: slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sync-mode-options.show,
+.sync-mode-options[style*="display: block"],
+.sync-mode-options[style*="display:block"] {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* 响应式调整 - 小屏幕时的处理 */
+@media (max-width: 768px) {
+    .sync-mode-options {
+        left: 0;
+        right: 0;
+        transform: translateY(-10px);
+        min-width: auto;
+        width: 100%;
+        max-width: none;
+    }
+
+    .sync-mode-options.show,
+    .sync-mode-options[style*="display: block"],
+    .sync-mode-options[style*="display:block"] {
+        transform: translateY(0);
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+/* 防止悬浮菜单超出容器边界 */
+.sync-option-group {
+    overflow: visible;
+}
+
+.data-sync-container {
+    overflow: visible;
+}
+
+/* 添加小箭头指示器 */
+.sync-mode-options::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid #e9ecef;
+}
+
+.sync-mode-options::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #ffffff;
+}
+
+@media (max-width: 768px) {
+    .sync-mode-options::before,
+    .sync-mode-options::after {
+        left: 20px;
+        transform: none;
+    }
+}
+
+.sync-mode-btn {
+    width: 100%;
+    padding: 16px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    font-size: 14px;
+    color: #495057;
+    border-bottom: 1px solid #e9ecef;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    white-space: nowrap;
+}
+
+.sync-mode-btn:last-child {
+    border-bottom: none;
+}
+
+.sync-mode-btn:hover {
+    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+    color: #007bff;
+    transform: translateX(3px);
+    box-shadow: inset 3px 0 0 #007bff;
+}
+
+.sync-mode-btn i {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    color: #6c757d;
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sync-mode-btn:hover i {
+    color: #007bff;
+}
+
+.sync-mode-btn span {
+    font-weight: 600;
+    color: #343a40;
+    flex-shrink: 0;
+    min-width: 80px;
+}
+
+.sync-mode-btn small {
+    color: #6c757d;
+    font-size: 12px;
+    opacity: 0.9;
+    line-height: 1.3;
+    flex-shrink: 0;
+}
+
+.sync-mode-btn:hover span {
+    color: #007bff;
+}
+
+.sync-mode-btn:hover small {
+    color: #495057;
 }
 
 /* 同步状态信息 */
