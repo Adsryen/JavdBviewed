@@ -51,6 +51,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         requestInterval: 3, // 请求间隔3秒，缓解服务器压力
         batchSize: 20, // 每批处理20个视频
         maxRetries: 3, // 最大重试3次
+        urls: {
+            wantWatch: 'https://javdb.com/users/want_watch_videos', // 想看视频列表URL
+            watchedVideos: 'https://javdb.com/users/watched_videos', // 已看视频列表URL
+            collectionActors: 'https://javdb.com/users/collection_actors', // 收藏演员列表URL
+        },
     },
     searchEngines: [
         {

@@ -19,6 +19,11 @@ export interface ExtensionSettings {
         requestInterval: number; // 请求间隔（秒），用于缓解服务器压力
         batchSize: number; // 批量处理大小
         maxRetries: number; // 最大重试次数
+        urls: {
+            wantWatch: string; // 想看视频列表URL
+            watchedVideos: string; // 已看视频列表URL
+            collectionActors: string; // 收藏演员列表URL
+        };
     };
     searchEngines: {
         id: string;

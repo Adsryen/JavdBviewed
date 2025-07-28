@@ -16,6 +16,16 @@ import { retry, delay, checkNetworkStatus } from './utils';
 import { getSettings } from '../../utils/storage';
 
 /**
+ * 同步类型配置接口
+ */
+interface SyncTypeConfig {
+    url: string;
+    status: 'want' | 'viewed';
+    displayName: string;
+    countField: 'wantCount' | 'watchedCount';
+}
+
+/**
  * API客户端类
  */
 export class SyncApiClient {
@@ -57,9 +67,9 @@ export class SyncApiClient {
         });
 
         try {
-            // 对于想看类型，使用真实API同步
-            if (type === 'want') {
-                return await this.syncWantWatchVideos(userProfile, config, onProgress, abortSignal);
+            // 对于想看和已观看类型，使用真实API同步
+            if (type === 'want' || type === 'viewed') {
+                return await this.syncUserVideos(type, userProfile, config, onProgress, abortSignal);
             }
 
             // 其他类型使用模拟同步
@@ -287,6 +297,32 @@ export class SyncApiClient {
     }
 
     /**
+     * 获取同步类型配置
+     */
+    private async getSyncTypeConfig(type: 'want' | 'viewed'): Promise<SyncTypeConfig> {
+        const settings = await getSettings();
+
+        switch (type) {
+            case 'want':
+                return {
+                    url: settings.dataSync.urls.wantWatch,
+                    status: 'want',
+                    displayName: '想看',
+                    countField: 'wantCount'
+                };
+            case 'viewed':
+                return {
+                    url: settings.dataSync.urls.watchedVideos,
+                    status: 'viewed',
+                    displayName: '已观看',
+                    countField: 'watchedCount'
+                };
+            default:
+                throw new Error(`不支持的同步类型: ${type}`);
+        }
+    }
+
+    /**
      * 设置API配置
      */
     public setConfig(config: { baseUrl?: string; timeout?: number }): void {
@@ -309,18 +345,25 @@ export class SyncApiClient {
     }
 
     /**
-     * 同步想看视频列表
+     * 通用的用户视频同步函数（想看/已观看）
      */
-    private async syncWantWatchVideos(
+    private async syncUserVideos(
+        type: 'want' | 'viewed',
         userProfile: UserProfile,
         config: SyncConfig,
         onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
         abortSignal?: AbortSignal
     ): Promise<SyncResponseData> {
-        logAsync('INFO', '开始同步想看视频列表', { userEmail: userProfile.email });
+        // 获取同步类型配置
+        const syncConfig = await this.getSyncTypeConfig(type);
+        logAsync('INFO', `开始同步${syncConfig.displayName}视频列表`, {
+            userEmail: userProfile.email,
+            type,
+            url: syncConfig.url
+        });
 
         try {
-            // 1. 刷新用户账号信息，获取想看数量
+            // 1. 刷新用户账号信息，获取视频数量
             logAsync('INFO', '正在刷新用户账号信息...');
             const refreshedProfile = await this.refreshUserProfile();
 
@@ -338,36 +381,39 @@ export class SyncApiClient {
                 throw new Error('无法获取用户账号信息或统计数据');
             }
 
-            const wantCount = refreshedProfile.serverStats.wantCount || 0;
-            logAsync('INFO', `用户想看统计`, {
-                wantCount,
+            // 根据同步类型获取对应的数量
+            const videoCount = refreshedProfile.serverStats[syncConfig.countField] || 0;
+            logAsync('INFO', `用户${syncConfig.displayName}统计`, {
+                [syncConfig.countField]: videoCount,
+                wantCount: refreshedProfile.serverStats.wantCount,
                 watchedCount: refreshedProfile.serverStats.watchedCount,
                 listsCount: refreshedProfile.serverStats.listsCount
             });
 
-            if (wantCount === 0) {
-                logAsync('INFO', '用户没有想看的视频');
+            if (videoCount === 0) {
+                logAsync('INFO', `用户没有${syncConfig.displayName}的视频`);
                 return { syncedCount: 0, skippedCount: 0, errorCount: 0 };
             }
 
             // 2. 计算页数（每页20个）
-            const totalPages = Math.ceil(wantCount / 20);
-            logAsync('INFO', `用户有${wantCount}个想看视频，共${totalPages}页`);
+            const totalPages = Math.ceil(videoCount / 20);
+            logAsync('INFO', `用户有${videoCount}个${syncConfig.displayName}视频，共${totalPages}页`);
 
-            // 3. 获取所有想看视频的ID列表
-            logAsync('INFO', '开始获取想看视频ID列表...');
-            const videoIds = await this.fetchAllWantWatchVideoIds(
+            // 3. 获取所有视频的ID列表
+            logAsync('INFO', `开始获取${syncConfig.displayName}视频ID列表...`);
+            const videoIds = await this.fetchAllVideoIds(
+                type,
                 totalPages,
                 (current, total, stage) => onProgress?.(current, total, stage),
                 abortSignal
             );
-            logAsync('INFO', `获取到${videoIds.length}个想看视频ID`, {
+            logAsync('INFO', `获取到${videoIds.length}个${syncConfig.displayName}视频ID`, {
                 videoIds: videoIds.slice(0, 10), // 只显示前10个ID作为示例
                 totalCount: videoIds.length
             });
 
             if (videoIds.length === 0) {
-                logAsync('WARN', '没有获取到任何想看视频ID');
+                logAsync('WARN', `没有获取到任何${syncConfig.displayName}视频ID`);
                 return { syncedCount: 0, skippedCount: 0, errorCount: 0 };
             }
 
@@ -411,10 +457,10 @@ export class SyncApiClient {
                             hasImage: !!videoData.javdbImage
                         });
 
-                        // 保存到本地存储，使用真正的视频ID
-                        await this.saveVideoRecord(realVideoId, videoData, 'want');
+                        // 保存到本地存储，使用真正的视频ID和对应的状态
+                        await this.saveVideoRecord(realVideoId, videoData, syncConfig.status);
                         syncedCount++;
-                        logAsync('INFO', `成功同步视频 ${realVideoId} (URL ID: ${urlVideoId})`);
+                        logAsync('INFO', `成功同步${syncConfig.displayName}视频 ${realVideoId} (URL ID: ${urlVideoId})`);
                     } else {
                         errorCount++;
                         errors.push({ recordId: urlVideoId, error: '无法获取视频详情' });
@@ -498,15 +544,17 @@ export class SyncApiClient {
     }
 
     /**
-     * 获取所有想看视频的ID列表
+     * 获取所有视频的ID列表（通用函数）
      */
-    private async fetchAllWantWatchVideoIds(
+    private async fetchAllVideoIds(
+        type: 'want' | 'viewed',
         totalPages: number,
         onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
         abortSignal?: AbortSignal
     ): Promise<string[]> {
         const allVideoIds: string[] = [];
-        logAsync('INFO', `开始获取想看视频ID，总共${totalPages}页`);
+        const syncConfig = await this.getSyncTypeConfig(type);
+        logAsync('INFO', `开始获取${syncConfig.displayName}视频ID，总共${totalPages}页`);
 
         for (let page = 1; page <= totalPages; page++) {
             try {
@@ -516,14 +564,14 @@ export class SyncApiClient {
                     throw new SyncCancelledError('用户取消了同步操作');
                 }
 
-                logAsync('INFO', `正在获取第${page}页想看视频...`);
-                const videoIds = await this.fetchWantWatchVideoIdsFromPage(page);
+                logAsync('INFO', `正在获取第${page}页${syncConfig.displayName}视频...`);
+                const videoIds = await this.fetchVideoIdsFromPage(type, page);
                 allVideoIds.push(...videoIds);
 
                 // 更新进度（页面获取进度）
                 onProgress?.(page, totalPages, 'pages');
 
-                logAsync('INFO', `获取第${page}页想看视频完成`, {
+                logAsync('INFO', `获取第${page}页${syncConfig.displayName}视频完成`, {
                     page,
                     totalPages,
                     currentPageCount: videoIds.length,
@@ -537,7 +585,7 @@ export class SyncApiClient {
                     await delay(1000); // 页面间隔1秒
                 }
             } catch (error: any) {
-                logAsync('ERROR', `获取第${page}页想看视频失败`, {
+                logAsync('ERROR', `获取第${page}页${syncConfig.displayName}视频失败`, {
                     page,
                     totalPages,
                     error: error.message
@@ -556,11 +604,13 @@ export class SyncApiClient {
     }
 
     /**
-     * 从指定页面获取想看视频ID列表
+     * 从指定页面获取视频ID列表（通用函数）
      */
-    private async fetchWantWatchVideoIdsFromPage(page: number): Promise<string[]> {
-        const url = `${this.baseUrl}/users/want_watch_videos?page=${page}`;
-        logAsync('INFO', `请求想看视频页面`, { page, url });
+    private async fetchVideoIdsFromPage(type: 'want' | 'viewed', page: number): Promise<string[]> {
+        // 获取同步类型配置
+        const syncConfig = await this.getSyncTypeConfig(type);
+        const url = `${syncConfig.url}?page=${page}`;
+        logAsync('INFO', `请求${syncConfig.displayName}视频页面`, { page, url, baseUrl: syncConfig.url });
 
         try {
             const response = await fetch(url, {
@@ -588,15 +638,15 @@ export class SyncApiClient {
             }
 
             const html = await response.text();
-            logAsync('INFO', `想看视频页面HTML获取成功`, {
+            logAsync('INFO', `${syncConfig.displayName}视频页面HTML获取成功`, {
                 page,
                 htmlLength: html.length,
                 hasVideoContent: html.includes('/v/'),
                 hasMovieList: html.includes('movie-list')
             });
 
-            const videoIds = this.parseVideoIdsFromWantWatchHTML(html);
-            logAsync('INFO', `想看视频页面解析完成`, {
+            const videoIds = this.parseVideoIdsFromHTML(html);
+            logAsync('INFO', `${syncConfig.displayName}视频页面解析完成`, {
                 page,
                 videoCount: videoIds.length,
                 videoIds: videoIds.slice(0, 3) // 显示前3个作为示例
@@ -605,15 +655,15 @@ export class SyncApiClient {
             return videoIds;
 
         } catch (error: any) {
-            logAsync('ERROR', `获取想看视频页面失败`, { page, url, error: error.message });
+            logAsync('ERROR', `获取${syncConfig.displayName}视频页面失败`, { page, url, error: error.message });
             throw error;
         }
     }
 
     /**
-     * 从想看页面HTML中解析视频ID
+     * 从页面HTML中解析视频ID（通用函数）
      */
-    private parseVideoIdsFromWantWatchHTML(html: string): string[] {
+    private parseVideoIdsFromHTML(html: string): string[] {
         const videoIds: string[] = [];
 
         try {
