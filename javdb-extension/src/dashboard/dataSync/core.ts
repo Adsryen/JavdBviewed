@@ -92,12 +92,13 @@ export class SyncManager {
                 isLoggedIn: userProfile.isLoggedIn
             });
 
-            // 对于想看同步，直接从服务器获取，不需要本地数据
+            // 对于想看和已观看同步，直接从服务器获取，不需要本地数据
             let dataToSync: Record<string, VideoRecord> = {};
 
-            if (type === 'want') {
-                logAsync('INFO', '想看同步模式：跳过本地数据获取，直接从服务器同步');
-                // 想看同步不需要本地数据，直接从服务器获取
+            if (type === 'want' || type === 'viewed') {
+                const syncTypeName = type === 'want' ? '想看' : '已观看';
+                logAsync('INFO', `${syncTypeName}同步模式：跳过本地数据获取，直接从服务器同步`);
+                // 想看和已观看同步不需要本地数据，直接从服务器获取
                 dataToSync = {};
             } else {
                 // 其他类型需要获取本地数据
@@ -186,19 +187,20 @@ export class SyncManager {
         const { type, data, config, onProgress } = context;
         logAsync('INFO', 'performSync开始', { type, dataCount: Object.keys(data).length });
 
-        // 对于想看同步，直接调用API，不需要检查本地数据
-        if (type === 'want') {
-            logAsync('INFO', '想看同步：直接调用API获取服务器数据');
+        // 对于想看和已观看同步，直接调用API，不需要检查本地数据
+        if (type === 'want' || type === 'viewed') {
+            const syncTypeName = type === 'want' ? '想看' : '已观看';
+            logAsync('INFO', `${syncTypeName}同步：直接调用API获取服务器数据`);
 
             // 更新进度：准备阶段（不显示具体数字）
             onProgress?.({
                 percentage: 0,
-                message: '准备同步想看列表...'
+                message: `准备同步${syncTypeName}列表...`
             });
 
             try {
                 // 获取用户信息
-                logAsync('INFO', '获取用户信息用于想看同步...');
+                logAsync('INFO', `获取用户信息用于${syncTypeName}同步...`);
                 const userProfile = await userService.getUserProfile();
                 if (!userProfile) {
                     throw new Error('无法获取用户信息');
@@ -208,12 +210,12 @@ export class SyncManager {
                     isLoggedIn: userProfile.isLoggedIn
                 });
 
-                // 直接调用API进行想看同步
-                logAsync('INFO', '调用API客户端进行想看同步');
+                // 直接调用API进行同步
+                logAsync('INFO', `调用API客户端进行${syncTypeName}同步`);
                 const apiClient = getApiClient();
                 const syncResponse = await apiClient.syncData(
                     type,
-                    [], // 想看同步不需要本地数据
+                    [], // 想看和已观看同步不需要本地数据
                     userProfile,
                     config,
                     (current: number, total: number, stage?: 'pages' | 'details') => {
@@ -222,10 +224,10 @@ export class SyncManager {
                         let message: string;
 
                         if (stage === 'pages') {
-                            message = `获取想看列表 (${current}/${total}页)...`;
+                            message = `获取${syncTypeName}列表 (${current}/${total}页)...`;
                             logAsync('INFO', `页面获取进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
                         } else if (stage === 'details') {
-                            message = `同步想看视频 (${current}/${total})...`;
+                            message = `同步${syncTypeName}视频 (${current}/${total})...`;
                             logAsync('INFO', `详情获取进度: ${current}/${total} (${percentage.toFixed(1)}%)`);
                         } else {
                             message = `同步进度 (${current}/${total})...`;
