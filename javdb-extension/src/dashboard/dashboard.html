@@ -339,23 +339,58 @@
                         <div class="settings-panel" id="data-sync-settings">
                             <div class="settings-panel-header">
                                 <h3>数据同步设置</h3>
-                                <p class="settings-description">配置从JavDB同步数据时的行为，包括请求间隔和批量处理设置。</p>
+                                <p class="settings-description">配置从JavDB同步数据时的行为，包括请求间隔、批量处理设置和URL地址。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <div class="form-group">
-                                    <label for="dataSyncRequestInterval">请求间隔 (秒):</label>
-                                    <input type="number" id="dataSyncRequestInterval" class="number-input" min="3" max="60" value="3">
-                                    <p class="input-description">每次请求详情页之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
+                                <!-- URL配置部分 -->
+                                <div class="form-section">
+                                    <h4>同步URL配置</h4>
+                                    <p class="section-description">配置各种数据同步的URL地址，页码参数将由程序自动添加。</p>
+
+                                    <div class="form-group">
+                                        <label for="dataSyncWantWatchUrl">想看视频URL:</label>
+                                        <input type="url" id="dataSyncWantWatchUrl" class="text-input" placeholder="https://javdb.com/users/want_watch_videos">
+                                        <p class="input-description">想看视频列表的URL地址，程序会自动添加页码参数。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="dataSyncWatchedVideosUrl">已看视频URL:</label>
+                                        <input type="url" id="dataSyncWatchedVideosUrl" class="text-input" placeholder="https://javdb.com/users/watched_videos">
+                                        <p class="input-description">已看视频列表的URL地址，程序会自动添加页码参数。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="dataSyncCollectionActorsUrl">收藏演员URL:</label>
+                                        <input type="url" id="dataSyncCollectionActorsUrl" class="text-input" placeholder="https://javdb.com/users/collection_actors">
+                                        <p class="input-description">收藏演员列表的URL地址，程序会自动添加页码参数。</p>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="dataSyncBatchSize">批量处理大小:</label>
-                                    <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="50" value="20">
-                                    <p class="input-description">每批处理的视频数量，通常一页包含20个视频。</p>
+
+                                <!-- 同步行为配置部分 -->
+                                <div class="form-section">
+                                    <h4>同步行为配置</h4>
+                                    <p class="section-description">配置数据同步时的请求间隔和批量处理设置。</p>
+
+                                    <div class="form-group">
+                                        <label for="dataSyncRequestInterval">请求间隔 (秒):</label>
+                                        <input type="number" id="dataSyncRequestInterval" class="number-input" min="3" max="60" value="3">
+                                        <p class="input-description">每次请求详情页之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dataSyncBatchSize">批量处理大小:</label>
+                                        <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="50" value="20">
+                                        <p class="input-description">每批处理的视频数量，通常一页包含20个视频。</p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dataSyncMaxRetries">最大重试次数:</label>
+                                        <input type="number" id="dataSyncMaxRetries" class="number-input" min="1" max="10" value="3">
+                                        <p class="input-description">当请求失败时的最大重试次数。</p>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="dataSyncMaxRetries">最大重试次数:</label>
-                                    <input type="number" id="dataSyncMaxRetries" class="number-input" min="1" max="10" value="3">
-                                    <p class="input-description">当请求失败时的最大重试次数。</p>
+
+                                <!-- 保存按钮 -->
+                                <div class="button-group">
+                                    <button type="button" id="saveDataSyncSettings" class="btn">保存数据同步设置</button>
                                 </div>
                             </div>
                         </div>

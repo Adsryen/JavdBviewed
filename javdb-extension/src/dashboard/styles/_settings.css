@@ -351,14 +351,38 @@
 .form-group {
     margin-bottom: 15px;
 }
+
+/* 表单部分样式 */
+.form-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.form-section h4 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.form-section .section-description {
+    margin: 0 0 20px 0;
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.4;
+}
 .form-group label, .form-group-checkbox label {
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
 }
-.form-group input[type="text"], 
+.form-group input[type="text"],
 .form-group input[type="password"],
-.form-group input[type="number"] {
+.form-group input[type="number"],
+.form-group input[type="url"] {
     width: 100%;
     max-width: 500px;
     padding: 10px 12px;
@@ -367,9 +391,25 @@
     box-sizing: border-box;
 }
 
+/* URL输入框样式 */
+.form-group input[type="url"] {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.form-group input[type="url"]:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+    outline: none;
+}
+
 .form-group input.number-input {
     max-width: 120px;
     text-align: center;
+}
+
+.form-group input.text-input {
+    max-width: 600px;
 }
 
 .form-group-checkbox {
@@ -711,6 +751,28 @@
 
 #saveJsonBtn {
     background-color: #28a745; /* Green for 'Save' */
+}
+
+#saveDataSyncSettings {
+    background-color: #28a745; /* Green for 'Save' */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+#saveDataSyncSettings:hover:not(:disabled) {
+    background-color: #218838;
+    transform: translateY(-1px);
+}
+
+#saveDataSyncSettings:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 #importJsonBtn {

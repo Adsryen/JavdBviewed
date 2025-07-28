@@ -33,6 +33,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
         dataSync: {
             ...DEFAULT_SETTINGS.dataSync,
             ...(storedSettings.dataSync || {}),
+            urls: {
+                ...DEFAULT_SETTINGS.dataSync.urls,
+                ...(storedSettings.dataSync?.urls || {}),
+            },
         },
     };
 }

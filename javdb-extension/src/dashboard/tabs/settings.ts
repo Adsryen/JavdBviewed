@@ -37,6 +37,14 @@ export function initSettingsTab(): void {
     const dataSyncBatchSize = document.getElementById('dataSyncBatchSize') as HTMLInputElement;
     const dataSyncMaxRetries = document.getElementById('dataSyncMaxRetries') as HTMLInputElement;
 
+    // 数据同步URL设置
+    const dataSyncWantWatchUrl = document.getElementById('dataSyncWantWatchUrl') as HTMLInputElement;
+    const dataSyncWatchedVideosUrl = document.getElementById('dataSyncWatchedVideosUrl') as HTMLInputElement;
+    const dataSyncCollectionActorsUrl = document.getElementById('dataSyncCollectionActorsUrl') as HTMLInputElement;
+
+    // 数据同步保存按钮
+    const saveDataSyncSettingsBtn = document.getElementById('saveDataSyncSettings') as HTMLButtonElement;
+
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
 
     function renderSearchEngines() {
@@ -119,6 +127,11 @@ export function initSettingsTab(): void {
         dataSyncBatchSize.value = String(dataSync?.batchSize || 20);
         dataSyncMaxRetries.value = String(dataSync?.maxRetries || 3);
 
+        // 数据同步URL设置
+        dataSyncWantWatchUrl.value = dataSync?.urls?.wantWatch || 'https://javdb.com/users/want_watch_videos';
+        dataSyncWatchedVideosUrl.value = dataSync?.urls?.watchedVideos || 'https://javdb.com/users/watched_videos';
+        dataSyncCollectionActorsUrl.value = dataSync?.urls?.collectionActors || 'https://javdb.com/users/collection_actors';
+
         maxLogEntries.value = String(logging?.maxLogEntries || 1500);
 
         if (searchEngines) {
@@ -148,6 +161,11 @@ export function initSettingsTab(): void {
                 requestInterval: parseInt(dataSyncRequestInterval.value, 10) || 3,
                 batchSize: parseInt(dataSyncBatchSize.value, 10) || 20,
                 maxRetries: parseInt(dataSyncMaxRetries.value, 10) || 3,
+                urls: {
+                    wantWatch: dataSyncWantWatchUrl.value.trim() || 'https://javdb.com/users/want_watch_videos',
+                    watchedVideos: dataSyncWatchedVideosUrl.value.trim() || 'https://javdb.com/users/watched_videos',
+                    collectionActors: dataSyncCollectionActorsUrl.value.trim() || 'https://javdb.com/users/collection_actors',
+                },
             },
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
@@ -170,6 +188,9 @@ export function initSettingsTab(): void {
 
         showMessage('Settings saved successfully!');
         logAsync('INFO', '用户设置已保存。', { settings: newSettings });
+
+        // 刷新JSON配置显示
+        await loadJsonConfig();
 
         // Update sync status display
         if (typeof updateSyncStatus === 'function') {
@@ -246,7 +267,10 @@ export function initSettingsTab(): void {
         (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = webdavEnabled.checked ? 'block' : 'none';
     });
     testWebdavConnectionBtn.addEventListener('click', handleTestWebDAV);
-    
+
+    // 数据同步设置保存按钮
+    saveDataSyncSettingsBtn.addEventListener('click', handleSaveSettings);
+
     hideViewed.addEventListener('change', handleSaveSettings);
     hideBrowsed.addEventListener('change', handleSaveSettings);
     hideVR.addEventListener('change', handleSaveSettings);
