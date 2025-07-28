@@ -1,73 +1,16 @@
-import { getValue, setValue } from '../utils/storage';
-import { STORAGE_KEYS } from '../utils/config';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
 import type { UserProfile } from '../types';
+import { userService } from './services/userService';
+import { emit } from './services/eventBus';
 
-/**
- * 从JavDB获取用户账号信息
- */
-export async function fetchUserProfile(): Promise<UserProfile | null> {
-    try {
-        logAsync('INFO', '开始获取用户账号信息');
-        
-        // 发送消息到background script获取用户信息
-        return new Promise((resolve) => {
-            chrome.runtime.sendMessage({ type: 'fetch-user-profile' }, (response) => {
-                if (response?.success) {
-                    logAsync('INFO', '成功获取用户账号信息', response.profile);
-                    resolve(response.profile);
-                } else {
-                    logAsync('ERROR', '获取用户账号信息失败', { error: response?.error });
-                    resolve(null);
-                }
-            });
-        });
-    } catch (error: any) {
-        logAsync('ERROR', '获取用户账号信息时发生错误', { error: error.message });
-        return null;
-    }
-}
+// 重新导出用户服务的方法，保持向后兼容
+export const fetchUserProfile = () => userService.fetchUserProfile();
+export const saveUserProfile = (profile: UserProfile) => userService.saveUserProfile(profile);
+export const getUserProfile = () => userService.getUserProfile();
+export const clearUserProfile = () => userService.clearUserProfile();
 
-/**
- * 保存用户账号信息到本地存储
- */
-export async function saveUserProfile(profile: UserProfile): Promise<void> {
-    try {
-        profile.lastUpdated = Date.now();
-        await setValue(STORAGE_KEYS.USER_PROFILE, profile);
-        logAsync('INFO', '用户账号信息已保存到本地存储');
-    } catch (error: any) {
-        logAsync('ERROR', '保存用户账号信息失败', { error: error.message });
-        throw error;
-    }
-}
 
-/**
- * 从本地存储获取用户账号信息
- */
-export async function getUserProfile(): Promise<UserProfile | null> {
-    try {
-        const profile = await getValue<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null);
-        return profile;
-    } catch (error: any) {
-        logAsync('ERROR', '从本地存储获取用户账号信息失败', { error: error.message });
-        return null;
-    }
-}
-
-/**
- * 清除用户账号信息
- */
-export async function clearUserProfile(): Promise<void> {
-    try {
-        await setValue(STORAGE_KEYS.USER_PROFILE, null);
-        logAsync('INFO', '用户账号信息已清除');
-    } catch (error: any) {
-        logAsync('ERROR', '清除用户账号信息失败', { error: error.message });
-        throw error;
-    }
-}
 
 /**
  * 初始化用户账号信息区域
@@ -194,6 +137,12 @@ async function handleLogin(): Promise<void> {
             await saveUserProfile(profile);
             displayUserProfile(profile);
             showMessage('账号信息获取成功！', 'success');
+
+            // 发送用户登录状态变化事件
+            emit('user-login-status-changed', {
+                isLoggedIn: true,
+                profile
+            });
         } else {
             showMessage('获取账号信息失败，请确保已登录 JavDB', 'error');
         }
@@ -242,6 +191,12 @@ async function handleLogout(): Promise<void> {
         await clearUserProfile();
         showLoginPrompt();
         showMessage('已退出登录', 'info');
+
+        // 发送用户退出登录事件
+        emit('user-logout', {});
+        emit('user-login-status-changed', {
+            isLoggedIn: false
+        });
     } catch (error: any) {
         showMessage('退出登录时发生错误', 'error');
         logAsync('ERROR', '退出登录失败', { error: error.message });
@@ -370,13 +325,14 @@ function showLoginPrompt(): void {
 }
 
 /**
- * 刷新数据同步区域（延迟导入避免循环依赖）
+ * 刷新数据同步区域（使用事件总线避免循环依赖）
  */
 function refreshDataSyncSection(): void {
-    // 使用动态导入避免循环依赖
-    import('./dataSync').then(({ refreshDataSyncSection }) => {
-        refreshDataSyncSection();
-    }).catch(error => {
-        logAsync('ERROR', '刷新数据同步区域失败', { error: error.message });
-    });
+    try {
+        // 使用事件总线通知数据同步模块刷新
+        emit('data-sync-refresh-requested', {});
+        logAsync('DEBUG', '已发送数据同步刷新请求');
+    } catch (error: any) {
+        logAsync('ERROR', '发送数据同步刷新请求失败', { error: error.message });
+    }
 }

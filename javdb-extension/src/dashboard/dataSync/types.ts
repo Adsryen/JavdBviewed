@@ -12,20 +12,8 @@ export enum SyncStatus {
     ERROR = 'error'
 }
 
-// 同步类型
-export type SyncType = 'all' | 'viewed' | 'want' | 'actors';
-
-// 同步选项配置
-export interface SyncOption {
-    id: string;
-    type: SyncType;
-    title: string;
-    description: string;
-    icon: string;
-    color: string;
-    enabled: boolean;
-    comingSoon?: boolean;
-}
+// 同步类型（从配置模块导入）
+export type { SyncType } from '../config/syncConfig';
 
 // 同步进度信息
 export interface SyncProgress {
@@ -33,6 +21,7 @@ export interface SyncProgress {
     message: string;
     current?: number;
     total?: number;
+    stage?: 'pages' | 'details';
 }
 
 // 同步结果
@@ -53,18 +42,13 @@ export interface SyncStats {
     actorsRecords: number;
 }
 
-// 同步配置
-export interface SyncConfig {
-    batchSize: number; // 批量同步大小
-    retryCount: number; // 重试次数
-    retryDelay: number; // 重试延迟（毫秒）
-    timeout: number; // 超时时间（毫秒）
-}
+// 同步配置（从配置模块导入）
+export type { SyncConfig } from '../config/syncConfig';
 
 // 同步上下文
 export interface SyncContext {
-    type: SyncType;
-    config: SyncConfig;
+    type: import('../config/syncConfig').SyncType;
+    config: import('../config/syncConfig').SyncConfig;
     data: Record<string, VideoRecord>;
     stats: SyncStats;
     onProgress?: (progress: SyncProgress) => void;
@@ -82,7 +66,7 @@ export interface ApiResponse<T = any> {
 
 // 同步请求数据
 export interface SyncRequestData {
-    type: SyncType;
+    type: import('../config/syncConfig').SyncType;
     records: VideoRecord[];
     userProfile: {
         email: string;
@@ -101,51 +85,15 @@ export interface SyncResponseData {
     }>;
 }
 
-// 默认同步配置
-export const DEFAULT_SYNC_CONFIG: SyncConfig = {
-    batchSize: 50,
-    retryCount: 3,
-    retryDelay: 1000,
-    timeout: 30000
-};
+// 默认同步配置（从配置模块导入）
+export { DEFAULT_SYNC_CONFIG } from '../config/syncConfig';
 
-// 同步选项配置
-export const SYNC_OPTIONS: SyncOption[] = [
-    {
-        id: 'syncAllData',
-        type: 'all',
-        title: '同步全部',
-        description: '已观看 + 想看',
-        icon: 'fas fa-sync-alt',
-        color: '#28a745',
-        enabled: true
-    },
-    {
-        id: 'syncViewedData',
-        type: 'viewed',
-        title: '同步已观看',
-        description: '已观看视频',
-        icon: 'fas fa-check',
-        color: '#28a745',
-        enabled: true
-    },
-    {
-        id: 'syncWantData',
-        type: 'want',
-        title: '同步想看',
-        description: '想看视频',
-        icon: 'fas fa-star',
-        color: '#ffc107',
-        enabled: true
-    },
-    {
-        id: 'syncActorsData',
-        type: 'actors',
-        title: '同步演员',
-        description: '收藏演员',
-        icon: 'fas fa-users',
-        color: '#6f42c1',
-        enabled: false,
-        comingSoon: true
+/**
+ * 同步取消异常类 - 用于区分用户主动取消和真正的错误
+ */
+export class SyncCancelledError extends Error {
+    constructor(message: string = '同步已取消') {
+        super(message);
+        this.name = 'SyncCancelledError';
     }
-];
+}

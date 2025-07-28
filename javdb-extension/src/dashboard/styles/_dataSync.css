@@ -139,10 +139,80 @@
     transition: width 0.3s ease;
 }
 
+/* 进度阶段容器 */
+.progress-stage {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+}
+
+.progress-stage:last-of-type {
+    margin-bottom: 0;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.progress-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.progress-percentage {
+    font-size: 13px;
+    font-weight: 700;
+    color: #007bff;
+    background: rgba(0, 123, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    min-width: 40px;
+    text-align: center;
+}
+
 .progress-text {
     font-size: 12px;
-    color: #495057;
+    color: #6c757d;
+    margin-top: 6px;
+    display: block;
+}
+
+/* 进度控制按钮 */
+.progress-controls {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.cancel-sync-btn {
+    background: #dc3545;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    padding: 8px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
     font-weight: 500;
+    transition: all 0.2s ease;
+    gap: 6px;
+}
+
+.cancel-sync-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.cancel-sync-btn:active {
+    transform: translateY(0);
 }
 
 .sync-result {
@@ -235,9 +305,8 @@
     left: 100%;
 }
 
-/* 禁用状态的特殊样式 */
-.sync-option-btn:disabled::after {
-    content: '即将推出';
+/* 即将推出标签样式 */
+.coming-soon-label {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -249,6 +318,7 @@
     border-radius: 4px;
     font-weight: 500;
     letter-spacing: 0.5px;
+    z-index: 1;
 }
 
 /* 数据同步区域的整体动画 */

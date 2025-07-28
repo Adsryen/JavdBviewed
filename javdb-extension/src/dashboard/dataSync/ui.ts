@@ -3,9 +3,10 @@
  */
 
 import { logAsync } from '../logger';
-import { getUserProfile } from '../userProfile';
-import type { SyncType, SyncProgress, SyncResult, SyncOption } from './types';
-import { SYNC_OPTIONS } from './types';
+import { userService } from '../services/userService';
+import type { SyncType, SyncProgress, SyncResult } from './types';
+import type { SyncOption } from '../config/syncConfig';
+import { SYNC_OPTIONS } from '../config/syncConfig';
 
 /**
  * UI管理类
@@ -29,6 +30,7 @@ export class SyncUI {
     public async init(): Promise<void> {
         await this.checkUserLoginStatus();
         this.renderSyncOptions();
+        this.bindCancelSyncEvent();
     }
 
     /**
@@ -36,9 +38,9 @@ export class SyncUI {
      */
     public async checkUserLoginStatus(): Promise<void> {
         try {
-            const userProfile = await getUserProfile();
+            const userProfile = await userService.getUserProfile();
             const dataSyncSection = document.getElementById('data-sync-section');
-            
+
             if (dataSyncSection) {
                 if (userProfile && userProfile.isLoggedIn) {
                     dataSyncSection.style.display = 'block';
@@ -60,11 +62,9 @@ export class SyncUI {
         const container = document.querySelector('.sync-options-grid');
         if (!container) return;
 
-        // 动态导入同步选项配置
-        import('./types').then(({ SYNC_OPTIONS }) => {
-            container.innerHTML = SYNC_OPTIONS.map(option => this.createSyncOptionHTML(option)).join('');
-            this.bindSyncEvents();
-        });
+        // 使用静态导入的同步选项配置
+        container.innerHTML = SYNC_OPTIONS.map(option => this.createSyncOptionHTML(option)).join('');
+        this.bindSyncEvents();
     }
 
     /**
@@ -113,6 +113,27 @@ export class SyncUI {
     }
 
     /**
+     * 绑定取消同步按钮事件
+     */
+    private bindCancelSyncEvent(): void {
+        const cancelBtn = document.getElementById('cancelSyncBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.handleCancelSync();
+            });
+        }
+    }
+
+    /**
+     * 处理取消同步
+     */
+    private async handleCancelSync(): Promise<void> {
+        // 触发取消同步事件
+        const event = new CustomEvent('sync-cancel-requested');
+        document.dispatchEvent(event);
+    }
+
+    /**
      * 显示/隐藏同步进度
      */
     public showSyncProgress(show: boolean): void {
@@ -132,19 +153,67 @@ export class SyncUI {
      * 更新同步进度
      */
     public updateProgress(progress: SyncProgress): void {
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        
+        if (progress.stage === 'pages') {
+            this.updatePagesProgress(progress);
+        } else if (progress.stage === 'details') {
+            this.updateDetailsProgress(progress);
+        } else {
+            // 向后兼容：如果没有stage，默认更新详情进度
+            this.updateDetailsProgress(progress);
+        }
+    }
+
+    /**
+     * 更新页面获取进度
+     */
+    private updatePagesProgress(progress: SyncProgress): void {
+        const pagesProgress = document.getElementById('pagesProgress');
+        const progressFill = document.getElementById('pagesProgressFill');
+        const progressText = document.getElementById('pagesProgressText');
+        const progressPercentage = document.getElementById('pagesProgressPercentage');
+
+        // 显示页面进度容器
+        if (pagesProgress) {
+            pagesProgress.style.display = 'block';
+        }
+
         if (progressFill) {
             progressFill.style.width = `${progress.percentage}%`;
         }
-        
+
         if (progressText) {
-            let text = progress.message;
-            if (progress.current !== undefined && progress.total !== undefined) {
-                text += ` (${progress.current}/${progress.total})`;
-            }
-            progressText.textContent = text;
+            progressText.textContent = progress.message;
+        }
+
+        if (progressPercentage) {
+            progressPercentage.textContent = `${Math.round(progress.percentage)}%`;
+        }
+    }
+
+    /**
+     * 更新详情获取进度
+     */
+    private updateDetailsProgress(progress: SyncProgress): void {
+        const detailsProgress = document.getElementById('detailsProgress');
+        const progressFill = document.getElementById('detailsProgressFill');
+        const progressText = document.getElementById('detailsProgressText');
+        const progressPercentage = document.getElementById('detailsProgressPercentage');
+
+        // 显示详情进度容器
+        if (detailsProgress) {
+            detailsProgress.style.display = 'block';
+        }
+
+        if (progressFill) {
+            progressFill.style.width = `${progress.percentage}%`;
+        }
+
+        if (progressText) {
+            progressText.textContent = progress.message;
+        }
+
+        if (progressPercentage) {
+            progressPercentage.textContent = `${Math.round(progress.percentage)}%`;
         }
     }
 
@@ -204,10 +273,8 @@ export class SyncUI {
             } else {
                 // 只有原本启用的按钮才重新启用
                 const syncType = btn.getAttribute('data-sync-type') as SyncType;
-                import('./types').then(({ SYNC_OPTIONS }) => {
-                    const option = SYNC_OPTIONS.find(opt => opt.type === syncType);
-                    btn.disabled = !option?.enabled;
-                });
+                const option = SYNC_OPTIONS.find(opt => opt.type === syncType);
+                btn.disabled = !option?.enabled;
             }
         });
     }
@@ -233,12 +300,42 @@ export class SyncUI {
         this.showSyncProgress(false);
         this.setAllButtonsDisabled(false);
         this.currentSyncType = null;
-        
+
+        // 重置两个进度条
+        this.resetProgressBars();
+
         // 隐藏结果显示
         const resultElement = document.getElementById('syncResult');
         if (resultElement) {
             resultElement.style.display = 'none';
         }
+    }
+
+    /**
+     * 重置进度条状态
+     */
+    private resetProgressBars(): void {
+        // 重置页面进度
+        const pagesProgress = document.getElementById('pagesProgress');
+        const pagesProgressFill = document.getElementById('pagesProgressFill');
+        const pagesProgressText = document.getElementById('pagesProgressText');
+        const pagesProgressPercentage = document.getElementById('pagesProgressPercentage');
+
+        if (pagesProgress) pagesProgress.style.display = 'none';
+        if (pagesProgressFill) pagesProgressFill.style.width = '0%';
+        if (pagesProgressText) pagesProgressText.textContent = '准备获取...';
+        if (pagesProgressPercentage) pagesProgressPercentage.textContent = '0%';
+
+        // 重置详情进度
+        const detailsProgress = document.getElementById('detailsProgress');
+        const detailsProgressFill = document.getElementById('detailsProgressFill');
+        const detailsProgressText = document.getElementById('detailsProgressText');
+        const detailsProgressPercentage = document.getElementById('detailsProgressPercentage');
+
+        if (detailsProgress) detailsProgress.style.display = 'none';
+        if (detailsProgressFill) detailsProgressFill.style.width = '0%';
+        if (detailsProgressText) detailsProgressText.textContent = '等待开始...';
+        if (detailsProgressPercentage) detailsProgressPercentage.textContent = '0%';
     }
 
     /**
