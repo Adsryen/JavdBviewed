@@ -1,4 +1,4 @@
-import { ExtensionSettings } from '../types';
+import { ExtensionSettings, FilterRule } from '../types';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 
 export const STORAGE_KEYS = {
@@ -76,5 +76,33 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         maxLogEntries: 1500,
     },
     drive115: DEFAULT_DRIVE115_SETTINGS,
+
+    // 新增：数据增强默认配置
+    dataEnhancement: {
+        enableMultiSource: false, // 默认关闭，避免影响现有用户
+        enableImageCache: true,
+        enableVideoPreview: false,
+        enableTranslation: false,
+        enableRatingAggregation: false,
+        enableActorInfo: false,
+        cacheExpiration: 24, // 24小时
+    },
+
+    // 新增：用户体验默认配置
+    userExperience: {
+        enableQuickCopy: false,
+        enableContentFilter: false,
+        enableKeyboardShortcuts: false,
+        enableMagnetSearch: false,
+        showEnhancedTooltips: true,
+    },
+
+    // 新增：内容过滤默认配置
+    contentFilter: {
+        enabled: false,
+        rules: [] as FilterRule[],
+        highlightRules: [] as FilterRule[],
+    },
+
     version: '0.0.0'
 };
