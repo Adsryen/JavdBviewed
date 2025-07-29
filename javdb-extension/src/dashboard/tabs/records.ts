@@ -56,49 +56,88 @@ export function initRecordsTab(): void {
     recordsPerPageSelect.value = String(recordsPerPage);
 
     function updateFilteredRecords() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const filterValue = filterSelect.value as 'all' | VideoStatus;
+        try {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterValue = filterSelect.value as 'all' | VideoStatus;
 
-        filteredRecords = STATE.records.filter(record => {
-            const matchesSearch = !searchTerm ||
-                record.id.toLowerCase().includes(searchTerm) ||
-                record.title.toLowerCase().includes(searchTerm);
-            const matchesFilter = filterValue === 'all' || record.status === filterValue;
-            return matchesSearch && matchesFilter;
-        });
+            // 确保 STATE.records 是数组
+            const records = Array.isArray(STATE.records) ? STATE.records : [];
 
-        // Add sorting logic
-        const sortValue = sortSelect.value;
-        filteredRecords.sort((a, b) => {
-            switch (sortValue) {
-                case 'createdAt_desc':
-                    return b.createdAt - a.createdAt;
-                case 'createdAt_asc':
-                    return a.createdAt - b.createdAt;
-                case 'updatedAt_asc':
-                    return a.updatedAt - b.updatedAt;
-                case 'id_asc':
-                    return a.id.localeCompare(b.id);
-                case 'id_desc':
-                    return b.id.localeCompare(a.id);
-                case 'updatedAt_desc':
-                default:
-                    return b.updatedAt - a.updatedAt;
-            }
-        });
+            filteredRecords = records.filter(record => {
+                // 确保 record 对象存在且有必要的属性
+                if (!record || typeof record !== 'object') {
+                    console.warn('无效的记录对象:', record);
+                    return false;
+                }
+
+                const matchesSearch = !searchTerm ||
+                    (record.id && record.id.toLowerCase().includes(searchTerm)) ||
+                    (record.title && record.title.toLowerCase().includes(searchTerm));
+                const matchesFilter = filterValue === 'all' || record.status === filterValue;
+                return matchesSearch && matchesFilter;
+            });
+
+            // Add sorting logic
+            const sortValue = sortSelect.value;
+            filteredRecords.sort((a, b) => {
+                try {
+                    switch (sortValue) {
+                        case 'createdAt_desc':
+                            return (b.createdAt || 0) - (a.createdAt || 0);
+                        case 'createdAt_asc':
+                            return (a.createdAt || 0) - (b.createdAt || 0);
+                        case 'updatedAt_asc':
+                            return (a.updatedAt || 0) - (b.updatedAt || 0);
+                        case 'id_asc':
+                            return (a.id || '').localeCompare(b.id || '');
+                        case 'id_desc':
+                            return (b.id || '').localeCompare(a.id || '');
+                        case 'updatedAt_desc':
+                        default:
+                            return (b.updatedAt || 0) - (a.updatedAt || 0);
+                    }
+                } catch (error) {
+                    console.error('排序时出错:', error, a, b);
+                    return 0;
+                }
+            });
+        } catch (error) {
+            console.error('更新过滤记录时出错:', error);
+            filteredRecords = [];
+        }
     }
 
     function renderVideoList() {
-        videoList.innerHTML = '';
-        if (filteredRecords.length === 0) {
-            videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
-            return;
-        }
+        try {
+            videoList.innerHTML = '';
 
-        const startIndex = (currentPage - 1) * recordsPerPage;
-        const recordsToRender = filteredRecords.slice(startIndex, startIndex + recordsPerPage);
+            // 确保 filteredRecords 是数组
+            if (!Array.isArray(filteredRecords)) {
+                console.warn('filteredRecords 不是数组:', filteredRecords);
+                filteredRecords = [];
+            }
 
-        recordsToRender.forEach(record => {
+            if (filteredRecords.length === 0) {
+                videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
+                return;
+            }
+
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const recordsToRender = filteredRecords.slice(startIndex, startIndex + recordsPerPage);
+
+            // 确保 recordsToRender 是数组
+            if (!Array.isArray(recordsToRender)) {
+                console.warn('recordsToRender 不是数组:', recordsToRender);
+                return;
+            }
+
+            recordsToRender.forEach(record => {
+                try {
+                    // 确保 record 对象存在
+                    if (!record || typeof record !== 'object') {
+                        console.warn('无效的记录对象:', record);
+                        return;
+                    }
             const li = document.createElement('li');
             li.className = 'video-item';
 
@@ -107,24 +146,37 @@ export function initRecordsTab(): void {
             const iconsContainer = document.createElement('div');
             iconsContainer.className = 'video-search-icons';
 
-            STATE.settings.searchEngines.forEach(engine => {
-                const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
-                const icon = document.createElement('a');
-                icon.href = searchUrl;
-                icon.target = '_blank';
-                icon.title = `Search on ${engine.name}`;
+            // 确保 searchEngines 是数组
+            const searchEngines = Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [];
 
-                const img = document.createElement('img');
-                img.src = engine.icon.startsWith('assets/')
-                    ? chrome.runtime.getURL(engine.icon)
-                    : engine.icon;
-                img.alt = engine.name;
-                img.onerror = () => { // Fallback icon
-                    img.src = chrome.runtime.getURL('assets/icon.png');
-                };
+            searchEngines.forEach(engine => {
+                try {
+                    // 确保 engine 对象有必要的属性
+                    if (!engine || !engine.urlTemplate || !engine.name) {
+                        console.warn('无效的搜索引擎配置:', engine);
+                        return;
+                    }
 
-                icon.appendChild(img);
-                iconsContainer.appendChild(icon);
+                    const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
+                    const icon = document.createElement('a');
+                    icon.href = searchUrl;
+                    icon.target = '_blank';
+                    icon.title = `Search on ${engine.name}`;
+
+                    const img = document.createElement('img');
+                    img.src = engine.icon && engine.icon.startsWith('assets/')
+                        ? chrome.runtime.getURL(engine.icon)
+                        : (engine.icon || chrome.runtime.getURL('assets/icon.png'));
+                    img.alt = engine.name;
+                    img.onerror = () => { // Fallback icon
+                        img.src = chrome.runtime.getURL('assets/icon.png');
+                    };
+
+                    icon.appendChild(img);
+                    iconsContainer.appendChild(icon);
+                } catch (error) {
+                    console.error('创建搜索引擎图标时出错:', error, engine);
+                }
             });
 
             const createdDate = new Date(record.createdAt);
@@ -378,7 +430,14 @@ export function initRecordsTab(): void {
             li.appendChild(controlsContainer);
             li.dataset.recordId = record.id;
             videoList.appendChild(li);
-        });
+                } catch (error) {
+                    console.error('渲染记录项时出错:', error, record);
+                }
+            });
+        } catch (error) {
+            console.error('渲染视频列表时出错:', error);
+            videoList.innerHTML = '<li class="empty-list error">渲染列表时出现错误，请刷新重试。</li>';
+        }
     }
 
     function updateTooltipPosition(e: MouseEvent) {

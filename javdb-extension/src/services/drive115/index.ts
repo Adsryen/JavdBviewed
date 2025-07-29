@@ -1,0 +1,222 @@
+/**
+ * 115网盘服务主入口
+ */
+
+export * from './types';
+export * from './config';
+export * from './utils';
+export * from './api';
+export * from './verification';
+export * from './logger';
+
+import type { Drive115Settings, OfflineDownloadOptions, BatchOfflineOptions } from './types';
+import { DEFAULT_DRIVE115_SETTINGS, DRIVE115_STORAGE_KEYS } from './config';
+import { Drive115ApiClient } from './api';
+import { Drive115Logger } from './logger';
+import { getValue, setValue } from '../../utils/storage';
+
+/**
+ * 115网盘服务管理器
+ */
+export class Drive115Service {
+  private static instance: Drive115Service;
+  private apiClient: Drive115ApiClient;
+  private logger: Drive115Logger;
+  private settings: Drive115Settings;
+
+  private constructor() {
+    this.apiClient = new Drive115ApiClient();
+    this.logger = new Drive115Logger();
+    this.settings = DEFAULT_DRIVE115_SETTINGS;
+  }
+
+  /**
+   * 获取单例实例
+   */
+  static getInstance(): Drive115Service {
+    if (!Drive115Service.instance) {
+      Drive115Service.instance = new Drive115Service();
+    }
+    return Drive115Service.instance;
+  }
+
+  /**
+   * 初始化服务
+   */
+  async initialize(): Promise<void> {
+    await this.loadSettings();
+  }
+
+  /**
+   * 加载设置
+   */
+  async loadSettings(): Promise<void> {
+    try {
+      const stored = await getValue(DRIVE115_STORAGE_KEYS.SETTINGS);
+      if (stored && typeof stored === 'object') {
+        this.settings = { ...DEFAULT_DRIVE115_SETTINGS, ...stored };
+      } else {
+        this.settings = DEFAULT_DRIVE115_SETTINGS;
+      }
+    } catch (error) {
+      console.error('加载115设置失败:', error);
+      this.settings = DEFAULT_DRIVE115_SETTINGS;
+    }
+  }
+
+  /**
+   * 保存设置
+   */
+  async saveSettings(settings: Partial<Drive115Settings>): Promise<void> {
+    try {
+      this.settings = { ...this.settings, ...settings };
+      await setValue(DRIVE115_STORAGE_KEYS.SETTINGS, this.settings);
+    } catch (error) {
+      console.error('保存115设置失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取当前设置
+   */
+  getSettings(): Drive115Settings {
+    return { ...this.settings };
+  }
+
+  /**
+   * 检查是否启用115功能
+   */
+  isEnabled(): boolean {
+    return this.settings.enabled;
+  }
+
+  /**
+   * 单个离线下载
+   */
+  async downloadOffline(options: OfflineDownloadOptions) {
+    if (!this.isEnabled()) {
+      throw new Error('115功能未启用');
+    }
+
+    // 使用配置中的默认下载目录
+    const downloadOptions = {
+      ...options,
+      downloadDir: options.downloadDir || this.settings.downloadDir
+    };
+
+    return this.apiClient.downloadOffline(downloadOptions);
+  }
+
+  /**
+   * 批量离线下载
+   */
+  async downloadBatch(options: BatchOfflineOptions) {
+    if (!this.isEnabled()) {
+      throw new Error('115功能未启用');
+    }
+
+    // 使用配置中的默认值
+    const batchOptions = {
+      ...options,
+      downloadDir: options.downloadDir || this.settings.downloadDir,
+      maxFailures: options.maxFailures ?? this.settings.maxFailures
+    };
+
+    return this.apiClient.downloadBatch(batchOptions);
+  }
+
+  /**
+   * 搜索文件
+   */
+  async searchFiles(query: string) {
+    if (!this.isEnabled()) {
+      throw new Error('115功能未启用');
+    }
+
+    return this.apiClient.searchFiles(query);
+  }
+
+  /**
+   * 验证下载结果
+   */
+  async verifyDownload(videoId: string) {
+    if (!this.isEnabled()) {
+      throw new Error('115功能未启用');
+    }
+
+    return this.apiClient.verifyDownload(videoId, this.settings.verifyCount);
+  }
+
+  /**
+   * 获取日志
+   */
+  async getLogs() {
+    return this.logger.getLogs();
+  }
+
+  /**
+   * 获取日志统计
+   */
+  async getLogStats() {
+    return this.logger.getLogStats();
+  }
+
+  /**
+   * 清空日志
+   */
+  async clearLogs() {
+    return this.logger.clearLogs();
+  }
+
+  /**
+   * 导出日志
+   */
+  async exportLogs() {
+    return this.logger.exportLogs();
+  }
+
+  /**
+   * 导入日志
+   */
+  async importLogs(jsonData: string) {
+    return this.logger.importLogs(jsonData);
+  }
+}
+
+/**
+ * 获取115服务实例
+ */
+export function getDrive115Service(): Drive115Service {
+  return Drive115Service.getInstance();
+}
+
+/**
+ * 初始化115服务
+ */
+export async function initializeDrive115Service(): Promise<Drive115Service> {
+  const service = getDrive115Service();
+  await service.initialize();
+  return service;
+}
+
+// 便捷函数导出
+export async function downloadOffline(options: OfflineDownloadOptions) {
+  const service = getDrive115Service();
+  return service.downloadOffline(options);
+}
+
+export async function downloadBatch(options: BatchOfflineOptions) {
+  const service = getDrive115Service();
+  return service.downloadBatch(options);
+}
+
+export async function searchFiles(query: string) {
+  const service = getDrive115Service();
+  return service.searchFiles(query);
+}
+
+export async function verifyDownload(videoId: string) {
+  const service = getDrive115Service();
+  return service.verifyDownload(videoId);
+}

@@ -196,6 +196,10 @@
                                 <i class="fas fa-sync-alt"></i>
                                 <span>数据同步</span>
                             </div>
+                            <div class="settings-nav-item" data-section="drive115-settings">
+                                <i class="fas fa-cloud-download-alt"></i>
+                                <span>115网盘</span>
+                            </div>
                             <div class="settings-nav-item" data-section="network-test-settings">
                                 <i class="fas fa-network-wired"></i>
                                 <span>网络测试</span>
@@ -410,6 +414,92 @@
                             </div>
                         </div>
 
+                        <!-- 115网盘设置 -->
+                        <div class="settings-panel" id="drive115-settings">
+                            <div class="settings-panel-header">
+                                <h3>115网盘离线下载</h3>
+                                <p class="settings-description">配置115网盘离线下载功能，支持磁链自动下载和验证。</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <!-- 基础设置 -->
+                                <div class="settings-section">
+                                    <h4>基础设置</h4>
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="drive115Enabled">
+                                            <span class="checkmark"></span>
+                                            启用115网盘功能
+                                        </label>
+                                        <p class="input-description">开启后可以使用115网盘离线下载功能。需要先登录115网盘。</p>
+                                    </div>
+                                </div>
+
+                                <div class="drive115-settings-container disabled">
+                                    <!-- 下载设置 -->
+                                    <div class="settings-section">
+                                        <h4>下载设置</h4>
+                                        <div class="form-group">
+                                            <label for="drive115DownloadDir">下载目录:</label>
+                                            <input type="text" id="drive115DownloadDir" placeholder="例如: ${云下载} 或 具体目录ID">
+                                            <p class="input-description">支持动态参数: ${#star}(演员), ${#series}(系列), ${#studio}(制作商)</p>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="drive115VerifyCount">验证次数:</label>
+                                            <input type="number" id="drive115VerifyCount" class="number-input" min="1" max="20" value="5">
+                                            <p class="input-description">下载后验证文件的重试次数，建议3-5次。</p>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="drive115MaxFailures">最大失败数:</label>
+                                            <input type="number" id="drive115MaxFailures" class="number-input" min="0" max="50" value="5">
+                                            <p class="input-description">批量下载时允许的最大失败次数，0表示不限制。</p>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" id="drive115AutoNotify" checked>
+                                                <span class="checkmark"></span>
+                                                自动通知
+                                            </label>
+                                            <p class="input-description">下载完成后自动显示通知。</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- 测试功能 -->
+                                    <div class="settings-section">
+                                        <h4>测试功能</h4>
+                                        <div class="form-group">
+                                            <label for="testSearchInput">测试搜索:</label>
+                                            <div class="form-group-inline">
+                                                <input type="text" id="testSearchInput" placeholder="输入番号或关键词">
+                                                <button id="testDrive115Search" class="button-like">测试搜索</button>
+                                            </div>
+                                            <p class="input-description">测试115网盘搜索功能是否正常工作。</p>
+                                        </div>
+                                        <div id="testResults" class="test-results"></div>
+                                    </div>
+
+                                    <!-- 日志查看 -->
+                                    <div class="settings-section">
+                                        <h4>115网盘日志</h4>
+                                        <div class="action-buttons-top">
+                                            <button id="refreshDrive115Logs" class="btn">刷新日志</button>
+                                            <button id="clearDrive115Logs" class="btn danger">清空日志</button>
+                                            <button id="exportDrive115Logs" class="btn">导出日志</button>
+                                        </div>
+                                        <div id="drive115LogStats" class="log-stats"></div>
+                                        <div id="drive115LogsList" class="logs-list"></div>
+                                    </div>
+                                </div>
+
+                                <!-- 保存按钮 -->
+                                <div class="settings-section">
+                                    <button id="saveDrive115Settings" class="btn btn-primary">保存115设置</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 高级配置 -->
                         <div class="settings-panel" id="advanced-settings">
                             <div class="settings-panel-header">
@@ -481,31 +571,11 @@
                                 <option value="ERROR">错误</option>
                                 <option value="DEBUG">调试</option>
                             </select>
-                            <button id="refresh-logs-button" class="button-like">刷新</button>
-                            <button id="clear-logs-button" class="button-like danger">清空日志</button>
-                        </div>
-                        <div class="log-container">
-                            <div id="log-body">
-                                <!-- Log entries will be inserted here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-logs" class="tab-content">
-                <div class="card">
-                    <div class="settings-section">
-                        <h4>日志记录</h4>
-                        <p class="settings-description">此处显示插件运行期间的关键事件，便于问题排查。日志会自动保存。</p>
-                        <div class="filters">
-                            <label for="log-level-filter">筛选等级:</label>
-                            <select id="log-level-filter">
-                                <option value="ALL">全部</option>
-                                <option value="INFO">信息</option>
-                                <option value="WARN">警告</option>
-                                <option value="ERROR">错误</option>
-                                <option value="DEBUG">调试</option>
+                            <label for="log-source-filter">日志来源:</label>
+                            <select id="log-source-filter">
+                                <option value="ALL">全部来源</option>
+                                <option value="GENERAL">常规日志</option>
+                                <option value="DRIVE115">115网盘</option>
                             </select>
                             <button id="refresh-logs-button" class="button-like">刷新</button>
                             <button id="clear-logs-button" class="button-like danger">清空日志</button>
@@ -518,6 +588,8 @@
                     </div>
                 </div>
             </div>
+
+
             <div id="infoContainer">
                 <!-- 版本和作者信息将由 JS 动态填充 -->
             </div>
