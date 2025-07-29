@@ -9,6 +9,7 @@ import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { concurrencyMonitor, storageManager } from './concurrency';
 import { testConcurrentOperations, testHighConcurrency } from './concurrencyTest';
+import { initDrive115Features } from './drive115';
 
 // --- Core Logic ---
 
@@ -48,8 +49,18 @@ async function initialize(): Promise<void> {
             checkAndUpdateVideoStatus();
         }, 1000);
 
+        // 初始化115功能
+        setTimeout(() => {
+            initDrive115Features();
+        }, 1500);
+
         // 定期检查状态（每2秒）
         setInterval(checkAndUpdateVideoStatus, 2000);
+    } else {
+        // 在列表页也初始化115功能
+        setTimeout(() => {
+            initDrive115Features();
+        }, 2000);
     }
 
     initExportFeature();

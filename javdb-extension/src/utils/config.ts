@@ -1,4 +1,5 @@
 import { ExtensionSettings } from '../types';
+import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 
 export const STORAGE_KEYS = {
     // A single key for all viewed records, which is an object
@@ -74,5 +75,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     logging: {
         maxLogEntries: 1500,
     },
+    drive115: DEFAULT_DRIVE115_SETTINGS,
     version: '0.0.0'
 };
