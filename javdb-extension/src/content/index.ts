@@ -10,6 +10,12 @@ import { initExportFeature } from './export';
 import { concurrencyMonitor, storageManager } from './concurrency';
 import { testConcurrentOperations, testHighConcurrency } from './concurrencyTest';
 import { initDrive115Features } from './drive115';
+import { globalCache } from '../utils/cache';
+import { defaultDataAggregator } from '../services/dataAggregator';
+import { quickCopyManager } from './quickCopy';
+import { contentFilterManager } from './contentFilter';
+import { keyboardShortcutsManager } from './keyboardShortcuts';
+import { magnetSearchManager } from './magnetSearch';
 
 // --- Core Logic ---
 
@@ -24,6 +30,104 @@ async function initialize(): Promise<void> {
     STATE.records = records;
     log(`Loaded ${Object.keys(STATE.records).length} records.`);
     log('Display settings:', STATE.settings.display);
+
+    // 初始化缓存系统
+    if (settings.dataEnhancement.enableImageCache) {
+        log('Cache system initialized');
+        // 启动缓存清理
+        globalCache.cleanup().catch(err => log('Cache cleanup error:', err));
+    }
+
+    // 初始化数据聚合器
+    if (settings.dataEnhancement.enableMultiSource) {
+        log('Data aggregator initialized');
+        defaultDataAggregator.updateConfig({
+            enableCache: settings.dataEnhancement.enableImageCache,
+            cacheExpiration: settings.dataEnhancement.cacheExpiration,
+            sources: {
+                blogJav: {
+                    enabled: settings.dataEnhancement.enableMultiSource,
+                    baseUrl: 'https://blogjav.net',
+                    timeout: 10000,
+                },
+                translator: {
+                    enabled: settings.dataEnhancement.enableTranslation,
+                    service: 'google',
+                    timeout: 5000,
+                    sourceLanguage: 'ja',
+                    targetLanguage: 'zh-CN',
+                },
+                javLibrary: {
+                    enabled: settings.dataEnhancement.enableRatingAggregation || settings.dataEnhancement.enableActorInfo,
+                    baseUrl: 'https://www.javlibrary.com',
+                    timeout: 15000,
+                    language: 'en',
+                },
+                javStore: { enabled: false, baseUrl: '', timeout: 10000 },
+                javSpyl: { enabled: false, baseUrl: '', timeout: 10000 },
+                dmm: { enabled: false, baseUrl: '', timeout: 10000 },
+                fc2: { enabled: false, baseUrl: '', timeout: 10000 },
+            },
+        });
+    }
+
+    // 初始化用户体验优化功能
+    if (settings.userExperience.enableQuickCopy) {
+        log('Quick copy manager initialized');
+        quickCopyManager.updateConfig({
+            enabled: true,
+            showButtons: true,
+            showTooltips: settings.userExperience.showEnhancedTooltips,
+            enableKeyboardShortcuts: settings.userExperience.enableKeyboardShortcuts,
+            items: ['video-id', 'title', 'url', 'magnet', 'actor'],
+        });
+        quickCopyManager.initialize();
+    }
+
+    if (settings.userExperience.enableContentFilter) {
+        log('Content filter manager initialized');
+        contentFilterManager.updateConfig({
+            enabled: true,
+            showFilteredCount: true,
+            enableQuickFilters: true,
+            quickFilters: {
+                hideViewed: settings.display.hideBrowsed,
+                hideVR: settings.display.hideVR,
+                hideFC2: false,
+                hideUncensored: false,
+            },
+        });
+        contentFilterManager.initialize();
+    }
+
+    if (settings.userExperience.enableKeyboardShortcuts) {
+        log('Keyboard shortcuts manager initialized');
+        keyboardShortcutsManager.updateConfig({
+            enabled: true,
+            showHelp: true,
+            enableGlobalShortcuts: true,
+            enablePageSpecificShortcuts: true,
+        });
+        keyboardShortcutsManager.initialize();
+    }
+
+    if (settings.userExperience.enableMagnetSearch) {
+        log('Magnet search manager initialized');
+        magnetSearchManager.updateConfig({
+            enabled: true,
+            showInlineResults: true,
+            showFloatingButton: true,
+            autoSearch: false,
+            sources: {
+                sukebei: true,
+                btdig: true,
+                torrentz2: false,
+                custom: [],
+            },
+            maxResults: 20,
+        });
+        magnetSearchManager.initialize();
+    }
 
     STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE);
     if (STATE.isSearchPage) {

@@ -22,3 +22,12 @@ Thumbs.db
 .DS_Store 
 
 javdb-backup_*.json
+
+*av*.md
+
+# 测试文件
+**/__tests__/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js

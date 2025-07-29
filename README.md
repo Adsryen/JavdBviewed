@@ -64,7 +64,7 @@ JavdBviewed 是一个功能强大的浏览器扩展，专为 JavDB 网站设计�
 5. 开启"开发者模式"
 6. 点击"加载已解压的扩展程序"，选择解压后的文件夹
 
-### 方式二：油猴脚本版本
+### 方式二：油猴脚本版本（停止维护）
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/) 扩展
 2. 下载 `Tampermonkey/javdb.js` 文件

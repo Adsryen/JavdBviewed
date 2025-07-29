@@ -200,6 +200,10 @@
                                 <i class="fas fa-cloud-download-alt"></i>
                                 <span>115网盘</span>
                             </div>
+                            <div class="settings-nav-item" data-section="enhancement-settings">
+                                <i class="fas fa-magic"></i>
+                                <span>功能增强</span>
+                            </div>
                             <div class="settings-nav-item" data-section="network-test-settings">
                                 <i class="fas fa-network-wired"></i>
                                 <span>网络测试</span>
@@ -496,6 +500,190 @@
                                 <!-- 保存按钮 -->
                                 <div class="settings-section">
                                     <button id="saveDrive115Settings" class="btn btn-primary">保存115设置</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 功能增强设置 -->
+                        <div class="settings-panel" id="enhancement-settings">
+                            <div class="settings-panel-header">
+                                <h3>🚀 功能增强设置</h3>
+                                <p class="settings-description">解锁强大的增强功能，让您的JavDB体验更加丰富和高效！这些功能将显著提升浏览效率、数据完整性和操作便捷性。</p>
+
+                                <!-- 快速入门提示 -->
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                    <h4 style="margin: 0 0 10px 0; color: white;">🎯 快速入门推荐</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
+                                        <div>
+                                            <strong>🔰 新手推荐：</strong><br>
+                                            1. 启用"多数据源聚合"<br>
+                                            2. 启用"一键快捷复制"<br>
+                                            3. 启用"智能内容过滤"
+                                        </div>
+                                        <div>
+                                            <strong>🚀 高级用户：</strong><br>
+                                            1. 全部功能都启用<br>
+                                            2. 学习键盘快捷键<br>
+                                            3. 自定义过滤规则
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-panel-body">
+                                <!-- 数据增强 -->
+                                <div class="settings-section">
+                                    <h4>📊 数据增强 - 让信息更丰富</h4>
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableMultiSource">
+                                            <span class="checkmark"></span>
+                                            🌐 多数据源聚合
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>自动从BlogJav、JavLibrary等多个网站获取高清封面、详细评分、演员信息<br>
+                                            <strong>使用：</strong>启用后，在视频详情页会自动显示增强信息，包括高质量封面图片和多站点评分对比
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableImageCache">
+                                            <span class="checkmark"></span>
+                                            🚀 智能图片缓存
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>缓存高质量封面和演员头像，第二次访问时瞬间加载<br>
+                                            <strong>使用：</strong>自动工作，无需手动操作，显著提升页面加载速度
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableVideoPreview">
+                                            <span class="checkmark"></span>
+                                            🎬 视频预览增强
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要多数据源支持）<br>
+                                            <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableTranslation">
+                                            <span class="checkmark"></span>
+                                            🈳 智能标题翻译
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>自动将日文标题翻译为中文，支持Google翻译等多种服务<br>
+                                            <strong>使用：</strong>在视频详情页会在原标题下方显示中文翻译，帮助理解内容
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableRatingAggregation">
+                                            <span class="checkmark"></span>
+                                            ⭐ 多站点评分聚合
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>聚合JavLibrary、DMM等多个网站的评分数据，提供更全面的评价参考<br>
+                                            <strong>使用：</strong>在视频详情页显示评分对比卡片，包含评分来源、分数和评价人数
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableActorInfo">
+                                            <span class="checkmark"></span>
+                                            👤 演员信息增强
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>获取演员详细信息、高清头像、个人资料和作品列表<br>
+                                            <strong>使用：</strong>在视频详情页显示演员信息卡片，点击可查看演员详细资料
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="cacheExpiration">⏰ 缓存过期时间 (小时):</label>
+                                        <input type="number" id="cacheExpiration" class="number-input" min="1" max="168" value="24">
+                                        <p class="input-description">
+                                            <strong>说明：</strong>增强数据的缓存保存时间，建议24小时。时间越长加载越快，但数据更新越慢
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- 用户体验 -->
+                                <div class="settings-section">
+                                    <h4>⚡ 用户体验 - 让操作更高效</h4>
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableQuickCopy">
+                                            <span class="checkmark"></span>
+                                            📋 一键快捷复制
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>为番号、标题、链接、磁力等添加复制按钮，支持批量复制<br>
+                                            <strong>使用：</strong>点击内容旁的📋按钮或按Ctrl+Shift+C打开复制面板，一键复制所需内容
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableContentFilter">
+                                            <span class="checkmark"></span>
+                                            🎯 智能内容过滤
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>自动隐藏已看过的视频、VR内容、FC2等，支持自定义过滤规则<br>
+                                            <strong>使用：</strong>右侧会出现快速过滤面板，勾选即可隐藏对应内容，让列表更清爽
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableKeyboardShortcuts">
+                                            <span class="checkmark"></span>
+                                            ⌨️ 键盘快捷键大师
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>15+个快捷键让您告别鼠标，包括导航、复制、过滤等操作<br>
+                                            <strong>使用：</strong>按?键查看帮助，如Alt+H回首页、Ctrl+Shift+V复制番号、/键聚焦搜索框
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableMagnetSearch">
+                                            <span class="checkmark"></span>
+                                            🧲 磁力资源搜索
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在视频详情页一键搜索多个站点的磁力资源，自动识别画质和字幕<br>
+                                            <strong>使用：</strong>点击右下角"🧲搜索磁力"按钮，查看搜索结果并一键复制磁力链接
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="showEnhancedTooltips">
+                                            <span class="checkmark"></span>
+                                            💡 智能操作提示
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>显示功能使用提示、快捷键说明和操作指导<br>
+                                            <strong>使用：</strong>鼠标悬停在功能按钮上会显示详细说明，帮助快速上手
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- 保存按钮 -->
+                                <div class="settings-section">
+                                    <button id="saveEnhancementSettings" class="btn btn-primary">💾 保存增强设置</button>
+                                    <p class="input-description" style="margin-top: 10px; text-align: center; color: #666;">
+                                        保存后立即生效，无需重启浏览器。建议先启用"多数据源聚合"体验核心功能！
+                                    </p>
                                 </div>
                             </div>
                         </div>
