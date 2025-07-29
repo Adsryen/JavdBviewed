@@ -6,6 +6,7 @@ import { initSettingsTab } from './tabs/settings';
 import { initAdvancedSettingsTab } from './tabs/advanced';
 import { initLogsTab } from './tabs/logs';
 import { initializeNetworkTestTab } from './tabs/network';
+import { initDrive115Tab } from './tabs/drive115';
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
@@ -15,13 +16,23 @@ import { setValue, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { initUserProfileSection } from './userProfile';
 import { initDataSyncSection } from './dataSync';
+import { initializeDrive115Service } from '../services/drive115';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
+
+    // 初始化115服务
+    try {
+        await initializeDrive115Service();
+    } catch (error) {
+        console.error('初始化115服务失败:', error);
+    }
+
     initTabs();
     initRecordsTab();
     initSettingsTab();
+    initDrive115Tab();
     initLogsTab();
     initSidebarActions();
     initUserProfileSection();
@@ -34,71 +45,127 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function initTabs(): void {
-    const tabs = document.querySelectorAll('.tab-link');
-    const contents = document.querySelectorAll('.tab-content');
+    try {
+        const tabs = document.querySelectorAll('.tab-link');
+        const contents = document.querySelectorAll('.tab-content');
 
-    const switchTab = (tabButton: Element | null) => {
-        if (!tabButton) return;
-        const tabId = tabButton.getAttribute('data-tab');
-        if (!tabId) return;
-
-        tabs.forEach(t => t.classList.remove('active'));
-        contents.forEach(c => c.classList.remove('active'));
-
-        tabButton.classList.add('active');
-        document.getElementById(tabId)?.classList.add('active');
-
-        if (history.pushState) {
-            history.pushState(null, '', `#${tabId}`);
-        } else {
-            location.hash = `#${tabId}`;
+        // 确保 NodeList 存在且不为空
+        if (!tabs || tabs.length === 0) {
+            console.warn('未找到标签页链接元素');
+            return;
         }
-    };
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            switchTab(tab);
-            if (tab.getAttribute('data-tab') === 'tab-logs') {
-                const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
-                if (refreshButton) {
-                    refreshButton.click();
+        if (!contents || contents.length === 0) {
+            console.warn('未找到标签页内容元素');
+            return;
+        }
+
+        const switchTab = (tabButton: Element | null) => {
+            if (!tabButton) return;
+            const tabId = tabButton.getAttribute('data-tab');
+            if (!tabId) return;
+
+            try {
+                // 安全地遍历 NodeList
+                if (tabs && tabs.forEach) {
+                    tabs.forEach(t => t.classList.remove('active'));
                 }
-            }
-        });
-    });
+                if (contents && contents.forEach) {
+                    contents.forEach(c => c.classList.remove('active'));
+                }
 
-    const currentHash = window.location.hash.substring(1) || 'tab-records';
-    const targetTab = document.querySelector(`.tab-link[data-tab="${currentHash}"]`);
-    switchTab(targetTab || tabs[0]);
+                tabButton.classList.add('active');
+                document.getElementById(tabId)?.classList.add('active');
+
+                if (history.pushState) {
+                    history.pushState(null, '', `#${tabId}`);
+                } else {
+                    location.hash = `#${tabId}`;
+                }
+            } catch (error) {
+                console.error('切换标签页时出错:', error);
+            }
+        };
+
+        // 安全地为每个标签页添加事件监听器
+        if (tabs && tabs.forEach) {
+            tabs.forEach(tab => {
+                try {
+                    tab.addEventListener('click', () => {
+                        switchTab(tab);
+                        if (tab.getAttribute('data-tab') === 'tab-logs') {
+                            const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
+                            if (refreshButton) {
+                                refreshButton.click();
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('为标签页添加事件监听器时出错:', error);
+                }
+            });
+        }
+
+        const currentHash = window.location.hash.substring(1) || 'tab-records';
+        const targetTab = document.querySelector(`.tab-link[data-tab="${currentHash}"]`);
+        switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
+    } catch (error) {
+        console.error('初始化标签页时出错:', error);
+    }
 }
 
 function initStatsOverview(): void {
     const container = document.getElementById('stats-overview');
     if (!container) return;
 
-    const totalRecords = STATE.records.length;
-    const viewedCount = STATE.records.filter(r => r.status === VIDEO_STATUS.VIEWED).length;
-    const wantCount = STATE.records.filter(r => r.status === VIDEO_STATUS.WANT).length;
-    const browsedCount = STATE.records.filter(r => r.status === VIDEO_STATUS.BROWSED).length;
+    try {
+        // 确保 STATE.records 是数组
+        const records = Array.isArray(STATE.records) ? STATE.records : [];
 
-    container.innerHTML = `
-        <div data-stat="total">
-            <span class="stat-value">${totalRecords}</span>
-            <span class="stat-label">总记录</span>
-        </div>
-        <div data-stat="viewed">
-            <span class="stat-value">${viewedCount}</span>
-            <span class="stat-label">已观看</span>
-        </div>
-        <div data-stat="browsed">
-            <span class="stat-value">${browsedCount}</span>
-            <span class="stat-label">已浏览</span>
-        </div>
-        <div data-stat="want">
-            <span class="stat-value">${wantCount}</span>
-            <span class="stat-label">想看</span>
-        </div>
-    `;
+        const totalRecords = records.length;
+        const viewedCount = records.filter(r => r && r.status === VIDEO_STATUS.VIEWED).length;
+        const wantCount = records.filter(r => r && r.status === VIDEO_STATUS.WANT).length;
+        const browsedCount = records.filter(r => r && r.status === VIDEO_STATUS.BROWSED).length;
+
+        container.innerHTML = `
+            <div data-stat="total">
+                <span class="stat-value">${totalRecords}</span>
+                <span class="stat-label">总记录</span>
+            </div>
+            <div data-stat="viewed">
+                <span class="stat-value">${viewedCount}</span>
+                <span class="stat-label">已观看</span>
+            </div>
+            <div data-stat="browsed">
+                <span class="stat-value">${browsedCount}</span>
+                <span class="stat-label">已浏览</span>
+            </div>
+            <div data-stat="want">
+                <span class="stat-value">${wantCount}</span>
+                <span class="stat-label">想看</span>
+            </div>
+        `;
+    } catch (error) {
+        console.error('初始化统计概览时出错:', error);
+        container.innerHTML = `
+            <div data-stat="total">
+                <span class="stat-value">0</span>
+                <span class="stat-label">总记录</span>
+            </div>
+            <div data-stat="viewed">
+                <span class="stat-value">0</span>
+                <span class="stat-label">已观看</span>
+            </div>
+            <div data-stat="browsed">
+                <span class="stat-value">0</span>
+                <span class="stat-label">已浏览</span>
+            </div>
+            <div data-stat="want">
+                <span class="stat-value">0</span>
+                <span class="stat-label">想看</span>
+            </div>
+        `;
+    }
 }
 
 function initInfoContainer(): void {
@@ -249,21 +316,44 @@ function initHelpSystem(): void {
 }
 
 function updateSyncStatus(): void {
-    const lastSyncTimeElement = document.getElementById('lastSyncTime') as HTMLSpanElement;
-    const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
-    const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
+    try {
+        const lastSyncTimeElement = document.getElementById('lastSyncTime') as HTMLSpanElement;
+        const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
+        const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
 
-    // Get last sync time from settings
-    const lastSync = STATE.settings.webdav.lastSync || '';
+        // 安全地获取 lastSync 时间
+        const webdavSettings = STATE.settings?.webdav || {};
+        const lastSync = webdavSettings.lastSync || '';
 
-    // Update sidebar sync status
-    if (lastSyncTimeElement && syncIndicator) {
-        updateSyncDisplay(lastSyncTimeElement, syncIndicator, lastSync);
-    }
+        // Update sidebar sync status
+        if (lastSyncTimeElement && syncIndicator) {
+            updateSyncDisplay(lastSyncTimeElement, syncIndicator, lastSync);
+        }
 
-    // Update settings page sync time
-    if (lastSyncTimeSettings) {
-        lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '从未';
+        // Update settings page sync time
+        if (lastSyncTimeSettings) {
+            lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '从未';
+        }
+    } catch (error) {
+        console.error('更新同步状态时出错:', error);
+        // 在出错时设置默认状态
+        const lastSyncTimeElement = document.getElementById('lastSyncTime') as HTMLSpanElement;
+        const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
+        const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
+
+        if (lastSyncTimeElement) {
+            lastSyncTimeElement.textContent = '从未';
+        }
+        if (lastSyncTimeSettings) {
+            lastSyncTimeSettings.textContent = '从未';
+        }
+        if (syncIndicator) {
+            syncIndicator.className = 'sync-indicator';
+            const statusText = syncIndicator.querySelector('.sync-status-text');
+            if (statusText) {
+                statusText.textContent = '未同步';
+            }
+        }
     }
 }
 

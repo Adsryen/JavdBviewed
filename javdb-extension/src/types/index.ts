@@ -1,4 +1,5 @@
 import type { DEFAULT_SETTINGS, VIDEO_STATUS } from "../utils/config";
+import type { Drive115Settings } from "../services/drive115/types";
 
 export interface ExtensionSettings {
     display: {
@@ -34,6 +35,7 @@ export interface ExtensionSettings {
     logging: {
         maxLogEntries: number;
     };
+    drive115: Drive115Settings; // 115网盘配置
     version: string;
     recordsPerPage?: number;
 }

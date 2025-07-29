@@ -105,37 +105,63 @@ export function initSettingsTab(): void {
     }
 
     function loadSettings() {
-        const { webdav, display, logging, searchEngines, dataSync } = STATE.settings;
-        webdavEnabled.checked = webdav.enabled;
-        webdavUrl.value = webdav.url;
-        webdavUser.value = webdav.username;
-        webdavPass.value = webdav.password;
-        webdavAutoSync.checked = webdav.autoSync;
-        webdavSyncInterval.value = String(webdav.syncInterval);
-        lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
+        try {
+            // 确保 STATE.settings 存在且有必要的属性
+            const settings = STATE.settings || {};
 
-        // 更新UI状态
-        updateWebDAVControlsState();
-        (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = webdav.enabled ? 'block' : 'none';
+            // 安全地解构设置对象，提供默认值
+            const webdav = settings.webdav || {};
+            const display = settings.display || {};
+            const logging = settings.logging || {};
+            const searchEngines = settings.searchEngines || [];
+            const dataSync = settings.dataSync || {};
 
-        hideViewed.checked = display.hideViewed;
-        hideBrowsed.checked = display.hideBrowsed;
-        hideVR.checked = display.hideVR;
+            // WebDAV 设置 - 提供默认值
+            webdavEnabled.checked = webdav.enabled || false;
+            webdavUrl.value = webdav.url || '';
+            webdavUser.value = webdav.username || '';
+            webdavPass.value = webdav.password || '';
+            webdavAutoSync.checked = webdav.autoSync || false;
+            webdavSyncInterval.value = String(webdav.syncInterval || 30);
+            lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
 
-        // 数据同步设置
-        dataSyncRequestInterval.value = String(dataSync?.requestInterval || 3);
-        dataSyncBatchSize.value = String(dataSync?.batchSize || 20);
-        dataSyncMaxRetries.value = String(dataSync?.maxRetries || 3);
+            // 更新UI状态
+            updateWebDAVControlsState();
+            (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = (webdav.enabled || false) ? 'block' : 'none';
 
-        // 数据同步URL设置
-        dataSyncWantWatchUrl.value = dataSync?.urls?.wantWatch || 'https://javdb.com/users/want_watch_videos';
-        dataSyncWatchedVideosUrl.value = dataSync?.urls?.watchedVideos || 'https://javdb.com/users/watched_videos';
-        dataSyncCollectionActorsUrl.value = dataSync?.urls?.collectionActors || 'https://javdb.com/users/collection_actors';
+            // 显示设置 - 提供默认值
+            hideViewed.checked = display.hideViewed || false;
+            hideBrowsed.checked = display.hideBrowsed || false;
+            hideVR.checked = display.hideVR || false;
 
-        maxLogEntries.value = String(logging?.maxLogEntries || 1500);
+            // 数据同步设置
+            dataSyncRequestInterval.value = String(dataSync?.requestInterval || 3);
+            dataSyncBatchSize.value = String(dataSync?.batchSize || 20);
+            dataSyncMaxRetries.value = String(dataSync?.maxRetries || 3);
 
-        if (searchEngines) {
-            renderSearchEngines();
+            // 数据同步URL设置
+            dataSyncWantWatchUrl.value = dataSync?.urls?.wantWatch || 'https://javdb.com/users/want_watch_videos';
+            dataSyncWatchedVideosUrl.value = dataSync?.urls?.watchedVideos || 'https://javdb.com/users/watched_videos';
+            dataSyncCollectionActorsUrl.value = dataSync?.urls?.collectionActors || 'https://javdb.com/users/collection_actors';
+
+            // 日志设置
+            maxLogEntries.value = String(logging?.maxLogEntries || 1500);
+
+            // 搜索引擎设置
+            if (Array.isArray(searchEngines) && searchEngines.length > 0) {
+                renderSearchEngines();
+            }
+        } catch (error) {
+            console.error('加载设置时出错:', error);
+            // 在出错时设置安全的默认值
+            webdavEnabled.checked = false;
+            hideViewed.checked = false;
+            hideBrowsed.checked = false;
+            hideVR.checked = false;
+            dataSyncRequestInterval.value = '3';
+            dataSyncBatchSize.value = '20';
+            dataSyncMaxRetries.value = '3';
+            maxLogEntries.value = '1500';
         }
     }
 
@@ -150,7 +176,7 @@ export function initSettingsTab(): void {
                 password: webdavPass.value,
                 autoSync: webdavAutoSync.checked,
                 syncInterval: parseInt(webdavSyncInterval.value, 10),
-                lastSync: STATE.settings.webdav.lastSync
+                lastSync: STATE.settings?.webdav?.lastSync || ''
             },
             display: {
                 hideViewed: hideViewed.checked,
