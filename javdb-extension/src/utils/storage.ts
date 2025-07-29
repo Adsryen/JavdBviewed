@@ -38,6 +38,22 @@ export async function getSettings(): Promise<ExtensionSettings> {
                 ...(storedSettings.dataSync?.urls || {}),
             },
         },
+        dataEnhancement: {
+            ...DEFAULT_SETTINGS.dataEnhancement,
+            ...(storedSettings.dataEnhancement || {}),
+        },
+        userExperience: {
+            ...DEFAULT_SETTINGS.userExperience,
+            ...(storedSettings.userExperience || {}),
+        },
+        contentFilter: {
+            ...DEFAULT_SETTINGS.contentFilter,
+            ...(storedSettings.contentFilter || {}),
+        },
+        drive115: {
+            ...DEFAULT_SETTINGS.drive115,
+            ...(storedSettings.drive115 || {}),
+        },
     };
 }
 

@@ -9,6 +9,7 @@ import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
 import { setFavicon, getRandomDelay } from './utils';
+import { videoDetailEnhancer } from './enhancedVideoDetail';
 
 // --- Page-Specific Logic ---
 
@@ -39,6 +40,17 @@ export async function handleVideoDetailPage(): Promise<void> {
             await handleExistingRecord(videoId, record, now, currentUrl, operationId);
         } else {
             await handleNewRecord(videoId, now, currentUrl, operationId);
+        }
+
+        // 应用增强功能（如果启用）
+        if (STATE.settings.dataEnhancement.enableMultiSource) {
+            try {
+                log('Applying video detail enhancements...');
+                await videoDetailEnhancer.initialize();
+            } catch (enhancementError) {
+                log('Enhancement failed, but continuing:', enhancementError);
+                // 增强功能失败不应该影响主要功能
+            }
         }
     } catch (error) {
         log(`Error processing video ${videoId} (operation ${operationId}):`, error);

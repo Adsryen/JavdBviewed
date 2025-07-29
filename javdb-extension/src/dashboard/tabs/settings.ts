@@ -47,6 +47,23 @@ export function initSettingsTab(): void {
 
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
 
+    // 增强功能设置元素
+    const enableMultiSource = document.getElementById('enableMultiSource') as HTMLInputElement;
+    const enableImageCache = document.getElementById('enableImageCache') as HTMLInputElement;
+    const enableVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
+    const enableTranslation = document.getElementById('enableTranslation') as HTMLInputElement;
+    const enableRatingAggregation = document.getElementById('enableRatingAggregation') as HTMLInputElement;
+    const enableActorInfo = document.getElementById('enableActorInfo') as HTMLInputElement;
+    const cacheExpiration = document.getElementById('cacheExpiration') as HTMLInputElement;
+
+    const enableQuickCopy = document.getElementById('enableQuickCopy') as HTMLInputElement;
+    const enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
+    const enableKeyboardShortcuts = document.getElementById('enableKeyboardShortcuts') as HTMLInputElement;
+    const enableMagnetSearch = document.getElementById('enableMagnetSearch') as HTMLInputElement;
+    const showEnhancedTooltips = document.getElementById('showEnhancedTooltips') as HTMLInputElement;
+
+    const saveEnhancementSettingsBtn = document.getElementById('saveEnhancementSettings') as HTMLButtonElement;
+
     function renderSearchEngines() {
         const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
         if (!searchEngineList) return;
@@ -115,6 +132,8 @@ export function initSettingsTab(): void {
             const logging = settings.logging || {};
             const searchEngines = settings.searchEngines || [];
             const dataSync = settings.dataSync || {};
+            const dataEnhancement = settings.dataEnhancement || {};
+            const userExperience = settings.userExperience || {};
 
             // WebDAV 设置 - 提供默认值
             webdavEnabled.checked = webdav.enabled || false;
@@ -151,6 +170,21 @@ export function initSettingsTab(): void {
             if (Array.isArray(searchEngines) && searchEngines.length > 0) {
                 renderSearchEngines();
             }
+
+            // 增强功能设置
+            enableMultiSource.checked = dataEnhancement?.enableMultiSource || false;
+            enableImageCache.checked = dataEnhancement?.enableImageCache || true;
+            enableVideoPreview.checked = dataEnhancement?.enableVideoPreview || false;
+            enableTranslation.checked = dataEnhancement?.enableTranslation || false;
+            enableRatingAggregation.checked = dataEnhancement?.enableRatingAggregation || false;
+            enableActorInfo.checked = dataEnhancement?.enableActorInfo || false;
+            cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
+
+            enableQuickCopy.checked = userExperience?.enableQuickCopy || false;
+            enableContentFilter.checked = userExperience?.enableContentFilter || false;
+            enableKeyboardShortcuts.checked = userExperience?.enableKeyboardShortcuts || false;
+            enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
+            showEnhancedTooltips.checked = userExperience?.showEnhancedTooltips || true;
         } catch (error) {
             console.error('加载设置时出错:', error);
             // 在出错时设置安全的默认值
@@ -195,6 +229,27 @@ export function initSettingsTab(): void {
             },
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
+            },
+            dataEnhancement: {
+                enableMultiSource: enableMultiSource.checked,
+                enableImageCache: enableImageCache.checked,
+                enableVideoPreview: enableVideoPreview.checked,
+                enableTranslation: enableTranslation.checked,
+                enableRatingAggregation: enableRatingAggregation.checked,
+                enableActorInfo: enableActorInfo.checked,
+                cacheExpiration: parseInt(cacheExpiration.value, 10) || 24,
+            },
+            userExperience: {
+                enableQuickCopy: enableQuickCopy.checked,
+                enableContentFilter: enableContentFilter.checked,
+                enableKeyboardShortcuts: enableKeyboardShortcuts.checked,
+                enableMagnetSearch: enableMagnetSearch.checked,
+                showEnhancedTooltips: showEnhancedTooltips.checked,
+            },
+            contentFilter: STATE.settings.contentFilter || {
+                enabled: false,
+                rules: [],
+                highlightRules: [],
             },
             searchEngines: STATE.settings.searchEngines,
             version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
@@ -301,6 +356,21 @@ export function initSettingsTab(): void {
     hideBrowsed.addEventListener('change', handleSaveSettings);
     hideVR.addEventListener('change', handleSaveSettings);
     maxLogEntries.addEventListener('change', handleSaveSettings);
+
+    // 增强功能设置事件监听器
+    saveEnhancementSettingsBtn.addEventListener('click', handleSaveSettings);
+    enableMultiSource.addEventListener('change', handleSaveSettings);
+    enableImageCache.addEventListener('change', handleSaveSettings);
+    enableVideoPreview.addEventListener('change', handleSaveSettings);
+    enableTranslation.addEventListener('change', handleSaveSettings);
+    enableRatingAggregation.addEventListener('change', handleSaveSettings);
+    enableActorInfo.addEventListener('change', handleSaveSettings);
+    cacheExpiration.addEventListener('change', handleSaveSettings);
+    enableQuickCopy.addEventListener('change', handleSaveSettings);
+    enableContentFilter.addEventListener('change', handleSaveSettings);
+    enableKeyboardShortcuts.addEventListener('change', handleSaveSettings);
+    enableMagnetSearch.addEventListener('change', handleSaveSettings);
+    showEnhancedTooltips.addEventListener('change', handleSaveSettings);
 
     const addSearchEngineBtn = document.getElementById('add-search-engine');
     addSearchEngineBtn?.addEventListener('click', () => {
