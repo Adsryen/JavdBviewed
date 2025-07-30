@@ -54,6 +54,14 @@ export async function getSettings(): Promise<ExtensionSettings> {
             ...DEFAULT_SETTINGS.drive115,
             ...(storedSettings.drive115 || {}),
         },
+        actorSync: {
+            ...DEFAULT_SETTINGS.actorSync,
+            ...(storedSettings.actorSync || {}),
+            urls: {
+                ...DEFAULT_SETTINGS.actorSync.urls,
+                ...(storedSettings.actorSync?.urls || {}),
+            },
+        },
     };
 }
 
