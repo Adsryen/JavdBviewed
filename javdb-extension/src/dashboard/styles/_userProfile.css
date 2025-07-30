@@ -116,11 +116,12 @@
 
 /* User Server Stats */
 .user-server-stats {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 16px;
+    margin-top: 16px;
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
 }
 
 .stats-title {
@@ -142,70 +143,113 @@
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
-.stat-item {
+.user-server-stats .stat-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.1);
+    gap: 8px;
+    padding: 12px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
     min-width: 0;
     overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
-.stat-item i {
-    font-size: 12px;
+.user-server-stats .stat-item:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.user-server-stats .stat-item i {
+    font-size: 14px;
     flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
-.stat-content {
+.user-server-stats .stat-content {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
     min-width: 0;
 }
 
-.stat-label {
+.user-server-stats .stat-label {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.75);
     line-height: 1;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.stat-value {
-    font-size: 13px;
+.user-server-stats .stat-value {
+    font-size: 16px;
     font-weight: 700;
     color: rgba(255, 255, 255, 0.98);
     line-height: 1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.want-stat i {
-    color: #ffc107;
+.user-server-stats .want-stat {
+    background: rgba(255, 215, 0, 0.1) !important;
+    border-color: rgba(255, 215, 0, 0.2) !important;
 }
 
-.watched-stat i {
-    color: #28a745;
+.user-server-stats .want-stat:hover {
+    background: rgba(255, 215, 0, 0.15) !important;
+    border-color: rgba(255, 215, 0, 0.3) !important;
+}
+
+.user-server-stats .want-stat i {
+    color: #ffd700;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+}
+
+.user-server-stats .watched-stat {
+    background: rgba(74, 222, 128, 0.1) !important;
+    border-color: rgba(74, 222, 128, 0.2) !important;
+}
+
+.user-server-stats .watched-stat:hover {
+    background: rgba(74, 222, 128, 0.15) !important;
+    border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+.user-server-stats .watched-stat i {
+    color: #4ade80;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
 }
 
 .stats-sync-time {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.6);
     justify-content: center;
-    padding-top: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 8px 12px;
+    margin-top: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stats-sync-time i {
-    font-size: 9px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.stats-sync-time span {
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 /* User Login Prompt (when not logged in) */

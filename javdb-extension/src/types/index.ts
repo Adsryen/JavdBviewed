@@ -26,6 +26,9 @@ export interface ExtensionSettings {
             collectionActors: string; // 收藏演员列表URL
         };
     };
+
+    // 新增：演员同步配置
+    actorSync: ActorSyncConfig;
     searchEngines: {
         id: string;
         name: string;
@@ -124,6 +127,86 @@ export interface VideoRecord {
     magnets?: EnhancedMagnet[]; // 磁力链接
     lastEnhanced?: number; // 最后增强时间
   };
+}
+
+// 演员相关类型定义
+export interface ActorRecord {
+  id: string; // 演员唯一标识 (通常是JavDB的演员ID)
+  name: string; // 主要艺名
+  aliases: string[]; // 其他艺名/别名
+  gender: 'female' | 'male' | 'unknown'; // 性别
+  avatarUrl?: string; // 头像地址
+  profileUrl?: string; // 演员详情页地址
+  worksUrl?: string; // 作品列表页地址
+  createdAt: number; // 创建时间 (Unix timestamp)
+  updatedAt: number; // 最后更新时间 (Unix timestamp)
+
+  // 可选的详细信息
+  details?: {
+    birthDate?: string; // 生日
+    height?: number; // 身高 (cm)
+    measurements?: string; // 三围
+    bloodType?: string; // 血型
+    hometown?: string; // 出身地
+    hobbies?: string[]; // 兴趣爱好
+    debut?: string; // 出道时间
+    retired?: boolean; // 是否已退役
+    worksCount?: number; // 作品数量
+    lastWorkDate?: string; // 最后作品时间
+  };
+
+  // 同步相关信息
+  syncInfo?: {
+    source: 'javdb' | 'manual'; // 数据来源
+    lastSyncAt?: number; // 最后同步时间
+    syncStatus: 'success' | 'failed' | 'pending'; // 同步状态
+    errorMessage?: string; // 错误信息
+  };
+}
+
+// 演员搜索结果
+export interface ActorSearchResult {
+  actors: ActorRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+// 演员同步配置
+export interface ActorSyncConfig {
+  enabled: boolean; // 是否启用演员同步
+  autoSync: boolean; // 是否自动同步
+  syncInterval: number; // 同步间隔 (分钟)
+  batchSize: number; // 批量处理大小
+  maxRetries: number; // 最大重试次数
+  requestInterval: number; // 请求间隔 (秒)
+  urls: {
+    collectionActors: string; // 收藏演员列表URL
+    actorDetail: string; // 演员详情页URL模板
+  };
+}
+
+// 演员同步进度
+export interface ActorSyncProgress {
+  stage: 'pages' | 'details' | 'complete' | 'error';
+  current: number;
+  total: number;
+  percentage: number;
+  message: string;
+  errors?: string[];
+}
+
+// 演员同步结果
+export interface ActorSyncResult {
+  success: boolean;
+  syncedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  newActors: number;
+  updatedActors: number;
+  errors: string[];
+  duration: number; // 同步耗时 (毫秒)
 }
 
 // 新增：增强评分接口
