@@ -18,6 +18,9 @@ export function initSettingsTab(): void {
     // Initialize advanced settings functionality
     initAdvancedSettingsFunctionality();
 
+    // Initialize sync settings functionality
+    initSyncSettingsFunctionality();
+
     const webdavEnabled = document.getElementById('webdavEnabled') as HTMLInputElement;
     const webdavUrl = document.getElementById('webdavUrl') as HTMLInputElement;
     const webdavUser = document.getElementById('webdavUser') as HTMLInputElement;
@@ -32,18 +35,7 @@ export function initSettingsTab(): void {
     const hideBrowsed = document.getElementById('hideBrowsed') as HTMLInputElement;
     const hideVR = document.getElementById('hideVR') as HTMLInputElement;
 
-    // 数据同步设置
-    const dataSyncRequestInterval = document.getElementById('dataSyncRequestInterval') as HTMLInputElement;
-    const dataSyncBatchSize = document.getElementById('dataSyncBatchSize') as HTMLInputElement;
-    const dataSyncMaxRetries = document.getElementById('dataSyncMaxRetries') as HTMLInputElement;
 
-    // 数据同步URL设置
-    const dataSyncWantWatchUrl = document.getElementById('dataSyncWantWatchUrl') as HTMLInputElement;
-    const dataSyncWatchedVideosUrl = document.getElementById('dataSyncWatchedVideosUrl') as HTMLInputElement;
-    const dataSyncCollectionActorsUrl = document.getElementById('dataSyncCollectionActorsUrl') as HTMLInputElement;
-
-    // 数据同步保存按钮
-    const saveDataSyncSettingsBtn = document.getElementById('saveDataSyncSettings') as HTMLButtonElement;
 
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
 
@@ -153,15 +145,7 @@ export function initSettingsTab(): void {
             hideBrowsed.checked = display.hideBrowsed || false;
             hideVR.checked = display.hideVR || false;
 
-            // 数据同步设置
-            dataSyncRequestInterval.value = String(dataSync?.requestInterval || 3);
-            dataSyncBatchSize.value = String(dataSync?.batchSize || 20);
-            dataSyncMaxRetries.value = String(dataSync?.maxRetries || 3);
 
-            // 数据同步URL设置
-            dataSyncWantWatchUrl.value = dataSync?.urls?.wantWatch || 'https://javdb.com/users/want_watch_videos';
-            dataSyncWatchedVideosUrl.value = dataSync?.urls?.watchedVideos || 'https://javdb.com/users/watched_videos';
-            dataSyncCollectionActorsUrl.value = dataSync?.urls?.collectionActors || 'https://javdb.com/users/collection_actors';
 
             // 日志设置
             maxLogEntries.value = String(logging?.maxLogEntries || 1500);
@@ -192,9 +176,7 @@ export function initSettingsTab(): void {
             hideViewed.checked = false;
             hideBrowsed.checked = false;
             hideVR.checked = false;
-            dataSyncRequestInterval.value = '3';
-            dataSyncBatchSize.value = '20';
-            dataSyncMaxRetries.value = '3';
+
             maxLogEntries.value = '1500';
         }
     }
@@ -217,16 +199,7 @@ export function initSettingsTab(): void {
                 hideBrowsed: hideBrowsed.checked,
                 hideVR: hideVR.checked
             },
-            dataSync: {
-                requestInterval: parseInt(dataSyncRequestInterval.value, 10) || 3,
-                batchSize: parseInt(dataSyncBatchSize.value, 10) || 20,
-                maxRetries: parseInt(dataSyncMaxRetries.value, 10) || 3,
-                urls: {
-                    wantWatch: dataSyncWantWatchUrl.value.trim() || 'https://javdb.com/users/want_watch_videos',
-                    watchedVideos: dataSyncWatchedVideosUrl.value.trim() || 'https://javdb.com/users/watched_videos',
-                    collectionActors: dataSyncCollectionActorsUrl.value.trim() || 'https://javdb.com/users/collection_actors',
-                },
-            },
+
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
             },
@@ -349,8 +322,7 @@ export function initSettingsTab(): void {
     });
     testWebdavConnectionBtn.addEventListener('click', handleTestWebDAV);
 
-    // 数据同步设置保存按钮
-    saveDataSyncSettingsBtn.addEventListener('click', handleSaveSettings);
+
 
     hideViewed.addEventListener('change', handleSaveSettings);
     hideBrowsed.addEventListener('change', handleSaveSettings);
@@ -462,6 +434,319 @@ function initSettingsNavigation(): void {
             sidebar.classList.remove('open');
         }
     });
+}
+
+/**
+ * 初始化同步设置功能
+ */
+function initSyncSettingsFunctionality(): void {
+    // 加载同步设置
+    loadSyncSettings();
+
+    // 保存同步设置
+    const saveSyncBtn = document.getElementById('saveSyncSettings');
+    if (saveSyncBtn) {
+        saveSyncBtn.addEventListener('click', saveSyncSettings);
+    }
+
+    // 测试连接
+    const testConnectionBtn = document.getElementById('testActorSyncConnection');
+    if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', testActorSyncConnection);
+    }
+
+    // 测试解析
+    const testParsingBtn = document.getElementById('testActorSyncParsing');
+    if (testParsingBtn) {
+        testParsingBtn.addEventListener('click', testActorSyncParsing);
+    }
+
+    // 启用/禁用控制
+    const enabledCheckbox = document.getElementById('actorSyncEnabled') as HTMLInputElement;
+    if (enabledCheckbox) {
+        enabledCheckbox.addEventListener('change', toggleActorSyncControls);
+        toggleActorSyncControls(); // 初始状态
+    }
+}
+
+/**
+ * 加载同步设置
+ */
+async function loadSyncSettings(): Promise<void> {
+    try {
+        const settings = STATE.settings;
+        if (!settings) {
+            console.warn('设置不存在，使用默认值');
+            return;
+        }
+
+        const dataSync = settings.dataSync;
+        const actorSync = settings.actorSync;
+
+        // 视频数据同步URL配置
+        const wantWatchUrlInput = document.getElementById('dataSyncWantWatchUrl') as HTMLInputElement;
+        const watchedVideosUrlInput = document.getElementById('dataSyncWatchedVideosUrl') as HTMLInputElement;
+
+        // 演员数据同步配置
+        const enabledCheckbox = document.getElementById('actorSyncEnabled') as HTMLInputElement;
+        const autoSyncCheckbox = document.getElementById('actorAutoSync') as HTMLInputElement;
+        const syncIntervalInput = document.getElementById('actorSyncInterval') as HTMLInputElement;
+        const collectionUrlInput = document.getElementById('actorSyncCollectionUrl') as HTMLInputElement;
+        const detailUrlInput = document.getElementById('actorSyncDetailUrl') as HTMLInputElement;
+
+        // 通用同步行为配置
+        const requestIntervalInput = document.getElementById('dataSyncRequestInterval') as HTMLInputElement;
+        const batchSizeInput = document.getElementById('dataSyncBatchSize') as HTMLInputElement;
+        const maxRetriesInput = document.getElementById('dataSyncMaxRetries') as HTMLInputElement;
+
+        // 演员同步特有配置
+        const actorRequestIntervalInput = document.getElementById('actorSyncRequestInterval') as HTMLInputElement;
+        const actorBatchSizeInput = document.getElementById('actorSyncBatchSize') as HTMLInputElement;
+        const actorMaxRetriesInput = document.getElementById('actorSyncMaxRetries') as HTMLInputElement;
+
+        // 安全地设置值，提供默认值
+        // 视频数据同步
+        if (wantWatchUrlInput) wantWatchUrlInput.value = dataSync?.urls?.wantWatch || 'https://javdb.com/users/want_watch_videos';
+        if (watchedVideosUrlInput) watchedVideosUrlInput.value = dataSync?.urls?.watchedVideos || 'https://javdb.com/users/watched_videos';
+        if (requestIntervalInput) requestIntervalInput.value = (dataSync?.requestInterval || 3).toString();
+        if (batchSizeInput) batchSizeInput.value = (dataSync?.batchSize || 20).toString();
+        if (maxRetriesInput) maxRetriesInput.value = (dataSync?.maxRetries || 3).toString();
+
+        // 演员数据同步
+        if (enabledCheckbox) enabledCheckbox.checked = actorSync?.enabled || false;
+        if (autoSyncCheckbox) autoSyncCheckbox.checked = actorSync?.autoSync || false;
+        if (syncIntervalInput) syncIntervalInput.value = (actorSync?.syncInterval || 1440).toString();
+        if (collectionUrlInput) collectionUrlInput.value = actorSync?.urls?.collectionActors || 'https://javdb.com/users/collection_actors';
+        if (detailUrlInput) detailUrlInput.value = actorSync?.urls?.actorDetail || 'https://javdb.com/actors/{{ACTOR_ID}}';
+        if (actorRequestIntervalInput) actorRequestIntervalInput.value = (actorSync?.requestInterval || 3).toString();
+        if (actorBatchSizeInput) actorBatchSizeInput.value = (actorSync?.batchSize || 20).toString();
+        if (actorMaxRetriesInput) actorMaxRetriesInput.value = (actorSync?.maxRetries || 3).toString();
+
+    } catch (error) {
+        console.error('加载同步设置时出错:', error);
+        showMessage('加载同步设置失败', 'error');
+    }
+}
+
+/**
+ * 保存同步设置
+ */
+async function saveSyncSettings(): Promise<void> {
+    try {
+        const settings = STATE.settings;
+
+        // 视频数据同步URL配置
+        const wantWatchUrlInput = document.getElementById('dataSyncWantWatchUrl') as HTMLInputElement;
+        const watchedVideosUrlInput = document.getElementById('dataSyncWatchedVideosUrl') as HTMLInputElement;
+
+        // 演员数据同步配置
+        const enabledCheckbox = document.getElementById('actorSyncEnabled') as HTMLInputElement;
+        const autoSyncCheckbox = document.getElementById('actorAutoSync') as HTMLInputElement;
+        const syncIntervalInput = document.getElementById('actorSyncInterval') as HTMLInputElement;
+        const collectionUrlInput = document.getElementById('actorSyncCollectionUrl') as HTMLInputElement;
+        const detailUrlInput = document.getElementById('actorSyncDetailUrl') as HTMLInputElement;
+
+        // 通用同步行为配置
+        const requestIntervalInput = document.getElementById('dataSyncRequestInterval') as HTMLInputElement;
+        const batchSizeInput = document.getElementById('dataSyncBatchSize') as HTMLInputElement;
+        const maxRetriesInput = document.getElementById('dataSyncMaxRetries') as HTMLInputElement;
+
+        // 演员同步特有配置
+        const actorRequestIntervalInput = document.getElementById('actorSyncRequestInterval') as HTMLInputElement;
+        const actorBatchSizeInput = document.getElementById('actorSyncBatchSize') as HTMLInputElement;
+        const actorMaxRetriesInput = document.getElementById('actorSyncMaxRetries') as HTMLInputElement;
+
+        // 验证输入
+        const requestInterval = parseInt(requestIntervalInput?.value || '3');
+        const batchSize = parseInt(batchSizeInput?.value || '20');
+        const maxRetries = parseInt(maxRetriesInput?.value || '3');
+        const syncInterval = parseInt(syncIntervalInput?.value || '1440');
+        const actorRequestInterval = parseInt(actorRequestIntervalInput?.value || '3');
+        const actorBatchSize = parseInt(actorBatchSizeInput?.value || '20');
+        const actorMaxRetries = parseInt(actorMaxRetriesInput?.value || '3');
+
+        // 验证数据同步配置
+        if (requestInterval < 1 || requestInterval > 60) {
+            showMessage('视频同步请求间隔必须在1-60秒之间', 'error');
+            return;
+        }
+
+        if (batchSize < 10 || batchSize > 100) {
+            showMessage('视频同步批量处理大小必须在10-100之间', 'error');
+            return;
+        }
+
+        if (maxRetries < 1 || maxRetries > 10) {
+            showMessage('视频同步最大重试次数必须在1-10之间', 'error');
+            return;
+        }
+
+        // 验证演员同步配置
+        if (syncInterval < 60 || syncInterval > 10080) {
+            showMessage('演员同步间隔必须在60-10080分钟之间', 'error');
+            return;
+        }
+
+        if (actorRequestInterval < 3 || actorRequestInterval > 60) {
+            showMessage('演员同步请求间隔必须在3-60秒之间', 'error');
+            return;
+        }
+
+        if (actorBatchSize < 10 || actorBatchSize > 50) {
+            showMessage('演员同步批量处理大小必须在10-50之间', 'error');
+            return;
+        }
+
+        if (actorMaxRetries < 1 || actorMaxRetries > 10) {
+            showMessage('演员同步最大重试次数必须在1-10之间', 'error');
+            return;
+        }
+
+        // 更新数据同步设置
+        settings.dataSync = {
+            requestInterval,
+            batchSize,
+            maxRetries,
+            urls: {
+                wantWatch: wantWatchUrlInput?.value || 'https://javdb.com/users/want_watch_videos',
+                watchedVideos: watchedVideosUrlInput?.value || 'https://javdb.com/users/watched_videos',
+                collectionActors: collectionUrlInput?.value || 'https://javdb.com/users/collection_actors',
+            },
+        };
+
+        // 更新演员同步设置
+        settings.actorSync = {
+            enabled: enabledCheckbox?.checked || false,
+            autoSync: autoSyncCheckbox?.checked || false,
+            syncInterval,
+            batchSize: actorBatchSize,
+            maxRetries: actorMaxRetries,
+            requestInterval: actorRequestInterval,
+            urls: {
+                collectionActors: collectionUrlInput?.value || 'https://javdb.com/users/collection_actors',
+                actorDetail: detailUrlInput?.value || 'https://javdb.com/actors/{{ACTOR_ID}}',
+            },
+        };
+
+        // 保存设置
+        await saveSettings(settings);
+        STATE.settings = settings;
+
+        showMessage('同步设置已保存', 'success');
+        logAsync('INFO', '同步设置已保存', { dataSync: settings.dataSync, actorSync: settings.actorSync });
+
+    } catch (error) {
+        console.error('保存同步设置时出错:', error);
+        showMessage('保存同步设置失败', 'error');
+    }
+}
+
+
+
+
+
+
+
+/**
+ * 切换演员同步控制状态
+ */
+function toggleActorSyncControls(): void {
+    const enabledCheckbox = document.getElementById('actorSyncEnabled') as HTMLInputElement;
+    const isEnabled = enabledCheckbox?.checked || false;
+
+    // 获取所有需要控制的元素
+    const controlElements = [
+        'actorAutoSync',
+        'actorSyncInterval',
+        'actorSyncCollectionUrl',
+        'actorSyncDetailUrl',
+        'actorSyncRequestInterval',
+        'actorSyncBatchSize',
+        'actorSyncMaxRetries',
+        'testActorSyncConnection',
+        'testActorSyncParsing'
+    ];
+
+    controlElements.forEach(id => {
+        const element = document.getElementById(id) as HTMLInputElement | HTMLButtonElement;
+        if (element) {
+            element.disabled = !isEnabled;
+        }
+    });
+}
+
+/**
+ * 测试演员同步连接
+ */
+async function testActorSyncConnection(): Promise<void> {
+    const testResultsDiv = document.getElementById('actorSyncTestResults');
+    const testBtn = document.getElementById('testActorSyncConnection') as HTMLButtonElement;
+
+    if (!testResultsDiv || !testBtn) return;
+
+    try {
+        testBtn.disabled = true;
+        testBtn.textContent = '测试中...';
+
+        const collectionUrlInput = document.getElementById('actorSyncCollectionUrl') as HTMLInputElement;
+        const url = collectionUrlInput?.value || 'https://javdb.com/users/collection_actors';
+
+        const response = await fetch(url + '?page=1', {
+            method: 'HEAD', // 只获取头部信息
+            mode: 'no-cors' // 避免CORS问题
+        });
+
+        testResultsDiv.innerHTML = `
+            <div class="test-result-success">
+                <i class="fas fa-check-circle"></i>
+                连接测试成功！可以访问演员列表页面。
+            </div>
+        `;
+
+    } catch (error) {
+        testResultsDiv.innerHTML = `
+            <div class="test-result-error">
+                <i class="fas fa-exclamation-circle"></i>
+                连接测试失败：${error instanceof Error ? error.message : '未知错误'}
+            </div>
+        `;
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = '测试连接';
+    }
+}
+
+/**
+ * 测试演员同步解析
+ */
+async function testActorSyncParsing(): Promise<void> {
+    const testResultsDiv = document.getElementById('actorSyncTestResults');
+    const testBtn = document.getElementById('testActorSyncParsing') as HTMLButtonElement;
+
+    if (!testResultsDiv || !testBtn) return;
+
+    try {
+        testBtn.disabled = true;
+        testBtn.textContent = '测试中...';
+
+        testResultsDiv.innerHTML = `
+            <div class="test-result-info">
+                <i class="fas fa-info-circle"></i>
+                解析测试功能正在开发中，将在后续版本中提供。
+            </div>
+        `;
+
+    } catch (error) {
+        testResultsDiv.innerHTML = `
+            <div class="test-result-error">
+                <i class="fas fa-exclamation-circle"></i>
+                解析测试失败：${error instanceof Error ? error.message : '未知错误'}
+            </div>
+        `;
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = '测试解析';
+    }
 }
 
 function initNetworkTestFunctionality(): void {

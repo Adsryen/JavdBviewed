@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>JavDB 助手管理面板</title>
   <link rel="stylesheet" href="./dashboard.css">
+  <link rel="stylesheet" href="./actors.css">
+  <link rel="stylesheet" href="./sync.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -25,63 +27,7 @@
                 </div>
             </div>
 
-            <div class="sidebar-section" id="data-sync-section" style="display: none;">
-                <h4>数据同步</h4>
-                <div class="data-sync-container">
-                    <div class="sync-options-grid">
-                        <button id="syncAllData" class="sync-option-btn" title="同步所有视频数据" data-sync-type="all">
-                            <i class="fas fa-sync-alt"></i>
-                            <span class="sync-btn-text">同步全部</span>
-                            <small>已观看 + 想看</small>
-                        </button>
-                        <!-- 同步选项将通过JavaScript动态生成 -->
-                        <button id="syncActorsData" class="sync-option-btn" title="同步收藏演员数据" disabled data-sync-type="actors">
-                            <i class="fas fa-users"></i>
-                            <span class="sync-btn-text">同步演员</span>
-                            <small>收藏演员</small>
-                            <span class="coming-soon-label">即将推出</span>
-                        </button>
-                    </div>
-                    <div class="sync-status-info">
-                        <div class="sync-progress" id="syncProgress" style="display: none;">
-                            <!-- 页面获取进度 -->
-                            <div class="progress-stage" id="pagesProgress" style="display: none;">
-                                <div class="progress-header">
-                                    <div class="progress-label">获取想看列表</div>
-                                    <div class="progress-percentage" id="pagesProgressPercentage">0%</div>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="pagesProgressFill"></div>
-                                </div>
-                                <span class="progress-text" id="pagesProgressText">准备获取...</span>
-                            </div>
 
-                            <!-- 详情获取进度 -->
-                            <div class="progress-stage" id="detailsProgress" style="display: none;">
-                                <div class="progress-header">
-                                    <div class="progress-label">同步视频详情</div>
-                                    <div class="progress-percentage" id="detailsProgressPercentage">0%</div>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="detailsProgressFill"></div>
-                                </div>
-                                <span class="progress-text" id="detailsProgressText">等待开始...</span>
-                            </div>
-
-                            <!-- 取消按钮 -->
-                            <div class="progress-controls">
-                                <button class="cancel-sync-btn" id="cancelSyncBtn" title="取消同步">
-                                    <i class="fas fa-times"></i> 取消同步
-                                </button>
-                            </div>
-                        </div>
-                        <div class="sync-result" id="syncResult" style="display: none;">
-                            <i class="fas fa-check-circle"></i>
-                            <span id="syncResultText">同步完成</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div class="sidebar-section">
                 <h4>本地备份</h4>
@@ -124,6 +70,8 @@
         <div class="main-content">
             <div class="tabs">
                 <button class="tab-link active" data-tab="tab-records">番号库</button>
+                <button class="tab-link" data-tab="tab-actors">演员库</button>
+                <button class="tab-link" data-tab="tab-sync">数据同步</button>
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-logs">日志</button>
             </div>
@@ -169,6 +117,201 @@
                 </div>
             </div>
 
+            <div id="tab-actors" class="tab-content">
+                <div class="card">
+                    <!-- 演员库统计信息 -->
+                    <div class="actor-stats-section">
+                        <h4>演员库概览</h4>
+                        <div id="actorStatsContainer" class="stats-grid">
+                            <!-- 统计信息将由 JS 动态填充 -->
+                        </div>
+                    </div>
+
+
+
+                    <!-- 搜索和过滤 -->
+                    <div class="search-and-filter">
+                        <input type="text" id="actorSearchInput" placeholder="搜索演员姓名或别名...">
+                        <select id="actorSortSelect">
+                            <option value="name_asc">按姓名排序 (A-Z)</option>
+                            <option value="name_desc">按姓名排序 (Z-A)</option>
+                            <option value="updatedAt_desc">按更新时间排序 (最新)</option>
+                            <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
+                            <option value="worksCount_desc">按作品数量排序 (多到少)</option>
+                            <option value="worksCount_asc">按作品数量排序 (少到多)</option>
+                        </select>
+                        <select id="actorPageSizeSelect">
+                            <option value="20">每页 20 个</option>
+                            <option value="40">每页 40 个</option>
+                            <option value="60">每页 60 个</option>
+                            <option value="100">每页 100 个</option>
+                        </select>
+                    </div>
+
+                    <!-- 演员列表容器 -->
+                    <div class="actor-list-wrapper">
+                        <div id="actorListLoading" class="loading-indicator" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>加载中...</span>
+                        </div>
+                        <div id="actorListContainer" class="actor-list-container">
+                            <!-- 演员列表将由 JS 动态填充 -->
+                        </div>
+                    </div>
+
+                    <!-- 分页控件 -->
+                    <div class="pagination-controls">
+                        <div id="actorPaginationContainer" class="pagination">
+                            <!-- 分页控件将由 JS 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-sync" class="tab-content">
+                <div class="card">
+                    <!-- 登录状态提示 -->
+                    <div id="sync-login-notice" class="sync-login-notice" style="display: none;">
+                        <div class="notice-content">
+                            <i class="fas fa-info-circle notice-icon"></i>
+                            <div class="notice-text">
+                                <h5>需要登录才能使用数据同步功能</h5>
+                                <p>请在左侧账号信息区域登录您的 JavDB 账号</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据同步区域 -->
+                    <div id="data-sync-section-main" class="data-sync-section">
+                        <h4>数据同步</h4>
+                        <p class="section-description">将您在 JavDB 的观看记录、想看列表同步到本地，方便离线管理和搜索。</p>
+
+                        <!-- 同步选项 -->
+                        <div class="sync-options-grid">
+                            <div class="sync-option-card">
+                                <div class="sync-option-header">
+                                    <i class="fas fa-sync-alt sync-option-icon"></i>
+                                    <h5>同步全部数据</h5>
+                                </div>
+                                <p class="sync-option-description">同步所有观看记录和想看列表到本地</p>
+                                <div class="sync-option-actions">
+                                    <button id="syncAllData" class="sync-btn sync-btn-primary" data-sync-type="all">
+                                        <i class="fas fa-sync-alt"></i>
+                                        开始同步
+                                    </button>
+                                </div>
+                                <div class="sync-option-stats">
+                                    <span class="stat-item">已观看 + 想看</span>
+                                </div>
+                            </div>
+
+                            <div class="sync-option-card">
+                                <div class="sync-option-header">
+                                    <i class="fas fa-heart sync-option-icon"></i>
+                                    <h5>同步想看列表</h5>
+                                </div>
+                                <p class="sync-option-description">仅同步想看列表中的视频</p>
+                                <div class="sync-option-actions">
+                                    <button id="syncWantData" class="sync-btn sync-btn-secondary" data-sync-type="want">
+                                        <i class="fas fa-heart"></i>
+                                        同步想看
+                                    </button>
+                                </div>
+                                <div class="sync-option-stats">
+                                    <span class="stat-item">想看列表</span>
+                                </div>
+                            </div>
+
+                            <div class="sync-option-card">
+                                <div class="sync-option-header">
+                                    <i class="fas fa-eye sync-option-icon"></i>
+                                    <h5>同步观看记录</h5>
+                                </div>
+                                <p class="sync-option-description">仅同步已观看的视频记录</p>
+                                <div class="sync-option-actions">
+                                    <button id="syncWatchedData" class="sync-btn sync-btn-secondary" data-sync-type="watched">
+                                        <i class="fas fa-eye"></i>
+                                        同步已看
+                                    </button>
+                                </div>
+                                <div class="sync-option-stats">
+                                    <span class="stat-item">观看记录</span>
+                                </div>
+                            </div>
+
+                            <div class="sync-option-card">
+                                <div class="sync-option-header">
+                                    <i class="fas fa-users sync-option-icon"></i>
+                                    <h5>同步收藏演员</h5>
+                                </div>
+                                <p class="sync-option-description">同步您收藏的演员信息到本地演员库</p>
+                                <div class="sync-option-actions">
+                                    <button id="syncActorsData" class="sync-btn sync-btn-secondary" data-sync-type="actors">
+                                        <i class="fas fa-users"></i>
+                                        同步演员
+                                    </button>
+                                </div>
+                                <div class="sync-option-stats">
+                                    <span class="stat-item">收藏演员</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 同步进度 -->
+                        <div id="syncProgress" class="sync-progress-container" style="display: none;">
+                            <div class="progress-section">
+                                <h5>同步进度</h5>
+
+                                <!-- 页面获取进度 -->
+                                <div class="progress-stage" id="pagesProgress" style="display: none;">
+                                    <div class="progress-header">
+                                        <div class="progress-label">获取列表页面</div>
+                                        <div class="progress-percentage" id="pagesProgressPercentage">0%</div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="pagesProgressFill"></div>
+                                    </div>
+                                    <span class="progress-text" id="pagesProgressText">准备获取...</span>
+                                </div>
+
+                                <!-- 详情获取进度 -->
+                                <div class="progress-stage" id="detailsProgress" style="display: none;">
+                                    <div class="progress-header">
+                                        <div class="progress-label">获取视频详情</div>
+                                        <div class="progress-percentage" id="detailsProgressPercentage">0%</div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="detailsProgressFill"></div>
+                                    </div>
+                                    <span class="progress-text" id="detailsProgressText">等待开始...</span>
+                                </div>
+
+                                <!-- 取消按钮 -->
+                                <div class="progress-controls">
+                                    <button class="cancel-sync-btn" id="cancelSyncBtn" title="取消同步">
+                                        <i class="fas fa-times"></i> 取消同步
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 同步结果 -->
+                        <div id="syncResult" class="sync-result" style="display: none;">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="syncResultText">同步完成</span>
+                        </div>
+                    </div>
+
+                    <!-- 本地数据统计 -->
+                    <div class="local-stats-section">
+                        <h4>本地数据统计</h4>
+                        <div id="stats-overview-sync" class="stats-grid">
+                            <!-- 统计信息将由 JavaScript 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="tab-settings" class="tab-content">
                 <div class="settings-container">
                     <!-- 移动端菜单切换按钮 -->
@@ -192,9 +335,9 @@
                                 <i class="fas fa-cloud"></i>
                                 <span>WebDAV同步</span>
                             </div>
-                            <div class="settings-nav-item" data-section="data-sync-settings">
+                            <div class="settings-nav-item" data-section="sync-settings">
                                 <i class="fas fa-sync-alt"></i>
-                                <span>数据同步</span>
+                                <span>同步设置</span>
                             </div>
                             <div class="settings-nav-item" data-section="drive115-settings">
                                 <i class="fas fa-cloud-download-alt"></i>
@@ -334,65 +477,148 @@
                             </div>
                         </div>
 
-                        <!-- 数据同步设置 -->
-                        <div class="settings-panel" id="data-sync-settings">
+                        <!-- 同步设置 -->
+                        <div class="settings-panel" id="sync-settings">
                             <div class="settings-panel-header">
-                                <h3>数据同步设置</h3>
-                                <p class="settings-description">配置从JavDB同步数据时的行为，包括请求间隔、批量处理设置和URL地址。</p>
+                                <h3>同步设置</h3>
+                                <p class="settings-description">配置从JavDB同步观看记录、想看列表和演员数据的URL地址和行为参数。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <!-- URL配置部分 -->
+                                <!-- 视频数据同步配置 -->
                                 <div class="form-section">
-                                    <h4>同步URL配置</h4>
-                                    <p class="section-description">配置各种数据同步的URL地址，页码参数将由程序自动添加。</p>
+                                    <h4>视频数据同步配置</h4>
+                                    <p class="section-description">配置观看记录和想看列表的同步URL地址，页码参数将由程序自动添加。</p>
 
                                     <div class="form-group">
-                                        <label for="dataSyncWantWatchUrl">想看视频URL:</label>
+                                        <label for="dataSyncWantWatchUrl">想看列表URL:</label>
                                         <input type="url" id="dataSyncWantWatchUrl" class="text-input" placeholder="https://javdb.com/users/want_watch_videos">
                                         <p class="input-description">想看视频列表的URL地址，程序会自动添加页码参数。</p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="dataSyncWatchedVideosUrl">已看视频URL:</label>
+                                        <label for="dataSyncWatchedVideosUrl">已看列表URL:</label>
                                         <input type="url" id="dataSyncWatchedVideosUrl" class="text-input" placeholder="https://javdb.com/users/watched_videos">
-                                        <p class="input-description">已看视频列表的URL地址，程序会自动添加页码参数。</p>
+                                        <p class="input-description">已观看视频列表的URL地址，程序会自动添加页码参数。</p>
+                                    </div>
+
+                                </div>
+
+                                <!-- 演员数据同步配置 -->
+                                <div class="form-section">
+                                    <h4>演员数据同步配置</h4>
+                                    <p class="section-description">配置演员数据同步的行为和URL地址。</p>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="actorSyncEnabled">
+                                            <span class="checkmark"></span>
+                                            启用演员同步功能
+                                        </label>
+                                        <p class="input-description">开启后可以从JavDB同步收藏演员数据到本地。</p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="dataSyncCollectionActorsUrl">收藏演员URL:</label>
-                                        <input type="url" id="dataSyncCollectionActorsUrl" class="text-input" placeholder="https://javdb.com/users/collection_actors">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="actorAutoSync">
+                                            <span class="checkmark"></span>
+                                            自动同步演员数据
+                                        </label>
+                                        <p class="input-description">定期自动同步演员数据，避免手动操作。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="actorSyncInterval">演员同步间隔 (分钟):</label>
+                                        <input type="number" id="actorSyncInterval" class="number-input" min="60" max="10080" value="1440">
+                                        <p class="input-description">自动同步演员数据的时间间隔，建议设置为24小时(1440分钟)或更长。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="actorSyncCollectionUrl">收藏演员URL:</label>
+                                        <input type="url" id="actorSyncCollectionUrl" class="text-input" placeholder="https://javdb.com/users/collection_actors">
                                         <p class="input-description">收藏演员列表的URL地址，程序会自动添加页码参数。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="actorSyncDetailUrl">演员详情URL模板:</label>
+                                        <input type="text" id="actorSyncDetailUrl" class="text-input" placeholder="https://javdb.com/actors/{{ACTOR_ID}}">
+                                        <p class="input-description">演员详情页的URL模板，{{ACTOR_ID}}将被替换为实际的演员ID。</p>
                                     </div>
                                 </div>
 
-                                <!-- 同步行为配置部分 -->
+                                <!-- 通用同步行为配置 -->
                                 <div class="form-section">
-                                    <h4>同步行为配置</h4>
-                                    <p class="section-description">配置数据同步时的请求间隔和批量处理设置。</p>
+                                    <h4>通用同步行为配置</h4>
+                                    <p class="section-description">配置所有数据同步时的请求间隔和批量处理设置。</p>
 
                                     <div class="form-group">
                                         <label for="dataSyncRequestInterval">请求间隔 (秒):</label>
-                                        <input type="number" id="dataSyncRequestInterval" class="number-input" min="3" max="60" value="3">
-                                        <p class="input-description">每次请求详情页之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
+                                        <input type="number" id="dataSyncRequestInterval" class="number-input" min="1" max="60" value="3">
+                                        <p class="input-description">每次请求之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
                                     </div>
+
                                     <div class="form-group">
                                         <label for="dataSyncBatchSize">批量处理大小:</label>
-                                        <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="50" value="20">
-                                        <p class="input-description">每批处理的视频数量，通常一页包含20个视频。</p>
+                                        <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="100" value="20">
+                                        <p class="input-description">每批处理的视频数量，建议设置为20-50之间。</p>
                                     </div>
+
                                     <div class="form-group">
                                         <label for="dataSyncMaxRetries">最大重试次数:</label>
                                         <input type="number" id="dataSyncMaxRetries" class="number-input" min="1" max="10" value="3">
-                                        <p class="input-description">当请求失败时的最大重试次数。</p>
+                                        <p class="input-description">网络请求失败时的最大重试次数。</p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="actorSyncRequestInterval">演员同步请求间隔 (秒):</label>
+                                        <input type="number" id="actorSyncRequestInterval" class="number-input" min="3" max="60" value="3">
+                                        <p class="input-description">演员详情页请求间隔，建议至少3秒以缓解服务器压力。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="actorSyncBatchSize">演员批量处理大小:</label>
+                                        <input type="number" id="actorSyncBatchSize" class="number-input" min="10" max="50" value="20">
+                                        <p class="input-description">每批处理的演员数量，通常一页包含20个演员。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="actorSyncMaxRetries">演员同步最大重试次数:</label>
+                                        <input type="number" id="actorSyncMaxRetries" class="number-input" min="1" max="10" value="3">
+                                        <p class="input-description">演员数据获取失败时的最大重试次数。</p>
                                     </div>
                                 </div>
 
+                                <!-- 测试功能 -->
+                                <div class="form-section">
+                                    <h4>测试功能</h4>
+                                    <p class="section-description">测试同步配置是否正确。</p>
+
+                                    <div class="button-group">
+                                        <button type="button" id="testActorSyncConnection" class="button-like" style="background-color: #17a2b8;">
+                                            <i class="fas fa-network-wired"></i>
+                                            测试演员同步连接
+                                        </button>
+                                        <button type="button" id="testActorSyncParsing" class="button-like" style="background-color: #28a745;">
+                                            <i class="fas fa-code"></i>
+                                            测试演员数据解析
+                                        </button>
+                                    </div>
+
+                                    <div id="actorSyncTestResults" class="test-results" style="margin-top: 15px;"></div>
+                                </div>
+
                                 <!-- 保存按钮 -->
-                                <div class="button-group">
-                                    <button type="button" id="saveDataSyncSettings" class="btn">保存数据同步设置</button>
+                                <div class="form-section">
+                                    <div class="button-group">
+                                        <button type="button" id="saveSyncSettings" class="button-like">
+                                            <i class="fas fa-save"></i>
+                                            保存同步设置
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+
+
 
                         <!-- 网络测试 -->
                         <div class="settings-panel" id="network-test-settings">

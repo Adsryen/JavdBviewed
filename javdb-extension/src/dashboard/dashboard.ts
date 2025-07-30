@@ -2,6 +2,8 @@
 
 import { initializeGlobalState, STATE } from './state';
 import { initRecordsTab } from './tabs/records';
+import { actorsTab } from './tabs/actors';
+import { syncTab } from './tabs/sync';
 import { initSettingsTab } from './tabs/settings';
 import { initAdvancedSettingsTab } from './tabs/advanced';
 import { initLogsTab } from './tabs/logs';
@@ -31,6 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTabs();
     initRecordsTab();
+    initActorsTab();
+    initSyncTab();
     initSettingsTab();
     initDrive115Tab();
     initLogsTab();
@@ -43,6 +47,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     initModal();
     updateSyncStatus();
 });
+
+/**
+ * 初始化演员库标签页
+ */
+async function initActorsTab(): Promise<void> {
+    try {
+        await actorsTab.initActorsTab();
+    } catch (error) {
+        console.error('初始化演员库标签页失败:', error);
+    }
+}
+
+/**
+ * 初始化数据同步标签页
+ */
+async function initSyncTab(): Promise<void> {
+    try {
+        await syncTab.initSyncTab();
+    } catch (error) {
+        console.error('初始化数据同步标签页失败:', error);
+    }
+}
 
 function initTabs(): void {
     try {
