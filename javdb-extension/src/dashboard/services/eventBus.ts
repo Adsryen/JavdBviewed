@@ -49,9 +49,9 @@ export class EventBus {
         const handlers = this.listeners.get(eventName)!;
         handlers.add(handler);
         
-        logAsync('DEBUG', `事件监听器已注册: ${eventName}`, { 
-            totalListeners: handlers.size 
-        });
+        // logAsync('DEBUG', `事件监听器已注册: ${eventName}`, {
+        //     totalListeners: handlers.size
+        // });
 
         // 返回取消订阅函数
         return () => {
@@ -59,9 +59,9 @@ export class EventBus {
             if (handlers.size === 0) {
                 this.listeners.delete(eventName);
             }
-            logAsync('DEBUG', `事件监听器已移除: ${eventName}`, { 
-                remainingListeners: handlers.size 
-            });
+            // logAsync('DEBUG', `事件监听器已移除: ${eventName}`, {
+            //     remainingListeners: handlers.size
+            // });
         };
     }
 
@@ -75,14 +75,14 @@ export class EventBus {
         const handlers = this.listeners.get(eventName);
         
         if (!handlers || handlers.size === 0) {
-            logAsync('DEBUG', `没有监听器处理事件: ${eventName}`);
+            // logAsync('DEBUG', `没有监听器处理事件: ${eventName}`);
             return;
         }
 
-        logAsync('DEBUG', `发布事件: ${eventName}`, { 
-            listenersCount: handlers.size,
-            data 
-        });
+        // logAsync('DEBUG', `发布事件: ${eventName}`, {
+        //     listenersCount: handlers.size,
+        //     data
+        // });
 
         // 异步执行所有处理器，避免阻塞
         handlers.forEach(handler => {
@@ -129,9 +129,9 @@ export class EventBus {
         if (handlers) {
             const count = handlers.size;
             this.listeners.delete(eventName);
-            logAsync('DEBUG', `已移除事件的所有监听器: ${eventName}`, { 
-                removedCount: count 
-            });
+            // logAsync('DEBUG', `已移除事件的所有监听器: ${eventName}`, {
+            //     removedCount: count
+            // });
         }
     }
 

@@ -15,6 +15,7 @@ export class SyncUI {
     private static instance: SyncUI;
     private currentSyncType: SyncType | null = null;
     private eventsInitialized = false; // 跟踪事件是否已初始化
+    private static globalInitialized = false; // 全局初始化标志
 
     private constructor() {}
 
@@ -29,9 +30,18 @@ export class SyncUI {
      * 初始化数据同步UI
      */
     public async init(): Promise<void> {
+        if (SyncUI.globalInitialized) {
+            return; // 防止重复初始化
+        }
+
         await this.checkUserLoginStatus();
         this.renderSyncOptions();
-        this.bindCancelSyncEvent();
+        if (!this.eventsInitialized) {
+            this.bindCancelSyncEvent();
+            this.eventsInitialized = true;
+        }
+
+        SyncUI.globalInitialized = true;
     }
 
     /**
@@ -66,9 +76,11 @@ export class SyncUI {
         // 清除旧的事件监听器（通过重新生成HTML）
         container.innerHTML = SYNC_OPTIONS.map(option => this.createSyncOptionHTML(option)).join('');
 
-        // 重新绑定事件
-        this.bindSyncEvents();
-        this.bindModeToggleEvents();
+        // 只在首次初始化时绑定事件
+        if (!this.eventsInitialized) {
+            this.bindSyncEvents();
+            this.bindModeToggleEvents();
+        }
     }
 
     /**
@@ -144,7 +156,6 @@ export class SyncUI {
      */
     private removeExistingHoverListeners(): void {
         const syncGroups = document.querySelectorAll('.sync-option-group');
-        console.log(`🧹 [DataSync] 开始清理现有事件监听器，找到 ${syncGroups.length} 个组`);
 
         let cleanedCount = 0;
         syncGroups.forEach((group, index) => {
@@ -152,20 +163,14 @@ export class SyncUI {
             const syncType = mainButton?.getAttribute('data-sync-type');
 
             if ((group as any).__hoverCleanup) {
-                console.log(`🗑️ [DataSync] 清理组 ${index + 1} (${syncType}) 的事件监听器`);
                 (group as any).__hoverCleanup();
                 delete (group as any).__hoverCleanup;
                 cleanedCount++;
-            } else {
-                console.log(`ℹ️ [DataSync] 组 ${index + 1} (${syncType}) 没有需要清理的监听器`);
             }
         });
 
-        console.log(`✅ [DataSync] 清理完成，共清理了 ${cleanedCount} 个组的监听器`);
-
         // 清理全局悬浮管理器
         if ((this as any).__globalHoverCleanup) {
-            console.log(`🧹 [DataSync] 清理全局悬浮管理器`);
             (this as any).__globalHoverCleanup();
             delete (this as any).__globalHoverCleanup;
         }
@@ -175,34 +180,17 @@ export class SyncUI {
      * 绑定同步按钮事件
      */
     private bindSyncEvents(): void {
-        console.log('🔧 [DataSync] 开始绑定同步按钮事件');
-
         // 移除所有现有的悬浮菜单事件监听器
         this.removeExistingHoverListeners();
 
         // 查找所有的sync-option-group元素
         const allSyncGroups = document.querySelectorAll('.sync-option-group');
-        console.log(`🔍 [DataSync] 找到 ${allSyncGroups.length} 个 .sync-option-group 元素`);
 
         allSyncGroups.forEach((group, index) => {
             const mainButton = group.querySelector('.main-sync-btn') as HTMLButtonElement;
             const modeOptions = group.querySelector('.sync-mode-options') as HTMLElement;
             const syncType = mainButton?.getAttribute('data-sync-type');
-
-            console.log(`📋 [DataSync] 组 ${index + 1}:`, {
-                hasMainButton: !!mainButton,
-                hasModeOptions: !!modeOptions,
-                syncType: syncType,
-                buttonId: mainButton?.id,
-                alreadyBound: mainButton?.hasAttribute('data-events-bound')
-            });
         });
-
-        // 为所有同步按钮组绑定悬浮事件
-        console.log(`🎯 [DataSync] 开始为所有同步组绑定悬浮事件`);
-
-        // 直接绑定按钮点击事件，无需悬浮管理
-        console.log(`🎯 [DataSync] 绑定同步按钮点击事件`);
 
         // 同步模式按钮事件
         const modeButtons = document.querySelectorAll('.sync-mode-btn');

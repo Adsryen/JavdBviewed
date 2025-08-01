@@ -12,6 +12,10 @@ import { SyncCancelledError } from './types';
 import { userService } from '../services/userService';
 import { on, emit } from '../services/eventBus';
 
+// 全局初始化标志
+let isDataSyncInitialized = false;
+let areEventsInitialized = false;
+
 // 导出公共接口
 export { SyncStatus } from './types';
 export type { SyncType, SyncProgress, SyncResult } from './types';
@@ -22,8 +26,13 @@ export { getApiClient } from './api';
  * 初始化数据同步功能
  */
 export async function initDataSyncSection(): Promise<void> {
+    if (isDataSyncInitialized) {
+        // logAsync('DEBUG', '数据同步功能已初始化，跳过重复初始化');
+        return;
+    }
+
     try {
-        logAsync('INFO', '初始化数据同步功能');
+        // logAsync('INFO', '初始化数据同步功能');
 
         // 初始化UI
         const ui = SyncUI.getInstance();
@@ -35,7 +44,8 @@ export async function initDataSyncSection(): Promise<void> {
         // 绑定事件总线监听器
         bindEventBusListeners();
 
-        logAsync('INFO', '数据同步功能初始化完成');
+        isDataSyncInitialized = true;
+        // logAsync('INFO', '数据同步功能初始化完成');
     } catch (error: any) {
         logAsync('ERROR', '数据同步功能初始化失败', { error: error.message });
     }
@@ -57,6 +67,10 @@ export async function refreshDataSyncSection(): Promise<void> {
  * 绑定同步事件
  */
 function bindSyncEvents(): void {
+    if (areEventsInitialized) {
+        return; // 防止重复绑定事件
+    }
+
     // 监听同步请求事件
     document.addEventListener('sync-requested', handleSyncRequest as EventListener);
 
@@ -65,6 +79,8 @@ function bindSyncEvents(): void {
 
     // 监听页面卸载事件，清理资源
     window.addEventListener('beforeunload', cleanup);
+
+    areEventsInitialized = true;
 }
 
 /**
@@ -73,20 +89,20 @@ function bindSyncEvents(): void {
 function bindEventBusListeners(): void {
     // 监听数据同步刷新请求
     on('data-sync-refresh-requested', () => {
-        logAsync('DEBUG', '收到数据同步刷新请求');
+        // logAsync('DEBUG', '收到数据同步刷新请求');
         refreshDataSyncSection();
     });
 
     // 监听用户登录状态变化
     on('user-login-status-changed', ({ isLoggedIn }) => {
-        logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
+        // logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
         const ui = SyncUI.getInstance();
         ui.checkUserLoginStatus();
     });
 
     // 监听用户退出登录
     on('user-logout', () => {
-        logAsync('DEBUG', '用户退出登录，重置同步状态');
+        // logAsync('DEBUG', '用户退出登录，重置同步状态');
         resetSyncState();
     });
 }

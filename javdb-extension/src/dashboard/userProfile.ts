@@ -331,7 +331,7 @@ function refreshDataSyncSection(): void {
     try {
         // 使用事件总线通知数据同步模块刷新
         emit('data-sync-refresh-requested', {});
-        logAsync('DEBUG', '已发送数据同步刷新请求');
+        // logAsync('DEBUG', '已发送数据同步刷新请求');
     } catch (error: any) {
         logAsync('ERROR', '发送数据同步刷新请求失败', { error: error.message });
     }
