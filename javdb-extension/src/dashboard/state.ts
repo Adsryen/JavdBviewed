@@ -127,5 +127,5 @@ export async function initializeGlobalState(): Promise<void> {
         STATE.logs = [];
     }
     STATE.isInitialized = true;
-    console.log("Global state initialized.", STATE);
+    // console.log("Global state initialized.", STATE);
 } 

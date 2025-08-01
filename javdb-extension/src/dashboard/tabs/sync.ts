@@ -24,7 +24,7 @@ export class SyncTab {
             await this.updateLocalStats();
             this.setupEventListeners();
             this.isInitialized = true;
-            logAsync('INFO', '数据同步标签页初始化完成');
+            // logAsync('INFO', '数据同步标签页初始化完成');
         } catch (error) {
             console.error('Failed to initialize sync tab:', error);
             showMessage('初始化数据同步页面失败', 'error');
@@ -77,7 +77,7 @@ export class SyncTab {
         try {
             // 初始化数据同步模块
             await initDataSyncSection();
-            logAsync('INFO', '数据同步功能初始化完成');
+            // logAsync('INFO', '数据同步功能初始化完成');
         } catch (error) {
             logAsync('ERROR', '数据同步功能初始化失败', { error: error.message });
         }
@@ -132,19 +132,19 @@ export class SyncTab {
     private bindEventBusListeners(): void {
         // 监听用户登录状态变化
         on('user-login-status-changed', async ({ isLoggedIn }) => {
-            logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
+            // logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
             await this.updateSyncAvailability(isLoggedIn);
         });
 
         // 监听用户退出登录
         on('user-logout', async () => {
-            logAsync('DEBUG', '用户退出登录');
+            // logAsync('DEBUG', '用户退出登录');
             await this.updateSyncAvailability(false);
         });
 
         // 监听数据同步状态变化
         on('data-sync-status-changed', ({ status, type }) => {
-            logAsync('DEBUG', '数据同步状态变化', { status, type });
+            // logAsync('DEBUG', '数据同步状态变化', { status, type });
         });
     }
 

@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initLogsTab();
     initSidebarActions();
     initUserProfileSection();
-    initDataSyncSection();
+    // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
     initStatsOverview();
     initInfoContainer();
     initHelpSystem();

@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 
-console.log('[Background] Service Worker starting up or waking up.');
+// console.log('[Background] Service Worker starting up or waking up.');
 
 const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => void> = {
     INFO: console.info,
@@ -289,21 +289,21 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(`[Background] onMessage listener triggered. Received message:`, message);
-    console.log(`[Background] Message type: ${message.type}`);
+    // console.log(`[Background] onMessage listener triggered. Received message:`, message);
+    // console.log(`[Background] Message type: ${message.type}`);
 
     try {
         switch (message.type) {
             case 'ping':
             case 'ping-background':
-                console.log('[Background] Ping received, sending pong.');
+                // console.log('[Background] Ping received, sending pong.');
                 sendResponse({ success: true, message: 'pong' });
                 return true;
             case 'get-logs':
-                console.log('[Background] Processing get-logs request.');
+                // console.log('[Background] Processing get-logs request.');
                 getValue(STORAGE_KEYS.LOGS, [])
                     .then(logs => {
-                        console.log(`[Background] Retrieved ${logs.length} log entries.`);
+                        // console.log(`[Background] Retrieved ${logs.length} log entries.`);
                         sendResponse({ success: true, logs });
                     })
                     .catch(error => {
@@ -312,7 +312,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     });
                 return true;
             case 'log-message':
-                console.log('[Background] Processing log-message request.');
+                // console.log('[Background] Processing log-message request.');
                 const { payload } = message;
                 if (payload && payload.level && payload.message) {
                     log(payload.level, payload.message, payload.data)
