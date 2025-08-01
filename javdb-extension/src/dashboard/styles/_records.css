@@ -690,6 +690,410 @@
     color: var(--text-secondary);
 }
 
+/* 批量操作样式 */
+.batch-operations {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    animation: slideDown 0.3s ease-out;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.batch-selection {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.batch-select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #333;
+    user-select: none;
+}
+
+.batch-select-all input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.selected-count {
+    color: #6c757d;
+    font-size: 14px;
+    padding: 6px 12px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #dee2e6;
+    font-weight: 500;
+}
+
+.batch-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.batch-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 38px;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.batch-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.batch-btn.refresh-btn {
+    background: #17a2b8;
+    color: white;
+}
+
+.batch-btn.refresh-btn:hover:not(:disabled) {
+    background: #138496;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+}
+
+.batch-btn.delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.batch-btn.delete-btn:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.batch-btn.cancel-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.batch-btn.cancel-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* 操作模式切换 */
+.operation-mode {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.mode-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-toggle-btn:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.mode-toggle-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+
+
+.video-item.batch-mode {
+    cursor: pointer;
+}
+
+.video-item.batch-mode:hover {
+    background: rgba(0, 123, 255, 0.05);
+    border-color: #007bff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.video-item.selected {
+    background: rgba(0, 123, 255, 0.1);
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+/* 非批量模式下的视频项也应该可点击 */
+.video-item:not(.batch-mode) {
+    cursor: pointer;
+}
+
+.video-item:not(.batch-mode):hover {
+    background: rgba(0, 123, 255, 0.03);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 单选操作提示栏 */
+.single-select-hint {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.single-select-hint .selected-info {
+    color: #1976d2;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.single-refresh-btn,
+.single-delete-btn,
+.single-clear-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 32px;
+}
+
+.single-refresh-btn {
+    background: #17a2b8;
+    color: white;
+}
+
+.single-refresh-btn:hover {
+    background: #138496;
+    transform: translateY(-1px);
+}
+
+.single-delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.single-delete-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.single-clear-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.single-clear-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* 自定义确认弹窗 */
+.custom-confirm-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-confirm-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.custom-confirm-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    min-width: 400px;
+    max-width: 500px;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.custom-confirm-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.custom-confirm-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.custom-confirm-body {
+    padding: 20px 24px;
+}
+
+.custom-confirm-body p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #666;
+    white-space: pre-line;
+}
+
+.custom-confirm-footer {
+    padding: 16px 24px 20px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.custom-confirm-cancel,
+.custom-confirm-ok {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.custom-confirm-cancel {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.custom-confirm-cancel:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.custom-confirm-ok {
+    background: #dc3545;
+    color: white;
+}
+
+.custom-confirm-ok:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 批量操作进度指示器 */
+.batch-progress {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    min-width: 320px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+.batch-progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 16px 0;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: #007bff;
+    transition: width 0.3s ease;
+    border-radius: 5px;
+}
+
+.batch-progress-text {
+    color: #333;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.batch-progress-details {
+    color: #6c757d;
+    font-size: 14px;
+}
+
 /* Pagination */
 .pagination button {
     background-color: var(--background-color);

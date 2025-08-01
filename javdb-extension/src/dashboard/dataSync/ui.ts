@@ -381,6 +381,9 @@ export class SyncUI {
      * 更新同步进度
      */
     public updateProgress(progress: SyncProgress): void {
+        // 更新阶段信息显示
+        this.updatePhaseInfo(progress);
+
         if (progress.stage === 'pages') {
             this.updatePagesProgress(progress);
         } else if (progress.stage === 'details') {
@@ -392,9 +395,59 @@ export class SyncUI {
     }
 
     /**
+     * 更新阶段信息显示
+     */
+    private updatePhaseInfo(progress: SyncProgress): void {
+        if (!progress.phaseInfo) return;
+
+        const phaseInfo = progress.phaseInfo;
+
+        // 更新阶段标题
+        const syncTitle = document.querySelector('.sync-progress h3');
+        if (syncTitle) {
+            syncTitle.textContent = `同步进度 - ${phaseInfo.phaseName} (${phaseInfo.currentPhase}/${phaseInfo.totalPhases})`;
+        }
+
+        // 更新进度文本，添加阶段前缀
+        const enhancedMessage = `[${phaseInfo.phaseName}] ${progress.message}`;
+
+        // 创建一个新的progress对象，包含增强的消息
+        const enhancedProgress = {
+            ...progress,
+            message: enhancedMessage
+        };
+
+        // 如果有阶段信息，使用增强的消息
+        if (progress.stage === 'pages') {
+            this.updatePagesProgressWithMessage(enhancedProgress);
+        } else if (progress.stage === 'details') {
+            this.updateDetailsProgressWithMessage(enhancedProgress);
+        }
+
+        return; // 阻止后续的普通更新
+    }
+
+    /**
+     * 更新页面获取进度（带自定义消息）
+     */
+    private updatePagesProgressWithMessage(progress: SyncProgress): void {
+        this.updatePagesProgressInternal(progress);
+    }
+
+    /**
      * 更新页面获取进度
      */
     private updatePagesProgress(progress: SyncProgress): void {
+        // 如果有阶段信息，跳过普通更新（已在updatePhaseInfo中处理）
+        if (progress.phaseInfo) return;
+
+        this.updatePagesProgressInternal(progress);
+    }
+
+    /**
+     * 内部页面进度更新方法
+     */
+    private updatePagesProgressInternal(progress: SyncProgress): void {
         const pagesProgress = document.getElementById('pagesProgress');
         const progressFill = document.getElementById('pagesProgressFill');
         const progressText = document.getElementById('pagesProgressText');
@@ -407,10 +460,26 @@ export class SyncUI {
 
         if (progressFill) {
             progressFill.style.width = `${progress.percentage}%`;
+
+            // 如果是容忍中断，改变进度条颜色
+            if (progress.message && progress.message.includes('容忍度')) {
+                progressFill.style.background = 'linear-gradient(90deg, #ffc107, #e0a800)';
+            } else {
+                progressFill.style.background = 'linear-gradient(90deg, #007bff, #0056b3)';
+            }
         }
 
         if (progressText) {
             progressText.textContent = progress.message;
+
+            // 如果是容忍中断，添加特殊样式
+            if (progress.message && progress.message.includes('容忍度')) {
+                progressText.style.color = '#856404';
+                progressText.style.fontWeight = '600';
+            } else {
+                progressText.style.color = '#6c757d';
+                progressText.style.fontWeight = 'normal';
+            }
         }
 
         if (progressPercentage) {
@@ -419,9 +488,26 @@ export class SyncUI {
     }
 
     /**
+     * 更新详情获取进度（带自定义消息）
+     */
+    private updateDetailsProgressWithMessage(progress: SyncProgress): void {
+        this.updateDetailsProgressInternal(progress);
+    }
+
+    /**
      * 更新详情获取进度
      */
     private updateDetailsProgress(progress: SyncProgress): void {
+        // 如果有阶段信息，跳过普通更新（已在updatePhaseInfo中处理）
+        if (progress.phaseInfo) return;
+
+        this.updateDetailsProgressInternal(progress);
+    }
+
+    /**
+     * 内部详情进度更新方法
+     */
+    private updateDetailsProgressInternal(progress: SyncProgress): void {
         const detailsProgress = document.getElementById('detailsProgress');
         const progressFill = document.getElementById('detailsProgressFill');
         const progressText = document.getElementById('detailsProgressText');

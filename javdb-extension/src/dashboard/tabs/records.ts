@@ -12,8 +12,19 @@ export function initRecordsTab(): void {
     const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
+    // 批量操作相关元素
+    const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
+    const selectedCount = document.getElementById('selectedCount') as HTMLSpanElement;
+    const batchRefreshBtn = document.getElementById('batchRefreshBtn') as HTMLButtonElement;
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
+    const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
+
     let tooltipElement: HTMLPreElement | null = null;
     let imageTooltipElement: HTMLDivElement | null = null;
+
+    // 选择状态
+    let selectedRecords = new Set<string>();
 
     function createTooltip() {
         if (tooltipElement) return;
@@ -139,7 +150,12 @@ export function initRecordsTab(): void {
                         return;
                     }
             const li = document.createElement('li');
-            li.className = 'video-item';
+            li.className = 'video-item batch-mode'; // 始终使用batch-mode样式
+
+            // 设置选中状态
+            if (selectedRecords.has(record.id)) {
+                li.classList.add('selected');
+            }
 
 
             // Create a container for search engine icons
@@ -357,6 +373,8 @@ export function initRecordsTab(): void {
 
 
 
+
+
             // 添加图片悬浮功能到video-id-link
             const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
             if (videoIdLink && record.javdbImage) {
@@ -424,6 +442,23 @@ export function initRecordsTab(): void {
                         imageTooltipElement.style.opacity = '0';
                     }
                 });
+            }
+
+            // 添加点击事件处理
+            li.addEventListener('click', (e) => {
+                // 如果点击的是按钮或链接，不触发选择
+                if ((e.target as HTMLElement).closest('button, a')) {
+                    return;
+                }
+
+                // 直接切换选择状态
+                const isSelected = selectedRecords.has(record.id);
+                handleRecordSelection(record.id, !isSelected);
+            });
+
+            // 如果当前项被选中，添加选中样式
+            if (selectedRecords.has(record.id)) {
+                li.classList.add('selected');
             }
 
             // Append the icons container to the list item
@@ -549,8 +584,15 @@ export function initRecordsTab(): void {
         render();
     });
 
+    // 批量操作事件监听器
+    selectAllCheckbox.addEventListener('change', handleSelectAll);
+    batchRefreshBtn.addEventListener('click', handleBatchRefresh);
+    batchDeleteBtn.addEventListener('click', handleBatchDelete);
+    cancelBatchBtn.addEventListener('click', clearAllSelection);
+
     updateFilteredRecords();
     render();
+    updateBatchUI(); // 初始化批量操作UI状态
 
     // 编辑记录的modal功能
     function showEditModal(record: VideoRecord) {
@@ -755,6 +797,345 @@ export function initRecordsTab(): void {
         };
         document.addEventListener('keydown', handleEscape);
     }
+
+    // 清除所有选择
+    function clearAllSelection() {
+        selectedRecords.clear();
+        document.querySelectorAll('.video-item.selected').forEach(item => {
+            item.classList.remove('selected');
+        });
+        updateBatchUI();
+    }
+
+    function handleSelectAll() {
+        const isChecked = selectAllCheckbox.checked;
+
+        if (isChecked) {
+            // 选择当前页面的所有记录
+            const currentRecords = filteredRecords.slice(
+                (currentPage - 1) * recordsPerPage,
+                currentPage * recordsPerPage
+            );
+            currentRecords.forEach(record => selectedRecords.add(record.id));
+        } else {
+            // 取消选择当前页面的所有记录
+            const currentRecords = filteredRecords.slice(
+                (currentPage - 1) * recordsPerPage,
+                currentPage * recordsPerPage
+            );
+            currentRecords.forEach(record => selectedRecords.delete(record.id));
+        }
+
+        updateBatchUI();
+        render();
+    }
+
+    function handleRecordSelection(recordId: string, isSelected: boolean) {
+        if (isSelected) {
+            selectedRecords.add(recordId);
+        } else {
+            selectedRecords.delete(recordId);
+        }
+
+        // 更新对应的li元素的选中状态
+        const li = document.querySelector(`[data-record-id="${recordId}"]`) as HTMLElement;
+        if (li) {
+            if (isSelected) {
+                li.classList.add('selected');
+            } else {
+                li.classList.remove('selected');
+            }
+        }
+
+        updateBatchUI();
+        // 不要重新渲染整个列表，只更新UI状态
+    }
+
+    function updateBatchUI() {
+        const selectedCount_element = selectedCount;
+        const count = selectedRecords.size;
+        selectedCount_element.textContent = `已选择 ${count} 项`;
+
+        // 根据选择数量显示/隐藏批量操作栏
+        if (count > 0) {
+            batchOperations.style.display = 'flex';
+        } else {
+            batchOperations.style.display = 'none';
+        }
+
+        // 更新按钮状态
+        batchRefreshBtn.disabled = count === 0;
+        batchDeleteBtn.disabled = count === 0;
+
+        // 更新全选复选框状态
+        const currentRecords = filteredRecords.slice(
+            (currentPage - 1) * recordsPerPage,
+            currentPage * recordsPerPage
+        );
+        const currentSelectedCount = currentRecords.filter(record => selectedRecords.has(record.id)).length;
+
+        if (currentSelectedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (currentSelectedCount === currentRecords.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+
+
+
+
+    async function handleBatchRefresh() {
+        if (selectedRecords.size === 0) return;
+
+        const selectedIds = Array.from(selectedRecords);
+
+        showCustomConfirm(
+            '批量刷新确认',
+            `确定要刷新 ${selectedIds.length} 个视频的源数据吗？\n\n这将重新获取视频的详细信息，可能需要一些时间。`,
+            () => {
+                performBatchRefresh(selectedIds);
+            }
+        );
+    }
+
+    async function performBatchRefresh(selectedIds: string[]) {
+
+        // 显示进度
+        const progressModal = showBatchProgress('正在刷新源数据...', selectedIds.length);
+
+        try {
+            let completed = 0;
+            const errors: string[] = [];
+
+            for (const recordId of selectedIds) {
+                try {
+                    await refreshSingleRecord(recordId);
+                    completed++;
+                    updateBatchProgress(progressModal, completed, selectedIds.length, `已完成 ${completed}/${selectedIds.length}`);
+
+                    // 添加延迟避免请求过快
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error: any) {
+                    errors.push(`${recordId}: ${error.message}`);
+                    console.error(`刷新记录 ${recordId} 失败:`, error);
+                }
+            }
+
+            hideBatchProgress(progressModal);
+
+            // 清空选择
+            selectedRecords.clear();
+
+            // 刷新显示
+            updateFilteredRecords();
+            render();
+            updateBatchUI();
+
+            if (errors.length > 0) {
+                showMessage(`刷新完成，但有 ${errors.length} 个失败`, 'warn');
+                console.log('刷新失败的项目:', errors);
+            } else {
+                showMessage(`成功刷新了 ${completed} 个视频的源数据！`, 'success');
+            }
+
+        } catch (error: any) {
+            hideBatchProgress(progressModal);
+            console.error('批量刷新失败:', error);
+            showMessage(`批量刷新失败: ${error.message}`, 'error');
+
+            // 即使失败也要刷新列表，因为可能有部分成功
+            updateFilteredRecords();
+            render();
+            updateBatchUI();
+        }
+    }
+
+    async function handleBatchDelete() {
+        if (selectedRecords.size === 0) return;
+
+        const selectedIds = Array.from(selectedRecords);
+
+        showCustomConfirm(
+            '批量删除确认',
+            `确定要删除 ${selectedIds.length} 个视频记录吗？\n\n此操作不可撤销！删除后将无法恢复这些记录。`,
+            () => {
+                performBatchDelete(selectedIds);
+            }
+        );
+    }
+
+    async function performBatchDelete(selectedIds: string[]) {
+
+        try {
+            const recordsData = await chrome.storage.local.get(STORAGE_KEYS.VIEWED_RECORDS);
+            const records = recordsData[STORAGE_KEYS.VIEWED_RECORDS] || {};
+
+            // 删除选中的记录
+            selectedIds.forEach(id => {
+                delete records[id];
+            });
+
+            await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: records });
+
+            // 清空选择
+            selectedRecords.clear();
+
+            // 重新加载数据并刷新显示
+            await reloadRecordsData();
+            updateFilteredRecords();
+            render();
+            updateBatchUI();
+
+            showMessage(`成功删除了 ${selectedIds.length} 个视频记录！`, 'success');
+
+        } catch (error: any) {
+            console.error('批量删除失败:', error);
+            showMessage(`批量删除失败: ${error.message}`, 'error');
+
+            // 即使失败也要重新加载数据并刷新列表
+            await reloadRecordsData();
+            updateFilteredRecords();
+            render();
+            updateBatchUI();
+        }
+    }
+
+
+
+    // 自定义确认弹窗
+    function showCustomConfirm(title: string, message: string, onConfirm: () => void, onCancel?: () => void): void {
+        const modal = document.createElement('div');
+        modal.className = 'custom-confirm-modal';
+        modal.innerHTML = `
+            <div class="custom-confirm-overlay"></div>
+            <div class="custom-confirm-content">
+                <div class="custom-confirm-header">
+                    <h3>${title}</h3>
+                </div>
+                <div class="custom-confirm-body">
+                    <p>${message}</p>
+                </div>
+                <div class="custom-confirm-footer">
+                    <button class="custom-confirm-cancel">取消</button>
+                    <button class="custom-confirm-ok">确定</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
+        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
+        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
+
+        const closeModal = () => {
+            modal.remove();
+        };
+
+        overlay.addEventListener('click', () => {
+            closeModal();
+            if (onCancel) onCancel();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            closeModal();
+            if (onCancel) onCancel();
+        });
+
+        okBtn.addEventListener('click', () => {
+            closeModal();
+            onConfirm();
+        });
+
+        // ESC键关闭
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                if (onCancel) onCancel();
+                document.removeEventListener('keydown', handleKeydown);
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+    }
+
+    // 重新加载数据
+    async function reloadRecordsData() {
+        try {
+            const recordsData = await chrome.storage.local.get(STORAGE_KEYS.VIEWED_RECORDS);
+            const records = recordsData[STORAGE_KEYS.VIEWED_RECORDS] || {};
+
+            // 更新STATE.records
+            if (records && typeof records === 'object') {
+                STATE.records = Object.values(records);
+            } else {
+                STATE.records = [];
+            }
+
+            // 确保 STATE.records 是数组
+            if (!Array.isArray(STATE.records)) {
+                STATE.records = [];
+            }
+
+            console.log(`重新加载了 ${STATE.records.length} 条记录`);
+        } catch (error) {
+            console.error('重新加载记录数据失败:', error);
+            showMessage('重新加载数据失败', 'error');
+        }
+    }
+
+    // 辅助函数
+    async function refreshSingleRecord(recordId: string): Promise<void> {
+        // 发送消息到background script刷新单个记录
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({
+                type: 'refresh-record',
+                videoId: recordId
+            }, (response) => {
+                if (response?.success) {
+                    resolve();
+                } else {
+                    reject(new Error(response?.error || '刷新失败'));
+                }
+            });
+        });
+    }
+
+    function showBatchProgress(title: string, total: number): HTMLElement {
+        const modal = document.createElement('div');
+        modal.className = 'batch-progress';
+        modal.innerHTML = `
+            <div class="batch-progress-text">${title}</div>
+            <div class="batch-progress-bar">
+                <div class="batch-progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="batch-progress-details">0 / ${total}</div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    function updateBatchProgress(modal: HTMLElement, current: number, total: number, details: string) {
+        const fill = modal.querySelector('.batch-progress-fill') as HTMLElement;
+        const detailsElement = modal.querySelector('.batch-progress-details') as HTMLElement;
+
+        const percentage = Math.round((current / total) * 100);
+        fill.style.width = `${percentage}%`;
+        detailsElement.textContent = details;
+    }
+
+    function hideBatchProgress(modal: HTMLElement) {
+        if (modal && modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+        }
+    }
+
+
 
     // 清理函数，在页面切换时调用
     return function cleanup() {
