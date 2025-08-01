@@ -15,6 +15,13 @@ export enum SyncStatus {
 // 同步类型（从配置模块导入）
 export type { SyncType } from '../config/syncConfig';
 
+// 阶段信息
+export interface PhaseInfo {
+    currentPhase: number;    // 当前阶段（1, 2, ...）
+    totalPhases: number;     // 总阶段数
+    phaseName: string;       // 阶段名称（如 "已观看", "想看"）
+}
+
 // 同步进度信息
 export interface SyncProgress {
     percentage: number;
@@ -22,6 +29,7 @@ export interface SyncProgress {
     current?: number;
     total?: number;
     stage?: 'pages' | 'details';
+    phaseInfo?: PhaseInfo;   // 阶段信息（用于多阶段同步）
 }
 
 // 同步结果

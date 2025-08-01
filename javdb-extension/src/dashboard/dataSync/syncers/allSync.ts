@@ -70,24 +70,33 @@ export class AllSyncManager {
             let totalErrors = 0;
             const details: string[] = [];
 
-            // 第一阶段：同步已观看（0-50%）
+            // 第一阶段：同步已观看（独立100%）
             options.onProgress?.({
-                percentage: 5,
+                percentage: 0,
                 message: '开始同步已观看视频...',
-                stage: 'preparing'
+                stage: 'viewed-preparing',
+                phaseInfo: {
+                    currentPhase: 1,
+                    totalPhases: 2,
+                    phaseName: '已观看'
+                }
             });
 
             const viewedResult = await viewedSyncManager.sync({
                 mode: options.mode,
                 onProgress: (progress) => {
-                    // 映射到0-50%的进度范围
-                    const mappedPercentage = Math.round(progress.percentage * 0.5);
+                    // 已观看阶段：独立计算100%
                     options.onProgress?.({
-                        percentage: mappedPercentage,
-                        message: `[已观看] ${progress.message}`,
+                        percentage: progress.percentage,
+                        message: `${progress.message}`,
                         current: progress.current,
                         total: progress.total,
-                        stage: progress.stage
+                        stage: progress.stage,
+                        phaseInfo: {
+                            currentPhase: 1,
+                            totalPhases: 2,
+                            phaseName: '已观看'
+                        }
                     });
                 },
                 abortSignal: this.abortController.signal
@@ -107,24 +116,33 @@ export class AllSyncManager {
                 throw new Error('同步已取消');
             }
 
-            // 第二阶段：同步想看（50-100%）
+            // 第二阶段：同步想看（独立100%）
             options.onProgress?.({
-                percentage: 50,
+                percentage: 0,
                 message: '开始同步想看视频...',
-                stage: 'preparing'
+                stage: 'want-preparing',
+                phaseInfo: {
+                    currentPhase: 2,
+                    totalPhases: 2,
+                    phaseName: '想看'
+                }
             });
 
             const wantResult = await wantSyncManager.sync({
                 mode: options.mode,
                 onProgress: (progress) => {
-                    // 映射到50-100%的进度范围
-                    const mappedPercentage = 50 + Math.round(progress.percentage * 0.5);
+                    // 想看阶段：独立计算100%
                     options.onProgress?.({
-                        percentage: mappedPercentage,
-                        message: `[想看] ${progress.message}`,
+                        percentage: progress.percentage,
+                        message: `${progress.message}`,
                         current: progress.current,
                         total: progress.total,
-                        stage: progress.stage
+                        stage: progress.stage,
+                        phaseInfo: {
+                            currentPhase: 2,
+                            totalPhases: 2,
+                            phaseName: '想看'
+                        }
                     });
                 },
                 abortSignal: this.abortController.signal
