@@ -5,7 +5,7 @@
 import { logAsync } from '../logger';
 import { showMessage } from '../ui/toast';
 import { SyncUI } from './ui';
-import { getSyncManager } from './core';
+import { SyncManagerFactory } from './syncers';
 import type { SyncType } from './types';
 import type { SyncMode } from '../config/syncConfig';
 import { SyncCancelledError } from './types';
@@ -19,7 +19,7 @@ let areEventsInitialized = false;
 // 导出公共接口
 export { SyncStatus } from './types';
 export type { SyncType, SyncProgress, SyncResult } from './types';
-export { getSyncManager } from './core';
+export { SyncManagerFactory } from './syncers';
 export { getApiClient } from './api';
 
 /**
@@ -120,12 +120,11 @@ async function handleSyncRequest(event: Event): Promise<void> {
     }
 
     const ui = SyncUI.getInstance();
-    const syncManager = getSyncManager();
 
     try {
         // 检查是否已在同步中
-        if (syncManager.isSyncing()) {
-            showMessage('正在同步中，请稍候...', 'warn');
+        if (SyncManagerFactory.isSyncing(type)) {
+            showMessage(`${SyncManagerFactory.getSyncTypeDisplayName(type)}同步正在进行中，请稍候...`, 'warn');
             return;
         }
 
@@ -135,15 +134,14 @@ async function handleSyncRequest(event: Event): Promise<void> {
         ui.showSyncProgress(true);
 
         // 执行同步
-        await syncManager.sync(
-            type,
-            mode ? { mode } : undefined, // 传递同步模式配置
+        const result = await SyncManagerFactory.executeSync(type, {
+            mode,
             // 进度回调
-            (progress) => {
+            onProgress: (progress) => {
                 ui.updateProgress(progress);
             },
             // 完成回调
-            (result) => {
+            onComplete: (result) => {
                 ui.showSyncProgress(false);
                 if (result.success) {
                     ui.showSuccess(result.message, result.details);
@@ -154,12 +152,12 @@ async function handleSyncRequest(event: Event): Promise<void> {
                 }
             },
             // 错误回调
-            (error) => {
+            onError: (error) => {
                 ui.showSyncProgress(false);
                 ui.showError(error.message);
                 showMessage(error.message, 'error');
             }
-        );
+        });
 
     } catch (error: any) {
         if (error instanceof SyncCancelledError) {
@@ -205,15 +203,14 @@ async function handleCancelSyncRequest(): Promise<void> {
  */
 export async function cancelCurrentSync(): Promise<boolean> {
     try {
-        const syncManager = getSyncManager();
-        const success = await syncManager.cancelSync();
-        
-        if (success) {
-            const ui = SyncUI.getInstance();
-            ui.reset();
-        }
-        
-        return success;
+        // 取消所有正在进行的同步
+        SyncManagerFactory.cancelAllSync();
+
+        // 重置UI状态
+        const ui = SyncUI.getInstance();
+        ui.reset();
+
+        return true;
     } catch (error: any) {
         logAsync('ERROR', '取消同步失败', { error: error.message });
         return false;
@@ -224,11 +221,14 @@ export async function cancelCurrentSync(): Promise<boolean> {
  * 获取同步状态
  */
 export function getSyncStatus() {
-    const syncManager = getSyncManager();
     return {
-        status: syncManager.getCurrentStatus(),
-        context: syncManager.getCurrentContext(),
-        isSyncing: syncManager.isSyncing()
+        isAnySyncing: SyncManagerFactory.isAnySyncing(),
+        syncingTypes: {
+            viewed: SyncManagerFactory.isSyncing('viewed'),
+            want: SyncManagerFactory.isSyncing('want'),
+            actors: SyncManagerFactory.isSyncing('actors'),
+            all: SyncManagerFactory.isSyncing('all')
+        }
     };
 }
 
@@ -237,12 +237,14 @@ export function getSyncStatus() {
  */
 export function resetSyncState(): void {
     try {
-        const syncManager = getSyncManager();
         const ui = SyncUI.getInstance();
-        
-        syncManager.reset();
+
+        // 取消所有同步
+        SyncManagerFactory.cancelAllSync();
+
+        // 重置UI
         ui.reset();
-        
+
         logAsync('INFO', '同步状态已重置');
     } catch (error: any) {
         logAsync('ERROR', '重置同步状态失败', { error: error.message });
@@ -254,8 +256,9 @@ export function resetSyncState(): void {
  */
 export async function getSyncStatistics() {
     try {
-        const syncManager = getSyncManager();
-        return await syncManager.getStats();
+        // 这里可以添加统计信息的获取逻辑
+        // 暂时返回基本状态
+        return getSyncStatus();
     } catch (error: any) {
         logAsync('ERROR', '获取同步统计失败', { error: error.message });
         return null;

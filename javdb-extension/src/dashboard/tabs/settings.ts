@@ -68,6 +68,17 @@ export function initSettingsTab(): void {
                 return; // Skips the current iteration
             }
 
+            // 跳过包含测试数据的搜索引擎
+            if (engine.urlTemplate && engine.urlTemplate.includes('example.com')) {
+                console.warn('跳过包含 example.com 的搜索引擎:', engine);
+                return;
+            }
+
+            if (engine.icon && engine.icon.includes('google.com/s2/favicons')) {
+                console.warn('跳过使用 Google favicon 服务的搜索引擎:', engine);
+                return;
+            }
+
             const engineDiv = document.createElement('div');
             engineDiv.className = 'search-engine-item';
 
@@ -77,7 +88,7 @@ export function initSettingsTab(): void {
 
             engineDiv.innerHTML = `
                 <div class="icon-preview">
-                    <img src="${iconSrc}" alt="${engine.name}" onerror="this.onerror=null; this.src='${chrome.runtime.getURL('assets/alternate-search.png')}';">
+                    <img src="${iconSrc}" alt="${engine.name}" class="engine-icon" data-fallback="${chrome.runtime.getURL('assets/alternate-search.png')}">
                 </div>
                 <input type="text" value="${engine.name}" class="name-input" data-index="${index}" placeholder="名称">
                 <input type="text" value="${engine.urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板">
@@ -86,6 +97,15 @@ export function initSettingsTab(): void {
                     <button class="button-like danger delete-engine" data-index="${index}"><i class="fas fa-trash"></i></button>
                 </div>
             `;
+
+            // 添加错误处理事件监听器（符合CSP）
+            const img = engineDiv.querySelector('.engine-icon') as HTMLImageElement;
+            if (img) {
+                img.addEventListener('error', function() {
+                    this.src = this.dataset.fallback || chrome.runtime.getURL('assets/alternate-search.png');
+                });
+            }
+
             searchEngineList.appendChild(engineDiv);
         });
     }
@@ -95,7 +115,7 @@ export function initSettingsTab(): void {
         const nameInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.name-input');
         const urlInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.url-template-input');
         const iconUrlInputs = searchEngineList.querySelectorAll<HTMLInputElement>('.icon-url-input');
-        
+
         const newEngines: any[] = [];
         nameInputs.forEach((nameInput, index) => {
             const urlInput = urlInputs[index];
@@ -349,8 +369,8 @@ export function initSettingsTab(): void {
         const newEngine = {
             id: `engine-${Date.now()}`,
             name: 'New Engine',
-            urlTemplate: 'https://example.com/search?q={{ID}}',
-            icon: 'https://www.google.com/s2/favicons?domain=example.com'
+            urlTemplate: 'https://www.google.com/search?q={{ID}}',
+            icon: chrome.runtime.getURL('assets/alternate-search.png') // 使用本地图标避免404
         };
         STATE.settings.searchEngines.push(newEngine);
         logAsync('INFO', '用户添加了一个新的搜索引擎。', { engine: newEngine });
