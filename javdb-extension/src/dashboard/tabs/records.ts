@@ -166,10 +166,10 @@ export function initRecordsTab(): void {
                     const img = document.createElement('img');
                     img.src = engine.icon && engine.icon.startsWith('assets/')
                         ? chrome.runtime.getURL(engine.icon)
-                        : (engine.icon || chrome.runtime.getURL('assets/icon.png'));
+                        : (engine.icon || chrome.runtime.getURL('assets/alternate-search.png'));
                     img.alt = engine.name;
                     img.onerror = () => { // Fallback icon
-                        img.src = chrome.runtime.getURL('assets/icon.png');
+                        img.src = chrome.runtime.getURL('assets/alternate-search.png');
                     };
 
                     icon.appendChild(img);
@@ -194,7 +194,7 @@ export function initRecordsTab(): void {
             const refreshButton = document.createElement('button');
             refreshButton.className = 'refresh-button';
             refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            refreshButton.title = '同步数据 - 从JavDB获取最新信息';
+            refreshButton.title = '刷新源数据 - 从JavDB获取最新信息';
             refreshButton.addEventListener('click', async (e) => {
                 e.stopPropagation(); 
                 
@@ -311,7 +311,7 @@ export function initRecordsTab(): void {
             // 同步按钮（重命名refresh按钮）
             refreshButton.className = 'action-button sync-button';
             refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            refreshButton.title = '同步到云端';
+            refreshButton.title = '刷新源数据';
 
             // 删除按钮样式调整
             deleteButton.className = 'action-button delete-button';

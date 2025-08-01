@@ -510,6 +510,12 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
     try {
         await logger.info('开始从JavDB获取用户账号信息');
 
+        // 创建AbortController用于超时控制
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, 15000); // 15秒超时
+
         const response = await fetch('https://javdb.com/users/profile', {
             method: 'GET',
             headers: {
@@ -528,8 +534,12 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
                 'Sec-Fetch-User': '?1',
                 'Upgrade-Insecure-Requests': '1'
             },
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal
         });
+
+        // 清除超时定时器
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -537,6 +547,17 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
 
         const html = await response.text();
         await logger.debug('收到JavDB响应', { htmlLength: html.length });
+
+        // 检查是否为地区限制页面
+        if (isRegionBlockedPage(html)) {
+            const errorMsg = '由于版权限制，本站禁止了你的网络所在国家的访问';
+            await logger.error('检测到地区限制页面', { htmlLength: html.length });
+
+            // 发送通知消息到content script
+            sendNotificationToActiveTab(errorMsg, 'error');
+
+            throw new Error(errorMsg);
+        }
 
         // 解析HTML获取用户信息
         const profile = parseUserProfileFromHTML(html);
@@ -550,8 +571,63 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
 
     } catch (error: any) {
         await logger.error('获取用户账号信息失败', { error: error.message });
+
+        // 处理超时错误
+        if (error.name === 'AbortError') {
+            const timeoutMsg = '请求超时，请检查网络连接或稍后重试';
+            sendNotificationToActiveTab(timeoutMsg, 'error');
+            throw new Error(timeoutMsg);
+        }
+
+        // 处理其他网络错误
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            const networkMsg = '网络连接失败，请检查网络设置';
+            sendNotificationToActiveTab(networkMsg, 'error');
+            throw new Error(networkMsg);
+        }
+
         throw error;
     }
+}
+
+/**
+ * 检测是否为地区限制页面
+ */
+function isRegionBlockedPage(html: string): boolean {
+    // 检查地区限制的关键词
+    const blockPatterns = [
+        /Due to copyright restrictions, access to this site is prohibited/i,
+        /由於版權限制，本站禁止了你的網路所在國家的訪問/i,
+        /由于版权限制，本站禁止了你的网络所在国家的访问/i
+    ];
+
+    return blockPatterns.some(pattern => pattern.test(html));
+}
+
+/**
+ * 发送通知消息到活动标签页
+ */
+function sendNotificationToActiveTab(message: string, type: 'info' | 'success' | 'error' = 'info'): void {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+            const url = tabs[0].url || '';
+
+            // 检查是否是javdb页面或扩展的dashboard页面
+            if (url.includes('javdb') || url.includes('chrome-extension://')) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    type: 'show-toast',
+                    message,
+                    toastType: type
+                }).catch(() => {
+                    // 如果发送失败，记录到控制台
+                    console.log(`[Background] 无法发送通知到标签页: ${message}`);
+                });
+            } else {
+                // 如果不是目标页面，也记录到控制台
+                console.log(`[Background] 当前页面不支持toast通知 (${url}): ${message}`);
+            }
+        }
+    });
 }
 
 /**

@@ -16,6 +16,7 @@ import { quickCopyManager } from './quickCopy';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
+import { showToast } from './toast';
 
 // --- Core Logic ---
 
@@ -194,6 +195,14 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
             log('Updated display settings:', STATE.settings.display);
             processVisibleItems();
         });
+    } else if (message.type === 'show-toast') {
+        // 处理来自background script的toast通知
+        log('Received toast message:', message.message, message.toastType);
+        try {
+            showToast(message.message, message.toastType || 'info');
+        } catch (err) {
+            console.error('[JavDB Ext] Failed to show toast:', err);
+        }
     }
 });
 

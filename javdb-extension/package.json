@@ -2,7 +2,7 @@
   "name": "javdb-extension",
   "type": "module",
   "version": "1.9.0",
-  "description": "JavDB 插件",
+  "description": "Jav 助手",
   "scripts": {
     "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
     "version": "npm version"

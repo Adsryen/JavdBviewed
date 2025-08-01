@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![JavDB Viewed Marker](javdb-extension/src/assets/icon.png)
+![Jav 助手](javdb-extension/src/assets/favicon-128x128.png)
 
-**JavDB 视频浏览历史标记与管理扩展**
+**Jav 视频浏览助手**
 
 [![GitHub release](https://img.shields.io/github/v/release/Adsryen/JavdBviewed)](https://github.com/Adsryen/JavdBviewed/releases)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
@@ -14,7 +14,7 @@
 
 ## 📖 简介
 
-JavdBviewed 是一个功能强大的浏览器扩展，专为 JavDB 网站设计。它能够在列表页和详情页标记视频的"已浏览"或"我看过"状态，并提供丰富的数据管理功能，包括 WebDAV 同步、数据导入导出等高级特性。
+Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等Jav视频网站设计。它能够在列表页和详情页标记视频的"已浏览"或"我看过"状态，并提供丰富的数据管理功能，包括 WebDAV 同步、数据导入导出等高级特性。
 
 ### ✨ 核心功能
 
