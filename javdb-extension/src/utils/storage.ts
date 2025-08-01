@@ -67,4 +67,4 @@ export async function getSettings(): Promise<ExtensionSettings> {
 
 export function saveSettings(settings: ExtensionSettings): Promise<void> {
     return setValue(STORAGE_KEYS.SETTINGS, settings);
-} 
+}

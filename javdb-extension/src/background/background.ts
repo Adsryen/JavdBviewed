@@ -426,6 +426,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         sendResponse({ success: false, error: error.message });
                     });
                 return true;
+            case 'setup-alarms':
+                console.log('[Background] Processing setup-alarms request.');
+                setupAlarms()
+                    .then(() => {
+                        console.log('[Background] Alarms setup completed.');
+                        sendResponse({ success: true });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to setup alarms:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
