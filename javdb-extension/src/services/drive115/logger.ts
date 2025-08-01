@@ -55,7 +55,7 @@ export class Drive115Logger {
       ]);
 
       // 同时输出到控制台（开发调试用）
-      console.log(`[Drive115] ${type}: ${message}`, data || '');
+      // console.log(`[Drive115] ${type}: ${message}`, data || '');
     } catch (error) {
       console.error('记录115日志失败:', error);
     }
