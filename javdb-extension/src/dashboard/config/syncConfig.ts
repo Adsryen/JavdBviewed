@@ -84,8 +84,7 @@ export const SYNC_OPTIONS: SyncOption[] = [
         description: '收藏演员',
         icon: 'fas fa-users',
         color: '#6f42c1',
-        enabled: false,
-        comingSoon: true
+        enabled: true
     }
 ];
 
@@ -131,9 +130,8 @@ export function isSyncTypeSupported(type: SyncType): boolean {
         case 'all':
         case 'viewed':
         case 'want':
-            return true;
         case 'actors':
-            return false; // 暂未实现
+            return true; // 演员同步已实现
         default:
             return false;
     }

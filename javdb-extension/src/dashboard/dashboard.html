@@ -188,7 +188,7 @@
 
                         <!-- 同步选项 -->
                         <div class="sync-options-grid">
-                            <div class="sync-option-card">
+                            <div class="sync-option-card" style="--card-index: 0">
                                 <div class="sync-option-header">
                                     <i class="fas fa-sync-alt sync-option-icon"></i>
                                     <h5>同步全部数据</h5>
@@ -197,7 +197,7 @@
                                 <div class="sync-option-actions">
                                     <button id="syncAllData" class="sync-btn sync-btn-primary" data-sync-type="all">
                                         <i class="fas fa-sync-alt"></i>
-                                        开始同步
+                                        <span>开始同步</span>
                                     </button>
                                 </div>
                                 <div class="sync-option-stats">
@@ -205,7 +205,7 @@
                                 </div>
                             </div>
 
-                            <div class="sync-option-card">
+                            <div class="sync-option-card" style="--card-index: 1">
                                 <div class="sync-option-header">
                                     <i class="fas fa-heart sync-option-icon"></i>
                                     <h5>同步想看列表</h5>
@@ -214,7 +214,7 @@
                                 <div class="sync-option-actions">
                                     <button id="syncWantData" class="sync-btn sync-btn-secondary" data-sync-type="want">
                                         <i class="fas fa-heart"></i>
-                                        同步想看
+                                        <span>同步想看</span>
                                     </button>
                                 </div>
                                 <div class="sync-option-stats">
@@ -222,7 +222,7 @@
                                 </div>
                             </div>
 
-                            <div class="sync-option-card">
+                            <div class="sync-option-card" style="--card-index: 2">
                                 <div class="sync-option-header">
                                     <i class="fas fa-eye sync-option-icon"></i>
                                     <h5>同步观看记录</h5>
@@ -231,7 +231,7 @@
                                 <div class="sync-option-actions">
                                     <button id="syncWatchedData" class="sync-btn sync-btn-secondary" data-sync-type="watched">
                                         <i class="fas fa-eye"></i>
-                                        同步已看
+                                        <span>同步已看</span>
                                     </button>
                                 </div>
                                 <div class="sync-option-stats">
@@ -239,7 +239,7 @@
                                 </div>
                             </div>
 
-                            <div class="sync-option-card">
+                            <div class="sync-option-card" style="--card-index: 3">
                                 <div class="sync-option-header">
                                     <i class="fas fa-users sync-option-icon"></i>
                                     <h5>同步收藏演员</h5>
@@ -248,7 +248,7 @@
                                 <div class="sync-option-actions">
                                     <button id="syncActorsData" class="sync-btn sync-btn-secondary" data-sync-type="actors">
                                         <i class="fas fa-users"></i>
-                                        同步演员
+                                        <span>同步演员</span>
                                     </button>
                                 </div>
                                 <div class="sync-option-stats">

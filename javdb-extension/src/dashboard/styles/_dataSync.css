@@ -1,200 +1,705 @@
-/* Data Sync Section */
+/* Data Sync Section - 精致现代化设计 */
 .data-sync-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    gap: 24px;
+    background: linear-gradient(135deg, #fafbff 0%, #f1f5f9 50%, #ffffff 100%);
+    border-radius: 20px;
+    padding: 32px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.data-sync-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1e40af 0%, #059669 25%, #ea580c 50%, #7c3aed 75%, #1e40af 100%);
+    background-size: 200% 100%;
+    animation: gradientFlow 8s ease-in-out infinite;
+    z-index: 1;
+}
+
+@keyframes gradientFlow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 
 .sync-options-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 16px;
 }
 
-/* 同步选项组 */
-.sync-option-group {
-    position: relative;
+/* 按钮组布局 */
+.sync-button-group {
     display: flex;
-    flex-direction: column;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-/* 悬浮时的提示效果 */
-.sync-option-group:hover .main-sync-btn {
-    border-color: #007bff;
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
-    transform: translateY(-1px);
+.sync-button-group .sync-btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+/* 确保单个按钮占满宽度 */
+.sync-option-actions .sync-btn:only-child {
+    width: 100%;
+}
+
+/* 同步选项卡片 - 精致主题化设计 */
+.sync-option-card {
+    position: relative;
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid rgba(241, 245, 249, 0.8);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow: hidden;
+    cursor: pointer;
+    backdrop-filter: blur(20px);
+}
+
+.sync-option-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, transparent);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.sync-option-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.sync-option-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.08);
+    border-color: rgba(226, 232, 240, 0.6);
+}
+
+.sync-option-card:hover::after {
+    opacity: 1;
+}
+
+/* 为每个卡片添加微妙的主题背景 */
+.sync-option-card:nth-child(1) {
+    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+}
+
+.sync-option-card:nth-child(1):hover::before {
+    background: linear-gradient(90deg, #1e40af, #2563eb);
+}
+
+.sync-option-card:nth-child(2) {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+}
+
+.sync-option-card:nth-child(2):hover::before {
+    background: linear-gradient(90deg, #059669, #047857);
+}
+
+.sync-option-card:nth-child(3) {
+    background: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%);
+}
+
+.sync-option-card:nth-child(3):hover::before {
+    background: linear-gradient(90deg, #ea580c, #dc2626);
+}
+
+.sync-option-card:nth-child(4) {
+    background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+}
+
+.sync-option-card:nth-child(4):hover::before {
+    background: linear-gradient(90deg, #7c3aed, #6d28d9);
 }
 
 .sync-option-btn {
     background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
     border: 2px solid #dee2e6;
     border-radius: 12px;
-    padding: 16px 12px;
+    padding: 14px 24px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 10px;
     text-align: center;
     position: relative;
     overflow: hidden;
-    min-height: 85px;
-    justify-content: center;
+    min-height: 50px;
     width: 100%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 14px;
 }
 
-/* 主同步按钮悬浮提示 */
-.main-sync-btn::after {
-    content: "悬浮查看模式";
+/* 同步选项头部 */
+.sync-option-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.sync-option-header h5 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a202c;
+    letter-spacing: -0.025em;
+}
+
+/* 图标样式 - 适配实际HTML结构 */
+.sync-option-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px !important;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+}
+
+/* 确保Font Awesome图标正确显示 */
+.sync-option-icon.fas {
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+}
+
+.sync-option-icon::after {
+    content: '';
     position: absolute;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
     opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-    z-index: 1001;
+    transition: opacity 0.3s ease;
+    z-index: 1;
 }
 
-.main-sync-btn:hover::after {
+.sync-option-card:hover .sync-option-icon {
+    transform: scale(1.08) rotate(-2deg);
+    box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
+}
+
+.sync-option-card:hover .sync-option-icon::after {
     opacity: 1;
 }
 
-.sync-option-btn:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
-    border-color: #007bff;
-    background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-}
-
-.sync-option-btn:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.sync-option-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
-}
-
-.sync-option-btn i {
-    font-size: 22px;
-    color: #495057;
-    transition: all 0.3s ease;
-    color: #6c757d;
-}
-
-.sync-option-btn:hover:not(:disabled) i {
-    color: #007bff;
-    transform: scale(1.1);
-}
-
-.sync-btn-text {
+/* 同步选项描述 */
+.sync-option-description {
+    color: #64748b;
     font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    font-weight: 400;
+}
+
+/* 同步选项统计 */
+.sync-option-stats {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.stat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-item::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+/* 现代化按钮样式 */
+.sync-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 28px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    font-size: 15px;
     font-weight: 600;
-    color: #343a40;
-    margin: 0;
-    line-height: 1.2;
-    letter-spacing: 0.3px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow: hidden;
+    min-height: 52px;
+    letter-spacing: 0.025em;
+    text-transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(10px);
 }
 
-.sync-option-btn small {
-    font-size: 11px;
-    color: #6c757d;
-    margin: 0;
-    line-height: 1.1;
+.sync-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    transition: left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 1;
 }
 
-.sync-option-btn:hover:not(:disabled) small {
-    color: #495057;
+.sync-btn:hover::before {
+    left: 100%;
 }
 
-/* 特定按钮的颜色主题 */
-.sync-option-btn#syncAllData:hover:not(:disabled) {
-    border-color: #28a745;
+.sync-btn i {
+    font-size: 17px;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 2;
+    position: relative;
 }
 
-.sync-option-btn#syncAllData:hover:not(:disabled) i {
-    color: #28a745;
+.sync-btn span {
+    z-index: 2;
+    position: relative;
+    transition: all 0.3s ease;
 }
 
-.sync-option-btn#syncViewedData:hover:not(:disabled) {
-    border-color: #28a745;
+.sync-btn:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
 }
 
-.sync-option-btn#syncViewedData:hover:not(:disabled) i {
-    color: #28a745;
+.sync-btn:hover:not(:disabled) i {
+    transform: scale(1.1) rotate(5deg);
 }
 
-.sync-option-btn#syncWantData:hover:not(:disabled) {
+.sync-btn:hover:not(:disabled) span {
+    transform: translateX(1px);
+}
+
+.sync-btn:active:not(:disabled) {
+    transform: translateY(-1px) scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+.sync-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    filter: grayscale(0.3);
+}
+
+.sync-option-btn#syncWantData {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529;
     border-color: #ffc107;
 }
 
-.sync-option-btn#syncWantData:hover:not(:disabled) i {
-    color: #ffc107;
+.sync-option-btn#syncWantData:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e0a800, #d39e00);
+    border-color: #e0a800;
+    box-shadow: 0 8px 30px rgba(255, 193, 7, 0.3);
 }
 
-.sync-option-btn#syncActorsData:hover:not(:disabled) {
+.sync-option-btn#syncWantData i {
+    color: #212529;
+}
+
+.sync-option-btn#syncActorsData {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    color: white;
     border-color: #6f42c1;
 }
 
-.sync-option-btn#syncActorsData:hover:not(:disabled) i {
-    color: #6f42c1;
+.sync-option-btn#syncActorsData:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5a32a3, #4c2a85);
+    border-color: #5a32a3;
+    box-shadow: 0 8px 30px rgba(111, 66, 193, 0.3);
 }
 
-/* 同步模式选项 */
-.sync-mode-options {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(-10px);
-    z-index: 1000;
-    margin-top: 4px;
-    min-width: 200px;
-    width: max-content;
-    max-width: 280px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border: 1px solid #e9ecef;
+.sync-option-btn#syncActorsData i {
+    color: white;
+}
+
+/* 主要按钮样式 - 全部同步 - 柔和蓝绿色 */
+.sync-btn-primary {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: #ffffff;
+    border-color: #0ea5e9;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.25);
+}
+
+.sync-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    border-color: #0284c7;
+    box-shadow: 0 8px 25px rgba(14, 165, 233, 0.35);
+    transform: translateY(-3px);
+}
+
+.sync-btn-primary i {
+    color: #ffffff;
+}
+
+/* 次要按钮样式 - 优雅的半透明设计 */
+.sync-btn-secondary {
+    background: rgba(255, 255, 255, 0.9);
+    color: #475569;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    position: relative;
     overflow: hidden;
-    animation: slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+.sync-btn-secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 100%);
     opacity: 0;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s ease;
+    z-index: 1;
 }
 
-.sync-mode-options.show,
-.sync-mode-options[style*="display: block"],
-.sync-mode-options[style*="display:block"] {
+.sync-btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #334155;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px) scale(1.02);
+}
+
+.sync-btn-secondary:hover:not(:disabled)::before {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
 }
 
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+.sync-btn-secondary i {
+    color: #64748b;
+    z-index: 2;
+    position: relative;
 }
+
+.sync-btn-secondary span {
+    z-index: 2;
+    position: relative;
+}
+
+.sync-btn-secondary:hover:not(:disabled) i {
+    color: #475569;
+    transform: scale(1.1) rotate(8deg);
+}
+
+/* 为不同卡片的次要按钮添加主题色调 - 修正版 */
+.sync-option-card:nth-child(1) .sync-btn-secondary,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary {
+    border-color: rgba(30, 64, 175, 0.3) !important;
+    color: #1e40af !important;
+    background: rgba(30, 64, 175, 0.05) !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-secondary:hover,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary:hover {
+    border-color: rgba(30, 64, 175, 0.5) !important;
+    background: rgba(30, 64, 175, 0.1) !important;
+    color: #1d4ed8 !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-secondary,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary {
+    border-color: rgba(5, 150, 105, 0.3) !important;
+    color: #059669 !important;
+    background: rgba(5, 150, 105, 0.05) !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-secondary:hover,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary:hover {
+    border-color: rgba(5, 150, 105, 0.5) !important;
+    background: rgba(5, 150, 105, 0.1) !important;
+    color: #047857 !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-secondary,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary {
+    border-color: rgba(234, 88, 12, 0.3) !important;
+    color: #ea580c !important;
+    background: rgba(234, 88, 12, 0.05) !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-secondary:hover,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary:hover {
+    border-color: rgba(234, 88, 12, 0.5) !important;
+    background: rgba(234, 88, 12, 0.1) !important;
+    color: #dc2626 !important;
+}
+
+/* 基于实际HTML结构的美观配色方案 - 修正版 */
+
+/* 同步全部 - 深邃蓝色主题 (第1个卡片) */
+.sync-option-card:nth-child(1) .sync-option-icon {
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%) !important;
+    box-shadow: 0 4px 16px rgba(30, 64, 175, 0.3) !important;
+}
+
+.sync-option-card:nth-child(1):hover .sync-option-icon {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4) !important;
+    transform: scale(1.08) rotate(-2deg) !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-primary,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary {
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%) !important;
+    border-color: #1e40af !important;
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-primary:hover,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+    box-shadow: 0 8px 20px rgba(30, 64, 175, 0.35) !important;
+}
+
+/* 同步已观看 - 翠绿色主题 (第2个卡片) */
+.sync-option-card:nth-child(2) .sync-option-icon {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3) !important;
+}
+
+.sync-option-card:nth-child(2):hover .sync-option-icon {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.4) !important;
+    transform: scale(1.08) rotate(2deg) !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-primary,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    border-color: #059669 !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-primary:hover,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary:hover {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35) !important;
+}
+
+/* 同步想看 - 温暖橙色主题 (第3个卡片) */
+.sync-option-card:nth-child(3) .sync-option-icon {
+    background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%) !important;
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.3) !important;
+}
+
+.sync-option-card:nth-child(3):hover .sync-option-icon {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    box-shadow: 0 8px 24px rgba(234, 88, 12, 0.4) !important;
+    transform: scale(1.08) rotate(-3deg) !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-primary,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary {
+    background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%) !important;
+    border-color: #ea580c !important;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-primary:hover,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.35) !important;
+}
+
+/* 同步收藏演员 - 优雅紫色主题 (第4个卡片) */
+.sync-option-card:nth-child(4) .sync-option-icon {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3) !important;
+}
+
+.sync-option-card:nth-child(4):hover .sync-option-icon {
+    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4) !important;
+    transform: scale(1.08) rotate(3deg) !important;
+}
+
+.sync-option-card:nth-child(4) .sync-btn-secondary,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary,
+.sync-option-card:nth-child(4) #syncActorsData {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+    color: #ffffff !important;
+    border-color: #7c3aed !important;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+}
+
+.sync-option-card:nth-child(4) .sync-btn-secondary:hover,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary:hover,
+.sync-option-card:nth-child(4) #syncActorsData:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35) !important;
+}
+
+/* 覆盖 sync.css 中的冲突样式 - 使用更高优先级 */
+.data-sync-section .sync-option-icon,
+.sync-options-grid .sync-option-icon {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 16px !important;
+    font-size: 22px !important;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%) !important;
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25) !important;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+.data-sync-section .sync-option-icon i,
+.sync-options-grid .sync-option-icon i {
+    color: #ffffff !important;
+    z-index: 2 !important;
+    position: relative !important;
+}
+
+/* 确保所有按钮类组合都被覆盖 */
+.sync-option-btn.sync-btn.sync-btn-primary,
+.sync-option-btn.sync-btn.sync-btn-secondary,
+.sync-btn.sync-btn-primary,
+.sync-btn.sync-btn-secondary {
+    font-family: inherit !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.025em !important;
+}
+
+/* 确保图标和文字的层级正确 */
+.sync-option-btn i,
+.sync-btn i {
+    z-index: 2 !important;
+    position: relative !important;
+}
+
+.sync-option-btn span,
+.sync-btn span,
+.sync-option-btn .btn-text {
+    z-index: 2 !important;
+    position: relative !important;
+}
+
+/* 按钮加载状态 */
+.sync-btn.loading {
+    pointer-events: none;
+    position: relative;
+    color: transparent !important;
+}
+
+.sync-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    color: inherit;
+}
+
+.sync-btn-primary.loading::after {
+    border-top-color: #ffffff;
+}
+
+.sync-btn-secondary.loading::after {
+    border-top-color: #374151;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* 按钮成功状态 */
+.sync-btn.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border-color: #10b981 !important;
+}
+
+.sync-btn.success i {
+    color: #ffffff !important;
+}
+
+/* 按钮错误状态 */
+.sync-btn.error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+    animation: shake 0.5s ease-in-out;
+}
+
+.sync-btn.error i {
+    color: #ffffff !important;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* 移除动画，使用纯CSS过渡 */
 
 /* 响应式调整 - 小屏幕时的处理 */
 @media (max-width: 768px) {
@@ -228,26 +733,32 @@
 /* 防止悬浮菜单超出容器边界 */
 .sync-option-group {
     overflow: visible;
+    position: relative; /* 确保相对定位 */
+}
+
+.sync-option-actions {
+    overflow: visible; /* 允许悬浮菜单溢出 */
+    position: relative;
 }
 
 .data-sync-container {
     overflow: visible;
 }
 
-/* 添加小箭头指示器 */
-.sync-mode-options::before {
+/* 扩大悬浮区域，防止鼠标移动时闪烁 */
+.sync-option-group::before {
     content: '';
     position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 6px solid #e9ecef;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: -10px; /* 扩展到菜单区域 */
+    background: transparent;
+    z-index: 1;
+    pointer-events: none;
 }
 
+/* 添加小箭头指示器 */
 .sync-mode-options::after {
     content: '';
     position: absolute;
@@ -259,10 +770,17 @@
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-bottom: 5px solid #ffffff;
+    filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.1));
+    z-index: 2;
 }
 
 @media (max-width: 768px) {
-    .sync-mode-options::before,
+    .sync-mode-options::before {
+        left: 0;
+        right: 0;
+        transform: none;
+    }
+
     .sync-mode-options::after {
         left: 20px;
         transform: none;
@@ -474,87 +992,122 @@
     color: #721c24;
 }
 
-/* 加载状态的按钮 */
-.sync-option-btn.loading {
-    pointer-events: none;
-    opacity: 0.7;
+/* 微交互效果 - 更精致 */
+.sync-option-card:active {
+    transform: translateY(-4px) scale(0.97);
+    transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.sync-option-btn.loading i {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* 响应式设计 */
-@media (max-width: 320px) {
-    .sync-options-grid {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
-    
-    .sync-option-btn {
-        padding: 14px 10px;
-        min-height: 75px;
-    }
-    
-    .sync-option-btn i {
-        font-size: 18px;
-    }
-    
-    .sync-btn-text {
-        font-size: 12px;
-    }
-    
-    .sync-option-btn small {
-        font-size: 10px;
-    }
-}
-
-/* 悬浮效果增强 */
-.sync-option-btn::before {
+/* 按钮点击波纹效果 - 优化 */
+.sync-btn::after {
     content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    transition: left 0.5s ease;
-}
-
-.sync-option-btn:hover:not(:disabled)::before {
-    left: 100%;
-}
-
-/* 即将推出标签样式 */
-.coming-soon-label {
     position: absolute;
     top: 50%;
     left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 70%, transparent 100%);
     transform: translate(-50%, -50%);
-    background: rgba(108, 117, 125, 0.9);
+    transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.8s ease;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+}
+
+.sync-btn:active::after {
+    width: 300px;
+    height: 300px;
+    opacity: 1;
+}
+
+/* 图标动画 - 更流畅 */
+.sync-option-card:hover .sync-option-icon i {
+    animation: iconFloat 2s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+    0%, 100% {
+        transform: scale(1) translateY(0px);
+    }
+    50% {
+        transform: scale(1.05) translateY(-2px);
+    }
+}
+
+/* 统计项动画 - 更柔和 */
+.stat-item {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.sync-option-card:hover .stat-item {
+    transform: translateX(6px);
+    color: #6366f1;
+}
+
+.sync-option-card:hover .stat-item::before {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    transform: scale(1.3);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+/* 卡片内容动画 */
+.sync-option-header h5 {
+    transition: all 0.3s ease;
+}
+
+.sync-option-card:hover .sync-option-header h5 {
+    transform: translateX(2px);
+    color: #1e293b;
+}
+
+.sync-option-description {
+    transition: all 0.3s ease;
+}
+
+.sync-option-card:hover .sync-option-description {
+    transform: translateX(1px);
+    color: #475569;
+}
+
+/* 即将推出标签样式 - 现代化 */
+.coming-soon-label {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: white;
     font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
     letter-spacing: 0.5px;
-    z-index: 1;
+    text-transform: uppercase;
+    z-index: 3;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+    }
 }
 
 /* 数据同步区域的整体动画 */
 .data-sync-container {
-    animation: slideInUp 0.5s ease-out;
+    animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes slideInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
     }
     to {
         opacity: 1;
@@ -562,12 +1115,103 @@
     }
 }
 
-/* 成功同步的脉冲效果 */
-.sync-result.success {
-    animation: pulse 2s ease-in-out;
+/* 卡片进入动画 - 更现代化 */
+.sync-option-card {
+    animation: cardSlideIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation-delay: calc(var(--card-index, 0) * 0.15s);
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
 }
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
+@keyframes cardSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.9) rotateX(10deg);
+        filter: blur(4px);
+    }
+    60% {
+        opacity: 0.8;
+        transform: translateY(-5px) scale(1.02) rotateX(0deg);
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotateX(0deg);
+        filter: blur(0px);
+    }
+}
+
+/* 数据同步容器的整体动画优化 */
+.data-sync-container {
+    animation: containerSlideIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes containerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+        filter: blur(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0px);
+    }
+}
+
+/* 成功同步的脉冲效果 */
+.sync-result.success {
+    animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.02);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* 响应式设计优化 */
+@media (max-width: 768px) {
+    .sync-options-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .sync-option-card {
+        padding: 20px;
+    }
+
+    .sync-option-header h5 {
+        font-size: 16px;
+    }
+
+    .sync-option-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .data-sync-container {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .sync-btn {
+        padding: 12px 20px;
+        font-size: 13px;
+    }
+
+    .sync-option-description {
+        font-size: 13px;
+    }
 }

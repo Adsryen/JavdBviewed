@@ -7,6 +7,7 @@ import { userService } from '../services/userService';
 import { initDataSyncSection } from '../dataSync';
 import { on, emit } from '../services/eventBus';
 import type { SyncType } from '../dataSync/types';
+import { SyncUI } from '../dataSync/ui';
 
 export class SyncTab {
     private isInitialized = false;
@@ -36,17 +37,17 @@ export class SyncTab {
     private async checkLoginStatus(): Promise<void> {
         try {
             const isLoggedIn = await userService.isUserLoggedIn();
-            this.updateSyncAvailability(isLoggedIn);
+            await this.updateSyncAvailability(isLoggedIn);
         } catch (error) {
             logAsync('ERROR', '检查登录状态失败', { error: error.message });
-            this.updateSyncAvailability(false);
+            await this.updateSyncAvailability(false);
         }
     }
 
     /**
      * 更新同步功能可用性
      */
-    private updateSyncAvailability(isLoggedIn: boolean): void {
+    private async updateSyncAvailability(isLoggedIn: boolean): Promise<void> {
         const syncSection = document.getElementById('data-sync-section-main');
         const loginNotice = document.getElementById('sync-login-notice');
 
@@ -54,10 +55,18 @@ export class SyncTab {
             // 用户已登录，显示同步功能
             if (syncSection) syncSection.style.display = 'block';
             if (loginNotice) loginNotice.style.display = 'none';
+
+            // 启用所有同步按钮（通过数据同步UI管理）
+            const ui = SyncUI.getInstance();
+            ui.setAllButtonsDisabled(false);
         } else {
             // 用户未登录，显示登录提示
             if (syncSection) syncSection.style.display = 'none';
             if (loginNotice) loginNotice.style.display = 'block';
+
+            // 禁用所有同步按钮
+            const ui = SyncUI.getInstance();
+            ui.setAllButtonsDisabled(true);
         }
     }
 
@@ -92,26 +101,16 @@ export class SyncTab {
      * 绑定同步按钮事件
      */
     private bindSyncButtons(): void {
-        const syncAllBtn = document.getElementById('syncAllData');
-        const syncWantBtn = document.getElementById('syncWantData');
-        const syncWatchedBtn = document.getElementById('syncWatchedData');
-        const syncActorsBtn = document.getElementById('syncActorsData');
+        // 同步按钮事件现在由数据同步UI统一管理
+        // 监听演员同步请求事件
+        document.addEventListener('sync-requested', (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const { type } = customEvent.detail as { type: SyncType };
 
-        if (syncAllBtn) {
-            syncAllBtn.addEventListener('click', () => this.handleSyncClick('all'));
-        }
-
-        if (syncWantBtn) {
-            syncWantBtn.addEventListener('click', () => this.handleSyncClick('want'));
-        }
-
-        if (syncWatchedBtn) {
-            syncWatchedBtn.addEventListener('click', () => this.handleSyncClick('viewed'));
-        }
-
-        if (syncActorsBtn) {
-            syncActorsBtn.addEventListener('click', () => this.handleActorSync());
-        }
+            if (type === 'actors') {
+                this.handleActorSync();
+            }
+        });
     }
 
     /**
@@ -132,15 +131,15 @@ export class SyncTab {
      */
     private bindEventBusListeners(): void {
         // 监听用户登录状态变化
-        on('user-login-status-changed', ({ isLoggedIn }) => {
+        on('user-login-status-changed', async ({ isLoggedIn }) => {
             logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
-            this.updateSyncAvailability(isLoggedIn);
+            await this.updateSyncAvailability(isLoggedIn);
         });
 
         // 监听用户退出登录
-        on('user-logout', () => {
+        on('user-logout', async () => {
             logAsync('DEBUG', '用户退出登录');
-            this.updateSyncAvailability(false);
+            await this.updateSyncAvailability(false);
         });
 
         // 监听数据同步状态变化

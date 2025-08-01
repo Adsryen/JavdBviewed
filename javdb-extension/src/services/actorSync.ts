@@ -46,7 +46,7 @@ export class ActorSyncService {
             const config = settings.actorSync;
 
             if (!config.enabled) {
-                throw new Error('演员同步功能未启用');
+                throw new Error('演员同步功能未启用，请在设置中启用演员同步功能');
             }
 
             // 第一阶段：获取演员列表页面
