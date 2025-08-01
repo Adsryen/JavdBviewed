@@ -73,11 +73,11 @@ export function initSettingsTab(): void {
 
             const iconSrc = engine.icon.startsWith('assets/')
                 ? chrome.runtime.getURL(engine.icon)
-                : engine.icon || 'assets/icon.png';
+                : engine.icon || 'assets/alternate-search.png';
 
             engineDiv.innerHTML = `
                 <div class="icon-preview">
-                    <img src="${iconSrc}" alt="${engine.name}" onerror="this.onerror=null; this.src='${chrome.runtime.getURL('assets/icon.png')}';">
+                    <img src="${iconSrc}" alt="${engine.name}" onerror="this.onerror=null; this.src='${chrome.runtime.getURL('assets/alternate-search.png')}';">
                 </div>
                 <input type="text" value="${engine.name}" class="name-input" data-index="${index}" placeholder="名称">
                 <input type="text" value="${engine.urlTemplate}" class="url-template-input" data-index="${index}" placeholder="URL 模板">

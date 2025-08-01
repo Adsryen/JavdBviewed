@@ -24,6 +24,12 @@ import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
 
+    // 设置标题图标URL
+    const titleIcon = document.getElementById('title-icon') as HTMLImageElement;
+    if (titleIcon) {
+        titleIcon.src = chrome.runtime.getURL('assets/favicon-32x32.png');
+    }
+
     // 初始化115服务
     try {
         await initializeDrive115Service();
@@ -568,6 +574,14 @@ function initSidebarActions(): void {
         });
     }
 }
+
+// 监听来自background script的消息
+chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+    if (message.type === 'show-toast') {
+        // 在dashboard页面显示toast通知
+        showMessage(message.message, message.toastType || 'info');
+    }
+});
 
 // Export functions for use in other modules
 export { updateSyncStatus };

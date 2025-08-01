@@ -53,7 +53,7 @@ export function updateFaviconForStatus(isRecorded: boolean): void {
 
     if (isRecorded) {
         // 使用扩展的图标作为已记录状态的favicon
-        const extensionIconUrl = chrome.runtime.getURL("assets/jav.png");
+        const extensionIconUrl = chrome.runtime.getURL("assets/switch.png");
         log(`Setting favicon to extension icon: ${extensionIconUrl}`);
         setFavicon(extensionIconUrl);
         setCurrentFaviconState('extension');

@@ -228,6 +228,30 @@ button:disabled {
     padding-bottom: 15px;
     border-bottom: 1px solid #e0e0e0;
 }
+
+.title-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.title-icon:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.title-text {
+    font-weight: 600;
+    color: #333;
+}
 #helpBtn {
     cursor: pointer;
     font-size: 20px;

@@ -372,7 +372,7 @@
 /* 主要按钮样式 - 全部同步 - 柔和蓝绿色 */
 .sync-btn-primary {
     background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-    color: #ffffff;
+    color: #ffffff !important;
     border-color: #0ea5e9;
     box-shadow: 0 4px 14px rgba(14, 165, 233, 0.25);
 }
@@ -382,17 +382,28 @@
     border-color: #0284c7;
     box-shadow: 0 8px 25px rgba(14, 165, 233, 0.35);
     transform: translateY(-3px);
+    color: #ffffff !important;
 }
 
 .sync-btn-primary i {
-    color: #ffffff;
+    color: #ffffff !important;
+}
+
+.sync-btn-primary .btn-text {
+    color: #ffffff !important;
+}
+
+.sync-btn-primary .btn-desc,
+.sync-btn-primary small {
+    color: #ffffff !important;
+    opacity: 0.9;
 }
 
 /* 次要按钮样式 - 优雅的半透明设计 */
 .sync-btn-secondary {
-    background: rgba(255, 255, 255, 0.9);
-    color: #475569;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057 !important;
+    border: 2px solid #dee2e6;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     position: relative;
     overflow: hidden;
@@ -413,9 +424,9 @@
 }
 
 .sync-btn-secondary:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(255, 255, 255, 0.5);
-    color: #334155;
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    border-color: #adb5bd;
+    color: #343a40 !important;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
     transform: translateY(-3px) scale(1.02);
 }
@@ -425,19 +436,38 @@
 }
 
 .sync-btn-secondary i {
-    color: #64748b;
+    color: #6c757d !important;
     z-index: 2;
     position: relative;
 }
 
-.sync-btn-secondary span {
+.sync-btn-secondary span,
+.sync-btn-secondary .btn-text {
+    color: #495057 !important;
+    z-index: 2;
+    position: relative;
+}
+
+.sync-btn-secondary .btn-desc,
+.sync-btn-secondary small {
+    color: #6c757d !important;
     z-index: 2;
     position: relative;
 }
 
 .sync-btn-secondary:hover:not(:disabled) i {
-    color: #475569;
+    color: #495057 !important;
     transform: scale(1.1) rotate(8deg);
+}
+
+.sync-btn-secondary:hover:not(:disabled) span,
+.sync-btn-secondary:hover:not(:disabled) .btn-text {
+    color: #343a40 !important;
+}
+
+.sync-btn-secondary:hover:not(:disabled) .btn-desc,
+.sync-btn-secondary:hover:not(:disabled) small {
+    color: #495057 !important;
 }
 
 /* 为不同卡片的次要按钮添加主题色调 - 修正版 */
@@ -446,6 +476,23 @@
     border-color: rgba(30, 64, 175, 0.3) !important;
     color: #1e40af !important;
     background: rgba(30, 64, 175, 0.05) !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-secondary .btn-text,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary .btn-text {
+    color: #1e40af !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(1) .sync-btn-secondary small,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary small {
+    color: #3b82f6 !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-secondary i,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-secondary i {
+    color: #1e40af !important;
 }
 
 .sync-option-card:nth-child(1) .sync-btn-secondary:hover,
@@ -462,6 +509,23 @@
     background: rgba(5, 150, 105, 0.05) !important;
 }
 
+.sync-option-card:nth-child(2) .sync-btn-secondary .btn-text,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary .btn-text {
+    color: #059669 !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(2) .sync-btn-secondary small,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary small {
+    color: #10b981 !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-secondary i,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary i {
+    color: #059669 !important;
+}
+
 .sync-option-card:nth-child(2) .sync-btn-secondary:hover,
 .sync-option-card:nth-child(2) .sync-option-btn.sync-btn-secondary:hover {
     border-color: rgba(5, 150, 105, 0.5) !important;
@@ -474,6 +538,23 @@
     border-color: rgba(234, 88, 12, 0.3) !important;
     color: #ea580c !important;
     background: rgba(234, 88, 12, 0.05) !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-secondary .btn-text,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary .btn-text {
+    color: #ea580c !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(3) .sync-btn-secondary small,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary small {
+    color: #f97316 !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-secondary i,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-secondary i {
+    color: #ea580c !important;
 }
 
 .sync-option-card:nth-child(3) .sync-btn-secondary:hover,
@@ -505,10 +586,29 @@
     color: #ffffff !important;
 }
 
+.sync-option-card:nth-child(1) .sync-btn-primary .btn-text,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary .btn-text {
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(1) .sync-btn-primary small,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary small {
+    color: #ffffff !important;
+    opacity: 0.9;
+}
+
+.sync-option-card:nth-child(1) .sync-btn-primary i,
+.sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary i {
+    color: #ffffff !important;
+}
+
 .sync-option-card:nth-child(1) .sync-btn-primary:hover,
 .sync-option-card:nth-child(1) .sync-option-btn.sync-btn-primary:hover {
     background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
     box-shadow: 0 8px 20px rgba(30, 64, 175, 0.35) !important;
+    color: #ffffff !important;
 }
 
 /* 同步已观看 - 翠绿色主题 (第2个卡片) */
@@ -531,10 +631,29 @@
     color: #ffffff !important;
 }
 
+.sync-option-card:nth-child(2) .sync-btn-primary .btn-text,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary .btn-text {
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(2) .sync-btn-primary small,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary small {
+    color: #ffffff !important;
+    opacity: 0.9;
+}
+
+.sync-option-card:nth-child(2) .sync-btn-primary i,
+.sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary i {
+    color: #ffffff !important;
+}
+
 .sync-option-card:nth-child(2) .sync-btn-primary:hover,
 .sync-option-card:nth-child(2) .sync-option-btn.sync-btn-primary:hover {
     background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
     box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35) !important;
+    color: #ffffff !important;
 }
 
 /* 同步想看 - 温暖橙色主题 (第3个卡片) */
@@ -557,10 +676,29 @@
     color: #ffffff !important;
 }
 
+.sync-option-card:nth-child(3) .sync-btn-primary .btn-text,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary .btn-text {
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary .btn-desc,
+.sync-option-card:nth-child(3) .sync-btn-primary small,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary small {
+    color: #ffffff !important;
+    opacity: 0.9;
+}
+
+.sync-option-card:nth-child(3) .sync-btn-primary i,
+.sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary i {
+    color: #ffffff !important;
+}
+
 .sync-option-card:nth-child(3) .sync-btn-primary:hover,
 .sync-option-card:nth-child(3) .sync-option-btn.sync-btn-primary:hover {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
     box-shadow: 0 8px 20px rgba(234, 88, 12, 0.35) !important;
+    color: #ffffff !important;
 }
 
 /* 同步收藏演员 - 优雅紫色主题 (第4个卡片) */
@@ -584,11 +722,34 @@
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
 }
 
+.sync-option-card:nth-child(4) .sync-btn-secondary .btn-text,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary .btn-text,
+.sync-option-card:nth-child(4) #syncActorsData .btn-text {
+    color: #ffffff !important;
+}
+
+.sync-option-card:nth-child(4) .sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary .btn-desc,
+.sync-option-card:nth-child(4) #syncActorsData .btn-desc,
+.sync-option-card:nth-child(4) .sync-btn-secondary small,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary small,
+.sync-option-card:nth-child(4) #syncActorsData small {
+    color: #ffffff !important;
+    opacity: 0.9;
+}
+
+.sync-option-card:nth-child(4) .sync-btn-secondary i,
+.sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary i,
+.sync-option-card:nth-child(4) #syncActorsData i {
+    color: #ffffff !important;
+}
+
 .sync-option-card:nth-child(4) .sync-btn-secondary:hover,
 .sync-option-card:nth-child(4) .sync-option-btn.sync-btn-secondary:hover,
 .sync-option-card:nth-child(4) #syncActorsData:hover {
     background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
     box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35) !important;
+    color: #ffffff !important;
 }
 
 /* 覆盖 sync.css 中的冲突样式 - 使用更高优先级 */
