@@ -50,16 +50,30 @@ export async function initializeGlobalState(): Promise<void> {
                 }
 
                 // 2. Correct the icon path for default engines if they are using a remote URL
-                if (currentEngine.name === 'JavDB' && currentEngine.icon !== 'assets/favicon-32x32.png') {
+                // 只修复使用远程URL的图标，不要覆盖用户的自定义设置
+                if (currentEngine.name === 'JavDB' && currentEngine.icon && currentEngine.icon.startsWith('http')) {
                     currentEngine.icon = 'assets/favicon-32x32.png';
                     hasChanged = true;
                 }
-                if (currentEngine.name === 'Javbus' && currentEngine.icon !== 'assets/javbus.ico') {
+                if (currentEngine.name === 'Javbus' && currentEngine.icon && currentEngine.icon.startsWith('http')) {
                     currentEngine.icon = 'assets/javbus.ico';
                     hasChanged = true;
                 }
 
-                // 3. Ensure ID exists
+                // 3. 清理包含 example.com 的测试数据
+                if (currentEngine.urlTemplate && currentEngine.urlTemplate.includes('example.com')) {
+                    currentEngine.urlTemplate = 'https://www.google.com/search?q={{ID}}';
+                    currentEngine.icon = chrome.runtime.getURL('assets/alternate-search.png');
+                    hasChanged = true;
+                }
+
+                // 4. 修复使用 Google favicon 服务的图标
+                if (currentEngine.icon && currentEngine.icon.includes('google.com/s2/favicons')) {
+                    currentEngine.icon = chrome.runtime.getURL('assets/alternate-search.png');
+                    hasChanged = true;
+                }
+
+                // 5. Ensure ID exists
                 if (!currentEngine.id) {
                     currentEngine.id = `engine-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
                     hasChanged = true;
@@ -74,6 +88,24 @@ export async function initializeGlobalState(): Promise<void> {
 
             if (settingsChanged) {
                 settings.searchEngines = migratedEngines;
+            }
+
+            // 6. 过滤掉任何仍然包含 example.com 的搜索引擎
+            const cleanEngines = settings.searchEngines.filter((engine: any) => {
+                const hasExampleDomain = engine.urlTemplate && engine.urlTemplate.includes('example.com');
+                const hasGoogleFavicon = engine.icon && engine.icon.includes('google.com/s2/favicons');
+
+                if (hasExampleDomain || hasGoogleFavicon) {
+                    logAsync('INFO', '移除包含测试数据的搜索引擎', { engine });
+                    settingsChanged = true;
+                    return false;
+                }
+                return true;
+            });
+
+            if (cleanEngines.length !== settings.searchEngines.length) {
+                settings.searchEngines = cleanEngines;
+                settingsChanged = true;
             }
         }
         // --- End Migration Logic ---
@@ -128,4 +160,43 @@ export async function initializeGlobalState(): Promise<void> {
     }
     STATE.isInitialized = true;
     // console.log("Global state initialized.", STATE);
-} 
+}
+
+/**
+ * 清理搜索引擎配置中的测试数据
+ */
+export async function cleanupSearchEngines(): Promise<void> {
+    try {
+        const settings = await getValue(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+
+        if (!settings.searchEngines || !Array.isArray(settings.searchEngines)) {
+            return;
+        }
+
+        const originalCount = settings.searchEngines.length;
+
+        // 过滤掉包含测试数据的搜索引擎
+        settings.searchEngines = settings.searchEngines.filter((engine: any) => {
+            const hasExampleDomain = engine.urlTemplate && engine.urlTemplate.includes('example.com');
+            const hasGoogleFavicon = engine.icon && engine.icon.includes('google.com/s2/favicons');
+
+            if (hasExampleDomain || hasGoogleFavicon) {
+                logAsync('INFO', '清理包含测试数据的搜索引擎', { engine });
+                return false;
+            }
+            return true;
+        });
+
+        const cleanedCount = settings.searchEngines.length;
+
+        if (cleanedCount !== originalCount) {
+            await setValue(STORAGE_KEYS.SETTINGS, settings);
+            await logAsync('INFO', `搜索引擎清理完成，移除了 ${originalCount - cleanedCount} 个包含测试数据的引擎`);
+
+            // 更新全局状态
+            STATE.settings = settings;
+        }
+    } catch (error: any) {
+        await logAsync('ERROR', '清理搜索引擎配置失败', { error: error.message });
+    }
+}

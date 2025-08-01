@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { initializeGlobalState, STATE } from './state';
+import { initializeGlobalState, STATE, cleanupSearchEngines } from './state';
 import { initRecordsTab } from './tabs/records';
 import { actorsTab } from './tabs/actors';
 import { syncTab } from './tabs/sync';
@@ -23,6 +23,9 @@ import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
+
+    // 清理搜索引擎配置中的测试数据
+    await cleanupSearchEngines();
 
     // 设置标题图标URL
     const titleIcon = document.getElementById('title-icon') as HTMLImageElement;

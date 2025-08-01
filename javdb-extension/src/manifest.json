@@ -66,7 +66,9 @@
             "resources": [
                 "assets/switch.png",
                 "assets/favicon-32x32.png",
-                "assets/javbus.ico"
+                "assets/javbus.ico",
+                "assets/javdb.ico",
+                "assets/alternate-search.png"
             ],
             "matches": ["*://*.javdb.com/*"]
         }

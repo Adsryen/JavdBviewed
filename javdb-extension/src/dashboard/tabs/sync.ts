@@ -102,15 +102,8 @@ export class SyncTab {
      */
     private bindSyncButtons(): void {
         // 同步按钮事件现在由数据同步UI统一管理
-        // 监听演员同步请求事件
-        document.addEventListener('sync-requested', (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const { type } = customEvent.detail as { type: SyncType };
-
-            if (type === 'actors') {
-                this.handleActorSync();
-            }
-        });
+        // 所有同步类型（包括演员同步）都通过新的同步管理器处理
+        // 不需要在这里特殊处理
     }
 
     /**
@@ -172,69 +165,7 @@ export class SyncTab {
         }
     }
 
-    /**
-     * 处理演员同步
-     */
-    private async handleActorSync(): Promise<void> {
-        try {
-            // 检查用户登录状态
-            const isLoggedIn = await userService.isUserLoggedIn();
-            if (!isLoggedIn) {
-                showMessage('请先登录 JavDB 账号', 'warning');
-                return;
-            }
-
-            // 动态导入演员同步服务
-            const { actorSyncService } = await import('../../services/actorSync');
-
-            // 检查是否正在同步
-            if (actorSyncService.isSync()) {
-                showMessage('演员同步正在进行中，请等待完成', 'warning');
-                return;
-            }
-
-            // 设置按钮状态
-            const syncBtn = document.getElementById('syncActorsData') as HTMLButtonElement;
-            if (syncBtn) {
-                syncBtn.disabled = true;
-                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-            }
-
-            // 开始同步
-            const result = await actorSyncService.syncActors('full', (progress) => {
-                // 这里可以显示进度，暂时使用简单的日志
-                logAsync('INFO', '演员同步进度', {
-                    stage: progress.stage,
-                    percentage: progress.percentage,
-                    message: progress.message
-                });
-            });
-
-            if (result.success) {
-                showMessage(
-                    `演员同步完成：新增 ${result.newActors}，更新 ${result.updatedActors}`,
-                    'success'
-                );
-
-                // 触发演员库刷新事件
-                const refreshEvent = new CustomEvent('actors-data-updated');
-                document.dispatchEvent(refreshEvent);
-            } else {
-                showMessage(`演员同步失败：${result.errors.join(', ')}`, 'error');
-            }
-
-        } catch (error) {
-            logAsync('ERROR', '演员同步失败', { error: error.message });
-            showMessage(`演员同步失败：${error instanceof Error ? error.message : '未知错误'}`, 'error');
-        } finally {
-            // 恢复按钮状态
-            const syncBtn = document.getElementById('syncActorsData') as HTMLButtonElement;
-            if (syncBtn) {
-                syncBtn.disabled = false;
-                syncBtn.innerHTML = '<i class="fas fa-users"></i> 同步演员';
-            }
-        }
-    }
+    // 演员同步现在由统一的同步管理器处理，不需要单独的处理方法
 
     /**
      * 更新本地数据统计

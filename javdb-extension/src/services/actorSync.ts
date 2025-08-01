@@ -178,13 +178,16 @@ export class ActorSyncService {
 
                 const html = await response.text();
                 const pageActorIds = this.parseActorIdsFromHtml(html);
-                
+
+                console.log(`第 ${page} 页解析到 ${pageActorIds.length} 个演员ID:`, pageActorIds);
+
                 if (pageActorIds.length === 0) {
+                    console.log(`第 ${page} 页没有找到演员，停止获取`);
                     hasMore = false;
                 } else {
                     actorIds.push(...pageActorIds);
                     page++;
-                    
+
                     // 请求间隔
                     if (hasMore) {
                         await this.delay(config.requestInterval * 1000);
@@ -330,18 +333,22 @@ export class ActorSyncService {
      */
     private parseActorIdsFromHtml(html: string): string[] {
         const actorIds: string[] = [];
-        
+
         // 匹配演员链接的正则表达式
         const actorLinkRegex = /href="\/actors\/([^"]+)"/g;
         let match;
-        
+
+        console.log('开始解析演员ID，HTML长度:', html.length);
+        console.log('HTML片段预览:', html.substring(0, 500));
+
         while ((match = actorLinkRegex.exec(html)) !== null) {
             const actorId = match[1];
             if (actorId && !actorIds.includes(actorId)) {
                 actorIds.push(actorId);
             }
         }
-        
+
+        console.log('解析完成，找到演员ID:', actorIds);
         return actorIds;
     }
 

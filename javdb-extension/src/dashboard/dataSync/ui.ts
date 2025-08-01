@@ -246,9 +246,6 @@ export class SyncUI {
      * 处理同步按钮点击
      */
     private async handleSyncClick(type: SyncType, mode?: SyncMode): Promise<void> {
-        // 隐藏模式选项
-        this.hideAllModeOptions();
-
         // 触发自定义事件，让核心模块处理同步逻辑
         const event = new CustomEvent('sync-requested', {
             detail: { type, mode }

@@ -30,7 +30,7 @@ export const VIDEO_STATUS = {
 
 // 演员同步默认配置
 export const DEFAULT_ACTOR_SYNC_CONFIG: ActorSyncConfig = {
-    enabled: false, // 默认关闭，需要用户手动启用
+    enabled: true, // 默认启用演员同步
     autoSync: false, // 默认不自动同步
     syncInterval: 1440, // 24小时同步一次
     batchSize: 20, // 每批处理20个演员
