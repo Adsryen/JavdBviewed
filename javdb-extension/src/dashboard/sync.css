@@ -159,7 +159,7 @@
 /* 全量同步按钮 - 主要样式 */
 .sync-button-group .sync-btn-primary {
     background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
+    color: white !important;
     border: 2px solid transparent;
 }
 
@@ -167,27 +167,39 @@
     background: linear-gradient(135deg, #0056b3, #004085);
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4);
+    color: white !important;
+}
+
+.sync-button-group .sync-btn-primary .btn-text {
+    color: white !important;
 }
 
 .sync-button-group .sync-btn-primary .btn-desc {
-    color: rgba(255, 255, 255, 0.9);
+    color: white !important;
+    opacity: 0.9;
 }
 
 /* 增量同步按钮 - 次要样式 */
 .sync-button-group .sync-btn-secondary {
-    background: linear-gradient(135deg, #6c757d, #545b62);
-    color: white;
-    border: 2px solid transparent;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #495057 !important;
+    border: 2px solid #dee2e6;
 }
 
 .sync-button-group .sync-btn-secondary:hover {
-    background: linear-gradient(135deg, #545b62, #383d41);
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3);
+    color: #343a40 !important;
+}
+
+.sync-button-group .sync-btn-secondary .btn-text {
+    color: #495057 !important;
 }
 
 .sync-button-group .sync-btn-secondary .btn-desc {
-    color: rgba(255, 255, 255, 0.9);
+    color: #6c757d !important;
+    opacity: 1;
 }
 
 /* 响应式设计 */
@@ -244,7 +256,7 @@
 
 .sync-btn-primary {
     background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
+    color: white !important;
     box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
@@ -252,28 +264,33 @@
     background: linear-gradient(135deg, #0056b3, #004085);
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4);
+    color: white !important;
 }
 
 .sync-btn-primary:active {
     transform: translateY(0);
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    color: white !important;
 }
 
 .sync-btn-secondary {
-    background: linear-gradient(135deg, #6c757d, #545b62);
-    color: white;
-    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #495057 !important;
+    box-shadow: 0 4px 15px rgba(108, 117, 125, 0.2);
+    border: 1px solid #dee2e6;
 }
 
 .sync-btn-secondary:hover {
-    background: linear-gradient(135deg, #545b62, #383d41);
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3);
+    color: #343a40 !important;
 }
 
 .sync-btn-secondary:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
+    color: #495057 !important;
 }
 
 /* 特定同步类型的按钮样式 */

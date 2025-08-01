@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "JavDB Viewed Marker",
+    "name": "Jav 助手",
     "version": "1.7.0",
-    "description": "Marks viewed videos on JavDB and provides advanced filtering and data management.",
+    "description": "Jav视频浏览助手，提供观看标记、高级筛选和数据管理功能。",
     "permissions": [
         "storage",
         "tabs",
@@ -46,14 +46,16 @@
         "default_popup": "popup/popup.html",
         "default_icon": {
             "16": "assets/favicon-16x16.png",
-            "48": "assets/favicon-16x16.png",
-            "128": "assets/favicon-16x16.png"
+            "32": "assets/favicon-32x32.png",
+            "48": "assets/favicon-48x48.png",
+            "128": "assets/favicon-128x128.png"
         }
     },
     "icons": {
         "16": "assets/favicon-16x16.png",
-        "48": "assets/favicon-16x16.png",
-        "128": "assets/favicon-16x16.png"
+        "32": "assets/favicon-32x32.png",
+        "48": "assets/favicon-48x48.png",
+        "128": "assets/favicon-128x128.png"
     },
     "options_ui": {
         "page": "dashboard/dashboard.html",
@@ -62,7 +64,7 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "assets/jav.png",
+                "assets/switch.png",
                 "assets/favicon-32x32.png",
                 "assets/javbus.ico"
             ],

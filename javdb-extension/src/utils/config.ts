@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     searchEngines: [
         {
             id: 'javdb',
-            icon: 'assets/favicon-32x32.png',
+            icon: 'assets/javdb.ico',
             name: 'JavDB',
             urlTemplate: 'https://javdb.com/search?q={{ID}}&f=all'
         },
