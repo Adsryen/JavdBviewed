@@ -19,31 +19,4 @@ export async function initDataSyncFunctionality(): Promise<void> {
     }
 }
 
-/**
- * 获取本地数据统计
- */
-export async function getLocalStats(): Promise<{
-    total: number;
-    viewed: number;
-    want: number;
-    browsed: number;
-}> {
-    try {
-        // 这里需要实现获取本地统计的逻辑
-        // 目前返回模拟数据
-        return {
-            total: 0,
-            viewed: 0,
-            want: 0,
-            browsed: 0
-        };
-    } catch (error) {
-        console.error('Failed to get local stats:', error);
-        return {
-            total: 0,
-            viewed: 0,
-            want: 0,
-            browsed: 0
-        };
-    }
-}
+// getLocalStats 函数已移除，因为已经有专门的数据概览页面提供统计信息

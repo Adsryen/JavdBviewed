@@ -128,14 +128,51 @@ export class SyncUI {
             `;
         }
 
+        // 演员同步特殊处理 - 双按钮布局，提供普通同步和强制更新选项
+        if (option.type === 'actors') {
+            return `
+                <div class="sync-option-card">
+                    <div class="sync-option-header">
+                        <i class="${option.icon} sync-option-icon"></i>
+                        <h5>${option.title}</h5>
+                    </div>
+                    <p class="sync-option-description">${option.description}</p>
+                    <div class="sync-option-actions">
+                        <div class="sync-button-group">
+                            <button id="${option.id}" class="sync-option-btn sync-btn sync-btn-primary sync-mode-btn" ${disabledAttr}
+                                    data-sync-type="${option.type}" data-sync-mode="normal"
+                                    title="同步演员信息（包含性别和分类）">
+                                <i class="fas fa-users"></i>
+                                <span class="btn-text">同步演员</span>
+                                <small class="btn-desc">包含性别和分类信息</small>
+                            </button>
+                            <button id="syncActorsForce" class="sync-option-btn sync-btn sync-btn-secondary sync-mode-btn" ${disabledAttr}
+                                    data-sync-type="${option.type}" data-sync-mode="force"
+                                    title="强制更新所有演员的性别和分类信息">
+                                <i class="fas fa-sync-alt"></i>
+                                <span class="btn-text">强制更新</span>
+                                <small class="btn-desc">更新现有演员的性别分类</small>
+                            </button>
+                        </div>
+                        ${comingSoonLabel}
+                    </div>
+                    <div class="sync-option-stats">
+                        <span class="stat-item">${option.description}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+
+
         // 其他类型的同步选项，使用卡片样式
         return `
             <div class="sync-option-card">
                 <div class="sync-option-header">
                     <i class="${option.icon} sync-option-icon"></i>
-                    <h5>${option.title === '同步演员' ? '同步收藏演员' : option.title}</h5>
+                    <h5>${option.title}</h5>
                 </div>
-                <p class="sync-option-description">${option.type === 'actors' ? '同步您收藏的演员信息到本地演员库' : option.description}</p>
+                <p class="sync-option-description">${option.description}</p>
                 <div class="sync-option-actions">
                     <button id="${option.id}" class="sync-option-btn sync-btn sync-btn-secondary" ${disabledAttr}
                             title="${option.title}" data-sync-type="${option.type}">
@@ -145,7 +182,7 @@ export class SyncUI {
                     ${comingSoonLabel}
                 </div>
                 <div class="sync-option-stats">
-                    <span class="stat-item">${option.type === 'actors' ? '收藏演员' : option.description}</span>
+                    <span class="stat-item">${option.description}</span>
                 </div>
             </div>
         `;
@@ -198,15 +235,20 @@ export class SyncUI {
             button.addEventListener('click', (event) => {
                 const target = event.currentTarget as HTMLButtonElement;
                 const syncType = target.getAttribute('data-sync-type') as SyncType;
-                const syncMode = target.getAttribute('data-sync-mode') as SyncMode;
+                const syncMode = target.getAttribute('data-sync-mode');
+
                 if (syncType && syncMode && !target.disabled) {
-                    this.handleSyncClick(syncType, syncMode);
+                    // 添加点击动画效果
+                    this.addButtonClickEffect(target);
+
+                    // 标准的同步模式处理
+                    this.handleSyncClick(syncType, syncMode as SyncMode);
                 }
             });
         });
 
-        // 其他同步按钮（不需要模式选择的）
-        const otherButtons = document.querySelectorAll('.sync-btn');
+        // 其他同步按钮（不需要模式选择的，排除已经绑定的模式按钮）
+        const otherButtons = document.querySelectorAll('.sync-btn:not(.sync-mode-btn)');
         otherButtons.forEach(button => {
             button.addEventListener('click', (event) => {
                 const target = event.currentTarget as HTMLButtonElement;
@@ -218,6 +260,8 @@ export class SyncUI {
                 }
             });
         });
+
+
     }
 
     /**
@@ -241,6 +285,8 @@ export class SyncUI {
 
 
 
+
+    // 演员性别同步功能已移除，性别信息将从分类页面直接获取
 
     /**
      * 处理同步按钮点击
@@ -381,6 +427,12 @@ export class SyncUI {
      * 更新同步进度
      */
     public updateProgress(progress: SyncProgress): void {
+        // 检查是否为演员同步进度（包含stats信息）
+        if (progress.stats) {
+            this.updateActorSyncProgress(progress);
+            return;
+        }
+
         // 更新阶段信息显示
         this.updatePhaseInfo(progress);
 
@@ -391,6 +443,165 @@ export class SyncUI {
         } else {
             // 向后兼容：如果没有stage，默认更新详情进度
             this.updateDetailsProgress(progress);
+        }
+    }
+
+    /**
+     * 更新演员同步进度（使用统计信息而非进度条）
+     */
+    private updateActorSyncProgress(progress: SyncProgress): void {
+        const stats = progress.stats!;
+
+        // 获取或创建演员同步统计容器
+        let actorStatsContainer = document.getElementById('actorSyncStats');
+        if (!actorStatsContainer) {
+            actorStatsContainer = this.createActorStatsContainer();
+        }
+
+        // 显示统计容器，隐藏传统进度条
+        actorStatsContainer.style.display = 'block';
+        this.hidePagesProgress();
+        this.hideDetailsProgress();
+
+        // 更新统计信息
+        this.updateActorStats(stats, progress.message);
+    }
+
+    /**
+     * 创建演员同步统计容器
+     */
+    private createActorStatsContainer(): HTMLElement {
+        const progressContainer = document.getElementById('syncProgress');
+        if (!progressContainer) {
+            throw new Error('Progress container not found');
+        }
+
+        const container = document.createElement('div');
+        container.id = 'actorSyncStats';
+        container.className = 'actor-sync-stats';
+        container.innerHTML = `
+            <div class="actor-stats-header">
+                <h5>演员同步进度</h5>
+                <div class="actor-stats-status" id="actorStatsStatus">准备中...</div>
+            </div>
+            <div class="actor-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📄</div>
+                    <div class="stat-content">
+                        <div class="stat-label">当前页面</div>
+                        <div class="stat-value" id="currentPageStat">-</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">已处理</div>
+                        <div class="stat-value" id="totalProcessedStat">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✨</div>
+                    <div class="stat-content">
+                        <div class="stat-label">新增</div>
+                        <div class="stat-value" id="newActorsStat">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-content">
+                        <div class="stat-label">更新</div>
+                        <div class="stat-value" id="updatedActorsStat">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏭️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">跳过</div>
+                        <div class="stat-value" id="skippedActorsStat">0</div>
+                    </div>
+                </div>
+                <div class="stat-card current-page-detail" id="currentPageDetail" style="display: none;">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-content">
+                        <div class="stat-label">本页进度</div>
+                        <div class="stat-value" id="currentPageProgressStat">-</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 插入到进度容器的开头
+        progressContainer.insertBefore(container, progressContainer.firstChild);
+        return container;
+    }
+
+    /**
+     * 更新演员统计信息
+     */
+    private updateActorStats(stats: any, message: string): void {
+        // 更新状态消息
+        const statusElement = document.getElementById('actorStatsStatus');
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
+
+        // 更新各项统计
+        const currentPageElement = document.getElementById('currentPageStat');
+        if (currentPageElement && stats.currentPage) {
+            currentPageElement.textContent = `第 ${stats.currentPage} 页`;
+        }
+
+        const totalProcessedElement = document.getElementById('totalProcessedStat');
+        if (totalProcessedElement) {
+            totalProcessedElement.textContent = stats.totalProcessed?.toString() || '0';
+        }
+
+        const newActorsElement = document.getElementById('newActorsStat');
+        if (newActorsElement) {
+            newActorsElement.textContent = stats.newActors?.toString() || '0';
+        }
+
+        const updatedActorsElement = document.getElementById('updatedActorsStat');
+        if (updatedActorsElement) {
+            updatedActorsElement.textContent = stats.updatedActors?.toString() || '0';
+        }
+
+        const skippedActorsElement = document.getElementById('skippedActorsStat');
+        if (skippedActorsElement) {
+            skippedActorsElement.textContent = stats.skippedActors?.toString() || '0';
+        }
+
+        // 如果有当前页面的详细进度，显示它
+        const currentPageDetail = document.getElementById('currentPageDetail');
+        const currentPageProgressElement = document.getElementById('currentPageProgressStat');
+
+        if (stats.currentPageProgress !== undefined && stats.currentPageTotal !== undefined) {
+            if (currentPageDetail) currentPageDetail.style.display = 'block';
+            if (currentPageProgressElement) {
+                currentPageProgressElement.textContent = `${stats.currentPageProgress}/${stats.currentPageTotal}`;
+            }
+        } else {
+            if (currentPageDetail) currentPageDetail.style.display = 'none';
+        }
+    }
+
+    /**
+     * 隐藏页面进度条
+     */
+    private hidePagesProgress(): void {
+        const pagesProgress = document.getElementById('pagesProgress');
+        if (pagesProgress) {
+            pagesProgress.style.display = 'none';
+        }
+    }
+
+    /**
+     * 隐藏详情进度条
+     */
+    private hideDetailsProgress(): void {
+        const detailsProgress = document.getElementById('detailsProgress');
+        if (detailsProgress) {
+            detailsProgress.style.display = 'none';
         }
     }
 
@@ -650,6 +861,12 @@ export class SyncUI {
         if (detailsProgressFill) detailsProgressFill.style.width = '0%';
         if (detailsProgressText) detailsProgressText.textContent = '等待开始...';
         if (detailsProgressPercentage) detailsProgressPercentage.textContent = '0%';
+
+        // 重置演员同步统计
+        const actorSyncStats = document.getElementById('actorSyncStats');
+        if (actorSyncStats) {
+            actorSyncStats.style.display = 'none';
+        }
     }
 
     /**

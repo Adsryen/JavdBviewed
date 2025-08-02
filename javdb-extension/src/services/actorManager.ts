@@ -69,26 +69,38 @@ export class ActorManager {
     }
 
     /**
-     * 分页搜索演员
+     * 分页搜索演员（支持性别和分类筛选）
      */
     async searchActors(
         query: string = '',
         page: number = 1,
         pageSize: number = 20,
         sortBy: 'name' | 'updatedAt' | 'worksCount' = 'name',
-        sortOrder: 'asc' | 'desc' = 'asc'
+        sortOrder: 'asc' | 'desc' = 'asc',
+        genderFilter?: string,
+        categoryFilter?: string
     ): Promise<ActorSearchResult> {
         await this.initialize();
-        
+
         let actors = Array.from(this.cache.values());
-        
-        // 过滤
+
+        // 搜索过滤
         if (query.trim()) {
             const lowerQuery = query.toLowerCase();
             actors = actors.filter(actor => {
                 return actor.name.toLowerCase().includes(lowerQuery) ||
                        actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery));
             });
+        }
+
+        // 性别筛选
+        if (genderFilter) {
+            actors = actors.filter(actor => actor.gender === genderFilter);
+        }
+
+        // 分类筛选
+        if (categoryFilter) {
+            actors = actors.filter(actor => actor.category === categoryFilter);
         }
         
         // 排序
@@ -214,37 +226,43 @@ export class ActorManager {
     async getStats(): Promise<{
         total: number;
         byGender: Record<string, number>;
+        byCategory: Record<string, number>;
         recentlyAdded: number; // 最近7天添加的
         recentlyUpdated: number; // 最近7天更新的
     }> {
         await this.initialize();
-        
+
         const actors = Array.from(this.cache.values());
         const now = Date.now();
         const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-        
+
         const byGender: Record<string, number> = {};
+        const byCategory: Record<string, number> = {};
         let recentlyAdded = 0;
         let recentlyUpdated = 0;
-        
+
         actors.forEach(actor => {
             // 按性别统计
             byGender[actor.gender] = (byGender[actor.gender] || 0) + 1;
-            
+
+            // 按分类统计
+            byCategory[actor.category] = (byCategory[actor.category] || 0) + 1;
+
             // 最近添加
             if (actor.createdAt > weekAgo) {
                 recentlyAdded++;
             }
-            
+
             // 最近更新
             if (actor.updatedAt > weekAgo) {
                 recentlyUpdated++;
             }
         });
-        
+
         return {
             total: actors.length,
             byGender,
+            byCategory,
             recentlyAdded,
             recentlyUpdated
         };
