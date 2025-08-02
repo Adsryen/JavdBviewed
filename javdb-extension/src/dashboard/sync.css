@@ -249,6 +249,8 @@
     font-size: 14px;
 }
 
+
+
 /* 禁用按钮光效动画以防止闪烁 */
 .sync-option-actions .sync-btn::before {
     display: none !important;
@@ -292,6 +294,10 @@
     box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
     color: #495057 !important;
 }
+
+
+
+
 
 /* 特定同步类型的按钮样式 */
 .sync-option-card:has(#syncWantData) .sync-option-icon {
@@ -393,6 +399,49 @@
     box-shadow: 0 8px 25px rgba(92, 184, 92, 0.4);
 }
 
+/* 演员同步 - 紫色主题 */
+.sync-option-card:has([data-sync-type="actors"]) .sync-option-icon {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+}
+
+.sync-option-card:has([data-sync-type="actors"]):hover .sync-option-icon {
+    box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
+}
+
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-primary {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+}
+
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-primary:hover {
+    background: linear-gradient(135deg, #5a32a3, #4c2a85);
+    box-shadow: 0 8px 25px rgba(111, 66, 193, 0.4);
+}
+
+/* 演员同步的次要按钮（更新性别）使用浅色样式 */
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-secondary {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+    color: #495057 !important;
+    border: 2px solid #dee2e6 !important;
+}
+
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-secondary:hover {
+    background: linear-gradient(135deg, #e9ecef, #dee2e6) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3) !important;
+    color: #343a40 !important;
+}
+
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-secondary .btn-text {
+    color: #495057 !important;
+}
+
+.sync-option-card:has([data-sync-type="actors"]) .sync-btn-secondary .btn-desc {
+    color: #6c757d !important;
+    opacity: 1;
+}
+
+
+
 /* 确保已观看按钮完全独立，无任何伪元素 */
 #syncViewedData::before,
 #syncViewedData::after {
@@ -418,14 +467,7 @@
     box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
 }
 
-.sync-option-card:has(#syncActorsData) .sync-btn-secondary {
-    background: linear-gradient(135deg, #6f42c1, #5a32a3);
-}
 
-.sync-option-card:has(#syncActorsData) .sync-btn-secondary:hover {
-    background: linear-gradient(135deg, #5a32a3, #4c2a85);
-    box-shadow: 0 8px 25px rgba(111, 66, 193, 0.4);
-}
 
 /* 按钮禁用状态 */
 .sync-option-actions .sync-btn:disabled {
@@ -624,52 +666,7 @@
     font-size: 18px;
 }
 
-/* 本地数据统计 */
-.local-stats-section {
-    margin-top: 30px;
-}
-
-.local-stats-section h4 {
-    margin-bottom: 16px;
-    color: #495057;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 16px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 16px;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
-}
-
-.stat-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-value {
-    display: block;
-    font-size: 24px;
-    font-weight: bold;
-    color: #007bff;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+/* 本地数据统计样式已移除，因为已经有专门的数据概览页面 */
 
 /* 响应式设计 */
 @media (max-width: 768px) {

@@ -192,6 +192,7 @@
 
 /* Advanced Settings Tab */
 #jsonConfig,
+#actorsConfig,
 #rawLogsTextarea,
 #rawRecordsTextarea {
     width: 100%;
@@ -215,10 +216,61 @@
 }
 
 #jsonConfig:read-only,
+#actorsConfig:read-only,
 #rawLogsTextarea:read-only {
     background-color: #161b22;
     color: #8b949e;
     border-color: #30363d;
+}
+
+/* 演员库统计样式 */
+.actors-stats {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* 演员库特定的textarea样式 */
+#actorsConfig {
+    min-height: 300px;
+}
+
+#actorsConfig:placeholder-shown {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-color: #dee2e6;
 }
 
 #jsonConfig:focus,
@@ -993,4 +1045,156 @@
     font-size: 14px;
     line-height: 1.5;
     color: #495057;
+}
+
+/* Global Actions Styles */
+#global-actions .settings-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+#global-actions .settings-section h4 {
+    margin-bottom: 15px;
+    color: #495057;
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#global-actions .settings-section h4::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 2px;
+}
+
+#global-actions .action-buttons-top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+#global-actions .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    justify-content: center;
+}
+
+#global-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#global-actions .btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Button variants for global actions */
+#global-actions .btn:not(.danger):not(.warning) {
+    background: #007bff;
+    color: white;
+}
+
+#global-actions .btn:not(.danger):not(.warning):hover {
+    background: #0056b3;
+}
+
+#global-actions .btn.danger {
+    background: #dc3545;
+    color: white;
+}
+
+#global-actions .btn.danger:hover {
+    background: #c82333;
+}
+
+#global-actions .btn.warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+#global-actions .btn.warning:hover {
+    background: #e0a800;
+}
+
+#global-actions .input-description {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #6c757d;
+    margin: 0;
+}
+
+#global-actions .input-description strong {
+    color: #495057;
+    font-weight: 600;
+}
+
+/* Add icons to buttons */
+#clearAllBtn::before {
+    content: '🗑️';
+    margin-right: 4px;
+}
+
+#exportAllBtn::before {
+    content: '📤';
+    margin-right: 4px;
+}
+
+#importAllBtn::before {
+    content: '📥';
+    margin-right: 4px;
+}
+
+#clearCacheBtn::before {
+    content: '🧹';
+    margin-right: 4px;
+}
+
+#clearTempDataBtn::before {
+    content: '🗂️';
+    margin-right: 4px;
+}
+
+#resetSettingsBtn::before {
+    content: '🔄';
+    margin-right: 4px;
+}
+
+#reloadExtensionBtn::before {
+    content: '🔃';
+    margin-right: 4px;
+}
+
+/* Responsive design for global actions */
+@media (max-width: 768px) {
+    #global-actions .action-buttons-top {
+        flex-direction: column;
+    }
+
+    #global-actions .btn {
+        width: 100%;
+        min-width: auto;
+    }
+
+    #global-actions .settings-section {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
 }

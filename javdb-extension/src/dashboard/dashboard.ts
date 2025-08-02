@@ -454,33 +454,9 @@ function initSidebarActions(): void {
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
     const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
     const fileList = document.getElementById('fileList') as HTMLUListElement;
-    const clearAllBtn = document.getElementById('clearAllBtn') as HTMLButtonElement;
+    // clearAllBtn has been moved to settings tab - global actions section
 
-    if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', () => {
-            showConfirmationModal({
-                title: '确认清空所有本地记录',
-                message: '您确定要清空所有本地记录吗？此操作不可撤销，且无法通过 WebDAV 恢复！',
-                onConfirm: () => {
-                    logAsync('INFO', '用户确认清空所有本地记录。');
-                    chrome.runtime.sendMessage({ type: 'clear-all-records' }, response => {
-                        if (response?.success) {
-                            showMessage('所有本地记录已成功清空。', 'success');
-                            logAsync('INFO', '所有本地记录已被成功清空。');
-                            // Refresh the page or relevant parts to reflect the change
-                            location.reload();
-                        } else {
-                            showMessage('清空记录失败，请稍后重试。', 'error');
-                            logAsync('ERROR', '清空所有本地记录时发生错误。', { error: response.error });
-                        }
-                    });
-                },
-                onCancel: () => {
-                    logAsync('INFO', '用户取消了清空所有本地记录的操作。');
-                }
-            });
-        });
-    }
+    // clearAllBtn functionality has been moved to settings tab - global actions section
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {

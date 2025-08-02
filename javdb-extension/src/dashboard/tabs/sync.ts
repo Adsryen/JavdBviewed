@@ -21,7 +21,6 @@ export class SyncTab {
         try {
             await this.checkLoginStatus();
             await this.setupDataSync();
-            await this.updateLocalStats();
             this.setupEventListeners();
             this.isInitialized = true;
             // logAsync('INFO', '数据同步标签页初始化完成');
@@ -167,50 +166,7 @@ export class SyncTab {
 
     // 演员同步现在由统一的同步管理器处理，不需要单独的处理方法
 
-    /**
-     * 更新本地数据统计
-     */
-    private async updateLocalStats(): Promise<void> {
-        try {
-            // 这里会复用现有的统计逻辑
-            const statsContainer = document.getElementById('stats-overview-sync');
-            if (statsContainer) {
-                // 从现有代码中获取统计信息
-                const { getLocalStats } = await import('../services/dataSync');
-                const stats = await getLocalStats();
-                this.renderLocalStats(stats);
-            }
-        } catch (error) {
-            logAsync('ERROR', '更新本地统计失败', { error: error.message });
-        }
-    }
-
-    /**
-     * 渲染本地统计信息
-     */
-    private renderLocalStats(stats: any): void {
-        const container = document.getElementById('stats-overview-sync');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div data-stat="total">
-                <span class="stat-value">${stats.total || 0}</span>
-                <span class="stat-label">总记录</span>
-            </div>
-            <div data-stat="viewed">
-                <span class="stat-value">${stats.viewed || 0}</span>
-                <span class="stat-label">已观看</span>
-            </div>
-            <div data-stat="want">
-                <span class="stat-value">${stats.want || 0}</span>
-                <span class="stat-label">想看</span>
-            </div>
-            <div data-stat="browsed">
-                <span class="stat-value">${stats.browsed || 0}</span>
-                <span class="stat-label">已浏览</span>
-            </div>
-        `;
-    }
+    // 本地数据统计功能已移除，因为已经有专门的数据概览页面
 
 
 
@@ -219,7 +175,7 @@ export class SyncTab {
      */
     async refresh(): Promise<void> {
         await this.checkLoginStatus();
-        await this.updateLocalStats();
+        // 本地数据统计功能已移除，因为已经有专门的数据概览页面
     }
 }
 

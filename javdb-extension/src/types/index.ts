@@ -135,6 +135,7 @@ export interface ActorRecord {
   name: string; // 主要艺名
   aliases: string[]; // 其他艺名/别名
   gender: 'female' | 'male' | 'unknown'; // 性别
+  category: 'censored' | 'uncensored' | 'western' | 'unknown'; // 分类：有码、无码、欧美
   avatarUrl?: string; // 头像地址
   profileUrl?: string; // 演员详情页地址
   worksUrl?: string; // 作品列表页地址
@@ -195,6 +196,16 @@ export interface ActorSyncProgress {
   percentage: number;
   message: string;
   errors?: string[];
+  stats?: {
+    currentPage?: number;
+    totalProcessed?: number;
+    newActors?: number;
+    updatedActors?: number;
+    skippedActors?: number;
+    currentPageActors?: number;
+    currentPageProgress?: number;
+    currentPageTotal?: number;
+  };
 }
 
 // 演员同步结果

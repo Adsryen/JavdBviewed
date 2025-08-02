@@ -1339,6 +1339,160 @@
     }
 }
 
+/* 演员同步统计样式 */
+.actor-sync-stats {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.actor-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.actor-stats-header h5 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.actor-stats-status {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.actor-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
+.stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.stat-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+/* 当前页面详情卡片特殊样式 */
+.stat-card.current-page-detail {
+    grid-column: span 2;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-color: #bfdbfe;
+}
+
+.stat-card.current-page-detail .stat-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.stat-card.current-page-detail .stat-value {
+    color: #1d4ed8;
+}
+
+/* 不同统计类型的图标颜色 */
+.stat-card:nth-child(1) .stat-icon { /* 当前页面 */
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.stat-card:nth-child(2) .stat-icon { /* 已处理 */
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.stat-card:nth-child(3) .stat-icon { /* 新增 */
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.stat-card:nth-child(4) .stat-icon { /* 更新 */
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.stat-card:nth-child(5) .stat-icon { /* 跳过 */
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+/* 动画效果 */
+.stat-value {
+    transition: all 0.3s ease;
+}
+
+.stat-card.updated .stat-value {
+    animation: statUpdate 0.6s ease-out;
+}
+
+@keyframes statUpdate {
+    0% {
+        transform: scale(1);
+        color: #1e293b;
+    }
+    50% {
+        transform: scale(1.1);
+        color: #059669;
+    }
+    100% {
+        transform: scale(1);
+        color: #1e293b;
+    }
+}
+
 /* 响应式设计优化 */
 @media (max-width: 768px) {
     .sync-options-grid {
@@ -1358,6 +1512,36 @@
         width: 40px;
         height: 40px;
         font-size: 18px;
+    }
+
+    .actor-stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .stat-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 20px;
+    }
+
+    .stat-value {
+        font-size: 16px;
+    }
+
+    .actor-stats-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .stat-card.current-page-detail {
+        grid-column: span 1;
     }
 }
 

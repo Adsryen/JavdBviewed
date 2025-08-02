@@ -2,8 +2,9 @@ import { STATE } from '../state';
 import { saveSettings, getValue, setValue } from '../../utils/storage';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
-import type { ExtensionSettings, VideoRecord, OldVideoRecord } from '../../types';
+import type { ExtensionSettings, VideoRecord, OldVideoRecord, ActorRecord } from '../../types';
 import { STORAGE_KEYS } from '../../utils/config';
+import { actorManager } from '../../services/actorManager';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
@@ -20,6 +21,9 @@ export function initSettingsTab(): void {
 
     // Initialize sync settings functionality
     initSyncSettingsFunctionality();
+
+    // Initialize global actions functionality
+    initGlobalActionsFunctionality();
 
     const webdavEnabled = document.getElementById('webdavEnabled') as HTMLInputElement;
     const webdavUrl = document.getElementById('webdavUrl') as HTMLInputElement;
@@ -1007,6 +1011,9 @@ function initAdvancedSettingsFunctionality(): void {
     // Load initial settings
     loadJsonConfig();
 
+    // Initialize actors management
+    initActorsManagement();
+
     // Edit JSON button
     editJsonBtn.addEventListener('click', () => {
         jsonConfigTextarea.readOnly = false;
@@ -1314,4 +1321,571 @@ function checkDataStructure(): void {
             logAsync(`数据结构检查错误: ${error instanceof Error ? error.message : '未知错误'}`, 'ERROR');
         }
     })();
+}
+
+/**
+ * 初始化演员库管理功能
+ */
+function initActorsManagement(): void {
+    const loadActorsBtn = document.getElementById('loadActorsBtn') as HTMLButtonElement;
+    const editActorsBtn = document.getElementById('editActorsBtn') as HTMLButtonElement;
+    const saveActorsBtn = document.getElementById('saveActorsBtn') as HTMLButtonElement;
+    const exportActorsBtn = document.getElementById('exportActorsBtn') as HTMLButtonElement;
+    const importActorsBtn = document.getElementById('importActorsBtn') as HTMLButtonElement;
+    const importActorsFile = document.getElementById('importActorsFile') as HTMLInputElement;
+    const actorsConfigTextarea = document.getElementById('actorsConfig') as HTMLTextAreaElement;
+    const actorsStats = document.getElementById('actorsStats') as HTMLDivElement;
+
+    if (!loadActorsBtn || !editActorsBtn || !saveActorsBtn || !exportActorsBtn ||
+        !importActorsBtn || !importActorsFile || !actorsConfigTextarea || !actorsStats) {
+        console.error('演员库管理: 找不到必要的DOM元素');
+        return;
+    }
+
+    let currentActorsData: ActorRecord[] = [];
+
+    // 加载演员库数据
+    async function loadActorsData(): Promise<void> {
+        try {
+            loadActorsBtn.disabled = true;
+            loadActorsBtn.textContent = '加载中...';
+
+            currentActorsData = await actorManager.getAllActors();
+
+            // 更新统计信息
+            updateActorsStats(currentActorsData);
+
+            // 显示JSON数据
+            actorsConfigTextarea.value = JSON.stringify(currentActorsData, null, 2);
+            actorsConfigTextarea.placeholder = '';
+
+            // 启用相关按钮
+            editActorsBtn.disabled = false;
+            exportActorsBtn.disabled = false;
+
+            showMessage(`成功加载 ${currentActorsData.length} 个演员记录`, 'success');
+            logAsync('INFO', '演员库数据已加载到高级配置页面');
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            showMessage(`加载演员库失败: ${errorMessage}`, 'error');
+            logAsync('ERROR', '加载演员库失败', { error: errorMessage });
+        } finally {
+            loadActorsBtn.disabled = false;
+            loadActorsBtn.textContent = '加载演员库';
+        }
+    }
+
+    // 更新统计信息
+    function updateActorsStats(actors: ActorRecord[]): void {
+        const totalCount = actors.length;
+        const femaleCount = actors.filter(a => a.gender === 'female').length;
+        const maleCount = actors.filter(a => a.gender === 'male').length;
+        const unknownCount = actors.filter(a => a.gender === 'unknown').length;
+
+        document.getElementById('totalActorsCount')!.textContent = totalCount.toString();
+        document.getElementById('femaleActorsCount')!.textContent = femaleCount.toString();
+        document.getElementById('maleActorsCount')!.textContent = maleCount.toString();
+        document.getElementById('unknownGenderCount')!.textContent = unknownCount.toString();
+
+        actorsStats.style.display = totalCount > 0 ? 'block' : 'none';
+    }
+
+    // 编辑演员库
+    function editActorsData(): void {
+        actorsConfigTextarea.readOnly = false;
+        actorsConfigTextarea.style.backgroundColor = '#0d1117';
+        actorsConfigTextarea.style.color = '#c9d1d9';
+        editActorsBtn.classList.add('hidden');
+        saveActorsBtn.classList.remove('hidden');
+        loadActorsBtn.disabled = true;
+        exportActorsBtn.disabled = true;
+        importActorsBtn.disabled = true;
+    }
+
+    // 保存演员库
+    async function saveActorsData(): Promise<void> {
+        try {
+            const configText = actorsConfigTextarea.value;
+            const parsedActors = JSON.parse(configText) as ActorRecord[];
+
+            // 验证数据格式
+            if (!Array.isArray(parsedActors)) {
+                throw new Error('数据格式错误：应该是演员记录数组');
+            }
+
+            // 验证每个演员记录的必要字段
+            for (let i = 0; i < parsedActors.length; i++) {
+                const actor = parsedActors[i];
+                if (!actor.id || !actor.name) {
+                    throw new Error(`第 ${i + 1} 个演员记录缺少必要字段 (id, name)`);
+                }
+                if (!['female', 'male', 'unknown'].includes(actor.gender)) {
+                    throw new Error(`第 ${i + 1} 个演员记录的性别字段无效: ${actor.gender}`);
+                }
+            }
+
+            // 清空现有数据并导入新数据
+            await actorManager.clearAllActors();
+            await actorManager.saveActors(parsedActors);
+
+            currentActorsData = parsedActors;
+            updateActorsStats(currentActorsData);
+
+            // 恢复只读状态
+            actorsConfigTextarea.readOnly = true;
+            actorsConfigTextarea.style.backgroundColor = '#161b22';
+            actorsConfigTextarea.style.color = '#8b949e';
+            saveActorsBtn.classList.add('hidden');
+            editActorsBtn.classList.remove('hidden');
+            loadActorsBtn.disabled = false;
+            exportActorsBtn.disabled = false;
+            importActorsBtn.disabled = false;
+
+            showMessage(`演员库已保存，共 ${parsedActors.length} 个演员`, 'success');
+            logAsync('INFO', '演员库已通过高级配置页面更新', { count: parsedActors.length });
+
+            // 触发演员库更新事件
+            const refreshEvent = new CustomEvent('actors-data-updated');
+            document.dispatchEvent(refreshEvent);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            showMessage(`保存失败: ${errorMessage}`, 'error');
+            logAsync('ERROR', '保存演员库失败', { error: errorMessage });
+        }
+    }
+
+    // 导出演员库
+    function exportActorsData(): void {
+        try {
+            if (currentActorsData.length === 0) {
+                showMessage('没有可导出的演员数据', 'warn');
+                return;
+            }
+
+            const dataStr = JSON.stringify(currentActorsData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `actors-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showMessage(`演员库已导出，共 ${currentActorsData.length} 个演员`, 'success');
+            logAsync('INFO', '演员库已导出', { count: currentActorsData.length });
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            showMessage(`导出失败: ${errorMessage}`, 'error');
+            logAsync('ERROR', '导出演员库失败', { error: errorMessage });
+        }
+    }
+
+    // 导入演员库
+    function importActorsData(): void {
+        importActorsFile.click();
+    }
+
+    // 处理文件导入
+    async function handleFileImport(event: Event): Promise<void> {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const importedActors = JSON.parse(text) as ActorRecord[];
+
+            // 验证数据格式
+            if (!Array.isArray(importedActors)) {
+                throw new Error('文件格式错误：应该是演员记录数组');
+            }
+
+            // 验证每个演员记录
+            for (let i = 0; i < importedActors.length; i++) {
+                const actor = importedActors[i];
+                if (!actor.id || !actor.name) {
+                    throw new Error(`第 ${i + 1} 个演员记录缺少必要字段 (id, name)`);
+                }
+            }
+
+            // 询问导入模式
+            const replace = confirm(
+                `检测到 ${importedActors.length} 个演员记录。\n\n` +
+                `点击"确定"替换现有数据\n` +
+                `点击"取消"合并到现有数据`
+            );
+
+            const result = await actorManager.importActors(importedActors, replace ? 'replace' : 'merge');
+
+            // 重新加载数据
+            await loadActorsData();
+
+            showMessage(
+                `导入完成: 新增 ${result.imported} 个，更新 ${result.updated} 个，跳过 ${result.skipped} 个`,
+                'success'
+            );
+            logAsync('INFO', '演员库导入完成', result);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            showMessage(`导入失败: ${errorMessage}`, 'error');
+            logAsync('ERROR', '导入演员库失败', { error: errorMessage });
+        } finally {
+            // 清空文件输入
+            target.value = '';
+        }
+    }
+
+    // 绑定事件
+    loadActorsBtn.addEventListener('click', loadActorsData);
+    editActorsBtn.addEventListener('click', editActorsData);
+    saveActorsBtn.addEventListener('click', saveActorsData);
+    exportActorsBtn.addEventListener('click', exportActorsData);
+    importActorsBtn.addEventListener('click', importActorsData);
+    importActorsFile.addEventListener('change', handleFileImport);
+}
+
+/**
+ * 初始化全局操作功能
+ */
+function initGlobalActionsFunctionality(): void {
+    // 获取按钮元素
+    const clearAllBtn = document.getElementById('clearAllBtn') as HTMLButtonElement;
+    const exportAllBtn = document.getElementById('exportAllBtn') as HTMLButtonElement;
+    const importAllBtn = document.getElementById('importAllBtn') as HTMLButtonElement;
+    const importAllFile = document.getElementById('importAllFile') as HTMLInputElement;
+    const clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement;
+    const clearTempDataBtn = document.getElementById('clearTempDataBtn') as HTMLButtonElement;
+    const resetSettingsBtn = document.getElementById('resetSettingsBtn') as HTMLButtonElement;
+    const reloadExtensionBtn = document.getElementById('reloadExtensionBtn') as HTMLButtonElement;
+
+    // 清空所有本地记录
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认清空所有本地记录',
+                message: '您确定要清空所有本地记录吗？此操作不可撤销，且无法通过 WebDAV 恢复！',
+                onConfirm: () => {
+                    logAsync('INFO', '用户确认清空所有本地记录。');
+                    chrome.runtime.sendMessage({ type: 'clear-all-records' }, response => {
+                        if (response?.success) {
+                            showMessage('所有本地记录已成功清空。', 'success');
+                            logAsync('INFO', '所有本地记录已被成功清空。');
+                            // Refresh the page or relevant parts to reflect the change
+                            location.reload();
+                        } else {
+                            showMessage('清空记录失败，请稍后重试。', 'error');
+                            logAsync('ERROR', '清空所有本地记录时发生错误。', { error: response.error });
+                        }
+                    });
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了清空所有本地记录的操作。');
+                }
+            });
+        });
+    }
+
+    // 导出所有数据
+    if (exportAllBtn) {
+        exportAllBtn.addEventListener('click', async () => {
+            try {
+                logAsync('INFO', '用户点击了"导出所有数据"按钮。');
+
+                // 获取所有数据
+                const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+                const actorRecords = await actorManager.getAllActors();
+
+                const dataToExport = {
+                    settings: STATE.settings,
+                    videoRecords: STATE.records.reduce((acc, record) => {
+                        acc[record.id] = record;
+                        return acc;
+                    }, {} as Record<string, VideoRecord>),
+                    actorRecords: actorRecords.reduce((acc, actor) => {
+                        acc[actor.id] = actor;
+                        return acc;
+                    }, {} as Record<string, ActorRecord>),
+                    userProfile: userProfile,
+                    exportTime: new Date().toISOString(),
+                    version: chrome.runtime.getManifest().version
+                };
+
+                const dataStr = JSON.stringify(dataToExport, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showMessage('数据导出成功', 'success');
+                logAsync('INFO', '所有数据已成功导出');
+            } catch (error) {
+                console.error('导出数据失败:', error);
+                showMessage('导出数据失败', 'error');
+                logAsync('ERROR', '导出数据失败', { error: error.message });
+            }
+        });
+    }
+
+    // 导入数据
+    if (importAllBtn && importAllFile) {
+        importAllBtn.addEventListener('click', () => {
+            importAllFile.click();
+        });
+
+        importAllFile.addEventListener('change', async (event) => {
+            const file = (event.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const importData = JSON.parse(text);
+
+                // 验证数据格式
+                if (!importData.settings && !importData.videoRecords && !importData.actorRecords) {
+                    throw new Error('无效的备份文件格式');
+                }
+
+                showConfirmationModal({
+                    title: '确认导入数据',
+                    message: '导入数据将覆盖当前的所有设置和记录。您确定要继续吗？',
+                    onConfirm: async () => {
+                        try {
+                            // 导入设置
+                            if (importData.settings) {
+                                await saveSettings(importData.settings);
+                                STATE.settings = importData.settings;
+                            }
+
+                            // 导入视频记录
+                            if (importData.videoRecords) {
+                                const videoRecords = Object.values(importData.videoRecords) as VideoRecord[];
+                                await setValue(STORAGE_KEYS.VIDEO_RECORDS, importData.videoRecords);
+                                STATE.records = videoRecords;
+                            }
+
+                            // 导入演员记录
+                            if (importData.actorRecords) {
+                                const actorRecords = Object.values(importData.actorRecords) as ActorRecord[];
+                                await actorManager.clearAllActors();
+                                await actorManager.saveActors(actorRecords);
+                            }
+
+                            // 导入用户资料
+                            if (importData.userProfile) {
+                                await setValue(STORAGE_KEYS.USER_PROFILE, importData.userProfile);
+                            }
+
+                            showMessage('数据导入成功，页面将刷新', 'success');
+                            logAsync('INFO', '数据导入成功');
+
+                            // 刷新页面以应用新数据
+                            setTimeout(() => location.reload(), 1000);
+                        } catch (error) {
+                            console.error('导入数据失败:', error);
+                            showMessage('导入数据失败', 'error');
+                            logAsync('ERROR', '导入数据失败', { error: error.message });
+                        }
+                    },
+                    onCancel: () => {
+                        logAsync('INFO', '用户取消了数据导入操作');
+                    }
+                });
+            } catch (error) {
+                console.error('解析导入文件失败:', error);
+                showMessage('文件格式错误，请选择有效的备份文件', 'error');
+                logAsync('ERROR', '解析导入文件失败', { error: error.message });
+            } finally {
+                // 清空文件输入
+                (event.target as HTMLInputElement).value = '';
+            }
+        });
+    }
+
+    // 清空缓存
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认清空缓存',
+                message: '这将清除所有缓存的图片、头像等临时文件。确定继续吗？',
+                onConfirm: async () => {
+                    try {
+                        // 清除扩展的缓存存储
+                        await chrome.storage.local.remove(['imageCache', 'avatarCache', 'coverCache']);
+
+                        showMessage('缓存已清空', 'success');
+                        logAsync('INFO', '用户清空了缓存');
+                    } catch (error) {
+                        console.error('清空缓存失败:', error);
+                        showMessage('清空缓存失败', 'error');
+                        logAsync('ERROR', '清空缓存失败', { error: error.message });
+                    }
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了清空缓存操作');
+                }
+            });
+        });
+    }
+
+    // 清空临时数据
+    if (clearTempDataBtn) {
+        clearTempDataBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认清空临时数据',
+                message: '这将清除搜索历史、临时设置等非关键数据。确定继续吗？',
+                onConfirm: async () => {
+                    try {
+                        // 清除临时数据
+                        await chrome.storage.local.remove(['searchHistory', 'tempSettings', 'sessionData']);
+
+                        showMessage('临时数据已清空', 'success');
+                        logAsync('INFO', '用户清空了临时数据');
+                    } catch (error) {
+                        console.error('清空临时数据失败:', error);
+                        showMessage('清空临时数据失败', 'error');
+                        logAsync('ERROR', '清空临时数据失败', { error: error.message });
+                    }
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了清空临时数据操作');
+                }
+            });
+        });
+    }
+
+    // 重置所有设置
+    if (resetSettingsBtn) {
+        resetSettingsBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认重置所有设置',
+                message: '这将把所有设置恢复为默认值，但会保留您的数据记录。确定继续吗？',
+                onConfirm: async () => {
+                    try {
+                        // 获取默认设置
+                        const defaultSettings: ExtensionSettings = {
+                            hideViewed: false,
+                            hideBrowsed: false,
+                            hideVR: false,
+                            recordsPerPage: 50,
+                            webdav: {
+                                enabled: false,
+                                url: '',
+                                username: '',
+                                password: '',
+                                autoSync: false,
+                                syncInterval: 24
+                            },
+                            dataSync: {
+                                enabled: false,
+                                autoSync: false,
+                                syncInterval: 60,
+                                batchSize: 50,
+                                maxRetries: 3,
+                                requestInterval: 2,
+                                urls: {
+                                    collection: 'https://javdb.com/users/collection',
+                                    detail: 'https://javdb.com/v/{{VIDEO_ID}}'
+                                }
+                            },
+                            actorSync: {
+                                enabled: false,
+                                autoSync: false,
+                                syncInterval: 60,
+                                batchSize: 20,
+                                maxRetries: 3,
+                                requestInterval: 3,
+                                urls: {
+                                    collectionActors: 'https://javdb.com/users/collection_actors',
+                                    actorDetail: 'https://javdb.com/actors/{{ACTOR_ID}}'
+                                }
+                            },
+                            enhancement: {
+                                enableMultiSource: true,
+                                enableImageCache: true,
+                                enableVideoPreview: false,
+                                enableTranslation: false,
+                                enableRatingAggregation: true,
+                                enableActorInfo: true,
+                                cacheExpiration: 7
+                            },
+                            searchEngines: [],
+                            drive115: {
+                                enabled: false,
+                                cookie: '',
+                                autoDownload: false,
+                                downloadPath: '',
+                                maxConcurrent: 3
+                            },
+                            logs: {
+                                maxEntries: 1000
+                            }
+                        };
+
+                        // 保存默认设置
+                        await saveSettings(defaultSettings);
+                        STATE.settings = defaultSettings;
+
+                        showMessage('设置已重置为默认值，页面将刷新', 'success');
+                        logAsync('INFO', '用户重置了所有设置');
+
+                        // 刷新页面以应用新设置
+                        setTimeout(() => location.reload(), 1000);
+                    } catch (error) {
+                        console.error('重置设置失败:', error);
+                        showMessage('重置设置失败', 'error');
+                        logAsync('ERROR', '重置设置失败', { error: error.message });
+                    }
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了重置设置操作');
+                }
+            });
+        });
+    }
+
+    // 重新加载扩展
+    if (reloadExtensionBtn) {
+        reloadExtensionBtn.addEventListener('click', () => {
+            showConfirmationModal({
+                title: '确认重新加载扩展',
+                message: '这将重新加载扩展程序，当前页面会关闭。确定继续吗？',
+                onConfirm: () => {
+                    logAsync('INFO', '用户重新加载了扩展');
+                    chrome.runtime.reload();
+                },
+                onCancel: () => {
+                    logAsync('INFO', '用户取消了重新加载扩展操作');
+                }
+            });
+        });
+    }
+}
+
+// 确认对话框函数（如果不存在的话）
+function showConfirmationModal(options: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+}): void {
+    const isConfirmed = confirm(`${options.title}\n\n${options.message}`);
+    if (isConfirmed) {
+        options.onConfirm();
+    } else {
+        options.onCancel();
+    }
 }
