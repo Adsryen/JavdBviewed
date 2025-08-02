@@ -107,6 +107,8 @@ function bindEventBusListeners(): void {
     });
 }
 
+// handleActorGenderSyncRequest 函数已移除，性别信息现在直接从分类页面获取
+
 /**
  * 处理同步请求
  */
@@ -133,7 +135,39 @@ async function handleSyncRequest(event: Event): Promise<void> {
         ui.setAllButtonsDisabled(true);
         ui.showSyncProgress(true);
 
-        // 执行同步
+        // 特殊处理演员强制更新
+        if (type === 'actors' && mode === 'force') {
+            // 演员强制更新，使用专门的强制更新方法
+            const actorManager = SyncManagerFactory.getSyncManager('actors') as any;
+            const result = await actorManager.forceUpdate({
+                // 进度回调
+                onProgress: (progress: any) => {
+                    ui.updateProgress(progress);
+                },
+                // 完成回调
+                onComplete: (result: any) => {
+                    ui.showSyncProgress(false);
+                    if (result.success) {
+                        ui.showSuccess(result.message, result.details);
+                        showMessage(result.message, 'success');
+                    } else {
+                        ui.showError(result.message);
+                        showMessage(result.message, 'error');
+                    }
+                },
+                // 错误回调
+                onError: (error: Error) => {
+                    ui.showSyncProgress(false);
+                    ui.showError(error.message);
+                    showMessage(error.message, 'error');
+                }
+            });
+            return;
+        }
+
+        // 演员同步现在包含性别信息，使用标准的同步流程
+
+        // 执行标准同步
         const result = await SyncManagerFactory.executeSync(type, {
             mode,
             // 进度回调
@@ -309,6 +343,7 @@ function cleanup(): void {
     try {
         // 移除事件监听器
         document.removeEventListener('sync-requested', handleSyncRequest as EventListener);
+        document.removeEventListener('actor-gender-sync-requested', handleActorGenderSyncRequest as EventListener);
         window.removeEventListener('beforeunload', cleanup);
         
         // 重置状态

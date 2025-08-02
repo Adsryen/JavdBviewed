@@ -30,6 +30,16 @@ export interface SyncProgress {
     total?: number;
     stage?: 'pages' | 'details';
     phaseInfo?: PhaseInfo;   // 阶段信息（用于多阶段同步）
+    stats?: {
+        currentPage?: number;
+        totalProcessed?: number;
+        newActors?: number;
+        updatedActors?: number;
+        skippedActors?: number;
+        currentPageActors?: number;
+        currentPageProgress?: number;
+        currentPageTotal?: number;
+    };
 }
 
 // 同步结果

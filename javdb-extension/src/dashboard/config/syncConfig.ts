@@ -3,10 +3,10 @@
  */
 
 // 同步类型
-export type SyncType = 'all' | 'viewed' | 'want' | 'actors';
+export type SyncType = 'all' | 'viewed' | 'want' | 'actors' | 'actors-gender';
 
-// 同步模式（用于已观看和想看同步）
-export type SyncMode = 'full' | 'incremental';
+// 同步模式（用于已观看、想看和演员同步）
+export type SyncMode = 'full' | 'incremental' | 'basic' | 'gender';
 
 // 同步模式配置
 export interface SyncModeOption {
@@ -131,7 +131,8 @@ export function isSyncTypeSupported(type: SyncType): boolean {
         case 'viewed':
         case 'want':
         case 'actors':
-            return true; // 演员同步已实现
+        case 'actors-gender':
+            return true; // 演员同步和性别更新已实现
         default:
             return false;
     }
