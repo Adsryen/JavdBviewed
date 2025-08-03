@@ -358,11 +358,11 @@ export class ActorsTab {
         container.innerHTML = pagination;
 
         // 添加分页事件监听器
-        container.querySelectorAll('.page-btn').forEach(btn => {
+        container.querySelectorAll('.page-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 const page = parseInt((e.target as HTMLElement).dataset.page || '1');
-                if (page !== this.currentPage) {
+                if (page && page !== this.currentPage && !btn.hasAttribute('disabled')) {
                     this.currentPage = page;
                     this.loadActors();
                 }
@@ -374,49 +374,66 @@ export class ActorsTab {
      * 创建分页HTML
      */
     private createPaginationHTML(currentPage: number, totalPages: number, total: number): string {
-        const pages: string[] = [];
-        
-        // 上一页
-        if (currentPage > 1) {
-            pages.push(`<button class="page-btn" data-page="${currentPage - 1}">上一页</button>`);
-        }
-
-        // 页码
-        const startPage = Math.max(1, currentPage - 2);
-        const endPage = Math.min(totalPages, currentPage + 2);
-
-        if (startPage > 1) {
-            pages.push(`<button class="page-btn" data-page="1">1</button>`);
-            if (startPage > 2) {
-                pages.push(`<span class="page-ellipsis">...</span>`);
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const isActive = i === currentPage ? ' active' : '';
-            pages.push(`<button class="page-btn${isActive}" data-page="${i}">${i}</button>`);
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                pages.push(`<span class="page-ellipsis">...</span>`);
-            }
-            pages.push(`<button class="page-btn" data-page="${totalPages}">${totalPages}</button>`);
-        }
-
-        // 下一页
-        if (currentPage < totalPages) {
-            pages.push(`<button class="page-btn" data-page="${currentPage + 1}">下一页</button>`);
-        }
-
         return `
             <div class="pagination-info">
                 共 ${total} 个演员，第 ${currentPage}/${totalPages} 页
             </div>
-            <div class="pagination-controls">
-                ${pages.join('')}
+            <div class="pagination">
+                ${this.createPaginationButtons(currentPage, totalPages)}
             </div>
         `;
+    }
+
+    /**
+     * 创建分页按钮
+     */
+    private createPaginationButtons(currentPage: number, totalPages: number): string {
+        const buttons: string[] = [];
+
+        // 首页和上一页
+        buttons.push(`<button class="page-button" data-page="1" ${currentPage === 1 ? 'disabled' : ''} title="首页">
+            <i class="fas fa-angles-left"></i>
+        </button>`);
+        buttons.push(`<button class="page-button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} title="上一页">
+            <i class="fas fa-angle-left"></i>
+        </button>`);
+
+        // 页码逻辑
+        const pagesToShow = new Set<number>();
+        pagesToShow.add(1);
+        pagesToShow.add(totalPages);
+
+        for (let i = -2; i <= 2; i++) {
+            const page = currentPage + i;
+            if (page > 1 && page < totalPages) {
+                pagesToShow.add(page);
+            }
+        }
+        if (currentPage > 1 && currentPage < totalPages) {
+            pagesToShow.add(currentPage);
+        }
+
+        const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
+
+        let lastPage: number | null = null;
+        for (const page of sortedPages) {
+            if (lastPage !== null && page - lastPage > 1) {
+                buttons.push(`<button class="page-button ellipsis" disabled>...</button>`);
+            }
+            const isActive = page === currentPage ? ' active' : '';
+            buttons.push(`<button class="page-button${isActive}" data-page="${page}">${page}</button>`);
+            lastPage = page;
+        }
+
+        // 下一页和末页
+        buttons.push(`<button class="page-button" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} title="下一页">
+            <i class="fas fa-angle-right"></i>
+        </button>`);
+        buttons.push(`<button class="page-button" data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''} title="末页">
+            <i class="fas fa-angles-right"></i>
+        </button>`);
+
+        return buttons.join('');
     }
 
 

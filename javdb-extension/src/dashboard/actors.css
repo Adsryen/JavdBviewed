@@ -170,39 +170,7 @@
     }
 }
 
-/* 演员库统计信息 */
-.actor-stats-section {
-    margin-bottom: 20px;
-}
 
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-    margin-top: 10px;
-}
-
-.stat-item {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #e9ecef;
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #007bff;
-    margin-bottom: 5px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
 
 
 
@@ -230,6 +198,8 @@
     gap: 24px;
     margin-top: 24px;
 }
+
+
 
 /* 演员卡片 */
 .actor-card {
@@ -748,10 +718,6 @@
     .sync-btn {
         justify-content: center;
     }
-
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 
 @media (max-width: 480px) {
@@ -771,10 +737,6 @@
 
     .actor-card-avatar {
         margin-top: 60px;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
     }
 }
 
