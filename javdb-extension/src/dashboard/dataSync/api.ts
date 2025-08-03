@@ -183,36 +183,7 @@ export class ApiClient {
             const totalPages = Math.ceil(videoCount / 20);
             logAsync('INFO', `用户有${videoCount}个${syncConfig.displayName}视频，共${totalPages}页`);
 
-            // 3. 获取所有视频的ID列表
-            logAsync('INFO', `开始获取${syncConfig.displayName}视频ID列表...`);
-            const videoIds = await this.fetchAllVideoIds(
-                type,
-                totalPages,
-                config,
-                (current, total, stage) => onProgress?.({
-                    current,
-                    total,
-                    percentage: Math.round((current / total) * 100), // 页面获取阶段独立计算100%
-                    message: stage === 'pages' ? `获取${syncConfig.displayName}列表 (${current}/${total}页)...` : `同步${syncConfig.displayName}视频 (${current}/${total})...`,
-                    stage
-                }),
-                abortSignal
-            );
-
-            if (videoIds.length === 0) {
-                logAsync('WARN', `没有获取到任何${syncConfig.displayName}视频ID`);
-                return {
-                    success: true,
-                    syncedCount: 0,
-                    skippedCount: 0,
-                    errorCount: 0,
-                    newRecords: 0,
-                    updatedRecords: 0,
-                    message: `没有获取到${syncConfig.displayName}视频ID`
-                };
-            }
-
-            // 4. 获取详情页数据并保存
+            // 3. 初始化同步状态
             const settings = await getSettings();
             const requestInterval = settings.dataSync.requestInterval * 1000; // 转换为毫秒
 
@@ -220,60 +191,163 @@ export class ApiClient {
             let errorCount = 0;
             let newRecords = 0;
             let updatedRecords = 0;
+            let processedVideos = 0; // 已处理的视频总数
 
-            for (let i = 0; i < videoIds.length; i++) {
-                // 检查是否已取消
-                if (abortSignal?.aborted) {
-                    throw new SyncCancelledError('用户取消了同步操作');
-                }
+            // 增量同步相关变量
+            const isIncrementalMode = config.mode === 'incremental';
+            let existingRecordsCount = 0;
+            let shouldStopIncremental = false;
+            const incrementalTolerance = config.incrementalTolerance || 20;
 
-                const urlVideoId = videoIds[i];
-
+            // 如果是增量同步，先获取本地已存在的记录
+            let localRecords: Record<string, any> = {};
+            if (isIncrementalMode) {
                 try {
-                    // 获取详情页数据
-                    const videoData = await this.fetchVideoDetail(urlVideoId);
+                    // 所有视频记录都存储在同一个键中，通过status字段区分
+                    const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                    // 过滤出对应类型的记录
+                    localRecords = Object.fromEntries(
+                        Object.entries(allRecords).filter(([_, record]) => record.status === type)
+                    );
+                    logAsync('INFO', `增量同步模式：本地已有${Object.keys(localRecords).length}条${type}记录`);
+                } catch (error: any) {
+                    logAsync('WARN', '获取本地记录失败，将使用全量同步模式', { error: error.message });
+                }
+            }
 
-                    if (videoData) {
-                        // 使用从详情页提取的真正ID，如果没有则使用URL ID
-                        const realVideoId = videoData.id || urlVideoId;
+            // 4. 分页处理：获取一页就立即同步这一页的视频
+            logAsync('INFO', `开始分页处理${syncConfig.displayName}视频...`);
 
-                        // 检查是否为新记录
-                        const existingRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                        const isNewRecord = !existingRecords[realVideoId];
+            for (let page = 1; page <= totalPages; page++) {
+                try {
+                    // 检查是否已取消
+                    if (abortSignal?.aborted) {
+                        logAsync('INFO', `同步在第${page}页被取消`);
+                        throw new SyncCancelledError('用户取消了同步操作');
+                    }
 
-                        // 保存到本地存储，传入URL ID用于构建正确的javdbUrl
-                        await this.saveVideoRecord(realVideoId, videoData, syncConfig.status, urlVideoId);
-                        syncedCount++;
+                    // 4.1 获取当前页的视频数据
+                    logAsync('INFO', `正在获取第${page}页${syncConfig.displayName}视频...`);
+                    const videoData = await this.fetchVideoDataFromPage(type, page);
 
-                        if (isNewRecord) {
-                            newRecords++;
-                        } else {
-                            updatedRecords++;
+                    // 更新页面进度
+                    onProgress?.({
+                        current: page,
+                        total: totalPages,
+                        percentage: Math.round((page / totalPages) * 100),
+                        message: `获取${syncConfig.displayName}列表 (${page}/${totalPages}页)...`,
+                        stage: 'pages'
+                    });
+
+                    logAsync('INFO', `获取第${page}页${syncConfig.displayName}视频完成`, {
+                        page,
+                        totalPages,
+                        currentPageCount: videoData.length,
+                        videoData: videoData.slice(0, 3) // 显示前3个作为示例
+                    });
+
+                    // 4.2 立即处理当前页的每个视频
+                    for (let i = 0; i < videoData.length; i++) {
+                        // 检查是否已取消
+                        if (abortSignal?.aborted) {
+                            throw new SyncCancelledError('用户取消了同步操作');
                         }
 
-                        logAsync('INFO', `成功同步${syncConfig.displayName}视频 ${realVideoId}`);
-                    } else {
-                        errorCount++;
-                        logAsync('ERROR', `视频详情获取失败: ${urlVideoId}`);
+                        const video = videoData[i];
+                        const urlVideoId = video.urlId;
+
+                        try {
+                            // 增量同步检查
+                            if (isIncrementalMode && localRecords[urlVideoId]) {
+                                existingRecordsCount++;
+                                logAsync('INFO', `增量同步：跳过已存在的视频 ${urlVideoId}`, {
+                                    existingRecordsCount,
+                                    incrementalTolerance
+                                });
+
+                                // 检查是否超过容忍度
+                                if (existingRecordsCount >= incrementalTolerance) {
+                                    shouldStopIncremental = true;
+                                    logAsync('INFO', `增量同步：达到容忍度${incrementalTolerance}，准备停止同步`);
+                                    break;
+                                }
+                                continue;
+                            }
+
+                            // 获取视频详情页面
+                            const videoDetail = await this.fetchVideoDetail(urlVideoId);
+
+                            if (videoDetail) {
+                                // 使用从详情页提取的真正ID，如果没有则使用URL ID
+                                const realVideoId = videoDetail.id || urlVideoId;
+
+                                // 检查是否为新记录
+                                const existingRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                                const isNewRecord = !existingRecords[realVideoId];
+
+                                // 保存到本地存储，传入URL ID用于构建正确的javdbUrl
+                                await this.saveVideoRecord(realVideoId, videoDetail, syncConfig.status, urlVideoId);
+                                syncedCount++;
+
+                                if (isNewRecord) {
+                                    newRecords++;
+                                } else {
+                                    updatedRecords++;
+                                }
+
+                                logAsync('INFO', `成功同步${syncConfig.displayName}视频 ${realVideoId}`);
+                            } else {
+                                errorCount++;
+                                logAsync('ERROR', `视频详情获取失败: ${urlVideoId}`);
+                            }
+                        } catch (error: any) {
+                            errorCount++;
+                            logAsync('ERROR', `同步视频 ${urlVideoId} 失败`, { error: error.message });
+                        }
+
+                        // 更新视频处理进度
+                        processedVideos++;
+                        const detailProgress = Math.round((processedVideos / videoCount) * 100);
+                        onProgress?.({
+                            current: processedVideos,
+                            total: videoCount,
+                            percentage: detailProgress,
+                            message: `同步${syncConfig.displayName}视频 (${processedVideos}/${videoCount})...`,
+                            stage: 'details'
+                        });
+
+                        // 请求间隔
+                        if (i < videoData.length - 1 || page < totalPages) {
+                            await this.delay(requestInterval);
+                        }
                     }
+
+                    // 如果是增量同步且应该停止，则跳出页面循环
+                    if (isIncrementalMode && shouldStopIncremental) {
+                        logAsync('INFO', `增量同步提前结束，已处理${page}页，共${processedVideos}个视频`);
+                        break;
+                    }
+
+                    // 页面间隔
+                    if (page < totalPages) {
+                        logAsync('INFO', `等待1秒后获取下一页...`);
+                        await this.delay(1000); // 页面间隔1秒
+                    }
+
                 } catch (error: any) {
+                    logAsync('ERROR', `处理第${page}页${syncConfig.displayName}视频失败`, {
+                        page,
+                        totalPages,
+                        error: error.message
+                    });
+
+                    // 如果是取消错误，直接抛出
+                    if (error instanceof SyncCancelledError) {
+                        throw error;
+                    }
+
+                    // 其他错误继续处理下一页
                     errorCount++;
-                    logAsync('ERROR', `同步视频 ${urlVideoId} 失败`, { error: error.message });
-                }
-
-                // 更新进度（详情获取阶段独立计算100%）
-                const detailProgress = Math.round(((i + 1) / videoIds.length) * 100);
-                onProgress?.({
-                    current: i + 1,
-                    total: videoIds.length,
-                    percentage: detailProgress,
-                    message: `同步${syncConfig.displayName}视频 (${i + 1}/${videoIds.length})...`,
-                    stage: 'details'
-                });
-
-                // 请求间隔
-                if (i < videoIds.length - 1) {
-                    await this.delay(requestInterval);
                 }
             }
 
