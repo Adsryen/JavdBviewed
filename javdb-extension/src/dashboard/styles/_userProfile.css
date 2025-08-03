@@ -48,6 +48,18 @@
     color: rgba(255, 255, 255, 0.95);
 }
 
+.user-name {
+    position: relative;
+    width: 100%;
+}
+
+.user-name .user-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
 .user-details i {
     font-size: 12px;
     width: 14px;
@@ -64,14 +76,10 @@
 
 .user-actions {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    gap: 4px;
     flex-shrink: 0;
     align-items: center;
-    justify-content: flex-start;
-    position: absolute;
-    top: 0;
-    right: 0;
 }
 
 .refresh-btn,
@@ -79,18 +87,18 @@
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.25);
     color: rgba(255, 255, 255, 0.9);
-    padding: 6px;
-    border-radius: 6px;
+    padding: 4px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .refresh-btn:hover,
