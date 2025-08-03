@@ -17,6 +17,14 @@ import { getSettings, getValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 
 /**
+ * 视频数据接口
+ */
+interface VideoData {
+    urlId: string;
+    realId?: string;
+}
+
+/**
  * 同步类型配置接口
  */
 interface SyncTypeConfig {
@@ -459,8 +467,8 @@ export class SyncApiClient {
                             hasImage: !!videoData.javdbImage
                         });
 
-                        // 保存到本地存储，使用真正的视频ID和对应的状态
-                        await this.saveVideoRecord(realVideoId, videoData, syncConfig.status);
+                        // 保存到本地存储，使用真正的视频ID和对应的状态，传入URL ID用于构建正确的javdbUrl
+                        await this.saveVideoRecord(realVideoId, videoData, syncConfig.status, urlVideoId);
                         syncedCount++;
                         logAsync('INFO', `成功同步${syncConfig.displayName}视频 ${realVideoId} (URL ID: ${urlVideoId})`);
                     } else {
@@ -585,11 +593,44 @@ export class SyncApiClient {
                 }
 
                 logAsync('INFO', `正在获取第${page}页${syncConfig.displayName}视频...`);
-                const videoIds = await this.fetchVideoIdsFromPage(type, page);
+                const videoData = await this.fetchVideoDataFromPage(type, page);
+                const videoIds = videoData.map(v => v.urlId);
 
                 // 增量同步逻辑：检查当前页面的视频是否已存在
                 if (isIncrementalMode && !shouldStopIncremental) {
-                    const existingInCurrentPage = videoIds.filter(id => localRecords[id]);
+                    const existingInCurrentPage: string[] = [];
+
+                    for (const video of videoData) {
+                        let isExisting = false;
+
+                        // 优先使用真实番号进行比对
+                        if (video.realId) {
+                            isExisting = !!localRecords[video.realId];
+                            if (isExisting) {
+                                logAsync('INFO', `通过真实番号找到已存在记录: ${video.realId} (${video.urlId})`);
+                            }
+                        }
+
+                        // 如果没有真实番号或通过真实番号没找到，回退到javdbUrl比对
+                        if (!isExisting) {
+                            const existingRecord = Object.values(localRecords).find((record: any) => {
+                                if (record.javdbUrl) {
+                                    const urlParts = record.javdbUrl.split('/');
+                                    const lastPart = urlParts[urlParts.length - 1];
+                                    return lastPart === video.urlId;
+                                }
+                                return false;
+                            });
+                            isExisting = !!existingRecord;
+                            if (isExisting) {
+                                logAsync('INFO', `通过javdbUrl找到已存在记录: ${video.urlId}`);
+                            }
+                        }
+
+                        if (isExisting) {
+                            existingInCurrentPage.push(video.urlId);
+                        }
+                    }
                     existingRecordsCount += existingInCurrentPage.length;
 
                     logAsync('INFO', `第${page}页中有${existingInCurrentPage.length}个已存在的视频`, {
@@ -612,10 +653,11 @@ export class SyncApiClient {
                         // 当前页面没有已存在的记录，继续添加
                         allVideoIds.push(...videoIds);
                     }
-                } else {
-                    // 全量同步或已决定停止增量同步
+                } else if (!isIncrementalMode) {
+                    // 全量同步
                     allVideoIds.push(...videoIds);
                 }
+                // 如果是增量同步且已决定停止，则不添加视频ID
 
                 // 更新进度（页面获取进度）
                 onProgress?.(page, totalPages, 'pages');
@@ -645,6 +687,12 @@ export class SyncApiClient {
                     totalPages,
                     error: error.message
                 });
+
+                // 如果是增量同步且应该停止，则跳出循环
+                if (isIncrementalMode && shouldStopIncremental) {
+                    logAsync('INFO', `增量同步在错误后提前结束，已获取${page}页，共${allVideoIds.length}个视频ID`);
+                    break;
+                }
                 // 继续处理下一页
             }
         }
@@ -666,7 +714,66 @@ export class SyncApiClient {
     }
 
     /**
-     * 从指定页面获取视频ID列表（通用函数）
+     * 从指定页面获取视频数据列表（包含URL ID和真实番号）
+     */
+    private async fetchVideoDataFromPage(type: 'want' | 'viewed', page: number): Promise<VideoData[]> {
+        // 获取同步类型配置
+        const syncConfig = await this.getSyncTypeConfig(type);
+        const url = `${syncConfig.url}?page=${page}`;
+        logAsync('INFO', `请求${syncConfig.displayName}视频页面`, { page, url, baseUrl: syncConfig.url });
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
+                },
+                credentials: 'include'
+            });
+
+            logAsync('INFO', `${syncConfig.displayName}视频页面响应`, {
+                page,
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const html = await response.text();
+            logAsync('INFO', `${syncConfig.displayName}视频页面HTML获取成功`, {
+                page,
+                htmlLength: html.length,
+                hasVideoContent: html.includes('/v/'),
+                hasMovieList: html.includes('movie-list')
+            });
+
+            const videoData = this.parseVideoDataFromHTML(html);
+            logAsync('INFO', `${syncConfig.displayName}视频页面解析完成`, {
+                page,
+                videoCount: videoData.length,
+                withRealId: videoData.filter(v => v.realId).length,
+                videoData: videoData.slice(0, 3) // 显示前3个作为示例
+            });
+
+            return videoData;
+
+        } catch (error: any) {
+            logAsync('ERROR', `获取${syncConfig.displayName}视频页面失败`, { page, url, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * 从指定页面获取视频ID列表（保持兼容性）
      */
     private async fetchVideoIdsFromPage(type: 'want' | 'viewed', page: number): Promise<string[]> {
         // 获取同步类型配置
@@ -707,10 +814,12 @@ export class SyncApiClient {
                 hasMovieList: html.includes('movie-list')
             });
 
-            const videoIds = this.parseVideoIdsFromHTML(html);
+            const videoData = this.parseVideoDataFromHTML(html);
+            const videoIds = videoData.map(v => v.urlId);
             logAsync('INFO', `${syncConfig.displayName}视频页面解析完成`, {
                 page,
                 videoCount: videoIds.length,
+                withRealId: videoData.filter(v => v.realId).length,
                 videoIds: videoIds.slice(0, 3) // 显示前3个作为示例
             });
 
@@ -723,9 +832,77 @@ export class SyncApiClient {
     }
 
     /**
-     * 从页面HTML中解析视频ID（通用函数）
+     * 从页面HTML中解析视频数据（URL ID和真实番号）
+     */
+    private parseVideoDataFromHTML(html: string): VideoData[] {
+        const videoData: VideoData[] = [];
+
+        try {
+            logAsync('INFO', '开始解析视频页面HTML', {
+                htmlLength: html.length,
+                hasVideoLinks: html.includes('/v/'),
+                hasMovieList: html.includes('movie-list'),
+                hasVideoItems: html.includes('class="item"')
+            });
+
+            // 方法1：尝试同时获取URL ID和真实番号
+            const itemRegex = /<a[^>]*href="\/v\/([a-zA-Z0-9\-_]+)"[^>]*>[\s\S]*?<div class="video-title"[^>]*>[\s\S]*?<strong[^>]*>([^<]+)<\/strong>[\s\S]*?<\/a>/g;
+            let itemMatch;
+            const processedUrlIds = new Set<string>();
+
+            while ((itemMatch = itemRegex.exec(html)) !== null) {
+                const urlId = itemMatch[1];
+                const realId = itemMatch[2]?.trim();
+
+                if (urlId && !processedUrlIds.has(urlId)) {
+                    processedUrlIds.add(urlId);
+                    videoData.push({ urlId, realId });
+                    logAsync('INFO', `找到视频: ${urlId} -> ${realId || '未知番号'}`);
+                }
+            }
+
+            // 方法2：如果方法1没有找到足够的数据，回退到简单的URL ID匹配
+            if (videoData.length === 0) {
+                logAsync('INFO', '使用备用解析方法（仅URL ID）');
+                const videoLinkRegex = /href="\/v\/([a-zA-Z0-9\-_]+)"(?![^>]*reviews)/g;
+                let match;
+                while ((match = videoLinkRegex.exec(html)) !== null) {
+                    const urlId = match[1];
+                    if (urlId && urlId.length >= 2 && !processedUrlIds.has(urlId)) {
+                        processedUrlIds.add(urlId);
+                        videoData.push({ urlId });
+                        logAsync('INFO', `找到URL ID: ${urlId}`);
+                    }
+                }
+            }
+
+            logAsync('INFO', `HTML解析完成`, {
+                totalMatches: videoData.length,
+                withRealId: videoData.filter(v => v.realId).length,
+                onlyUrlId: videoData.filter(v => !v.realId).length,
+                videoData: videoData.slice(0, 5) // 显示前5个
+            });
+
+            return videoData;
+
+        } catch (error: any) {
+            logAsync('ERROR', '解析视频页面HTML失败', { error: error.message });
+            return [];
+        }
+    }
+
+    /**
+     * 从页面HTML中解析视频ID（保持兼容性）
      */
     private parseVideoIdsFromHTML(html: string): string[] {
+        const videoData = this.parseVideoDataFromHTML(html);
+        return videoData.map(v => v.urlId);
+    }
+
+    /**
+     * 原始的解析方法（已废弃，保留用于参考）
+     */
+    private parseVideoIdsFromHTMLOld(html: string): string[] {
         const videoIds: string[] = [];
 
         try {
@@ -1014,7 +1191,8 @@ export class SyncApiClient {
     private async saveVideoRecord(
         videoId: string,
         videoData: Partial<VideoRecord>,
-        status: 'want' | 'viewed' | 'browsed'
+        status: 'want' | 'viewed' | 'browsed',
+        urlVideoId?: string
     ): Promise<void> {
         try {
             const { getValue, setValue } = await import('../../utils/storage');
@@ -1026,11 +1204,14 @@ export class SyncApiClient {
             // 创建新记录
             const now = Date.now();
 
-            // 构建javdbUrl，优先使用videoData中的URL信息
+            // 构建javdbUrl，优先使用原始的URL ID
             let javdbUrl = `${this.baseUrl}/v/${videoId}`;
-
-            // 如果videoData中包含了原始的URL ID信息，可以考虑使用
-            // 但通常使用真正的videoId构建URL是正确的做法
+            if (urlVideoId) {
+                // 如果提供了URL ID，使用URL ID构建URL
+                javdbUrl = `${this.baseUrl}/v/${urlVideoId}`;
+            } else if (videoData.javdbUrl) {
+                javdbUrl = videoData.javdbUrl;
+            }
 
             const newRecord: VideoRecord = {
                 id: videoId,

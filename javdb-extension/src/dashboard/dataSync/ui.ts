@@ -14,6 +14,7 @@ import { SYNC_OPTIONS } from '../config/syncConfig';
 export class SyncUI {
     private static instance: SyncUI;
     private currentSyncType: SyncType | null = null;
+    private currentSyncMode: SyncMode | null = null;
     private eventsInitialized = false; // 跟踪事件是否已初始化
     private static globalInitialized = false; // 全局初始化标志
 
@@ -292,6 +293,9 @@ export class SyncUI {
      * 处理同步按钮点击
      */
     private async handleSyncClick(type: SyncType, mode?: SyncMode): Promise<void> {
+        // 保存当前同步模式
+        this.currentSyncMode = mode || 'full';
+
         // 触发自定义事件，让核心模块处理同步逻辑
         const event = new CustomEvent('sync-requested', {
             detail: { type, mode }
@@ -771,8 +775,19 @@ export class SyncUI {
      * 设置按钮加载状态
      */
     public setButtonLoadingState(type: SyncType, loading: boolean): void {
-        const button = document.querySelector(`[data-sync-type="${type}"]`) as HTMLButtonElement;
-        
+        // 根据同步类型和模式选择正确的按钮
+        let button: HTMLButtonElement | null = null;
+
+        if (this.currentSyncMode) {
+            // 如果有保存的同步模式，使用精确选择器
+            button = document.querySelector(`[data-sync-type="${type}"][data-sync-mode="${this.currentSyncMode}"]`) as HTMLButtonElement;
+        }
+
+        // 如果没找到或没有模式信息，回退到通用选择器
+        if (!button) {
+            button = document.querySelector(`[data-sync-type="${type}"]`) as HTMLButtonElement;
+        }
+
         if (button) {
             if (loading) {
                 button.classList.add('loading');
@@ -782,6 +797,7 @@ export class SyncUI {
                 button.classList.remove('loading');
                 button.disabled = false;
                 this.currentSyncType = null;
+                this.currentSyncMode = null; // 清除模式信息
             }
         }
     }
@@ -802,6 +818,13 @@ export class SyncUI {
                 btn.disabled = !option?.enabled;
             }
         });
+    }
+
+    /**
+     * 设置当前同步模式
+     */
+    public setSyncMode(mode: SyncMode): void {
+        this.currentSyncMode = mode;
     }
 
     /**
