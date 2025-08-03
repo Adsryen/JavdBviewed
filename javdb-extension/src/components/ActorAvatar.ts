@@ -149,34 +149,81 @@ export class ActorAvatar {
         try {
             // 添加加载状态
             this.element.classList.add('actor-avatar-loading');
+            console.log(`Loading avatar for ${this.actorId}: ${avatarUrl}`);
 
             // 尝试从缓存获取
             const cachedUrl = await this.getCachedImage(avatarUrl);
             if (cachedUrl) {
+                console.log(`Using cached avatar for ${this.actorId}`);
                 this.img.src = cachedUrl;
                 return;
             }
 
-            // 预加载图片
-            const tempImg = new Image();
-            tempImg.crossOrigin = 'anonymous';
-            
-            await new Promise<void>((resolve, reject) => {
-                tempImg.onload = () => resolve();
-                tempImg.onerror = () => reject(new Error('Failed to load image'));
-                tempImg.src = avatarUrl;
-            });
+            // 尝试多种加载方式
+            let success = false;
 
-            // 缓存图片
-            await this.cacheImage(avatarUrl, tempImg);
-            
-            // 设置图片
-            this.img.src = avatarUrl;
+            // 方式1: 直接加载（不设置crossOrigin）
+            try {
+                await this.tryLoadImage(avatarUrl, false);
+                success = true;
+                console.log(`Direct load success for ${this.actorId}`);
+            } catch (error) {
+                console.log(`Direct load failed for ${this.actorId}:`, error);
+            }
+
+            // 方式2: 如果直接加载失败，尝试设置crossOrigin
+            if (!success) {
+                try {
+                    await this.tryLoadImage(avatarUrl, true);
+                    success = true;
+                    console.log(`CORS load success for ${this.actorId}`);
+                } catch (error) {
+                    console.log(`CORS load failed for ${this.actorId}:`, error);
+                }
+            }
+
+            if (success) {
+                // 缓存图片
+                try {
+                    const tempImg = new Image();
+                    tempImg.src = avatarUrl;
+                    await this.cacheImage(avatarUrl, tempImg);
+                } catch (cacheError) {
+                    console.warn(`Failed to cache avatar for ${this.actorId}:`, cacheError);
+                }
+
+                // 设置图片
+                this.img.src = avatarUrl;
+            } else {
+                throw new Error('All loading methods failed');
+            }
 
         } catch (error) {
             console.warn(`Failed to load actor avatar for ${this.actorId}:`, error);
             this.handleImageError();
         }
+    }
+
+    /**
+     * 尝试加载图片
+     */
+    private async tryLoadImage(url: string, useCors: boolean): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            const tempImg = new Image();
+            if (useCors) {
+                tempImg.crossOrigin = 'anonymous';
+            }
+
+            tempImg.onload = () => resolve();
+            tempImg.onerror = () => reject(new Error(`Image load failed (CORS: ${useCors})`));
+
+            // 设置超时
+            setTimeout(() => {
+                reject(new Error(`Image load timeout (CORS: ${useCors})`));
+            }, 5000);
+
+            tempImg.src = url;
+        });
     }
 
     /**
@@ -194,11 +241,11 @@ export class ActorAvatar {
     private handleImageError(): void {
         this.element.classList.remove('actor-avatar-loading');
         this.element.classList.add('actor-avatar-error');
-        
-        // 如果当前不是默认头像，则回退到默认头像
-        if (!this.element.classList.contains('actor-avatar-default')) {
-            this.element.classList.add('actor-avatar-default');
-        }
+
+        console.log(`Avatar load failed for ${this.actorId}, keeping default avatar`);
+
+        // 保持默认头像，不需要额外操作
+        // 默认头像已经在构造函数中设置了
     }
 
     /**
