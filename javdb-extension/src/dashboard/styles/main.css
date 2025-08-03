@@ -22,11 +22,104 @@ body {
     width: 280px;
     flex-shrink: 0;
     padding: 25px;
-    border-right: 1px solid #e8e8e8;
     background-color: #fafbfc;
     border-radius: 16px 0 0 16px;
     display: flex;
     flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    width: 60px;
+    padding: 25px 15px;
+}
+
+.sidebar.collapsed .sidebar-section {
+    display: none;
+}
+
+.sidebar.collapsed .title-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.2s ease, width 0.3s ease;
+}
+
+/* 侧边栏分界线和切换按钮 */
+.sidebar-divider {
+    position: relative;
+    width: 1px;
+    background: #e8e8e8;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle-btn {
+    position: absolute;
+    width: 10px;
+    height: 150px;
+    border: 1px solid #e8e8e8;
+    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    border-radius: 0 6px 6px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #6c757d;
+    font-size: 9px;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+    z-index: 10;
+    left: -1px;
+    top: 80px;
+    transform-origin: left center;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    min-width: unset;
+    max-width: 10px;
+}
+
+.sidebar-toggle-btn:hover {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #495057;
+    width: 14px;
+    max-width: 14px;
+    box-shadow: 3px 0 16px rgba(0, 0, 0, 0.12);
+    border-color: #007bff;
+}
+
+.sidebar-toggle-btn:active {
+    width: 10px;
+    max-width: 10px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
+}
+
+.sidebar.collapsed + .sidebar-divider .sidebar-toggle-btn i {
+    transform: rotate(180deg);
+}
+
+/* 长条按钮的图标样式优化 */
+.sidebar-toggle-btn i {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.8;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.sidebar-toggle-btn:hover i {
+    opacity: 1;
 }
 
 .main-content {
@@ -227,12 +320,45 @@ button:disabled {
     color: #333;
     padding-bottom: 15px;
     border-bottom: 1px solid #e0e0e0;
+    min-height: 43px;
+    box-sizing: border-box;
 }
 
 .title-content {
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 收缩状态下的标题样式 */
+.sidebar.collapsed .panel-title {
+    justify-content: flex-start;
+    padding-bottom: 15px;
+    margin-bottom: 0;
+    position: relative;
+}
+
+.sidebar.collapsed .title-content {
+    gap: 0;
+    justify-content: center;
+    width: 100%;
+}
+
+.sidebar.collapsed .title-icon {
+    margin-right: 0;
+    position: relative;
+    transform: none;
+}
+
+/* 主内容区域自适应 */
+.dashboard-container {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 收缩状态下的帮助按钮 */
+.sidebar.collapsed #helpBtn {
+    display: none;
 }
 
 .title-icon {
@@ -240,7 +366,9 @@ button:disabled {
     height: 28px;
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .title-icon:hover {
@@ -248,9 +376,19 @@ button:disabled {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 防止图片加载时显示破损图标 */
+.title-icon:not([src]),
+.title-icon[src=""] {
+    display: none !important;
+}
+
 .title-text {
     font-weight: 600;
     color: #333;
+    transition: opacity 0.2s ease, width 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 #helpBtn {
     cursor: pointer;
@@ -534,4 +672,214 @@ button.primary {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-} 
+}
+
+/* ===== 通用分页样式 ===== */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0;
+    padding: 15px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 分页按钮通用样式 */
+.page-button {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
+.page-button:hover:not(:disabled):not(.ellipsis) {
+    border-color: #007bff;
+    color: #007bff;
+    background: #f8f9fa;
+}
+
+.page-button:active:not(:disabled):not(.ellipsis) {
+    transform: translateY(1px);
+}
+
+.page-button.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    cursor: default;
+}
+
+.page-button:disabled {
+    background: #f8f9fa;
+    color: #6c757d;
+    border-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.page-button.ellipsis {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+    cursor: default;
+    font-weight: bold;
+}
+
+.page-button.ellipsis:hover {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+}
+
+/* 分页信息样式 */
+.pagination-info {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .pagination {
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .page-button {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        font-size: 13px;
+    }
+
+    .pagination-controls {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-button {
+        min-width: 28px;
+        height: 28px;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .pagination {
+        gap: 2px;
+    }
+}
+
+/* ===== 通用统计概览样式 ===== */
+.stats-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    border-radius: 16px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.stats-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.stats-section .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+    }
+
+    .stats-section .stat-item {
+        padding: 12px;
+    }
+
+    .stats-section .stat-value {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+        gap: 10px;
+    }
+
+    .stats-section {
+        padding: 16px;
+    }
+
+    .stats-section .stat-item {
+        padding: 10px;
+    }
+
+    .stats-section .stat-value {
+        font-size: 18px;
+    }
+
+    .stats-section .stat-label {
+        font-size: 11px;
+    }
+}

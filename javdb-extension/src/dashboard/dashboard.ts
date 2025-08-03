@@ -31,6 +31,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const titleIcon = document.getElementById('title-icon') as HTMLImageElement;
     if (titleIcon) {
         titleIcon.src = chrome.runtime.getURL('assets/favicon-32x32.png');
+        titleIcon.onload = () => {
+            titleIcon.style.display = 'block';
+        };
+        titleIcon.onerror = () => {
+            // 如果图片加载失败，隐藏图片元素
+            titleIcon.style.display = 'none';
+        };
     }
 
     // 初始化115服务
@@ -449,6 +456,9 @@ function setSyncingStatus(isUploading: boolean = false): void {
 }
 
 function initSidebarActions(): void {
+    // 初始化侧边栏收缩功能
+    initSidebarToggle();
+
     const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
     const syncNowBtn = document.getElementById('syncNow') as HTMLButtonElement;
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
@@ -561,6 +571,75 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
         showMessage(message.message, message.toastType || 'info');
     }
 });
+
+/**
+ * 初始化侧边栏收缩功能
+ */
+function initSidebarToggle(): void {
+    const SIDEBAR_STATE_KEY = 'sidebar-collapsed';
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    const toggleBtn = document.getElementById('sidebarToggleBtn') as HTMLButtonElement;
+
+    if (!sidebar || !toggleBtn) {
+        console.warn('侧边栏或切换按钮未找到');
+        return;
+    }
+
+    // 从存储中恢复侧边栏状态
+    const restoreSidebarState = async () => {
+        try {
+            const isCollapsed = await getValue(SIDEBAR_STATE_KEY, false);
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                // 更新按钮图标
+                const icon = toggleBtn.querySelector('i');
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        } catch (error) {
+            console.error('恢复侧边栏状态失败:', error);
+        }
+    };
+
+    // 保存侧边栏状态
+    const saveSidebarState = async (isCollapsed: boolean) => {
+        try {
+            await setValue(SIDEBAR_STATE_KEY, isCollapsed);
+        } catch (error) {
+            console.error('保存侧边栏状态失败:', error);
+        }
+    };
+
+    // 切换侧边栏状态
+    const toggleSidebar = () => {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+
+        if (isCollapsed) {
+            sidebar.classList.remove('collapsed');
+            saveSidebarState(false);
+        } else {
+            sidebar.classList.add('collapsed');
+            saveSidebarState(true);
+        }
+
+        // 更新按钮图标方向
+        const icon = toggleBtn.querySelector('i');
+        if (icon) {
+            if (sidebar.classList.contains('collapsed')) {
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    };
+
+    // 绑定点击事件
+    toggleBtn.addEventListener('click', toggleSidebar);
+
+    // 恢复状态
+    restoreSidebarState();
+}
 
 // Export functions for use in other modules
 export { updateSyncStatus };

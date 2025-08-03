@@ -35,19 +35,19 @@ export function initUserProfileSection(): void {
                         <div class="user-name">
                             <i class="fas fa-user"></i>
                             <span id="user-name-text">-</span>
+                            <div class="user-actions">
+                                <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button id="logout-btn" class="logout-btn" title="退出登录">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="user-type">
                             <i class="fas fa-crown"></i>
                             <span id="user-type-text">-</span>
                         </div>
-                    </div>
-                    <div class="user-actions">
-                        <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button id="logout-btn" class="logout-btn" title="退出登录">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
                     </div>
                 </div>
                 <div class="user-server-stats" id="user-server-stats" style="display: none;">

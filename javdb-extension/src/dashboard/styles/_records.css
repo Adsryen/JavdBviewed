@@ -1,8 +1,12 @@
+
+
 /* Search and Filter */
 .search-and-filter {
-    display: flex;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 2fr;
     gap: 15px;
     margin-bottom: 20px;
+    align-items: start;
 }
 #searchInput {
     flex-grow: 1;
@@ -20,6 +24,122 @@
     font-size: 14px;
     background-color: var(--background-color);
     color: var(--text-color);
+}
+
+/* Tags Filter Styles */
+.tags-filter-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#tagsFilterInput {
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    cursor: pointer;
+    position: relative;
+}
+
+#tagsFilterInput::after {
+    content: "▼";
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.tags-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-height: 300px;
+    overflow: hidden;
+}
+
+.tags-search-box {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.tags-search-box input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.tags-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.tag-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    font-size: 14px;
+}
+
+.tag-option:hover {
+    background-color: #f8f9fa;
+}
+
+.tag-option.selected {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.tag-option input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 24px;
+}
+
+.selected-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #e3f2fd;
+    color: #1976d2;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.selected-tag .remove-tag {
+    cursor: pointer;
+    font-weight: bold;
+    color: #1976d2;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.selected-tag .remove-tag:hover {
+    opacity: 1;
 }
 
 /* Video List */
@@ -183,11 +303,22 @@
     font-weight: 500;
     border: 1px solid #e0e0e0;
     transition: all 0.2s ease;
+    cursor: pointer;
+    user-select: none;
 }
 
 .video-tag:hover {
-    background-color: #e8e8e8;
-    color: #333;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border-color: #1976d2;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.video-tag.selected {
+    background-color: #1976d2;
+    color: white;
+    border-color: #1976d2;
 }
 
 .video-title {
@@ -1092,48 +1223,6 @@
 .batch-progress-details {
     color: #6c757d;
     font-size: 14px;
-}
-
-/* Pagination */
-.pagination button {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    min-width: 38px;
-    height: 38px;
-    padding: 0 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    box-shadow: none;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-}
-.pagination button:not(:disabled):hover {
-    background-color: var(--background-hover);
-    border-color: var(--border-color-hover);
-    transform: none; /* Override general button hover effect */
-}
-.pagination button.active {
-    background-color: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-    cursor: default;
-}
-.pagination button:disabled:not(.active) {
-    background-color: var(--background-disabled);
-    color: var(--text-disabled);
-    opacity: 1;
-}
-.pagination button.ellipsis {
-    background: transparent;
-    border: none;
-    padding: 0 5px;
-    box-shadow: none;
-    cursor: default;
-}
-
-.pagination button.ellipsis:hover {
-    transform: none;
-    background: transparent;
 }
 
 /* JSON Tooltip */

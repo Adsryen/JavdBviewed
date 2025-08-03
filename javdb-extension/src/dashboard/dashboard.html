@@ -13,7 +13,7 @@
         <div class="sidebar">
             <h1 class="panel-title">
                 <div class="title-content">
-                    <img id="title-icon" alt="Jav 助手" class="title-icon">
+                    <img id="title-icon" alt="Jav 助手" class="title-icon" style="display: none;">
                     <span class="title-text">Jav 助手</span>
                 </div>
                 <span id="helpBtn" title="功能说明">❓</span>
@@ -25,15 +25,6 @@
                     <!-- 账号信息将由 JS 动态填充 -->
                 </div>
             </div>
-
-            <div class="sidebar-section">
-                <h4>数据概览</h4>
-                <div id="stats-overview">
-                    <!-- 统计信息将由 JS 动态填充 -->
-                </div>
-            </div>
-
-
 
             <div class="sidebar-section">
                 <h4>本地备份</h4>
@@ -67,6 +58,13 @@
 
         </div>
 
+        <!-- 侧边栏分界线和切换按钮 -->
+        <div class="sidebar-divider">
+            <button id="sidebarToggleBtn" class="sidebar-toggle-btn" title="收缩/展开侧边栏">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+
         <div class="main-content">
             <div class="tabs">
                 <button class="tab-link active" data-tab="tab-records">番号库</button>
@@ -78,6 +76,14 @@
     
             <div id="tab-records" class="tab-content active">
                 <div class="card">
+                    <!-- 番号库统计信息 -->
+                    <div class="stats-section">
+                        <h4>番号库概览</h4>
+                        <div id="recordsStatsContainer" class="stats-grid">
+                            <!-- 统计信息将由 JS 动态填充 -->
+                        </div>
+                    </div>
+
                     <div class="search-and-filter">
                         <input type="text" id="searchInput" placeholder="搜索番号或标题...">
                         <select id="filterSelect">
@@ -94,6 +100,20 @@
                             <option value="id_asc">按番号排序 (A-Z)</option>
                             <option value="id_desc">按番号排序 (Z-A)</option>
                         </select>
+                        <div class="tags-filter-container">
+                            <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
+                            <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
+                                <div class="tags-search-box">
+                                    <input type="text" id="tagsSearchInput" placeholder="输入标签名称...">
+                                </div>
+                                <div id="tagsFilterList" class="tags-list">
+                                    <!-- 标签列表将由 JS 动态填充 -->
+                                </div>
+                            </div>
+                            <div id="selectedTagsContainer" class="selected-tags">
+                                <!-- 已选择的标签将由 JS 动态填充 -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 批量操作控件 -->
@@ -147,7 +167,7 @@
             <div id="tab-actors" class="tab-content">
                 <div class="card">
                     <!-- 演员库统计信息 -->
-                    <div class="actor-stats-section">
+                    <div class="stats-section">
                         <h4>演员库概览</h4>
                         <div id="actorStatsContainer" class="stats-grid">
                             <!-- 统计信息将由 JS 动态填充 -->

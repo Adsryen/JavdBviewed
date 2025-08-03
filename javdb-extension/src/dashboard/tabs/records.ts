@@ -12,6 +12,13 @@ export function initRecordsTab(): void {
     const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
+    // Tags filter elements
+    const tagsFilterInput = document.getElementById('tagsFilterInput') as HTMLInputElement;
+    const tagsFilterDropdown = document.getElementById('tagsFilterDropdown') as HTMLElement;
+    const tagsSearchInput = document.getElementById('tagsSearchInput') as HTMLInputElement;
+    const tagsFilterList = document.getElementById('tagsFilterList') as HTMLElement;
+    const selectedTagsContainer = document.getElementById('selectedTagsContainer') as HTMLElement;
+
     // 批量操作相关元素
     const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
     const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
@@ -25,6 +32,10 @@ export function initRecordsTab(): void {
 
     // 选择状态
     let selectedRecords = new Set<string>();
+
+    // Tags filter state
+    let selectedTags = new Set<string>();
+    let allTags = new Set<string>();
 
     function createTooltip() {
         if (tooltipElement) return;
@@ -85,7 +96,13 @@ export function initRecordsTab(): void {
                     (record.id && record.id.toLowerCase().includes(searchTerm)) ||
                     (record.title && record.title.toLowerCase().includes(searchTerm));
                 const matchesFilter = filterValue === 'all' || record.status === filterValue;
-                return matchesSearch && matchesFilter;
+
+                // Tags filter
+                const matchesTags = selectedTags.size === 0 ||
+                    (record.tags && Array.isArray(record.tags) &&
+                     Array.from(selectedTags).every(tag => record.tags.includes(tag)));
+
+                return matchesSearch && matchesFilter && matchesTags;
             });
 
             // Add sorting logic
@@ -356,7 +373,9 @@ export function initRecordsTab(): void {
 
             // 生成tags HTML
             const tagsHtml = record.tags && record.tags.length > 0
-                ? `<div class="video-tags">${record.tags.map(tag => `<span class="video-tag">${tag}</span>`).join('')}</div>`
+                ? `<div class="video-tags">${record.tags.map(tag =>
+                    `<span class="video-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`
+                ).join('')}</div>`
                 : '';
 
             li.innerHTML = `
@@ -446,8 +465,8 @@ export function initRecordsTab(): void {
 
             // 添加点击事件处理
             li.addEventListener('click', (e) => {
-                // 如果点击的是按钮或链接，不触发选择
-                if ((e.target as HTMLElement).closest('button, a')) {
+                // 如果点击的是按钮、链接或标签，不触发选择
+                if ((e.target as HTMLElement).closest('button, a, .video-tag')) {
                     return;
                 }
 
@@ -460,6 +479,26 @@ export function initRecordsTab(): void {
             if (selectedRecords.has(record.id)) {
                 li.classList.add('selected');
             }
+
+            // 为video-tag添加点击事件
+            const videoTags = li.querySelectorAll('.video-tag');
+            videoTags.forEach(tagElement => {
+                tagElement.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 防止触发行选择
+                    const tag = tagElement.getAttribute('data-tag');
+                    if (tag) {
+                        if (selectedTags.has(tag)) {
+                            selectedTags.delete(tag);
+                        } else {
+                            selectedTags.add(tag);
+                        }
+                        currentPage = 1;
+                        updateFilteredRecords();
+                        render();
+                        refreshTagsFilterDisplay();
+                    }
+                });
+            });
 
             // Append the icons container to the list item
             li.appendChild(controlsContainer);
@@ -570,11 +609,175 @@ export function initRecordsTab(): void {
     function render() {
         renderVideoList();
         renderPagination();
+        updateStats();
+    }
+
+    function updateStats() {
+        const statsContainer = document.getElementById('recordsStatsContainer');
+        if (!statsContainer) return;
+
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        const stats = {
+            total: STATE.records.length,
+            viewed: STATE.records.filter(r => r.status === 'viewed').length,
+            browsed: STATE.records.filter(r => r.status === 'browsed').length,
+            want: STATE.records.filter(r => r.status === 'want').length,
+            thisWeek: STATE.records.filter(r => new Date(r.createdAt) >= oneWeekAgo).length,
+            thisMonth: STATE.records.filter(r => new Date(r.createdAt) >= oneMonthAgo).length
+        };
+
+        statsContainer.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-value">${stats.total}</div>
+                <div class="stat-label">总番号数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.viewed}</div>
+                <div class="stat-label">已观看</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.browsed}</div>
+                <div class="stat-label">已浏览</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.want}</div>
+                <div class="stat-label">我想看</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.thisWeek}</div>
+                <div class="stat-label">本周新增</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.thisMonth}</div>
+                <div class="stat-label">本月新增</div>
+            </div>
+        `;
+    }
+
+    function collectAllTags() {
+        allTags.clear();
+        STATE.records.forEach(record => {
+            if (record.tags && Array.isArray(record.tags)) {
+                record.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+    }
+
+    function renderTagsFilter() {
+        collectAllTags();
+        const sortedTags = Array.from(allTags).sort();
+
+        tagsFilterList.innerHTML = sortedTags.map(tag => `
+            <div class="tag-option ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}">
+                <input type="checkbox" ${selectedTags.has(tag) ? 'checked' : ''}>
+                <span>${tag}</span>
+            </div>
+        `).join('');
+
+        updateSelectedTagsDisplay();
+        updateTagsFilterInput();
+    }
+
+    function refreshTagsFilterDisplay() {
+        // 更新下拉框中的选择状态
+        const tagOptions = tagsFilterList.querySelectorAll('.tag-option');
+        tagOptions.forEach(option => {
+            const tag = option.getAttribute('data-tag');
+            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            if (tag) {
+                const isSelected = selectedTags.has(tag);
+                option.classList.toggle('selected', isSelected);
+                if (checkbox) {
+                    checkbox.checked = isSelected;
+                }
+            }
+        });
+
+        updateSelectedTagsDisplay();
+        updateTagsFilterInput();
+    }
+
+    function updateSelectedTagsDisplay() {
+        selectedTagsContainer.innerHTML = Array.from(selectedTags).map(tag => `
+            <div class="selected-tag">
+                <span>${tag}</span>
+                <span class="remove-tag" data-tag="${tag}">×</span>
+            </div>
+        `).join('');
+    }
+
+    function updateTagsFilterInput() {
+        const count = selectedTags.size;
+        tagsFilterInput.value = count > 0 ? `已选择 ${count} 个标签` : '点击选择标签';
+    }
+
+    function filterTagsList(searchTerm: string) {
+        const tagOptions = tagsFilterList.querySelectorAll('.tag-option');
+        tagOptions.forEach(option => {
+            const tagName = option.querySelector('span')?.textContent || '';
+            const matches = tagName.toLowerCase().includes(searchTerm.toLowerCase());
+            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
+        });
     }
 
     searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
     sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
+
+    // Tags filter event listeners
+    tagsFilterInput.addEventListener('click', () => {
+        tagsFilterDropdown.style.display = tagsFilterDropdown.style.display === 'none' ? 'block' : 'none';
+        if (tagsFilterDropdown.style.display === 'block') {
+            renderTagsFilter();
+            tagsSearchInput.focus();
+        }
+    });
+
+    tagsSearchInput.addEventListener('input', (e) => {
+        filterTagsList((e.target as HTMLInputElement).value);
+    });
+
+    tagsFilterList.addEventListener('click', (e) => {
+        const tagOption = (e.target as HTMLElement).closest('.tag-option');
+        if (tagOption) {
+            const tag = tagOption.getAttribute('data-tag');
+            if (tag) {
+                if (selectedTags.has(tag)) {
+                    selectedTags.delete(tag);
+                } else {
+                    selectedTags.add(tag);
+                }
+                refreshTagsFilterDisplay();
+                currentPage = 1;
+                updateFilteredRecords();
+                render();
+            }
+        }
+    });
+
+    selectedTagsContainer.addEventListener('click', (e) => {
+        const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
+        if (removeBtn) {
+            const tag = removeBtn.getAttribute('data-tag');
+            if (tag) {
+                selectedTags.delete(tag);
+                refreshTagsFilterDisplay();
+                currentPage = 1;
+                updateFilteredRecords();
+                render();
+            }
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!tagsFilterInput.contains(e.target as Node) && !tagsFilterDropdown.contains(e.target as Node)) {
+            tagsFilterDropdown.style.display = 'none';
+        }
+    });
 
     recordsPerPageSelect.addEventListener('change', () => {
         recordsPerPage = parseInt(recordsPerPageSelect.value, 10);
@@ -592,6 +795,7 @@ export function initRecordsTab(): void {
 
     updateFilteredRecords();
     render();
+    renderTagsFilter(); // 初始化标签筛选
     updateBatchUI(); // 初始化批量操作UI状态
 
     // 编辑记录的modal功能
