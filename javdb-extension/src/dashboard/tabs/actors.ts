@@ -3,6 +3,7 @@
 
 import { actorManager } from '../../services/actorManager';
 import { ActorAvatar } from '../../components/ActorAvatar';
+import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorSearchResult } from '../../types';
@@ -175,16 +176,15 @@ export class ActorsTab {
             const avatarContainer = document.getElementById(`actor-avatar-${actor.id}`);
 
             if (avatarContainer) {
-                const avatar = new ActorAvatar(
+                // 使用简化的头像组件
+                const avatarElement = SimpleActorAvatar.create(
                     actor.id,
                     actor.avatarUrl,
                     actor.gender,
-                    {
-                        size: 'large',
-                        onClick: (actorId) => this.openActorWorks(actorId)
-                    }
+                    'large',
+                    (actorId) => this.openActorWorks(actorId)
                 );
-                avatarContainer.appendChild(avatar.getElement());
+                avatarContainer.appendChild(avatarElement);
 
                 // 如果有头像，设置卡片背景
                 if (actor.avatarUrl && actorCard) {

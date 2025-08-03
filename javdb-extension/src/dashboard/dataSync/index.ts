@@ -131,6 +131,7 @@ async function handleSyncRequest(event: Event): Promise<void> {
         }
 
         // 设置UI状态
+        ui.setSyncMode(mode || 'full'); // 先设置同步模式
         ui.setButtonLoadingState(type, true);
         ui.setAllButtonsDisabled(true);
         ui.showSyncProgress(true);
