@@ -70,12 +70,22 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     }
 
     try {
+        // 获取所有需要同步的数据
         const recordsToSync = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
         const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+        const actorRecords = await getValue(STORAGE_KEYS.ACTOR_RECORDS, {});
+        const logs = await getValue(STORAGE_KEYS.LOGS, []);
+        const importStats = await getValue(STORAGE_KEYS.LAST_IMPORT_STATS, null);
+
         const dataToExport = {
+            version: '2.0', // 添加版本号以支持向后兼容
+            timestamp: new Date().toISOString(),
             settings: settings,
             data: recordsToSync,
-            userProfile: userProfile
+            userProfile: userProfile,
+            actorRecords: actorRecords, // 新增：演员库数据
+            logs: logs, // 新增：持久化日志
+            importStats: importStats // 新增：导入统计
         };
         const now = new Date();
         const year = now.getFullYear();
@@ -116,7 +126,15 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     }
 }
 
-async function performRestore(filename: string, options = { restoreSettings: true, restoreRecords: true, restoreUserProfile: true }): Promise<{ success: boolean; error?: string }> {
+async function performRestore(filename: string, options = {
+    restoreSettings: true,
+    restoreRecords: true,
+    restoreUserProfile: true,
+    restoreActorRecords: true, // 新增：恢复演员库
+    restoreLogs: false, // 新增：恢复日志（默认关闭）
+    restoreImportStats: false, // 新增：恢复导入统计（默认关闭）
+    preview: false // 新增：预览模式
+}): Promise<{ success: boolean; error?: string; data?: any }> {
     await logger.info(`Attempting to restore from WebDAV.`, { filename, options });
     const settings = await getSettings();
     if (!settings.webdav.enabled || !settings.webdav.url) {
@@ -155,19 +173,77 @@ async function performRestore(filename: string, options = { restoreSettings: tru
 
         const fileContents = await response.text();
         const importData = JSON.parse(fileContents);
-        
+
+        await logger.info('Parsed backup data', {
+            hasSettings: !!importData.settings,
+            hasData: !!importData.data,
+            hasUserProfile: !!importData.userProfile,
+            hasActorRecords: !!importData.actorRecords,
+            hasLogs: !!importData.logs,
+            hasImportStats: !!importData.importStats,
+            version: importData.version || '1.0',
+            preview: options.preview
+        });
+
+        // 如果是预览模式，只返回数据结构信息
+        if (options.preview) {
+            return {
+                success: true,
+                data: {
+                    version: importData.version || '1.0',
+                    timestamp: importData.timestamp,
+                    settings: !!importData.settings,
+                    data: !!(importData.data || importData.viewed), // 兼容旧格式
+                    userProfile: !!importData.userProfile,
+                    actorRecords: !!importData.actorRecords,
+                    logs: !!importData.logs,
+                    importStats: !!importData.importStats
+                }
+            };
+        }
+
+        // 恢复扩展设置
         if (importData.settings && options.restoreSettings) {
             await saveSettings(importData.settings);
+            await logger.info('Restored settings');
         }
 
+        // 恢复视频记录
         if (importData.data && options.restoreRecords) {
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData.data);
+            await logger.info('Restored video records');
         } else if (options.restoreRecords) {
+            // 向后兼容：旧版本的备份格式
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, importData);
+            await logger.info('Restored video records (legacy format)');
         }
 
+        // 恢复用户配置
         if (importData.userProfile && options.restoreUserProfile) {
             await setValue(STORAGE_KEYS.USER_PROFILE, importData.userProfile);
+            await logger.info('Restored user profile');
+        }
+
+        // 恢复演员库数据
+        if (importData.actorRecords && options.restoreActorRecords) {
+            await setValue(STORAGE_KEYS.ACTOR_RECORDS, importData.actorRecords);
+            await logger.info('Restored actor records', {
+                actorCount: Object.keys(importData.actorRecords).length
+            });
+        }
+
+        // 恢复日志（可选）
+        if (importData.logs && options.restoreLogs) {
+            await setValue(STORAGE_KEYS.LOGS, importData.logs);
+            await logger.info('Restored logs', {
+                logCount: Array.isArray(importData.logs) ? importData.logs.length : 0
+            });
+        }
+
+        // 恢复导入统计（可选）
+        if (importData.importStats && options.restoreImportStats) {
+            await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, importData.importStats);
+            await logger.info('Restored import statistics');
         }
         
         return { success: true };
@@ -341,8 +417,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return true;
             case 'webdav-restore':
                 console.log('[Background] Processing webdav-restore request.');
-                const { filename, options } = message;
-                performRestore(filename, options)
+                const { filename, options, preview } = message;
+                const restoreOptions = { ...options, preview: preview || false };
+                performRestore(filename, restoreOptions)
                     .then(result => {
                         console.log(`[Background] WebDAV restore result:`, result);
                         sendResponse(result);

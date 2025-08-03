@@ -165,31 +165,107 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
     if (previousSelected) {
         previousSelected.classList.remove('selected');
     }
-    
+
     // 设置新的选中状态
     element.classList.add('selected');
     selectedFile = file;
-    
+
+    // 预览备份文件内容
+    previewBackupFile(file);
+
     // 显示恢复选项
     showElement('webdavRestoreOptions');
-    
+
     // 启用确认按钮
     const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
     if (confirmBtn) {
         confirmBtn.disabled = false;
     }
-    
+
     logAsync('INFO', '用户选择了文件', { filename: file.name });
+}
+
+/**
+ * 预览备份文件内容，显示包含的数据类型
+ */
+function previewBackupFile(file: WebDAVFile): void {
+    logAsync('INFO', '开始预览备份文件', { filename: file.name });
+
+    chrome.runtime.sendMessage({
+        type: 'webdav-restore',
+        filename: file.path,
+        preview: true // 添加预览标志
+    }, response => {
+        if (response?.success && response.data) {
+            updateRestoreOptionsBasedOnContent(response.data);
+        } else {
+            logAsync('WARN', '无法预览备份文件内容', { error: response?.error });
+        }
+    });
+}
+
+/**
+ * 根据备份文件内容更新恢复选项的可用性
+ */
+function updateRestoreOptionsBasedOnContent(backupData: any): void {
+    const hasSettings = !!backupData.settings;
+    const hasRecords = !!(backupData.data || backupData.viewed); // 兼容旧格式
+    const hasUserProfile = !!backupData.userProfile;
+    const hasActorRecords = !!backupData.actorRecords;
+    const hasLogs = !!backupData.logs;
+    const hasImportStats = !!backupData.importStats;
+
+    // 更新复选框状态和可用性
+    updateCheckboxAvailability('webdavRestoreSettings', hasSettings);
+    updateCheckboxAvailability('webdavRestoreRecords', hasRecords);
+    updateCheckboxAvailability('webdavRestoreUserProfile', hasUserProfile);
+    updateCheckboxAvailability('webdavRestoreActorRecords', hasActorRecords);
+    updateCheckboxAvailability('webdavRestoreLogs', hasLogs);
+    updateCheckboxAvailability('webdavRestoreImportStats', hasImportStats);
+
+    logAsync('INFO', '备份文件内容分析完成', {
+        hasSettings,
+        hasRecords,
+        hasUserProfile,
+        hasActorRecords,
+        hasLogs,
+        hasImportStats,
+        version: backupData.version || '1.0'
+    });
+}
+
+/**
+ * 更新复选框的可用性和状态
+ */
+function updateCheckboxAvailability(checkboxId: string, hasData: boolean): void {
+    const checkbox = document.getElementById(checkboxId) as HTMLInputElement;
+    const label = document.querySelector(`label[for="${checkboxId}"]`) as HTMLLabelElement;
+
+    if (checkbox && label) {
+        checkbox.disabled = !hasData;
+        checkbox.checked = hasData; // 只有有数据时才默认选中
+
+        if (hasData) {
+            label.classList.remove('disabled');
+            label.title = '';
+        } else {
+            label.classList.add('disabled');
+            label.title = '此备份文件中不包含该类型的数据';
+        }
+    }
 }
 
 function handleConfirmRestore(): void {
     if (!selectedFile) return;
-    
+
     const restoreSettings = (document.getElementById('webdavRestoreSettings') as HTMLInputElement)?.checked ?? true;
     const restoreRecords = (document.getElementById('webdavRestoreRecords') as HTMLInputElement)?.checked ?? true;
     const restoreUserProfile = (document.getElementById('webdavRestoreUserProfile') as HTMLInputElement)?.checked ?? true;
+    const restoreActorRecords = (document.getElementById('webdavRestoreActorRecords') as HTMLInputElement)?.checked ?? true;
+    const restoreLogs = (document.getElementById('webdavRestoreLogs') as HTMLInputElement)?.checked ?? false;
+    const restoreImportStats = (document.getElementById('webdavRestoreImportStats') as HTMLInputElement)?.checked ?? false;
 
-    if (!restoreSettings && !restoreRecords && !restoreUserProfile) {
+    if (!restoreSettings && !restoreRecords && !restoreUserProfile && !restoreActorRecords && !restoreLogs && !restoreImportStats) {
         showMessage('请至少选择一项要恢复的内容', 'warn');
         return;
     }
@@ -197,7 +273,10 @@ function handleConfirmRestore(): void {
     const options = {
         restoreSettings,
         restoreRecords,
-        restoreUserProfile
+        restoreUserProfile,
+        restoreActorRecords,
+        restoreLogs,
+        restoreImportStats
     };
     
     logAsync('INFO', '开始恢复数据', { filename: selectedFile.name, options });
