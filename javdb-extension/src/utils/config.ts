@@ -19,7 +19,10 @@ export const STORAGE_KEYS = {
     USER_PROFILE: 'user_profile',
 
     // Key for storing actor records.
-    ACTOR_RECORDS: 'actor_records'
+    ACTOR_RECORDS: 'actor_records',
+
+    // Key for storing restore backups.
+    RESTORE_BACKUP: 'restore_backup'
 } as const;
 
 export const VIDEO_STATUS = {
@@ -125,4 +128,38 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     actorSync: DEFAULT_ACTOR_SYNC_CONFIG,
 
     version: '0.0.0'
+};
+
+// WebDAV恢复配置
+export const RESTORE_CONFIG = {
+    // 数据加载策略
+    loading: {
+        enableProgressiveLoading: true,
+        chunkSize: 1000,
+        maxConcurrentAnalysis: 3,
+        timeoutMs: 60000
+    },
+
+    // 用户界面配置
+    ui: {
+        defaultMode: 'quick' as 'quick' | 'wizard' | 'expert',
+        showAdvancedByDefault: false,
+        enableAnimations: true,
+        stepTransitionMs: 300
+    },
+
+    // 错误处理配置
+    errorHandling: {
+        maxRetries: 3,
+        enableFallback: true,
+        logLevel: 'info' as 'debug' | 'info' | 'warn' | 'error',
+        showDetailedErrors: false
+    },
+
+    // 默认策略配置
+    defaults: {
+        strategy: 'smart' as 'smart' | 'local' | 'cloud' | 'manual',
+        autoSelectContent: true,
+        enableConflictResolution: true
+    }
 };
