@@ -39,3 +39,9 @@ build.bat
 
 # md
 *.md
+
+# temp
+temp/
+*debug*.html
+*test*.html
+*temp*.html

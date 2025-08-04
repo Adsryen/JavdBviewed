@@ -11,7 +11,8 @@ export class SimpleActorAvatar {
         avatarUrl: string | undefined,
         gender: 'female' | 'male' | 'unknown',
         size: 'small' | 'medium' | 'large' = 'medium',
-        onClick?: (actorId: string) => void
+        onClick?: (actorId: string) => void,
+        lazy: boolean = true
     ): HTMLElement {
         const container = document.createElement('div');
         container.className = `actor-avatar actor-avatar-${size}`;
@@ -24,34 +25,70 @@ export class SimpleActorAvatar {
         const img = document.createElement('img');
         img.className = 'actor-avatar-img';
         img.alt = '演员头像';
-        
-        // 如果有头像URL，直接尝试使用，失败则回退到默认头像
+
+        // 先设置默认头像
+        img.src = SimpleActorAvatar.DEFAULT_AVATARS[gender];
+        container.classList.add('actor-avatar-default');
+
+        // 如果有头像URL，根据lazy参数决定是否立即加载
         if (avatarUrl) {
-            console.log(`SimpleActorAvatar: Loading ${avatarUrl} for ${actorId}`);
+            if (lazy) {
+                // 懒加载：使用 Intersection Observer
+                img.loading = 'lazy';
+                img.setAttribute('data-src', avatarUrl);
 
-            // 直接设置头像URL
-            img.src = avatarUrl;
-            container.classList.add('actor-avatar-loading');
-
-            img.onload = () => {
-                console.log(`SimpleActorAvatar: Success loading ${avatarUrl} for ${actorId}`);
-                container.classList.remove('actor-avatar-loading', 'actor-avatar-default');
-                container.classList.add('actor-avatar-loaded');
-            };
-
-            img.onerror = () => {
-                console.log(`SimpleActorAvatar: Failed loading ${avatarUrl} for ${actorId}, using default`);
-                img.src = SimpleActorAvatar.DEFAULT_AVATARS[gender];
-                container.classList.remove('actor-avatar-loading');
-                container.classList.add('actor-avatar-default', 'actor-avatar-error');
-            };
-        } else {
-            // 没有头像URL，直接使用默认头像
-            img.src = SimpleActorAvatar.DEFAULT_AVATARS[gender];
-            container.classList.add('actor-avatar-default');
+                if ('IntersectionObserver' in window) {
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                SimpleActorAvatar.loadImage(img, avatarUrl, actorId, container, gender);
+                                observer.unobserve(img);
+                            }
+                        });
+                    }, {
+                        rootMargin: '50px'
+                    });
+                    observer.observe(img);
+                } else {
+                    // 不支持 IntersectionObserver，直接加载
+                    SimpleActorAvatar.loadImage(img, avatarUrl, actorId, container, gender);
+                }
+            } else {
+                // 立即加载
+                SimpleActorAvatar.loadImage(img, avatarUrl, actorId, container, gender);
+            }
         }
 
         container.appendChild(img);
         return container;
+    }
+
+    private static loadImage(
+        img: HTMLImageElement,
+        avatarUrl: string,
+        actorId: string,
+        container: HTMLElement,
+        gender: 'female' | 'male' | 'unknown'
+    ): void {
+        console.log(`SimpleActorAvatar: Loading ${avatarUrl} for ${actorId}`);
+
+        container.classList.add('actor-avatar-loading');
+
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            console.log(`SimpleActorAvatar: Success loading ${avatarUrl} for ${actorId}`);
+            img.src = avatarUrl;
+            container.classList.remove('actor-avatar-loading', 'actor-avatar-default');
+            container.classList.add('actor-avatar-loaded');
+        };
+
+        tempImg.onerror = () => {
+            console.log(`SimpleActorAvatar: Failed loading ${avatarUrl} for ${actorId}, using default`);
+            img.src = SimpleActorAvatar.DEFAULT_AVATARS[gender];
+            container.classList.remove('actor-avatar-loading');
+            container.classList.add('actor-avatar-default', 'actor-avatar-error');
+        };
+
+        tempImg.src = avatarUrl;
     }
 }

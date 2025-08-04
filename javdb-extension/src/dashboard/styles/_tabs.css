@@ -28,6 +28,9 @@
     display: flex; /* Changed to flex for card to grow */
     flex-direction: column;
     flex-grow: 1;
+    /* 修复高度 - 让tab-content根据内容自动调整高度 */
+    height: auto !important;
+    min-height: calc(100vh - 140px) !important;
 }
 .tabs-content {
     padding-top: 20px;

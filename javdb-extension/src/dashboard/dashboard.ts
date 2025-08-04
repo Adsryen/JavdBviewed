@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTabs();
     initRecordsTab();
-    initActorsTab();
+    // initActorsTab(); // 延迟初始化，只在用户点击演员库标签页时才加载
     initSyncTab();
     initSettingsTab();
     initDrive115Tab();
@@ -133,9 +133,20 @@ function initTabs(): void {
         if (tabs && tabs.forEach) {
             tabs.forEach(tab => {
                 try {
-                    tab.addEventListener('click', () => {
+                    tab.addEventListener('click', async () => {
                         switchTab(tab);
-                        if (tab.getAttribute('data-tab') === 'tab-logs') {
+                        const tabId = tab.getAttribute('data-tab');
+
+                        // 延迟初始化演员库标签页
+                        if (tabId === 'tab-actors' && !actorsTab.isInitialized) {
+                            try {
+                                await initActorsTab();
+                            } catch (error) {
+                                console.error('延迟初始化演员库标签页失败:', error);
+                            }
+                        }
+
+                        if (tabId === 'tab-logs') {
                             const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
                             if (refreshButton) {
                                 refreshButton.click();
