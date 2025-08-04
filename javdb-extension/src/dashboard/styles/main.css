@@ -15,7 +15,9 @@ body {
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-    min-height: calc(100vh - 40px);
+    /* 修复高度 - 让容器根据内容自动调整高度，同时保证最小高度 */
+    height: auto !important;
+    min-height: calc(100vh - 40px) !important;
 }
 
 .sidebar {
@@ -127,6 +129,9 @@ body {
     padding: 25px;
     display: flex;
     flex-direction: column;
+    /* 修复高度 - 让main-content根据内容自动调整高度 */
+    height: auto !important;
+    min-height: calc(100vh - 90px) !important;
 }
 
 /* Sidebar Sections */
