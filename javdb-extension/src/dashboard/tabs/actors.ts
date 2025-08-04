@@ -17,17 +17,21 @@ export class ActorsTab {
     private currentGenderFilter = '';
     private currentCategoryFilter = '';
     private isLoading = false;
+    public isInitialized = false;
 
     /**
      * 初始化演员库标签页
      */
     async initActorsTab(): Promise<void> {
+        if (this.isInitialized) return;
+
         try {
             await actorManager.initialize();
             this.setupEventListeners();
             this.setupDataUpdateListeners();
             await this.loadActors();
             await this.updateStats();
+            this.isInitialized = true;
         } catch (error) {
             console.error('Failed to initialize actors tab:', error);
             showMessage('初始化演员库失败', 'error');

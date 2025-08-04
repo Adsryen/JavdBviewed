@@ -1,13 +1,18 @@
-/* Settings Container Layout */
+/* Settings Container Layout - 自适应高度版本 */
 .settings-container {
-    display: flex;
-    height: 100%;
-    min-height: 600px;
+    display: flex !important;
+    /* 让容器根据内容自动调整高度，实现真正的"包住"效果 */
+    height: auto !important;
+    /* 设置合理的最小高度，确保内容有足够空间 */
+    min-height: calc(100vh - 200px) !important;
     background: #fff;
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    flex-grow: 1 !important;
 }
+
+/* 高度传递链条已在主CSS文件中修复 */
 
 /* Settings Sidebar */
 .settings-sidebar {
@@ -55,12 +60,20 @@
     font-size: 16px;
 }
 
-/* Settings Content */
+/* Settings Content - 右侧内容区域自适应高度版本 */
 .settings-content {
-    flex: 1;
+    flex: 1 !important;
     padding: 25px;
-    overflow-y: auto;
-    max-height: calc(100vh - 200px);
+    overflow-y: auto !important;
+    /* 让右侧内容区域根据内容自动调整高度 */
+    height: auto !important;
+    min-height: calc(100vh - 250px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* 确保完全填充父容器 */
+    flex-basis: auto !important;
+    /* 移除可能影响高度的边距 */
+    margin: 0 !important;
 }
 
 /* 网络测试面板特殊处理 */
@@ -78,13 +91,25 @@
 }
 
 .settings-panel.active {
-    display: block;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-grow: 1 !important;
+    /* 让面板根据内容自动调整高度 */
+    height: auto !important;
+    min-height: calc(100vh - 300px) !important;
+    /* 移除所有可能影响高度的边距和填充 */
+    margin: 0 !important;
+    padding: 0 !important;
+    /* 确保flex布局自适应 */
+    flex-basis: auto !important;
 }
 
 .settings-panel-header {
     margin-bottom: 25px;
     padding-bottom: 15px;
     border-bottom: 2px solid #f0f0f0;
+    /* 确保头部不影响整体高度计算 */
+    flex-shrink: 0 !important;
 }
 
 .settings-panel-header h3 {
@@ -96,6 +121,17 @@
 
 .settings-panel-body {
     max-width: 800px;
+    flex-grow: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* 让面板主体根据内容自动调整高度 */
+    height: auto !important;
+    min-height: auto !important;
+    overflow-y: visible !important;
+    /* 让面板主体自适应内容高度 */
+    flex-basis: auto !important;
+    /* 移除可能影响高度的边距 */
+    margin: 0 !important;
 }
 
 /* Mobile Menu Toggle */
