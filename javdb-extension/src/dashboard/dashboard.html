@@ -1318,55 +1318,469 @@
                       </ul>
                   </div>
 
-                  <div id="webdavRestoreOptions" class="restore-options hidden">
+                  <!-- 数据预览和分析阶段 -->
+                  <div id="webdavDataPreview" class="data-preview hidden">
+
+                      <!-- 模式选择器 -->
+                      <div class="restore-mode-selector">
+                          <div class="mode-tabs">
+                              <button class="mode-tab active" data-mode="quick">
+                                  <i class="fas fa-bolt"></i>
+                                  <span>快捷恢复</span>
+                              </button>
+                              <button class="mode-tab" data-mode="wizard">
+                                  <i class="fas fa-route"></i>
+                                  <span>向导模式</span>
+                              </button>
+                              <button class="mode-tab" data-mode="expert">
+                                  <i class="fas fa-cog"></i>
+                                  <span>专家模式</span>
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- 快捷模式界面 -->
+                      <div id="quickMode" class="restore-mode-content active">
+                          <div class="quick-restore-card">
+                              <div class="quick-header">
+                                  <i class="fas fa-magic"></i>
+                                  <h3>一键智能恢复</h3>
+                                  <span class="recommended-badge">推荐</span>
+                              </div>
+                              <div class="quick-description">
+                                  <p>自动分析并处理所有数据冲突，保留最新和最完整的信息</p>
+                                  <div class="quick-features">
+                                      <div class="feature-item">
+                                          <i class="fas fa-check-circle"></i>
+                                          <span>智能合并冲突数据</span>
+                                      </div>
+                                      <div class="feature-item">
+                                          <i class="fas fa-shield-alt"></i>
+                                          <span>安全保留本地数据</span>
+                                      </div>
+                                      <div class="feature-item">
+                                          <i class="fas fa-clock"></i>
+                                          <span>预计用时：2-5分钟</span>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="quick-stats" id="quickModeStats">
+                                  <div class="stat-item">
+                                      <span class="stat-number" id="quickVideoCount">-</span>
+                                      <span class="stat-label">视频记录</span>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-number" id="quickActorCount">-</span>
+                                      <span class="stat-label">演员收藏</span>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-number" id="quickConflictCount">-</span>
+                                      <span class="stat-label">需处理冲突</span>
+                                  </div>
+                              </div>
+                              <button class="btn btn-primary btn-large" id="quickRestoreBtn">
+                                  <i class="fas fa-play"></i>
+                                  开始智能恢复
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- 向导模式界面 -->
+                      <div id="wizardMode" class="restore-mode-content">
+                          <!-- 步骤指示器 -->
+                          <div class="wizard-steps">
+                              <div class="step active" data-step="1">
+                                  <div class="step-number">1</div>
+                                  <div class="step-title">选择策略</div>
+                              </div>
+                              <div class="step" data-step="2">
+                                  <div class="step-number">2</div>
+                                  <div class="step-title">选择内容</div>
+                              </div>
+                              <div class="step" data-step="3">
+                                  <div class="step-number">3</div>
+                                  <div class="step-title">确认执行</div>
+                              </div>
+                          </div>
+
+                          <!-- 步骤内容 -->
+                          <div class="wizard-content">
+                              <!-- 步骤1：策略选择 -->
+                              <div class="wizard-step-content active" id="wizardStep1">
+                                  <h4>选择恢复策略</h4>
+                                  <p class="step-description">请选择如何处理本地数据与云端备份的差异</p>
+
+                                  <div class="strategy-grid">
+                                      <div class="strategy-card recommended">
+                                          <input type="radio" id="wizardSmartMerge" name="wizardStrategy" value="smart" checked>
+                                          <label for="wizardSmartMerge">
+                                              <div class="strategy-icon">
+                                                  <i class="fas fa-magic"></i>
+                                              </div>
+                                              <div class="strategy-content">
+                                                  <h5>智能合并 <span class="recommended-text">推荐</span></h5>
+                                                  <p>自动处理冲突，保留最新数据</p>
+                                                  <div class="strategy-tags">
+                                                      <span class="tag">安全</span>
+                                                      <span class="tag">智能</span>
+                                                  </div>
+                                              </div>
+                                          </label>
+                                      </div>
+
+                                      <div class="strategy-card">
+                                          <input type="radio" id="wizardKeepLocal" name="wizardStrategy" value="local">
+                                          <label for="wizardKeepLocal">
+                                              <div class="strategy-icon">
+                                                  <i class="fas fa-hdd"></i>
+                                              </div>
+                                              <div class="strategy-content">
+                                                  <h5>保留本地</h5>
+                                                  <p>完全保留本地数据，忽略云端</p>
+                                                  <div class="strategy-tags">
+                                                      <span class="tag">保守</span>
+                                                  </div>
+                                              </div>
+                                          </label>
+                                      </div>
+
+                                      <div class="strategy-card">
+                                          <input type="radio" id="wizardKeepCloud" name="wizardStrategy" value="cloud">
+                                          <label for="wizardKeepCloud">
+                                              <div class="strategy-icon">
+                                                  <i class="fas fa-cloud"></i>
+                                              </div>
+                                              <div class="strategy-content">
+                                                  <h5>使用云端</h5>
+                                                  <p>用云端数据覆盖本地</p>
+                                                  <div class="strategy-tags">
+                                                      <span class="tag warning">有风险</span>
+                                                  </div>
+                                              </div>
+                                          </label>
+                                      </div>
+
+                                      <div class="strategy-card">
+                                          <input type="radio" id="wizardManual" name="wizardStrategy" value="manual">
+                                          <label for="wizardManual">
+                                              <div class="strategy-icon">
+                                                  <i class="fas fa-hand-paper"></i>
+                                              </div>
+                                              <div class="strategy-content">
+                                                  <h5>手动处理</h5>
+                                                  <p>查看详细差异，手动选择</p>
+                                                  <div class="strategy-tags">
+                                                      <span class="tag">精确</span>
+                                                  </div>
+                                              </div>
+                                          </label>
+                                      </div>
+                                  </div>
+
+                                  <!-- 策略预览 -->
+                                  <div class="strategy-preview" id="strategyPreview">
+                                      <h5>操作预览</h5>
+                                      <div class="preview-content" id="previewContent">
+                                          <p>选择策略后将显示详细的操作预览</p>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <!-- 步骤2：内容选择 -->
+                              <div class="wizard-step-content" id="wizardStep2">
+                                  <h4>选择恢复内容</h4>
+                                  <p class="step-description">选择要从云端备份恢复的数据类型</p>
+
+                                  <div class="content-selection-grid" id="contentSelectionGrid">
+                                      <!-- 内容选择项将动态生成 -->
+                                  </div>
+                              </div>
+
+                              <!-- 步骤3：确认执行 -->
+                              <div class="wizard-step-content" id="wizardStep3">
+                                  <h4>确认恢复操作</h4>
+                                  <p class="step-description">请确认以下操作，点击开始恢复后将无法撤销</p>
+
+                                  <div class="confirmation-summary" id="confirmationSummary">
+                                      <!-- 确认摘要将动态生成 -->
+                                  </div>
+
+                                  <div class="confirmation-warning">
+                                      <i class="fas fa-exclamation-triangle"></i>
+                                      <p>恢复操作将修改您的本地数据，建议在操作前确保已备份重要信息</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <!-- 向导导航 -->
+                          <div class="wizard-navigation">
+                              <button class="btn btn-secondary" id="wizardPrevBtn" disabled>
+                                  <i class="fas fa-chevron-left"></i>
+                                  上一步
+                              </button>
+                              <button class="btn btn-primary" id="wizardNextBtn">
+                                  下一步
+                                  <i class="fas fa-chevron-right"></i>
+                              </button>
+                              <button class="btn btn-primary hidden" id="wizardStartBtn">
+                                  <i class="fas fa-play"></i>
+                                  开始恢复
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- 专家模式界面 -->
+                      <div id="expertMode" class="restore-mode-content">
+                          <h4>
+                              <i class="fas fa-chart-line"></i>
+                              数据差异分析
+                          </h4>
+
+                      <div class="diff-summary">
+                          <div class="diff-category">
+                              <div class="diff-header">
+                                  <i class="fas fa-video"></i>
+                                  <span>视频记录</span>
+                              </div>
+                              <div class="diff-stats">
+                                  <div class="stat-item">
+                                      <span class="stat-label">云端新增:</span>
+                                      <span class="stat-value" id="videoCloudOnlyCount">0</span>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-label">本地保留:</span>
+                                      <span class="stat-value" id="videoLocalCount">0</span>
+                                  </div>
+                                  <div class="stat-item conflict">
+                                      <span class="stat-label">发现冲突:</span>
+                                      <span class="stat-value" id="videoConflictCount">0</span>
+                                      <button class="btn-link" id="viewVideoConflicts">查看详情</button>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-label">本地独有:</span>
+                                      <span class="stat-value" id="videoLocalOnlyCount">0</span>
+                                      <small>(云端没有)</small>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="diff-category">
+                              <div class="diff-header">
+                                  <i class="fas fa-users"></i>
+                                  <span>演员收藏</span>
+                              </div>
+                              <div class="diff-stats">
+                                  <div class="stat-item">
+                                      <span class="stat-label">云端新增:</span>
+                                      <span class="stat-value" id="actorCloudOnlyCount">0</span>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-label">本地保留:</span>
+                                      <span class="stat-value" id="actorLocalCount">0</span>
+                                  </div>
+                                  <div class="stat-item conflict">
+                                      <span class="stat-label">发现冲突:</span>
+                                      <span class="stat-value" id="actorConflictCount">0</span>
+                                      <button class="btn-link" id="viewActorConflicts">查看详情</button>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="diff-category">
+                              <div class="diff-header">
+                                  <i class="fas fa-cogs"></i>
+                                  <span>扩展设置</span>
+                              </div>
+                              <div class="diff-stats">
+                                  <div class="stat-item" id="settingsDiffStatus">
+                                      <span class="stat-label">状态:</span>
+                                      <span class="stat-value">检测中...</span>
+                                      <button class="btn-link hidden" id="viewSettingsDiff">查看详情</button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="merge-strategy-section">
+                          <h5>
+                              <i class="fas fa-code-branch"></i>
+                              处理方式选择
+                          </h5>
+                          <div class="strategy-options">
+                              <div class="strategy-option">
+                                  <input type="radio" id="strategySmartMerge" name="mergeStrategy" value="smart" checked>
+                                  <label for="strategySmartMerge">
+                                      <div class="strategy-title">
+                                          <i class="fas fa-magic"></i>
+                                          智能合并 (推荐)
+                                      </div>
+                                      <div class="strategy-description">
+                                          保留本地数据，添加云端新数据，冲突项按时间戳保留最新
+                                      </div>
+                                  </label>
+                              </div>
+
+                              <div class="strategy-option">
+                                  <input type="radio" id="strategyCloudPriority" name="mergeStrategy" value="cloud-priority">
+                                  <label for="strategyCloudPriority">
+                                      <div class="strategy-title">
+                                          <i class="fas fa-cloud-download-alt"></i>
+                                          云端优先
+                                      </div>
+                                      <div class="strategy-description">
+                                          用云端数据覆盖本地，丢失本地独有数据
+                                      </div>
+                                  </label>
+                              </div>
+
+                              <div class="strategy-option">
+                                  <input type="radio" id="strategyLocalPriority" name="mergeStrategy" value="local-priority">
+                                  <label for="strategyLocalPriority">
+                                      <div class="strategy-title">
+                                          <i class="fas fa-hdd"></i>
+                                          本地优先
+                                      </div>
+                                      <div class="strategy-description">
+                                          保持本地数据不变，只添加云端新增
+                                      </div>
+                                  </label>
+                              </div>
+
+                              <div class="strategy-option">
+                                  <input type="radio" id="strategyCustom" name="mergeStrategy" value="custom">
+                                  <label for="strategyCustom">
+                                      <div class="strategy-title">
+                                          <i class="fas fa-sliders-h"></i>
+                                          自定义处理
+                                      </div>
+                                      <div class="strategy-description">
+                                          手动选择每个冲突项的处理方式
+                                      </div>
+                                  </label>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="restore-options-section">
+                          <h5>
+                              <i class="fas fa-check-square"></i>
+                              恢复内容选择
+                          </h5>
+                          <div class="restore-options-grid">
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreSettings" checked>
+                                  <label for="webdavRestoreSettings">
+                                      <i class="fas fa-cogs"></i>
+                                      扩展设置
+                                  </label>
+                                  <small>WebDAV配置、搜索引擎、显示设置等</small>
+                              </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreRecords" checked>
+                                  <label for="webdavRestoreRecords">
+                                      <i class="fas fa-database"></i>
+                                      观看记录
+                                  </label>
+                                  <small>已观看、我想看、已浏览等状态记录</small>
+                              </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreUserProfile" checked>
+                                  <label for="webdavRestoreUserProfile">
+                                      <i class="fas fa-user-circle"></i>
+                                      账号信息
+                                  </label>
+                                  <small>JavDB账号邮箱、用户名、用户类型等</small>
+                              </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreActorRecords" checked>
+                                  <label for="webdavRestoreActorRecords">
+                                      <i class="fas fa-users"></i>
+                                      演员库
+                                  </label>
+                                  <small>收藏的演员信息、性别、分类等数据</small>
+                              </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreLogs">
+                                  <label for="webdavRestoreLogs">
+                                      <i class="fas fa-file-alt"></i>
+                                      日志记录
+                                  </label>
+                                  <small>扩展运行日志，用于故障排查（可选）</small>
+                              </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreImportStats">
+                                  <label for="webdavRestoreImportStats">
+                                      <i class="fas fa-chart-bar"></i>
+                                      导入统计
+                                  </label>
+                                  <small>最后一次导入的统计信息（可选）</small>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="impact-preview">
+                          <h5>
+                              <i class="fas fa-exclamation-triangle"></i>
+                              影响预览
+                          </h5>
+                          <div class="impact-summary" id="impactSummary">
+                              <!-- 动态生成影响预览内容 -->
+                          </div>
+                      </div>
+                      </div> <!-- 关闭 expertMode -->
+
+                  </div> <!-- 关闭 webdavDataPreview -->
+
+                  <!-- 原有的简单恢复选项（向后兼容，隐藏） -->
+                  <div id="webdavRestoreOptions" class="restore-options hidden" style="display: none;">
                       <h4>
                           <i class="fas fa-cog"></i>
                           恢复选项
                       </h4>
                       <div class="restore-options-grid">
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreSettings" checked>
-                              <label for="webdavRestoreSettings">
+                              <input type="checkbox" id="webdavRestoreSettingsSimple" checked>
+                              <label for="webdavRestoreSettingsSimple">
                                   <i class="fas fa-cogs"></i>
                                   扩展设置
                               </label>
                               <small>WebDAV配置、搜索引擎、显示设置等</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreRecords" checked>
-                              <label for="webdavRestoreRecords">
+                              <input type="checkbox" id="webdavRestoreRecordsSimple" checked>
+                              <label for="webdavRestoreRecordsSimple">
                                   <i class="fas fa-database"></i>
                                   观看记录
                               </label>
                               <small>已观看、我想看、已浏览等状态记录</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreUserProfile" checked>
-                              <label for="webdavRestoreUserProfile">
+                              <input type="checkbox" id="webdavRestoreUserProfileSimple" checked>
+                              <label for="webdavRestoreUserProfileSimple">
                                   <i class="fas fa-user-circle"></i>
                                   账号信息
                               </label>
                               <small>JavDB账号邮箱、用户名、用户类型等</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreActorRecords" checked>
-                              <label for="webdavRestoreActorRecords">
+                              <input type="checkbox" id="webdavRestoreActorRecordsSimple" checked>
+                              <label for="webdavRestoreActorRecordsSimple">
                                   <i class="fas fa-users"></i>
                                   演员库
                               </label>
                               <small>收藏的演员信息、性别、分类等数据</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreLogs">
-                              <label for="webdavRestoreLogs">
+                              <input type="checkbox" id="webdavRestoreLogsSimple">
+                              <label for="webdavRestoreLogsSimple">
                                   <i class="fas fa-file-alt"></i>
                                   日志记录
                               </label>
                               <small>扩展运行日志，用于故障排查（可选）</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreImportStats">
-                              <label for="webdavRestoreImportStats">
+                              <input type="checkbox" id="webdavRestoreImportStatsSimple">
+                              <label for="webdavRestoreImportStatsSimple">
                                   <i class="fas fa-chart-bar"></i>
                                   导入统计
                               </label>
@@ -1390,10 +1804,209 @@
           </div>
 
           <div class="modal-footer">
+              <button id="webdavRestoreBack" class="btn btn-secondary hidden">
+                  <i class="fas fa-arrow-left"></i>
+                  返回
+              </button>
               <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
+              <button id="webdavRestoreAnalyze" class="btn btn-primary hidden">
+                  <i class="fas fa-search"></i>
+                  分析数据
+              </button>
               <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
                   <i class="fas fa-download"></i>
                   开始恢复
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- 冲突解决弹窗 -->
+  <div id="conflictResolutionModal" class="modal-overlay hidden">
+      <div class="modal-content conflict-resolution-modal">
+          <div class="modal-header">
+              <h3>
+                  <i class="fas fa-exclamation-triangle"></i>
+                  解决数据冲突
+              </h3>
+              <button class="modal-close" id="conflictResolutionModalClose">&times;</button>
+          </div>
+
+          <div class="modal-body">
+              <div class="conflict-navigation">
+                  <div class="conflict-info">
+                      <p>请选择每个冲突项的保留方式，完成后点击确认应用解决方案</p>
+                      <small>您可以使用批量操作快速处理多个冲突项</small>
+                  </div>
+              </div>
+
+              <div class="conflict-details">
+                  <div class="conflict-item-header">
+                      <h4 id="conflictItemTitle">SSIS-001</h4>
+                      <span class="conflict-type" id="conflictItemType">视频记录</span>
+                  </div>
+
+                  <div class="conflict-comparison">
+                      <div class="version-column local-version">
+                          <div class="version-header">
+                              <i class="fas fa-hdd"></i>
+                              <span>本地版本</span>
+                              <small id="localVersionTime">2024-01-01 14:30</small>
+                          </div>
+                          <div class="version-content" id="localVersionContent">
+                              <!-- 动态生成本地版本内容 -->
+                          </div>
+                      </div>
+
+                      <div class="version-column cloud-version">
+                          <div class="version-header">
+                              <i class="fas fa-cloud"></i>
+                              <span>云端版本</span>
+                              <small id="cloudVersionTime">2024-01-01 16:45</small>
+                          </div>
+                          <div class="version-content" id="cloudVersionContent">
+                              <!-- 动态生成云端版本内容 -->
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="resolution-options">
+                      <h5>选择保留:</h5>
+                      <div class="resolution-buttons">
+                          <label class="resolution-option">
+                              <input type="radio" name="currentResolution" value="local">
+                              <span class="resolution-label">
+                                  <i class="fas fa-hdd"></i>
+                                  保留本地
+                              </span>
+                          </label>
+                          <label class="resolution-option">
+                              <input type="radio" name="currentResolution" value="cloud">
+                              <span class="resolution-label">
+                                  <i class="fas fa-cloud"></i>
+                                  保留云端
+                              </span>
+                          </label>
+                          <label class="resolution-option">
+                              <input type="radio" name="currentResolution" value="merge" checked>
+                              <span class="resolution-label">
+                                  <i class="fas fa-code-branch"></i>
+                                  智能合并
+                              </span>
+                          </label>
+                      </div>
+                  </div>
+
+                  <div class="batch-operations">
+                      <h5>批量操作:</h5>
+                      <div class="batch-buttons">
+                          <button id="batchSelectLocal" class="btn btn-sm btn-outline">
+                              <i class="fas fa-hdd"></i>
+                              全选本地
+                          </button>
+                          <button id="batchSelectCloud" class="btn btn-sm btn-outline">
+                              <i class="fas fa-cloud"></i>
+                              全选云端
+                          </button>
+                          <button id="batchSelectMerge" class="btn btn-sm btn-outline">
+                              <i class="fas fa-code-branch"></i>
+                              全选合并
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="modal-footer conflict-footer">
+              <div class="footer-left">
+                  <div class="conflict-progress">
+                      <span class="progress-text">
+                          冲突 <span id="currentConflictIndex">1</span> / <span id="totalConflictsCount">0</span>
+                      </span>
+                      <div class="progress-bar">
+                          <div class="progress-fill" id="conflictProgressFill"></div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="footer-center">
+                  <div class="nav-buttons">
+                      <button id="prevConflict" class="btn btn-nav" title="上一个冲突">
+                          <i class="fas fa-chevron-left"></i>
+                          上一个
+                      </button>
+                      <button id="nextConflict" class="btn btn-nav" title="下一个冲突">
+                          下一个
+                          <i class="fas fa-chevron-right"></i>
+                      </button>
+                  </div>
+              </div>
+
+              <div class="footer-right">
+                  <button id="conflictResolutionCancel" class="btn btn-secondary">
+                      <i class="fas fa-times"></i>
+                      取消
+                  </button>
+                  <button id="conflictResolutionConfirm" class="btn btn-primary">
+                      <i class="fas fa-check"></i>
+                      确认解决方案
+                  </button>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- 恢复结果摘要弹窗 -->
+  <div id="restoreResultModal" class="modal-overlay hidden">
+      <div class="modal-content restore-result-modal">
+          <div class="modal-header">
+              <h3>
+                  <i class="fas fa-check-circle"></i>
+                  恢复完成
+              </h3>
+              <button class="modal-close" id="restoreResultModalClose">&times;</button>
+          </div>
+
+          <div class="modal-body">
+              <div class="result-summary">
+                  <div class="result-icon success">
+                      <i class="fas fa-check-circle"></i>
+                  </div>
+                  <h4>数据恢复成功</h4>
+                  <p>已成功从云端恢复数据并应用到本地。</p>
+              </div>
+
+              <div class="operation-summary">
+                  <h5>
+                      <i class="fas fa-chart-bar"></i>
+                      操作摘要
+                  </h5>
+                  <div class="summary-grid" id="operationSummaryGrid">
+                      <!-- 动态生成操作摘要 -->
+                  </div>
+              </div>
+
+              <div class="backup-info">
+                  <h5>
+                      <i class="fas fa-shield-alt"></i>
+                      安全备份
+                  </h5>
+                  <p>已自动备份原数据到:</p>
+                  <div class="backup-file-info">
+                      <code id="backupFileName">backup-before-restore-20240101.json</code>
+                      <button id="downloadBackup" class="btn btn-sm btn-outline">
+                          <i class="fas fa-download"></i>
+                          下载备份
+                      </button>
+                  </div>
+              </div>
+          </div>
+
+          <div class="modal-footer">
+              <button id="restoreResultViewDetails" class="btn btn-secondary">查看详情</button>
+              <button id="restoreResultConfirm" class="btn btn-primary">
+                  <i class="fas fa-check"></i>
+                  确定
               </button>
           </div>
       </div>
