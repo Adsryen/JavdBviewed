@@ -185,19 +185,20 @@ async function performRestore(filename: string, options = {
             preview: options.preview
         });
 
-        // 如果是预览模式，只返回数据结构信息
+        // 如果是预览模式，返回完整数据用于差异分析
         if (options.preview) {
             return {
                 success: true,
                 data: {
                     version: importData.version || '1.0',
                     timestamp: importData.timestamp,
-                    settings: !!importData.settings,
-                    data: !!(importData.data || importData.viewed), // 兼容旧格式
-                    userProfile: !!importData.userProfile,
-                    actorRecords: !!importData.actorRecords,
-                    logs: !!importData.logs,
-                    importStats: !!importData.importStats
+                    settings: importData.settings || null,
+                    data: importData.data || importData.viewed || null, // 兼容旧格式
+                    viewed: importData.viewed || null, // 向后兼容
+                    userProfile: importData.userProfile || null,
+                    actorRecords: importData.actorRecords || null,
+                    logs: importData.logs || null,
+                    importStats: importData.importStats || null
                 }
             };
         }
