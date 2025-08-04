@@ -1187,12 +1187,72 @@
       </div>
   </div>
 
+  <!-- Smart Restore Confirmation Modal -->
+  <div id="smartRestoreModal" class="modal-overlay hidden">
+    <div class="modal-content smart-restore-modal">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-magic"></i>
+          确认执行一键智能恢复？
+        </h3>
+        <button class="modal-close" id="smartRestoreModalClose">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="restore-preview">
+          <h4>
+            <i class="fas fa-eye"></i>
+            操作预览：
+          </h4>
+          <div class="preview-list">
+            <div class="preview-item">
+              <i class="fas fa-shield-alt"></i>
+              <span>保留本地视频记录：<strong id="localRecordsCount">0</strong>条</span>
+            </div>
+            <div class="preview-item">
+              <i class="fas fa-users"></i>
+              <span>保留本地演员收藏：<strong id="localActorsCount">0</strong>个</span>
+            </div>
+            <div class="preview-item">
+              <i class="fas fa-cloud-download-alt"></i>
+              <span>添加云端新增数据：<strong id="cloudNewDataCount">0</strong>项</span>
+            </div>
+            <div class="preview-item">
+              <i class="fas fa-code-branch"></i>
+              <span>自动处理冲突：<strong id="conflictsCount">0</strong>个（保留最新数据）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="restore-notice">
+          <div class="notice-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="notice-content">
+            <strong>注意：</strong>此操作将修改您的本地数据，建议在操作前确保已备份重要信息。
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="smartRestoreCancel" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          取消
+        </button>
+        <button id="smartRestoreConfirm" class="btn btn-primary">
+          <i class="fas fa-check"></i>
+          确定
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Data Migration Modal -->
   <div id="migration-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3 id="migration-modal-title">数据迁移</h3>
       <p id="migration-modal-message">检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。</p>
-      
+
       <div id="migration-progress-container" class="hidden">
         <div class="progress-bar-container">
           <div id="migration-progress-bar" class="progress-bar"></div>
