@@ -2136,6 +2136,325 @@
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
 }
 
+/* 智能恢复确认弹窗样式 */
+#smartRestoreModal {
+    z-index: 10001 !important; /* 确保在所有其他弹窗之上 */
+}
+
+.smart-restore-modal {
+    max-width: 600px;
+    width: 90%;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 10002 !important; /* 确保弹窗内容在最顶层 */
+}
+
+.smart-restore-modal .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.smart-restore-modal .modal-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+    backdrop-filter: blur(10px);
+}
+
+.smart-restore-modal .modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.smart-restore-modal .modal-header h3 i {
+    font-size: 22px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.smart-restore-modal .modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.smart-restore-modal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+.smart-restore-modal .modal-body {
+    padding: 30px;
+    background: #fafbfc;
+}
+
+.restore-preview {
+    margin-bottom: 24px;
+}
+
+.restore-preview h4 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.restore-preview h4 i {
+    color: #667eea;
+    font-size: 20px;
+}
+
+.preview-list {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    border: 2px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.preview-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e1e8ed;
+    font-size: 15px;
+    color: #2c3e50;
+}
+
+.preview-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.preview-item i {
+    color: #667eea;
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.preview-item strong {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.restore-notice {
+    background: linear-gradient(135deg, #fff7e6 0%, #fef3e2 100%);
+    border: 2px solid #f0c674;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.notice-icon {
+    color: #f39c12;
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.notice-content {
+    flex: 1;
+    color: #8b4513;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.notice-content strong {
+    font-weight: 700;
+    color: #d68910;
+}
+
+.smart-restore-modal .modal-footer {
+    padding: 24px 30px;
+    border-top: 1px solid #e1e5e9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+}
+
+.smart-restore-modal .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.smart-restore-modal .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.smart-restore-modal .btn:hover::before {
+    left: 100%;
+}
+
+.smart-restore-modal .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.smart-restore-modal .btn:disabled::before {
+    display: none;
+}
+
+.smart-restore-modal .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.smart-restore-modal .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.smart-restore-modal .btn-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.smart-restore-modal .btn-secondary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .smart-restore-modal {
+        width: 96%;
+        margin: 20px auto;
+    }
+
+    .smart-restore-modal .modal-header {
+        padding: 20px 24px;
+    }
+
+    .smart-restore-modal .modal-header h3 {
+        font-size: 18px;
+    }
+
+    .smart-restore-modal .modal-body {
+        padding: 24px 20px;
+    }
+
+    .smart-restore-modal .modal-footer {
+        flex-direction: column-reverse;
+        padding: 20px 24px;
+        gap: 12px;
+    }
+
+    .smart-restore-modal .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+        font-size: 16px;
+    }
+
+    .preview-item {
+        font-size: 14px;
+    }
+
+    .restore-notice {
+        padding: 16px;
+    }
+
+    .notice-content {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .smart-restore-modal {
+        width: 98%;
+        margin: 10px auto;
+    }
+
+    .smart-restore-modal .modal-header {
+        padding: 18px 20px;
+    }
+
+    .smart-restore-modal .modal-body {
+        padding: 20px 16px;
+    }
+
+    .smart-restore-modal .modal-footer {
+        padding: 18px 20px;
+    }
+
+    .preview-list {
+        padding: 16px;
+    }
+
+    .restore-notice {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .notice-icon {
+        font-size: 20px;
+    }
+}
+
 /* 恢复内容选择优化样式 */
 .restore-options-grid {
     display: grid;
