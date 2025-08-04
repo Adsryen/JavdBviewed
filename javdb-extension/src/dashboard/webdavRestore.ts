@@ -233,7 +233,39 @@ function startQuickRestore(): void {
     const totalConflicts = currentDiffResult.videoRecords.summary.conflictCount +
                           currentDiffResult.actorRecords.summary.conflictCount;
 
-    const confirmMessage = `
+    // 导入智能恢复确认弹窗
+    import('./ui/modal.js').then(({ showSmartRestoreModal }) => {
+        showSmartRestoreModal({
+            localRecordsCount: currentDiffResult.videoRecords.summary.totalLocal,
+            localActorsCount: currentDiffResult.actorRecords.summary.totalLocal,
+            cloudNewDataCount: currentDiffResult.videoRecords.summary.cloudOnlyCount + currentDiffResult.actorRecords.summary.cloudOnlyCount,
+            conflictsCount: totalConflicts,
+            onConfirm: () => {
+                // 用户确认后执行恢复
+                logAsync('INFO', '用户确认执行快捷恢复');
+
+                // 使用智能合并策略和默认内容选择
+                const mergeOptions: MergeOptions = {
+                    strategy: 'smart',
+                    restoreSettings: false, // 快捷恢复默认不恢复设置
+                    restoreRecords: true,   // 恢复视频记录
+                    restoreUserProfile: true, // 恢复用户资料
+                    restoreActorRecords: true, // 恢复演员记录
+                    restoreLogs: false,     // 不恢复日志
+                    restoreImportStats: true // 恢复导入统计
+                };
+
+                // 执行恢复
+                executeRestore(mergeOptions);
+            },
+            onCancel: () => {
+                logAsync('INFO', '用户取消快捷恢复');
+            }
+        });
+    }).catch(error => {
+        console.error('Failed to load smart restore modal:', error);
+        // 降级到原来的confirm方式
+        const confirmMessage = `
 确认执行一键智能恢复？
 
 📊 操作预览：
@@ -245,28 +277,29 @@ function startQuickRestore(): void {
 ⚠️ 注意：此操作将修改您的本地数据，建议在操作前确保已备份重要信息。
 
 点击"确定"开始恢复，点击"取消"返回。
-    `.trim();
+        `.trim();
 
-    if (confirm(confirmMessage)) {
-        // 用户确认后执行恢复
-        logAsync('INFO', '用户确认执行快捷恢复');
+        if (confirm(confirmMessage)) {
+            // 用户确认后执行恢复
+            logAsync('INFO', '用户确认执行快捷恢复');
 
-        // 使用智能合并策略和默认内容选择
-        const mergeOptions: MergeOptions = {
-            strategy: 'smart',
-            videoRecords: { strategy: 'smart' },
-            actorRecords: { strategy: 'smart' },
-            settings: { strategy: 'local' },
-            userProfile: { strategy: 'cloud' },
-            logs: { strategy: 'local' },
-            importStats: { strategy: 'cloud' }
-        };
+            // 使用智能合并策略和默认内容选择
+            const mergeOptions: MergeOptions = {
+                strategy: 'smart',
+                restoreSettings: false, // 快捷恢复默认不恢复设置
+                restoreRecords: true,   // 恢复视频记录
+                restoreUserProfile: true, // 恢复用户资料
+                restoreActorRecords: true, // 恢复演员记录
+                restoreLogs: false,     // 不恢复日志
+                restoreImportStats: true // 恢复导入统计
+            };
 
-        // 执行恢复
-        executeRestore(mergeOptions);
-    } else {
-        logAsync('INFO', '用户取消快捷恢复');
-    }
+            // 执行恢复
+            executeRestore(mergeOptions);
+        } else {
+            logAsync('INFO', '用户取消快捷恢复');
+        }
+    });
 }
 
 /**
@@ -591,12 +624,12 @@ function startWizardRestore(): void {
     // 根据选择的策略和内容构建合并选项
     const mergeOptions: MergeOptions = {
         strategy: wizardState.strategy as any,
-        videoRecords: { strategy: wizardState.strategy as any },
-        actorRecords: { strategy: wizardState.strategy as any },
-        settings: { strategy: wizardState.selectedContent.includes('webdavRestoreSettings') ? wizardState.strategy as any : 'local' },
-        userProfile: { strategy: wizardState.selectedContent.includes('webdavRestoreUserProfile') ? wizardState.strategy as any : 'local' },
-        logs: { strategy: wizardState.selectedContent.includes('webdavRestoreLogs') ? wizardState.strategy as any : 'local' },
-        importStats: { strategy: wizardState.selectedContent.includes('webdavRestoreImportStats') ? wizardState.strategy as any : 'local' }
+        restoreSettings: wizardState.selectedContent.includes('webdavRestoreSettings'),
+        restoreRecords: wizardState.selectedContent.includes('webdavRestoreRecords') || wizardState.selectedContent.length === 0, // 默认恢复记录
+        restoreUserProfile: wizardState.selectedContent.includes('webdavRestoreUserProfile'),
+        restoreActorRecords: wizardState.selectedContent.includes('webdavRestoreActorRecords') || wizardState.selectedContent.length === 0, // 默认恢复演员
+        restoreLogs: wizardState.selectedContent.includes('webdavRestoreLogs'),
+        restoreImportStats: wizardState.selectedContent.includes('webdavRestoreImportStats')
     };
 
     // 执行恢复
@@ -614,7 +647,7 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
         showRestoreProgress();
 
         // 执行数据合并
-        const mergeResult = await mergeData(currentLocalData, currentCloudData, mergeOptions);
+        const mergeResult = await mergeData(currentLocalData, currentCloudData, currentDiffResult, mergeOptions);
 
         if (mergeResult.success) {
             // 保存合并后的数据
