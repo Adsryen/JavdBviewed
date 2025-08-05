@@ -16,6 +16,7 @@ import { getPasswordService } from './PasswordService';
 import { getSessionManager } from './SessionManager';
 import { getBlurController } from './BlurController';
 import { getRecoveryService } from './RecoveryService';
+import { log } from '../../utils/logController';
 import { getPrivacyStorage } from '../../utils/privacy/storage';
 
 export class PrivacyManager implements IPrivacyManager {
@@ -57,7 +58,7 @@ export class PrivacyManager implements IPrivacyManager {
         }
 
         try {
-            console.log('Initializing Privacy Manager...');
+            log.privacy('Initializing Privacy Manager...');
 
             // 加载隐私状态
             await this.loadPrivacyState();
@@ -76,7 +77,7 @@ export class PrivacyManager implements IPrivacyManager {
             await this.applyInitialState();
 
             this.isInitialized = true;
-            console.log('Privacy Manager initialized successfully');
+            log.privacy('Privacy Manager initialized successfully');
         } catch (error) {
             console.error('Failed to initialize Privacy Manager:', error);
             throw new Error('隐私管理器初始化失败');
@@ -92,7 +93,7 @@ export class PrivacyManager implements IPrivacyManager {
             settings.privacy.screenshotMode.enabled = true;
             await saveSettings(settings);
 
-            console.log('Enabling screenshot mode with elements:', settings.privacy.screenshotMode.protectedElements);
+            log.privacy('Enabling screenshot mode with elements:', settings.privacy.screenshotMode.protectedElements);
             await this.blurController.applyBlur(settings.privacy.screenshotMode.protectedElements);
 
             this.currentState.isBlurred = true;
@@ -286,7 +287,7 @@ export class PrivacyManager implements IPrivacyManager {
             await this.savePrivacyState();
 
             this.emitEvent('locked', {});
-            console.log('Privacy locked');
+            // 隐私已锁定
         } catch (error) {
             console.error('Failed to lock:', error);
             throw new Error('锁定失败');
@@ -435,7 +436,7 @@ export class PrivacyManager implements IPrivacyManager {
 
         const settings = await getSettings();
 
-        console.log('Applying initial privacy state:', {
+        log.privacy('Applying initial privacy state:', {
             screenshotModeEnabled: settings.privacy.screenshotMode.enabled,
             privateModeEnabled: settings.privacy.privateMode.enabled,
             requirePassword: settings.privacy.privateMode.requirePassword,
@@ -452,16 +453,16 @@ export class PrivacyManager implements IPrivacyManager {
         }
         // 如果启用了截图模式，应用模糊
         else if (settings.privacy.screenshotMode.enabled) {
-            console.log('Applying initial screenshot mode with elements:', settings.privacy.screenshotMode.protectedElements);
+            // 应用初始截图模式
 
             // 确保使用最新的配置
             await this.blurController.applyBlur(settings.privacy.screenshotMode.protectedElements);
             this.currentState.isBlurred = true;
             await this.savePrivacyState();
 
-            console.log('Initial screenshot mode applied successfully');
+            // 初始截图模式应用完成
         } else {
-            console.log('No privacy modes enabled, skipping initial state application');
+            // 未启用隐私模式
         }
     }
 

@@ -3,6 +3,7 @@
 
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from './config';
 import type { ExtensionSettings } from '../types';
+import { log } from './logController';
 
 export function setValue<T>(key: string, value: T): Promise<void> {
   return chrome.storage.local.set({ [key]: value });
@@ -18,7 +19,7 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
 
 export async function getSettings(): Promise<ExtensionSettings> {
     const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
-    console.log('Loading settings from storage:', {
+    log.storage('Loading settings from storage', {
         key: STORAGE_KEYS.SETTINGS,
         hasStoredSettings: !!storedSettings,
         hasPrivacy: !!storedSettings.privacy
@@ -86,12 +87,12 @@ export async function getSettings(): Promise<ExtensionSettings> {
         },
     };
 
-    console.log('Merged settings privacy config:', mergedSettings.privacy);
+    log.storage('Merged settings privacy config', mergedSettings.privacy);
     return mergedSettings;
 }
 
 export function saveSettings(settings: ExtensionSettings): Promise<void> {
-    console.log('Saving settings to storage:', {
+    log.storage('Saving settings to storage', {
         key: STORAGE_KEYS.SETTINGS,
         hasPrivacy: !!settings.privacy,
         screenshotModeEnabled: settings.privacy?.screenshotMode?.enabled,
