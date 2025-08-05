@@ -344,12 +344,12 @@ function cleanup(): void {
     try {
         // 移除事件监听器
         document.removeEventListener('sync-requested', handleSyncRequest as EventListener);
-        document.removeEventListener('actor-gender-sync-requested', handleActorGenderSyncRequest as EventListener);
+        // handleActorGenderSyncRequest 函数已移除，性别信息现在直接从分类页面获取
         window.removeEventListener('beforeunload', cleanup);
-        
+
         // 重置状态
         resetSyncState();
-        
+
         logAsync('INFO', '数据同步模块资源已清理');
     } catch (error: any) {
         logAsync('ERROR', '清理数据同步模块资源失败', { error: error.message });

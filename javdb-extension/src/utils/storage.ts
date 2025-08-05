@@ -18,8 +18,14 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
 
 export async function getSettings(): Promise<ExtensionSettings> {
     const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
+    console.log('Loading settings from storage:', {
+        key: STORAGE_KEYS.SETTINGS,
+        hasStoredSettings: !!storedSettings,
+        hasPrivacy: !!storedSettings.privacy
+    });
+
     // Deep merge to ensure all nested properties from default are present
-    return {
+    const mergedSettings = {
         ...DEFAULT_SETTINGS,
         ...storedSettings,
         display: {
@@ -62,9 +68,34 @@ export async function getSettings(): Promise<ExtensionSettings> {
                 ...(storedSettings.actorSync?.urls || {}),
             },
         },
+        privacy: {
+            ...DEFAULT_SETTINGS.privacy,
+            ...(storedSettings.privacy || {}),
+            screenshotMode: {
+                ...DEFAULT_SETTINGS.privacy.screenshotMode,
+                ...(storedSettings.privacy?.screenshotMode || {}),
+            },
+            privateMode: {
+                ...DEFAULT_SETTINGS.privacy.privateMode,
+                ...(storedSettings.privacy?.privateMode || {}),
+            },
+            passwordRecovery: {
+                ...DEFAULT_SETTINGS.privacy.passwordRecovery,
+                ...(storedSettings.privacy?.passwordRecovery || {}),
+            },
+        },
     };
+
+    console.log('Merged settings privacy config:', mergedSettings.privacy);
+    return mergedSettings;
 }
 
 export function saveSettings(settings: ExtensionSettings): Promise<void> {
+    console.log('Saving settings to storage:', {
+        key: STORAGE_KEYS.SETTINGS,
+        hasPrivacy: !!settings.privacy,
+        screenshotModeEnabled: settings.privacy?.screenshotMode?.enabled,
+        protectedElementsCount: settings.privacy?.screenshotMode?.protectedElements?.length
+    });
     return setValue(STORAGE_KEYS.SETTINGS, settings);
 }
