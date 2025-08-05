@@ -78,7 +78,7 @@ export function validatePasswordStrength(password: string): {
     };
 } {
     const requirements = {
-        minLength: password.length >= 8,
+        minLength: password.length >= 6, // 降低到6位
         hasUppercase: /[A-Z]/.test(password),
         hasLowercase: /[a-z]/.test(password),
         hasNumbers: /\d/.test(password),
@@ -88,40 +88,45 @@ export function validatePasswordStrength(password: string): {
     let score = 0;
     const suggestions: string[] = [];
 
-    // 长度评分
+    // 长度评分 - 更宽松
     if (requirements.minLength) {
-        score += 20;
+        score += 30; // 基础分更高
     } else {
-        suggestions.push('密码长度至少需要8位');
+        suggestions.push('密码长度至少需要6位');
+    }
+
+    if (password.length >= 8) {
+        score += 15; // 8位额外加分
     }
 
     if (password.length >= 12) {
-        score += 10;
+        score += 10; // 12位额外加分
     }
 
-    // 字符类型评分
-    if (requirements.hasUppercase) {
-        score += 15;
+    // 纯数字密码支持 - 如果是6位以上纯数字，给予基础分
+    const isAllNumbers = /^\d+$/.test(password);
+    if (isAllNumbers && password.length >= 6) {
+        score += 40; // 纯数字6位以上给40分
+        if (password.length >= 8) {
+            score += 20; // 8位纯数字额外20分
+        }
     } else {
-        suggestions.push('添加大写字母');
-    }
+        // 非纯数字的字符类型评分
+        if (requirements.hasUppercase) {
+            score += 10;
+        }
 
-    if (requirements.hasLowercase) {
-        score += 15;
-    } else {
-        suggestions.push('添加小写字母');
-    }
+        if (requirements.hasLowercase) {
+            score += 10;
+        }
 
-    if (requirements.hasNumbers) {
-        score += 15;
-    } else {
-        suggestions.push('添加数字');
-    }
+        if (requirements.hasNumbers) {
+            score += 10;
+        }
 
-    if (requirements.hasSpecialChars) {
-        score += 15;
-    } else {
-        suggestions.push('添加特殊字符');
+        if (requirements.hasSpecialChars) {
+            score += 15;
+        }
     }
 
     // 复杂度加分
@@ -137,13 +142,13 @@ export function validatePasswordStrength(password: string): {
         suggestions.push('避免使用常见密码');
     }
 
-    // 确定等级
+    // 确定等级 - 更宽松的标准
     let level: 'weak' | 'medium' | 'strong' | 'very-strong';
-    if (score < 40) {
+    if (score < 30) {
         level = 'weak';
-    } else if (score < 70) {
+    } else if (score < 50) {
         level = 'medium';
-    } else if (score < 90) {
+    } else if (score < 75) {
         level = 'strong';
     } else {
         level = 'very-strong';

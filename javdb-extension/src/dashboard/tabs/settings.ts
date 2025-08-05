@@ -6,6 +6,7 @@ import type { ExtensionSettings, VideoRecord, OldVideoRecord, ActorRecord } from
 import { STORAGE_KEYS } from '../../utils/config';
 import { actorManager } from '../../services/actorManager';
 import { initPrivacySettings } from './privacy';
+import { onSettingsChanged } from '../../utils/logController';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
@@ -37,6 +38,7 @@ export function initSettingsTab(): void {
     const webdavSyncInterval = document.getElementById('webdav-sync-interval') as HTMLInputElement;
     const saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
     const testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
+    const diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
     const lastSyncTime = document.getElementById('last-sync-time') as HTMLSpanElement;
 
     const hideViewed = document.getElementById('hideViewed') as HTMLInputElement;
@@ -46,6 +48,9 @@ export function initSettingsTab(): void {
 
 
     const maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
+    const verboseMode = document.getElementById('verboseMode') as HTMLInputElement;
+    const showPrivacyLogs = document.getElementById('showPrivacyLogs') as HTMLInputElement;
+    const showStorageLogs = document.getElementById('showStorageLogs') as HTMLInputElement;
 
     // 增强功能设置元素
     const enableMultiSource = document.getElementById('enableMultiSource') as HTMLInputElement;
@@ -177,6 +182,9 @@ export function initSettingsTab(): void {
 
             // 日志设置
             maxLogEntries.value = String(logging?.maxLogEntries || 1500);
+            verboseMode.checked = logging?.verboseMode || false;
+            showPrivacyLogs.checked = logging?.showPrivacyLogs || false;
+            showStorageLogs.checked = logging?.showStorageLogs || false;
 
             // 搜索引擎设置
             if (Array.isArray(searchEngines) && searchEngines.length > 0) {
@@ -206,6 +214,9 @@ export function initSettingsTab(): void {
             hideVR.checked = false;
 
             maxLogEntries.value = '1500';
+            verboseMode.checked = false;
+            showPrivacyLogs.checked = false;
+            showStorageLogs.checked = false;
         }
     }
 
@@ -230,6 +241,9 @@ export function initSettingsTab(): void {
 
             logging: {
                 maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
+                verboseMode: verboseMode.checked,
+                showPrivacyLogs: showPrivacyLogs.checked,
+                showStorageLogs: showStorageLogs.checked,
             },
             dataEnhancement: {
                 enableMultiSource: enableMultiSource.checked,
@@ -270,6 +284,9 @@ export function initSettingsTab(): void {
 
         showMessage('Settings saved successfully!');
         logAsync('INFO', '用户设置已保存。', { settings: newSettings });
+
+        // 更新日志控制器配置
+        onSettingsChanged();
 
         // 刷新JSON配置显示
         await loadJsonConfig();
@@ -331,6 +348,74 @@ export function initSettingsTab(): void {
         });
     }
 
+    function handleDiagnoseWebDAV() {
+        logAsync('INFO', '用户点击了"诊断 WebDAV 连接"按钮。');
+        handleSaveSettings().then(() => {
+            logAsync('INFO', '用户开始诊断WebDAV连接');
+            showMessage('正在保存设置并进行详细诊断...', 'info');
+            diagnoseWebdavConnectionBtn.textContent = '诊断中...';
+            diagnoseWebdavConnectionBtn.disabled = true;
+
+            logAsync('INFO', '正在向后台发送WebDAV诊断请求');
+
+            chrome.runtime.sendMessage({ type: 'webdav-diagnose' }, response => {
+                if (response && response.success) {
+                    // 显示详细的诊断结果
+                    let resultMessage = '🔍 WebDAV连接诊断完成\n\n';
+
+                    if (response.diagnostic.serverType) {
+                        resultMessage += `📡 服务器类型: ${response.diagnostic.serverType}\n`;
+                    }
+
+                    if (response.diagnostic.supportedMethods && response.diagnostic.supportedMethods.length > 0) {
+                        resultMessage += `🛠️ 支持的方法: ${response.diagnostic.supportedMethods.join(', ')}\n`;
+                    }
+
+                    if (response.diagnostic.responseFormat) {
+                        resultMessage += `📄 响应格式: ${response.diagnostic.responseFormat}\n`;
+                    }
+
+                    if (response.diagnostic.issues && response.diagnostic.issues.length > 0) {
+                        resultMessage += `\n⚠️ 发现的问题:\n`;
+                        response.diagnostic.issues.forEach((issue: string, index: number) => {
+                            resultMessage += `${index + 1}. ${issue}\n`;
+                        });
+                    }
+
+                    if (response.diagnostic.recommendations && response.diagnostic.recommendations.length > 0) {
+                        resultMessage += `\n💡 建议:\n`;
+                        response.diagnostic.recommendations.forEach((rec: string, index: number) => {
+                            resultMessage += `${index + 1}. ${rec}\n`;
+                        });
+                    }
+
+                    // 使用alert显示详细结果，因为内容较多
+                    alert(resultMessage);
+
+                    if (response.diagnostic.success) {
+                        showMessage('✅ 诊断完成，连接正常', 'success');
+                        logAsync('INFO', 'WebDAV诊断成功', response.diagnostic);
+                    } else {
+                        showMessage('⚠️ 诊断完成，发现问题，请查看详细信息', 'warn');
+                        logAsync('WARN', 'WebDAV诊断发现问题', response.diagnostic);
+                    }
+                } else {
+                    const errorMsg = response?.error || '诊断失败';
+                    showMessage(`❌ WebDAV诊断失败：${errorMsg}`, 'error');
+                    logAsync('ERROR', `WebDAV诊断失败：${errorMsg}`);
+                }
+
+                diagnoseWebdavConnectionBtn.textContent = '诊断连接';
+                diagnoseWebdavConnectionBtn.disabled = false;
+            });
+        }).catch(error => {
+            showMessage('❌ 保存设置失败，无法进行诊断', 'error');
+            logAsync('ERROR', `保存WebDAV设置失败：${error.message}`);
+            diagnoseWebdavConnectionBtn.textContent = '诊断连接';
+            diagnoseWebdavConnectionBtn.disabled = false;
+        });
+    }
+
     // 更新WebDAV控件状态的函数
     function updateWebDAVControlsState() {
         const webdavSubControls = document.getElementById('webdavSubControls');
@@ -349,6 +434,7 @@ export function initSettingsTab(): void {
         (document.getElementById('webdav-fields-container') as HTMLDivElement).style.display = webdavEnabled.checked ? 'block' : 'none';
     });
     testWebdavConnectionBtn.addEventListener('click', handleTestWebDAV);
+    diagnoseWebdavConnectionBtn.addEventListener('click', handleDiagnoseWebDAV);
 
 
 
@@ -356,6 +442,9 @@ export function initSettingsTab(): void {
     hideBrowsed.addEventListener('change', handleSaveSettings);
     hideVR.addEventListener('change', handleSaveSettings);
     maxLogEntries.addEventListener('change', handleSaveSettings);
+    verboseMode.addEventListener('change', handleSaveSettings);
+    showPrivacyLogs.addEventListener('change', handleSaveSettings);
+    showStorageLogs.addEventListener('change', handleSaveSettings);
 
     // 增强功能设置事件监听器
     saveEnhancementSettingsBtn.addEventListener('click', handleSaveSettings);

@@ -188,6 +188,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     ],
     logging: {
         maxLogEntries: 1500,
+        verboseMode: false, // 详细日志模式（默认关闭以减少噪音）
+        showPrivacyLogs: false, // 显示隐私相关日志（默认关闭）
+        showStorageLogs: false, // 显示存储相关日志（默认关闭）
     },
     drive115: DEFAULT_DRIVE115_SETTINGS,
 

@@ -2,6 +2,7 @@
 
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
+import { showSmartRestoreModal } from './ui/modal';
 import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '../utils/dataDiff';
 import { mergeData, type MergeResult } from '../utils/dataMerge';
 import { getValue, setValue } from '../utils/storage';
@@ -233,8 +234,8 @@ function startQuickRestore(): void {
     const totalConflicts = currentDiffResult.videoRecords.summary.conflictCount +
                           currentDiffResult.actorRecords.summary.conflictCount;
 
-    // 导入智能恢复确认弹窗
-    import('./ui/modal.js').then(({ showSmartRestoreModal }) => {
+    // 显示智能恢复确认弹窗
+    try {
         showSmartRestoreModal({
             localRecordsCount: currentDiffResult.videoRecords.summary.totalLocal,
             localActorsCount: currentDiffResult.actorRecords.summary.totalLocal,
@@ -262,7 +263,7 @@ function startQuickRestore(): void {
                 logAsync('INFO', '用户取消快捷恢复');
             }
         });
-    }).catch(error => {
+    } catch (error) {
         console.error('Failed to load smart restore modal:', error);
         // 降级到原来的confirm方式
         const confirmMessage = `
@@ -299,7 +300,7 @@ function startQuickRestore(): void {
         } else {
             logAsync('INFO', '用户取消快捷恢复');
         }
-    });
+    }
 }
 
 /**

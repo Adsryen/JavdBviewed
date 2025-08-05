@@ -22,7 +22,7 @@ export * from '../../types/privacy';
  */
 export async function initializePrivacySystem(): Promise<void> {
     try {
-        console.log('Initializing privacy system...');
+        // 初始化隐私系统
 
         const { getPrivacyManager } = await import('./PrivacyManager');
         const privacyManager = getPrivacyManager();
@@ -30,9 +30,8 @@ export async function initializePrivacySystem(): Promise<void> {
 
         // 暴露到全局以便调试和手动控制
         (window as any).privacyManager = privacyManager;
-        console.log('Privacy manager exposed to window.privacyManager');
-
-        console.log('Privacy system initialized successfully');
+        // 隐私管理器已暴露到全局
+        // 隐私系统初始化完成
     } catch (error) {
         console.error('Failed to initialize privacy system:', error);
         throw error;

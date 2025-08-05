@@ -4,6 +4,7 @@ import { getValue, setValue, getSettings, saveSettings } from '../utils/storage'
 import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
+import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -267,59 +268,197 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
         let url = settings.webdav.url;
         if (!url.endsWith('/')) url += '/';
 
+        await logger.info(`Sending PROPFIND request to: ${url}`);
+
+        // 增强的请求头，支持更多WebDAV服务器
+        const headers: Record<string, string> = {
+            'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
+            'Depth': '1',
+            'Content-Type': 'application/xml; charset=utf-8',
+            'User-Agent': 'JavDB-Extension/1.0'
+        };
+
+        // 对于某些服务器，可能需要发送XML body
+        const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+    <D:allprop/>
+</D:propfind>`;
+
         const response = await fetch(url, {
             method: 'PROPFIND',
-            headers: {
-                'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
-                'Depth': '1'
-            }
+            headers: headers,
+            body: xmlBody
         });
 
+        await logger.info(`WebDAV response status: ${response.status} ${response.statusText}`);
+        await logger.debug(`WebDAV response headers:`, Object.fromEntries(response.headers.entries()));
+
         if (!response.ok) {
-            throw new Error(`Failed to list files with status: ${response.status}`);
+            // 提供更详细的错误信息
+            let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+
+            if (response.status === 401) {
+                errorDetail += ' - 认证失败，请检查用户名和密码';
+            } else if (response.status === 403) {
+                errorDetail += ' - 访问被拒绝，请检查权限设置';
+            } else if (response.status === 404) {
+                errorDetail += ' - 路径不存在，请检查WebDAV URL';
+            } else if (response.status === 405) {
+                errorDetail += ' - 服务器不支持PROPFIND方法';
+            } else if (response.status >= 500) {
+                errorDetail += ' - 服务器内部错误';
+            }
+
+            throw new Error(errorDetail);
         }
 
         const text = await response.text();
-        await logger.debug("Received WebDAV PROPFIND response:", { response: text });
+        await logger.debug("Received WebDAV PROPFIND response:", {
+            responseLength: text.length,
+            responsePreview: text.substring(0, 500) + (text.length > 500 ? '...' : '')
+        });
+
+        if (!text || text.trim().length === 0) {
+            throw new Error('服务器返回空响应');
+        }
 
         const files = parseWebDAVResponse(text);
+        await logger.info(`Successfully parsed ${files.length} files from WebDAV response`);
         await logger.debug("Parsed WebDAV files:", { files });
+
+        if (files.length === 0) {
+            await logger.warn('No backup files found in WebDAV response. This might be normal if no backups exist yet.');
+        }
 
         return { success: true, files: files };
     } catch (error: any) {
-        await logger.error('Failed to list WebDAV files.', { error: error.message });
+        await logger.error('Failed to list WebDAV files.', {
+            error: error.message,
+            url: settings.webdav.url,
+            username: settings.webdav.username ? '[CONFIGURED]' : '[NOT SET]'
+        });
         return { success: false, error: error.message };
     }
 }
 
 function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
     const files: WebDAVFile[] = [];
-    const simplifiedXml = xmlString.replace(/<(\/)?\w+:/g, '<$1');
 
-    const responseRegex = /<response>(.*?)<\/response>/gs;
-    const hrefRegex = /<href>(.*?)<\/href>/;
-    const lastModifiedRegex = /<getlastmodified>(.*?)<\/getlastmodified>/;
-    const contentLengthRegex = /<getcontentlength>(.*?)<\/getcontentlength>/;
-    const collectionRegex = /<resourcetype>\s*<collection\s*\/>\s*<\/resourcetype>/;
+    // 更强大的XML命名空间处理，支持多种WebDAV服务器
+    let simplifiedXml = xmlString;
 
-    let match;
-    while ((match = responseRegex.exec(simplifiedXml)) !== null) {
-        const responseXml = match[1];
-        const hrefMatch = responseXml.match(hrefRegex);
-        if (hrefMatch) {
-            const href = hrefMatch[1];
-            const displayName = decodeURIComponent(href.split('/').filter(Boolean).pop() || '');
+    // 移除所有XML命名空间前缀，支持更多服务器格式
+    simplifiedXml = simplifiedXml.replace(/<(\/)?\w+:/g, '<$1');
+    simplifiedXml = simplifiedXml.replace(/\s+xmlns[^=]*="[^"]*"/g, '');
 
-            if (collectionRegex.test(responseXml) || href.endsWith('/')) {
+    // 多种response标签格式支持
+    const responsePatterns = [
+        /<response>(.*?)<\/response>/gs,
+        /<multistatus[^>]*>(.*?)<\/multistatus>/gs,
+        /<propstat[^>]*>(.*?)<\/propstat>/gs
+    ];
+
+    // 多种href标签格式支持
+    const hrefPatterns = [
+        /<href[^>]*>(.*?)<\/href>/i,
+        /<displayname[^>]*>(.*?)<\/displayname>/i,
+        /<name[^>]*>(.*?)<\/name>/i
+    ];
+
+    // 多种时间格式支持
+    const timePatterns = [
+        /<getlastmodified[^>]*>(.*?)<\/getlastmodified>/i,
+        /<lastmodified[^>]*>(.*?)<\/lastmodified>/i,
+        /<modificationtime[^>]*>(.*?)<\/modificationtime>/i,
+        /<creationdate[^>]*>(.*?)<\/creationdate>/i
+    ];
+
+    // 多种大小格式支持
+    const sizePatterns = [
+        /<getcontentlength[^>]*>(.*?)<\/getcontentlength>/i,
+        /<contentlength[^>]*>(.*?)<\/contentlength>/i,
+        /<size[^>]*>(.*?)<\/size>/i
+    ];
+
+    // 多种目录检测格式支持
+    const collectionPatterns = [
+        /<resourcetype[^>]*>.*?<collection[^>]*\/>.*?<\/resourcetype>/i,
+        /<resourcetype[^>]*>.*?<collection[^>]*>.*?<\/collection>.*?<\/resourcetype>/i,
+        /<getcontenttype[^>]*>.*?directory.*?<\/getcontenttype>/i,
+        /<iscollection[^>]*>true<\/iscollection>/i
+    ];
+
+    // 尝试不同的response模式
+    for (const responsePattern of responsePatterns) {
+        let match;
+        responsePattern.lastIndex = 0; // 重置正则表达式状态
+
+        while ((match = responsePattern.exec(simplifiedXml)) !== null) {
+            const responseXml = match[1];
+
+            // 尝试提取href/文件名
+            let href = '';
+            let displayName = '';
+
+            for (const hrefPattern of hrefPatterns) {
+                const hrefMatch = responseXml.match(hrefPattern);
+                if (hrefMatch && hrefMatch[1]) {
+                    href = hrefMatch[1].trim();
+                    // 从href中提取文件名
+                    if (href.includes('/')) {
+                        displayName = decodeURIComponent(href.split('/').filter(Boolean).pop() || '');
+                    } else {
+                        displayName = decodeURIComponent(href);
+                    }
+                    break;
+                }
+            }
+
+            if (!href || !displayName) continue;
+
+            // 检查是否为目录
+            let isDirectory = false;
+            for (const collectionPattern of collectionPatterns) {
+                if (collectionPattern.test(responseXml)) {
+                    isDirectory = true;
+                    break;
+                }
+            }
+
+            // 如果是目录或者href以/结尾，跳过
+            if (isDirectory || href.endsWith('/')) {
                 continue;
             }
 
+            // 只处理包含备份文件名的文件
             if (displayName.includes('javdb-extension-backup')) {
-                const lastModifiedMatch = responseXml.match(lastModifiedRegex);
-                const lastModified = lastModifiedMatch ? new Date(lastModifiedMatch[1]).toLocaleString() : 'N/A';
+                // 尝试提取最后修改时间
+                let lastModified = 'N/A';
+                for (const timePattern of timePatterns) {
+                    const timeMatch = responseXml.match(timePattern);
+                    if (timeMatch && timeMatch[1]) {
+                        try {
+                            lastModified = new Date(timeMatch[1]).toLocaleString();
+                            break;
+                        } catch (e) {
+                            // 如果日期解析失败，继续尝试其他格式
+                            continue;
+                        }
+                    }
+                }
 
-                const contentLengthMatch = responseXml.match(contentLengthRegex);
-                const size = contentLengthMatch ? parseInt(contentLengthMatch[1], 10) : undefined;
+                // 尝试提取文件大小
+                let size: number | undefined;
+                for (const sizePattern of sizePatterns) {
+                    const sizeMatch = responseXml.match(sizePattern);
+                    if (sizeMatch && sizeMatch[1]) {
+                        const parsedSize = parseInt(sizeMatch[1], 10);
+                        if (!isNaN(parsedSize)) {
+                            size = parsedSize;
+                            break;
+                        }
+                    }
+                }
 
                 files.push({
                     name: displayName,
@@ -330,7 +469,13 @@ function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
                 });
             }
         }
+
+        // 如果找到了文件，就不需要尝试其他模式了
+        if (files.length > 0) {
+            break;
+        }
     }
+
     return files;
 }
 
@@ -344,23 +489,117 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
     }
 
     try {
-        const response = await fetch(settings.webdav.url, {
+        let url = settings.webdav.url;
+        if (!url.endsWith('/')) url += '/';
+
+        await logger.info(`Testing connection to: ${url}`);
+
+        // 增强的请求头
+        const headers: Record<string, string> = {
+            'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
+            'Depth': '0',
+            'Content-Type': 'application/xml; charset=utf-8',
+            'User-Agent': 'JavDB-Extension/1.0'
+        };
+
+        // 简单的XML body用于测试
+        const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+    <D:prop>
+        <D:resourcetype/>
+        <D:getcontentlength/>
+        <D:getlastmodified/>
+    </D:prop>
+</D:propfind>`;
+
+        const response = await fetch(url, {
             method: 'PROPFIND',
-            headers: {
-                'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
-                'Depth': '0'
-            }
+            headers: headers,
+            body: xmlBody
         });
 
+        await logger.info(`Test response: ${response.status} ${response.statusText}`);
+
         if (response.ok) {
-            return { success: true };
+            // 尝试读取响应内容以验证服务器是否正确支持WebDAV
+            const responseText = await response.text();
+            await logger.debug('Test response content:', {
+                length: responseText.length,
+                preview: responseText.substring(0, 200)
+            });
+
+            // 检查响应是否包含WebDAV相关内容
+            if (responseText.includes('<?xml') || responseText.includes('<multistatus') || responseText.includes('<response')) {
+                await logger.info('WebDAV connection test successful - server supports WebDAV protocol');
+                return { success: true };
+            } else {
+                await logger.warn('Server responded but may not support WebDAV properly');
+                return {
+                    success: false,
+                    error: '服务器响应成功但可能不支持WebDAV协议，请检查URL是否正确'
+                };
+            }
         } else {
-            const errorMsg = `Connection test failed with status: ${response.status}`;
+            let errorMsg = `Connection test failed with status: ${response.status} ${response.statusText}`;
+
+            // 提供针对性的错误提示
+            if (response.status === 401) {
+                errorMsg += ' - 认证失败，请检查用户名和密码';
+            } else if (response.status === 403) {
+                errorMsg += ' - 访问被拒绝，请检查账户权限';
+            } else if (response.status === 404) {
+                errorMsg += ' - WebDAV路径不存在，请检查URL';
+            } else if (response.status === 405) {
+                errorMsg += ' - 服务器不支持WebDAV';
+            }
+
             await logger.warn(errorMsg);
             return { success: false, error: errorMsg };
         }
     } catch (error: any) {
-        await logger.error('WebDAV connection test failed.', { error: error.message });
+        let errorMsg = error.message;
+
+        // 网络错误的友好提示
+        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
+            errorMsg = '网络连接失败，请检查网络连接和服务器地址';
+        } else if (errorMsg.includes('CORS')) {
+            errorMsg = 'CORS错误，可能是服务器配置问题';
+        }
+
+        await logger.error('WebDAV connection test failed.', {
+            error: errorMsg,
+            originalError: error.message,
+            url: settings.webdav.url
+        });
+        return { success: false, error: errorMsg };
+    }
+}
+
+async function diagnoseWebDAVConnection(): Promise<{ success: boolean; error?: string; diagnostic?: DiagnosticResult }> {
+    await logger.info('Starting WebDAV diagnostic.');
+    const settings = await getSettings();
+
+    if (!settings.webdav.url || !settings.webdav.username || !settings.webdav.password) {
+        const errorMsg = "WebDAV connection details are not fully configured.";
+        await logger.warn(errorMsg);
+        return { success: false, error: errorMsg };
+    }
+
+    try {
+        const diagnostic = await quickDiagnose({
+            url: settings.webdav.url,
+            username: settings.webdav.username,
+            password: settings.webdav.password
+        });
+
+        await logger.info('WebDAV diagnostic completed', diagnostic);
+
+        return {
+            success: true,
+            diagnostic: diagnostic
+        };
+    } catch (error: any) {
+        await logger.error('WebDAV diagnostic failed.', { error: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -439,6 +678,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     })
                     .catch(error => {
                         console.error('[Background] Failed to test WebDAV connection:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'webdav-diagnose':
+                console.log('[Background] Processing webdav-diagnose request.');
+                diagnoseWebDAVConnection()
+                    .then(result => {
+                        console.log(`[Background] WebDAV diagnose result:`, result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to diagnose WebDAV connection:', error);
                         sendResponse({ success: false, error: error.message });
                     });
                 return true;

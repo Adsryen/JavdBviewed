@@ -42,6 +42,9 @@ export interface ExtensionSettings {
     }[];
     logging: {
         maxLogEntries: number;
+        verboseMode?: boolean; // 详细日志模式
+        showPrivacyLogs?: boolean; // 显示隐私相关日志
+        showStorageLogs?: boolean; // 显示存储相关日志
     };
     drive115: Drive115Settings; // 115网盘配置
 

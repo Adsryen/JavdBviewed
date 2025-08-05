@@ -3,6 +3,7 @@
  */
 
 import { IBlurController, BlurEffectConfig, PrivacyEvent, PrivacyEventType } from '../../types/privacy';
+import { log } from '../../utils/logController';
 
 export class BlurController implements IBlurController {
     private static instance: BlurController;
@@ -84,12 +85,12 @@ export class BlurController implements IBlurController {
     async applyBlur(elements?: string[]): Promise<void> {
         try {
             const selectors = elements || this.defaultProtectedSelectors;
-            console.log('=== Starting blur application ===');
-            console.log('Applying blur with selectors:', selectors);
-            console.log('Current blurred elements count:', this.blurredElements.size);
+            log.privacy('=== Starting blur application ===');
+            log.privacy('Applying blur with selectors:', selectors);
+            log.verbose('Current blurred elements count:', this.blurredElements.size);
 
             const elementsToBlur = this.findElementsToBlur(selectors);
-            console.log('Found elements to blur:', elementsToBlur.length);
+            log.verbose('Found elements to blur:', elementsToBlur.length);
 
             if (elementsToBlur.length === 0) {
                 console.warn('No layout containers found to blur. This is expected if not on Dashboard.');
@@ -120,12 +121,14 @@ export class BlurController implements IBlurController {
                 totalFound: elementsToBlur.length
             });
 
-            console.log(`=== Blur application complete ===`);
-            console.log(`✅ Successfully applied blur to ${successCount} elements`);
-            if (errorCount > 0) {
-                console.log(`❌ Failed to blur ${errorCount} elements`);
+            // 模糊应用完成
+            if (successCount > 0) {
+                // 只在有成功应用时记录简要信息
+                console.log(`✅ Successfully applied blur to ${successCount} elements`);
             }
-            console.log(`Total blurred elements now: ${this.blurredElements.size}`);
+            if (errorCount > 0) {
+                console.warn(`❌ Failed to blur ${errorCount} elements`);
+            }
         } catch (error) {
             console.error('Failed to apply blur:', error);
             throw new Error('应用模糊效果失败');
@@ -137,7 +140,7 @@ export class BlurController implements IBlurController {
      */
     async removeBlur(): Promise<void> {
         try {
-            console.log(`Removing blur from ${this.blurredElements.size} elements`);
+            // 移除模糊效果
 
             for (const element of this.blurredElements) {
                 this.removeBlurFromElement(element);
@@ -156,7 +159,7 @@ export class BlurController implements IBlurController {
 
             this.emitEvent('blur-removed', {});
 
-            console.log('Removed blur from all elements');
+            // 已移除所有模糊效果
         } catch (error) {
             console.error('Failed to remove blur:', error);
             throw new Error('移除模糊效果失败');
@@ -167,7 +170,7 @@ export class BlurController implements IBlurController {
      * 强制重新应用模糊（清除现有状态后重新应用）
      */
     async forceReapplyBlur(elements?: string[]): Promise<void> {
-        console.log('=== Force reapplying blur ===');
+        // 强制重新应用模糊
 
         // 先移除现有模糊
         await this.removeBlur();
@@ -234,7 +237,7 @@ export class BlurController implements IBlurController {
                 this.restoreBlurAfterTemporaryView();
             }, duration * 1000);
 
-            console.log(`Temporary view activated for ${duration} seconds`);
+            // 临时查看已激活
         } catch (error) {
             console.error('Failed to show temporary view:', error);
         }
@@ -255,15 +258,12 @@ export class BlurController implements IBlurController {
         const elements: HTMLElement[] = [];
         const processedElements = new Set<HTMLElement>();
 
-        console.log('Starting element search with selectors:', selectors);
+        // 开始搜索元素
 
         for (const selector of selectors) {
             try {
                 const found = document.querySelectorAll(selector);
-                // 只记录找到元素的选择器，避免日志刷屏
-                if (found.length > 0) {
-                    console.log(`Selector "${selector}" found ${found.length} elements`);
-                }
+                // 记录找到的元素（减少日志输出）
 
                 found.forEach(el => {
                     if (el instanceof HTMLElement &&
@@ -283,7 +283,7 @@ export class BlurController implements IBlurController {
             }
         }
 
-        console.log(`Total elements found for blur: ${elements.length}`);
+        // 元素搜索完成
         return elements;
     }
 
@@ -503,7 +503,7 @@ export class BlurController implements IBlurController {
         element.classList.remove('privacy-blur');
         element.style.filter = 'none';
         element.removeAttribute('data-privacy-blurred');
-        console.log('Single element view activated');
+        // 单元素查看已激活
 
         // 10秒后自动恢复
         setTimeout(() => {
@@ -532,7 +532,7 @@ export class BlurController implements IBlurController {
             element.style.transition = `filter ${this.config.transitionDuration}ms ease`;
         }
 
-        console.log('Single element blur restored');
+        // 单元素模糊已恢复
     }
 
     /**
@@ -543,7 +543,7 @@ export class BlurController implements IBlurController {
             this.applyBlurToElement(element);
         }
         this.temporaryViewTimeout = null;
-        console.log('Blur restored after temporary view');
+        // 临时查看后模糊已恢复
     }
 
     /**
