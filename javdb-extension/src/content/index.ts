@@ -17,6 +17,7 @@ import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
 import { showToast } from './toast';
+import { initializeContentPrivacy } from './privacy';
 
 // --- Core Logic ---
 
@@ -128,6 +129,15 @@ async function initialize(): Promise<void> {
             maxResults: 20,
         });
         magnetSearchManager.initialize();
+    }
+
+    // 初始化隐私保护功能
+    try {
+        log('Privacy system initializing...');
+        await initializeContentPrivacy();
+        log('Privacy system initialized successfully');
+    } catch (error) {
+        log('Privacy system initialization failed:', error);
     }
 
     STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE);

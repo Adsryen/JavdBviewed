@@ -1,4 +1,5 @@
 import { ExtensionSettings, FilterRule, ActorSyncConfig } from '../types';
+import { PrivacyConfig } from '../types/privacy';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 
 export const STORAGE_KEYS = {
@@ -22,7 +23,11 @@ export const STORAGE_KEYS = {
     ACTOR_RECORDS: 'actor_records',
 
     // Key for storing restore backups.
-    RESTORE_BACKUP: 'restore_backup'
+    RESTORE_BACKUP: 'restore_backup',
+
+    // 隐私保护相关存储键
+    PRIVACY_STATE: 'privacy_state',
+    PRIVACY_SESSION: 'privacy_session'
 } as const;
 
 export const VIDEO_STATUS = {
@@ -43,6 +48,95 @@ export const DEFAULT_ACTOR_SYNC_CONFIG: ActorSyncConfig = {
         collectionActors: 'https://javdb.com/users/collection_actors', // 收藏演员列表URL
         actorDetail: 'https://javdb.com/actors/{{ACTOR_ID}}', // 演员详情页URL模板
     },
+};
+
+// 隐私保护默认配置
+export const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
+    screenshotMode: {
+        enabled: false,
+        autoBlurTrigger: 'manual',
+        blurIntensity: 5,
+        protectedElements: [
+            // Dashboard 布局级保护 - 只模糊最外层容器，避免嵌套模糊
+            '.video-list-container',          // 番号库整个容器
+            '.actor-list-container',          // 演员库整个容器
+
+            // JavDB网站内容 - 视频相关
+            '.video-cover',
+            '.movie-list .item',
+            '.movie-list .cover',
+            '.movie-list .title',
+            '.movie-list .meta',
+            '.video-meta-panel',
+            '.video-detail',
+            '.preview-images',
+            '.sample-waterfall',
+
+            // JavDB网站内容 - 演员相关
+            '.actor-name',
+            '.actor-list .item',
+            '.actor-list .avatar',
+            '.actor-list .name',
+            '.actor-section',
+            '.performer-list',
+            '.performer-avatar',
+
+            // 页面背景和封面
+            '.hero-banner',
+            '.cover-container',
+            '.backdrop',
+            '.poster',
+            '.thumbnail',
+
+            // 用户相关
+            '.user-profile',
+            '.user-avatar',
+            '.viewed-records',
+            '.collection-list',
+            '.watch-history',
+            '.favorite-list',
+
+            // 搜索和标签
+            '.search-result',
+            '.tag-list',
+            '.genre-list',
+            '.category-list',
+
+            // 通用敏感内容
+            '[data-sensitive]',
+            '[data-private]',
+            '.sensitive-content'
+        ],
+        showEyeIcon: true,
+        eyeIconPosition: 'top-right',
+        temporaryViewDuration: 10
+    },
+    privateMode: {
+        enabled: false,
+        requirePassword: false,
+        passwordHash: '',
+        passwordSalt: '',
+        sessionTimeout: 30,
+        lastVerified: 0,
+        lockOnTabLeave: false,
+        lockOnExtensionClose: false,
+        restrictedFeatures: [
+            'data-sync',
+            'data-export',
+            'data-import',
+            'webdav-sync',
+            'actor-sync',
+            'advanced-settings'
+        ]
+    },
+    passwordRecovery: {
+        securityQuestions: [],
+        recoveryEmail: '',
+        backupCode: '',
+        backupCodeUsed: false,
+        lastRecoveryAttempt: 0,
+        recoveryAttemptCount: 0
+    }
 };
 
 // 状态优先级定义：数字越大优先级越高
@@ -126,6 +220,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：演员同步配置
     actorSync: DEFAULT_ACTOR_SYNC_CONFIG,
+
+    // 新增：隐私保护配置
+    privacy: DEFAULT_PRIVACY_CONFIG,
 
     version: '0.0.0'
 };

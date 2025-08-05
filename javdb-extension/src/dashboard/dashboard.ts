@@ -21,11 +21,65 @@ import { initDataSyncSection } from './dataSync';
 import { initializeDrive115Service } from '../services/drive115';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 
+/**
+ * 设置Dashboard隐私保护监听 - 简化版，只监听标签切换
+ */
+async function setupDashboardPrivacyMonitoring() {
+    try {
+        console.log('Setting up simplified Dashboard privacy monitoring...');
+
+        const reapplyPrivacy = async () => {
+            try {
+                if (window.privacyManager) {
+                    const state = window.privacyManager.getState();
+                    if (state.isBlurred) {
+                        console.log('Reapplying privacy protection after tab change...');
+                        await window.privacyManager.forceReapplyScreenshotMode();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to reapply privacy:', error);
+            }
+        };
+
+        // 只监听hash变化（标签页切换）- 最简单可靠的方式
+        let lastHash = window.location.hash;
+        const checkHashChange = () => {
+            const currentHash = window.location.hash;
+            if (currentHash !== lastHash) {
+                console.log(`Tab changed from ${lastHash} to ${currentHash}`);
+                lastHash = currentHash;
+                setTimeout(reapplyPrivacy, 300); // 减少延迟时间
+            }
+        };
+
+        // 定期检查hash变化（避免事件监听器的复杂性）
+        setInterval(checkHashChange, 1000);
+
+        console.log('Simplified Dashboard privacy monitoring setup complete');
+    } catch (error) {
+        console.error('Failed to setup Dashboard privacy monitoring:', error);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
 
     // 清理搜索引擎配置中的测试数据
     await cleanupSearchEngines();
+
+    // 初始化隐私保护系统
+    try {
+        console.log('Initializing privacy system for Dashboard...');
+        const { initializePrivacySystem } = await import('../services/privacy');
+        await initializePrivacySystem();
+        console.log('Privacy system initialized successfully for Dashboard');
+
+        // 设置Dashboard特定的隐私监听
+        setupDashboardPrivacyMonitoring();
+    } catch (error) {
+        console.error('Failed to initialize privacy system for Dashboard:', error);
+    }
 
     // 设置标题图标URL
     const titleIcon = document.getElementById('title-icon') as HTMLImageElement;

@@ -412,6 +412,10 @@
                                 <i class="fas fa-network-wired"></i>
                                 <span>网络测试</span>
                             </div>
+                            <div class="settings-nav-item" data-section="privacy-settings">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>隐私保护</span>
+                            </div>
                             <div class="settings-nav-item" data-section="advanced-settings">
                                 <i class="fas fa-cogs"></i>
                                 <span>高级配置</span>
@@ -684,6 +688,121 @@
 
 
 
+
+                        <!-- 隐私保护 -->
+                        <div class="settings-panel" id="privacy-settings">
+                            <div class="settings-panel-header">
+                                <h3>隐私保护设置</h3>
+                                <p class="settings-description">配置截图模式和私密模式，保护您的隐私数据不被意外泄露。</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <!-- 截图模式设置 -->
+                                <div class="settings-section">
+                                    <h4>截图模式</h4>
+                                    <p class="settings-description">对敏感内容应用模糊效果，防止截图时泄露隐私。</p>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="screenshotModeEnabled">
+                                        <label for="screenshotModeEnabled">启用截图模式</label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="blurIntensity">模糊强度: <span id="blurIntensityValue">5</span></label>
+                                        <input type="range" id="blurIntensity" min="1" max="10" value="5" class="slider">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="autoBlurTrigger">自动模糊触发条件</label>
+                                        <select id="autoBlurTrigger" class="form-control">
+                                            <option value="manual">手动控制</option>
+                                            <option value="tab-leave">离开标签页时</option>
+                                            <option value="extension-reopen">重新打开拓展时</option>
+                                            <option value="idle-timeout">空闲超时时</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="showEyeIcon" checked>
+                                        <label for="showEyeIcon">显示眼睛图标（点击临时查看）</label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="temporaryViewDuration">临时查看持续时间（秒）</label>
+                                        <input type="number" id="temporaryViewDuration" min="5" max="60" value="10" class="form-control">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <button id="testBlurBtn" class="button button-secondary">测试模糊效果</button>
+                                    </div>
+                                </div>
+
+                                <!-- 私密模式设置 -->
+                                <div class="settings-section">
+                                    <h4>私密模式</h4>
+                                    <p class="settings-description">在截图模式基础上增加密码验证，适用于公共电脑环境。</p>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="privateModeEnabled">
+                                        <label for="privateModeEnabled">启用私密模式</label>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="requirePassword">
+                                        <label for="requirePassword">需要密码验证</label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>密码状态: <span id="passwordStatus" class="status-warning">未设置</span></label>
+                                        <div class="button-group">
+                                            <button id="setPasswordBtn" class="button button-primary">设置密码</button>
+                                            <button id="changePasswordBtn" class="button button-secondary" style="display: none;">更改密码</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="sessionTimeout">会话超时时间（分钟）</label>
+                                        <input type="number" id="sessionTimeout" min="5" max="120" value="30" class="form-control">
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="lockOnTabLeave">
+                                        <label for="lockOnTabLeave">离开标签页时自动锁定</label>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="lockOnExtensionClose">
+                                        <label for="lockOnExtensionClose">关闭拓展时自动锁定</label>
+                                    </div>
+                                </div>
+
+                                <!-- 密码恢复设置 -->
+                                <div class="settings-section">
+                                    <h4>密码恢复</h4>
+                                    <p class="settings-description">设置密码恢复选项，以防忘记密码。</p>
+
+                                    <div class="form-group">
+                                        <label>安全问题: <span id="securityQuestionsStatus" class="status-warning">未设置</span></label>
+                                        <button id="setupSecurityQuestionsBtn" class="button button-secondary">设置安全问题</button>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>备份恢复码: <span id="backupCodeStatus" class="status-warning">未生成</span></label>
+                                        <button id="generateBackupCodeBtn" class="button button-secondary">生成备份码</button>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="alert alert-warning">
+                                            <strong>重要提醒：</strong>
+                                            <ul>
+                                                <li>请妥善保存备份恢复码，它只会显示一次</li>
+                                                <li>如果忘记密码且没有恢复选项，只能重置所有数据</li>
+                                                <li>建议至少设置一种恢复方式</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- 网络测试 -->
                         <div class="settings-panel" id="network-test-settings">
