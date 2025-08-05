@@ -291,7 +291,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start; /* 改为顶部对齐，避免内容过多时挤压 */
+    min-height: 0; /* 允许内容收缩 */
+    overflow: hidden; /* 防止内容溢出 */
 }
 
 /* 演员主要名字 */
@@ -346,6 +348,7 @@
     gap: 6px;
     align-items: center;
     position: relative;
+    /* 默认不限制高度，让内容自然显示 */
 }
 
 .actor-card-aliases::before {
@@ -356,6 +359,7 @@
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    flex-shrink: 0; /* 防止标题被压缩 */
 }
 
 /* 别名列表容器 */
@@ -365,6 +369,106 @@
     gap: 4px;
     justify-content: center;
     max-width: 100%;
+    /* 默认不限制高度 */
+}
+
+/* 当有溢出时才应用高度限制 */
+.actor-card-aliases.has-overflow:not(.expanded) {
+    max-height: 80px; /* 限制最大高度 */
+    overflow: hidden; /* 隐藏溢出内容 */
+}
+
+.actor-card-aliases.has-overflow:not(.expanded) .actor-aliases-list {
+    max-height: 60px; /* 限制别名列表高度 */
+    overflow-y: auto; /* 添加垂直滚动 */
+    overflow-x: hidden;
+    padding: 2px; /* 为滚动条留出空间 */
+    scrollbar-width: thin; /* Firefox 滚动条样式 */
+    scrollbar-color: #dee2e6 transparent;
+}
+
+/* Webkit 滚动条样式 */
+.actor-aliases-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.actor-aliases-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.actor-aliases-list::-webkit-scrollbar-thumb {
+    background: #dee2e6;
+    border-radius: 2px;
+}
+
+.actor-aliases-list::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+/* 别名展开/收起功能 */
+.actor-card-aliases.expanded {
+    max-height: none; /* 展开时移除高度限制 */
+}
+
+.actor-card-aliases.expanded .actor-aliases-list {
+    max-height: none; /* 展开时移除高度限制 */
+}
+
+/* 展开/收起按钮 */
+.aliases-toggle-btn {
+    position: absolute;
+    bottom: -2px;
+    right: 8px;
+    background: rgba(248, 249, 250, 0.95);
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(5px);
+    z-index: 4;
+    display: none; /* 默认隐藏 */
+}
+
+.actor-card-aliases.has-overflow .aliases-toggle-btn {
+    display: block; /* 有溢出时显示 */
+}
+
+.aliases-toggle-btn:hover {
+    background: rgba(233, 236, 239, 0.95);
+    color: #495057;
+    transform: scale(1.05);
+}
+
+/* 渐变遮罩效果（当有溢出时） */
+.actor-card-aliases.has-overflow:not(.expanded)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* 展开状态下的最大高度限制 */
+.actor-card-aliases.expanded {
+    max-height: 150px; /* 即使展开也要有最大高度限制 */
+}
+
+.actor-card-aliases.expanded .actor-aliases-list {
+    max-height: 130px; /* 展开状态下的最大高度 */
+}
+
+/* 确保演员信息区域不会被别名挤压 */
+.actor-card-meta,
+.actor-card-sync {
+    flex-shrink: 0; /* 防止元信息被压缩 */
+    margin-top: auto; /* 推到底部 */
 }
 
 /* 单个别名样式 */
@@ -456,11 +560,27 @@
     .actor-alias {
         font-size: 11px;
         padding: 3px 6px;
+        max-width: 100px; /* 移动端减小别名最大宽度 */
     }
 
     .actor-name-copy-icon,
     .actor-alias-copy-icon {
         font-size: 10px;
+    }
+
+    /* 移动端别名容器优化 */
+    .actor-card-aliases {
+        max-height: 70px; /* 移动端稍微增加高度 */
+    }
+
+    .actor-aliases-list {
+        max-height: 50px; /* 移动端调整列表高度 */
+    }
+
+    .aliases-toggle-btn {
+        padding: 1px 4px;
+        font-size: 9px;
+        right: 4px;
     }
 }
 
@@ -583,6 +703,8 @@
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border-top: 1px solid rgba(233, 236, 239, 0.5);
+    margin-top: auto; /* 确保按钮区域始终在底部 */
+    flex-shrink: 0; /* 防止按钮区域被压缩 */
 }
 
 .actor-action-btn {
