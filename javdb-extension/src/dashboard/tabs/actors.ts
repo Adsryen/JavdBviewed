@@ -237,7 +237,7 @@ export class ActorsTab {
                         <i class="fas fa-copy actor-name-copy-icon"></i>
                     </div>
                     ${actor.aliases.length > 0 ? `
-                        <div class="actor-card-aliases">
+                        <div class="actor-card-aliases" data-actor-id="${actor.id}">
                             <div class="actor-aliases-list">
                                 ${actor.aliases.map(alias => `
                                     <div class="actor-alias"
@@ -249,6 +249,11 @@ export class ActorsTab {
                                     </div>
                                 `).join('')}
                             </div>
+                            <button class="aliases-toggle-btn"
+                                    data-actor-id="${actor.id}"
+                                    title="展开/收起别名">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
                         </div>
                     ` : ''}
                     <div class="actor-card-meta">
@@ -343,6 +348,20 @@ export class ActorsTab {
                 this.deleteActor(actorId);
             });
         }
+
+        // 别名展开/收起按钮事件
+        const toggleBtn = document.querySelector(`[data-actor-id="${actor.id}"].aliases-toggle-btn`);
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const actorId = (e.currentTarget as HTMLElement).dataset.actorId!;
+                this.toggleAliasesExpansion(actorId);
+            });
+        }
+
+        // 检查别名是否溢出，如果溢出则显示展开按钮
+        this.checkAliasesOverflow(actor.id);
     }
 
     /**
@@ -879,6 +898,57 @@ export class ActorsTab {
             default:
                 return '未知';
         }
+    }
+
+    /**
+     * 切换别名展开/收起状态
+     */
+    private toggleAliasesExpansion(actorId: string): void {
+        const aliasesContainer = document.querySelector(`[data-actor-id="${actorId}"].actor-card-aliases`);
+        const toggleBtn = document.querySelector(`[data-actor-id="${actorId}"].aliases-toggle-btn`);
+        const icon = toggleBtn?.querySelector('i');
+
+        if (aliasesContainer && toggleBtn && icon) {
+            const isExpanded = aliasesContainer.classList.contains('expanded');
+
+            if (isExpanded) {
+                // 收起
+                aliasesContainer.classList.remove('expanded');
+                icon.className = 'fas fa-chevron-down';
+                toggleBtn.setAttribute('title', '展开别名');
+            } else {
+                // 展开
+                aliasesContainer.classList.add('expanded');
+                icon.className = 'fas fa-chevron-up';
+                toggleBtn.setAttribute('title', '收起别名');
+            }
+        }
+    }
+
+    /**
+     * 检查别名是否溢出，决定是否显示展开按钮
+     */
+    private checkAliasesOverflow(actorId: string): void {
+        // 使用 setTimeout 确保DOM已经渲染完成
+        setTimeout(() => {
+            const aliasesContainer = document.querySelector(`[data-actor-id="${actorId}"].actor-card-aliases`);
+            const aliasesList = aliasesContainer?.querySelector('.actor-aliases-list');
+
+            if (aliasesContainer && aliasesList) {
+                // 获取别名数量来判断是否需要折叠
+                const aliasCount = aliasesList.querySelectorAll('.actor-alias').length;
+
+                // 如果别名超过6个，或者内容高度超过80px，则认为需要折叠
+                const listHeight = aliasesList.scrollHeight;
+                const shouldCollapse = aliasCount > 6 || listHeight > 80;
+
+                if (shouldCollapse) {
+                    aliasesContainer.classList.add('has-overflow');
+                } else {
+                    aliasesContainer.classList.remove('has-overflow');
+                }
+            }
+        }, 100);
     }
 }
 
