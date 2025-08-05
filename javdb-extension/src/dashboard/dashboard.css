@@ -1,4 +1,5 @@
 @import url('./styles/main.css');
+@import url('./styles/_privacy.css');
 @import url('./styles/_tabs.css');
 @import url('./styles/_records.css');
 @import url('./styles/_settings.css');

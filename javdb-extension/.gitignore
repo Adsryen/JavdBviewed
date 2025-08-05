@@ -45,3 +45,6 @@ temp/
 *debug*.html
 *test*.html
 *temp*.html
+*test*.js
+*temp*.js
+*debug*.js

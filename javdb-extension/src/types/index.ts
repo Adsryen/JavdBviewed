@@ -1,5 +1,6 @@
 import type { DEFAULT_SETTINGS, VIDEO_STATUS } from "../utils/config";
 import type { Drive115Settings } from "../services/drive115/types";
+import type { PrivacyConfig } from "./privacy";
 
 export interface ExtensionSettings {
     display: {
@@ -29,6 +30,10 @@ export interface ExtensionSettings {
 
     // 新增：演员同步配置
     actorSync: ActorSyncConfig;
+
+    // 新增：隐私保护配置
+    privacy: PrivacyConfig;
+
     searchEngines: {
         id: string;
         name: string;

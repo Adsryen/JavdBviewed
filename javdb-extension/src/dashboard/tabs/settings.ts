@@ -5,6 +5,7 @@ import { logAsync } from '../logger';
 import type { ExtensionSettings, VideoRecord, OldVideoRecord, ActorRecord } from '../../types';
 import { STORAGE_KEYS } from '../../utils/config';
 import { actorManager } from '../../services/actorManager';
+import { initPrivacySettings } from './privacy';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
@@ -15,6 +16,9 @@ export function initSettingsTab(): void {
 
     // Initialize network test functionality
     initNetworkTestFunctionality();
+
+    // Initialize privacy settings functionality
+    initPrivacySettings();
 
     // Initialize advanced settings functionality
     initAdvancedSettingsFunctionality();
