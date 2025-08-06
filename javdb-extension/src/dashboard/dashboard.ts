@@ -3,6 +3,7 @@
 import { initializeGlobalState, STATE, cleanupSearchEngines } from './state';
 import { initRecordsTab } from './tabs/records';
 import { actorsTab } from './tabs/actors';
+import { newWorksTab } from './tabs/newWorks';
 import { syncTab } from './tabs/sync';
 import { initSettingsTab } from './tabs/settings';
 import { initAdvancedSettingsTab } from './tabs/advanced';
@@ -104,6 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTabs();
     initRecordsTab();
     // initActorsTab(); // 延迟初始化，只在用户点击演员库标签页时才加载
+    // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
     initSyncTab();
     initSettingsTab();
     initDrive115Tab();
@@ -126,6 +128,17 @@ async function initActorsTab(): Promise<void> {
         await actorsTab.initActorsTab();
     } catch (error) {
         console.error('初始化演员库标签页失败:', error);
+    }
+}
+
+/**
+ * 初始化新作品标签页
+ */
+async function initNewWorksTab(): Promise<void> {
+    try {
+        await newWorksTab.initialize();
+    } catch (error) {
+        console.error('初始化新作品标签页失败:', error);
     }
 }
 
@@ -197,6 +210,15 @@ function initTabs(): void {
                                 await initActorsTab();
                             } catch (error) {
                                 console.error('延迟初始化演员库标签页失败:', error);
+                            }
+                        }
+
+                        // 延迟初始化新作品标签页
+                        if (tabId === 'tab-new-works' && !newWorksTab.isInitialized) {
+                            try {
+                                await initNewWorksTab();
+                            } catch (error) {
+                                console.error('延迟初始化新作品标签页失败:', error);
                             }
                         }
 

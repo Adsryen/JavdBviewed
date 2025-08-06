@@ -1,4 +1,4 @@
-import { ExtensionSettings, FilterRule, ActorSyncConfig } from '../types';
+import { ExtensionSettings, FilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 
@@ -27,7 +27,12 @@ export const STORAGE_KEYS = {
 
     // 隐私保护相关存储键
     PRIVACY_STATE: 'privacy_state',
-    PRIVACY_SESSION: 'privacy_session'
+    PRIVACY_SESSION: 'privacy_session',
+
+    // 新作品功能相关存储键
+    NEW_WORKS_SUBSCRIPTIONS: 'new_works_subscriptions',
+    NEW_WORKS_RECORDS: 'new_works_records',
+    NEW_WORKS_CONFIG: 'new_works_config'
 } as const;
 
 export const VIDEO_STATUS = {
@@ -48,6 +53,22 @@ export const DEFAULT_ACTOR_SYNC_CONFIG: ActorSyncConfig = {
         collectionActors: 'https://javdb.com/users/collection_actors', // 收藏演员列表URL
         actorDetail: 'https://javdb.com/actors/{{ACTOR_ID}}', // 演员详情页URL模板
     },
+};
+
+// 新作品功能默认配置
+export const DEFAULT_NEW_WORKS_CONFIG: NewWorksGlobalConfig = {
+    enabled: false, // 默认不启用
+    checkInterval: 24, // 24小时检查一次
+    requestInterval: 3, // 请求间隔3秒
+    filters: {
+        excludeViewed: true, // 默认排除已看
+        excludeBrowsed: true, // 默认排除已浏览
+        excludeWant: false, // 默认不排除想看
+        dateRange: 3, // 默认近3个月
+    },
+    maxWorksPerCheck: 50, // 每次检查最多50个作品
+    autoCleanup: true, // 默认启用自动清理
+    cleanupDays: 30, // 30天后清理
 };
 
 // 隐私保护默认配置

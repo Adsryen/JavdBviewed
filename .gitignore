@@ -31,3 +31,12 @@ javdb-backup_*.json
 *.test.js
 *.spec.ts
 *.spec.js
+
+# temp
+temp/
+*debug*.html
+*test*.html
+*temp*.html
+*test*.js
+*temp*.js
+*debug*.js

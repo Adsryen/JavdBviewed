@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="./dashboard.css">
   <link rel="stylesheet" href="./actors.css">
   <link rel="stylesheet" href="./sync.css">
+  <link rel="stylesheet" href="./styles/_newWorks.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -69,6 +70,7 @@
             <div class="tabs">
                 <button class="tab-link active" data-tab="tab-records">番号库</button>
                 <button class="tab-link" data-tab="tab-actors">演员库</button>
+                <button class="tab-link" data-tab="tab-new-works">新作品</button>
                 <button class="tab-link" data-tab="tab-sync">数据同步</button>
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-logs">日志</button>
@@ -223,6 +225,75 @@
                     <div class="pagination-controls">
                         <div id="actorPaginationContainer" class="pagination">
                             <!-- 分页控件将由 JS 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-new-works" class="tab-content">
+                <div class="card">
+                    <!-- 新作品统计信息 -->
+                    <div class="stats-section">
+                        <h4>新作品概览</h4>
+                        <div id="newWorksStatsContainer" class="stats-grid">
+                            <!-- 统计信息将由 JS 动态填充 -->
+                        </div>
+                    </div>
+
+                    <!-- 全局配置和订阅管理 -->
+                    <div class="new-works-controls">
+                        <div class="config-section">
+                            <h5>全局配置</h5>
+                            <div class="config-controls">
+                                <button id="newWorksGlobalConfigBtn" class="btn-primary">
+                                    <i class="fas fa-cog"></i> 配置过滤条件
+                                </button>
+                                <button id="checkNowBtn" class="btn-secondary">
+                                    <i class="fas fa-sync-alt"></i> 立即检查
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="subscription-section">
+                            <h5>订阅管理</h5>
+                            <div class="subscription-controls">
+                                <button id="addSubscriptionBtn" class="btn-primary">
+                                    <i class="fas fa-plus"></i> 添加订阅演员
+                                </button>
+                                <button id="manageSubscriptionsBtn" class="btn-secondary">
+                                    <i class="fas fa-users"></i> 管理订阅
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 新作品列表 -->
+                    <div class="new-works-list-section">
+                        <div class="list-controls">
+                            <input type="text" id="newWorksSearchInput" placeholder="搜索作品或演员...">
+                            <select id="newWorksFilterSelect">
+                                <option value="all">全部作品</option>
+                                <option value="unread">未读作品</option>
+                                <option value="today">今日发现</option>
+                                <option value="week">本周发现</option>
+                            </select>
+                            <select id="newWorksSortSelect">
+                                <option value="discoveredAt_desc">按发现时间排序 (最新)</option>
+                                <option value="releaseDate_desc">按发行时间排序 (最新)</option>
+                                <option value="actorName_asc">按演员姓名排序</option>
+                            </select>
+                        </div>
+
+                        <div class="new-works-list-container">
+                            <ul id="newWorksList">
+                                <!-- 新作品列表将由 JS 动态填充 -->
+                            </ul>
+                        </div>
+
+                        <div class="pagination-controls">
+                            <div class="pagination" id="newWorksPagination">
+                                <!-- 分页控件将由 JS 动态填充 -->
+                            </div>
                         </div>
                     </div>
                 </div>
