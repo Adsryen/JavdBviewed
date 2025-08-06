@@ -194,11 +194,16 @@ export class NewWorksTab {
      */
     private async renderStats(): Promise<void> {
         const container = document.getElementById('newWorksStatsContainer');
-        if (!container) return;
+        if (!container) {
+            console.warn('未找到统计信息容器');
+            return;
+        }
 
         try {
+            console.log('开始获取新作品统计信息');
             const stats = await newWorksManager.getStats();
-            
+            console.log('获取到统计信息:', stats);
+
             container.innerHTML = `
                 <div class="stat-card new-works-stat">
                     <div class="stat-value">${stats.totalSubscriptions}</div>
@@ -221,6 +226,7 @@ export class NewWorksTab {
                     <div class="stat-label">今日发现</div>
                 </div>
             `;
+            console.log('统计信息渲染完成');
         } catch (error) {
             console.error('渲染统计信息失败:', error);
             container.innerHTML = '<div class="error-message">加载统计信息失败</div>';
@@ -232,9 +238,14 @@ export class NewWorksTab {
      */
     private async renderNewWorksList(): Promise<void> {
         const container = document.getElementById('newWorksList');
-        if (!container) return;
+        if (!container) {
+            console.warn('未找到新作品列表容器');
+            return;
+        }
 
         try {
+            console.log('开始渲染新作品列表，当前过滤条件:', this.currentFilters);
+
             // 显示加载状态
             container.innerHTML = `
                 <div class="new-works-loading">
@@ -249,7 +260,10 @@ export class NewWorksTab {
                 pageSize: this.pageSize
             });
 
+            console.log('获取到新作品数据:', result);
+
             if (result.works.length === 0) {
+                console.log('没有新作品数据，显示空状态');
                 container.innerHTML = `
                     <div class="new-works-empty">
                         <i class="fas fa-inbox"></i>
@@ -261,14 +275,18 @@ export class NewWorksTab {
                 return;
             }
 
+            console.log(`开始渲染 ${result.works.length} 个新作品`);
+
             // 渲染作品列表
             container.innerHTML = result.works.map(work => this.renderWorkItem(work)).join('');
-            
+
             // 渲染分页
             this.renderPagination(result.total);
 
             // 添加事件监听器
             this.attachWorkItemListeners();
+
+            console.log('新作品列表渲染完成');
 
         } catch (error) {
             console.error('渲染新作品列表失败:', error);
@@ -322,9 +340,9 @@ export class NewWorksTab {
                     ${tagsHtml}
                 </div>
                 <div class="new-work-actions">
-                    ${!work.isRead ? '<button class="new-work-action-btn mark-read-btn" data-action="mark-read"><i class="fas fa-check"></i> 标记已读</button>' : ''}
-                    <button class="new-work-action-btn visit-btn" data-action="visit"><i class="fas fa-external-link-alt"></i> 访问</button>
-                    <button class="new-work-action-btn delete-btn" data-action="delete"><i class="fas fa-trash"></i> 删除</button>
+                    ${!work.isRead ? '<button class="new-work-action-btn mark-read-btn" data-action="mark-read"><i class="fas fa-check-circle"></i> 标为已读</button>' : ''}
+                    <button class="new-work-action-btn visit-btn" data-action="visit"><i class="fas fa-play"></i> 去看看</button>
+                    <button class="new-work-action-btn delete-btn" data-action="delete"><i class="fas fa-times"></i> 移除</button>
                 </div>
             </li>
         `;
@@ -561,9 +579,16 @@ export class NewWorksTab {
 
                 let message = `检查完成！发现 ${response.result.discovered} 个新作品`;
                 if (response.result.errors.length > 0) {
-                    message += `，遇到 ${response.result.errors.length} 个错误`;
+                    // 显示具体错误信息
+                    const firstError = response.result.errors[0];
+                    if (response.result.errors.length === 1) {
+                        message += `，错误：${firstError}`;
+                    } else {
+                        message += `，错误：${firstError}（共${response.result.errors.length}个错误，详情请查看控制台）`;
+                    }
+                    console.warn('新作品检查错误详情:', response.result.errors);
                 }
-                showMessage(message, response.result.discovered > 0 ? 'success' : 'info');
+                showMessage(message, response.result.discovered > 0 ? 'success' : (response.result.errors.length > 0 ? 'warn' : 'info'));
             } else {
                 throw new Error(response.error || '检查失败');
             }
