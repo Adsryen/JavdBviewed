@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('初始化115服务失败:', error);
     }
 
-    initTabs();
+    await initTabs();
     initRecordsTab();
     // initActorsTab(); // 延迟初始化，只在用户点击演员库标签页时才加载
     // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
@@ -153,7 +153,7 @@ async function initSyncTab(): Promise<void> {
     }
 }
 
-function initTabs(): void {
+async function initTabs(): Promise<void> {
     try {
         const tabs = document.querySelectorAll('.tab-link');
         const contents = document.querySelectorAll('.tab-content');
@@ -238,6 +238,19 @@ function initTabs(): void {
         const currentHash = window.location.hash.substring(1) || 'tab-records';
         const targetTab = document.querySelector(`.tab-link[data-tab="${currentHash}"]`);
         switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
+
+        // 页面加载时根据当前 hash 初始化对应的标签页
+        if (currentHash === 'tab-actors' && !actorsTab.isInitialized) {
+            initActorsTab().catch(error => {
+                console.error('页面加载时初始化演员库标签页失败:', error);
+            });
+        }
+
+        if (currentHash === 'tab-new-works' && !newWorksTab.isInitialized) {
+            initNewWorksTab().catch(error => {
+                console.error('页面加载时初始化新作品标签页失败:', error);
+            });
+        }
     } catch (error) {
         console.error('初始化标签页时出错:', error);
     }

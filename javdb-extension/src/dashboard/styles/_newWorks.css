@@ -105,46 +105,89 @@
     font-size: 16px;
 }
 
-/* 新作品控制按钮特殊样式 */
-#newWorksGlobalConfigBtn {
+/* 新作品控制按钮样式 */
+.btn-action {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: 1px solid #007bff;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.btn-action:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-success {
     background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-    border-color: #28a745;
+    border: 1px solid #28a745;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+    border: 1px solid #17a2b8;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(23, 162, 184, 0.2);
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #117a8b 0%, #0c5460 100%);
+    box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 特定按钮的个性化样式 */
+#newWorksGlobalConfigBtn {
+    background: linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%);
+    border-color: #6f42c1;
+    box-shadow: 0 2px 4px rgba(111, 66, 193, 0.2);
 }
 
 #newWorksGlobalConfigBtn:hover {
-    background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
-    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(135deg, #5a2d91 0%, #4c1d7a 100%);
+    box-shadow: 0 4px 8px rgba(111, 66, 193, 0.3);
 }
 
-#checkNowBtn {
-    background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
-    border-color: #17a2b8;
-}
 
-#checkNowBtn:hover {
-    background: linear-gradient(135deg, #117a8b 0%, #0c5460 100%);
-    box-shadow: 0 6px 12px rgba(23, 162, 184, 0.4);
-}
-
-#addSubscriptionBtn {
-    background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%);
-    border-color: #fd7e14;
-}
-
-#addSubscriptionBtn:hover {
-    background: linear-gradient(135deg, #e55a00 0%, #cc4900 100%);
-    box-shadow: 0 6px 12px rgba(253, 126, 20, 0.4);
-}
-
-#manageSubscriptionsBtn {
-    background: linear-gradient(135deg, #6f42c1 0%, #59359a 100%);
-    border-color: #6f42c1;
-}
-
-#manageSubscriptionsBtn:hover {
-    background: linear-gradient(135deg, #59359a 0%, #4c2a85 100%);
-    box-shadow: 0 6px 12px rgba(111, 66, 193, 0.4);
-}
 
 /* 新作品列表区域 */
 .new-works-list-section {
@@ -294,30 +337,42 @@
 }
 
 .mark-read-btn {
-    background-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
     color: white;
+    border: 1px solid #28a745;
+    box-shadow: 0 1px 3px rgba(40, 167, 69, 0.2);
 }
 
 .mark-read-btn:hover {
-    background-color: #218838;
+    background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    transform: translateY(-1px);
 }
 
 .delete-btn {
-    background-color: #dc3545;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     color: white;
+    border: 1px solid #dc3545;
+    box-shadow: 0 1px 3px rgba(220, 53, 69, 0.2);
 }
 
 .delete-btn:hover {
-    background-color: #c82333;
+    background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+    transform: translateY(-1px);
 }
 
 .visit-btn {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
     color: white;
+    border: 1px solid #007bff;
+    box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2);
 }
 
 .visit-btn:hover {
-    background-color: var(--primary-hover-color);
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+    transform: translateY(-1px);
 }
 
 /* 空状态 */

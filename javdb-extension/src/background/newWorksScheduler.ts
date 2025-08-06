@@ -51,9 +51,9 @@ export class NewWorksScheduler {
 
             // 设置定时器
             const intervalMs = config.checkInterval * 60 * 60 * 1000; // 转换为毫秒
-            this.intervalId = window.setInterval(() => {
+            this.intervalId = setInterval(() => {
                 this.runCollectionTask();
-            }, intervalMs);
+            }, intervalMs) as unknown as number;
 
             this.isRunning = true;
             console.log(`NewWorksScheduler: 定时任务已启动，间隔 ${config.checkInterval} 小时`);
@@ -159,42 +159,43 @@ export class NewWorksScheduler {
      */
     private async sendNotification(count: number): Promise<void> {
         try {
-            // 检查通知权限
-            if (!('Notification' in window)) {
-                console.log('NewWorksScheduler: 浏览器不支持通知');
-                return;
-            }
+            // 使用 Chrome 扩展通知 API
+            const notificationId = `new-works-${Date.now()}`;
 
-            let permission = Notification.permission;
-            
-            if (permission === 'default') {
-                permission = await Notification.requestPermission();
-            }
+            await chrome.notifications.create(notificationId, {
+                type: 'basic',
+                iconUrl: chrome.runtime.getURL('assets/favicon-48x48.png'),
+                title: 'Jav 助手 - 新作品提醒',
+                message: `发现 ${count} 个新作品，点击查看详情`,
+                priority: 1,
+                requireInteraction: false
+            });
 
-            if (permission === 'granted') {
-                const notification = new Notification('Jav 助手 - 新作品提醒', {
-                    body: `发现 ${count} 个新作品，点击查看详情`,
-                    icon: chrome.runtime.getURL('assets/favicon-48x48.png'),
-                    tag: 'new-works-notification',
-                    requireInteraction: false
-                });
-
-                // 点击通知时打开新作品页面
-                notification.onclick = () => {
+            // 监听通知点击事件
+            const onClicked = (clickedNotificationId: string) => {
+                if (clickedNotificationId === notificationId) {
+                    // 打开新作品页面
                     chrome.tabs.create({
                         url: chrome.runtime.getURL('dashboard/dashboard.html#tab-new-works')
                     });
-                    notification.close();
-                };
 
-                // 自动关闭通知
-                setTimeout(() => {
-                    notification.close();
-                }, 10000);
+                    // 清除通知
+                    chrome.notifications.clear(notificationId);
 
-            } else {
-                console.log('NewWorksScheduler: 通知权限被拒绝');
-            }
+                    // 移除监听器
+                    chrome.notifications.onClicked.removeListener(onClicked);
+                }
+            };
+
+            chrome.notifications.onClicked.addListener(onClicked);
+
+            // 自动清除通知
+            setTimeout(() => {
+                chrome.notifications.clear(notificationId);
+                chrome.notifications.onClicked.removeListener(onClicked);
+            }, 10000);
+
+            console.log(`NewWorksScheduler: 通知已发送，发现 ${count} 个新作品`);
 
         } catch (error) {
             console.error('NewWorksScheduler: 发送通知失败:', error);
@@ -213,10 +214,22 @@ export class NewWorksScheduler {
 
             const config = await newWorksManager.getGlobalConfig();
             const subscriptions = await newWorksManager.getSubscriptions();
+            console.log('NewWorksScheduler: 获取到订阅数据:', subscriptions.length, '个订阅');
+            console.log('NewWorksScheduler: 订阅详情:', subscriptions.map(sub => ({
+                id: sub.actorId,
+                name: sub.actorName,
+                enabled: sub.enabled
+            })));
+
             const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
+            console.log('NewWorksScheduler: 活跃订阅数量:', activeSubscriptions.length);
 
             if (activeSubscriptions.length === 0) {
-                return { discovered: 0, errors: ['没有活跃的订阅演员'] };
+                const errorMsg = subscriptions.length === 0
+                    ? '没有订阅任何演员，请先添加订阅'
+                    : `共有 ${subscriptions.length} 个订阅，但都已禁用，请在管理订阅中启用`;
+                console.log('NewWorksScheduler: ' + errorMsg);
+                return { discovered: 0, errors: [errorMsg] };
             }
 
             const result = await newWorksCollector.checkMultipleActors(activeSubscriptions, config);
