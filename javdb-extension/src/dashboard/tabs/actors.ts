@@ -5,6 +5,7 @@ import { actorManager } from '../../services/actorManager';
 import { ActorAvatar } from '../../components/ActorAvatar';
 import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
+import { showDanger } from '../components/confirmModal';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorSearchResult } from '../../types';
 
@@ -856,7 +857,8 @@ export class ActorsTab {
      * 删除演员
      */
     async deleteActor(actorId: string): Promise<void> {
-        if (!confirm('确定要删除这个演员吗？')) {
+        const confirmed = await showDanger('确定要删除这个演员吗？', '删除演员');
+        if (!confirmed) {
             return;
         }
 

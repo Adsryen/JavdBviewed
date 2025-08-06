@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
+import { newWorksScheduler } from './newWorksScheduler';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -767,6 +768,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         sendResponse({ success: false, error: error.message });
                     });
                 return true;
+            case 'new-works-manual-check':
+                console.log('[Background] Processing new-works-manual-check request.');
+                newWorksScheduler.triggerManualCheck()
+                    .then(result => {
+                        console.log('[Background] Manual new works check completed:', result);
+                        sendResponse({ success: true, result });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to perform manual new works check:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'new-works-scheduler-restart':
+                console.log('[Background] Processing new-works-scheduler-restart request.');
+                newWorksScheduler.restart()
+                    .then(() => {
+                        console.log('[Background] New works scheduler restarted.');
+                        sendResponse({ success: true });
+                    })
+                    .catch(error => {
+                        console.error('[Background] Failed to restart new works scheduler:', error);
+                        sendResponse({ success: false, error: error.message });
+                    });
+                return true;
+            case 'new-works-scheduler-status':
+                console.log('[Background] Processing new-works-scheduler-status request.');
+                try {
+                    const status = newWorksScheduler.getStatus();
+                    sendResponse({ success: true, status });
+                } catch (error) {
+                    console.error('[Background] Failed to get new works scheduler status:', error);
+                    sendResponse({ success: false, error: error.message });
+                }
+                return true;
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
@@ -822,13 +857,27 @@ async function setupAlarms(): Promise<void> {
     }
 }
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
     setupAlarms();
     triggerAutoSync();
+
+    // 初始化新作品调度器
+    try {
+        await newWorksScheduler.initialize();
+    } catch (error) {
+        logger.error('初始化新作品调度器失败:', error);
+    }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
     setupAlarms();
+
+    // 初始化新作品调度器
+    try {
+        await newWorksScheduler.initialize();
+    } catch (error) {
+        logger.error('初始化新作品调度器失败:', error);
+    }
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
