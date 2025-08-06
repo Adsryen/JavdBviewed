@@ -4,7 +4,7 @@
 
 import { getSettings, saveSettings } from '../../utils/storage';
 import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../services/privacy';
-import { showToast } from '../components/toast';
+import { showMessage } from '../ui/toast';
 
 export function initPrivacySettings(): void {
     console.log('Initializing privacy settings...');
@@ -62,7 +62,7 @@ async function loadPrivacySettings(): Promise<void> {
 
     } catch (error) {
         console.error('Failed to load privacy settings:', error);
-        showToast('加载隐私设置失败', 'error');
+        showMessage('加载隐私设置失败', 'error');
     }
 }
 
@@ -133,15 +133,15 @@ async function handleScreenshotModeToggle(event: Event): Promise<void> {
         
         if (checkbox.checked) {
             await privacyManager.enableScreenshotMode();
-            showToast('截图模式已启用', 'success');
+            showMessage('截图模式已启用', 'success');
         } else {
             await privacyManager.disableScreenshotMode();
-            showToast('截图模式已禁用', 'success');
+            showMessage('截图模式已禁用', 'success');
         }
     } catch (error) {
         console.error('Failed to toggle screenshot mode:', error);
         checkbox.checked = !checkbox.checked; // 回滚状态
-        showToast('切换截图模式失败', 'error');
+        showMessage('切换截图模式失败', 'error');
     }
 }
 
@@ -187,10 +187,10 @@ async function handleAutoBlurTriggerChange(event: Event): Promise<void> {
         const settings = await getSettings();
         settings.privacy.screenshotMode.autoBlurTrigger = select.value as any;
         await saveSettings(settings);
-        showToast('自动模糊设置已更新', 'success');
+        showMessage('自动模糊设置已更新', 'success');
     } catch (error) {
         console.error('Failed to update auto blur trigger:', error);
-        showToast('更新设置失败', 'error');
+        showMessage('更新设置失败', 'error');
     }
 }
 
@@ -213,10 +213,10 @@ async function handleScreenshotSettingsChange(): Promise<void> {
         }
         
         await saveSettings(settings);
-        showToast('截图模式设置已更新', 'success');
+        showMessage('截图模式设置已更新', 'success');
     } catch (error) {
         console.error('Failed to update screenshot settings:', error);
-        showToast('更新设置失败', 'error');
+        showMessage('更新设置失败', 'error');
     }
 }
 
@@ -231,15 +231,15 @@ async function handlePrivateModeToggle(event: Event): Promise<void> {
         
         if (checkbox.checked) {
             await privacyManager.enablePrivateMode();
-            showToast('私密模式已启用', 'success');
+            showMessage('私密模式已启用', 'success');
         } else {
             await privacyManager.disablePrivateMode();
-            showToast('私密模式已禁用', 'success');
+            showMessage('私密模式已禁用', 'success');
         }
     } catch (error) {
         console.error('Failed to toggle private mode:', error);
         checkbox.checked = !checkbox.checked; // 回滚状态
-        showToast(error.message || '切换私密模式失败', 'error');
+        showMessage(error.message || '切换私密模式失败', 'error');
     }
 }
 
@@ -253,7 +253,7 @@ async function handleRequirePasswordToggle(event: Event): Promise<void> {
         // 如果启用密码要求但没有设置密码，提示设置
         const settings = await getSettings();
         if (!settings.privacy.privateMode.passwordHash) {
-            showToast('请先设置密码', 'warning');
+            showMessage('请先设置密码', 'warn');
             checkbox.checked = false;
             return;
         }
@@ -265,10 +265,10 @@ async function handleRequirePasswordToggle(event: Event): Promise<void> {
         await saveSettings(settings);
         
         updatePasswordStatus(checkbox.checked && settings.privacy.privateMode.passwordHash !== '');
-        showToast('密码要求设置已更新', 'success');
+        showMessage('密码要求设置已更新', 'success');
     } catch (error) {
         console.error('Failed to update password requirement:', error);
-        showToast('更新设置失败', 'error');
+        showMessage('更新设置失败', 'error');
     }
 }
 
@@ -281,7 +281,7 @@ async function handleSetPassword(): Promise<void> {
 
     const confirmPassword = prompt('请再次输入密码确认：');
     if (password !== confirmPassword) {
-        showToast('两次输入的密码不一致', 'error');
+        showMessage('两次输入的密码不一致', 'error');
         return;
     }
 
@@ -291,13 +291,13 @@ async function handleSetPassword(): Promise<void> {
         
         if (result.success) {
             updatePasswordStatus(true);
-            showToast('密码设置成功', 'success');
+            showMessage('密码设置成功', 'success');
         } else {
-            showToast(result.error || '密码设置失败', 'error');
+            showMessage(result.error || '密码设置失败', 'error');
         }
     } catch (error) {
         console.error('Failed to set password:', error);
-        showToast('密码设置失败', 'error');
+        showMessage('密码设置失败', 'error');
     }
 }
 
@@ -313,7 +313,7 @@ async function handleChangePassword(): Promise<void> {
 
     const confirmPassword = prompt('请再次输入新密码确认：');
     if (newPassword !== confirmPassword) {
-        showToast('两次输入的密码不一致', 'error');
+        showMessage('两次输入的密码不一致', 'error');
         return;
     }
 
@@ -332,13 +332,13 @@ async function handleChangePassword(): Promise<void> {
             settings.privacy.privateMode.passwordHash = result.newHash;
             settings.privacy.privateMode.passwordSalt = result.newSalt;
             await saveSettings(settings);
-            showToast('密码更改成功', 'success');
+            showMessage('密码更改成功', 'success');
         } else {
-            showToast(result.error || '密码更改失败', 'error');
+            showMessage(result.error || '密码更改失败', 'error');
         }
     } catch (error) {
         console.error('Failed to change password:', error);
-        showToast('密码更改失败', 'error');
+        showMessage('密码更改失败', 'error');
     }
 }
 
@@ -366,10 +366,10 @@ async function handlePrivateModeSettingsChange(): Promise<void> {
         }
         
         await saveSettings(settings);
-        showToast('私密模式设置已更新', 'success');
+        showMessage('私密模式设置已更新', 'success');
     } catch (error) {
         console.error('Failed to update private mode settings:', error);
-        showToast('更新设置失败', 'error');
+        showMessage('更新设置失败', 'error');
     }
 }
 
@@ -379,7 +379,7 @@ async function handlePrivateModeSettingsChange(): Promise<void> {
 async function handleSetupSecurityQuestions(): Promise<void> {
     // 这里可以打开一个模态框来设置安全问题
     // 暂时使用简单的prompt实现
-    showToast('安全问题设置功能开发中...', 'info');
+    showMessage('安全问题设置功能开发中...', 'info');
 }
 
 /**
@@ -394,10 +394,10 @@ async function handleGenerateBackupCode(): Promise<void> {
         alert(`备份恢复码：${backupCode}\n\n请妥善保存此恢复码，它只会显示一次！`);
         
         await updateRecoveryOptionsStatus();
-        showToast('备份恢复码已生成', 'success');
+        showMessage('备份恢复码已生成', 'success');
     } catch (error) {
         console.error('Failed to generate backup code:', error);
-        showToast('生成备份恢复码失败', 'error');
+        showMessage('生成备份恢复码失败', 'error');
     }
 }
 
@@ -410,10 +410,10 @@ async function handleTestBlur(): Promise<void> {
         await privacyManager.toggleBlur();
         
         const state = privacyManager.getState();
-        showToast(state.isBlurred ? '模糊效果已应用' : '模糊效果已移除', 'info');
+        showMessage(state.isBlurred ? '模糊效果已应用' : '模糊效果已移除', 'info');
     } catch (error) {
         console.error('Failed to test blur:', error);
-        showToast('测试模糊效果失败', 'error');
+        showMessage('测试模糊效果失败', 'error');
     }
 }
 
