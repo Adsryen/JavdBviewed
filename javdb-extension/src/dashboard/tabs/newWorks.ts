@@ -1,11 +1,10 @@
 // src/dashboard/tabs/newWorks.ts
 // 新作品标签页实现
 
-import { newWorksManager } from '../../services/newWorksManager';
-import { newWorksCollector } from '../../services/newWorksCollector';
+import { newWorksManager, newWorksCollector } from '../../services/newWorks';
 import { actorManager } from '../../services/actorManager';
 import { actorSelector } from '../components/actorSelector';
-import { newWorksConfigModal } from '../components/newWorksConfigModal';
+import { newWorksConfigModal } from '../components/newWorks/configModal';
 import { showMessage } from '../ui/toast';
 import { showConfirm, showDanger } from '../components/confirmModal';
 import type { NewWorkRecord, NewWorksStats, ActorRecord, ActorSubscription } from '../../types';

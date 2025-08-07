@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '../utils/config';
 import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
-import { newWorksScheduler } from './newWorksScheduler';
+import { newWorksScheduler } from '../services/newWorks';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 

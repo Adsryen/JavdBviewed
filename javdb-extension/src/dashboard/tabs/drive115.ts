@@ -3,137 +3,218 @@
  */
 
 import { STATE } from '../state';
-import { saveSettings } from '../../utils/storage';
+import { getSettings, saveSettings } from '../../utils/storage';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
-import type { ExtensionSettings } from '../../types';
+import type { ExtensionSettings, Drive115Settings } from '../../types';
 import { getDrive115Service } from '../../services/drive115';
 
+/**
+ * 115设置自动保存管理器
+ */
+class Drive115SettingsManager {
+    private settings: Drive115Settings = {
+        enabled: false,
+        downloadDir: '${云下载}',
+        verifyCount: 5,
+        maxFailures: 5,
+        autoNotify: true
+    };
+    private autoSaveTimeout: number | null = null;
+    private isAutoSaving = false;
+
+    /**
+     * 初始化
+     */
+    async initialize(): Promise<void> {
+        await this.loadSettings();
+        this.bindEvents();
+        this.updateAutoSaveStatus('idle');
+    }
+
+    /**
+     * 加载设置
+     */
+    private async loadSettings(): Promise<void> {
+        try {
+            const mainSettings = await getSettings();
+            this.settings = { ...this.settings, ...mainSettings.drive115 };
+        } catch (error) {
+            console.warn('加载115设置失败，使用默认设置:', error);
+        }
+    }
+
+    /**
+     * 绑定事件
+     */
+    private bindEvents(): void {
+        // 启用/禁用115功能
+        const enabledCheckbox = document.getElementById('drive115Enabled') as HTMLInputElement;
+        enabledCheckbox?.addEventListener('change', () => {
+            this.settings.enabled = enabledCheckbox.checked;
+            this.updateUI();
+            this.autoSaveSettings();
+        });
+
+        // 下载目录变化
+        const downloadDirInput = document.getElementById('drive115DownloadDir') as HTMLInputElement;
+        downloadDirInput?.addEventListener('input', () => {
+            this.settings.downloadDir = downloadDirInput.value.trim();
+            this.autoSaveSettings();
+        });
+
+        // 验证次数变化
+        const verifyCountInput = document.getElementById('drive115VerifyCount') as HTMLInputElement;
+        verifyCountInput?.addEventListener('input', () => {
+            this.settings.verifyCount = parseInt(verifyCountInput.value, 10);
+            this.autoSaveSettings();
+        });
+
+        // 最大失败数变化
+        const maxFailuresInput = document.getElementById('drive115MaxFailures') as HTMLInputElement;
+        maxFailuresInput?.addEventListener('input', () => {
+            this.settings.maxFailures = parseInt(maxFailuresInput.value, 10);
+            this.autoSaveSettings();
+        });
+
+        // 自动通知变化
+        const autoNotifyCheckbox = document.getElementById('drive115AutoNotify') as HTMLInputElement;
+        autoNotifyCheckbox?.addEventListener('change', () => {
+            this.settings.autoNotify = autoNotifyCheckbox.checked;
+            this.autoSaveSettings();
+        });
+    }
+
+    /**
+     * 更新UI
+     */
+    private updateUI(): void {
+        const enabledCheckbox = document.getElementById('drive115Enabled') as HTMLInputElement;
+        const downloadDirInput = document.getElementById('drive115DownloadDir') as HTMLInputElement;
+        const verifyCountInput = document.getElementById('drive115VerifyCount') as HTMLInputElement;
+        const maxFailuresInput = document.getElementById('drive115MaxFailures') as HTMLInputElement;
+        const autoNotifyCheckbox = document.getElementById('drive115AutoNotify') as HTMLInputElement;
+
+        if (enabledCheckbox) enabledCheckbox.checked = this.settings.enabled;
+        if (downloadDirInput) downloadDirInput.value = this.settings.downloadDir;
+        if (verifyCountInput) verifyCountInput.value = this.settings.verifyCount.toString();
+        if (maxFailuresInput) maxFailuresInput.value = this.settings.maxFailures.toString();
+        if (autoNotifyCheckbox) autoNotifyCheckbox.checked = this.settings.autoNotify;
+
+        // 更新容器状态
+        const settingsContainer = document.querySelector('.drive115-settings-container');
+        if (settingsContainer) {
+            if (this.settings.enabled) {
+                settingsContainer.classList.remove('disabled');
+            } else {
+                settingsContainer.classList.add('disabled');
+            }
+        }
+    }
+
+    /**
+     * 自动保存设置（防抖）
+     */
+    private autoSaveSettings(): void {
+        console.log('115设置自动保存触发', this.settings);
+
+        // 清除之前的定时器
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+        }
+
+        // 显示保存中状态
+        this.updateAutoSaveStatus('saving');
+
+        // 设置新的定时器，500ms后执行保存
+        this.autoSaveTimeout = window.setTimeout(async () => {
+            await this.performAutoSave();
+        }, 500);
+    }
+
+    /**
+     * 执行自动保存
+     */
+    private async performAutoSave(): Promise<void> {
+        if (this.isAutoSaving) return;
+
+        console.log('开始执行115设置自动保存', this.settings);
+        this.isAutoSaving = true;
+
+        try {
+            // 获取当前主设置
+            const mainSettings = await getSettings();
+            // 更新115设置部分
+            mainSettings.drive115 = this.settings;
+            // 保存到主设置系统
+            await saveSettings(mainSettings);
+
+            // 同时更新115服务的设置
+            const drive115Service = getDrive115Service();
+            await drive115Service.saveSettings(this.settings);
+
+            console.log('115设置自动保存成功');
+            this.updateAutoSaveStatus('saved');
+
+            // 2秒后恢复到空闲状态
+            setTimeout(() => {
+                this.updateAutoSaveStatus('idle');
+            }, 2000);
+        } catch (error) {
+            console.error('115设置自动保存失败:', error);
+            this.updateAutoSaveStatus('error');
+
+            // 5秒后恢复到空闲状态
+            setTimeout(() => {
+                this.updateAutoSaveStatus('idle');
+            }, 5000);
+        } finally {
+            this.isAutoSaving = false;
+        }
+    }
+
+    /**
+     * 更新自动保存状态显示
+     */
+    private updateAutoSaveStatus(status: 'idle' | 'saving' | 'saved' | 'error'): void {
+        const statusDiv = document.getElementById('drive115AutoSaveStatus');
+        if (!statusDiv) {
+            console.warn('115自动保存状态元素未找到');
+            return;
+        }
+
+        console.log('更新115自动保存状态:', status);
+        statusDiv.className = `auto-save-status ${status}`;
+
+        const statusConfig = {
+            idle: { icon: 'fas fa-circle', text: '已同步' },
+            saving: { icon: 'fas fa-sync-alt', text: '保存中...' },
+            saved: { icon: 'fas fa-check', text: '已保存' },
+            error: { icon: 'fas fa-exclamation-triangle', text: '保存失败' }
+        };
+
+        const config = statusConfig[status];
+        statusDiv.innerHTML = `<i class="${config.icon}"></i> ${config.text}`;
+    }
+}
+
+// 创建全局实例
+const drive115SettingsManager = new Drive115SettingsManager();
+
 export function initDrive115Tab(): void {
-    // 初始化115设置
-    initDrive115Settings();
-    
+    // 初始化115设置自动保存管理器
+    drive115SettingsManager.initialize();
+
     // 初始化115日志查看
     initDrive115Logs();
-    
+
     // 初始化115测试功能
     initDrive115Test();
 }
 
-/**
- * 初始化115设置
- */
-function initDrive115Settings(): void {
-    const drive115Enabled = document.getElementById('drive115Enabled') as HTMLInputElement;
-    const drive115DownloadDir = document.getElementById('drive115DownloadDir') as HTMLInputElement;
-    const drive115VerifyCount = document.getElementById('drive115VerifyCount') as HTMLInputElement;
-    const drive115MaxFailures = document.getElementById('drive115MaxFailures') as HTMLInputElement;
-    const drive115AutoNotify = document.getElementById('drive115AutoNotify') as HTMLInputElement;
-    const saveDrive115SettingsBtn = document.getElementById('saveDrive115Settings') as HTMLButtonElement;
 
-    // 加载当前设置
-    loadDrive115Settings();
 
-    // 保存设置
-    saveDrive115SettingsBtn?.addEventListener('click', async () => {
-        try {
-            const settings: Partial<ExtensionSettings> = {
-                drive115: {
-                    enabled: drive115Enabled?.checked || false,
-                    downloadDir: drive115DownloadDir?.value || '${云下载}',
-                    verifyCount: parseInt(drive115VerifyCount?.value || '5'),
-                    maxFailures: parseInt(drive115MaxFailures?.value || '5'),
-                    autoNotify: drive115AutoNotify?.checked || true,
-                }
-            };
 
-            await saveSettings(settings);
-            
-            // 更新115服务设置
-            const drive115Service = getDrive115Service();
-            await drive115Service.saveSettings(settings.drive115!);
-
-            showMessage('115网盘设置已保存', 'success');
-            await logAsync('INFO', '115网盘设置已保存', settings.drive115);
-        } catch (error) {
-            console.error('保存115设置失败:', error);
-            showMessage('保存115设置失败', 'error');
-            await logAsync('ERROR', '保存115设置失败', { error: String(error) });
-        }
-    });
-
-    // 启用/禁用状态变化
-    drive115Enabled?.addEventListener('change', () => {
-        const isEnabled = drive115Enabled.checked;
-        const settingsContainer = document.querySelector('.drive115-settings-container');
-        if (settingsContainer) {
-            if (isEnabled) {
-                settingsContainer.classList.remove('disabled');
-            } else {
-                settingsContainer.classList.add('disabled');
-            }
-        }
-    });
-}
-
-/**
- * 加载115设置
- */
-async function loadDrive115Settings(): Promise<void> {
-    try {
-        const drive115Service = getDrive115Service();
-        const rawSettings = drive115Service.getSettings();
-
-        // 确保 settings 对象存在且有必要的属性
-        const settings = {
-            enabled: false,
-            downloadDir: '',
-            verifyCount: 3,
-            maxFailures: 3,
-            autoNotify: true,
-            ...rawSettings
-        };
-
-        // 确保所有属性都存在
-        if (typeof settings.enabled !== 'boolean') settings.enabled = false;
-        if (typeof settings.downloadDir !== 'string') settings.downloadDir = '';
-        if (typeof settings.verifyCount !== 'number') settings.verifyCount = 3;
-        if (typeof settings.maxFailures !== 'number') settings.maxFailures = 3;
-        if (typeof settings.autoNotify !== 'boolean') settings.autoNotify = true;
-
-        const drive115Enabled = document.getElementById('drive115Enabled') as HTMLInputElement;
-        const drive115DownloadDir = document.getElementById('drive115DownloadDir') as HTMLInputElement;
-        const drive115VerifyCount = document.getElementById('drive115VerifyCount') as HTMLInputElement;
-        const drive115MaxFailures = document.getElementById('drive115MaxFailures') as HTMLInputElement;
-        const drive115AutoNotify = document.getElementById('drive115AutoNotify') as HTMLInputElement;
-
-        if (drive115Enabled) drive115Enabled.checked = settings.enabled;
-        if (drive115DownloadDir) drive115DownloadDir.value = settings.downloadDir;
-        if (drive115VerifyCount) drive115VerifyCount.value = settings.verifyCount.toString();
-        if (drive115MaxFailures) drive115MaxFailures.value = settings.maxFailures.toString();
-        if (drive115AutoNotify) drive115AutoNotify.checked = settings.autoNotify;
-
-        // 设置初始状态
-        const settingsContainer = document.querySelector('.drive115-settings-container');
-        if (settingsContainer) {
-            if (settings.enabled) {
-                settingsContainer.classList.remove('disabled');
-            } else {
-                settingsContainer.classList.add('disabled');
-            }
-        }
-    } catch (error) {
-        console.error('加载115设置失败:', error);
-        // 在出错时设置默认状态
-        const drive115Enabled = document.getElementById('drive115Enabled') as HTMLInputElement;
-        if (drive115Enabled) drive115Enabled.checked = false;
-
-        const settingsContainer = document.querySelector('.drive115-settings-container');
-        if (settingsContainer) {
-            settingsContainer.classList.add('disabled');
-        }
-    }
-}
 
 /**
  * 初始化115日志查看

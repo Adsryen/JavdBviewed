@@ -1,8 +1,8 @@
-// src/dashboard/components/newWorksConfigModal.ts
+// src/dashboard/components/newWorks/configModal.ts
 // 新作品全局配置弹窗组件
 
-import { showMessage } from '../ui/toast';
-import type { NewWorksGlobalConfig } from '../../types';
+import { showMessage } from '../../ui/toast';
+import type { NewWorksGlobalConfig } from '../../../services/newWorks/types';
 
 export class NewWorksConfigModal {
     private modal: HTMLElement | null = null;

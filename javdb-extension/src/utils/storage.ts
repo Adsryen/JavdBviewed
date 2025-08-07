@@ -85,6 +85,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
                 ...(storedSettings.privacy?.passwordRecovery || {}),
             },
         },
+        ai: {
+            ...DEFAULT_SETTINGS.ai,
+            ...(storedSettings.ai || {}),
+        },
     };
 
     log.storage('Merged settings privacy config', mergedSettings.privacy);

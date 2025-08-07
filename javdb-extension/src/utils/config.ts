@@ -1,6 +1,7 @@
 import { ExtensionSettings, FilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
+import { DEFAULT_AI_SETTINGS } from '../types/ai';
 
 export const STORAGE_KEYS = {
     // A single key for all viewed records, which is an object
@@ -247,6 +248,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：隐私保护配置
     privacy: DEFAULT_PRIVACY_CONFIG,
+
+    // 新增：AI功能配置
+    ai: DEFAULT_AI_SETTINGS,
 
     version: '0.0.0'
 };
