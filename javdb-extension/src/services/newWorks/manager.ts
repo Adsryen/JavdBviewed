@@ -1,17 +1,17 @@
-// src/services/newWorksManager.ts
+// src/services/newWorks/manager.ts
 // 新作品管理服务
 
-import { getValue, setValue } from '../utils/storage';
-import { STORAGE_KEYS, DEFAULT_NEW_WORKS_CONFIG } from '../utils/config';
-import type { 
-    ActorSubscription, 
-    NewWorksGlobalConfig, 
-    NewWorkRecord, 
+import { getValue, setValue } from '../../utils/storage';
+import { STORAGE_KEYS, DEFAULT_NEW_WORKS_CONFIG } from '../../utils/config';
+import type {
+    ActorSubscription,
+    NewWorksGlobalConfig,
+    NewWorkRecord,
     NewWorksStats,
-    NewWorksSearchResult,
-    ActorRecord 
-} from '../types';
-import { actorManager } from './actorManager';
+    NewWorksSearchResult
+} from './types';
+import type { ActorRecord } from '../../types';
+import { actorManager } from '../actorManager';
 
 export class NewWorksManager {
     private subscriptions: Map<string, ActorSubscription> = new Map();
@@ -403,6 +403,3 @@ export class NewWorksManager {
         }
     }
 }
-
-// 单例实例
-export const newWorksManager = new NewWorksManager();

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="./actors.css">
   <link rel="stylesheet" href="./sync.css">
   <link rel="stylesheet" href="./styles/_newWorks.css">
+  <link rel="stylesheet" href="./styles/_aiSettings.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -494,6 +495,10 @@
                             <div class="settings-nav-item" data-section="log-settings">
                                 <i class="fas fa-file-alt"></i>
                                 <span>日志设置</span>
+                            </div>
+                            <div class="settings-nav-item" data-section="ai-settings">
+                                <i class="fas fa-robot"></i>
+                                <span>AI设置</span>
                             </div>
                             <div class="settings-nav-item" data-section="global-actions">
                                 <i class="fas fa-tools"></i>
@@ -1046,9 +1051,15 @@
                                     </div>
                                 </div>
 
-                                <!-- 保存按钮 -->
+                                <!-- 自动保存状态 -->
                                 <div class="settings-section">
-                                    <button id="saveDrive115Settings" class="btn btn-primary">保存115设置</button>
+                                    <div class="auto-save-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>设置修改后自动保存，无需手动操作</span>
+                                        <div id="drive115AutoSaveStatus" class="auto-save-status">
+                                            <!-- 自动保存状态将在这里显示 -->
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1349,6 +1360,224 @@
                                         显示存储相关日志
                                     </label>
                                     <p class="input-description">显示数据存储和读取的详细日志信息。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI设置 -->
+                        <div class="settings-panel" id="ai-settings">
+                            <div class="settings-panel-header">
+                                <h3><i class="fas fa-robot"></i> AI设置</h3>
+                                <p class="settings-description">配置AI功能，对接New API兼容的AI服务，支持流式对话和多模型选择。</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <!-- 基础配置 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-cog"></i> 基础配置</h4>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="aiEnabled">
+                                        <label for="aiEnabled">
+                                            <i class="fas fa-power-off"></i>
+                                            启用AI功能
+                                        </label>
+                                        <p class="input-description">开启后可以使用AI聊天和智能助手功能。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="aiApiUrl">
+                                            <i class="fas fa-link"></i>
+                                            API服务地址:
+                                        </label>
+                                        <input type="url" id="aiApiUrl" class="text-input"
+                                               placeholder="https://api.openai.com 或其他兼容服务地址">
+                                        <p class="input-description">支持OpenAI API或New API兼容的服务地址。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="aiApiKey">
+                                            <i class="fas fa-key"></i>
+                                            API密钥:
+                                        </label>
+                                        <div class="form-group-inline">
+                                            <input type="password" id="aiApiKey" class="text-input"
+                                                   placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                                            <button type="button" id="toggleApiKeyVisibility" class="btn btn-secondary">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" id="testAiConnection" class="btn btn-primary">
+                                                <i class="fas fa-plug"></i>
+                                                测试连接
+                                            </button>
+                                        </div>
+                                        <p class="input-description">从AI服务提供商获取的API密钥，用于身份验证。</p>
+                                    </div>
+
+                                    <div id="aiConnectionStatus" class="connection-status" style="display: none;">
+                                        <!-- 连接状态将在这里显示 -->
+                                    </div>
+                                </div>
+
+                                <!-- 模型选择 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-brain"></i> 模型选择</h4>
+
+                                    <div class="form-group">
+                                        <label for="aiSelectedModel">
+                                            <i class="fas fa-robot"></i>
+                                            当前模型:
+                                        </label>
+                                        <div class="form-group-inline">
+                                            <select id="aiSelectedModel" class="select-input">
+                                                <option value="">请先配置API并测试连接</option>
+                                            </select>
+                                            <button type="button" id="refreshModels" class="btn btn-secondary">
+                                                <i class="fas fa-sync-alt"></i>
+                                                刷新
+                                            </button>
+                                        </div>
+                                        <p class="input-description">选择要使用的AI模型，不同模型有不同的能力和价格。</p>
+                                    </div>
+
+                                    <div id="modelInfo" class="model-info" style="display: none;">
+                                        <!-- 模型信息将在这里显示 -->
+                                    </div>
+
+                                    <div id="modelStats" class="model-stats" style="display: none;">
+                                        <!-- 模型统计信息将在这里显示 -->
+                                    </div>
+                                </div>
+
+                                <!-- 对话参数 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-sliders-h"></i> 对话参数</h4>
+
+                                    <div class="form-group">
+                                        <label for="aiTemperature">
+                                            <i class="fas fa-thermometer-half"></i>
+                                            创造性 (Temperature): <span id="temperatureValue">0.7</span>
+                                        </label>
+                                        <input type="range" id="aiTemperature" min="0.1" max="2.0" step="0.1" value="0.7" class="range-input">
+                                        <p class="input-description">控制AI回答的创造性，值越高越有创意，值越低越准确。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="aiMaxTokens">
+                                            <i class="fas fa-text-width"></i>
+                                            最大回复长度:
+                                        </label>
+                                        <input type="number" id="aiMaxTokens" class="number-input"
+                                               min="1" max="1000000" value="2048">
+                                        <p class="input-description">限制AI单次回复的最大长度，1 token ≈ 0.75个英文单词。支持1-1,000,000 tokens。</p>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="aiStreamEnabled" checked>
+                                        <label for="aiStreamEnabled">
+                                            <i class="fas fa-stream"></i>
+                                            启用流式输出
+                                        </label>
+                                        <p class="input-description">实时显示AI回复内容，类似ChatGPT的打字效果。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="aiSystemPrompt">
+                                            <i class="fas fa-comment-dots"></i>
+                                            系统提示词:
+                                        </label>
+                                        <textarea id="aiSystemPrompt" class="textarea-input" rows="3"
+                                                  placeholder="你是一个有用的AI助手，请用中文回答问题。">你是一个有用的AI助手，请用中文回答问题。</textarea>
+                                        <p class="input-description">定义AI的角色和行为方式，影响所有对话的回复风格。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="aiTimeout">
+                                            <i class="fas fa-clock"></i>
+                                            请求超时时间 (秒):
+                                        </label>
+                                        <input type="number" id="aiTimeout" class="number-input"
+                                               min="5" max="300" value="30">
+                                        <p class="input-description">API请求的超时时间，建议30-60秒。</p>
+                                    </div>
+                                </div>
+
+                                <!-- 测试功能 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-vial"></i> 测试功能</h4>
+
+                                    <div class="form-group">
+                                        <label for="aiTestInput">
+                                            <i class="fas fa-comment"></i>
+                                            测试对话:
+                                        </label>
+                                        <div class="form-group-inline">
+                                            <input type="text" id="aiTestInput" class="text-input"
+                                                   placeholder="输入测试消息，例如：你好">
+                                            <button type="button" id="sendTestMessage" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane"></i>
+                                                发送
+                                            </button>
+                                        </div>
+                                        <p class="input-description">测试AI功能是否正常工作。</p>
+                                    </div>
+
+                                    <div id="aiTestResult" class="test-result" style="display: none;">
+                                        <!-- 测试结果将在这里显示 -->
+                                    </div>
+                                </div>
+
+                                <!-- 高级功能 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-tools"></i> 高级功能</h4>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-download"></i>
+                                            设置管理:
+                                        </label>
+                                        <div class="form-group-inline">
+                                            <button type="button" id="exportAiSettings" class="btn btn-secondary">
+                                                <i class="fas fa-download"></i>
+                                                导出设置
+                                            </button>
+                                            <button type="button" id="importAiSettings" class="btn btn-secondary">
+                                                <i class="fas fa-upload"></i>
+                                                导入设置
+                                            </button>
+                                            <button type="button" id="clearTestResults" class="btn btn-secondary">
+                                                <i class="fas fa-trash"></i>
+                                                清除测试结果
+                                            </button>
+                                        </div>
+                                        <p class="input-description">导出设置用于备份，导入设置用于恢复配置（不包含API密钥）。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-chart-bar"></i>
+                                            使用统计:
+                                        </label>
+                                        <div id="aiUsageStats" class="usage-stats">
+                                            <!-- 使用统计将在这里显示 -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 操作按钮 -->
+                                <div class="settings-section">
+                                    <div class="auto-save-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>设置修改后自动保存，无需手动操作</span>
+                                        <div id="autoSaveStatus" class="auto-save-status">
+                                            <!-- 自动保存状态将在这里显示 -->
+                                        </div>
+                                    </div>
+                                    <div class="action-buttons">
+                                        <button id="resetAiSettings" class="btn btn-secondary">
+                                            <i class="fas fa-undo"></i>
+                                            重置为默认
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

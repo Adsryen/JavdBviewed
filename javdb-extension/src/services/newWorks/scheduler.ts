@@ -1,26 +1,39 @@
-// src/background/newWorksScheduler.ts
+// src/services/newWorks/scheduler.ts
 // 新作品定时采集调度器
 
-import { newWorksManager } from '../services/newWorksManager';
-import { newWorksCollector } from '../services/newWorksCollector';
+import type { NewWorksManager } from './manager';
+import type { NewWorksCollector } from './collector';
 
 export class NewWorksScheduler {
     private intervalId?: number;
     private isRunning: boolean = false;
     private isInitialized: boolean = false;
+    private manager?: NewWorksManager;
+    private collector?: NewWorksCollector;
+
+    /**
+     * 设置依赖
+     */
+    setDependencies(manager: NewWorksManager, collector: NewWorksCollector): void {
+        this.manager = manager;
+        this.collector = collector;
+    }
 
     /**
      * 初始化调度器
      */
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
+        if (!this.manager || !this.collector) {
+            throw new Error('NewWorksScheduler: 必须先调用 setDependencies 设置依赖');
+        }
 
         try {
             // 初始化新作品管理器
-            await newWorksManager.initialize();
-            
+            await this.manager.initialize();
+
             // 检查是否需要启动定时任务
-            const config = await newWorksManager.getGlobalConfig();
+            const config = await this.manager.getGlobalConfig();
             if (config.enabled) {
                 await this.start();
             }
@@ -42,8 +55,8 @@ export class NewWorksScheduler {
         }
 
         try {
-            const config = await newWorksManager.getGlobalConfig();
-            
+            const config = await this.manager!.getGlobalConfig();
+
             if (!config.enabled) {
                 console.log('NewWorksScheduler: 新作品功能未启用');
                 return;
@@ -98,8 +111,8 @@ export class NewWorksScheduler {
             console.log('NewWorksScheduler: 开始执行定时采集任务');
 
             // 获取配置和订阅
-            const config = await newWorksManager.getGlobalConfig();
-            const subscriptions = await newWorksManager.getSubscriptions();
+            const config = await this.manager!.getGlobalConfig();
+            const subscriptions = await this.manager!.getSubscriptions();
             const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
 
             if (activeSubscriptions.length === 0) {
@@ -108,13 +121,13 @@ export class NewWorksScheduler {
             }
 
             // 执行采集
-            const result = await newWorksCollector.checkMultipleActors(activeSubscriptions, config);
+            const result = await this.collector!.checkMultipleActors(activeSubscriptions, config);
 
             // 处理结果
             await this.processResults(result);
 
             // 更新最后检查时间
-            await newWorksManager.updateGlobalConfig({
+            await this.manager!.updateGlobalConfig({
                 lastGlobalCheck: Date.now()
             });
 
@@ -136,7 +149,7 @@ export class NewWorksScheduler {
         try {
             // 保存新作品
             if (results.newWorks.length > 0) {
-                await newWorksManager.addNewWorks(results.newWorks);
+                await this.manager!.addNewWorks(results.newWorks);
             }
 
             // 发送通知
@@ -212,8 +225,8 @@ export class NewWorksScheduler {
         try {
             console.log('NewWorksScheduler: 手动触发检查');
 
-            const config = await newWorksManager.getGlobalConfig();
-            const subscriptions = await newWorksManager.getSubscriptions();
+            const config = await this.manager!.getGlobalConfig();
+            const subscriptions = await this.manager!.getSubscriptions();
             console.log('NewWorksScheduler: 获取到订阅数据:', subscriptions.length, '个订阅');
             console.log('NewWorksScheduler: 订阅详情:', subscriptions.map(sub => ({
                 id: sub.actorId,
@@ -232,11 +245,11 @@ export class NewWorksScheduler {
                 return { discovered: 0, errors: [errorMsg] };
             }
 
-            const result = await newWorksCollector.checkMultipleActors(activeSubscriptions, config);
+            const result = await this.collector!.checkMultipleActors(activeSubscriptions, config);
             await this.processResults(result);
 
             // 更新最后检查时间
-            await newWorksManager.updateGlobalConfig({
+            await this.manager!.updateGlobalConfig({
                 lastGlobalCheck: Date.now()
             });
 

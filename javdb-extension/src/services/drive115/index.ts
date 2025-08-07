@@ -10,10 +10,11 @@ export * from './verification';
 export * from './logger';
 
 import type { Drive115Settings, OfflineDownloadOptions, BatchOfflineOptions } from './types';
-import { DEFAULT_DRIVE115_SETTINGS, DRIVE115_STORAGE_KEYS } from './config';
+import { DEFAULT_DRIVE115_SETTINGS } from './config';
 import { Drive115ApiClient } from './api';
 import { Drive115Logger } from './logger';
-import { getValue, setValue } from '../../utils/storage';
+import { getSettings, saveSettings as saveMainSettings } from '../../utils/storage';
+import type { ExtensionSettings } from '../../types';
 
 /**
  * 115网盘服务管理器
@@ -52,12 +53,8 @@ export class Drive115Service {
    */
   async loadSettings(): Promise<void> {
     try {
-      const stored = await getValue(DRIVE115_STORAGE_KEYS.SETTINGS);
-      if (stored && typeof stored === 'object') {
-        this.settings = { ...DEFAULT_DRIVE115_SETTINGS, ...stored };
-      } else {
-        this.settings = DEFAULT_DRIVE115_SETTINGS;
-      }
+      const mainSettings = await getSettings();
+      this.settings = { ...DEFAULT_DRIVE115_SETTINGS, ...mainSettings.drive115 };
     } catch (error) {
       console.error('加载115设置失败:', error);
       this.settings = DEFAULT_DRIVE115_SETTINGS;
@@ -70,7 +67,13 @@ export class Drive115Service {
   async saveSettings(settings: Partial<Drive115Settings>): Promise<void> {
     try {
       this.settings = { ...this.settings, ...settings };
-      await setValue(DRIVE115_STORAGE_KEYS.SETTINGS, this.settings);
+
+      // 获取当前主设置
+      const mainSettings = await getSettings();
+      // 更新115设置部分
+      mainSettings.drive115 = this.settings;
+      // 保存到主设置系统
+      await saveMainSettings(mainSettings);
     } catch (error) {
       console.error('保存115设置失败:', error);
       throw error;

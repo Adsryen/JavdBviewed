@@ -8,6 +8,7 @@ import { syncTab } from './tabs/sync';
 import { initSettingsTab } from './tabs/settings';
 import { initAdvancedSettingsTab } from './tabs/advanced';
 import { initLogsTab } from './tabs/logs';
+import { initAISettingsTab } from './tabs/aiSettings';
 import { initializeNetworkTestTab } from './tabs/network';
 import { initDrive115Tab } from './tabs/drive115';
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
     initSyncTab();
     initSettingsTab();
+    initAISettingsTab();
     initDrive115Tab();
     initLogsTab();
     initSidebarActions();

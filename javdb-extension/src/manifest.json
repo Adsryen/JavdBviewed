@@ -22,10 +22,12 @@
         "https://webapi.115.com/*",
         "https://captchaapi.115.com/*",
         "https://uplb.115.com/*",
-        "https://v.anxia.com/*"
+        "https://v.anxia.com/*",
+        "https://*/*",
+        "http://*/*"
     ],
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https://javdb.com https://*.javdb.com https://dav.jianguoyun.com https://*.teracloud.jp https://*.webdav.yandex.com https://*.nextcloud.com https://*.owncloud.com https://115.com https://*.115.com https://webapi.115.com https://captchaapi.115.com https://uplb.115.com https://v.anxia.com;"
+        "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self' https: http:;"
     },
     "background": {
         "service_worker": "background/background.ts",

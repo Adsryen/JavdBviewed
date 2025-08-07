@@ -1,14 +1,14 @@
-// src/services/newWorksCollector.ts
+// src/services/newWorks/collector.ts
 // 新作品采集服务
 
-import type { 
-    ActorSubscription, 
-    NewWorksGlobalConfig, 
-    NewWorkRecord,
-    VideoRecord 
-} from '../types';
-import { getValue } from '../utils/storage';
-import { STORAGE_KEYS } from '../utils/config';
+import type {
+    ActorSubscription,
+    NewWorksGlobalConfig,
+    NewWorkRecord
+} from './types';
+import type { VideoRecord } from '../../types';
+import { getValue } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../utils/config';
 
 export class NewWorksCollector {
     private readonly BASE_DELAY = 3000; // 基础延迟3秒
@@ -17,7 +17,7 @@ export class NewWorksCollector {
      * 检查单个演员的新作品
      */
     async checkActorNewWorks(
-        subscription: ActorSubscription, 
+        subscription: ActorSubscription,
         globalConfig: NewWorksGlobalConfig
     ): Promise<NewWorkRecord[]> {
         try {
@@ -27,7 +27,7 @@ export class NewWorksCollector {
             const actorWorksUrl = `https://javdb.com/actors/${subscription.actorId}`;
             
             // 获取演员作品页面数据
-            const works = await this.parseActorWorksPage(actorWorksUrl);
+            const works = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
             
             // 应用全局过滤条件
             const filteredWorks = await this.applyGlobalFilters(works, globalConfig.filters);
@@ -69,16 +69,15 @@ export class NewWorksCollector {
     /**
      * 解析演员作品页面
      */
-    private async parseActorWorksPage(actorUrl: string): Promise<any[]> {
+    private async parseActorWorksPage(actorUrl: string, globalConfig: NewWorksGlobalConfig): Promise<any[]> {
         try {
             console.log(`正在请求演员作品页面: ${actorUrl}`);
 
             // 添加延迟以避免频繁请求
             await this.delay(this.BASE_DELAY);
 
-            // 获取全局配置以确定时间过滤范围
-            const config = await newWorksManager.getGlobalConfig();
-            const dateThreshold = this.calculateDateThreshold(config.filters.dateRange);
+            // 使用传入的全局配置确定时间过滤范围
+            const dateThreshold = this.calculateDateThreshold(globalConfig.filters.dateRange);
 
             // 分页解析作品，遇到超出时间范围的作品时停止
             const works = await this.parseActorWorksWithPagination(actorUrl, dateThreshold);
@@ -522,6 +521,3 @@ export class NewWorksCollector {
         return results;
     }
 }
-
-// 单例实例
-export const newWorksCollector = new NewWorksCollector();
