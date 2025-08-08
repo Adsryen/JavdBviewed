@@ -27,9 +27,15 @@ class Drive115SettingsManager {
      * 初始化
      */
     async initialize(): Promise<void> {
+        console.log('115设置管理器开始初始化');
         await this.loadSettings();
+        console.log('115设置已加载:', this.settings);
+        this.updateUI(); // 根据加载的设置更新UI
+        console.log('115设置UI已更新');
         this.bindEvents();
+        console.log('115设置事件已绑定');
         this.updateAutoSaveStatus('idle');
+        console.log('115设置管理器初始化完成');
     }
 
     /**
@@ -66,15 +72,21 @@ class Drive115SettingsManager {
         // 验证次数变化
         const verifyCountInput = document.getElementById('drive115VerifyCount') as HTMLInputElement;
         verifyCountInput?.addEventListener('input', () => {
-            this.settings.verifyCount = parseInt(verifyCountInput.value, 10);
-            this.autoSaveSettings();
+            const value = parseInt(verifyCountInput.value, 10);
+            if (!isNaN(value) && value >= 1 && value <= 20) {
+                this.settings.verifyCount = value;
+                this.autoSaveSettings();
+            }
         });
 
         // 最大失败数变化
         const maxFailuresInput = document.getElementById('drive115MaxFailures') as HTMLInputElement;
         maxFailuresInput?.addEventListener('input', () => {
-            this.settings.maxFailures = parseInt(maxFailuresInput.value, 10);
-            this.autoSaveSettings();
+            const value = parseInt(maxFailuresInput.value, 10);
+            if (!isNaN(value) && value >= 0 && value <= 50) {
+                this.settings.maxFailures = value;
+                this.autoSaveSettings();
+            }
         });
 
         // 自动通知变化
@@ -163,6 +175,9 @@ class Drive115SettingsManager {
         } catch (error) {
             console.error('115设置自动保存失败:', error);
             this.updateAutoSaveStatus('error');
+
+            // 显示错误消息给用户
+            showMessage('115设置保存失败: ' + (error instanceof Error ? error.message : '未知错误'), 'error');
 
             // 5秒后恢复到空闲状态
             setTimeout(() => {

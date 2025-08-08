@@ -60,6 +60,21 @@ export interface ExtensionSettings {
         cacheExpiration: number; // 缓存过期时间（小时）
     };
 
+    // 新增：翻译服务配置
+    translation: {
+        provider: 'traditional' | 'ai'; // 翻译服务提供商类型
+        traditional: {
+            service: 'google' | 'baidu' | 'youdao'; // 传统翻译服务
+            apiKey?: string; // API密钥（百度、有道需要）
+            sourceLanguage: string; // 源语言
+            targetLanguage: string; // 目标语言
+        };
+        ai: {
+            useGlobalModel: boolean; // 是否使用全局AI模型
+            customModel?: string; // 自定义模型（当不使用全局模型时）
+        };
+    };
+
     // 新增：用户体验配置
     userExperience: {
         enableQuickCopy: boolean; // 启用快捷复制

@@ -4,7 +4,7 @@
 import { defaultDataAggregator } from '../services/dataAggregator';
 import { VideoMetadata, ImageData, RatingData, ActorData } from '../services/dataAggregator/types';
 import { STATE, log } from './state';
-import { extractVideoId } from './videoId';
+import { extractVideoIdFromPage } from './videoId';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -35,7 +35,7 @@ export class VideoDetailEnhancer {
    */
   async initialize(): Promise<void> {
     try {
-      this.videoId = extractVideoId();
+      this.videoId = extractVideoIdFromPage();
       if (!this.videoId) {
         log('No video ID found, skipping enhancement');
         return;

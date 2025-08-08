@@ -12,24 +12,25 @@ import { log } from './state';
  */
 export async function initDrive115Features(): Promise<void> {
     try {
+        log('开始初始化115功能...');
+
+        // 首先初始化115服务（加载设置）
         const drive115Service = getDrive115Service();
-        
+        await drive115Service.initialize();
+
+        log('115服务已初始化，当前设置:', drive115Service.getSettings());
+
         // 检查是否启用115功能
         if (!drive115Service.isEnabled()) {
             log('115功能未启用，跳过初始化');
             return;
         }
 
-        log('初始化115功能...');
+        log('115功能已启用，开始添加按钮...');
 
         // 在详情页添加115按钮
         if (window.location.pathname.startsWith('/v/')) {
             await addDrive115ButtonToDetailPage();
-        }
-
-        // 在列表页添加115按钮
-        if (isListPage()) {
-            await addDrive115ButtonsToListPage();
         }
 
         log('115功能初始化完成');
@@ -38,16 +39,7 @@ export async function initDrive115Features(): Promise<void> {
     }
 }
 
-/**
- * 检查是否为列表页
- */
-function isListPage(): boolean {
-    return !!(
-        document.querySelector('.movie-list') ||
-        document.querySelector('.grid') ||
-        document.querySelector('.item')
-    );
-}
+
 
 /**
  * 在详情页添加115按钮
@@ -66,41 +58,11 @@ async function addDrive115ButtonToDetailPage(): Promise<void> {
         return;
     }
 
-    // 创建115按钮容器
-    const drive115Container = createDrive115Container();
-    
-    // 添加到磁链区域后面
-    magnetSection.parentNode?.insertBefore(drive115Container, magnetSection.nextSibling);
-
-    // 获取磁链列表
-    const magnetLinks = getMagnetLinksFromPage();
-    if (magnetLinks.length === 0) {
-        drive115Container.innerHTML = `
-            <div class="drive115-section">
-                <h3>115网盘离线下载</h3>
-                <div class="drive115-no-magnets">未找到磁链</div>
-            </div>
-        `;
-        return;
-    }
-
-    // 渲染115按钮
-    renderDrive115Buttons(drive115Container, videoId, magnetLinks);
+    // 为每个磁力链接添加"推送115"按钮
+    addPushButtonsToMagnetItems(videoId);
 }
 
-/**
- * 在列表页添加115按钮
- */
-async function addDrive115ButtonsToListPage(): Promise<void> {
-    const movieItems = document.querySelectorAll('.movie-list .item, .grid .item');
-    
-    for (const item of movieItems) {
-        const videoId = extractVideoIdFromElement(item as HTMLElement);
-        if (videoId) {
-            addDrive115ButtonToListItem(item as HTMLElement, videoId);
-        }
-    }
-}
+
 
 /**
  * 查找磁链区域
@@ -188,11 +150,357 @@ function getMagnetLinksFromPage(): Array<{ name: string; url: string }> {
 }
 
 /**
- * 渲染115按钮
+ * 为磁力链接添加"推送115"按钮
+ */
+function addPushButtonsToMagnetItems(videoId: string): void {
+    // 查找所有磁力链接项
+    const magnetItems = document.querySelectorAll('#magnets-content .item');
+
+    magnetItems.forEach((item, index) => {
+        // 检查是否已经添加过按钮
+        if (item.querySelector('.drive115-push-btn')) {
+            return;
+        }
+
+        // 获取磁力链接
+        const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement;
+        if (!magnetLink) {
+            return;
+        }
+
+        const magnetUrl = magnetLink.href;
+        const magnetName = magnetLink.querySelector('.name')?.textContent?.trim() || `磁链 ${index + 1}`;
+
+        // 查找按钮容器
+        const buttonsContainer = item.querySelector('.buttons');
+        if (!buttonsContainer) {
+            return;
+        }
+
+        // 创建"推送115"按钮
+        const pushButton = document.createElement('button');
+        pushButton.className = 'button is-success is-small drive115-push-btn';
+        pushButton.innerHTML = '&nbsp;推送115&nbsp;';
+        pushButton.title = '推送到115网盘离线下载';
+        pushButton.style.marginLeft = '5px';
+
+        // 添加按钮到容器
+        buttonsContainer.appendChild(pushButton);
+
+        // 绑定点击事件
+        pushButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await handlePushToDrive115(pushButton, videoId, magnetUrl, magnetName);
+        });
+    });
+}
+
+/**
+ * 处理推送到115网盘（新的跨域实现）
+ */
+async function handlePushToDrive115(
+    button: HTMLButtonElement,
+    videoId: string,
+    magnetUrl: string,
+    magnetName: string
+): Promise<void> {
+    try {
+        // 检查115功能是否启用
+        const drive115Service = getDrive115Service();
+        if (!drive115Service.isEnabled()) {
+            showToast('115网盘功能未启用，请先在设置中启用', 'error');
+            return;
+        }
+
+        // 更新按钮状态
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '推送中...';
+        button.className = 'button is-warning is-small drive115-push-btn';
+
+        log(`推送磁链到115网盘: ${magnetName} (${videoId})`);
+
+        // 使用新的跨域推送方法
+        const result = await pushToDrive115ViaCrossDomain({
+            videoId,
+            magnetUrl,
+            magnetName
+        });
+
+        if (result.success) {
+            // 成功状态
+            button.innerHTML = '推送成功';
+            button.className = 'button is-success is-small drive115-push-btn';
+            showToast(`${magnetName} 推送到115网盘成功`, 'success');
+
+            // 推送成功后自动标记为已看
+            try {
+                await markVideoAsWatched(videoId);
+                showToast(`${videoId} 已自动标记为已看`, 'info');
+            } catch (error) {
+                console.warn('自动标记已看失败:', error);
+                showToast('推送成功，但自动标记已看失败', 'info');
+            }
+
+            // 3秒后恢复原状态
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                button.className = 'button is-success is-small drive115-push-btn';
+            }, 3000);
+        } else {
+            throw new Error(result.error || '推送失败');
+        }
+    } catch (error) {
+        console.error('推送到115网盘失败:', error);
+
+        // 错误状态
+        button.innerHTML = '推送失败';
+        button.className = 'button is-danger is-small drive115-push-btn';
+
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        showToast(`推送失败: ${errorMessage}`, 'error');
+
+        // 3秒后恢复原状态
+        setTimeout(() => {
+            button.innerHTML = '&nbsp;推送115&nbsp;';
+            button.disabled = false;
+            button.className = 'button is-success is-small drive115-push-btn';
+        }, 3000);
+    }
+}
+
+/**
+ * 标记视频为已看
+ */
+async function markVideoAsWatched(videoId: string): Promise<void> {
+    try {
+        log(`开始标记视频为已看: ${videoId}`);
+
+        // 1. 标记JavDB服务器数据为已看
+        await markJavDBAsWatched();
+
+        // 2. 更新扩展番号库数据为已看
+        await updateExtensionWatchedStatus(videoId);
+
+        log(`视频 ${videoId} 已成功标记为已看`);
+    } catch (error) {
+        console.error('标记视频为已看失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 标记JavDB服务器数据为已看
+ */
+async function markJavDBAsWatched(): Promise<void> {
+    try {
+        // 获取当前页面的URL和CSRF token
+        const currentUrl = window.location.href;
+        const videoPath = window.location.pathname; // 例如: /v/bKwmOv
+
+        // 从页面中提取CSRF token
+        const csrfToken = extractCSRFToken();
+        if (!csrfToken) {
+            throw new Error('无法获取CSRF token');
+        }
+
+        log(`提取到CSRF token: ${csrfToken.substring(0, 20)}...`);
+
+        // 构建reviews URL
+        const reviewsUrl = `https://javdb.com${videoPath}/reviews`;
+
+        // 准备请求数据
+        const formData = new URLSearchParams({
+            'authenticity_token': csrfToken,
+            'video_review[score]': '4',
+            'video_review[content]': '',
+            'video_review[status]': 'watched',
+            'commit': '保存'
+        });
+
+        log(`发送标记已看请求到: ${reviewsUrl}`);
+
+        // 发送请求
+        const response = await fetch(reviewsUrl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7,zh-HK;q=0.6',
+                'Cache-Control': 'no-cache',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Pragma': 'no-cache',
+                'X-CSRF-Token': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': currentUrl
+            },
+            body: formData,
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`JavDB标记已看失败: HTTP ${response.status}`);
+        }
+
+        log('JavDB服务器标记已看成功');
+    } catch (error) {
+        console.error('标记JavDB为已看失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 从页面中提取CSRF token
+ */
+function extractCSRFToken(): string | null {
+    try {
+        // 方法1: 从meta标签中获取
+        const metaToken = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
+        if (metaToken && metaToken.content) {
+            return metaToken.content;
+        }
+
+        // 方法2: 从表单中获取
+        const formToken = document.querySelector('input[name="authenticity_token"]') as HTMLInputElement;
+        if (formToken && formToken.value) {
+            return formToken.value;
+        }
+
+        // 方法3: 从页面脚本中提取
+        const scripts = document.querySelectorAll('script');
+        for (const script of scripts) {
+            const content = script.textContent || '';
+            const tokenMatch = content.match(/csrf-token["']\s*content=["']([^"']+)["']/);
+            if (tokenMatch) {
+                return tokenMatch[1];
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('提取CSRF token失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 更新扩展番号库数据为已看
+ */
+async function updateExtensionWatchedStatus(videoId: string): Promise<void> {
+    try {
+        log(`更新扩展番号库状态: ${videoId}`);
+
+        // 发送消息到background script更新状态
+        const response = await new Promise<any>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('更新状态请求超时'));
+            }, 5000);
+
+            chrome.runtime.sendMessage({
+                type: 'UPDATE_WATCHED_STATUS',
+                videoId: videoId,
+                status: 'watched'
+            }, (response) => {
+                clearTimeout(timeout);
+
+                if (chrome.runtime.lastError) {
+                    reject(new Error(`Chrome runtime错误: ${chrome.runtime.lastError.message}`));
+                    return;
+                }
+
+                resolve(response);
+            });
+        });
+
+        if (response && response.success) {
+            log('扩展番号库状态更新成功');
+        } else {
+            throw new Error(response?.error || '更新扩展状态失败');
+        }
+    } catch (error) {
+        console.error('更新扩展番号库状态失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 通过跨域消息推送到115网盘
+ */
+async function pushToDrive115ViaCrossDomain(params: {
+    videoId: string;
+    magnetUrl: string;
+    magnetName: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+    return new Promise((resolve) => {
+        const requestId = `drive115_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        log(`开始跨域推送，请求ID: ${requestId}`);
+
+        // 发送消息到115.com页面
+        chrome.runtime.sendMessage({
+            type: 'DRIVE115_PUSH',
+            videoId: params.videoId,
+            magnetUrl: params.magnetUrl,
+            magnetName: params.magnetName,
+            requestId
+        }, (response) => {
+            log(`收到响应:`, response);
+            log(`Chrome runtime lastError:`, chrome.runtime.lastError);
+
+            if (chrome.runtime.lastError) {
+                log(`Chrome runtime错误: ${chrome.runtime.lastError.message}`);
+                resolve({
+                    success: false,
+                    error: `Chrome runtime错误: ${chrome.runtime.lastError.message}`
+                });
+                return;
+            }
+
+            if (!response) {
+                log('没有收到任何响应');
+                resolve({
+                    success: false,
+                    error: '没有收到115网盘的响应，请确保已登录115网盘并打开115.com页面'
+                });
+                return;
+            }
+
+            log(`响应类型: ${response.type}, 请求ID匹配: ${response.requestId === requestId}`);
+
+            if (response.type === 'DRIVE115_PUSH_RESPONSE' && response.requestId === requestId) {
+                resolve({
+                    success: response.success,
+                    data: response.data,
+                    error: response.error
+                });
+            } else {
+                resolve({
+                    success: false,
+                    error: `收到无效的响应: ${JSON.stringify(response)}`
+                });
+            }
+        });
+
+        // 30秒超时
+        setTimeout(() => {
+            log('推送请求超时');
+            resolve({
+                success: false,
+                error: '推送超时，请检查网络连接或115网盘登录状态'
+            });
+        }, 30000);
+    });
+}
+
+
+
+/**
+ * 渲染115按钮（保留原有功能）
  */
 function renderDrive115Buttons(
-    container: HTMLElement, 
-    videoId: string, 
+    container: HTMLElement,
+    videoId: string,
     magnetLinks: Array<{ name: string; url: string }>
 ): void {
     container.innerHTML = `
@@ -236,90 +544,40 @@ function addDrive115Styles(): void {
     const style = document.createElement('style');
     style.id = 'drive115-styles';
     style.textContent = `
-        .drive115-section h3 {
-            margin: 0 0 15px 0;
-            color: #333;
-            font-size: 16px;
+        /* 推送115按钮样式 */
+        .drive115-push-btn {
+            transition: all 0.2s ease !important;
         }
-        
-        .drive115-magnet-item {
+
+        .drive115-push-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .drive115-push-btn:disabled {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* 确保按钮在磁力链接项中正确显示 */
+        #magnets-content .item .buttons {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .drive115-magnet-item:last-child {
-            border-bottom: none;
-        }
-        
-        .magnet-name {
-            flex: 1;
-            margin-right: 10px;
-            font-size: 14px;
-            color: #555;
-        }
-        
-        .drive115-download-btn, .drive115-batch-download-btn {
-            padding: 6px 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background-color 0.2s;
-        }
-        
-        .drive115-download-btn:hover, .drive115-batch-download-btn:hover {
-            background-color: #0056b3;
-        }
-        
-        .drive115-download-btn:disabled, .drive115-batch-download-btn:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        
-        .drive115-batch-actions {
-            margin-top: 15px;
-            text-align: center;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-        }
-        
-        .drive115-no-magnets {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
-        }
-        
-        .drive115-list-btn {
-            padding: 4px 8px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 11px;
-            margin-left: 5px;
-        }
-        
-        .drive115-list-btn:hover {
-            background-color: #1e7e34;
+            gap: 5px;
         }
     `;
     
     document.head.appendChild(style);
 }
 
+
+
 /**
- * 绑定115事件
+ * 绑定115事件（保留原有功能）
  */
 function bindDrive115Events(
-    container: HTMLElement, 
-    videoId: string, 
+    container: HTMLElement,
+    videoId: string,
     magnetLinks: Array<{ name: string; url: string }>
 ): void {
     // 单个下载按钮
@@ -390,50 +648,7 @@ async function handleSingleDownload(
     }
 }
 
-/**
- * 处理批量下载
- */
-async function handleBatchDownload(
-    button: HTMLButtonElement, 
-    videoId: string, 
-    magnetLinks: Array<{ name: string; url: string }>
-): Promise<void> {
-    try {
-        button.disabled = true;
-        button.textContent = '批量下载中...';
 
-        const drive115Service = getDrive115Service();
-        const tasks = magnetLinks.map(magnet => ({
-            videoId,
-            magnetUrl: magnet.url
-        }));
-
-        const result = await drive115Service.downloadBatch({
-            tasks,
-            autoVerify: true,
-            notify: true
-        });
-
-        button.textContent = '批量完成';
-        button.style.backgroundColor = '#28a745';
-        
-        showToast(
-            `批量下载完成: 成功 ${result.successCount}/${result.totalTasks}`, 
-            result.successCount > 0 ? 'success' : 'warning'
-        );
-    } catch (error) {
-        console.error('115批量下载失败:', error);
-        button.textContent = '批量失败';
-        button.style.backgroundColor = '#dc3545';
-        showToast(`批量下载失败: ${error}`, 'error');
-    } finally {
-        setTimeout(() => {
-            button.disabled = false;
-            button.textContent = '批量下载全部';
-            button.style.backgroundColor = '#007bff';
-        }, 3000);
-    }
-}
 
 /**
  * 从元素中提取视频ID
@@ -458,40 +673,4 @@ function extractVideoIdFromElement(element: HTMLElement): string | null {
     return null;
 }
 
-/**
- * 为列表项添加115按钮
- */
-function addDrive115ButtonToListItem(item: HTMLElement, videoId: string): void {
-    // 检查是否已经添加过按钮
-    if (item.querySelector('.drive115-list-btn')) {
-        return;
-    }
 
-    // 创建按钮
-    const button = document.createElement('button');
-    button.className = 'drive115-list-btn';
-    button.textContent = '115';
-    button.title = '115离线下载';
-    
-    // 添加到合适的位置
-    const titleElement = item.querySelector('.title, .movie-title, h3, h4');
-    if (titleElement) {
-        titleElement.appendChild(button);
-    } else {
-        item.appendChild(button);
-    }
-
-    // 绑定点击事件
-    button.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // 跳转到详情页，让用户选择磁链
-        const detailLink = item.querySelector('a[href*="/v/"]') as HTMLAnchorElement;
-        if (detailLink) {
-            window.open(detailLink.href, '_blank');
-        } else {
-            showToast('无法找到详情页链接', 'error');
-        }
-    });
-}
