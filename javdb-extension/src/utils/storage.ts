@@ -49,6 +49,18 @@ export async function getSettings(): Promise<ExtensionSettings> {
             ...DEFAULT_SETTINGS.dataEnhancement,
             ...(storedSettings.dataEnhancement || {}),
         },
+        translation: {
+            ...DEFAULT_SETTINGS.translation,
+            ...(storedSettings.translation || {}),
+            traditional: {
+                ...DEFAULT_SETTINGS.translation.traditional,
+                ...(storedSettings.translation?.traditional || {}),
+            },
+            ai: {
+                ...DEFAULT_SETTINGS.translation.ai,
+                ...(storedSettings.translation?.ai || {}),
+            },
+        },
         userExperience: {
             ...DEFAULT_SETTINGS.userExperience,
             ...(storedSettings.userExperience || {}),

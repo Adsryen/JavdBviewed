@@ -134,6 +134,18 @@ export class HttpClient {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        // 检查是否需要使用background script进行跨域请求
+        if (this.needsBackgroundFetch(url)) {
+          return await this.fetchViaBackground<T>(url, {
+            method,
+            headers: requestHeaders,
+            body,
+            timeout,
+            responseType,
+          });
+        }
+
+        // 使用标准fetch
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -157,7 +169,7 @@ export class HttpClient {
         return await this.parseResponse<T>(response, responseType);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+
         // 如果是最后一次尝试，抛出错误
         if (attempt === retries) {
           break;
@@ -220,6 +232,69 @@ export class HttpClient {
       pending: this.requestQueue.size,
       urls,
     };
+  }
+
+  /**
+   * 检查是否需要使用background script进行跨域请求
+   */
+  private needsBackgroundFetch(url: string): boolean {
+    // 检查是否在扩展环境中
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      return false;
+    }
+
+    // 检查是否是跨域请求
+    try {
+      const urlObj = new URL(url);
+      const currentOrigin = window.location.origin;
+
+      // 如果是不同的域名，需要使用background script
+      return urlObj.origin !== currentOrigin;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 通过background script获取数据
+   */
+  private async fetchViaBackground<T>(url: string, options: any): Promise<T> {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({
+        type: 'fetch-external-data',
+        url,
+        options
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        if (!response) {
+          reject(new Error('No response from background script'));
+          return;
+        }
+
+        if (!response.success) {
+          reject(new NetworkError(response.error, url));
+          return;
+        }
+
+        try {
+          // 根据响应类型解析数据
+          let data = response.data;
+
+          if (options.responseType === 'document' && typeof data === 'string') {
+            const parser = new DOMParser();
+            data = parser.parseFromString(data, 'text/html');
+          }
+
+          resolve(data as T);
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
+      });
+    });
   }
 }
 

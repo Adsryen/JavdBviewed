@@ -14,6 +14,8 @@ export const DRIVE115_ENDPOINTS = {
   SEARCH: 'https://webapi.115.com/files/search',
   // 验证码页面
   CAPTCHA: 'https://captchaapi.115.com/?ac=security_code&type=web',
+  // 获取目录信息
+  GET_DIR_INFO: 'https://webapi.115.com/files',
 } as const;
 
 // 115网盘默认配置

@@ -1218,6 +1218,92 @@
     margin-right: 4px;
 }
 
+/* 翻译配置样式 */
+.translation-config {
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.translation-config h5 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-service {
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    border-left: 3px solid #2196f3;
+}
+
+.current-service span:first-child {
+    font-weight: 500;
+    color: #666;
+}
+
+.current-service span:last-child {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.translation-provider-config {
+    margin-top: 15px;
+}
+
+.translation-provider-config .form-group {
+    margin-bottom: 15px;
+}
+
+.translation-provider-config .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.translation-provider-config label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.translation-provider-config .text-input,
+.translation-provider-config .select-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.translation-provider-config .input-description {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.ai-translation-status {
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.ai-translation-status .fas {
+    color: #1976d2;
+}
+
+.ai-translation-status span {
+    font-size: 12px;
+    color: #1976d2;
+}
+
 /* Responsive design for global actions */
 @media (max-width: 768px) {
     #global-actions .action-buttons-top {
@@ -1232,5 +1318,14 @@
     #global-actions .settings-section {
         padding: 15px;
         margin-bottom: 20px;
+    }
+
+    .translation-config {
+        padding: 12px;
+        margin-top: 12px;
+    }
+
+    .translation-provider-config .form-group {
+        margin-bottom: 12px;
     }
 }

@@ -53,11 +53,12 @@ async function initialize(): Promise<void> {
                     timeout: 10000,
                 },
                 translator: {
-                    enabled: settings.dataEnhancement.enableTranslation,
-                    service: 'google',
+                    enabled: settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'traditional',
+                    service: settings.translation?.traditional?.service || 'google',
+                    apiKey: settings.translation?.traditional?.apiKey,
                     timeout: 5000,
-                    sourceLanguage: 'ja',
-                    targetLanguage: 'zh-CN',
+                    sourceLanguage: settings.translation?.traditional?.sourceLanguage || 'ja',
+                    targetLanguage: settings.translation?.traditional?.targetLanguage || 'zh-CN',
                 },
                 javLibrary: {
                     enabled: settings.dataEnhancement.enableRatingAggregation || settings.dataEnhancement.enableActorInfo,
@@ -71,6 +72,19 @@ async function initialize(): Promise<void> {
                 fc2: { enabled: false, baseUrl: '', timeout: 10000 },
             },
         });
+
+        // 配置AI翻译服务
+        if (settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'ai') {
+            defaultDataAggregator.updateAITranslatorConfig({
+                enabled: true,
+                useGlobalModel: settings.translation.ai?.useGlobalModel !== false,
+                customModel: settings.translation.ai?.customModel,
+                timeout: 30000,
+                maxRetries: 2,
+                sourceLanguage: 'ja',
+                targetLanguage: 'zh-CN',
+            });
+        }
     }
 
     // 初始化用户体验优化功能
