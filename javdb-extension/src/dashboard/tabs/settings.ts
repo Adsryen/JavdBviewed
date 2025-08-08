@@ -11,7 +11,134 @@ import { onSettingsChanged } from '../../utils/logController';
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
 
+// 全局变量声明，用于在不同函数间共享
+let handleSaveSettings: () => Promise<void>;
+
 export function initSettingsTab(): void {
+    // 定义 handleSaveSettings 函数，使其在整个 initSettingsTab 作用域内可用
+    handleSaveSettings = async function() {
+        try {
+            console.log('[Settings] 开始保存设置...');
+
+            // 显示保存状态指示器
+            const saveStatus = document.getElementById('enhancementSaveStatus');
+            if (saveStatus) {
+                saveStatus.style.display = 'block';
+            }
+
+            updateSearchEnginesFromUI(); // Update search engines from UI before saving
+            const newSettings: ExtensionSettings = {
+                ...STATE.settings,
+                webdav: {
+                    enabled: webdavEnabled.checked,
+                    url: webdavUrl.value.trim(),
+                    username: webdavUser.value.trim(),
+                    password: webdavPass.value,
+                    autoSync: webdavAutoSync.checked,
+                    syncInterval: parseInt(webdavSyncInterval.value, 10),
+                    lastSync: STATE.settings?.webdav?.lastSync || ''
+                },
+                display: {
+                    hideViewed: hideViewed.checked,
+                    hideBrowsed: hideBrowsed.checked,
+                    hideVR: hideVR.checked
+                },
+
+                logging: {
+                    maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
+                    verboseMode: verboseMode.checked,
+                    showPrivacyLogs: showPrivacyLogs.checked,
+                    showStorageLogs: showStorageLogs.checked,
+                },
+                dataEnhancement: {
+                    enableMultiSource: enableMultiSource.checked,
+                    enableImageCache: enableImageCache.checked,
+                    enableVideoPreview: enableVideoPreview.checked,
+                    enableTranslation: enableTranslation.checked,
+                    enableRatingAggregation: enableRatingAggregation.checked,
+                    enableActorInfo: enableActorInfo.checked,
+                    cacheExpiration: parseInt(cacheExpiration.value, 10) || 24,
+                },
+                translation: translationProvider ? {
+                    provider: translationProvider.value as 'traditional' | 'ai',
+                    traditional: {
+                        service: traditionalTranslationService?.value as 'google' | 'baidu' | 'youdao' || 'google',
+                        apiKey: traditionalApiKey?.value || undefined,
+                        sourceLanguage: 'ja',
+                        targetLanguage: 'zh-CN',
+                    },
+                    ai: {
+                        useGlobalModel: useGlobalAiModel?.checked === true,
+                        customModel: customTranslationModel?.value || undefined,
+                    },
+                } : STATE.settings.translation || {
+                    provider: 'traditional',
+                    traditional: {
+                        service: 'google',
+                        sourceLanguage: 'ja',
+                        targetLanguage: 'zh-CN',
+                    },
+                    ai: {
+                        useGlobalModel: true,
+                    },
+                },
+                userExperience: {
+                    enableQuickCopy: enableQuickCopy.checked,
+                    enableContentFilter: enableContentFilter.checked,
+                    enableKeyboardShortcuts: enableKeyboardShortcuts.checked,
+                    enableMagnetSearch: enableMagnetSearch.checked,
+                    showEnhancedTooltips: showEnhancedTooltips.checked,
+                },
+                contentFilter: STATE.settings.contentFilter || {
+                    enabled: false,
+                    rules: [],
+                    highlightRules: [],
+                },
+                searchEngines: STATE.settings.searchEngines,
+                version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
+            };
+            await saveSettings(newSettings);
+            STATE.settings = newSettings;
+            chrome.runtime.sendMessage({ type: 'setup-alarms' });
+
+            // 通知所有JavDB标签页设置已更新
+            chrome.tabs.query({ url: '*://javdb.com/*' }, (tabs) => {
+                tabs.forEach(tab => {
+                    if (tab.id) {
+                        chrome.tabs.sendMessage(tab.id, { type: 'settings-updated' });
+                    }
+                });
+            });
+
+            console.log('[Settings] 设置保存成功');
+            showMessage('设置已自动保存！', 'success');
+            logAsync('INFO', '用户设置已保存。', { settings: newSettings });
+
+            // 更新日志控制器配置
+            onSettingsChanged();
+
+            // 刷新JSON配置显示
+            await loadJsonConfig();
+
+            // Update sync status display
+            if (typeof updateSyncStatus === 'function') {
+                updateSyncStatus();
+            }
+        } catch (error) {
+            console.error('[Settings] 保存设置时出错:', error);
+            showMessage('保存设置失败: ' + (error instanceof Error ? error.message : '未知错误'), 'error');
+            logAsync('ERROR', '保存设置失败', { error: error instanceof Error ? error.message : String(error) });
+        } finally {
+            // 隐藏保存状态指示器
+            const saveStatus = document.getElementById('enhancementSaveStatus');
+            if (saveStatus) {
+                setTimeout(() => {
+                    saveStatus.style.display = 'none';
+                }, 1000);
+            }
+        }
+    };
+
     // Initialize settings navigation
     initSettingsNavigation();
 
@@ -61,13 +188,30 @@ export function initSettingsTab(): void {
     const enableActorInfo = document.getElementById('enableActorInfo') as HTMLInputElement;
     const cacheExpiration = document.getElementById('cacheExpiration') as HTMLInputElement;
 
+    // 翻译配置元素
+    const translationConfig = document.getElementById('translationConfig') as HTMLDivElement;
+    const currentTranslationService = document.getElementById('currentTranslationService') as HTMLSpanElement;
+    const translationProvider = document.getElementById('translationProvider') as HTMLSelectElement;
+    const traditionalTranslationConfig = document.getElementById('traditionalTranslationConfig') as HTMLDivElement;
+    const traditionalTranslationService = document.getElementById('traditionalTranslationService') as HTMLSelectElement;
+    const traditionalApiKeyGroup = document.getElementById('traditionalApiKeyGroup') as HTMLDivElement;
+    const traditionalApiKey = document.getElementById('traditionalApiKey') as HTMLInputElement;
+    const aiTranslationConfig = document.getElementById('aiTranslationConfig') as HTMLDivElement;
+    const useGlobalAiModel = document.getElementById('useGlobalAiModel') as HTMLInputElement;
+    const customAiModelGroup = document.getElementById('customAiModelGroup') as HTMLDivElement;
+    const customTranslationModel = document.getElementById('customTranslationModel') as HTMLSelectElement;
+
+    // 检查翻译配置元素是否存在
+    if (!translationConfig || !currentTranslationService || !translationProvider) {
+        console.warn('翻译配置元素未找到，跳过翻译功能初始化');
+        return;
+    }
+
     const enableQuickCopy = document.getElementById('enableQuickCopy') as HTMLInputElement;
     const enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
     const enableKeyboardShortcuts = document.getElementById('enableKeyboardShortcuts') as HTMLInputElement;
     const enableMagnetSearch = document.getElementById('enableMagnetSearch') as HTMLInputElement;
     const showEnhancedTooltips = document.getElementById('showEnhancedTooltips') as HTMLInputElement;
-
-    const saveEnhancementSettingsBtn = document.getElementById('saveEnhancementSettings') as HTMLButtonElement;
 
     function renderSearchEngines() {
         const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
@@ -158,6 +302,7 @@ export function initSettingsTab(): void {
             const searchEngines = settings.searchEngines || [];
             const dataSync = settings.dataSync || {};
             const dataEnhancement = settings.dataEnhancement || {};
+            const translation = settings.translation || {};
             const userExperience = settings.userExperience || {};
 
             // WebDAV 设置 - 提供默认值
@@ -200,6 +345,9 @@ export function initSettingsTab(): void {
             enableActorInfo.checked = dataEnhancement?.enableActorInfo || false;
             cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
 
+            // 翻译配置设置
+            loadTranslationSettings(translation);
+
             enableQuickCopy.checked = userExperience?.enableQuickCopy || false;
             enableContentFilter.checked = userExperience?.enableContentFilter || false;
             enableKeyboardShortcuts.checked = userExperience?.enableKeyboardShortcuts || false;
@@ -220,82 +368,7 @@ export function initSettingsTab(): void {
         }
     }
 
-    async function handleSaveSettings() {
-        updateSearchEnginesFromUI(); // Update search engines from UI before saving
-        const newSettings: ExtensionSettings = {
-            ...STATE.settings,
-            webdav: {
-                enabled: webdavEnabled.checked,
-                url: webdavUrl.value.trim(),
-                username: webdavUser.value.trim(),
-                password: webdavPass.value,
-                autoSync: webdavAutoSync.checked,
-                syncInterval: parseInt(webdavSyncInterval.value, 10),
-                lastSync: STATE.settings?.webdav?.lastSync || ''
-            },
-            display: {
-                hideViewed: hideViewed.checked,
-                hideBrowsed: hideBrowsed.checked,
-                hideVR: hideVR.checked
-            },
 
-            logging: {
-                maxLogEntries: parseInt(maxLogEntries.value, 10) || 1500,
-                verboseMode: verboseMode.checked,
-                showPrivacyLogs: showPrivacyLogs.checked,
-                showStorageLogs: showStorageLogs.checked,
-            },
-            dataEnhancement: {
-                enableMultiSource: enableMultiSource.checked,
-                enableImageCache: enableImageCache.checked,
-                enableVideoPreview: enableVideoPreview.checked,
-                enableTranslation: enableTranslation.checked,
-                enableRatingAggregation: enableRatingAggregation.checked,
-                enableActorInfo: enableActorInfo.checked,
-                cacheExpiration: parseInt(cacheExpiration.value, 10) || 24,
-            },
-            userExperience: {
-                enableQuickCopy: enableQuickCopy.checked,
-                enableContentFilter: enableContentFilter.checked,
-                enableKeyboardShortcuts: enableKeyboardShortcuts.checked,
-                enableMagnetSearch: enableMagnetSearch.checked,
-                showEnhancedTooltips: showEnhancedTooltips.checked,
-            },
-            contentFilter: STATE.settings.contentFilter || {
-                enabled: false,
-                rules: [],
-                highlightRules: [],
-            },
-            searchEngines: STATE.settings.searchEngines,
-            version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
-        };
-        await saveSettings(newSettings);
-        STATE.settings = newSettings;
-        chrome.runtime.sendMessage({ type: 'setup-alarms' });
-
-        // 通知所有JavDB标签页设置已更新
-        chrome.tabs.query({ url: '*://javdb.com/*' }, (tabs) => {
-            tabs.forEach(tab => {
-                if (tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { type: 'settings-updated' });
-                }
-            });
-        });
-
-        showMessage('Settings saved successfully!');
-        logAsync('INFO', '用户设置已保存。', { settings: newSettings });
-
-        // 更新日志控制器配置
-        onSettingsChanged();
-
-        // 刷新JSON配置显示
-        await loadJsonConfig();
-
-        // Update sync status display
-        if (typeof updateSyncStatus === 'function') {
-            updateSyncStatus();
-        }
-    }
 
     function handleTestWebDAV() {
         logAsync('INFO', '用户点击了“测试 WebDAV 连接”按钮。');
@@ -447,14 +520,30 @@ export function initSettingsTab(): void {
     showStorageLogs.addEventListener('change', handleSaveSettings);
 
     // 增强功能设置事件监听器
-    saveEnhancementSettingsBtn.addEventListener('click', handleSaveSettings);
     enableMultiSource.addEventListener('change', handleSaveSettings);
     enableImageCache.addEventListener('change', handleSaveSettings);
     enableVideoPreview.addEventListener('change', handleSaveSettings);
-    enableTranslation.addEventListener('change', handleSaveSettings);
+    enableTranslation.addEventListener('change', handleTranslationToggle);
     enableRatingAggregation.addEventListener('change', handleSaveSettings);
     enableActorInfo.addEventListener('change', handleSaveSettings);
     cacheExpiration.addEventListener('change', handleSaveSettings);
+
+    // 翻译配置事件监听器（添加空值检查）
+    if (translationProvider) {
+        translationProvider.addEventListener('change', handleTranslationProviderChange);
+    }
+    if (traditionalTranslationService) {
+        traditionalTranslationService.addEventListener('change', handleTraditionalServiceChange);
+    }
+    if (traditionalApiKey) {
+        traditionalApiKey.addEventListener('change', handleSaveSettings);
+    }
+    if (useGlobalAiModel) {
+        useGlobalAiModel.addEventListener('change', handleAiModelToggle);
+    }
+    if (customTranslationModel) {
+        customTranslationModel.addEventListener('change', handleSaveSettings);
+    }
     enableQuickCopy.addEventListener('change', handleSaveSettings);
     enableContentFilter.addEventListener('change', handleSaveSettings);
     enableKeyboardShortcuts.addEventListener('change', handleSaveSettings);
@@ -1106,6 +1195,9 @@ function initAdvancedSettingsFunctionality(): void {
 
     // Initialize actors management
     initActorsManagement();
+
+    // Initialize translation settings
+    initTranslationSettings();
 
     // Edit JSON button
     editJsonBtn.addEventListener('click', () => {
@@ -1967,6 +2059,258 @@ function initGlobalActionsFunctionality(): void {
         });
     }
 }
+
+    // 翻译配置相关函数
+    function initTranslationSettings(): void {
+        // 初始化翻译配置显示/隐藏逻辑
+        updateTranslationConfigVisibility();
+
+        // 初始化AI模型列表（如果需要显示的话）
+        if (useGlobalAiModel && !useGlobalAiModel.checked && customAiModelGroup) {
+            loadAvailableAiModels();
+        }
+    }
+
+    function loadTranslationSettings(translation: any): void {
+        // 检查元素是否存在
+        if (!translationProvider || !traditionalTranslationService || !traditionalApiKey ||
+            !useGlobalAiModel || !customTranslationModel) {
+            return;
+        }
+
+        // 设置翻译提供商
+        translationProvider.value = translation?.provider || 'traditional';
+
+        // 设置传统翻译服务
+        traditionalTranslationService.value = translation?.traditional?.service || 'google';
+        traditionalApiKey.value = translation?.traditional?.apiKey || '';
+
+        // 设置AI翻译配置
+        useGlobalAiModel.checked = translation?.ai?.useGlobalModel === true;
+        customTranslationModel.value = translation?.ai?.customModel || '';
+
+        // 更新UI显示
+        updateTranslationConfigVisibility();
+        updateCurrentServiceDisplay();
+        updateProviderConfigVisibility();
+        updateTraditionalApiKeyVisibility();
+        updateAiModelVisibility();
+    }
+
+    async function handleTranslationToggle(): Promise<void> {
+        updateTranslationConfigVisibility();
+        await handleSaveSettings();
+    }
+
+    async function handleTranslationProviderChange(): Promise<void> {
+        updateCurrentServiceDisplay();
+        updateProviderConfigVisibility();
+        await handleSaveSettings();
+    }
+
+    async function handleTraditionalServiceChange(): Promise<void> {
+        updateCurrentServiceDisplay();
+        updateTraditionalApiKeyVisibility();
+        await handleSaveSettings();
+    }
+
+    async function handleAiModelToggle(): Promise<void> {
+        updateAiModelVisibility();
+        await handleSaveSettings();
+    }
+
+    function updateTranslationConfigVisibility(): void {
+        if (!translationConfig) return;
+
+        if (enableTranslation.checked) {
+            translationConfig.style.display = 'block';
+        } else {
+            translationConfig.style.display = 'none';
+        }
+    }
+
+    function updateCurrentServiceDisplay(): void {
+        if (!translationProvider || !traditionalTranslationService || !currentTranslationService) return;
+
+        const provider = translationProvider.value;
+        let serviceName = '';
+
+        if (provider === 'traditional') {
+            const service = traditionalTranslationService.value;
+            switch (service) {
+                case 'google':
+                    serviceName = 'Google 翻译';
+                    break;
+                case 'baidu':
+                    serviceName = '百度翻译';
+                    break;
+                case 'youdao':
+                    serviceName = '有道翻译';
+                    break;
+                default:
+                    serviceName = '传统翻译服务';
+            }
+        } else {
+            serviceName = 'AI翻译服务';
+        }
+
+        currentTranslationService.textContent = serviceName;
+    }
+
+    function updateProviderConfigVisibility(): void {
+        if (!translationProvider || !traditionalTranslationConfig || !aiTranslationConfig) return;
+
+        const provider = translationProvider.value;
+
+        if (provider === 'traditional') {
+            traditionalTranslationConfig.style.display = 'block';
+            aiTranslationConfig.style.display = 'none';
+        } else {
+            traditionalTranslationConfig.style.display = 'none';
+            aiTranslationConfig.style.display = 'block';
+        }
+    }
+
+    function updateTraditionalApiKeyVisibility(): void {
+        if (!traditionalTranslationService || !traditionalApiKeyGroup) return;
+
+        const service = traditionalTranslationService.value;
+
+        if (service === 'baidu' || service === 'youdao') {
+            traditionalApiKeyGroup.style.display = 'block';
+        } else {
+            traditionalApiKeyGroup.style.display = 'none';
+        }
+    }
+
+    function updateAiModelVisibility(): void {
+        if (!useGlobalAiModel || !customAiModelGroup) return;
+
+        if (useGlobalAiModel.checked) {
+            customAiModelGroup.style.display = 'none';
+        } else {
+            customAiModelGroup.style.display = 'block';
+            // 从AI设置中加载可用模型列表
+            loadAvailableAiModels();
+        }
+    }
+
+    async function loadAvailableAiModels(): Promise<void> {
+        try {
+            if (!customTranslationModel) return;
+
+            console.log('[Settings] 开始加载AI模型列表...');
+
+            // 动态导入AI服务以避免循环依赖
+            const { aiService } = await import('../../services/ai/aiService');
+
+            // 清空现有选项
+            customTranslationModel.innerHTML = '<option value="">正在加载模型...</option>';
+
+            try {
+                // 从AI服务获取真实的模型列表
+                const models = await aiService.getAvailableModels();
+
+                console.log(`[Settings] 成功获取${models.length}个AI模型`);
+
+                // 清空现有选项
+                customTranslationModel.innerHTML = '<option value="">选择翻译专用模型</option>';
+
+                if (models.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '请先在AI设置中配置API并测试连接';
+                    option.disabled = true;
+                    customTranslationModel.appendChild(option);
+                } else {
+                    // 按模型类型分组
+                    const groupedModels: Record<string, typeof models> = {};
+
+                    models.forEach(model => {
+                        const modelId = model.id.toLowerCase();
+                        let group = 'Other';
+
+                        if (modelId.includes('gpt')) {
+                            group = 'OpenAI';
+                        } else if (modelId.includes('claude')) {
+                            group = 'Anthropic';
+                        } else if (modelId.includes('gemini')) {
+                            group = 'Google';
+                        } else if (modelId.includes('qwen')) {
+                            group = 'Qwen';
+                        } else if (modelId.includes('glm') || modelId.includes('chatglm')) {
+                            group = 'ZhiPu';
+                        } else if (modelId.includes('deepseek')) {
+                            group = 'DeepSeek';
+                        } else if (modelId.includes('moonshot')) {
+                            group = 'Moonshot';
+                        }
+
+                        if (!groupedModels[group]) {
+                            groupedModels[group] = [];
+                        }
+                        groupedModels[group].push(model);
+                    });
+
+                    // 按组添加模型选项
+                    Object.entries(groupedModels).forEach(([provider, providerModels]) => {
+                        if (providerModels.length > 0) {
+                            const optgroup = document.createElement('optgroup');
+                            optgroup.label = provider;
+
+                            providerModels.forEach(model => {
+                                const option = document.createElement('option');
+                                option.value = model.id;
+                                option.textContent = model.name || model.id;
+                                optgroup.appendChild(option);
+                            });
+
+                            customTranslationModel.appendChild(optgroup);
+                        }
+                    });
+                }
+            } catch (aiError) {
+                console.warn('[Settings] 从AI服务获取模型列表失败:', aiError);
+
+                // 如果AI服务获取失败，提供静态的常见模型列表作为后备
+                customTranslationModel.innerHTML = '<option value="">选择翻译专用模型</option>';
+
+                const fallbackModels = [
+                    { group: 'OpenAI', models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o-mini'] },
+                    { group: 'Anthropic', models: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229'] },
+                    { group: 'Google', models: ['gemini-pro', 'gemini-1.5-flash'] },
+                    { group: 'Qwen', models: ['qwen-turbo', 'qwen-plus'] }
+                ];
+
+                fallbackModels.forEach(({ group, models }) => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = group;
+
+                    models.forEach(modelId => {
+                        const option = document.createElement('option');
+                        option.value = modelId;
+                        option.textContent = modelId;
+                        optgroup.appendChild(option);
+                    });
+
+                    customTranslationModel.appendChild(optgroup);
+                });
+
+                // 添加提示信息
+                const infoOption = document.createElement('option');
+                infoOption.value = '';
+                infoOption.textContent = '提示：请在AI设置中测试连接以获取完整模型列表';
+                infoOption.disabled = true;
+                infoOption.style.fontStyle = 'italic';
+                customTranslationModel.appendChild(infoOption);
+            }
+        } catch (error) {
+            console.error('[Settings] 加载AI模型列表失败:', error);
+            if (customTranslationModel) {
+                customTranslationModel.innerHTML = '<option value="">加载模型列表失败</option>';
+            }
+        }
+    }
 
 // 确认对话框函数（如果不存在的话）
 function showConfirmationModal(options: {

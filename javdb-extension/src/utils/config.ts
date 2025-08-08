@@ -227,6 +227,19 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         cacheExpiration: 24, // 24小时
     },
 
+    // 新增：翻译服务默认配置
+    translation: {
+        provider: 'traditional' as const, // 默认使用传统翻译服务
+        traditional: {
+            service: 'google' as const, // 默认使用Google翻译
+            sourceLanguage: 'ja', // 日语
+            targetLanguage: 'zh-CN', // 简体中文
+        },
+        ai: {
+            useGlobalModel: true, // 默认使用全局AI模型
+        },
+    },
+
     // 新增：用户体验默认配置
     userExperience: {
         enableQuickCopy: false,

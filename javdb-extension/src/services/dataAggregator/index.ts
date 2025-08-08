@@ -4,6 +4,7 @@
 import { globalCache } from '../../utils/cache';
 import { BlogJavSource, DEFAULT_BLOGJAV_CONFIG } from './sources/blogJav';
 import { TranslatorService, DEFAULT_TRANSLATOR_CONFIG } from './sources/translator';
+import { AITranslatorService, DEFAULT_AI_TRANSLATOR_CONFIG } from './sources/aiTranslator';
 import { JavLibrarySource, DEFAULT_JAVLIBRARY_CONFIG } from './sources/javLibrary';
 import {
   VideoMetadata,
@@ -27,6 +28,7 @@ export interface DataAggregatorConfig {
 export class DataAggregator {
   private blogJav: BlogJavSource;
   private translator: TranslatorService;
+  private aiTranslator: AITranslatorService;
   private javLibrary: JavLibrarySource;
   private config: DataAggregatorConfig;
 
@@ -119,7 +121,7 @@ export class DataAggregator {
     // 翻译标题（如果有原标题且启用翻译）
     if (metadata.title && this.config.sources.translator.enabled) {
       try {
-        const translationResult = await this.translator.translate(metadata.title);
+        const translationResult = await this.translateText(metadata.title);
         if (translationResult.success && translationResult.data) {
           metadata.translatedTitle = translationResult.data.translatedText;
         }
@@ -194,7 +196,53 @@ export class DataAggregator {
       }
     }
 
-    const result = await this.translator.translate(text);
+    // 根据配置选择翻译服务
+    let result: ApiResponse<TranslationResult>;
+
+    // 检查是否应该使用AI翻译
+    const shouldUseAI = await this.shouldUseAITranslation();
+
+    if (shouldUseAI) {
+      result = await this.aiTranslator.translate(text);
+    } else {
+      result = await this.translator.translate(text);
+    }
+
+    // 缓存翻译结果
+    if (result.success && result.data && this.config.enableCache) {
+      const ttl = this.config.cacheExpiration * 60 * 60 * 1000;
+      await globalCache.setTranslation(text, result.data.translatedText, ttl);
+    }
+
+    return result;
+  }
+
+  /**
+   * 使用AI翻译文本
+   */
+  async translateTextWithAI(text: string): Promise<ApiResponse<TranslationResult>> {
+    // 尝试从缓存获取
+    if (this.config.enableCache) {
+      const cached = await globalCache.getTranslation(text);
+      if (cached) {
+        return {
+          success: true,
+          data: {
+            originalText: text,
+            translatedText: cached,
+            sourceLanguage: 'ja',
+            targetLanguage: 'zh-CN',
+            service: 'cached',
+            timestamp: Date.now(),
+          },
+          source: 'Cache',
+          timestamp: Date.now(),
+          cached: true,
+        };
+      }
+    }
+
+    const result = await this.aiTranslator.translate(text);
 
     // 缓存翻译结果
     if (result.success && result.data && this.config.enableCache) {
@@ -264,6 +312,15 @@ export class DataAggregator {
   }
 
   /**
+   * 更新AI翻译配置
+   */
+  updateAITranslatorConfig(config: Partial<AITranslatorConfig>): void {
+    if (this.aiTranslator) {
+      this.aiTranslator.updateConfig(config);
+    }
+  }
+
+  /**
    * 获取当前配置
    */
   getConfig(): DataAggregatorConfig {
@@ -294,7 +351,30 @@ export class DataAggregator {
   private initializeSources(): void {
     this.blogJav = new BlogJavSource(this.config.sources.blogJav);
     this.translator = new TranslatorService(this.config.sources.translator);
+    this.aiTranslator = new AITranslatorService(DEFAULT_AI_TRANSLATOR_CONFIG);
     this.javLibrary = new JavLibrarySource(this.config.sources.javLibrary);
+  }
+
+  /**
+   * 检查是否应该使用AI翻译
+   */
+  private async shouldUseAITranslation(): Promise<boolean> {
+    try {
+      // 检查AI翻译服务是否可用
+      const aiAvailable = await this.aiTranslator.isAvailable();
+      if (!aiAvailable) {
+        return false;
+      }
+
+      // 动态获取当前设置以确定翻译提供商
+      const { getSettings } = await import('../../utils/storage');
+      const settings = await getSettings();
+
+      return settings.dataEnhancement?.enableTranslation &&
+             settings.translation?.provider === 'ai';
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -802,6 +802,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     sendResponse({ success: false, error: error.message });
                 }
                 return true;
+            case 'fetch-external-data':
+                console.log('[Background] Processing fetch-external-data request.');
+                handleExternalDataFetch(message, sendResponse);
+                return true;
+            case 'DRIVE115_PUSH':
+                console.log('[Background] Processing DRIVE115_PUSH request.');
+                handleDrive115Push(message, sendResponse);
+                return true;
+            case 'DRIVE115_VERIFY':
+                console.log('[Background] Processing DRIVE115_VERIFY request.');
+                handleDrive115Verify(message, sendResponse);
+                return true;
+            case 'DRIVE115_HEARTBEAT':
+                console.log('[Background] Received heartbeat from 115 content script');
+                sendResponse({ type: 'DRIVE115_HEARTBEAT_RESPONSE', success: true });
+                return true;
+            case 'UPDATE_WATCHED_STATUS':
+                console.log('[Background] Processing UPDATE_WATCHED_STATUS request.');
+                handleUpdateWatchedStatus(message, sendResponse);
+                return true; // 保持消息通道开放
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
@@ -992,6 +1012,302 @@ function isRegionBlockedPage(html: string): boolean {
     ];
 
     return blockPatterns.some(pattern => pattern.test(html));
+}
+
+/**
+ * 处理115推送请求
+ */
+async function handleDrive115Push(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        console.log('[Background] Routing DRIVE115_PUSH to 115.com tab, message:', message);
+
+        // 查找115.com的标签页
+        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
+        console.log('[Background] Found 115.com tabs:', tabs.length);
+
+        if (tabs.length === 0) {
+            // 如果没有115.com标签页，创建一个
+            console.log('[Background] No 115.com tab found, creating new tab');
+            try {
+                const newTab = await chrome.tabs.create({
+                    url: 'https://115.com/?tab=offline&mode=wangpan',
+                    active: false
+                });
+                console.log('[Background] Created new tab:', newTab.id);
+
+                // 等待标签页加载完成
+                await new Promise<void>((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        reject(new Error('标签页加载超时'));
+                    }, 10000);
+
+                    const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                        if (tabId === newTab.id && changeInfo.status === 'complete') {
+                            clearTimeout(timeout);
+                            chrome.tabs.onUpdated.removeListener(listener);
+                            console.log('[Background] New tab loaded successfully');
+                            resolve();
+                        }
+                    };
+                    chrome.tabs.onUpdated.addListener(listener);
+                });
+
+                // 等待额外1秒确保content script加载
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // 发送消息到新标签页
+                console.log('[Background] Sending message to new tab');
+                chrome.tabs.sendMessage(newTab.id!, message, (response) => {
+                    console.log('[Background] Response from new tab:', response);
+                    if (chrome.runtime.lastError) {
+                        console.error('[Background] Error sending to new tab:', chrome.runtime.lastError);
+                        sendResponse({
+                            type: 'DRIVE115_PUSH_RESPONSE',
+                            requestId: message.requestId,
+                            success: false,
+                            error: `发送消息到新标签页失败: ${chrome.runtime.lastError.message}`
+                        });
+                    } else {
+                        sendResponse(response);
+                    }
+                });
+            } catch (tabError) {
+                console.error('[Background] Failed to create/load new tab:', tabError);
+                sendResponse({
+                    type: 'DRIVE115_PUSH_RESPONSE',
+                    requestId: message.requestId,
+                    success: false,
+                    error: `创建115标签页失败: ${tabError instanceof Error ? tabError.message : '未知错误'}`
+                });
+            }
+        } else {
+            // 尝试发送消息到所有115.com标签页，直到找到一个能响应的
+            console.log('[Background] Trying to send message to', tabs.length, '115.com tabs');
+            let responseReceived = false;
+            let attemptCount = 0;
+
+            const tryNextTab = (tabIndex: number) => {
+                if (tabIndex >= tabs.length) {
+                    if (!responseReceived) {
+                        console.error('[Background] No 115.com tab could handle the message');
+                        sendResponse({
+                            type: 'DRIVE115_PUSH_RESPONSE',
+                            requestId: message.requestId,
+                            success: false,
+                            error: '所有115网盘标签页都无法响应，请刷新115网盘页面后重试'
+                        });
+                    }
+                    return;
+                }
+
+                const tab = tabs[tabIndex];
+                console.log(`[Background] Trying tab ${tabIndex + 1}/${tabs.length}, ID: ${tab.id}, URL: ${tab.url}`);
+
+                chrome.tabs.sendMessage(tab.id!, message, (response) => {
+                    attemptCount++;
+                    console.log(`[Background] Response from tab ${tab.id}:`, response);
+
+                    if (chrome.runtime.lastError) {
+                        console.warn(`[Background] Tab ${tab.id} failed:`, chrome.runtime.lastError.message);
+                        // 尝试下一个标签页
+                        if (!responseReceived) {
+                            tryNextTab(tabIndex + 1);
+                        }
+                    } else if (response && !responseReceived) {
+                        responseReceived = true;
+                        console.log(`[Background] Successfully got response from tab ${tab.id}`);
+                        sendResponse(response);
+                    }
+                });
+            };
+
+            // 开始尝试第一个标签页
+            tryNextTab(0);
+        }
+    } catch (error) {
+        console.error('[Background] Failed to handle DRIVE115_PUSH:', error);
+        sendResponse({
+            type: 'DRIVE115_PUSH_RESPONSE',
+            requestId: message.requestId,
+            success: false,
+            error: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+}
+
+/**
+ * 处理115验证请求
+ */
+async function handleDrive115Verify(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        console.log('[Background] Routing DRIVE115_VERIFY to 115.com tab');
+
+        // 查找115.com的标签页
+        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
+
+        if (tabs.length === 0) {
+            sendResponse({
+                success: false,
+                error: '请先打开115网盘页面'
+            });
+            return;
+        }
+
+        // 发送消息到115.com标签页
+        chrome.tabs.sendMessage(tabs[0].id!, message, sendResponse);
+    } catch (error) {
+        console.error('[Background] Failed to handle DRIVE115_VERIFY:', error);
+        sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+}
+
+/**
+ * 处理更新观看状态请求
+ */
+async function handleUpdateWatchedStatus(message: any, sendResponse: (response: any) => void): Promise<void> {
+    console.log('[Background] handleUpdateWatchedStatus called with:', message);
+
+    try {
+        const { videoId, status } = message;
+
+        console.log('[Background] Extracted params:', { videoId, status });
+
+        if (!videoId || !status) {
+            console.error('[Background] Missing required parameters:', { videoId, status });
+            sendResponse({
+                success: false,
+                error: '缺少必需参数: videoId 或 status'
+            });
+            return;
+        }
+
+        console.log('[Background] Getting current storage data...');
+
+        // 获取当前的观看状态数据
+        const result = await chrome.storage.local.get(['viewedVideos']);
+        console.log('[Background] Current storage result:', result);
+
+        const viewedVideos = result.viewedVideos || {};
+        console.log('[Background] Current viewedVideos:', Object.keys(viewedVideos).length, 'entries');
+
+        // 更新状态
+        const updatedEntry = {
+            ...viewedVideos[videoId],
+            status: status,
+            watchedAt: Date.now(),
+            source: 'auto_115_push'
+        };
+
+        viewedVideos[videoId] = updatedEntry;
+        console.log('[Background] Updated entry for', videoId, ':', updatedEntry);
+
+        // 保存更新后的数据
+        console.log('[Background] Saving to storage...');
+        await chrome.storage.local.set({ viewedVideos });
+        console.log('[Background] Storage save completed');
+
+        console.log(`[Background] Successfully updated watched status for ${videoId} to ${status}`);
+
+        const response = {
+            success: true,
+            videoId,
+            status
+        };
+
+        console.log('[Background] Sending response:', response);
+        sendResponse(response);
+
+    } catch (error) {
+        console.error('[Background] Failed to update watched status:', error);
+        const errorResponse = {
+            success: false,
+            error: error instanceof Error ? error.message : '未知错误'
+        };
+        console.log('[Background] Sending error response:', errorResponse);
+        sendResponse(errorResponse);
+    }
+}
+
+/**
+ * 处理外部数据获取请求（用于多数据源聚合）
+ */
+async function handleExternalDataFetch(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { url, options = {} } = message;
+
+        if (!url) {
+            sendResponse({ success: false, error: 'URL is required' });
+            return;
+        }
+
+        console.log(`[Background] Fetching external data from: ${url}`);
+
+        // 设置默认请求选项
+        const fetchOptions: RequestInit = {
+            method: options.method || 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                ...options.headers
+            },
+            ...options
+        };
+
+        // 设置超时
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
+        fetchOptions.signal = controller.signal;
+
+        const response = await fetch(url, fetchOptions);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // 根据响应类型处理数据
+        let data;
+        const responseType = options.responseType || 'text';
+
+        switch (responseType) {
+            case 'json':
+                data = await response.json();
+                break;
+            case 'text':
+            case 'html':
+                data = await response.text();
+                break;
+            case 'blob':
+                data = await response.blob();
+                break;
+            default:
+                data = await response.text();
+        }
+
+        console.log(`[Background] Successfully fetched data from: ${url}`);
+        sendResponse({ success: true, data, status: response.status, headers: Object.fromEntries(response.headers.entries()) });
+
+    } catch (error: any) {
+        console.error(`[Background] Failed to fetch external data:`, error);
+
+        let errorMessage = error.message;
+        if (error.name === 'AbortError') {
+            errorMessage = 'Request timeout';
+        } else if (errorMessage.includes('Failed to fetch')) {
+            errorMessage = 'Network error or CORS restriction';
+        }
+
+        sendResponse({ success: false, error: errorMessage });
+    }
 }
 
 /**

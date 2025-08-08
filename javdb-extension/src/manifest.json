@@ -42,6 +42,25 @@
                 "content/index.ts"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "*://115.com/*",
+                "*://*.115.com/*"
+            ],
+            "js": [
+                "content/drive115-content.ts"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "*://captchaapi.115.com/*"
+            ],
+            "js": [
+                "content/drive115-verify.ts"
+            ],
+            "run_at": "document_end"
         }
     ],
     "action": {
