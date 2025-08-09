@@ -218,12 +218,12 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：数据增强默认配置
     dataEnhancement: {
-        enableMultiSource: false, // 默认关闭，避免影响现有用户
-        enableImageCache: true,
-        enableVideoPreview: false,
+        enableMultiSource: false, // 开发中，暂时关闭
+        enableImageCache: false, // 开发中，暂时关闭
+        enableVideoPreview: false, // 开发中，暂时关闭
         enableTranslation: false,
-        enableRatingAggregation: false,
-        enableActorInfo: false,
+        enableRatingAggregation: false, // 开发中，暂时关闭
+        enableActorInfo: false, // 开发中，暂时关闭
         cacheExpiration: 24, // 24小时
     },
 
@@ -244,7 +244,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     userExperience: {
         enableQuickCopy: false,
         enableContentFilter: false,
-        enableKeyboardShortcuts: false,
+        enableKeyboardShortcuts: false, // 开发中，暂时关闭
         enableMagnetSearch: false,
         showEnhancedTooltips: true,
     },

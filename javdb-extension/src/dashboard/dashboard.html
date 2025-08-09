@@ -1070,22 +1070,25 @@
                                 <h3>🚀 功能增强设置</h3>
                                 <p class="settings-description">解锁强大的增强功能，让您的JavDB体验更加丰富和高效！这些功能将显著提升浏览效率、数据完整性和操作便捷性。</p>
 
-                                <!-- 快速入门提示 -->
-                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                                    <h4 style="margin: 0 0 10px 0; color: white;">🎯 快速入门推荐</h4>
+                                <!-- 开发状态提示 -->
+                                <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                    <h4 style="margin: 0 0 10px 0; color: white;">🚧 功能开发状态</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
                                         <div>
-                                            <strong>🔰 新手推荐：</strong><br>
-                                            1. 启用"多数据源聚合"<br>
-                                            2. 启用"一键快捷复制"<br>
-                                            3. 启用"智能内容过滤"
+                                            <strong>🔧 开发中功能：</strong><br>
+                                            • 多数据源聚合<br>
+                                            • 智能图片缓存<br>
+                                            • 视频预览增强
                                         </div>
                                         <div>
-                                            <strong>🚀 高级用户：</strong><br>
-                                            1. 全部功能都启用<br>
-                                            2. 学习键盘快捷键<br>
-                                            3. 自定义过滤规则
+                                            <strong>🔧 开发中功能：</strong><br>
+                                            • 多站点评分聚合<br>
+                                            • 演员信息增强<br>
+                                            • 键盘快捷键大师
                                         </div>
+                                    </div>
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 13px;">
+                                        <strong>📝 说明：</strong>以上功能正在开发完善中，暂时不可用。其他功能正常使用。
                                     </div>
                                 </div>
                             </div>
@@ -1094,38 +1097,41 @@
                                 <div class="settings-section">
                                     <h4>📊 数据增强 - 让信息更丰富</h4>
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableMultiSource">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableMultiSource" disabled>
                                             <span class="checkmark"></span>
-                                            🌐 多数据源聚合
+                                            🌐 多数据源聚合 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>自动从BlogJav、JavLibrary等多个网站获取高清封面、详细评分、演员信息<br>
-                                            <strong>使用：</strong>启用后，在视频详情页会自动显示增强信息，包括高质量封面图片和多站点评分对比
+                                            <strong>使用：</strong>启用后，在视频详情页会自动显示增强信息，包括高质量封面图片和多站点评分对比<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableImageCache">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableImageCache" disabled>
                                             <span class="checkmark"></span>
-                                            🚀 智能图片缓存
+                                            🚀 智能图片缓存 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>缓存高质量封面和演员头像，第二次访问时瞬间加载<br>
-                                            <strong>使用：</strong>自动工作，无需手动操作，显著提升页面加载速度
+                                            <strong>使用：</strong>自动工作，无需手动操作，显著提升页面加载速度<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableVideoPreview">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableVideoPreview" disabled>
                                             <span class="checkmark"></span>
-                                            🎬 视频预览增强
+                                            🎬 视频预览增强 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要多数据源支持）<br>
-                                            <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页
+                                            <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
@@ -1228,26 +1234,28 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableRatingAggregation">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableRatingAggregation" disabled>
                                             <span class="checkmark"></span>
-                                            ⭐ 多站点评分聚合
+                                            ⭐ 多站点评分聚合 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>聚合JavLibrary、DMM等多个网站的评分数据，提供更全面的评价参考<br>
-                                            <strong>使用：</strong>在视频详情页显示评分对比卡片，包含评分来源、分数和评价人数
+                                            <strong>使用：</strong>在视频详情页显示评分对比卡片，包含评分来源、分数和评价人数<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableActorInfo">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableActorInfo" disabled>
                                             <span class="checkmark"></span>
-                                            👤 演员信息增强
+                                            👤 演员信息增强 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>获取演员详细信息、高清头像、个人资料和作品列表<br>
-                                            <strong>使用：</strong>在视频详情页显示演员信息卡片，点击可查看演员详细资料
+                                            <strong>使用：</strong>在视频详情页显示演员信息卡片，点击可查看演员详细资料<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
@@ -1288,14 +1296,15 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="enableKeyboardShortcuts">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="enableKeyboardShortcuts" disabled>
                                             <span class="checkmark"></span>
-                                            ⌨️ 键盘快捷键大师
+                                            ⌨️ 键盘快捷键大师 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>15+个快捷键让您告别鼠标，包括导航、复制、过滤等操作<br>
-                                            <strong>使用：</strong>按?键查看帮助，如Alt+H回首页、Ctrl+Shift+V复制番号、/键聚焦搜索框
+                                            <strong>使用：</strong>按?键查看帮助，如Alt+H回首页、Ctrl+Shift+V复制番号、/键聚焦搜索框<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
 
@@ -1330,7 +1339,7 @@
                                         <i class="fas fa-check-circle" style="color: #4caf50; margin-right: 8px;"></i>
                                         <span style="color: #2e7d32; font-weight: 500;">设置修改后自动保存，立即生效</span>
                                         <p class="input-description" style="margin-top: 8px; margin-bottom: 0; color: #4caf50;">
-                                            建议先启用"多数据源聚合"体验核心功能！无需重启浏览器。
+                                            建议先启用"一键快捷复制"和"智能内容过滤"体验可用功能！无需重启浏览器。
                                         </p>
 
                                         <!-- 保存状态指示器 -->
