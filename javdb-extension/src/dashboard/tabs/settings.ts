@@ -69,7 +69,7 @@ export function initSettingsTab(): void {
                     },
                     ai: {
                         useGlobalModel: useGlobalAiModel?.checked === true,
-                        customModel: customTranslationModel?.value || undefined,
+                        customModel: customTranslationModel?.value || '',
                     },
                 } : STATE.settings.translation || {
                     provider: 'traditional',
@@ -87,12 +87,26 @@ export function initSettingsTab(): void {
                     enableContentFilter: enableContentFilter.checked,
                     enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: enableMagnetSearch.checked,
+                    enableAnchorOptimization: enableAnchorOptimization.checked,
                     showEnhancedTooltips: showEnhancedTooltips.checked,
+                },
+                magnetSearch: {
+                    enabled: enableMagnetSearch.checked,
+                    sources: {
+                        sukebei: magnetSourceSukebei.checked,
+                        btdig: magnetSourceBtdig.checked,
+                        btsow: magnetSourceBtsow.checked,
+                        torrentz2: magnetSourceTorrentz2.checked,
+                    },
                 },
                 contentFilter: STATE.settings.contentFilter || {
                     enabled: false,
-                    rules: [],
-                    highlightRules: [],
+                    keywordRules: [],
+                },
+                anchorOptimization: {
+                    enabled: enableAnchorOptimization.checked,
+                    showPreviewButton: showPreviewButton?.checked !== false,
+                    buttonPosition: anchorButtonPosition?.value || 'right-center',
                 },
                 searchEngines: STATE.settings.searchEngines,
                 version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
@@ -211,7 +225,23 @@ export function initSettingsTab(): void {
     const enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
     const enableKeyboardShortcuts = document.getElementById('enableKeyboardShortcuts') as HTMLInputElement;
     const enableMagnetSearch = document.getElementById('enableMagnetSearch') as HTMLInputElement;
+    const enableAnchorOptimization = document.getElementById('enableAnchorOptimization') as HTMLInputElement;
     const showEnhancedTooltips = document.getElementById('showEnhancedTooltips') as HTMLInputElement;
+
+    // 磁力搜索源配置
+    const magnetSourcesConfig = document.getElementById('magnetSourcesConfig') as HTMLDivElement;
+    const magnetSourceSukebei = document.getElementById('magnetSourceSukebei') as HTMLInputElement;
+    const magnetSourceBtdig = document.getElementById('magnetSourceBtdig') as HTMLInputElement;
+    const magnetSourceBtsow = document.getElementById('magnetSourceBtsow') as HTMLInputElement;
+    const magnetSourceTorrentz2 = document.getElementById('magnetSourceTorrentz2') as HTMLInputElement;
+
+    // 锚点优化配置
+    const anchorButtonPosition = document.getElementById('anchorButtonPosition') as HTMLSelectElement;
+    const showPreviewButton = document.getElementById('showPreviewButton') as HTMLInputElement;
+
+    // 内容过滤配置
+    const contentFilterConfig = document.getElementById('contentFilterConfig') as HTMLElement;
+    const anchorOptimizationConfig = document.getElementById('anchorOptimizationConfig') as HTMLElement;
 
     function renderSearchEngines() {
         const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
@@ -352,7 +382,33 @@ export function initSettingsTab(): void {
             enableContentFilter.checked = userExperience?.enableContentFilter || false;
             enableKeyboardShortcuts.checked = false; // 开发中，强制禁用
             enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
+            enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
             showEnhancedTooltips.checked = userExperience?.showEnhancedTooltips || true;
+
+            // 加载锚点优化配置
+            const anchorOptimization = settings.anchorOptimization || {};
+            if (anchorButtonPosition) {
+                anchorButtonPosition.value = anchorOptimization.buttonPosition || 'right-center';
+            }
+            if (showPreviewButton) {
+                showPreviewButton.checked = anchorOptimization.showPreviewButton !== false;
+            }
+
+            // 加载磁力搜索源配置
+            const magnetSearch = settings.magnetSearch || {};
+            const sources = magnetSearch.sources || {};
+            magnetSourceSukebei.checked = sources.sukebei !== false; // 默认启用
+            magnetSourceBtdig.checked = sources.btdig !== false; // 默认启用
+            magnetSourceBtsow.checked = sources.btsow !== false; // 默认启用
+            magnetSourceTorrentz2.checked = sources.torrentz2 || false; // 默认禁用
+
+            // 显示/隐藏配置区域
+            toggleMagnetSourcesConfig();
+            toggleContentFilterConfig();
+            toggleAnchorOptimizationConfig();
+
+            // 渲染过滤规则列表
+            renderFilterRules();
         } catch (error) {
             console.error('加载设置时出错:', error);
             // 在出错时设置安全的默认值
@@ -544,11 +600,62 @@ export function initSettingsTab(): void {
     if (customTranslationModel) {
         customTranslationModel.addEventListener('change', handleSaveSettings);
     }
+    // 磁力搜索源配置显示/隐藏
+    function toggleMagnetSourcesConfig() {
+        if (magnetSourcesConfig) {
+            magnetSourcesConfig.style.display = enableMagnetSearch.checked ? 'block' : 'none';
+        }
+    }
+
+    // 内容过滤配置显示/隐藏
+    function toggleContentFilterConfig() {
+        if (contentFilterConfig) {
+            contentFilterConfig.style.display = enableContentFilter.checked ? 'block' : 'none';
+        }
+    }
+
+    // 锚点优化配置显示/隐藏
+    function toggleAnchorOptimizationConfig() {
+        if (anchorOptimizationConfig) {
+            anchorOptimizationConfig.style.display = enableAnchorOptimization.checked ? 'block' : 'none';
+        }
+    }
+
     enableQuickCopy.addEventListener('change', handleSaveSettings);
-    enableContentFilter.addEventListener('change', handleSaveSettings);
+    enableContentFilter.addEventListener('change', () => {
+        toggleContentFilterConfig();
+        handleSaveSettings();
+    });
     enableKeyboardShortcuts.addEventListener('change', handleSaveSettings);
-    enableMagnetSearch.addEventListener('change', handleSaveSettings);
+    enableMagnetSearch.addEventListener('change', () => {
+        toggleMagnetSourcesConfig();
+        handleSaveSettings();
+    });
+    enableAnchorOptimization.addEventListener('change', () => {
+        toggleAnchorOptimizationConfig();
+        handleSaveSettings();
+    });
     showEnhancedTooltips.addEventListener('change', handleSaveSettings);
+
+    // 磁力搜索源配置事件监听
+    magnetSourceSukebei.addEventListener('change', handleSaveSettings);
+    magnetSourceBtdig.addEventListener('change', handleSaveSettings);
+    magnetSourceBtsow.addEventListener('change', handleSaveSettings);
+    magnetSourceTorrentz2.addEventListener('change', handleSaveSettings);
+
+    // 锚点优化配置事件监听
+    if (anchorButtonPosition) {
+        anchorButtonPosition.addEventListener('change', handleSaveSettings);
+    }
+    if (showPreviewButton) {
+        showPreviewButton.addEventListener('change', handleSaveSettings);
+    }
+
+    // 过滤规则配置事件监听
+    const addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
+    if (addFilterRuleBtn) {
+        addFilterRuleBtn.addEventListener('click', handleAddFilterRule);
+    }
 
     const addSearchEngineBtn = document.getElementById('add-search-engine');
     addSearchEngineBtn?.addEventListener('click', () => {
@@ -2309,6 +2416,310 @@ function initGlobalActionsFunctionality(): void {
             if (customTranslationModel) {
                 customTranslationModel.innerHTML = '<option value="">加载模型列表失败</option>';
             }
+        }
+    }
+
+    /**
+     * 处理添加过滤规则
+     */
+    function handleAddFilterRule(): void {
+        try {
+            // 创建新的过滤规则
+            const newRule = {
+                id: `rule-${Date.now()}`,
+                name: '新规则',
+                keyword: '',
+                isRegex: false,
+                caseSensitive: false,
+                action: 'hide' as const,
+                enabled: true,
+                fields: ['title', 'actor', 'studio', 'video-id'] as const,
+                createdAt: Date.now()
+            };
+
+            // 获取当前规则列表
+            const currentRules = STATE.settings.contentFilter?.keywordRules || [];
+
+            // 添加新规则
+            const updatedRules = [...currentRules, newRule];
+
+            // 更新设置
+            const updatedSettings = {
+                ...STATE.settings,
+                contentFilter: {
+                    ...STATE.settings.contentFilter,
+                    keywordRules: updatedRules
+                }
+            };
+
+            // 保存设置
+            STATE.settings = updatedSettings;
+            chrome.storage.local.set({ settings: updatedSettings });
+
+            // 通知内容脚本更新过滤规则
+            notifyContentFilterUpdate();
+
+            // 重新渲染规则列表
+            renderFilterRules();
+
+            // 显示成功消息
+            showMessage('已添加新的过滤规则', 'success');
+        } catch (error) {
+            console.error('添加过滤规则失败:', error);
+            showMessage('添加过滤规则失败', 'error');
+        }
+    }
+
+    /**
+     * 渲染过滤规则列表
+     */
+    function renderFilterRules(): void {
+        const filterRulesList = document.getElementById('filterRulesList');
+        if (!filterRulesList) return;
+
+        const rules = STATE.settings.contentFilter?.keywordRules || [];
+
+        if (rules.length === 0) {
+            filterRulesList.innerHTML = `
+                <div class="empty-state">
+                    <p>暂无过滤规则，点击"添加规则"开始配置</p>
+                </div>
+            `;
+            return;
+        }
+
+        filterRulesList.innerHTML = rules.map(rule => `
+            <div class="filter-rule-item" data-rule-id="${rule.id}">
+                <div class="rule-header">
+                    <div class="rule-info">
+                        <input type="text" class="rule-name" value="${rule.name}" placeholder="规则名称">
+                        <span class="rule-action ${rule.action}">${getActionLabel(rule.action)}</span>
+                    </div>
+                    <div class="rule-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" class="rule-enabled" ${rule.enabled ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="btn-danger btn-sm delete-rule" title="删除规则">🗑️</button>
+                    </div>
+                </div>
+                <div class="rule-config">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label>关键字:</label>
+                            <input type="text" class="rule-keyword" value="${rule.keyword}" placeholder="输入关键字或正则表达式">
+                        </div>
+                        <div class="form-col">
+                            <label>动作:</label>
+                            <select class="rule-action-select">
+                                <option value="hide" ${rule.action === 'hide' ? 'selected' : ''}>隐藏</option>
+                                <option value="highlight" ${rule.action === 'highlight' ? 'selected' : ''}>高亮</option>
+                                <option value="blur" ${rule.action === 'blur' ? 'selected' : ''}>模糊</option>
+                                <option value="mark" ${rule.action === 'mark' ? 'selected' : ''}>标记</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="rule-regex" ${rule.isRegex ? 'checked' : ''}>
+                                正则表达式
+                            </label>
+                        </div>
+                        <div class="form-col">
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="rule-case-sensitive" ${rule.caseSensitive ? 'checked' : ''}>
+                                区分大小写
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col full-width">
+                            <label>匹配字段:</label>
+                            <div class="field-checkboxes">
+                                ${['title', 'actor', 'studio', 'video-id', 'genre', 'tag'].map(field => `
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" class="rule-field" value="${field}"
+                                               ${rule.fields.includes(field as any) ? 'checked' : ''}>
+                                        ${getFieldLabel(field)}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // 绑定事件
+        bindFilterRuleEvents();
+    }
+
+    /**
+     * 获取动作标签
+     */
+    function getActionLabel(action: string): string {
+        const labels: Record<string, string> = {
+            hide: '隐藏',
+            highlight: '高亮',
+            blur: '模糊',
+            mark: '标记'
+        };
+        return labels[action] || action;
+    }
+
+    /**
+     * 获取字段标签
+     */
+    function getFieldLabel(field: string): string {
+        const labels: Record<string, string> = {
+            title: '标题',
+            actor: '演员',
+            studio: '厂商',
+            'video-id': '番号',
+            genre: '类型',
+            tag: '标签'
+        };
+        return labels[field] || field;
+    }
+
+    /**
+     * 绑定过滤规则事件
+     */
+    function bindFilterRuleEvents(): void {
+        const filterRulesList = document.getElementById('filterRulesList');
+        if (!filterRulesList) return;
+
+        // 使用事件委托处理所有规则相关事件
+        filterRulesList.addEventListener('change', (e) => {
+            const target = e.target as HTMLElement;
+            const ruleItem = target.closest('.filter-rule-item') as HTMLElement;
+            if (!ruleItem) return;
+
+            const ruleId = ruleItem.dataset.ruleId;
+            if (!ruleId) return;
+
+            updateFilterRule(ruleId, target);
+        });
+
+        filterRulesList.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('delete-rule')) {
+                const ruleItem = target.closest('.filter-rule-item') as HTMLElement;
+                const ruleId = ruleItem?.dataset.ruleId;
+                if (ruleId) {
+                    deleteFilterRule(ruleId);
+                }
+            }
+        });
+    }
+
+    /**
+     * 更新过滤规则
+     */
+    function updateFilterRule(ruleId: string, changedElement: HTMLElement): void {
+        const rules = STATE.settings.contentFilter?.keywordRules || [];
+        const ruleIndex = rules.findIndex(r => r.id === ruleId);
+        if (ruleIndex === -1) return;
+
+        const rule = { ...rules[ruleIndex] };
+        const ruleItem = changedElement.closest('.filter-rule-item') as HTMLElement;
+
+        // 根据改变的元素类型更新规则
+        if (changedElement.classList.contains('rule-name')) {
+            rule.name = (changedElement as HTMLInputElement).value;
+        } else if (changedElement.classList.contains('rule-keyword')) {
+            rule.keyword = (changedElement as HTMLInputElement).value;
+        } else if (changedElement.classList.contains('rule-action-select')) {
+            rule.action = (changedElement as HTMLSelectElement).value as any;
+        } else if (changedElement.classList.contains('rule-enabled')) {
+            rule.enabled = (changedElement as HTMLInputElement).checked;
+        } else if (changedElement.classList.contains('rule-regex')) {
+            rule.isRegex = (changedElement as HTMLInputElement).checked;
+        } else if (changedElement.classList.contains('rule-case-sensitive')) {
+            rule.caseSensitive = (changedElement as HTMLInputElement).checked;
+        } else if (changedElement.classList.contains('rule-field')) {
+            const fieldCheckboxes = ruleItem.querySelectorAll('.rule-field:checked');
+            rule.fields = Array.from(fieldCheckboxes).map(cb => (cb as HTMLInputElement).value) as any;
+        }
+
+        // 更新规则数组
+        const updatedRules = [...rules];
+        updatedRules[ruleIndex] = rule;
+
+        // 保存设置
+        const updatedSettings = {
+            ...STATE.settings,
+            contentFilter: {
+                ...STATE.settings.contentFilter,
+                keywordRules: updatedRules
+            }
+        };
+
+        STATE.settings = updatedSettings;
+        chrome.storage.local.set({ settings: updatedSettings });
+
+        // 通知内容脚本更新过滤规则
+        notifyContentFilterUpdate();
+
+        // 更新动作标签显示
+        const actionLabel = ruleItem.querySelector('.rule-action');
+        if (actionLabel) {
+            actionLabel.textContent = getActionLabel(rule.action);
+            actionLabel.className = `rule-action ${rule.action}`;
+        }
+    }
+
+    /**
+     * 删除过滤规则
+     */
+    function deleteFilterRule(ruleId: string): void {
+        if (!confirm('确定要删除这个过滤规则吗？')) {
+            return;
+        }
+
+        const rules = STATE.settings.contentFilter?.keywordRules || [];
+        const updatedRules = rules.filter(r => r.id !== ruleId);
+
+        const updatedSettings = {
+            ...STATE.settings,
+            contentFilter: {
+                ...STATE.settings.contentFilter,
+                keywordRules: updatedRules
+            }
+        };
+
+        STATE.settings = updatedSettings;
+        chrome.storage.local.set({ settings: updatedSettings });
+
+        // 通知内容脚本更新过滤规则
+        notifyContentFilterUpdate();
+
+        // 重新渲染规则列表
+        renderFilterRules();
+        showMessage('过滤规则已删除', 'success');
+    }
+
+    /**
+     * 通知内容脚本更新过滤规则
+     */
+    function notifyContentFilterUpdate(): void {
+        try {
+            // 发送消息给所有标签页的内容脚本
+            chrome.tabs.query({}, (tabs) => {
+                tabs.forEach(tab => {
+                    if (tab.id && tab.url && (tab.url.includes('javdb') || tab.url.includes('localhost'))) {
+                        chrome.tabs.sendMessage(tab.id, {
+                            type: 'UPDATE_CONTENT_FILTER',
+                            keywordRules: STATE.settings.contentFilter?.keywordRules || []
+                        }).catch(() => {
+                            // 忽略无法发送消息的标签页（可能没有内容脚本）
+                        });
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Failed to notify content filter update:', error);
         }
     }
 

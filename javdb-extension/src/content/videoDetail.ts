@@ -14,7 +14,7 @@ import { videoDetailEnhancer } from './enhancedVideoDetail';
 // --- Page-Specific Logic ---
 
 export async function handleVideoDetailPage(): Promise<void> {
-    log('Analyzing video detail page...');
+    // 静默分析视频详情页
 
     const videoId = extractVideoIdFromPage();
     if (!videoId) {
@@ -28,8 +28,7 @@ export async function handleVideoDetailPage(): Promise<void> {
         return; // 已经在处理中，直接返回
     }
 
-    log(`Found video ID: ${videoId}`);
-    log(`Starting operation ${operationId} for video ${videoId}`);
+    // 静默开始处理视频
 
     try {
         const record = STATE.records[videoId];
@@ -67,7 +66,7 @@ async function handleExistingRecord(
     currentUrl: string,
     operationId: string
 ): Promise<void> {
-    log(`Record for ${videoId} already exists. Status: ${record.status}. Updating all data...`);
+    // 静默更新现有记录
 
     // 获取当前页面的最新数据
     const latestData = await extractVideoData(videoId);
@@ -275,24 +274,15 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
 
         log(`Final release date: "${releaseDate || 'undefined'}"`);
 
-        // 调试标签获取
-        log(`Looking for tags with selector: ${SELECTORS.VIDEO_DETAIL_TAGS}`);
+        // 获取标签
         const tagElements = document.querySelectorAll<HTMLAnchorElement>(SELECTORS.VIDEO_DETAIL_TAGS);
-        log(`Found ${tagElements.length} tag elements`);
 
         const tags = Array.from(tagElements)
-            .map(tag => {
-                const text = tag.innerText.trim();
-                log(`Tag element text: "${text}"`);
-                return text;
-            })
+            .map(tag => tag.innerText.trim())
             .filter(Boolean);
-
-        log(`Final tags array: [${tags.join(', ')}]`);
 
         // 如果没有找到标签，尝试备用选择器
         if (tags.length === 0) {
-            log('No tags found with primary selector, trying alternative selectors...');
 
             const altSelectors = [
                 '.panel-block.genre span.value a',
@@ -307,13 +297,11 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
                 try {
                     const altTagElements = document.querySelectorAll<HTMLAnchorElement>(selector);
                     if (altTagElements.length > 0) {
-                        log(`Found ${altTagElements.length} tags with alternative selector: ${selector}`);
                         const altTags = Array.from(altTagElements)
                             .map(tag => tag.innerText.trim())
                             .filter(Boolean);
                         if (altTags.length > 0) {
                             tags.push(...altTags);
-                            log(`Alternative tags: [${altTags.join(', ')}]`);
                             break;
                         }
                     }

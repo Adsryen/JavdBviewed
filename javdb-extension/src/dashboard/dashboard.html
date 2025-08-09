@@ -1290,9 +1290,80 @@
                                             🎯 智能内容过滤
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>自动隐藏已看过的视频、VR内容、FC2等，支持自定义过滤规则<br>
-                                            <strong>使用：</strong>右侧会出现快速过滤面板，勾选即可隐藏对应内容，让列表更清爽
+                                            <strong>效果：</strong>在列表页过滤关键字，支持正则表达式，可隐藏、高亮或标记匹配内容<br>
+                                            <strong>使用：</strong>在下方设置过滤规则，保存后在列表页自动生效
                                         </p>
+
+                                        <!-- 内容过滤详细配置 -->
+                                        <div class="sub-settings" id="contentFilterConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🎯 过滤规则配置</h5>
+                                                <p class="sub-description">配置关键字过滤规则，支持正则表达式，可隐藏、高亮或标记匹配的内容。</p>
+                                            </div>
+
+                                            <div class="filter-rules-container">
+                                                <div class="filter-rules-header">
+                                                    <span>过滤规则列表</span>
+                                                    <button type="button" id="addFilterRule" class="btn-secondary btn-sm">
+                                                        <i class="fas fa-plus"></i> 添加规则
+                                                    </button>
+                                                </div>
+
+                                                <div id="filterRulesList" class="filter-rules-list">
+                                                    <!-- 过滤规则将由 JS 动态填充 -->
+                                                    <div class="empty-state">
+                                                        <p>暂无过滤规则，点击"添加规则"开始配置</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="enableAnchorOptimization">
+                                            <span class="checkmark"></span>
+                                            ⚓ 锚点优化
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>优化页面右下角的快捷按钮，移至右侧中央垂直排列，新增预览图快捷方式<br>
+                                            <strong>使用：</strong>在详情页右侧会显示优化后的快捷按钮，包括磁链下载、预览图、返回顶部
+                                        </p>
+
+                                        <!-- 锚点优化详细配置 -->
+                                        <div class="sub-settings" id="anchorOptimizationConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>⚓ 锚点优化配置</h5>
+                                                <p class="sub-description">自定义快捷按钮的位置和功能。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="anchorButtonPosition">按钮位置:</label>
+                                                <select id="anchorButtonPosition" class="select-input">
+                                                    <option value="right-center">右侧中央</option>
+                                                    <option value="right-bottom">右下角</option>
+                                                </select>
+                                                <p class="input-description">选择优化后按钮的显示位置</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="showPreviewButton" checked>
+                                                    <span class="checkmark"></span>
+                                                    显示预览图按钮
+                                                </label>
+                                                <p class="input-description">在快捷按钮中显示"预览图"按钮，点击可快速跳转到预览图区域。</p>
+                                            </div>
+
+                                            <div class="info-box">
+                                                <p><strong>按钮顺序（从上到下）：</strong></p>
+                                                <ol>
+                                                    <li>🖼️ 预览图 - 跳转到预览图区域</li>
+                                                    <li>🧲 磁链下载 - 跳转到磁链下载区域</li>
+                                                    <li>⬆️ TOP - 返回页面顶部</li>
+                                                </ol>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="form-group">
@@ -1315,9 +1386,50 @@
                                             🧲 磁力资源搜索
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>在视频详情页一键搜索多个站点的磁力资源，自动识别画质和字幕<br>
-                                            <strong>使用：</strong>点击右下角"🧲搜索磁力"按钮，查看搜索结果并一键复制磁力链接
+                                            <strong>效果：</strong>在视频详情页自动搜索多个站点的磁力资源，自动识别画质和字幕<br>
+                                            <strong>使用：</strong>进入视频详情页自动开始搜索，结果显示在磁力链接区域
                                         </p>
+
+                                        <!-- 磁力搜索详细配置 -->
+                                        <div class="sub-settings" id="magnetSourcesConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🔍 搜索源配置</h5>
+                                                <p class="sub-description">选择要搜索的磁力资源站点，建议保持默认选择以获得最佳搜索效果。</p>
+                                            </div>
+
+                                            <div class="sources-grid">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="magnetSourceSukebei" checked>
+                                                    <span class="checkmark"></span>
+                                                    Sukebei (SUK)
+                                                </label>
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="magnetSourceBtdig" checked>
+                                                    <span class="checkmark"></span>
+                                                    BTdig (BTD)
+                                                </label>
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="magnetSourceBtsow" checked>
+                                                    <span class="checkmark"></span>
+                                                    BTSOW (BTS)
+                                                </label>
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="magnetSourceTorrentz2">
+                                                    <span class="checkmark"></span>
+                                                    Torrentz2 (TZ2)
+                                                </label>
+                                            </div>
+
+                                            <div class="info-box">
+                                                <p><strong>搜索源说明：</strong></p>
+                                                <ul>
+                                                    <li><strong>Sukebei</strong> - 专业的成人内容磁力搜索引擎</li>
+                                                    <li><strong>BTdig</strong> - 通用磁力搜索引擎</li>
+                                                    <li><strong>BTSOW</strong> - 高质量磁力资源搜索</li>
+                                                    <li><strong>Torrentz2</strong> - 综合磁力搜索聚合器</li>
+                                                </ul>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="form-group">
@@ -1349,6 +1461,8 @@
                                         </div>
                                     </div>
                                 </div>
+
+
                             </div>
                         </div>
 

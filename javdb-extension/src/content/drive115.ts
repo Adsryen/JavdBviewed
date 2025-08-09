@@ -12,28 +12,23 @@ import { log } from './state';
  */
 export async function initDrive115Features(): Promise<void> {
     try {
-        log('开始初始化115功能...');
+        // 静默初始化115功能
 
         // 首先初始化115服务（加载设置）
         const drive115Service = getDrive115Service();
         await drive115Service.initialize();
 
-        log('115服务已初始化，当前设置:', drive115Service.getSettings());
-
         // 检查是否启用115功能
         if (!drive115Service.isEnabled()) {
-            log('115功能未启用，跳过初始化');
             return;
         }
-
-        log('115功能已启用，开始添加按钮...');
 
         // 在详情页添加115按钮
         if (window.location.pathname.startsWith('/v/')) {
             await addDrive115ButtonToDetailPage();
         }
 
-        log('115功能初始化完成');
+        // 静默完成115功能初始化
     } catch (error) {
         console.error('初始化115功能失败:', error);
     }
@@ -86,7 +81,8 @@ function findMagnetSection(): HTMLElement | null {
 
     // 如果没找到专门的磁链区域，查找包含磁链的区域
     const allElements = document.querySelectorAll('*');
-    for (const element of allElements) {
+    for (let i = 0; i < allElements.length; i++) {
+        const element = allElements[i];
         if (element.textContent?.includes('magnet:') || element.innerHTML?.includes('magnet:')) {
             return element as HTMLElement;
         }
@@ -119,8 +115,9 @@ function getMagnetLinksFromPage(): Array<{ name: string; url: string }> {
     
     // 查找所有磁链
     const links = document.querySelectorAll('a[href^="magnet:"]');
-    
-    for (const link of links) {
+
+    for (let i = 0; i < links.length; i++) {
+        const link = links[i];
         const href = link.getAttribute('href');
         if (href) {
             magnetLinks.push({
@@ -369,7 +366,8 @@ function extractCSRFToken(): string | null {
 
         // 方法3: 从页面脚本中提取
         const scripts = document.querySelectorAll('script');
-        for (const script of scripts) {
+        for (let i = 0; i < scripts.length; i++) {
+            const script = scripts[i];
             const content = script.textContent || '';
             const tokenMatch = content.match(/csrf-token["']\s*content=["']([^"']+)["']/);
             if (tokenMatch) {
