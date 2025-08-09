@@ -5,9 +5,10 @@ import { STATE, SELECTORS, log } from './state';
 
 export function processVisibleItems(): void {
     const items = document.querySelectorAll<HTMLElement>(SELECTORS.MOVIE_LIST_ITEM);
-    log(`Found ${items.length} items with selector: ${SELECTORS.MOVIE_LIST_ITEM}`);
 
+    // 只在没有找到项目时输出调试信息
     if (items.length === 0) {
+        log(`Found ${items.length} items with selector: ${SELECTORS.MOVIE_LIST_ITEM}`);
         log('No items found, checking page structure...');
         const movieList = document.querySelector('.movie-list');
         if (movieList) {
@@ -38,7 +39,6 @@ export function setupObserver(): void {
 
 function shouldHide(videoId: string): boolean {
     if (STATE.isSearchPage || !STATE.settings) {
-        log(`shouldHide(${videoId}): Search page or no settings, returning false`);
         return false;
     }
 
@@ -46,21 +46,18 @@ function shouldHide(videoId: string): boolean {
     const record = STATE.records[videoId];
 
     if (!record) {
-        log(`shouldHide(${videoId}): No record found, returning false`);
         return false;
     }
 
     const isViewed = record.status === VIDEO_STATUS.VIEWED;
     const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
 
-    log(`shouldHide(${videoId}): status=${record.status}, hideViewed=${hideViewed}, hideBrowsed=${hideBrowsed}, isViewed=${isViewed}, isBrowsed=${isBrowsed}`);
-
     if (hideViewed && isViewed) {
-        log(`shouldHide(${videoId}): Hiding viewed video`);
+        log(`Hiding viewed video: ${videoId}`);
         return true;
     }
     if (hideBrowsed && isBrowsed) {
-        log(`shouldHide(${videoId}): Hiding browsed video`);
+        log(`Hiding browsed video: ${videoId}`);
         return true;
     }
 
@@ -80,7 +77,8 @@ function processItem(item: HTMLElement): void {
         return;
     }
 
-    log(`Processing item: ${videoId}`);
+    // 减少日志输出，只在需要时记录
+    // log(`Processing item: ${videoId}`);
 
     item.querySelectorAll('.custom-status-tag').forEach(tag => tag.remove());
 

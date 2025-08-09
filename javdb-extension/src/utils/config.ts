@@ -1,4 +1,4 @@
-import { ExtensionSettings, FilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
+import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
@@ -246,14 +246,21 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableContentFilter: false,
         enableKeyboardShortcuts: false, // 开发中，暂时关闭
         enableMagnetSearch: false,
+        enableAnchorOptimization: false,
         showEnhancedTooltips: true,
     },
 
     // 新增：内容过滤默认配置
     contentFilter: {
         enabled: false,
-        rules: [] as FilterRule[],
-        highlightRules: [] as FilterRule[],
+        keywordRules: [] as KeywordFilterRule[],
+    },
+
+    // 新增：锚点优化默认配置
+    anchorOptimization: {
+        enabled: false,
+        showPreviewButton: true,
+        buttonPosition: 'right-center' as const,
     },
 
     // 新增：演员同步配置

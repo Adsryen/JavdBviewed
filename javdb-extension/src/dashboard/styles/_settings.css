@@ -1329,3 +1329,319 @@
         margin-bottom: 12px;
     }
 }
+
+/* 子设置样式 */
+.sub-settings {
+    margin-top: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.sub-settings-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.sub-settings-header h5 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.sub-description {
+    margin: 0;
+    font-size: 13px;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+/* 过滤规则容器 */
+.filter-rules-container {
+    margin-top: 15px;
+}
+
+.filter-rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.filter-rules-header span {
+    font-weight: 500;
+    color: #495057;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.filter-rules-list {
+    min-height: 60px;
+    border: 1px dashed #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    background: white;
+}
+
+.empty-state {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 13px;
+}
+
+/* 搜索源网格 */
+.sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+/* 信息框 */
+.info-box {
+    background: #e7f3ff;
+    border: 1px solid #b3d9ff;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.info-box p {
+    margin: 0 0 10px 0;
+    font-weight: 500;
+    color: #0056b3;
+}
+
+.info-box ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.info-box li {
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #495057;
+}
+
+.info-box ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.info-box ol li {
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #495057;
+}
+
+/* 过滤规则项样式 - 优化紧凑版 */
+.filter-rule-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    padding: 12px;
+    transition: box-shadow 0.2s ease;
+}
+
+.filter-rule-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.rule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.rule-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.rule-name {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 100px;
+    max-width: 150px;
+}
+
+.rule-action {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.rule-action.hide {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.rule-action.highlight {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.rule-action.blur {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.rule-action.mark {
+    background: #d4edda;
+    color: #155724;
+}
+
+.rule-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #007bff;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.rule-config {
+    margin-top: 10px;
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.form-row:last-child {
+    margin-bottom: 0;
+}
+
+.form-col {
+    flex: 1;
+}
+
+.form-col.full-width {
+    flex: 1 1 100%;
+}
+
+.form-col label {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 500;
+    font-size: 12px;
+    color: #495057;
+}
+
+.rule-keyword, .rule-action-select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.field-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.field-checkboxes .checkbox-label {
+    font-size: 11px;
+    margin-bottom: 0;
+    padding: 2px 0;
+}
