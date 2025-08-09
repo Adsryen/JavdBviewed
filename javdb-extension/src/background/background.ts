@@ -1246,64 +1246,113 @@ async function handleExternalDataFetch(message: any, sendResponse: (response: an
 
         console.log(`[Background] Fetching external data from: ${url}`);
 
-        // 设置默认请求选项
+        // 检测是否为磁力搜索请求，添加延迟避免被封IP
+        const isMagnetSearch = url.includes('sukebei.nyaa.si') ||
+                              url.includes('btdig.com') ||
+                              url.includes('btsow.com') ||
+                              url.includes('torrentz2.eu');
+
+        if (isMagnetSearch) {
+            // 为磁力搜索添加随机延迟 (500-2000ms)
+            const delay = Math.floor(Math.random() * 1500) + 500;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // 设置更完整的浏览器请求头
         const fetchOptions: RequestInit = {
             method: options.method || 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7',
+                'Accept-Encoding': 'gzip, deflate, br',
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
                 ...options.headers
             },
+            credentials: 'omit', // 不发送cookies避免隐私问题
             ...options
         };
 
-        // 设置超时
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
-        fetchOptions.signal = controller.signal;
+        // 实现重试机制
+        const maxRetries = options.retries || 3;
+        let lastError: Error;
 
-        const response = await fetch(url, fetchOptions);
-        clearTimeout(timeoutId);
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                // 设置超时
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
+                fetchOptions.signal = controller.signal;
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const response = await fetch(url, fetchOptions);
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 根据响应类型处理数据
+                let data;
+                const responseType = options.responseType || 'text';
+
+                switch (responseType) {
+                    case 'json':
+                        data = await response.json();
+                        break;
+                    case 'text':
+                    case 'html':
+                    case 'document':
+                        data = await response.text();
+                        break;
+                    case 'blob':
+                        data = await response.blob();
+                        break;
+                    default:
+                        data = await response.text();
+                }
+
+                console.log(`[Background] Successfully fetched data from: ${url} (attempt ${attempt + 1})`);
+                sendResponse({
+                    success: true,
+                    data,
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    attempt: attempt + 1
+                });
+                return;
+
+            } catch (error: any) {
+                lastError = error;
+                console.warn(`[Background] Attempt ${attempt + 1} failed for ${url}:`, error.message);
+
+                // 如果不是最后一次尝试，等待后重试
+                if (attempt < maxRetries) {
+                    const retryDelay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // 指数退避 + 随机抖动
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+            }
         }
 
-        // 根据响应类型处理数据
-        let data;
-        const responseType = options.responseType || 'text';
-
-        switch (responseType) {
-            case 'json':
-                data = await response.json();
-                break;
-            case 'text':
-            case 'html':
-                data = await response.text();
-                break;
-            case 'blob':
-                data = await response.blob();
-                break;
-            default:
-                data = await response.text();
-        }
-
-        console.log(`[Background] Successfully fetched data from: ${url}`);
-        sendResponse({ success: true, data, status: response.status, headers: Object.fromEntries(response.headers.entries()) });
+        // 所有重试都失败了
+        throw lastError;
 
     } catch (error: any) {
-        console.error(`[Background] Failed to fetch external data:`, error);
+        console.error(`[Background] Failed to fetch external data after all retries:`, error);
 
         let errorMessage = error.message;
         if (error.name === 'AbortError') {
             errorMessage = 'Request timeout';
         } else if (errorMessage.includes('Failed to fetch')) {
             errorMessage = 'Network error or CORS restriction';
+        } else if (errorMessage.includes('ERR_BLOCKED_BY_CLIENT')) {
+            errorMessage = 'Request blocked by ad blocker or security extension';
         }
 
         sendResponse({ success: false, error: errorMessage });

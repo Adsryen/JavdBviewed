@@ -81,14 +81,21 @@ export interface ExtensionSettings {
         enableContentFilter: boolean; // 启用内容过滤
         enableKeyboardShortcuts: boolean; // 启用键盘快捷键
         enableMagnetSearch: boolean; // 启用磁力搜索
+        enableAnchorOptimization: boolean; // 启用锚点优化
         showEnhancedTooltips: boolean; // 显示增强提示
     };
 
     // 新增：内容过滤配置
     contentFilter: {
         enabled: boolean;
-        rules: FilterRule[];
-        highlightRules: FilterRule[];
+        keywordRules: KeywordFilterRule[];
+    };
+
+    // 新增：锚点优化配置
+    anchorOptimization: {
+        enabled: boolean;
+        showPreviewButton: boolean;
+        buttonPosition: 'right-center' | 'right-bottom';
     };
 
     // 新增：AI功能配置
@@ -98,15 +105,25 @@ export interface ExtensionSettings {
     recordsPerPage?: number;
 }
 
-// 新增：过滤规则接口
-export interface FilterRule {
+// 新增：关键字过滤规则接口
+export interface KeywordFilterRule {
     id: string;
-    type: 'code' | 'title' | 'tags' | 'score' | 'actor' | 'studio';
-    pattern: string;
+    name: string;
+    keyword: string;
     isRegex: boolean;
-    action: 'hide' | 'highlight';
+    caseSensitive: boolean;
+    action: 'hide' | 'highlight' | 'blur' | 'mark';
     enabled: boolean;
-    createdAt: number;
+    fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
+    style?: {
+        backgroundColor?: string;
+        color?: string;
+        border?: string;
+        opacity?: number;
+        filter?: string;
+    };
+    message?: string;
+    createdAt?: number;
 }
 
 export type VideoStatus = 'viewed' | 'browsed' | 'want';

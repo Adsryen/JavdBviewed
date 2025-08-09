@@ -11,7 +11,7 @@ import { initializePrivacySystem } from '../../services/privacy';
  */
 export async function initializeContentPrivacy(): Promise<void> {
     try {
-        console.log('Initializing content privacy features...');
+        // 静默初始化隐私功能
 
         // 等待DOM完全加载
         if (document.readyState === 'loading') {

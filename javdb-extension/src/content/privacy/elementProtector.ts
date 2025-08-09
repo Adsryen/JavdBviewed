@@ -176,28 +176,31 @@ export class ElementProtector {
      * 保护现有元素
      */
     private async protectExistingElements(selectors: string[]): Promise<void> {
-        console.log('Protecting existing elements with selectors:', selectors);
+        console.log('Initializing content privacy features...');
+
+        let totalProtected = 0;
 
         // 使用选择器保护元素
         for (const selector of selectors) {
             try {
                 const elements = document.querySelectorAll(selector);
-                console.log(`Selector "${selector}" found ${elements.length} elements`);
 
-                elements.forEach(element => {
-                    if (element instanceof HTMLElement) {
-                        this.markElementAsProtected(element);
-                        console.log(`Protected element:`, {
-                            selector,
-                            tagName: element.tagName,
-                            className: element.className,
-                            textContent: element.textContent?.substring(0, 50)
-                        });
-                    }
-                });
+                // 只记录找到元素的选择器，减少日志输出
+                if (elements.length > 0) {
+                    elements.forEach(element => {
+                        if (element instanceof HTMLElement) {
+                            this.markElementAsProtected(element);
+                            totalProtected++;
+                        }
+                    });
+                }
             } catch (error) {
                 console.warn(`Invalid selector: ${selector}`, error);
             }
+        }
+
+        if (totalProtected > 0) {
+            console.log(`Protected ${totalProtected} elements for privacy`);
         }
 
         // 添加Dashboard特定的智能检测
@@ -211,12 +214,17 @@ export class ElementProtector {
 
         // 添加JavDB特定的智能检测
         const smartDetectedElements = this.detectJavDBSensitiveElements();
+        let smartProtectedCount = 0;
         smartDetectedElements.forEach(element => {
             if (!this.protectedElements.has(element)) {
                 this.markElementAsProtected(element);
-                console.log('Protected smart detected element:', element.className);
+                smartProtectedCount++;
             }
         });
+
+        if (smartProtectedCount > 0) {
+            console.log(`Protected ${smartProtectedCount} smart detected elements`);
+        }
     }
 
     /**
@@ -230,7 +238,7 @@ export class ElementProtector {
             return elements;
         }
 
-        console.log('Detecting Dashboard sensitive elements...');
+        // 静默检测Dashboard敏感元素
 
         // 检测番号库元素
         const videoItems = document.querySelectorAll('li[class*="video"], .video-item, [data-video-id]');
@@ -278,7 +286,7 @@ export class ElementProtector {
             }
         });
 
-        console.log(`Detected ${elements.length} Dashboard sensitive elements`);
+        // 静默完成Dashboard敏感元素检测
         return elements;
     }
 

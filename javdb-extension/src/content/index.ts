@@ -16,8 +16,46 @@ import { quickCopyManager } from './quickCopy';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
+import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
 import { initializeContentPrivacy } from './privacy';
+
+// --- Utility Functions ---
+
+/**
+ * 移除不需要的按钮（官方App和Telegram频道）
+ */
+function removeUnwantedButtons(): void {
+    // 等待页面加载完成后移除按钮
+    setTimeout(() => {
+        try {
+            // 查找并移除官方App按钮和Telegram按钮
+            const appButtons = document.querySelectorAll('a[href*="app.javdb"], a[href*="t.me/javdbnews"]');
+            appButtons.forEach(button => {
+                if (button.textContent?.includes('官方App') ||
+                    button.textContent?.includes('JavDB公告') ||
+                    button.textContent?.includes('Telegram')) {
+                    log(`Removing unwanted button: ${button.textContent}`);
+                    button.remove();
+                }
+            });
+
+            // 也可以通过CSS隐藏这些按钮
+            const style = document.createElement('style');
+            style.textContent = `
+                a[href*="app.javdb"]:not([href*="javdb.com"]),
+                a[href*="t.me/javdbnews"] {
+                    display: none !important;
+                }
+            `;
+            document.head.appendChild(style);
+
+            log('Unwanted buttons removal completed');
+        } catch (error) {
+            log('Error removing unwanted buttons:', error);
+        }
+    }, 1000);
+}
 
 // --- Core Logic ---
 
@@ -101,17 +139,15 @@ async function initialize(): Promise<void> {
     }
 
     if (settings.userExperience.enableContentFilter) {
-        log('Content filter manager initialized');
+        const keywordRules = settings.contentFilter?.keywordRules || [];
+        log(`Keyword filter manager initialized with ${keywordRules.length} rules`);
+        if (keywordRules.length > 0) {
+            log('Keyword rules:', keywordRules.map(r => `${r.name}: ${r.keyword} (${r.action})`));
+        }
         contentFilterManager.updateConfig({
             enabled: true,
             showFilteredCount: true,
-            enableQuickFilters: true,
-            quickFilters: {
-                hideViewed: settings.display.hideBrowsed,
-                hideVR: settings.display.hideVR,
-                hideFC2: false,
-                hideUncensored: false,
-            },
+            keywordRules: keywordRules,
         });
         contentFilterManager.initialize();
     }
@@ -127,22 +163,42 @@ async function initialize(): Promise<void> {
         keyboardShortcutsManager.initialize();
     }
 
+    // 移除官方App和Telegram按钮
+    removeUnwantedButtons();
+
     if (settings.userExperience.enableMagnetSearch) {
         log('Magnet search manager initialized');
+
+        // 从设置中获取磁力搜索源配置
+        const magnetSearchConfig = settings.magnetSearch || {};
+        const sources = magnetSearchConfig.sources || {};
+
         magnetSearchManager.updateConfig({
             enabled: true,
             showInlineResults: true,
             showFloatingButton: true,
-            autoSearch: false,
+            autoSearch: true, // 启用自动搜索
             sources: {
-                sukebei: true,
-                btdig: true,
-                torrentz2: false,
+                sukebei: sources.sukebei !== false, // 默认启用
+                btdig: sources.btdig !== false, // 默认启用
+                btsow: sources.btsow !== false, // 默认启用
+                torrentz2: sources.torrentz2 || false, // 默认禁用
                 custom: [],
             },
             maxResults: 20,
         });
         magnetSearchManager.initialize();
+    }
+
+    if (settings.userExperience.enableAnchorOptimization) {
+        log('Anchor optimization manager initialized');
+        anchorOptimizationManager.updateConfig({
+            enabled: true,
+            showPreviewButton: settings.anchorOptimization?.showPreviewButton !== false,
+            buttonPosition: settings.anchorOptimization?.buttonPosition || 'right-center',
+            customButtons: [],
+        });
+        anchorOptimizationManager.initialize();
     }
 
     // 初始化隐私保护功能
@@ -202,7 +258,7 @@ let isInitialized = false;
 
 export function onExecute() {
     if (isInitialized) {
-        log('Extension already initialized, skipping...');
+        // 静默跳过重复初始化
         return;
     }
     isInitialized = true;
@@ -226,6 +282,12 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
             showToast(message.message, message.toastType || 'info');
         } catch (err) {
             console.error('[JavDB Ext] Failed to show toast:', err);
+        }
+    } else if (message.type === 'UPDATE_CONTENT_FILTER') {
+        // 更新内容过滤规则
+        if (message.keywordRules) {
+            contentFilterManager.updateKeywordRules(message.keywordRules);
+            log(`Content filter rules updated: ${message.keywordRules.length} rules`);
         }
     }
 });

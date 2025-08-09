@@ -48,8 +48,20 @@ export function extractVideoId(rawText: string): string | null {
     return null;
 }
 
+// 缓存提取结果，避免重复日志
+let lastExtractedId: string | null = null;
+let lastRawText: string = '';
+let lastPathname: string = '';
+
 // 从页面中提取视频ID的多种方法
 export function extractVideoIdFromPage(): string | null {
+    // 如果路径改变了，清除缓存
+    if (window.location.pathname !== lastPathname) {
+        lastExtractedId = null;
+        lastRawText = '';
+        lastPathname = window.location.pathname;
+    }
+
     let videoId: string | null = null;
 
     // 方法1: 从页面标题中获取 (新的页面结构)
@@ -57,8 +69,19 @@ export function extractVideoIdFromPage(): string | null {
     if (titleElement) {
         const rawText = titleElement.textContent?.trim();
         if (rawText) {
+            // 如果原始文本没有变化，直接返回缓存结果
+            if (rawText === lastRawText && lastExtractedId) {
+                return lastExtractedId;
+            }
+
             videoId = extractVideoId(rawText);
-            log(`Raw title text: "${rawText}" -> Extracted ID: "${videoId}"`);
+
+            // 只在首次提取或内容变化时输出日志
+            if (videoId && rawText !== lastRawText) {
+                log(`Raw title text: "${rawText}" -> Extracted ID: "${videoId}"`);
+                lastRawText = rawText;
+                lastExtractedId = videoId;
+            }
         }
     }
 
@@ -69,9 +92,13 @@ export function extractVideoIdFromPage(): string | null {
             const fullIdText = panelBlock.querySelector<HTMLElement>('.title.is-4');
             if (fullIdText) {
                 const rawText = fullIdText.textContent?.trim();
-                if (rawText) {
+                if (rawText && rawText !== lastRawText) {
                     videoId = extractVideoId(rawText);
-                    log(`Raw panel text: "${rawText}" -> Extracted ID: "${videoId}"`);
+                    if (videoId) {
+                        log(`Raw panel text: "${rawText}" -> Extracted ID: "${videoId}"`);
+                        lastRawText = rawText;
+                        lastExtractedId = videoId;
+                    }
                 }
             }
         }
@@ -82,8 +109,14 @@ export function extractVideoIdFromPage(): string | null {
         const urlMatch = window.location.pathname.match(/\/v\/([^\/]+)/);
         if (urlMatch) {
             const rawUrlId = urlMatch[1];
-            videoId = extractVideoId(rawUrlId);
-            log(`Raw URL ID: "${rawUrlId}" -> Extracted ID: "${videoId}"`);
+            if (rawUrlId !== lastRawText) {
+                videoId = extractVideoId(rawUrlId);
+                if (videoId) {
+                    log(`Raw URL ID: "${rawUrlId}" -> Extracted ID: "${videoId}"`);
+                    lastRawText = rawUrlId;
+                    lastExtractedId = videoId;
+                }
+            }
         }
     }
 

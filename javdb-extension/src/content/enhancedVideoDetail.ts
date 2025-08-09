@@ -133,8 +133,8 @@ export class VideoDetailEnhancer {
    */
   private async enhanceTitle(translatedTitle: string): Promise<void> {
     try {
-      // 查找标题元素
-      const titleElements = document.querySelectorAll('h1, .title, .video-title, .movie-title');
+      // 查找标题元素 - 更新为JavDB的实际结构
+      const titleElements = document.querySelectorAll('h2.title.is-4 .current-title, h2.title.is-4, h1, .title, .video-title, .movie-title');
       
       for (const titleElement of titleElements) {
         const originalTitle = titleElement.textContent?.trim();

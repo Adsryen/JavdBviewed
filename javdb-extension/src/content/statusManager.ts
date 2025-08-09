@@ -5,6 +5,10 @@ import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconS
 import { extractVideoIdFromPage } from './videoId';
 import { setFavicon } from './utils';
 
+// 缓存视频ID，避免重复提取
+let cachedVideoId: string | null = null;
+let lastPathname: string = '';
+
 // --- Status Check and Visual Feedback ---
 
 export function checkAndUpdateVideoStatus(): void {
@@ -13,10 +17,21 @@ export function checkAndUpdateVideoStatus(): void {
         return;
     }
 
-    const videoId = extractVideoIdFromPage();
-    if (!videoId) {
-        return;
+    // 如果路径改变了，清除缓存
+    if (window.location.pathname !== lastPathname) {
+        cachedVideoId = null;
+        lastPathname = window.location.pathname;
     }
+
+    // 使用缓存的视频ID，避免重复提取
+    if (!cachedVideoId) {
+        cachedVideoId = extractVideoIdFromPage();
+        if (!cachedVideoId) {
+            return;
+        }
+    }
+
+    const videoId = cachedVideoId;
 
     const record = STATE.records[videoId];
     const isRecorded = !!record;

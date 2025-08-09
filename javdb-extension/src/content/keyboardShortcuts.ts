@@ -430,23 +430,17 @@ export class KeyboardShortcutsManager {
   }
 
   private toggleViewedFilter(): void {
-    // 调用contentFilterManager的过滤功能
-    if (contentFilterManager) {
-      const currentState = (contentFilterManager as any).config.quickFilters.hideViewed;
-      (contentFilterManager as any).config.quickFilters.hideViewed = !currentState;
-      (contentFilterManager as any).updateRuleEnabled('hide-viewed', !currentState);
-      (contentFilterManager as any).applyFilters();
-      showToast(`已${!currentState ? '隐藏' : '显示'}已观看内容`, 'info');
-    }
+    // 注意：已观看过滤现在由其他系统处理，这里只是显示提示
+    showToast('已观看过滤功能已移至显示设置中', 'info');
   }
 
   private toggleVRFilter(): void {
+    // 添加VR关键字过滤规则
     if (contentFilterManager) {
-      const currentState = (contentFilterManager as any).config.quickFilters.hideVR;
-      (contentFilterManager as any).config.quickFilters.hideVR = !currentState;
-      (contentFilterManager as any).updateRuleEnabled('hide-vr', !currentState);
-      (contentFilterManager as any).applyFilters();
-      showToast(`已${!currentState ? '隐藏' : '显示'}VR内容`, 'info');
+      const manager = contentFilterManager as any;
+      manager.addKeywordRule('VR|SIVR|DSVR|KMPVR', 'hide', true, false);
+      manager.applyFilters();
+      showToast('已添加VR内容过滤规则', 'info');
     }
   }
 

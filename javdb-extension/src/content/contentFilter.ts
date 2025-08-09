@@ -4,25 +4,15 @@
 import { STATE, log } from './state';
 import { showToast } from './toast';
 
-export interface FilterRule {
+export interface KeywordFilterRule {
   id: string;
   name: string;
-  type: 'hide' | 'highlight' | 'blur' | 'mark';
-  enabled: boolean;
-  conditions: FilterCondition[];
-  action: FilterAction;
-  priority: number;
-}
-
-export interface FilterCondition {
-  field: 'title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'url';
-  operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'regex' | 'not-contains';
-  value: string;
+  keyword: string;
+  isRegex: boolean;
   caseSensitive: boolean;
-}
-
-export interface FilterAction {
-  type: 'hide' | 'highlight' | 'blur' | 'mark';
+  action: 'hide' | 'highlight' | 'blur' | 'mark';
+  enabled: boolean;
+  fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
   style?: {
     backgroundColor?: string;
     color?: string;
@@ -36,46 +26,34 @@ export interface FilterAction {
 export interface ContentFilterConfig {
   enabled: boolean;
   showFilteredCount: boolean;
-  enableQuickFilters: boolean;
-  rules: FilterRule[];
-  quickFilters: {
-    hideViewed: boolean;
-    hideVR: boolean;
-    hideFC2: boolean;
-    hideUncensored: boolean;
-  };
+  keywordRules: KeywordFilterRule[];
 }
 
 export class ContentFilterManager {
   private config: ContentFilterConfig;
-  private filteredElements: Map<HTMLElement, FilterRule> = new Map();
+  private filteredElements: Map<HTMLElement, KeywordFilterRule> = new Map();
   private observer: MutationObserver | null = null;
   private isInitialized = false;
+  private filterPanel: HTMLElement | null = null;
   private filterStats = {
     hidden: 0,
     highlighted: 0,
     blurred: 0,
     marked: 0,
   };
+  private lastApplyTime = 0; // 防止重复应用
 
   constructor(config: Partial<ContentFilterConfig> = {}) {
     this.config = {
       enabled: true,
       showFilteredCount: true,
-      enableQuickFilters: true,
-      rules: [],
-      quickFilters: {
-        hideViewed: false,
-        hideVR: false,
-        hideFC2: false,
-        hideUncensored: false,
-      },
+      keywordRules: [],
       ...config,
     };
   }
 
   /**
-   * 初始化内容过滤系统
+   * 初始化关键字过滤系统
    */
   async initialize(): Promise<void> {
     if (!this.config.enabled || this.isInitialized) {
@@ -83,18 +61,13 @@ export class ContentFilterManager {
     }
 
     try {
-      log('Initializing content filter system...');
+      log('Initializing keyword filter system...');
 
-      // 加载默认规则
-      this.loadDefaultRules();
+      // 加载默认关键字规则
+      this.loadDefaultKeywordRules();
 
       // 应用过滤规则
       this.applyFilters();
-
-      // 创建快速过滤器UI
-      if (this.config.enableQuickFilters) {
-        this.createQuickFiltersUI();
-      }
 
       // 监听页面变化
       this.observePageChanges();
@@ -105,97 +78,19 @@ export class ContentFilterManager {
       }
 
       this.isInitialized = true;
-      log('Content filter system initialized');
+      log('Keyword filter system initialized');
     } catch (error) {
-      log('Error initializing content filter:', error);
+      log('Error initializing keyword filter:', error);
     }
   }
 
   /**
-   * 加载默认过滤规则
+   * 加载默认关键字过滤规则
    */
-  private loadDefaultRules(): void {
-    const defaultRules: FilterRule[] = [
-      {
-        id: 'hide-viewed',
-        name: '隐藏已观看',
-        type: 'hide',
-        enabled: this.config.quickFilters.hideViewed,
-        conditions: [{
-          field: 'video-id',
-          operator: 'contains',
-          value: '', // 将在运行时检查STATE.records
-          caseSensitive: false,
-        }],
-        action: { type: 'hide' },
-        priority: 1,
-      },
-      {
-        id: 'hide-vr',
-        name: '隐藏VR内容',
-        type: 'hide',
-        enabled: this.config.quickFilters.hideVR,
-        conditions: [{
-          field: 'title',
-          operator: 'regex',
-          value: '\\b(VR|SIVR|DSVR|KMPVR)\\b',
-          caseSensitive: false,
-        }],
-        action: { type: 'hide' },
-        priority: 2,
-      },
-      {
-        id: 'hide-fc2',
-        name: '隐藏FC2内容',
-        type: 'hide',
-        enabled: this.config.quickFilters.hideFC2,
-        conditions: [{
-          field: 'video-id',
-          operator: 'regex',
-          value: '^(FC2|\\d{6,7})[-_]',
-          caseSensitive: false,
-        }],
-        action: { type: 'hide' },
-        priority: 3,
-      },
-      {
-        id: 'hide-uncensored',
-        name: '隐藏无码内容',
-        type: 'hide',
-        enabled: this.config.quickFilters.hideUncensored,
-        conditions: [{
-          field: 'video-id',
-          operator: 'regex',
-          value: '^(CARIB|1PONDO|HEYZO|PACOPACOMAMA)',
-          caseSensitive: false,
-        }],
-        action: { type: 'hide' },
-        priority: 4,
-      },
-      {
-        id: 'highlight-new',
-        name: '高亮新内容',
-        type: 'highlight',
-        enabled: true,
-        conditions: [{
-          field: 'title',
-          operator: 'contains',
-          value: '新作',
-          caseSensitive: false,
-        }],
-        action: {
-          type: 'highlight',
-          style: {
-            backgroundColor: '#fff3cd',
-            border: '2px solid #ffc107',
-          },
-        },
-        priority: 5,
-      },
-    ];
-
-    // 合并用户自定义规则
-    this.config.rules = [...defaultRules, ...this.config.rules];
+  private loadDefaultKeywordRules(): void {
+    // 从配置中加载已保存的规则
+    // 规则现在通过设置页面管理，这里只需要确保规则已加载
+    log(`Loaded ${this.config.keywordRules.length} keyword filter rules`);
   }
 
   /**
@@ -203,38 +98,58 @@ export class ContentFilterManager {
    */
   private applyFilters(): void {
     try {
+      // 防止短时间内重复应用
+      const now = Date.now();
+      if (now - this.lastApplyTime < 1000) { // 1秒内不重复应用
+        return;
+      }
+      this.lastApplyTime = now;
+
       // 重置统计
       this.filterStats = { hidden: 0, highlighted: 0, blurred: 0, marked: 0 };
 
       // 查找所有视频项目
       const videoItems = this.findVideoItems();
-      
+
+      // 简化日志输出
+      const activeRules = this.config.keywordRules.filter(r => r.enabled);
+      if (activeRules.length > 0) {
+        log(`Content filter: ${activeRules.length} active rules, ${videoItems.length} items`);
+      }
+
       videoItems.forEach(item => {
         this.applyFiltersToItem(item);
       });
 
-      log(`Applied filters to ${videoItems.length} items`);
+      log(`Applied filters to ${videoItems.length} items (hidden: ${this.filterStats.hidden}, highlighted: ${this.filterStats.highlighted})`);
     } catch (error) {
       log('Error applying filters:', error);
     }
   }
 
   /**
-   * 对单个项目应用过滤规则
+   * 对单个项目应用关键字过滤规则
    */
   private applyFiltersToItem(item: HTMLElement): void {
     try {
+      // 清除之前的过滤效果
+      this.clearItemFilters(item);
+
       // 提取项目信息
       const itemData = this.extractItemData(item);
-      
-      // 按优先级排序规则
-      const sortedRules = this.config.rules
-        .filter(rule => rule.enabled)
-        .sort((a, b) => a.priority - b.priority);
+
+      // 简化调试：只在需要时输出
+      // if (this.filterStats.hidden + this.filterStats.highlighted < 3) {
+      //   log(`Item ${this.filterStats.hidden + this.filterStats.highlighted + 1} data:`, itemData);
+      // }
+
+      // 应用启用的关键字规则
+      const enabledRules = this.config.keywordRules.filter(rule => rule.enabled);
 
       // 应用匹配的规则
-      for (const rule of sortedRules) {
-        if (this.evaluateRule(rule, itemData)) {
+      for (const rule of enabledRules) {
+        if (this.evaluateKeywordRule(rule, itemData)) {
+          log(`Applying rule "${rule.name}" (${rule.action}) to item: ${itemData.title}`);
           this.applyRuleAction(item, rule);
           this.filteredElements.set(item, rule);
           break; // 只应用第一个匹配的规则
@@ -294,10 +209,90 @@ export class ContentFilterManager {
     const data: Record<string, string> = {};
 
     try {
-      // 提取标题
-      const titleElement = item.querySelector('.title, h1, h2, h3, h4, h5, h6');
-      if (titleElement) {
-        data.title = titleElement.textContent?.trim() || '';
+      // 提取标题 - JavDB列表页结构分析
+      // 在JavDB列表页，标题信息通常在以下位置：
+      // 1. a[title] 属性中包含完整标题
+      // 2. .video-title 中的文本内容
+      // 3. 链接的title属性
+
+      let titleText = '';
+
+      // 方法1: 从链接的title属性获取（最可靠）
+      const linkWithTitle = item.querySelector('a[title]');
+      if (linkWithTitle) {
+        titleText = linkWithTitle.getAttribute('title')?.trim() || '';
+        if (titleText && titleText.length > 10) {
+          data.title = titleText;
+        }
+      }
+
+      // 方法2: 如果没有找到，尝试从data-title属性获取
+      if (!data.title) {
+        const elementWithDataTitle = item.querySelector('[data-title]');
+        if (elementWithDataTitle) {
+          titleText = elementWithDataTitle.getAttribute('data-title')?.trim() || '';
+          if (titleText && titleText.length > 10) {
+            data.title = titleText;
+          }
+        }
+      }
+
+      // 方法3: 从.video-title或类似容器获取
+      if (!data.title) {
+        const titleSelectors = [
+          '.video-title',
+          '.movie-title',
+          '.item-title',
+          '.title'
+        ];
+
+        for (const selector of titleSelectors) {
+          const titleElement = item.querySelector(selector);
+          if (titleElement) {
+            titleText = titleElement.textContent?.trim() || '';
+            // 过滤掉看起来像番号的文本（通常是字母+数字的组合）
+            if (titleText && titleText.length > 10 && !titleText.match(/^[A-Z]+-\d+$/)) {
+              data.title = titleText;
+              break;
+            }
+          }
+        }
+      }
+
+      // 方法4: 智能文本提取 - 从所有文本中找到最像标题的内容
+      if (!data.title) {
+        const allText = item.textContent?.trim() || '';
+        const lines = allText.split('\n').map(line => line.trim()).filter(Boolean);
+
+        for (const line of lines) {
+          // 跳过番号格式的文本
+          if (line.match(/^[A-Z]+-\d+$/)) continue;
+          // 跳过纯数字
+          if (line.match(/^\d+$/)) continue;
+          // 跳过太短的文本
+          if (line.length < 10) continue;
+          // 跳过太长的文本（可能是描述）
+          if (line.length > 200) continue;
+          // 跳过包含特殊标记的文本
+          if (line.includes('含磁鏈') || line.includes('今日新種')) continue;
+
+          // 找到合适的标题
+          data.title = line;
+          break;
+        }
+      }
+
+      // 如果仍然没有找到，至少记录番号作为标识
+      if (!data.title) {
+        const codeElement = item.querySelector('.video-title strong:first-child, .code, .video-code');
+        if (codeElement) {
+          const code = codeElement.textContent?.trim();
+          if (code) {
+            data['video-code'] = code;
+            // 临时使用番号，但标记为需要改进
+            data.title = `[${code}] - 标题提取失败`;
+          }
+        }
       }
 
       // 提取视频ID
@@ -339,102 +334,141 @@ export class ContentFilterManager {
       log('Error extracting item data:', error);
     }
 
+    // 简化调试：只在标题提取失败时输出警告
+    if (!data.title || data.title.includes('标题提取失败')) {
+      log('Warning: Title extraction failed for item');
+    }
+
     return data;
   }
 
   /**
-   * 评估过滤规则
+   * 清除项目的过滤效果
    */
-  private evaluateRule(rule: FilterRule, itemData: Record<string, string>): boolean {
-    try {
-      // 特殊处理已观看规则
-      if (rule.id === 'hide-viewed') {
-        const videoId = itemData['video-id'];
-        return videoId && STATE.records && STATE.records[videoId];
-      }
+  private clearItemFilters(item: HTMLElement): void {
+    // 恢复显示
+    item.style.display = '';
 
-      // 评估所有条件（AND逻辑）
-      return rule.conditions.every(condition => {
-        return this.evaluateCondition(condition, itemData);
-      });
+    // 清除样式
+    item.style.backgroundColor = '';
+    item.style.color = '';
+    item.style.border = '';
+    item.style.opacity = '';
+    item.style.filter = '';
+
+    // 移除CSS类
+    item.classList.remove('content-filter-marked');
+
+    // 移除过滤消息
+    const filterMessage = item.querySelector('.filter-message');
+    if (filterMessage) {
+      filterMessage.remove();
+    }
+  }
+
+  /**
+   * 评估关键字过滤规则
+   */
+  private evaluateKeywordRule(rule: KeywordFilterRule, itemData: Record<string, string>): boolean {
+    try {
+      // 检查指定字段中是否有匹配的关键字
+      for (const field of rule.fields) {
+        const fieldValue = itemData[field] || '';
+        const isMatch = this.matchKeyword(rule.keyword, fieldValue, rule.isRegex, rule.caseSensitive);
+
+        // 只在匹配成功时输出日志
+        if (isMatch) {
+          log(`✓ Rule "${rule.name}" matched: "${rule.keyword}" in ${field}="${fieldValue}"`);
+        }
+
+        if (isMatch) {
+          return true;
+        }
+      }
+      return false;
     } catch (error) {
-      log('Error evaluating rule:', error);
+      log('Error evaluating keyword rule:', error);
       return false;
     }
   }
 
   /**
-   * 评估单个条件
+   * 匹配关键字
    */
-  private evaluateCondition(condition: FilterCondition, itemData: Record<string, string>): boolean {
-    const fieldValue = itemData[condition.field] || '';
-    let { value } = condition;
-    let testValue = fieldValue;
-
-    // 处理大小写敏感性
-    if (!condition.caseSensitive) {
-      value = value.toLowerCase();
-      testValue = testValue.toLowerCase();
-    }
-
-    switch (condition.operator) {
-      case 'contains':
-        return testValue.includes(value);
-      case 'not-contains':
-        return !testValue.includes(value);
-      case 'equals':
-        return testValue === value;
-      case 'startsWith':
-        return testValue.startsWith(value);
-      case 'endsWith':
-        return testValue.endsWith(value);
-      case 'regex':
-        try {
-          const flags = condition.caseSensitive ? 'g' : 'gi';
-          const regex = new RegExp(value, flags);
-          return regex.test(testValue);
-        } catch {
-          return false;
-        }
-      default:
-        return false;
+  private matchKeyword(keyword: string, text: string, isRegex: boolean, caseSensitive: boolean): boolean {
+    try {
+      if (isRegex) {
+        const flags = caseSensitive ? 'g' : 'gi';
+        const regex = new RegExp(keyword, flags);
+        return regex.test(text);
+      } else {
+        const searchText = caseSensitive ? text : text.toLowerCase();
+        const searchKeyword = caseSensitive ? keyword : keyword.toLowerCase();
+        return searchText.includes(searchKeyword);
+      }
+    } catch (error) {
+      log('Error matching keyword:', error);
+      return false;
     }
   }
+
+
 
   /**
    * 应用规则动作
    */
-  private applyRuleAction(item: HTMLElement, rule: FilterRule): void {
-    const { action } = rule;
-
-    switch (action.type) {
+  private applyRuleAction(item: HTMLElement, rule: KeywordFilterRule): void {
+    switch (rule.action) {
       case 'hide':
         item.style.display = 'none';
+        item.classList.add('content-filter-hidden');
+        item.setAttribute('data-filter-applied', 'hide');
         this.filterStats.hidden++;
         break;
 
       case 'highlight':
-        if (action.style) {
-          Object.assign(item.style, action.style);
+        // 应用自定义样式或默认高亮样式
+        if (rule.style) {
+          Object.assign(item.style, rule.style);
+        } else {
+          // 默认高亮样式 - 明显的黄色背景和边框
+          item.style.backgroundColor = '#fff3cd';
+          item.style.border = '3px solid #ffc107';
+          item.style.borderRadius = '8px';
+          item.style.boxShadow = '0 4px 12px rgba(255, 193, 7, 0.3)';
+          item.style.transform = 'scale(1.02)';
+          item.style.transition = 'all 0.3s ease';
         }
+        // 添加CSS类以便于识别
+        item.classList.add('content-filter-highlighted');
+        item.setAttribute('data-filter-applied', 'highlight');
         this.filterStats.highlighted++;
         break;
 
       case 'blur':
-        item.style.filter = action.style?.filter || 'blur(5px)';
-        if (action.style?.opacity !== undefined) {
-          item.style.opacity = action.style.opacity.toString();
+        item.style.filter = rule.style?.filter || 'blur(5px)';
+        if (rule.style?.opacity !== undefined) {
+          item.style.opacity = rule.style.opacity.toString();
+        } else {
+          item.style.opacity = '0.6';
         }
+        item.classList.add('content-filter-blurred');
+        item.setAttribute('data-filter-applied', 'blur');
         this.filterStats.blurred++;
         break;
 
       case 'mark':
-        item.classList.add('content-filter-marked');
-        if (action.style) {
-          Object.assign(item.style, action.style);
+        if (rule.style) {
+          Object.assign(item.style, rule.style);
+        } else {
+          // 默认标记样式 - 红色边框
+          item.style.border = '2px solid #dc3545';
+          item.style.borderRadius = '6px';
         }
-        if (action.message) {
-          this.addFilterMessage(item, action.message);
+        item.classList.add('content-filter-marked');
+        item.setAttribute('data-filter-applied', 'mark');
+        if (rule.message) {
+          this.addFilterMessage(item, rule.message);
         }
         this.filterStats.marked++;
         break;
@@ -442,7 +476,7 @@ export class ContentFilterManager {
 
     // 添加过滤标记
     item.setAttribute('data-filtered-by', rule.id);
-    item.setAttribute('data-filter-type', action.type);
+    item.setAttribute('data-filter-type', rule.action);
   }
 
   /**
@@ -472,109 +506,42 @@ export class ContentFilterManager {
     item.appendChild(messageElement);
   }
 
+
+
+
+
   /**
-   * 创建快速过滤器UI
+   * 添加关键字规则
    */
-  private createQuickFiltersUI(): void {
-    const container = document.createElement('div');
-    container.className = 'quick-filters-container';
-    container.style.cssText = `
-      position: fixed;
-      top: 50%;
-      right: 20px;
-      transform: translateY(-50%);
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      z-index: 9999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      min-width: 150px;
-    `;
+  addKeywordRule(keyword: string, action: 'hide' | 'highlight', isRegex: boolean, caseSensitive: boolean): void {
+    const rule: KeywordFilterRule = {
+      id: `keyword-${action}-${Date.now()}`,
+      name: `${action === 'hide' ? '隐藏' : '高亮'}: ${keyword}`,
+      keyword,
+      isRegex,
+      caseSensitive,
+      action,
+      enabled: true,
+      fields: ['title', 'actor', 'studio', 'video-id'],
+    };
 
-    const title = document.createElement('div');
-    title.textContent = '快速过滤';
-    title.style.cssText = `
-      font-weight: bold;
-      margin-bottom: 8px;
-      text-align: center;
-      color: #333;
-    `;
+    if (action === 'highlight') {
+      rule.style = {
+        backgroundColor: '#fff3cd',
+        border: '2px solid #ffc107',
+      };
+    }
 
-    container.appendChild(title);
-
-    // 创建过滤选项
-    const filters = [
-      { key: 'hideViewed', label: '隐藏已看' },
-      { key: 'hideVR', label: '隐藏VR' },
-      { key: 'hideFC2', label: '隐藏FC2' },
-      { key: 'hideUncensored', label: '隐藏无码' },
-    ];
-
-    filters.forEach(filter => {
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = `
-        display: flex;
-        align-items: center;
-        margin-bottom: 6px;
-      `;
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.id = `filter-${filter.key}`;
-      checkbox.checked = this.config.quickFilters[filter.key as keyof typeof this.config.quickFilters];
-      checkbox.style.marginRight = '6px';
-
-      const label = document.createElement('label');
-      label.htmlFor = checkbox.id;
-      label.textContent = filter.label;
-      label.style.cssText = `
-        cursor: pointer;
-        font-size: 12px;
-        user-select: none;
-      `;
-
-      checkbox.addEventListener('change', () => {
-        this.config.quickFilters[filter.key as keyof typeof this.config.quickFilters] = checkbox.checked;
-        this.updateRuleEnabled(`hide-${filter.key.replace('hide', '').toLowerCase()}`, checkbox.checked);
-        this.applyFilters();
-        this.showFilterStats();
-      });
-
-      wrapper.appendChild(checkbox);
-      wrapper.appendChild(label);
-      container.appendChild(wrapper);
-    });
-
-    // 添加重置按钮
-    const resetButton = document.createElement('button');
-    resetButton.textContent = '重置';
-    resetButton.style.cssText = `
-      width: 100%;
-      padding: 4px 8px;
-      margin-top: 8px;
-      border: 1px solid #ddd;
-      background: #f9f9f9;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-
-    resetButton.addEventListener('click', () => {
-      this.resetFilters();
-    });
-
-    container.appendChild(resetButton);
-    document.body.appendChild(container);
+    this.config.keywordRules.push(rule);
   }
+
+
 
   /**
    * 更新规则启用状态
    */
   private updateRuleEnabled(ruleId: string, enabled: boolean): void {
-    const rule = this.config.rules.find(r => r.id === ruleId);
+    const rule = this.config.keywordRules.find(r => r.id === ruleId);
     if (rule) {
       rule.enabled = enabled;
     }
@@ -583,33 +550,15 @@ export class ContentFilterManager {
   /**
    * 重置过滤器
    */
-  private resetFilters(): void {
-    // 重置快速过滤器
-    Object.keys(this.config.quickFilters).forEach(key => {
-      this.config.quickFilters[key as keyof typeof this.config.quickFilters] = false;
-    });
-
-    // 重置规则
-    this.config.rules.forEach(rule => {
-      if (rule.id.startsWith('hide-')) {
-        rule.enabled = false;
-      }
-    });
+  resetFilters(): void {
+    // 清除所有关键字规则
+    this.config.keywordRules = [];
 
     // 清除所有过滤效果
     this.clearAllFilters();
 
-    // 重新应用过滤
-    this.applyFilters();
-
-    // 更新UI
-    const checkboxes = document.querySelectorAll('.quick-filters-container input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      (checkbox as HTMLInputElement).checked = false;
-    });
-
     this.showFilterStats();
-    showToast('过滤器已重置', 'info');
+    showToast('关键字过滤已重置', 'info');
   }
 
   /**
@@ -679,9 +628,25 @@ export class ContentFilterManager {
    */
   updateConfig(newConfig: Partial<ContentFilterConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    
+
     if (this.isInitialized) {
+      // 重新应用过滤规则
+      this.clearAllFilters();
       this.applyFilters();
+    }
+  }
+
+  /**
+   * 更新关键字规则
+   */
+  updateKeywordRules(keywordRules: KeywordFilterRule[]): void {
+    this.config.keywordRules = keywordRules;
+
+    if (this.isInitialized) {
+      // 重新应用过滤规则
+      this.clearAllFilters();
+      this.applyFilters();
+      log(`Updated ${keywordRules.length} keyword filter rules`);
     }
   }
 
@@ -695,12 +660,6 @@ export class ContentFilterManager {
     }
 
     this.clearAllFilters();
-
-    const quickFilters = document.querySelector('.quick-filters-container');
-    if (quickFilters) {
-      quickFilters.remove();
-    }
-
     this.isInitialized = false;
   }
 }
