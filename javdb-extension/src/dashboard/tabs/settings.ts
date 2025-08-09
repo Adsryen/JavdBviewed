@@ -51,12 +51,12 @@ export function initSettingsTab(): void {
                     showStorageLogs: showStorageLogs.checked,
                 },
                 dataEnhancement: {
-                    enableMultiSource: enableMultiSource.checked,
-                    enableImageCache: enableImageCache.checked,
-                    enableVideoPreview: enableVideoPreview.checked,
+                    enableMultiSource: false, // 开发中，强制禁用
+                    enableImageCache: false, // 开发中，强制禁用
+                    enableVideoPreview: false, // 开发中，强制禁用
                     enableTranslation: enableTranslation.checked,
-                    enableRatingAggregation: enableRatingAggregation.checked,
-                    enableActorInfo: enableActorInfo.checked,
+                    enableRatingAggregation: false, // 开发中，强制禁用
+                    enableActorInfo: false, // 开发中，强制禁用
                     cacheExpiration: parseInt(cacheExpiration.value, 10) || 24,
                 },
                 translation: translationProvider ? {
@@ -85,7 +85,7 @@ export function initSettingsTab(): void {
                 userExperience: {
                     enableQuickCopy: enableQuickCopy.checked,
                     enableContentFilter: enableContentFilter.checked,
-                    enableKeyboardShortcuts: enableKeyboardShortcuts.checked,
+                    enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: enableMagnetSearch.checked,
                     showEnhancedTooltips: showEnhancedTooltips.checked,
                 },
@@ -336,13 +336,13 @@ export function initSettingsTab(): void {
                 renderSearchEngines();
             }
 
-            // 增强功能设置
-            enableMultiSource.checked = dataEnhancement?.enableMultiSource || false;
-            enableImageCache.checked = dataEnhancement?.enableImageCache || true;
-            enableVideoPreview.checked = dataEnhancement?.enableVideoPreview || false;
+            // 增强功能设置 - 开发中的功能强制禁用
+            enableMultiSource.checked = false; // 开发中，强制禁用
+            enableImageCache.checked = false; // 开发中，强制禁用
+            enableVideoPreview.checked = false; // 开发中，强制禁用
             enableTranslation.checked = dataEnhancement?.enableTranslation || false;
-            enableRatingAggregation.checked = dataEnhancement?.enableRatingAggregation || false;
-            enableActorInfo.checked = dataEnhancement?.enableActorInfo || false;
+            enableRatingAggregation.checked = false; // 开发中，强制禁用
+            enableActorInfo.checked = false; // 开发中，强制禁用
             cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
 
             // 翻译配置设置
@@ -350,7 +350,7 @@ export function initSettingsTab(): void {
 
             enableQuickCopy.checked = userExperience?.enableQuickCopy || false;
             enableContentFilter.checked = userExperience?.enableContentFilter || false;
-            enableKeyboardShortcuts.checked = userExperience?.enableKeyboardShortcuts || false;
+            enableKeyboardShortcuts.checked = false; // 开发中，强制禁用
             enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
             showEnhancedTooltips.checked = userExperience?.showEnhancedTooltips || true;
         } catch (error) {
