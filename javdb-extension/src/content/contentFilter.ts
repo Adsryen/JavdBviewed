@@ -3,6 +3,7 @@
 
 import { STATE, log } from './state';
 import { showToast } from './toast';
+import { VIDEO_STATUS } from '../utils/config';
 
 export interface KeywordFilterRule {
   id: string;
@@ -132,8 +133,23 @@ export class ContentFilterManager {
    */
   private applyFiltersToItem(item: HTMLElement): void {
     try {
-      // 清除之前的过滤效果
-      this.clearItemFilters(item);
+      // 检查是否已经处理过
+      if (item.hasAttribute('data-filter-processed')) {
+        return;
+      }
+
+      // 检查是否应该被默认功能隐藏
+      const shouldBeHiddenByDefault = this.shouldBeHiddenByDefault(item);
+
+      // 清除之前的过滤效果（但保留默认隐藏状态）
+      this.clearItemFilters(item, shouldBeHiddenByDefault);
+
+      // 如果元素应该被默认功能隐藏，不应用智能过滤规则
+      if (shouldBeHiddenByDefault) {
+        item.setAttribute('data-hidden-by-default', 'true');
+        item.setAttribute('data-filter-processed', 'true');
+        return;
+      }
 
       // 提取项目信息
       const itemData = this.extractItemData(item);
@@ -155,6 +171,9 @@ export class ContentFilterManager {
           break; // 只应用第一个匹配的规则
         }
       }
+
+      // 标记为已处理
+      item.setAttribute('data-filter-processed', 'true');
     } catch (error) {
       log('Error applying filters to item:', error);
     }
@@ -345,19 +364,33 @@ export class ContentFilterManager {
   /**
    * 清除项目的过滤效果
    */
-  private clearItemFilters(item: HTMLElement): void {
-    // 恢复显示
-    item.style.display = '';
+  private clearItemFilters(item: HTMLElement, shouldBeHiddenByDefault: boolean = false): void {
+    // 恢复显示状态 - 但要考虑默认隐藏功能
+    if (!shouldBeHiddenByDefault) {
+      item.style.display = '';
+      item.removeAttribute('data-hidden-by-default');
+    } else {
+      // 保持默认隐藏状态
+      item.style.display = 'none';
+      item.setAttribute('data-hidden-by-default', 'true');
+    }
 
-    // 清除样式
+    // 清除智能过滤相关的样式
     item.style.backgroundColor = '';
     item.style.color = '';
     item.style.border = '';
     item.style.opacity = '';
     item.style.filter = '';
 
-    // 移除CSS类
-    item.classList.remove('content-filter-marked');
+    // 移除智能过滤相关的CSS类
+    item.classList.remove('content-filter-marked', 'content-filter-hidden', 'content-filter-highlighted', 'content-filter-blurred');
+
+    // 移除智能过滤相关的属性
+    item.removeAttribute('data-filter-applied');
+    item.removeAttribute('data-filtered-by');
+    item.removeAttribute('data-filter-type');
+    item.removeAttribute('data-hidden-by-filter');
+    item.removeAttribute('data-filter-processed');
 
     // 移除过滤消息
     const filterMessage = item.querySelector('.filter-message');
@@ -420,10 +453,14 @@ export class ContentFilterManager {
   private applyRuleAction(item: HTMLElement, rule: KeywordFilterRule): void {
     switch (rule.action) {
       case 'hide':
-        item.style.display = 'none';
-        item.classList.add('content-filter-hidden');
-        item.setAttribute('data-filter-applied', 'hide');
-        this.filterStats.hidden++;
+        // 只有在不被默认功能隐藏的情况下才应用智能过滤隐藏
+        if (!item.hasAttribute('data-hidden-by-default')) {
+          item.style.display = 'none';
+          item.classList.add('content-filter-hidden');
+          item.setAttribute('data-filter-applied', 'hide');
+          item.setAttribute('data-hidden-by-filter', 'true');
+          this.filterStats.hidden++;
+        }
         break;
 
       case 'highlight':
@@ -506,6 +543,90 @@ export class ContentFilterManager {
     item.appendChild(messageElement);
   }
 
+  /**
+   * 检查元素是否应该被默认功能隐藏
+   * 复制 itemProcessor.ts 中的逻辑以保持一致性
+   */
+  private shouldBeHiddenByDefault(item: HTMLElement): boolean {
+    // 首先检查是否已经有默认隐藏标记
+    if (item.hasAttribute('data-hidden-by-default')) {
+      return true;
+    }
+
+    if (!STATE.settings || STATE.isSearchPage) {
+      return false;
+    }
+
+    // 提取视频ID
+    const videoId = this.extractVideoId(item);
+    if (!videoId) {
+      return false;
+    }
+
+    // 检查VR隐藏设置
+    if (STATE.settings.display.hideVR) {
+      // 检查VR标签
+      const vrTag = item.querySelector('.tag.is-link');
+      const isVR = vrTag?.textContent?.trim() === 'VR';
+
+      // 检查data-title属性中是否包含VR标识
+      const dataTitleElement = item.querySelector('div.video-title > span.x-btn');
+      const dataTitle = dataTitleElement?.getAttribute('data-title') || '';
+      const isVRInDataTitle = dataTitle.includes('【VR】');
+
+      if (isVR || isVRInDataTitle) {
+        return true;
+      }
+    }
+
+    // 检查已看过和已浏览的隐藏设置
+    const { hideViewed, hideBrowsed } = STATE.settings.display;
+    const record = STATE.records[videoId];
+
+    if (!record) {
+      return false;
+    }
+
+    const isViewed = record.status === VIDEO_STATUS.VIEWED;
+    const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
+
+    if (hideViewed && isViewed) {
+      return true;
+    }
+    if (hideBrowsed && isBrowsed) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 从项目元素中提取视频ID
+   */
+  private extractVideoId(item: HTMLElement): string | null {
+    try {
+      // 尝试从链接href中提取
+      const link = item.querySelector('a[href*="/v/"]') as HTMLAnchorElement;
+      if (link) {
+        const match = link.href.match(/\/v\/([^/?]+)/);
+        if (match) {
+          return match[1];
+        }
+      }
+
+      // 尝试从data-code属性中提取
+      const codeElement = item.querySelector('[data-code]');
+      if (codeElement) {
+        return codeElement.getAttribute('data-code');
+      }
+
+      return null;
+    } catch (error) {
+      log('Error extracting video ID:', error);
+      return null;
+    }
+  }
+
 
 
 
@@ -566,21 +687,34 @@ export class ContentFilterManager {
    */
   private clearAllFilters(): void {
     this.filteredElements.forEach((rule, element) => {
-      // 恢复显示
-      element.style.display = '';
-      
-      // 清除样式
+      // 检查是否应该被默认功能隐藏
+      const shouldBeHiddenByDefault = this.shouldBeHiddenByDefault(element);
+
+      // 恢复显示状态 - 但要考虑默认隐藏功能
+      if (!shouldBeHiddenByDefault) {
+        element.style.display = '';
+        element.removeAttribute('data-hidden-by-default');
+      } else {
+        // 保持默认隐藏状态
+        element.style.display = 'none';
+        element.setAttribute('data-hidden-by-default', 'true');
+      }
+
+      // 清除智能过滤相关的样式
       element.style.backgroundColor = '';
       element.style.color = '';
       element.style.border = '';
       element.style.opacity = '';
       element.style.filter = '';
-      
-      // 移除类和属性
-      element.classList.remove('content-filter-marked');
+
+      // 移除智能过滤相关的类和属性
+      element.classList.remove('content-filter-marked', 'content-filter-hidden', 'content-filter-highlighted', 'content-filter-blurred');
       element.removeAttribute('data-filtered-by');
       element.removeAttribute('data-filter-type');
-      
+      element.removeAttribute('data-filter-applied');
+      element.removeAttribute('data-hidden-by-filter');
+      element.removeAttribute('data-filter-processed');
+
       // 移除过滤消息
       const message = element.querySelector('.filter-message');
       if (message) {
