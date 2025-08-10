@@ -39,6 +39,8 @@ build.bat
 
 # md
 *.md
+# 排查todo
+!todo.md
 
 # temp
 temp/
@@ -48,3 +50,4 @@ temp/
 *test*.js
 *temp*.js
 *debug*.js
+
