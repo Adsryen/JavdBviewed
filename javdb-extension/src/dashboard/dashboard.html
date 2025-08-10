@@ -1101,6 +1101,7 @@
                                     <input type="checkbox" id="enableContentFilter">
                                     <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableMagnetSearch">
+                                    <input type="checkbox" id="enableListEnhancement">
                                     <input type="checkbox" id="showEnhancedTooltips">
                                 </div>
 
@@ -1354,6 +1355,73 @@
                                                         <p>暂无过滤规则，点击"添加规则"开始配置</p>
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📋 列表页增强</h6>
+                                                    <span class="enhancement-feature-status available">列表页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableListEnhancement"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>增强列表页体验，包括左键直接打开、右键后台打开、鼠标悬浮视频预览<br>
+                                            <strong>使用：</strong>在影片列表页生效，左键点击直接跳转，右键点击后台打开，鼠标悬浮播放预览<br>
+                                            <strong>适用：</strong>所有影片列表页面，包括首页、演员页、分类页等
+                                        </p>
+
+                                        <!-- 列表增强详细配置 -->
+                                        <div class="sub-settings" id="listEnhancementConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>📋 列表增强配置</h5>
+                                                <p class="sub-description">自定义列表页的增强功能，提升浏览效率和用户体验。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="enableClickEnhancement" checked>
+                                                    <span class="checkmark"></span>
+                                                    启用点击增强
+                                                </label>
+                                                <p class="input-description">左键直接打开，右键后台打开。模拟油猴脚本的点击行为。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="enableVideoPreview" checked>
+                                                    <span class="checkmark"></span>
+                                                    启用视频预览
+                                                </label>
+                                                <p class="input-description">鼠标悬浮在影片封面上时播放预览视频（需要预览源支持）。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="previewDelay">预览延迟时间 (毫秒):</label>
+                                                <input type="number" id="previewDelay" class="number-input" min="100" max="5000" value="1000">
+                                                <p class="input-description">鼠标悬浮多久后开始播放预览，建议1000毫秒。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="previewVolume">预览音量:</label>
+                                                <input type="range" id="previewVolume" min="0" max="1" step="0.1" value="0.2">
+                                                <span id="previewVolumeValue">20%</span>
+                                                <p class="input-description">预览视频的音量大小，建议保持较低音量。</p>
+                                            </div>
+
+                                            <div class="info-box">
+                                                <p><strong>功能说明：</strong></p>
+                                                <ul>
+                                                    <li><strong>点击增强</strong> - 左键点击直接跳转，右键点击在后台打开新标签页</li>
+                                                    <li><strong>视频预览</strong> - 鼠标悬浮时自动播放预览视频（如果有预览源）</li>
+                                                    <li><strong>列表优化</strong> - 优化影片卡片显示，添加功能按钮</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     </div>

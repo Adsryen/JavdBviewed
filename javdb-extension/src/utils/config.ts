@@ -263,6 +263,17 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         buttonPosition: 'right-center' as const,
     },
 
+    // 新增：列表增强默认配置
+    listEnhancement: {
+        enabled: true, // 默认启用
+        enableClickEnhancement: true,
+        enableVideoPreview: true,
+        enableListOptimization: true,
+        previewDelay: 1000,
+        previewVolume: 0.2,
+        enableRightClickBackground: true,
+    },
+
     // 新增：演员同步配置
     actorSync: DEFAULT_ACTOR_SYNC_CONFIG,
 

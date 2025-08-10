@@ -822,6 +822,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.log('[Background] Processing UPDATE_WATCHED_STATUS request.');
                 handleUpdateWatchedStatus(message, sendResponse);
                 return true; // 保持消息通道开放
+            case 'OPEN_TAB_BACKGROUND':
+                console.log('[Background] Processing OPEN_TAB_BACKGROUND request.');
+                handleOpenTabBackground(message, sendResponse);
+                return true;
+            case 'CHECK_VIDEO_URL':
+                console.log('[Background] Processing CHECK_VIDEO_URL request.');
+                handleCheckVideoUrl(message, sendResponse);
+                return true;
+            case 'FETCH_JAVSPYL_PREVIEW':
+                console.log('[Background] Processing FETCH_JAVSPYL_PREVIEW request.');
+                handleFetchJavSpylPreview(message, sendResponse);
+                return true;
+            case 'FETCH_AVPREVIEW_PREVIEW':
+                console.log('[Background] Processing FETCH_AVPREVIEW_PREVIEW request.');
+                handleFetchAVPreviewPreview(message, sendResponse);
+                return true;
+            case 'FETCH_JAVDB_PREVIEW':
+                console.log('[Background] Processing FETCH_JAVDB_PREVIEW request.');
+                handleFetchJavDBPreview(message, sendResponse);
+                return true;
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
@@ -832,6 +852,337 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 });
+
+async function handleOpenTabBackground(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { url } = message;
+        if (!url) {
+            sendResponse({ success: false, error: 'No URL provided' });
+            return;
+        }
+
+        // 在后台打开新标签页
+        const tab = await chrome.tabs.create({
+            url: url,
+            active: false // 后台打开
+        });
+
+        console.log(`[Background] Opened background tab: ${url}`);
+        sendResponse({ success: true, tabId: tab.id });
+    } catch (error) {
+        console.error('[Background] Failed to open background tab:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 检查视频URL是否可用
+async function handleCheckVideoUrl(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { url } = message;
+        if (!url) {
+            sendResponse({ success: false, error: 'No URL provided' });
+            return;
+        }
+
+        console.log(`[Background] Checking video URL: ${url}`);
+
+        // 尝试多种方法验证URL
+        let available = false;
+
+        // 方法1: 尝试HEAD请求
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+
+            const response = await fetch(url, {
+                method: 'HEAD',
+                mode: 'no-cors',
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+            available = response.type === 'opaque' || response.ok;
+            console.log(`[Background] HEAD check for ${url}: available=${available}, type=${response.type}`);
+
+            if (available) {
+                sendResponse({ success: true, available: true });
+                return;
+            }
+        } catch (headError) {
+            console.log(`[Background] HEAD request failed for ${url}:`, headError.message);
+        }
+
+        // 方法2: 尝试带Range的GET请求
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                mode: 'no-cors',
+                headers: {
+                    'Range': 'bytes=0-1023'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+            available = response.type === 'opaque' || response.ok;
+            console.log(`[Background] Range GET check for ${url}: available=${available}, type=${response.type}`);
+
+            if (available) {
+                sendResponse({ success: true, available: true });
+                return;
+            }
+        } catch (rangeError) {
+            console.log(`[Background] Range GET failed for ${url}:`, rangeError.message);
+        }
+
+        // 方法3: 对于视频文件，尝试创建video元素测试
+        if (url.includes('.mp4') || url.includes('.webm') || url.includes('.avi')) {
+            try {
+                // 这个方法在background script中不可用，跳过
+                console.log(`[Background] Video URL detected, but cannot test in background: ${url}`);
+            } catch (videoError) {
+                console.log(`[Background] Video test failed for ${url}:`, videoError.message);
+            }
+        }
+
+        // 方法4: 基于域名的启发式判断
+        const knownGoodDomains = [
+            'commondatastorage.googleapis.com', // Google测试视频
+            'sample.heyzo.com',
+            'my.cdn.tokyo-hot.com'
+        ];
+
+        const knownBadDomains = [
+            'smovie.caribbeancom.com',
+            'smovie.1pondo.tv',
+            'smovie.10musume.com',
+            'fms.pacopacomama.com'
+        ];
+
+        const isKnownGood = knownGoodDomains.some(domain => url.includes(domain));
+        const isKnownBad = knownBadDomains.some(domain => url.includes(domain));
+
+        if (isKnownGood) {
+            console.log(`[Background] Known good domain for ${url}, assuming available`);
+            available = true;
+        } else if (isKnownBad) {
+            console.log(`[Background] Known problematic domain for ${url}, marking unavailable`);
+            available = false;
+        } else {
+            console.log(`[Background] Unknown domain for ${url}, assuming unavailable`);
+            available = false;
+        }
+
+        sendResponse({ success: true, available });
+    } catch (error) {
+        console.error(`[Background] Failed to check video URL ${message.url}:`, error);
+        sendResponse({ success: false, available: false });
+    }
+}
+
+// 从JavSpyl获取预览视频
+async function handleFetchJavSpylPreview(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { code } = message;
+        if (!code) {
+            sendResponse({ success: false, error: 'No code provided' });
+            return;
+        }
+
+        console.log(`[Background] Fetching JavSpyl preview for: ${code}`);
+
+        const response = await fetch('https://v2.javspyl.tk/api/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Origin': 'https://javspyl.tk',
+                'Referer': 'https://javspyl.tk/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            body: JSON.stringify({ ID: code })
+        });
+
+        console.log(`[Background] JavSpyl API response status: ${response.status}`);
+
+        if (!response.ok) {
+            console.log(`[Background] JavSpyl API request failed: ${response.status} ${response.statusText}`);
+            sendResponse({ success: false, error: `API request failed: ${response.status}` });
+            return;
+        }
+
+        const data = await response.json();
+        console.log(`[Background] JavSpyl API response data:`, data);
+
+        const videoUrl = data?.info?.url;
+
+        if (!videoUrl) {
+            console.log(`[Background] No video URL found in JavSpyl response for ${code}`);
+            sendResponse({ success: false, error: 'No video URL found in response' });
+            return;
+        }
+
+        if (/\.m3u8?$/i.test(videoUrl)) {
+            console.log(`[Background] JavSpyl returned m3u8 URL, skipping: ${videoUrl}`);
+            sendResponse({ success: false, error: 'M3U8 format not supported' });
+            return;
+        }
+
+        const finalUrl = videoUrl.includes('//') ? videoUrl : `https://${videoUrl}`;
+        console.log(`[Background] JavSpyl final video URL: ${finalUrl}`);
+
+        // 简化验证 - 直接返回URL，让前端处理
+        sendResponse({ success: true, videoUrl: finalUrl });
+    } catch (error) {
+        console.error(`[Background] Failed to fetch JavSpyl preview for ${message.code}:`, error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 从AVPreview获取预览视频
+async function handleFetchAVPreviewPreview(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { code } = message;
+        if (!code) {
+            sendResponse({ success: false, error: 'No code provided' });
+            return;
+        }
+
+        // 第一步：搜索视频
+        const searchResponse = await fetch(`https://avpreview.com/zh/search?keywords=${code}`);
+        if (!searchResponse.ok) {
+            sendResponse({ success: false, error: 'Search request failed' });
+            return;
+        }
+
+        const searchHtml = await searchResponse.text();
+        const parser = new DOMParser();
+        const searchDoc = parser.parseFromString(searchHtml, 'text/html');
+
+        // 查找匹配的视频
+        const videoBoxes = Array.from(searchDoc.querySelectorAll('.container .videobox'));
+        const matchedBox = videoBoxes.find(item => {
+            const titleElement = item.querySelector('h2 strong');
+            return titleElement && titleElement.textContent === code;
+        });
+
+        if (!matchedBox) {
+            sendResponse({ success: false, error: 'Video not found in search results' });
+            return;
+        }
+
+        const detailLink = matchedBox.querySelector('a')?.getAttribute('href');
+        if (!detailLink) {
+            sendResponse({ success: false, error: 'No detail link found' });
+            return;
+        }
+
+        const contentId = detailLink.split('/').pop();
+        if (!contentId) {
+            sendResponse({ success: false, error: 'No content ID found' });
+            return;
+        }
+
+        // 第二步：获取视频详情
+        const apiUrl = new URL('https://avpreview.com/API/v1.0/index.php');
+        apiUrl.searchParams.set('system', 'videos');
+        apiUrl.searchParams.set('action', 'detail');
+        apiUrl.searchParams.set('contentid', contentId);
+        apiUrl.searchParams.set('sitecode', 'avpreview');
+        apiUrl.searchParams.set('ip', '');
+        apiUrl.searchParams.set('token', '');
+
+        const apiResponse = await fetch(apiUrl.toString());
+        if (!apiResponse.ok) {
+            sendResponse({ success: false, error: 'API detail request failed' });
+            return;
+        }
+
+        const apiData = await apiResponse.json();
+        let trailerUrl = apiData?.videos?.trailer;
+
+        if (!trailerUrl) {
+            sendResponse({ success: false, error: 'No trailer URL found' });
+            return;
+        }
+
+        // 转换URL格式
+        trailerUrl = trailerUrl.replace('/hlsvideo/', '/litevideo/').replace('/playlist.m3u8', '');
+        const finalContentId = trailerUrl.split('/').pop();
+
+        // 尝试不同的视频格式
+        const videoUrls = [
+            `${trailerUrl}/${finalContentId}_dmb_w.mp4`,
+            `${trailerUrl}/${finalContentId}_mhb_w.mp4`,
+            `${trailerUrl}/${finalContentId}_dm_w.mp4`,
+            `${trailerUrl}/${finalContentId}_sm_w.mp4`,
+        ];
+
+        // 检查哪个URL可用
+        for (const url of videoUrls) {
+            try {
+                const checkResponse = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+                const available = checkResponse.ok || checkResponse.type === 'opaque';
+                if (available) {
+                    sendResponse({ success: true, videoUrl: url });
+                    return;
+                }
+            } catch (err) {
+                // 继续尝试下一个URL
+            }
+        }
+
+        sendResponse({ success: false, error: 'No accessible video URL found' });
+    } catch (error) {
+        console.error(`[Background] Failed to fetch AVPreview preview for ${message.code}:`, error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 从JavDB页面获取预览视频
+async function handleFetchJavDBPreview(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { url } = message;
+        if (!url) {
+            sendResponse({ success: false, error: 'No URL provided' });
+            return;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            sendResponse({ success: false, error: 'Failed to fetch JavDB page' });
+            return;
+        }
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // 查找预览视频
+        const previewVideo = doc.querySelector('#preview-video source');
+        const videoUrl = previewVideo?.getAttribute('src');
+
+        if (!videoUrl) {
+            sendResponse({ success: false, error: 'No preview video found on JavDB page' });
+            return;
+        }
+
+        // 验证URL是否可用
+        const checkResponse = await fetch(videoUrl, { method: 'HEAD', mode: 'no-cors' });
+        const available = checkResponse.ok || checkResponse.type === 'opaque';
+
+        if (available) {
+            sendResponse({ success: true, videoUrl });
+        } else {
+            sendResponse({ success: false, error: 'Preview video URL not accessible' });
+        }
+    } catch (error) {
+        console.error(`[Background] Failed to fetch JavDB preview for ${message.url}:`, error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
 
 async function triggerAutoSync(): Promise<void> {
     await logger.info('Checking if auto-sync should be triggered.');
@@ -1030,7 +1381,7 @@ async function handleDrive115Push(message: any, sendResponse: (response: any) =>
             console.log('[Background] No 115.com tab found, creating new tab');
             try {
                 const newTab = await chrome.tabs.create({
-                    url: 'https://115.com/?tab=offline&mode=wangpan',
+                    url: 'https://115.com/',
                     active: false
                 });
                 console.log('[Background] Created new tab:', newTab.id);
