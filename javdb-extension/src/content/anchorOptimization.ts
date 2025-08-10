@@ -44,8 +44,14 @@ export class AnchorOptimizationManager {
       return;
     }
 
+    // 检查是否在详情页
+    if (!this.isDetailPage()) {
+      log('Anchor optimization skipped: not on detail page');
+      return;
+    }
+
     try {
-      log('Initializing anchor optimization...');
+      log('Initializing anchor optimization on detail page...');
 
       // 调试：记录页面上的可用锚点
       this.logAvailableAnchors();
@@ -65,10 +71,36 @@ export class AnchorOptimizationManager {
       }
 
       this.isInitialized = true;
-      log('Anchor optimization initialized');
+      log('Anchor optimization initialized on detail page');
     } catch (error) {
       log('Error initializing anchor optimization:', error);
     }
+  }
+
+  /**
+   * 检查是否在详情页
+   */
+  private isDetailPage(): boolean {
+    // 检查URL是否为详情页格式 (/v/xxx)
+    const isDetailUrl = /\/v\/[^\/]+/.test(window.location.pathname);
+
+    // 检查页面是否有详情页特有的元素
+    const hasDetailElements = !!(
+      document.querySelector('.movie-panel-info') ||
+      document.querySelector('.video-detail') ||
+      document.querySelector('.movie-info') ||
+      document.querySelector('.preview-images') ||
+      document.querySelector('.tile-images') ||
+      document.querySelector('[href^="magnet:"]')
+    );
+
+    const isDetailPage = isDetailUrl || hasDetailElements;
+
+    if (!isDetailPage) {
+      log(`Not a detail page - URL: ${window.location.pathname}, hasDetailElements: ${hasDetailElements}`);
+    }
+
+    return isDetailPage;
   }
 
   /**

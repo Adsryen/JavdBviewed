@@ -149,7 +149,7 @@ async function initialize(): Promise<void> {
             showFilteredCount: true,
             keywordRules: keywordRules,
         });
-        contentFilterManager.initialize();
+        // 注意：不在这里立即初始化，而是在默认隐藏功能处理完后再初始化
     }
 
     if (settings.userExperience.enableKeyboardShortcuts) {
@@ -226,6 +226,14 @@ async function initialize(): Promise<void> {
     processVisibleItems();
     setupObserver();
 
+    // 在默认隐藏功能处理完后，再初始化智能内容过滤
+    if (settings.userExperience.enableContentFilter) {
+        setTimeout(() => {
+            contentFilterManager.initialize();
+            log('Content filter initialized after default hide processing');
+        }, 100); // 短暂延迟确保默认隐藏功能先执行
+    }
+
     if (window.location.pathname.startsWith('/v/')) {
         await handleVideoDetailPage();
 
@@ -274,6 +282,14 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
             STATE.settings = settings;
             log('Updated display settings:', STATE.settings.display);
             processVisibleItems();
+
+            // 在默认隐藏功能处理完后，重新应用智能过滤
+            if (settings.userExperience.enableContentFilter) {
+                setTimeout(() => {
+                    contentFilterManager.applyFilters();
+                    log('Content filter reapplied after settings update');
+                }, 100);
+            }
         });
     } else if (message.type === 'show-toast') {
         // 处理来自background script的toast通知
@@ -286,8 +302,12 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
     } else if (message.type === 'UPDATE_CONTENT_FILTER') {
         // 更新内容过滤规则
         if (message.keywordRules) {
-            contentFilterManager.updateKeywordRules(message.keywordRules);
-            log(`Content filter rules updated: ${message.keywordRules.length} rules`);
+            // 先重新处理默认隐藏功能，然后再更新智能过滤
+            processVisibleItems();
+            setTimeout(() => {
+                contentFilterManager.updateKeywordRules(message.keywordRules);
+                log(`Content filter rules updated: ${message.keywordRules.length} rules`);
+            }, 100);
         }
     }
 });

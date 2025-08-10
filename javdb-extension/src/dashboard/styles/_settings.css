@@ -1645,3 +1645,372 @@ input:checked + .toggle-slider:before {
     margin-bottom: 0;
     padding: 2px 0;
 }
+
+/* ========================================
+   功能增强页面专用样式 - Enhancement Settings
+   ======================================== */
+
+/* 只针对功能增强页面的容器 */
+#enhancement-settings {
+    --enhancement-primary: #007bff;
+    --enhancement-success: #28a745;
+    --enhancement-warning: #ffc107;
+    --enhancement-danger: #dc3545;
+    --enhancement-info: #17a2b8;
+    --enhancement-light: #f8f9fa;
+    --enhancement-dark: #343a40;
+    --enhancement-border: #dee2e6;
+    --enhancement-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --enhancement-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* 功能增强页面的设置区块重新设计 */
+#enhancement-settings .settings-section {
+    margin-bottom: 30px;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+#enhancement-settings .settings-section h4 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--enhancement-dark);
+    margin: 0 0 20px 0;
+    padding: 15px 0 15px 20px;
+    border-bottom: 3px solid var(--enhancement-primary);
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px 8px 0 0;
+    position: relative;
+}
+
+#enhancement-settings .settings-section h4::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(135deg, var(--enhancement-primary) 0%, var(--enhancement-info) 100%);
+    border-radius: 2px 0 0 2px;
+}
+
+/* 将原有的form-group转换为卡片布局 */
+#enhancement-settings .form-group {
+    background: #ffffff;
+    border: 2px solid var(--enhancement-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+#enhancement-settings .form-group::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--enhancement-primary) 0%, var(--enhancement-info) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#enhancement-settings .form-group:hover {
+    border-color: var(--enhancement-primary);
+    box-shadow: var(--enhancement-shadow-hover);
+    transform: translateY(-2px);
+}
+
+#enhancement-settings .form-group:hover::before {
+    opacity: 1;
+}
+
+/* 禁用状态的卡片 */
+#enhancement-settings .form-group:has(input:disabled) {
+    opacity: 0.6;
+    background: #f8f9fa;
+    border-color: #e9ecef;
+}
+
+#enhancement-settings .form-group:has(input:disabled):hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e9ecef;
+}
+
+/* 重新设计checkbox-label为现代化开关 */
+#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    cursor: pointer;
+    gap: 15px;
+}
+
+#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+#enhancement-settings > .settings-panel-body > .form-group > .checkbox-label .checkmark {
+    display: none;
+}
+
+/* 功能标题和图标区域 */
+#enhancement-settings .enhancement-feature-info {
+    flex: 1;
+}
+
+#enhancement-settings .enhancement-feature-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+#enhancement-settings .enhancement-feature-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--enhancement-dark);
+    margin: 0;
+    flex: 1;
+}
+
+#enhancement-settings .enhancement-feature-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#enhancement-settings .enhancement-feature-status.developing {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffcc02;
+}
+
+#enhancement-settings .enhancement-feature-status.available {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #4caf50;
+}
+
+/* 现代化开关样式 */
+#enhancement-settings .enhancement-toggle-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+#enhancement-settings .enhancement-toggle {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    outline: none;
+    display: block;
+}
+
+#enhancement-settings .enhancement-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+#enhancement-settings .enhancement-toggle::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#enhancement-settings .enhancement-toggle.active {
+    background: var(--enhancement-primary);
+}
+
+#enhancement-settings .enhancement-toggle.active::before {
+    transform: translateX(24px);
+}
+
+/* 功能描述样式 */
+#enhancement-settings .input-description {
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+#enhancement-settings .input-description strong {
+    color: var(--enhancement-dark);
+    font-weight: 600;
+}
+
+/* 子设置重新设计 - 更低调 */
+#enhancement-settings .sub-settings,
+#enhancement-settings .translation-config {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fafbfc;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    border-left: 3px solid #dee2e6;
+    position: relative;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#enhancement-settings .sub-settings::before,
+#enhancement-settings .translation-config::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: -15px;
+    bottom: -1px;
+    width: 2px;
+    background: #dee2e6;
+}
+
+#enhancement-settings .sub-settings-header,
+#enhancement-settings .translation-status {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+#enhancement-settings .sub-settings-header h5,
+#enhancement-settings .translation-status h5 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#enhancement-settings .sub-description {
+    margin: 0;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+/* 子设置中的缓存过期时间输入框样式 */
+#enhancement-settings .sub-settings .form-group:has(#cacheExpiration) .number-input {
+    width: 120px;
+    padding: 8px 12px;
+    border: 2px solid var(--enhancement-border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: border-color 0.3s ease;
+}
+
+#enhancement-settings .sub-settings .form-group:has(#cacheExpiration) .number-input:focus {
+    outline: none;
+    border-color: var(--enhancement-primary);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* 自动保存提示区域优化 */
+#enhancement-settings .auto-save-info {
+    background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%) !important;
+    border: 2px solid #4caf50 !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    text-align: center !important;
+    margin-top: 30px;
+    box-shadow: var(--enhancement-shadow);
+}
+
+#enhancement-settings .auto-save-info i {
+    font-size: 18px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #enhancement-settings > .settings-panel-body > .form-group > .checkbox-label {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    #enhancement-settings .enhancement-toggle-wrapper {
+        align-self: flex-start;
+    }
+
+    #enhancement-settings .form-group {
+        padding: 15px;
+    }
+
+    #enhancement-settings .settings-section h4 {
+        font-size: 18px;
+        padding: 12px 0 12px 15px;
+    }
+}
+
+/* 确保其他页面不受影响 */
+.settings-panel:not(#enhancement-settings) .form-group {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 15px;
+    transition: none;
+    position: static;
+    overflow: visible;
+}
+
+.settings-panel:not(#enhancement-settings) .form-group::before {
+    display: none;
+}
+
+.settings-panel:not(#enhancement-settings) .form-group:hover {
+    border-color: initial;
+    box-shadow: none;
+    transform: none;
+}
+
+.settings-panel:not(#enhancement-settings) .checkbox-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    cursor: pointer;
+    gap: 8px;
+    justify-content: flex-start;
+}
+
+.settings-panel:not(#enhancement-settings) .checkbox-label input[type="checkbox"] {
+    display: block;
+}
+
+.settings-panel:not(#enhancement-settings) .checkbox-label .checkmark {
+    display: block;
+}

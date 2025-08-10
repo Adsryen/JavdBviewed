@@ -247,7 +247,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableKeyboardShortcuts: false, // 开发中，暂时关闭
         enableMagnetSearch: false,
         enableAnchorOptimization: false,
-        showEnhancedTooltips: true,
+        showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
     // 新增：内容过滤默认配置
@@ -256,7 +256,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         keywordRules: [] as KeywordFilterRule[],
     },
 
-    // 新增：锚点优化默认配置
+    // 新增：锚点优化默认配置（仅在详情页生效）
     anchorOptimization: {
         enabled: false,
         showPreviewButton: true,
