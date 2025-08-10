@@ -951,23 +951,80 @@
                         <!-- 网络测试 -->
                         <div class="settings-panel" id="network-test-settings">
                             <div class="settings-panel-header">
-                                <h3>网络延迟测试 (Ping)</h3>
-                                <p class="settings-description">此处显示插件运行期间的关键事件，便于问题排查。日志会自动保存。</p>
+                                <h3>🌐 网络连通性测试</h3>
+                                <p class="settings-description">测试拓展涉及的所有外部服务的网络连通性，帮助诊断网络问题。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <div class="form-group-inline">
-                                    <div class="input-with-icon">
-                                        <i class="fas fa-link icon"></i>
-                                        <input type="text" id="ping-url" placeholder="例如: https://javdb.com" value="https://javdb.com">
+
+                                <!-- 手动测试区域 -->
+                                <div class="network-test-section">
+                                    <div class="section-header">
+                                        <h4><i class="fas fa-edit"></i> 手动测试</h4>
+                                        <p class="section-description">输入任意URL进行网络延迟测试</p>
                                     </div>
-                                    <button id="start-ping-test" class="button-like">
-                                        <span class="button-text">开始测试</span>
-                                        <div class="spinner hidden"></div>
-                                    </button>
+                                    <div class="form-group-inline">
+                                        <div class="input-with-icon">
+                                            <i class="fas fa-link icon"></i>
+                                            <input type="text" id="ping-url" placeholder="例如: https://javdb.com" value="https://javdb.com">
+                                        </div>
+                                        <button id="start-ping-test" class="button-like">
+                                            <span class="button-text">开始测试</span>
+                                            <div class="spinner hidden"></div>
+                                        </button>
+                                    </div>
+                                    <div id="ping-results-container" style="margin-top: 20px;">
+                                        <h4>测试结果:</h4>
+                                        <div id="ping-results"></div>
+                                    </div>
                                 </div>
-                                <div id="ping-results-container" style="margin-top: 20px;">
-                                    <h4>测试结果:</h4>
-                                    <div id="ping-results"></div>
+
+                                <!-- 批量测试区域 -->
+                                <div class="network-test-section" style="margin-top: 30px;">
+                                    <div class="section-header">
+                                        <h4><i class="fas fa-rocket"></i> 一键测试所有服务</h4>
+                                        <p class="section-description">快速检测拓展涉及的所有外部服务的连通性</p>
+                                    </div>
+
+                                    <!-- 统计信息 -->
+                                    <div class="domain-stats">
+                                        <div class="stat-item">
+                                            <span class="stat-label">总域名数:</span>
+                                            <span class="stat-value" id="total-domains">-</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-label">已启用:</span>
+                                            <span class="stat-value" id="enabled-domains">-</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-label">上次测试:</span>
+                                            <span class="stat-value" id="last-test-time">从未</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- 批量测试控制按钮 -->
+                                    <div class="batch-test-controls">
+                                        <button id="test-all-domains" class="button-like primary">
+                                            <i class="fas fa-play"></i>
+                                            <span class="button-text">测试所有域名</span>
+                                            <div class="spinner hidden"></div>
+                                        </button>
+                                        <button id="test-core-domains" class="button-like secondary">
+                                            <i class="fas fa-home"></i>
+                                            <span class="button-text">仅测试核心服务</span>
+                                        </button>
+                                        <button id="clear-batch-results" class="button-like tertiary">
+                                            <i class="fas fa-trash"></i>
+                                            <span class="button-text">清空结果</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- 批量测试结果 -->
+                                    <div id="batch-test-results" class="batch-results-container">
+                                        <div class="batch-results-placeholder">
+                                            <i class="fas fa-info-circle"></i>
+                                            <p>点击上方按钮开始批量测试</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '../../utils/config';
 import { actorManager } from '../../services/actorManager';
 import { initPrivacySettings } from './privacy';
 import { onSettingsChanged } from '../../utils/logController';
+import { EXTENSION_DOMAINS, getAllEnabledDomains, getDomainsByCategory, getDomainStats, type DomainInfo } from '../../utils/domainConfig';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
@@ -1244,6 +1245,17 @@ async function testActorSyncParsing(): Promise<void> {
 }
 
 function initNetworkTestFunctionality(): void {
+    // 初始化手动测试功能
+    initManualNetworkTest();
+
+    // 初始化批量测试功能
+    initBatchNetworkTest();
+
+    // 初始化域名统计显示
+    updateDomainStats();
+}
+
+function initManualNetworkTest(): void {
     const startButton = document.getElementById('start-ping-test') as HTMLButtonElement;
     const urlInput = document.getElementById('ping-url') as HTMLInputElement;
     const resultsContainer = document.getElementById('ping-results') as HTMLDivElement;
@@ -1251,7 +1263,7 @@ function initNetworkTestFunctionality(): void {
     const spinner = startButton?.querySelector('.spinner') as HTMLDivElement;
 
     if (!startButton || !urlInput || !resultsContainer || !buttonText || !spinner) {
-        console.warn('Network test elements not found, skipping initialization');
+        console.warn('Manual network test elements not found, skipping initialization');
         return;
     }
 
@@ -2917,4 +2929,281 @@ function showConfirmationModal(options: {
     } else {
         options.onCancel();
     }
+}
+
+// ==================== 批量网络测试功能 ====================
+
+/**
+ * 初始化批量网络测试功能
+ */
+function initBatchNetworkTest(): void {
+    const testAllButton = document.getElementById('test-all-domains') as HTMLButtonElement;
+    const testCoreButton = document.getElementById('test-core-domains') as HTMLButtonElement;
+    const clearResultsButton = document.getElementById('clear-batch-results') as HTMLButtonElement;
+    const batchResultsContainer = document.getElementById('batch-test-results') as HTMLDivElement;
+
+    if (!testAllButton || !testCoreButton || !clearResultsButton || !batchResultsContainer) {
+        console.warn('Batch network test elements not found, skipping initialization');
+        return;
+    }
+
+    // 一键测试所有域名
+    testAllButton.addEventListener('click', async () => {
+        const allDomains = getAllEnabledDomains();
+        await runBatchDomainTest(allDomains, batchResultsContainer, testAllButton);
+    });
+
+    // 仅测试核心服务
+    testCoreButton.addEventListener('click', async () => {
+        const coreDomains = getDomainsByCategory('core');
+        await runBatchDomainTest(coreDomains, batchResultsContainer, testCoreButton);
+    });
+
+    // 清空结果
+    clearResultsButton.addEventListener('click', () => {
+        clearBatchResults(batchResultsContainer);
+    });
+}
+
+/**
+ * 更新域名统计信息显示
+ */
+function updateDomainStats(): void {
+    const stats = getDomainStats();
+
+    const totalElement = document.getElementById('total-domains');
+    const enabledElement = document.getElementById('enabled-domains');
+    const lastTestElement = document.getElementById('last-test-time');
+
+    if (totalElement) totalElement.textContent = stats.total.toString();
+    if (enabledElement) enabledElement.textContent = stats.enabled.toString();
+    if (lastTestElement) {
+        const lastTest = localStorage.getItem('lastNetworkTest');
+        if (lastTest) {
+            const date = new Date(parseInt(lastTest));
+            lastTestElement.textContent = date.toLocaleString();
+        }
+    }
+}
+
+/**
+ * 运行批量域名测试
+ */
+async function runBatchDomainTest(domains: DomainInfo[], container: HTMLDivElement, button: HTMLButtonElement): Promise<void> {
+    if (domains.length === 0) {
+        showMessage('没有可测试的域名', 'warn');
+        return;
+    }
+
+    // 禁用按钮并显示加载状态
+    const originalText = button.querySelector('.button-text')?.textContent || '';
+    const buttonText = button.querySelector('.button-text') as HTMLSpanElement;
+    const spinner = button.querySelector('.spinner') as HTMLDivElement;
+
+    button.disabled = true;
+    if (buttonText) buttonText.textContent = '测试中...';
+    if (spinner) spinner.classList.remove('hidden');
+
+    // 清空容器并显示进度
+    container.innerHTML = '';
+    showTestProgress(container, `准备测试 ${domains.length} 个域名...`);
+
+    try {
+        // 按分类组织域名
+        const domainsByCategory = groupDomainsByCategory(domains);
+
+        // 逐个分类测试
+        for (const [categoryKey, categoryDomains] of Object.entries(domainsByCategory)) {
+            const category = EXTENSION_DOMAINS[categoryKey];
+            if (!category || categoryDomains.length === 0) continue;
+
+            await testDomainCategory(category, categoryDomains, container);
+        }
+
+        // 移除进度指示器
+        removeTestProgress(container);
+
+        // 保存测试时间
+        localStorage.setItem('lastNetworkTest', Date.now().toString());
+        updateDomainStats();
+
+        showMessage(`✅ 批量测试完成！共测试 ${domains.length} 个域名`, 'success');
+        logAsync('INFO', `批量网络测试完成，测试域名数: ${domains.length}`);
+
+    } catch (error) {
+        console.error('Batch test failed:', error);
+        showMessage('批量测试过程中出现错误', 'error');
+        removeTestProgress(container);
+    } finally {
+        // 恢复按钮状态
+        button.disabled = false;
+        if (buttonText) buttonText.textContent = originalText;
+        if (spinner) spinner.classList.add('hidden');
+    }
+}
+
+/**
+ * 按分类组织域名
+ */
+function groupDomainsByCategory(domains: DomainInfo[]): Record<string, DomainInfo[]> {
+    const grouped: Record<string, DomainInfo[]> = {};
+
+    for (const [categoryKey, category] of Object.entries(EXTENSION_DOMAINS)) {
+        const categoryDomains = domains.filter(domain =>
+            category.domains.some(catDomain => catDomain.domain === domain.domain)
+        );
+        if (categoryDomains.length > 0) {
+            grouped[categoryKey] = categoryDomains;
+        }
+    }
+
+    return grouped;
+}
+
+/**
+ * 测试某个分类的所有域名
+ */
+async function testDomainCategory(category: any, domains: DomainInfo[], container: HTMLDivElement): Promise<void> {
+    // 创建分类结果容器
+    const categoryDiv = document.createElement('div');
+    categoryDiv.className = 'category-result';
+
+    // 分类标题
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'category-header';
+    headerDiv.innerHTML = `
+        <h5 class="category-title">
+            <span class="emoji">${category.icon}</span>
+            ${category.name}
+        </h5>
+        <div class="category-stats">
+            <span class="success-count">0</span>/<span class="total-count">${domains.length}</span> 成功
+        </div>
+    `;
+    categoryDiv.appendChild(headerDiv);
+
+    container.appendChild(categoryDiv);
+
+    let successCount = 0;
+
+    // 逐个测试域名
+    for (const domain of domains) {
+        const domainDiv = await testSingleDomain(domain);
+        categoryDiv.appendChild(domainDiv);
+
+        // 检查是否成功
+        if (domainDiv.querySelector('.status-icon.success')) {
+            successCount++;
+        }
+
+        // 更新统计
+        const successElement = headerDiv.querySelector('.success-count');
+        if (successElement) successElement.textContent = successCount.toString();
+
+        // 添加小延迟避免请求过于频繁
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+}
+
+/**
+ * 测试单个域名
+ */
+async function testSingleDomain(domain: DomainInfo): Promise<HTMLDivElement> {
+    const domainDiv = document.createElement('div');
+    domainDiv.className = 'domain-result-item';
+
+    // 初始状态
+    domainDiv.innerHTML = `
+        <div class="domain-info">
+            <div class="domain-name">${domain.name}</div>
+            <div class="domain-url">${domain.domain}</div>
+            <div class="domain-description">${domain.description}</div>
+        </div>
+        <div class="domain-status">
+            <div class="status-icon testing">
+                <i class="fas fa-spinner"></i>
+            </div>
+            <span class="latency-info">测试中...</span>
+        </div>
+    `;
+
+    try {
+        // 执行简单的连通性测试
+        const testUrl = `https://${domain.domain}`;
+        const startTime = Date.now();
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        await fetch(testUrl, {
+            method: 'HEAD',
+            mode: 'no-cors',
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        const latency = Date.now() - startTime;
+
+        // 更新为成功状态
+        const statusIcon = domainDiv.querySelector('.status-icon');
+        const latencyInfo = domainDiv.querySelector('.latency-info');
+
+        if (statusIcon && latencyInfo) {
+            statusIcon.className = 'status-icon success';
+            statusIcon.innerHTML = '<i class="fas fa-check"></i>';
+
+            const latencyClass = latency < 200 ? 'latency-good' : latency < 500 ? 'latency-medium' : 'latency-poor';
+            latencyInfo.className = `latency-info ${latencyClass}`;
+            latencyInfo.textContent = `${latency}ms`;
+        }
+
+    } catch (error) {
+        // 更新为失败状态
+        const statusIcon = domainDiv.querySelector('.status-icon');
+        const latencyInfo = domainDiv.querySelector('.latency-info');
+
+        if (statusIcon && latencyInfo) {
+            statusIcon.className = 'status-icon failure';
+            statusIcon.innerHTML = '<i class="fas fa-times"></i>';
+            latencyInfo.textContent = '连接失败';
+        }
+    }
+
+    return domainDiv;
+}
+
+/**
+ * 显示测试进度
+ */
+function showTestProgress(container: HTMLDivElement, message: string): void {
+    const progressDiv = document.createElement('div');
+    progressDiv.className = 'test-progress';
+    progressDiv.innerHTML = `
+        <i class="fas fa-spinner progress-icon"></i>
+        <span class="progress-text">${message}</span>
+    `;
+    container.appendChild(progressDiv);
+}
+
+/**
+ * 移除测试进度指示器
+ */
+function removeTestProgress(container: HTMLDivElement): void {
+    const progressDiv = container.querySelector('.test-progress');
+    if (progressDiv) {
+        progressDiv.remove();
+    }
+}
+
+/**
+ * 清空批量测试结果
+ */
+function clearBatchResults(container: HTMLDivElement): void {
+    container.innerHTML = `
+        <div class="batch-results-placeholder">
+            <i class="fas fa-info-circle"></i>
+            <p>点击上方按钮开始批量测试</p>
+        </div>
+    `;
+    showMessage('已清空测试结果', 'info');
 }
