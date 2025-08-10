@@ -83,7 +83,7 @@ export function initSettingsTab(): void {
                     },
                 },
                 userExperience: {
-                    enableQuickCopy: enableQuickCopy.checked,
+                    enableQuickCopy: false, // 开发中，强制禁用
                     enableContentFilter: enableContentFilter.checked,
                     enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: enableMagnetSearch.checked,
@@ -398,7 +398,7 @@ export function initSettingsTab(): void {
             // 翻译配置设置
             loadTranslationSettings(translation);
 
-            enableQuickCopy.checked = userExperience?.enableQuickCopy || false;
+            enableQuickCopy.checked = false; // 开发中，强制禁用
             enableContentFilter.checked = userExperience?.enableContentFilter || false;
             enableKeyboardShortcuts.checked = false; // 开发中，强制禁用
             enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;

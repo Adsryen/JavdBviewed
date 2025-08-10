@@ -307,13 +307,14 @@ const originalAddRecord = originalStorageManager.addRecord.bind(originalStorageM
     return result;
 };
 
-// 定期输出统计信息
-setInterval(() => {
-    const stats = concurrencyMonitor.getStats();
-    if (stats.totalOperations > 0) {
-        concurrencyMonitor.logStats();
-    }
-}, 30000); // 每30秒输出一次统计
+// 定期输出统计信息 - 已禁用以避免控制台噪音
+// 如需调试，可手动调用 concurrencyMonitor.logStats()
+// setInterval(() => {
+//     const stats = concurrencyMonitor.getStats();
+//     if (stats.totalOperations > 0) {
+//         concurrencyMonitor.logStats();
+//     }
+// }, 30000); // 每30秒输出一次统计
 
 class ConcurrencyManager {
     private operationQueue: Map<string, VideoOperation> = new Map();
