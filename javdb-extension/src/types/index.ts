@@ -82,6 +82,7 @@ export interface ExtensionSettings {
         enableKeyboardShortcuts: boolean; // 启用键盘快捷键
         enableMagnetSearch: boolean; // 启用磁力搜索
         enableAnchorOptimization: boolean; // 启用锚点优化
+        enableListEnhancement: boolean; // 启用列表增强
         showEnhancedTooltips: boolean; // 显示增强提示
     };
 
@@ -96,6 +97,28 @@ export interface ExtensionSettings {
         enabled: boolean;
         showPreviewButton: boolean;
         buttonPosition: 'right-center' | 'right-bottom';
+    };
+
+    // 新增：列表增强配置
+    listEnhancement: {
+        enabled: boolean;
+        enableClickEnhancement: boolean; // 启用点击增强（左键直接打开，右键后台打开）
+        enableVideoPreview: boolean; // 启用视频预览
+        enableListOptimization: boolean; // 启用列表优化
+        previewDelay: number; // 预览延迟时间（毫秒）
+        previewVolume: number; // 预览音量（0-1）
+        enableRightClickBackground: boolean; // 启用右键后台打开
+    };
+
+    // 新增：列表增强配置
+    listEnhancement: {
+        enabled: boolean;
+        enableClickEnhancement: boolean; // 启用点击增强（左键直接打开，右键后台打开）
+        enableVideoPreview: boolean; // 启用视频预览
+        enableListOptimization: boolean; // 启用列表优化
+        previewDelay: number; // 预览延迟时间（毫秒）
+        previewVolume: number; // 预览音量（0-1）
+        enableRightClickBackground: boolean; // 启用右键后台打开
     };
 
     // 新增：AI功能配置

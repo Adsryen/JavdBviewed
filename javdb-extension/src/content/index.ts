@@ -19,6 +19,7 @@ import { magnetSearchManager } from './magnetSearch';
 import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
 import { initializeContentPrivacy } from './privacy';
+import { listEnhancementManager } from './enhancements/listEnhancement';
 
 // --- Utility Functions ---
 
@@ -199,6 +200,21 @@ async function initialize(): Promise<void> {
             customButtons: [],
         });
         anchorOptimizationManager.initialize();
+    }
+
+    // 初始化列表增强功能
+    if (settings.userExperience.enableListEnhancement !== false) {
+        log('List enhancement manager initialized');
+        listEnhancementManager.updateConfig({
+            enabled: true,
+            enableClickEnhancement: settings.listEnhancement?.enableClickEnhancement !== false,
+            enableVideoPreview: settings.listEnhancement?.enableVideoPreview !== false,
+            enableListOptimization: settings.listEnhancement?.enableListOptimization !== false,
+            previewDelay: settings.listEnhancement?.previewDelay || 1000,
+            previewVolume: settings.listEnhancement?.previewVolume || 0.2,
+            enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
+        });
+        listEnhancementManager.initialize();
     }
 
     // 初始化隐私保护功能

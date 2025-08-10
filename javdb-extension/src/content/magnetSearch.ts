@@ -5,6 +5,7 @@ import { log } from './state';
 import { showToast } from './toast';
 import { extractVideoIdFromPage } from './videoId';
 import { defaultHttpClient } from '../services/dataAggregator/httpClient';
+import { pushToDrive115ViaCrossDomain, markVideoAsWatched } from './drive115';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
@@ -1299,23 +1300,46 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 推送磁力链接到115
+   * 推送磁力链接到115（使用公共功能）
    */
-  private push115(magnet: string, name: string): void {
+  private async push115(magnet: string, name: string): Promise<void> {
     try {
-      // 构建115推送URL
-      const push115Url = `https://115.com/?ct=offline&ac=add_url&url=${encodeURIComponent(magnet)}`;
-
-      // 在新标签页中打开115推送页面
-      window.open(push115Url, '_blank');
-
       showToast(`正在推送到115: ${name.substring(0, 30)}...`, 'info');
-      log(`Pushed to 115: ${name}`);
+      log(`Pushing to 115: ${name}`);
+
+      // 使用公共的推送115功能
+      const result = await pushToDrive115ViaCrossDomain({
+        videoId: this.currentVideoId || 'unknown',
+        magnetUrl: magnet,
+        magnetName: name
+      });
+
+      if (result.success) {
+        showToast('推送到115成功', 'success');
+        log('115推送成功:', result);
+
+        // 推送成功后自动标记为已看
+        if (this.currentVideoId && this.currentVideoId !== 'unknown') {
+          try {
+            await markVideoAsWatched(this.currentVideoId);
+            showToast(`${this.currentVideoId} 已自动标记为已看`, 'info');
+          } catch (error) {
+            console.warn('自动标记已看失败:', error);
+            showToast('推送成功，但自动标记已看失败', 'info');
+          }
+        }
+      } else {
+        throw new Error(result.error || '推送失败');
+      }
     } catch (error) {
       log('Error pushing to 115:', error);
-      showToast('推送到115失败', 'error');
+      showToast(`推送到115失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
     }
   }
+
+
+
+
 
   // 辅助方法
 
