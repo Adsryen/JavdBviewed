@@ -1,0 +1,217 @@
+// src/utils/domainConfig.ts
+// 拓展涉及的所有外部服务域名配置
+
+export interface DomainInfo {
+  name: string;
+  domain: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low'; // 优先级，影响测试顺序
+  enabled: boolean; // 是否启用该服务
+}
+
+export interface DomainCategory {
+  name: string;
+  description: string;
+  icon: string;
+  domains: DomainInfo[];
+}
+
+/**
+ * 拓展涉及的所有外部服务域名配置
+ */
+export const EXTENSION_DOMAINS: Record<string, DomainCategory> = {
+  core: {
+    name: '核心服务',
+    description: '拓展的核心功能依赖的服务',
+    icon: '🏠',
+    domains: [
+      {
+        name: 'JavDB',
+        domain: 'javdb.com',
+        description: '主站 - 视频数据库',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: 'Javbus',
+        domain: 'www.javbus.com',
+        description: '备用搜索引擎',
+        priority: 'medium',
+        enabled: true
+      }
+    ]
+  },
+  
+  magnetSearch: {
+    name: '磁力搜索源',
+    description: '磁力链接搜索服务',
+    icon: '🧲',
+    domains: [
+      {
+        name: 'Sukebei',
+        domain: 'sukebei.nyaa.si',
+        description: '主要磁力搜索源',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: 'BTdig',
+        domain: 'btdig.com',
+        description: '通用BT搜索引擎',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: 'BTSOW',
+        domain: 'btsow.com',
+        description: '中文BT搜索引擎',
+        priority: 'medium',
+        enabled: true
+      },
+      {
+        name: 'Torrentz2',
+        domain: 'torrentz2.eu',
+        description: '元搜索引擎',
+        priority: 'low',
+        enabled: false // 默认禁用
+      }
+    ]
+  },
+  
+  drive115: {
+    name: '115网盘',
+    description: '云存储和离线下载服务',
+    icon: '☁️',
+    domains: [
+      {
+        name: '115网盘主站',
+        domain: '115.com',
+        description: '云存储服务主站',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: '115 WebAPI',
+        domain: 'webapi.115.com',
+        description: 'API接口服务',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: '115验证码',
+        domain: 'captchaapi.115.com',
+        description: '验证码服务',
+        priority: 'medium',
+        enabled: true
+      }
+    ]
+  },
+  
+  dataEnhancement: {
+    name: '数据增强源',
+    description: '提供额外数据的第三方服务',
+    icon: '📊',
+    domains: [
+      {
+        name: 'BlogJav',
+        domain: 'blogjav.net',
+        description: '高质量封面图片源',
+        priority: 'medium',
+        enabled: true
+      },
+      {
+        name: 'JavLibrary',
+        domain: 'www.javlibrary.com',
+        description: '评分和演员信息源',
+        priority: 'medium',
+        enabled: true
+      }
+    ]
+  },
+  
+  translation: {
+    name: '翻译服务',
+    description: '文本翻译API服务',
+    icon: '🌐',
+    domains: [
+      {
+        name: 'Google翻译',
+        domain: 'translate.googleapis.com',
+        description: 'Google翻译API',
+        priority: 'high',
+        enabled: true
+      },
+      {
+        name: '百度翻译',
+        domain: 'fanyi-api.baidu.com',
+        description: '百度翻译API',
+        priority: 'medium',
+        enabled: false // 需要API密钥
+      },
+      {
+        name: '有道翻译',
+        domain: 'openapi.youdao.com',
+        description: '有道翻译API',
+        priority: 'medium',
+        enabled: false // 需要API密钥
+      }
+    ]
+  }
+};
+
+/**
+ * 获取所有启用的域名
+ */
+export function getAllEnabledDomains(): DomainInfo[] {
+  const allDomains: DomainInfo[] = [];
+  
+  Object.values(EXTENSION_DOMAINS).forEach(category => {
+    category.domains.forEach(domain => {
+      if (domain.enabled) {
+        allDomains.push(domain);
+      }
+    });
+  });
+  
+  // 按优先级排序
+  return allDomains.sort((a, b) => {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+}
+
+/**
+ * 获取指定分类的域名
+ */
+export function getDomainsByCategory(categoryKey: string): DomainInfo[] {
+  const category = EXTENSION_DOMAINS[categoryKey];
+  return category ? category.domains.filter(domain => domain.enabled) : [];
+}
+
+/**
+ * 获取域名统计信息
+ */
+export function getDomainStats(): {
+  total: number;
+  enabled: number;
+  byCategory: Record<string, { total: number; enabled: number }>;
+} {
+  let total = 0;
+  let enabled = 0;
+  const byCategory: Record<string, { total: number; enabled: number }> = {};
+  
+  Object.entries(EXTENSION_DOMAINS).forEach(([key, category]) => {
+    const categoryTotal = category.domains.length;
+    const categoryEnabled = category.domains.filter(d => d.enabled).length;
+    
+    total += categoryTotal;
+    enabled += categoryEnabled;
+    
+    byCategory[key] = {
+      total: categoryTotal,
+      enabled: categoryEnabled
+    };
+  });
+  
+  return { total, enabled, byCategory };
+}
