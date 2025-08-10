@@ -18,6 +18,12 @@ export function processVisibleItems(): void {
         }
     }
 
+    // 重置所有处理标记，允许重新处理
+    items.forEach(item => {
+        item.removeAttribute('data-processed');
+        item.removeAttribute('data-filter-processed');
+    });
+
     items.forEach(processItem);
 }
 
@@ -26,12 +32,32 @@ export function setupObserver(): void {
     if (!targetNode) return;
 
     STATE.observer = new MutationObserver(mutations => {
+        let hasNewVideoItems = false;
+
         mutations.forEach(mutation => {
             if (mutation.addedNodes.length > 0) {
-                if (STATE.debounceTimer) clearTimeout(STATE.debounceTimer);
-                STATE.debounceTimer = window.setTimeout(processVisibleItems, 300);
+                // 检查是否有真正的新视频项目节点
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const element = node as Element;
+                        // 只有当添加的是视频项目或包含视频项目的容器时才处理
+                        if (element.matches('.item') || element.querySelector('.item')) {
+                            hasNewVideoItems = true;
+                            break;
+                        }
+                    }
+                }
             }
         });
+
+        if (hasNewVideoItems) {
+            // 使用防抖来避免频繁处理
+            if (STATE.debounceTimer) clearTimeout(STATE.debounceTimer);
+            STATE.debounceTimer = window.setTimeout(() => {
+                log('Observer detected new video items, processing...');
+                processVisibleItems();
+            }, 300);
+        }
     });
 
     STATE.observer.observe(targetNode, { childList: true, subtree: true });
@@ -53,29 +79,58 @@ function shouldHide(videoId: string): boolean {
     const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
 
     if (hideViewed && isViewed) {
-        log(`Hiding viewed video: ${videoId}`);
         return true;
     }
     if (hideBrowsed && isBrowsed) {
-        log(`Hiding browsed video: ${videoId}`);
         return true;
     }
 
     return false;
 }
 
+function getHideReason(videoId: string): string {
+    if (STATE.isSearchPage || !STATE.settings) {
+        return '';
+    }
+
+    const { hideViewed, hideBrowsed } = STATE.settings.display;
+    const record = STATE.records[videoId];
+
+    if (!record) {
+        return '';
+    }
+
+    const isViewed = record.status === VIDEO_STATUS.VIEWED;
+    const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
+
+    if (hideViewed && isViewed) {
+        return 'VIEWED';
+    }
+    if (hideBrowsed && isBrowsed) {
+        return 'BROWSED';
+    }
+
+    return '';
+}
+
 function processItem(item: HTMLElement): void {
+    // 检查是否已经处理过这个项目
+    if (item.hasAttribute('data-processed')) {
+        return;
+    }
+
     const videoIdElement = item.querySelector<HTMLElement>(SELECTORS.VIDEO_ID);
     if (!videoIdElement) {
-        log(`No video ID found with selector: ${SELECTORS.VIDEO_ID} in item`);
         return;
     }
 
     const videoId = videoIdElement.textContent?.trim();
     if (!videoId) {
-        log('Video ID element found but no text content');
         return;
     }
+
+    // 标记为已处理
+    item.setAttribute('data-processed', 'true');
 
     // 减少日志输出，只在需要时记录
     // log(`Processing item: ${videoId}`);
@@ -116,15 +171,24 @@ function processItem(item: HTMLElement): void {
     if (STATE.settings?.display.hideVR && finalIsVR) {
         log(`Hiding VR video: ${videoId}`);
         item.style.display = 'none';
+        // 添加标记，表示被默认功能隐藏
+        item.setAttribute('data-hidden-by-default', 'true');
+        item.setAttribute('data-hide-reason', 'VR');
         return;
     }
 
     if (shouldHide(videoId)) {
         log(`Hiding video based on status: ${videoId}`);
         item.style.display = 'none';
+        // 添加标记，表示被默认功能隐藏
+        item.setAttribute('data-hidden-by-default', 'true');
+        item.setAttribute('data-hide-reason', getHideReason(videoId));
     } else {
         // 确保显示未被隐藏的项目
         item.style.display = '';
+        // 移除默认隐藏标记
+        item.removeAttribute('data-hidden-by-default');
+        item.removeAttribute('data-hide-reason');
     }
 }
 

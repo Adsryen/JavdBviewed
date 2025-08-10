@@ -88,7 +88,7 @@ export function initSettingsTab(): void {
                     enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: enableMagnetSearch.checked,
                     enableAnchorOptimization: enableAnchorOptimization.checked,
-                    showEnhancedTooltips: showEnhancedTooltips.checked,
+                    showEnhancedTooltips: false, // 开发中，强制禁用
                 },
                 magnetSearch: {
                     enabled: enableMagnetSearch.checked,
@@ -221,6 +221,7 @@ export function initSettingsTab(): void {
         return;
     }
 
+    // 功能增强设置的隐藏checkbox元素
     const enableQuickCopy = document.getElementById('enableQuickCopy') as HTMLInputElement;
     const enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
     const enableKeyboardShortcuts = document.getElementById('enableKeyboardShortcuts') as HTMLInputElement;
@@ -383,7 +384,7 @@ export function initSettingsTab(): void {
             enableKeyboardShortcuts.checked = false; // 开发中，强制禁用
             enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
             enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
-            showEnhancedTooltips.checked = userExperience?.showEnhancedTooltips || true;
+            showEnhancedTooltips.checked = false; // 开发中，强制禁用
 
             // 加载锚点优化配置
             const anchorOptimization = settings.anchorOptimization || {};
@@ -409,6 +410,17 @@ export function initSettingsTab(): void {
 
             // 渲染过滤规则列表
             renderFilterRules();
+
+            // 确保翻译配置的显示状态正确
+            if (translationConfig) {
+                translationConfig.style.display = enableTranslation.checked ? 'block' : 'none';
+            }
+
+            // 在设置加载完成后初始化功能增强开关
+            initEnhancementToggles();
+
+            // 将handleSaveSettings暴露到全局作用域，用于调试
+            (window as any).handleSaveSettings = handleSaveSettings;
         } catch (error) {
             console.error('加载设置时出错:', error);
             // 在出错时设置安全的默认值
@@ -421,6 +433,17 @@ export function initSettingsTab(): void {
             verboseMode.checked = false;
             showPrivacyLogs.checked = false;
             showStorageLogs.checked = false;
+
+            // 功能增强设置的默认值
+            enableTranslation.checked = false;
+            enableQuickCopy.checked = false;
+            enableContentFilter.checked = false;
+            enableAnchorOptimization.checked = false;
+            enableMagnetSearch.checked = false;
+            showEnhancedTooltips.checked = false; // 开发中，强制禁用
+
+            // 即使在错误情况下也要初始化开关
+            initEnhancementToggles();
         }
     }
 
@@ -579,7 +602,7 @@ export function initSettingsTab(): void {
     enableMultiSource.addEventListener('change', handleSaveSettings);
     enableImageCache.addEventListener('change', handleSaveSettings);
     enableVideoPreview.addEventListener('change', handleSaveSettings);
-    enableTranslation.addEventListener('change', handleTranslationToggle);
+    // enableTranslation 的事件监听器现在在 initEnhancementToggles() 中处理
     enableRatingAggregation.addEventListener('change', handleSaveSettings);
     enableActorInfo.addEventListener('change', handleSaveSettings);
     cacheExpiration.addEventListener('change', handleSaveSettings);
@@ -621,21 +644,7 @@ export function initSettingsTab(): void {
         }
     }
 
-    enableQuickCopy.addEventListener('change', handleSaveSettings);
-    enableContentFilter.addEventListener('change', () => {
-        toggleContentFilterConfig();
-        handleSaveSettings();
-    });
-    enableKeyboardShortcuts.addEventListener('change', handleSaveSettings);
-    enableMagnetSearch.addEventListener('change', () => {
-        toggleMagnetSourcesConfig();
-        handleSaveSettings();
-    });
-    enableAnchorOptimization.addEventListener('change', () => {
-        toggleAnchorOptimizationConfig();
-        handleSaveSettings();
-    });
-    showEnhancedTooltips.addEventListener('change', handleSaveSettings);
+    // 注意：功能增强设置的事件监听器现在在 initEnhancementToggles() 中统一处理
 
     // 磁力搜索源配置事件监听
     magnetSourceSukebei.addEventListener('change', handleSaveSettings);
@@ -693,6 +702,116 @@ export function initSettingsTab(): void {
     });
 
     loadSettings();
+}
+
+/**
+ * 初始化功能增强页面的现代化开关
+ */
+let enhancementTogglesInitialized = false;
+
+function initEnhancementToggles(): void {
+    if (enhancementTogglesInitialized) {
+        console.log('[Enhancement] 开关已经初始化过，跳过重复初始化');
+        return;
+    }
+
+    console.log('[Enhancement] 初始化功能增强开关...');
+
+    // 获取所有功能增强页面的开关按钮
+    const enhancementToggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle');
+    console.log(`[Enhancement] 找到 ${enhancementToggles.length} 个开关按钮`);
+
+    enhancementToggles.forEach((toggle, index) => {
+        const targetId = toggle.getAttribute('data-target');
+        if (!targetId) {
+            console.warn(`[Enhancement] 开关 ${index + 1} 缺少 data-target 属性`);
+            return;
+        }
+
+        const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement;
+        if (!hiddenCheckbox) {
+            console.warn(`[Enhancement] 未找到对应的checkbox: ${targetId}`);
+            return;
+        }
+
+        console.log(`[Enhancement] 初始化开关: ${targetId}, 当前状态: ${hiddenCheckbox.checked}`);
+
+        // 根据隐藏的checkbox状态设置开关状态
+        const updateToggleState = () => {
+            if (hiddenCheckbox.checked) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        };
+
+        // 初始化状态
+        updateToggleState();
+
+        // 添加点击事件
+        toggle.addEventListener('click', () => {
+            if (toggle.hasAttribute('disabled')) return;
+
+            // 切换状态
+            hiddenCheckbox.checked = !hiddenCheckbox.checked;
+            updateToggleState();
+
+            // 触发change事件以保存设置（change事件监听器会处理子设置显示/隐藏）
+            hiddenCheckbox.dispatchEvent(new Event('change'));
+        });
+
+        // 监听隐藏checkbox的变化（可能来自其他地方的更新）
+        hiddenCheckbox.addEventListener('change', () => {
+            updateToggleState();
+            handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
+
+            // 特殊处理翻译功能的额外逻辑
+            if (targetId === 'enableTranslation') {
+                updateTranslationConfigVisibility();
+            }
+
+            handleSaveSettings();
+        });
+    });
+
+    enhancementTogglesInitialized = true;
+    console.log('[Enhancement] 功能增强开关初始化完成');
+}
+
+/**
+ * 处理子设置的显示/隐藏
+ */
+function handleSubSettingsToggle(targetId: string, isEnabled: boolean): void {
+    let subSettingsId: string | null = null;
+
+    // 根据功能ID确定对应的子设置ID
+    switch (targetId) {
+        case 'enableTranslation':
+            subSettingsId = 'translationConfig';
+            break;
+        case 'enableContentFilter':
+            subSettingsId = 'contentFilterConfig';
+            break;
+        case 'enableAnchorOptimization':
+            subSettingsId = 'anchorOptimizationConfig';
+            break;
+        case 'enableMagnetSearch':
+            subSettingsId = 'magnetSourcesConfig';
+            break;
+    }
+
+    if (subSettingsId) {
+        const subSettings = document.getElementById(subSettingsId);
+        if (subSettings) {
+            if (isEnabled) {
+                subSettings.style.display = 'block';
+                subSettings.classList.add('show');
+            } else {
+                subSettings.style.display = 'none';
+                subSettings.classList.remove('show');
+            }
+        }
+    }
 }
 
 function initSettingsNavigation(): void {

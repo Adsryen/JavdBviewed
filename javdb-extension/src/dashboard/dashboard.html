@@ -1084,7 +1084,8 @@
                                             <strong>🔧 开发中功能：</strong><br>
                                             • 多站点评分聚合<br>
                                             • 演员信息增强<br>
-                                            • 键盘快捷键大师
+                                            • 键盘快捷键大师<br>
+                                            • 智能操作提示
                                         </div>
                                     </div>
                                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 13px;">
@@ -1093,6 +1094,16 @@
                                 </div>
                             </div>
                             <div class="settings-panel-body">
+                                <!-- 隐藏的checkbox元素，用于JavaScript逻辑 -->
+                                <div style="display: none;">
+                                    <input type="checkbox" id="enableTranslation">
+                                    <input type="checkbox" id="enableQuickCopy">
+                                    <input type="checkbox" id="enableContentFilter">
+                                    <input type="checkbox" id="enableAnchorOptimization">
+                                    <input type="checkbox" id="enableMagnetSearch">
+                                    <input type="checkbox" id="showEnhancedTooltips">
+                                </div>
+
                                 <!-- 数据增强 -->
                                 <div class="settings-section">
                                     <h4>📊 数据增强 - 让信息更丰富</h4>
@@ -1120,6 +1131,22 @@
                                             <strong>使用：</strong>自动工作，无需手动操作，显著提升页面加载速度<br>
                                             <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
+
+                                        <!-- 智能图片缓存子设置 -->
+                                        <div class="sub-settings" style="display: none; opacity: 0.6;">
+                                            <div class="sub-settings-header">
+                                                <h5><i class="fas fa-cog"></i> 缓存配置</h5>
+                                                <p class="sub-description">配置图片缓存的相关参数</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="cacheExpiration">⏰ 缓存过期时间 (小时):</label>
+                                                <input type="number" id="cacheExpiration" class="number-input" min="1" max="168" value="24" disabled>
+                                                <p class="input-description">
+                                                    <strong>说明：</strong>增强数据的缓存保存时间，建议24小时。时间越长加载越快，但数据更新越慢
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="form-group">
@@ -1137,9 +1164,15 @@
 
                                     <div class="form-group">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" id="enableTranslation">
-                                            <span class="checkmark"></span>
-                                            🈳 智能标题翻译
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🈳 智能标题翻译</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableTranslation"></button>
+                                            </div>
                                         </label>
                                         <p class="input-description">
                                             <strong>效果：</strong>自动将日文标题翻译为中文，支持Google翻译等多种服务<br>
@@ -1259,13 +1292,7 @@
                                         </p>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label for="cacheExpiration">⏰ 缓存过期时间 (小时):</label>
-                                        <input type="number" id="cacheExpiration" class="number-input" min="1" max="168" value="24">
-                                        <p class="input-description">
-                                            <strong>说明：</strong>增强数据的缓存保存时间，建议24小时。时间越长加载越快，但数据更新越慢
-                                        </p>
-                                    </div>
+
                                 </div>
 
                                 <!-- 用户体验 -->
@@ -1273,9 +1300,15 @@
                                     <h4>⚡ 用户体验 - 让操作更高效</h4>
                                     <div class="form-group">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" id="enableQuickCopy">
-                                            <span class="checkmark"></span>
-                                            📋 一键快捷复制
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📋 一键快捷复制</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableQuickCopy"></button>
+                                            </div>
                                         </label>
                                         <p class="input-description">
                                             <strong>效果：</strong>为番号、标题、链接、磁力等添加复制按钮，支持批量复制<br>
@@ -1285,9 +1318,15 @@
 
                                     <div class="form-group">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" id="enableContentFilter">
-                                            <span class="checkmark"></span>
-                                            🎯 智能内容过滤
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎯 智能内容过滤</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableContentFilter"></button>
+                                            </div>
                                         </label>
                                         <p class="input-description">
                                             <strong>效果：</strong>在列表页过滤关键字，支持正则表达式，可隐藏、高亮或标记匹配内容<br>
@@ -1321,20 +1360,27 @@
 
                                     <div class="form-group">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" id="enableAnchorOptimization">
-                                            <span class="checkmark"></span>
-                                            ⚓ 锚点优化
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">⚓ 锚点优化</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableAnchorOptimization"></button>
+                                            </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>优化页面右下角的快捷按钮，移至右侧中央垂直排列，新增预览图快捷方式<br>
-                                            <strong>使用：</strong>在详情页右侧会显示优化后的快捷按钮，包括磁链下载、预览图、返回顶部
+                                            <strong>效果：</strong>在视频详情页优化快捷按钮位置，添加预览图和磁链快捷跳转<br>
+                                            <strong>使用：</strong>仅在详情页生效，在页面右侧显示优化的快捷按钮<br>
+                                            <strong>适用：</strong>视频详情页（/v/xxx），不适用于列表页和搜索页
                                         </p>
 
                                         <!-- 锚点优化详细配置 -->
                                         <div class="sub-settings" id="anchorOptimizationConfig" style="display: none;">
                                             <div class="sub-settings-header">
                                                 <h5>⚓ 锚点优化配置</h5>
-                                                <p class="sub-description">自定义快捷按钮的位置和功能。</p>
+                                                <p class="sub-description">自定义详情页快捷按钮的位置和功能。仅在视频详情页生效。</p>
                                             </div>
 
                                             <div class="form-group">
@@ -1381,9 +1427,15 @@
 
                                     <div class="form-group">
                                         <label class="checkbox-label">
-                                            <input type="checkbox" id="enableMagnetSearch">
-                                            <span class="checkmark"></span>
-                                            🧲 磁力资源搜索
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🧲 磁力资源搜索</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableMagnetSearch"></button>
+                                            </div>
                                         </label>
                                         <p class="input-description">
                                             <strong>效果：</strong>在视频详情页自动搜索多个站点的磁力资源，自动识别画质和字幕<br>
@@ -1433,26 +1485,24 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="showEnhancedTooltips">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <input type="checkbox" id="showEnhancedTooltips" disabled>
                                             <span class="checkmark"></span>
-                                            💡 智能操作提示
+                                            💡 智能操作提示 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
                                         </label>
-                                        <p class="input-description">
+                                        <p class="input-description" style="opacity: 0.7;">
                                             <strong>效果：</strong>显示功能使用提示、快捷键说明和操作指导<br>
-                                            <strong>使用：</strong>鼠标悬停在功能按钮上会显示详细说明，帮助快速上手
+                                            <strong>使用：</strong>鼠标悬停在功能按钮上会显示详细说明，帮助快速上手<br>
+                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
                                     </div>
                                 </div>
 
-                                <!-- 自动保存提示 -->
+                                <!-- 开发中 -->
                                 <div class="settings-section">
                                     <div class="auto-save-info" style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 8px; padding: 15px; text-align: center;">
                                         <i class="fas fa-check-circle" style="color: #4caf50; margin-right: 8px;"></i>
                                         <span style="color: #2e7d32; font-weight: 500;">设置修改后自动保存，立即生效</span>
-                                        <p class="input-description" style="margin-top: 8px; margin-bottom: 0; color: #4caf50;">
-                                            建议先启用"一键快捷复制"和"智能内容过滤"体验可用功能！无需重启浏览器。
-                                        </p>
 
                                         <!-- 保存状态指示器 -->
                                         <div id="enhancementSaveStatus" class="save-status" style="margin-top: 10px; font-size: 12px; display: none;">
