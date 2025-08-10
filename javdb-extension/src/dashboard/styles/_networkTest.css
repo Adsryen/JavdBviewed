@@ -1,0 +1,365 @@
+/* 网络测试样式 */
+
+/* 网络测试区域 */
+.network-test-section {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.network-test-section:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* 区域标题 */
+.section-header {
+    margin-bottom: 15px;
+}
+
+.section-header h4 {
+    color: #495057;
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-header h4 i {
+    color: #007bff;
+    font-size: 14px;
+}
+
+.section-description {
+    color: #6c757d;
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 域名统计信息 */
+.domain-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.stat-value {
+    color: #495057;
+    font-weight: 600;
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 30px;
+    text-align: center;
+}
+
+/* 批量测试控制按钮 */
+.batch-test-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.batch-test-controls .button-like {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    min-height: 36px;
+}
+
+.batch-test-controls .button-like.primary {
+    background: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+
+.batch-test-controls .button-like.primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.batch-test-controls .button-like.secondary {
+    background: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+}
+
+.batch-test-controls .button-like.secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+.batch-test-controls .button-like.tertiary {
+    background: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+}
+
+.batch-test-controls .button-like.tertiary:hover {
+    background: #c82333;
+    border-color: #c82333;
+    transform: translateY(-1px);
+}
+
+/* 批量测试结果容器 */
+.batch-results-container {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    min-height: 200px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.batch-results-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 170px;
+    color: #6c757d;
+    text-align: center;
+}
+
+.batch-results-placeholder i {
+    font-size: 24px;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+.batch-results-placeholder p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 分类测试结果 */
+.category-result {
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.category-header {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.category-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+}
+
+.category-title .emoji {
+    font-size: 16px;
+}
+
+.category-stats {
+    font-size: 12px;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-stats .success-count {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.category-stats .fail-count {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* 域名测试结果项 */
+.domain-result-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s ease;
+}
+
+.domain-result-item:last-child {
+    border-bottom: none;
+}
+
+.domain-result-item:hover {
+    background: #f8f9fa;
+}
+
+.domain-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.domain-name {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.domain-url {
+    font-size: 12px;
+    color: #6c757d;
+    font-family: 'Courier New', monospace;
+}
+
+.domain-description {
+    font-size: 11px;
+    color: #868e96;
+}
+
+.domain-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.status-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: white;
+}
+
+.status-icon.success {
+    background: #28a745;
+}
+
+.status-icon.failure {
+    background: #dc3545;
+}
+
+.status-icon.testing {
+    background: #ffc107;
+    animation: pulse 1.5s infinite;
+}
+
+.latency-info {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.latency-good {
+    color: #28a745;
+}
+
+.latency-medium {
+    color: #ffc107;
+}
+
+.latency-poor {
+    color: #dc3545;
+}
+
+/* 测试进度指示器 */
+.test-progress {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.test-progress .progress-icon {
+    color: #1976d2;
+    animation: spin 1s linear infinite;
+}
+
+.test-progress .progress-text {
+    color: #1976d2;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* 动画效果 */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .domain-stats {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .batch-test-controls {
+        flex-direction: column;
+    }
+    
+    .batch-test-controls .button-like {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .domain-result-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .domain-status {
+        align-self: flex-end;
+    }
+}
