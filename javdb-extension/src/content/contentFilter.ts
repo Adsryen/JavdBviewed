@@ -43,6 +43,7 @@ export class ContentFilterManager {
     marked: 0,
   };
   private lastApplyTime = 0; // 防止重复应用
+  private isApplyingFilters = false; // 防止无限循环
 
   constructor(config: Partial<ContentFilterConfig> = {}) {
     this.config = {
@@ -63,6 +64,12 @@ export class ContentFilterManager {
 
     try {
       log('Initializing keyword filter system...');
+
+      // 清理之前的观察器（防止重复初始化）
+      if (this.observer) {
+        this.observer.disconnect();
+        this.observer = null;
+      }
 
       // 加载默认关键字规则
       this.loadDefaultKeywordRules();
@@ -99,12 +106,26 @@ export class ContentFilterManager {
    */
   private applyFilters(): void {
     try {
+      // 防止无限循环
+      if (this.isApplyingFilters) {
+        return;
+      }
+
       // 防止短时间内重复应用
       const now = Date.now();
       if (now - this.lastApplyTime < 1000) { // 1秒内不重复应用
         return;
       }
       this.lastApplyTime = now;
+      this.isApplyingFilters = true;
+
+      // 检查是否在详情页，如果是则不应用过滤器
+      if (this.isDetailPage()) {
+        log('Content filter skipped: on detail page');
+        // 清理详情页可能存在的过滤效果
+        this.clearDetailPageFilters();
+        return;
+      }
 
       // 重置统计
       this.filterStats = { hidden: 0, highlighted: 0, blurred: 0, marked: 0 };
@@ -125,6 +146,9 @@ export class ContentFilterManager {
       log(`Applied filters to ${videoItems.length} items (hidden: ${this.filterStats.hidden}, highlighted: ${this.filterStats.highlighted})`);
     } catch (error) {
       log('Error applying filters:', error);
+    } finally {
+      // 重置标志，允许下次应用
+      this.isApplyingFilters = false;
     }
   }
 
@@ -176,6 +200,59 @@ export class ContentFilterManager {
       item.setAttribute('data-filter-processed', 'true');
     } catch (error) {
       log('Error applying filters to item:', error);
+    }
+  }
+
+  /**
+   * 检查是否在详情页
+   */
+  private isDetailPage(): boolean {
+    // 检查URL是否为详情页格式 (/v/xxx)
+    const isDetailUrl = /\/v\/[^\/]+/.test(window.location.pathname);
+
+    // 检查页面是否有详情页特有的元素
+    const hasDetailElements = !!(
+      document.querySelector('.movie-panel-info') ||
+      document.querySelector('.video-detail') ||
+      document.querySelector('.movie-info') ||
+      document.querySelector('.preview-images') ||
+      document.querySelector('.tile-images') ||
+      document.querySelector('[href^="magnet:"]')
+    );
+
+    return isDetailUrl || hasDetailElements;
+  }
+
+  /**
+   * 清理详情页的过滤效果
+   */
+  private clearDetailPageFilters(): void {
+    try {
+      // 查找所有可能被过滤的元素
+      const filteredElements = document.querySelectorAll('[data-filter-applied], .content-filter-highlighted, .content-filter-hidden, .content-filter-blurred, .content-filter-marked');
+
+      filteredElements.forEach(element => {
+        const htmlElement = element as HTMLElement;
+
+        // 移除过滤相关的类
+        htmlElement.classList.remove('content-filter-highlighted', 'content-filter-hidden', 'content-filter-blurred', 'content-filter-marked');
+
+        // 移除过滤相关的属性
+        htmlElement.removeAttribute('data-filter-applied');
+        htmlElement.removeAttribute('data-filtered-by');
+        htmlElement.removeAttribute('data-filter-type');
+        htmlElement.removeAttribute('data-filter-processed');
+
+        // 清理样式
+        const stylesToClear = ['backgroundColor', 'border', 'borderRadius', 'boxShadow', 'transform', 'transition', 'filter', 'opacity', 'display'];
+        stylesToClear.forEach(style => {
+          htmlElement.style.removeProperty(style);
+        });
+      });
+
+      log(`Cleared filter effects from ${filteredElements.length} elements on detail page`);
+    } catch (error) {
+      log('Error clearing detail page filters:', error);
     }
   }
 
@@ -744,16 +821,43 @@ export class ContentFilterManager {
    * 监听页面变化
    */
   private observePageChanges(): void {
-    this.observer = new MutationObserver(() => {
-      // 延迟应用过滤，避免频繁操作
-      setTimeout(() => {
-        this.applyFilters();
-      }, 500);
+    this.observer = new MutationObserver((mutations) => {
+      // 检查是否有新的视频项目添加
+      let hasNewVideoItems = false;
+
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as HTMLElement;
+              // 只有当添加的元素可能是视频项目时才重新应用过滤
+              if (element.classList.contains('item') ||
+                  element.classList.contains('movie-item') ||
+                  element.classList.contains('video-item') ||
+                  element.querySelector('.item, .movie-item, .video-item')) {
+                hasNewVideoItems = true;
+                break;
+              }
+            }
+          }
+        }
+        if (hasNewVideoItems) break;
+      }
+
+      if (hasNewVideoItems) {
+        // 延迟应用过滤，避免频繁操作
+        setTimeout(() => {
+          this.applyFilters();
+        }, 500);
+      }
     });
 
     this.observer.observe(document.body, {
       childList: true,
       subtree: true,
+      // 不监听属性变化，减少触发频率
+      attributes: false,
+      characterData: false,
     });
   }
 
@@ -795,6 +899,7 @@ export class ContentFilterManager {
 
     this.clearAllFilters();
     this.isInitialized = false;
+    this.isApplyingFilters = false; // 重置标志
   }
 }
 

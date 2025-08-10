@@ -8,6 +8,48 @@ import { showToast } from './toast';
 import { log } from './state';
 
 /**
+ * 记录日志到扩展日志系统
+ */
+function logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
+    return new Promise((resolve) => {
+        console.log(`[115] 开始记录日志: ${message}`);
+
+        // 设置超时，避免阻塞主要流程
+        const timeout = setTimeout(() => {
+            console.warn(`[115] 日志记录超时: ${message}`);
+            resolve();
+        }, 5000); // 增加到5秒超时
+
+        try {
+            const messagePayload = {
+                type: 'log-message',
+                payload: { level, message: `[115] ${message}`, data }
+            };
+
+            console.log(`[115] 发送日志消息:`, messagePayload);
+
+            chrome.runtime.sendMessage(messagePayload, (response) => {
+                clearTimeout(timeout);
+                console.log(`[115] 收到日志响应:`, response);
+
+                if (chrome.runtime.lastError) {
+                    console.error(`[115] 日志记录失败: ${chrome.runtime.lastError.message}`);
+                } else if (response && response.success) {
+                    console.log(`[115] 日志记录成功: ${message}`);
+                } else {
+                    console.warn(`[115] 日志记录响应异常:`, response);
+                }
+                resolve();
+            });
+        } catch (error) {
+            clearTimeout(timeout);
+            console.error(`[115] 发送日志消息失败:`, error);
+            resolve();
+        }
+    });
+}
+
+/**
  * 初始化115功能
  */
 export async function initDrive115Features(): Promise<void> {
@@ -194,9 +236,9 @@ function addPushButtonsToMagnetItems(videoId: string): void {
 }
 
 /**
- * 处理推送到115网盘（新的跨域实现）
+ * 处理推送到115网盘（新的跨域实现）- 导出供其他模块使用
  */
-async function handlePushToDrive115(
+export async function handlePushToDrive115(
     button: HTMLButtonElement,
     videoId: string,
     magnetUrl: string,
@@ -231,32 +273,72 @@ async function handlePushToDrive115(
             button.className = 'button is-success is-small drive115-push-btn';
             showToast(`${magnetName} 推送到115网盘成功`, 'success');
 
+            // 记录推送成功日志到扩展日志系统（完全异步，不阻塞主流程）
+            console.log('[JavDB Ext] 准备记录115推送成功日志');
+            setTimeout(() => {
+                console.log('[JavDB Ext] 开始执行日志记录');
+                logToExtension('INFO', `推送成功: ${videoId}`, {
+                    videoId: videoId,
+                    magnetName: magnetName,
+                    magnetUrl: magnetUrl,
+                    timestamp: new Date().toISOString(),
+                    action: 'push_success'
+                }).then(() => {
+                    log('115推送成功日志已记录到扩展日志系统');
+                    console.log('[JavDB Ext] 115推送成功日志已记录到扩展日志系统');
+                }).catch(error => {
+                    console.warn('记录115推送日志失败:', error);
+                    console.error('[JavDB Ext] 记录115推送日志失败:', error);
+                });
+            }, 100); // 100ms后执行，确保有足够时间
+
             // 推送成功后自动标记为已看
             try {
+                log('开始标记视频为已看...');
+                console.log('[JavDB Ext] 开始标记视频为已看...');
                 await markVideoAsWatched(videoId);
-                showToast(`${videoId} 已自动标记为已看`, 'info');
+                log('markVideoAsWatched函数执行完毕');
+                console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
+
+                // 由于markVideoAsWatched内部会刷新页面，不需要恢复按钮状态
+                return;
+
             } catch (error) {
                 console.warn('自动标记已看失败:', error);
-                showToast('推送成功，但自动标记已看失败', 'info');
-            }
+                console.error('[JavDB Ext] 自动标记已看失败:', error);
 
-            // 3秒后恢复原状态
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-                button.className = 'button is-success is-small drive115-push-btn';
-            }, 3000);
+                // 标记已看失败时，仍然恢复按钮状态
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    button.className = 'button is-success is-small drive115-push-btn';
+                }, 3000);
+            }
         } else {
             throw new Error(result.error || '推送失败');
         }
     } catch (error) {
         console.error('推送到115网盘失败:', error);
 
+        // 记录推送失败日志到扩展日志系统（异步，不阻塞主流程）
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        logToExtension('ERROR', `推送失败: ${videoId}`, {
+            videoId: videoId,
+            magnetName: magnetName,
+            magnetUrl: magnetUrl,
+            error: errorMessage,
+            timestamp: new Date().toISOString(),
+            action: 'push_failed'
+        }).then(() => {
+            log('115推送失败日志已记录到扩展日志系统');
+        }).catch(logError => {
+            console.warn('记录115推送失败日志失败:', logError);
+        });
+
         // 错误状态
         button.innerHTML = '推送失败';
         button.className = 'button is-danger is-small drive115-push-btn';
 
-        const errorMessage = error instanceof Error ? error.message : '未知错误';
         showToast(`推送失败: ${errorMessage}`, 'error');
 
         // 3秒后恢复原状态
@@ -282,6 +364,28 @@ export async function markVideoAsWatched(videoId: string): Promise<void> {
         await updateExtensionWatchedStatus(videoId);
 
         log(`视频 ${videoId} 已成功标记为已看`);
+        console.log(`[JavDB Ext] 视频 ${videoId} 已成功标记为已看`);
+
+        // 标记已看成功后，延迟刷新页面让用户看到提示
+        log('标记已看完成，准备刷新页面');
+        console.log('[JavDB Ext] 标记已看完成，准备刷新页面');
+
+        // 延迟3秒刷新，让用户看到推送成功的提示
+        setTimeout(() => {
+            try {
+                console.log('[JavDB Ext] 开始刷新页面');
+                window.location.reload();
+            } catch (reloadError) {
+                console.error('[JavDB Ext] 刷新失败，尝试其他方法:', reloadError);
+                try {
+                    window.location.href = window.location.href;
+                } catch (hrefError) {
+                    console.error('[JavDB Ext] 重新导航失败:', hrefError);
+                    window.location.replace(window.location.href);
+                }
+            }
+        }, 3000); // 3秒后刷新，给用户时间看到推送成功提示
+
     } catch (error) {
         console.error('标记视频为已看失败:', error);
         throw error;

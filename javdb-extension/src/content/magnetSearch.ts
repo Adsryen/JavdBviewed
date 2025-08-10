@@ -5,7 +5,7 @@ import { log } from './state';
 import { showToast } from './toast';
 import { extractVideoIdFromPage } from './videoId';
 import { defaultHttpClient } from '../services/dataAggregator/httpClient';
-import { pushToDrive115ViaCrossDomain, markVideoAsWatched } from './drive115';
+import { handlePushToDrive115 } from './drive115';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
@@ -1300,46 +1300,80 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 推送磁力链接到115（使用公共功能）
+   * 推送磁力链接到115（直接使用详情页的完整逻辑）
    */
   private async push115(magnet: string, name: string): Promise<void> {
     try {
-      showToast(`正在推送到115: ${name.substring(0, 30)}...`, 'info');
       log(`Pushing to 115: ${name}`);
 
-      // 使用公共的推送115功能
-      const result = await pushToDrive115ViaCrossDomain({
-        videoId: this.currentVideoId || 'unknown',
-        magnetUrl: magnet,
-        magnetName: name
-      });
+      // 创建一个临时按钮元素，用于传递给详情页的推送函数
+      const tempButton = document.createElement('button');
+      tempButton.className = 'button is-success is-small drive115-push-btn';
+      tempButton.innerHTML = '&nbsp;推送115&nbsp;';
 
-      if (result.success) {
-        showToast('推送到115成功', 'success');
-        log('115推送成功:', result);
+      // 直接调用详情页的完整推送逻辑，包含所有功能：
+      // - 完整的日志记录
+      // - 推送成功后自动标记已看
+      // - 标记已看后自动刷新页面
+      await handlePushToDrive115(
+        tempButton,
+        this.currentVideoId || 'unknown',
+        magnet,
+        name
+      );
 
-        // 推送成功后自动标记为已看
-        if (this.currentVideoId && this.currentVideoId !== 'unknown') {
-          try {
-            await markVideoAsWatched(this.currentVideoId);
-            showToast(`${this.currentVideoId} 已自动标记为已看`, 'info');
-          } catch (error) {
-            console.warn('自动标记已看失败:', error);
-            showToast('推送成功，但自动标记已看失败', 'info');
-          }
-        }
-      } else {
-        throw new Error(result.error || '推送失败');
-      }
     } catch (error) {
       log('Error pushing to 115:', error);
-      showToast(`推送到115失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      showToast(`推送到115失败: ${errorMessage}`, 'error');
     }
   }
 
 
 
 
+
+  /**
+   * 记录日志到扩展日志系统
+   */
+  private logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
+    return new Promise((resolve) => {
+      console.log(`[115] 开始记录日志: ${message}`);
+
+      // 设置超时，避免阻塞主要流程
+      const timeout = setTimeout(() => {
+        console.warn(`[115] 日志记录超时: ${message}`);
+        resolve();
+      }, 5000); // 5秒超时
+
+      try {
+        const messagePayload = {
+          type: 'log-message',
+          payload: { level, message: `[115] ${message}`, data }
+        };
+
+        console.log(`[115] 发送日志消息:`, messagePayload);
+
+        chrome.runtime.sendMessage(messagePayload, (response) => {
+          clearTimeout(timeout);
+          console.log(`[115] 收到日志响应:`, response);
+
+          if (chrome.runtime.lastError) {
+            console.error(`[115] 日志记录失败: ${chrome.runtime.lastError.message}`);
+          } else if (response && response.success) {
+            console.log(`[115] 日志记录成功: ${message}`);
+          } else {
+            console.warn(`[115] 日志记录响应异常:`, response);
+          }
+          resolve();
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        console.error(`[115] 发送日志消息失败:`, error);
+        resolve();
+      }
+    });
+  }
 
   // 辅助方法
 
