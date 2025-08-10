@@ -88,6 +88,7 @@ export function initSettingsTab(): void {
                     enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: enableMagnetSearch.checked,
                     enableAnchorOptimization: enableAnchorOptimization.checked,
+                    enableListEnhancement: enableListEnhancement.checked,
                     showEnhancedTooltips: false, // 开发中，强制禁用
                 },
                 magnetSearch: {
@@ -107,6 +108,15 @@ export function initSettingsTab(): void {
                     enabled: enableAnchorOptimization.checked,
                     showPreviewButton: showPreviewButton?.checked !== false,
                     buttonPosition: anchorButtonPosition?.value || 'right-center',
+                },
+                listEnhancement: {
+                    enabled: enableListEnhancement.checked,
+                    enableClickEnhancement: enableClickEnhancement?.checked !== false,
+                    enableVideoPreview: enableListVideoPreview?.checked !== false,
+                    enableListOptimization: true, // 总是启用列表优化
+                    previewDelay: parseInt(previewDelay?.value || '1000', 10),
+                    previewVolume: parseFloat(previewVolume?.value || '0.2'),
+                    enableRightClickBackground: true, // 总是启用右键后台打开
                 },
                 searchEngines: STATE.settings.searchEngines,
                 version: import.meta.env.VITE_APP_VERSION || STATE.settings.version
@@ -227,6 +237,7 @@ export function initSettingsTab(): void {
     const enableKeyboardShortcuts = document.getElementById('enableKeyboardShortcuts') as HTMLInputElement;
     const enableMagnetSearch = document.getElementById('enableMagnetSearch') as HTMLInputElement;
     const enableAnchorOptimization = document.getElementById('enableAnchorOptimization') as HTMLInputElement;
+    const enableListEnhancement = document.getElementById('enableListEnhancement') as HTMLInputElement;
     const showEnhancedTooltips = document.getElementById('showEnhancedTooltips') as HTMLInputElement;
 
     // 磁力搜索源配置
@@ -243,6 +254,14 @@ export function initSettingsTab(): void {
     // 内容过滤配置
     const contentFilterConfig = document.getElementById('contentFilterConfig') as HTMLElement;
     const anchorOptimizationConfig = document.getElementById('anchorOptimizationConfig') as HTMLElement;
+
+    // 列表增强配置
+    const listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
+    const enableClickEnhancement = document.getElementById('enableClickEnhancement') as HTMLInputElement;
+    const enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
+    const previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
+    const previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
+    const previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
 
     function renderSearchEngines() {
         const searchEngineList = document.getElementById('search-engine-list') as HTMLDivElement;
@@ -384,6 +403,7 @@ export function initSettingsTab(): void {
             enableKeyboardShortcuts.checked = false; // 开发中，强制禁用
             enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
             enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
+            enableListEnhancement.checked = userExperience?.enableListEnhancement !== false; // 默认启用
             showEnhancedTooltips.checked = false; // 开发中，强制禁用
 
             // 加载锚点优化配置
@@ -403,10 +423,21 @@ export function initSettingsTab(): void {
             magnetSourceBtsow.checked = sources.btsow !== false; // 默认启用
             magnetSourceTorrentz2.checked = sources.torrentz2 || false; // 默认禁用
 
+            // 加载列表增强配置
+            const listEnhancement = settings.listEnhancement || {};
+            if (enableClickEnhancement) enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
+            if (enableListVideoPreview) enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
+            if (previewDelay) previewDelay.value = String(listEnhancement.previewDelay || 1000);
+            if (previewVolume) {
+                previewVolume.value = String(listEnhancement.previewVolume || 0.2);
+                if (previewVolumeValue) previewVolumeValue.textContent = `${Math.round((listEnhancement.previewVolume || 0.2) * 100)}%`;
+            }
+
             // 显示/隐藏配置区域
             toggleMagnetSourcesConfig();
             toggleContentFilterConfig();
             toggleAnchorOptimizationConfig();
+            toggleListEnhancementConfig();
 
             // 渲染过滤规则列表
             renderFilterRules();
@@ -440,6 +471,7 @@ export function initSettingsTab(): void {
             enableContentFilter.checked = false;
             enableAnchorOptimization.checked = false;
             enableMagnetSearch.checked = false;
+            enableListEnhancement.checked = true; // 默认启用
             showEnhancedTooltips.checked = false; // 开发中，强制禁用
 
             // 即使在错误情况下也要初始化开关
@@ -644,6 +676,13 @@ export function initSettingsTab(): void {
         }
     }
 
+    // 列表增强配置显示/隐藏
+    function toggleListEnhancementConfig() {
+        if (listEnhancementConfig) {
+            listEnhancementConfig.style.display = enableListEnhancement.checked ? 'block' : 'none';
+        }
+    }
+
     // 注意：功能增强设置的事件监听器现在在 initEnhancementToggles() 中统一处理
 
     // 磁力搜索源配置事件监听
@@ -658,6 +697,26 @@ export function initSettingsTab(): void {
     }
     if (showPreviewButton) {
         showPreviewButton.addEventListener('change', handleSaveSettings);
+    }
+
+    // 列表增强配置事件监听
+    if (enableClickEnhancement) {
+        enableClickEnhancement.addEventListener('change', handleSaveSettings);
+    }
+    if (enableListVideoPreview) {
+        enableListVideoPreview.addEventListener('change', handleSaveSettings);
+    }
+    if (previewDelay) {
+        previewDelay.addEventListener('change', handleSaveSettings);
+    }
+    if (previewVolume) {
+        previewVolume.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            if (previewVolumeValue) {
+                previewVolumeValue.textContent = `${Math.round(parseFloat(value) * 100)}%`;
+            }
+            handleSaveSettings();
+        });
     }
 
     // 过滤规则配置事件监听
@@ -794,6 +853,9 @@ function handleSubSettingsToggle(targetId: string, isEnabled: boolean): void {
             break;
         case 'enableAnchorOptimization':
             subSettingsId = 'anchorOptimizationConfig';
+            break;
+        case 'enableListEnhancement':
+            subSettingsId = 'listEnhancementConfig';
             break;
         case 'enableMagnetSearch':
             subSettingsId = 'magnetSourcesConfig';

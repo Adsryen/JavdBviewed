@@ -269,9 +269,9 @@ async function handlePushToDrive115(
 }
 
 /**
- * 标记视频为已看
+ * 标记视频为已看（公共方法）
  */
-async function markVideoAsWatched(videoId: string): Promise<void> {
+export async function markVideoAsWatched(videoId: string): Promise<void> {
     try {
         log(`开始标记视频为已看: ${videoId}`);
 
@@ -423,9 +423,9 @@ async function updateExtensionWatchedStatus(videoId: string): Promise<void> {
 }
 
 /**
- * 通过跨域消息推送到115网盘
+ * 通过跨域消息推送到115网盘（公共方法）
  */
-async function pushToDrive115ViaCrossDomain(params: {
+export async function pushToDrive115ViaCrossDomain(params: {
     videoId: string;
     magnetUrl: string;
     magnetName: string;
@@ -670,5 +670,7 @@ function extractVideoIdFromElement(element: HTMLElement): string | null {
 
     return null;
 }
+
+
 
 
