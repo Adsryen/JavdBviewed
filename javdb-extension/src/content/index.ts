@@ -343,3 +343,27 @@ if (typeof window !== 'undefined') {
 
     log('Successfully exposed concurrency tools to window object');
 }
+
+// 页面卸载时清理资源
+window.addEventListener('beforeunload', () => {
+    try {
+        // 清理内容过滤器
+        if (contentFilterManager) {
+            contentFilterManager.destroy();
+        }
+
+        // 清理快捷复制管理器
+        if (quickCopyManager) {
+            quickCopyManager.destroy?.();
+        }
+
+        // 清理键盘快捷键管理器
+        if (keyboardShortcutsManager) {
+            keyboardShortcutsManager.destroy?.();
+        }
+
+        log('Resources cleaned up on page unload');
+    } catch (error) {
+        log('Error during cleanup:', error);
+    }
+});
