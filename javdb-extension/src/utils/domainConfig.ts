@@ -73,7 +73,7 @@ export const EXTENSION_DOMAINS: Record<string, DomainCategory> = {
         domain: 'torrentz2.eu',
         description: '元搜索引擎',
         priority: 'low',
-        enabled: false // 默认禁用
+        enabled: true // 默认启用
       }
     ]
   },
@@ -140,20 +140,6 @@ export const EXTENSION_DOMAINS: Record<string, DomainCategory> = {
         description: 'Google翻译API',
         priority: 'high',
         enabled: true
-      },
-      {
-        name: '百度翻译',
-        domain: 'fanyi-api.baidu.com',
-        description: '百度翻译API',
-        priority: 'medium',
-        enabled: false // 需要API密钥
-      },
-      {
-        name: '有道翻译',
-        domain: 'openapi.youdao.com',
-        description: '有道翻译API',
-        priority: 'medium',
-        enabled: false // 需要API密钥
       }
     ]
   }
@@ -199,19 +185,60 @@ export function getDomainStats(): {
   let total = 0;
   let enabled = 0;
   const byCategory: Record<string, { total: number; enabled: number }> = {};
-  
+
   Object.entries(EXTENSION_DOMAINS).forEach(([key, category]) => {
     const categoryTotal = category.domains.length;
     const categoryEnabled = category.domains.filter(d => d.enabled).length;
-    
+
     total += categoryTotal;
     enabled += categoryEnabled;
-    
+
     byCategory[key] = {
       total: categoryTotal,
       enabled: categoryEnabled
     };
   });
-  
+
   return { total, enabled, byCategory };
+}
+
+/**
+ * 切换域名启用状态
+ */
+export function toggleDomainEnabled(categoryKey: string, domainIndex: number): boolean {
+  const category = EXTENSION_DOMAINS[categoryKey];
+  if (category && category.domains[domainIndex]) {
+    category.domains[domainIndex].enabled = !category.domains[domainIndex].enabled;
+    return category.domains[domainIndex].enabled;
+  }
+  return false;
+}
+
+/**
+ * 设置域名启用状态
+ */
+export function setDomainEnabled(categoryKey: string, domainIndex: number, enabled: boolean): void {
+  const category = EXTENSION_DOMAINS[categoryKey];
+  if (category && category.domains[domainIndex]) {
+    category.domains[domainIndex].enabled = enabled;
+  }
+}
+
+/**
+ * 获取所有域名（包括禁用的）
+ */
+export function getAllDomains(): DomainInfo[] {
+  const allDomains: DomainInfo[] = [];
+
+  Object.values(EXTENSION_DOMAINS).forEach(category => {
+    category.domains.forEach(domain => {
+      allDomains.push(domain);
+    });
+  });
+
+  // 按优先级排序
+  return allDomains.sort((a, b) => {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
 }

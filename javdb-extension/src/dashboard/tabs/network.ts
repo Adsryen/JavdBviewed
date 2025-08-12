@@ -106,10 +106,11 @@ export function initializeNetworkTestTab(): void {
   const startButton = document.getElementById('start-ping-test') as HTMLButtonElement;
   const urlInput = document.getElementById('ping-url') as HTMLInputElement;
   const resultsContainer = document.getElementById('ping-results') as HTMLDivElement;
+  const resultsContainerWrapper = document.getElementById('ping-results-container') as HTMLDivElement;
   const buttonText = startButton.querySelector('.button-text') as HTMLSpanElement;
   const spinner = startButton.querySelector('.spinner') as HTMLDivElement;
 
-  if (!startButton || !urlInput || !resultsContainer || !buttonText || !spinner) {
+  if (!startButton || !urlInput || !resultsContainer || !resultsContainerWrapper || !buttonText || !spinner) {
     console.error('无法找到网络测试选项卡的相关元素。');
     return;
   }
@@ -117,9 +118,14 @@ export function initializeNetworkTestTab(): void {
   startButton.addEventListener('click', async () => {
     const urlValue = urlInput.value.trim();
     if (!urlValue) {
+        // 显示结果容器并显示错误信息
+        resultsContainerWrapper.style.display = 'block';
         resultsContainer.innerHTML = '<div class="ping-result-item failure"><i class="fas fa-times-circle icon"></i><span>请输入一个有效的 URL。</span></div>';
         return;
     }
+
+    // 显示结果容器
+    resultsContainerWrapper.style.display = 'block';
 
     startButton.disabled = true;
     buttonText.textContent = '测试中...';

@@ -1,8 +1,8 @@
-/* Settings Container Layout - 自适应高度版本 */
+/* Settings Container Layout - 充分利用可用高度 */
 .settings-container {
     display: flex !important;
-    /* 让容器根据内容自动调整高度，实现真正的"包住"效果 */
-    height: auto !important;
+    /* 充分利用父容器的高度 */
+    height: 100% !important;
     /* 设置合理的最小高度，确保内容有足够空间 */
     min-height: calc(100vh - 200px) !important;
     background: #fff;
@@ -10,6 +10,8 @@
     overflow: visible !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     flex-grow: 1 !important;
+    /* 确保子元素能够拉伸 */
+    align-items: stretch !important;
 }
 
 /* 高度传递链条已在主CSS文件中修复 */
@@ -60,14 +62,14 @@
     font-size: 16px;
 }
 
-/* Settings Content - 右侧内容区域自适应高度版本 */
+/* Settings Content - 右侧内容区域充分利用容器高度 */
 .settings-content {
     flex: 1 !important;
     padding: 25px;
     overflow-y: auto !important;
-    /* 让右侧内容区域根据内容自动调整高度 */
-    height: auto !important;
-    min-height: calc(100vh - 250px) !important;
+    /* 充分利用父容器的高度 */
+    height: 100% !important;
+    min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     /* 确保完全填充父容器 */
