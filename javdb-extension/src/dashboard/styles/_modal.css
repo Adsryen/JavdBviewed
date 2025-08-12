@@ -1267,7 +1267,8 @@
     border-radius: 12px !important;
 }
 
-.settings-content {
+/* 只对模态框内的 settings-content 应用限制 */
+.settings-diff-modal .settings-content {
     background: #ffffff !important;
     padding: 0 !important;
     max-height: 400px !important;
@@ -1519,7 +1520,7 @@
         margin-bottom: 20px !important;
     }
 
-    .settings-content {
+    .settings-diff-modal .settings-content {
         max-height: 250px !important;
     }
 
@@ -4574,7 +4575,8 @@
     margin-right: 8px;
 }
 
-.settings-content {
+/* 只对模态框内的 settings-content 应用限制 */
+.settings-diff-modal .settings-content {
     padding: 16px;
     background: #f8fafc;
     max-height: 400px;
@@ -4660,7 +4662,7 @@
         padding: 20px 16px;
     }
 
-    .settings-content {
+    .settings-diff-modal .settings-content {
         max-height: 200px;
     }
 
