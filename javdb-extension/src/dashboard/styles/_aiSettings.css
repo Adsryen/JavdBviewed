@@ -78,6 +78,7 @@
     font-size: 14px;
     transition: all 0.3s ease;
     background: white;
+    box-sizing: border-box;
 }
 
 #ai-settings .text-input:focus,
@@ -97,6 +98,7 @@
     background: var(--ai-border-color);
     outline: none;
     -webkit-appearance: none;
+    box-sizing: border-box;
 }
 
 #ai-settings .range-input::-webkit-slider-thumb {
@@ -186,6 +188,54 @@
 
 #ai-settings .btn-secondary:hover {
     background: #cbd5e1;
+}
+
+/* 导出按钮 - 绿色 */
+#ai-settings .btn-export {
+    background: var(--ai-success-color);
+    color: white;
+}
+
+#ai-settings .btn-export:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* 导入按钮 - 蓝色 */
+#ai-settings .btn-import {
+    background: #3b82f6;
+    color: white;
+}
+
+#ai-settings .btn-import:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* 清除按钮 - 橙色 */
+#ai-settings .btn-clear {
+    background: var(--ai-warning-color);
+    color: white;
+}
+
+#ai-settings .btn-clear:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* 重置按钮 - 红色 */
+#ai-settings .btn-reset {
+    background: var(--ai-error-color);
+    color: white;
+}
+
+#ai-settings .btn-reset:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
 #ai-settings .btn:disabled {

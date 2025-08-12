@@ -3,373 +3,447 @@ import { getValue, setValue } from '../../utils/storage';
 import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
 import { applyImportedData } from '../import';
-import type { LogEntry, VideoRecord, OldVideoRecord, VideoStatus } from '../../types';
+import type { LogEntry, VideoRecord, OldVideoRecord, VideoStatus, ActorRecord } from '../../types';
 import { STORAGE_KEYS } from '../../utils/config';
+import { dataViewModal } from '../ui/dataViewModal';
 
-
-const DEFAULT_VIDEO_RECORD: Omit<VideoRecord, 'id'> = {
+// 默认视频记录结构
+const DEFAULT_VIDEO_RECORD: Partial<VideoRecord> = {
+    id: '',
     title: '',
-    status: 'browsed',
-    tags: [],
+    status: 'viewed' as VideoStatus,
     createdAt: 0,
     updatedAt: 0,
-    releaseDate: null,
-    javdbUrl: null,
-    javdbImage: null,
+    url: '',
+    tags: [],
+    actors: [],
+    studio: '',
+    releaseDate: '',
+    duration: '',
+    rating: 0,
+    notes: ''
 };
 
 export function initAdvancedSettingsTab(): void {
-    const jsonConfigTextarea = document.getElementById('jsonConfig') as HTMLTextAreaElement;
+    // 新的按钮引用
+    const viewJsonBtn = document.getElementById('viewJsonBtn') as HTMLButtonElement;
     const editJsonBtn = document.getElementById('editJsonBtn') as HTMLButtonElement;
-    const saveJsonBtn = document.getElementById('saveJsonBtn') as HTMLButtonElement;
     const exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
-    const rawLogsTextarea = document.getElementById('rawLogsTextarea') as HTMLTextAreaElement;
-    const refreshRawLogsBtn = document.getElementById('refreshRawLogsBtn') as HTMLButtonElement;
+    const viewRawLogsBtn = document.getElementById('viewRawLogsBtn') as HTMLButtonElement;
     const testLogBtn = document.getElementById('testLogBtn') as HTMLButtonElement;
-    const rawRecordsTextarea = document.getElementById('rawRecordsTextarea') as HTMLTextAreaElement;
-    const refreshRawRecordsBtn = document.getElementById('refreshRawRecordsBtn') as HTMLButtonElement;
-    // const editRawRecordsBtn = document.getElementById('editRawRecordsBtn') as HTMLButtonElement;
-    // const saveRawRecordsBtn = document.getElementById('saveRawRecordsBtn') as HTMLButtonElement;
+    const viewRawRecordsBtn = document.getElementById('viewRawRecordsBtn') as HTMLButtonElement;
     const checkDataStructureBtn = document.getElementById('checkDataStructureBtn') as HTMLButtonElement;
+    const viewActorsBtn = document.getElementById('viewActorsBtn') as HTMLButtonElement;
 
-    if (!jsonConfigTextarea || !editJsonBtn || !saveJsonBtn || !exportJsonBtn || !rawLogsTextarea || !refreshRawLogsBtn || !testLogBtn || !rawRecordsTextarea || !refreshRawRecordsBtn || /* !editRawRecordsBtn || !saveRawRecordsBtn || */ !checkDataStructureBtn) {
+    if (!viewJsonBtn || !editJsonBtn || !exportJsonBtn || !viewRawLogsBtn || !testLogBtn || !viewRawRecordsBtn || !checkDataStructureBtn || !viewActorsBtn) {
         console.error("One or more elements for Advanced Settings not found. Aborting init.");
         return;
     }
-    
-    checkDataStructureBtn.addEventListener('click', () => {
-        // All previous logs indicated the logic inside this async IIFE works,
-        // so the fire-and-forget pattern is correct. The issue was purely CSS class handling.
-        (async () => {
-            try {
-                const modal = document.getElementById('data-check-modal') as HTMLElement;
-                if (!modal) {
-                    console.error('Data check modal element not found!');
-                    showMessage('无法找到数据检查窗口，请刷新页面后重试。', 'error');
-                    return;
-                }
 
-                const message = modal.querySelector('#data-check-modal-message') as HTMLElement;
-                const diffContainer = modal.querySelector('.diff-container') as HTMLElement;
-                const actions = modal.querySelector('.modal-actions') as HTMLElement;
-                const confirmBtn = modal.querySelector('#data-check-confirm-btn') as HTMLButtonElement;
-                const cancelBtn = modal.querySelector('#data-check-cancel-btn') as HTMLButtonElement;
-
-                if (!message || !diffContainer || !actions || !confirmBtn || !cancelBtn) {
-                    console.error('数据检查窗口内部组件不完整');
-                    showMessage('数据检查窗口内部组件不完整，请刷新页面后重试。', 'error');
-                    return;
-                }
-
-                const records = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                const recordsArray = Object.values(records);
-                const totalRecords = recordsArray.length;
-
-                if (totalRecords === 0) {
-                    showMessage('没有找到任何记录，无需检查。', 'info');
-                    return;
-                }
-                
-                // --- FIX: Use .visible class to show the modal ---
-                modal.classList.remove('hidden');
-                modal.classList.add('visible');
-                diffContainer.style.display = 'none';
-                actions.style.display = 'none';
-                message.textContent = `准备检查 ${totalRecords} 条记录...`;
-
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                const recordsToFix: VideoRecord[] = [];
-                const fixedRecordsPreview: Record<string, VideoRecord> = {};
-
-                for (let i = 0; i < totalRecords; i++) {
-                    const record = recordsArray[i];
-                    let changed = false;
-                    const newRecord = { ...record };
-                    const addedFields: string[] = [];
-
-                    for (const key of Object.keys(DEFAULT_VIDEO_RECORD) as Array<keyof typeof DEFAULT_VIDEO_RECORD>) {
-                        if (!(key in newRecord) || newRecord[key] === undefined) {
-                            (newRecord as any)[key] = DEFAULT_VIDEO_RECORD[key];
-                            addedFields.push(key);
-                            changed = true;
-                        }
-                    }
-
-                    // 只处理完全缺失的字段，不修改已有数据
-                    if (!('createdAt' in newRecord) || typeof newRecord.createdAt === 'undefined') {
-                        newRecord.createdAt = Date.now();
-                        addedFields.push('createdAt');
-                        changed = true;
-                    }
-                    if (!('updatedAt' in newRecord) || typeof newRecord.updatedAt === 'undefined') {
-                        newRecord.updatedAt = newRecord.createdAt || Date.now();
-                        addedFields.push('updatedAt');
-                        changed = true;
-                    }
-                    if (!('title' in newRecord) || typeof newRecord.title === 'undefined') {
-                        newRecord.title = '';
-                        addedFields.push('title');
-                        changed = true;
-                    }
-
-                    if (changed) {
-                        recordsToFix.push(record);
-                        fixedRecordsPreview[record.id] = newRecord;
-                        console.log(`[数据结构检查] 记录 ${record.id} 需要修复，添加字段: ${addedFields.join(', ')}`);
-                    }
-                    
-                    if (i % 20 === 0 || i === totalRecords - 1) {
-                        message.textContent = `正在检查... (${i + 1}/${totalRecords})`;
-                        await new Promise(resolve => requestAnimationFrame(resolve));
-                    }
-                }
-
-                if (recordsToFix.length > 0) {
-                    const diffBefore = modal.querySelector('#data-check-diff-before') as HTMLElement;
-                    const diffAfter = modal.querySelector('#data-check-diff-after') as HTMLElement;
-
-                    if (!diffBefore || !diffAfter) {
-                        console.error('Diff <pre> 元素未找到。');
-                        return;
-                    }
-
-                    message.textContent = `检查完成！发现 ${recordsToFix.length} 条记录的结构需要修复。这是一个示例：`;
-
-                    try {
-                        // 使用自定义的 JSON 序列化来显示 undefined 和 null 值
-                        const jsonReplacer = (key: string, value: any) => {
-                            if (value === undefined) {
-                                return 'undefined';
-                            }
-                            if (value === null) {
-                                return null; // 保持 null 值显示
-                            }
-                            return value;
-                        };
-
-                        diffBefore.textContent = JSON.stringify(recordsToFix[0], jsonReplacer, 2);
-                        diffAfter.textContent = JSON.stringify(fixedRecordsPreview[recordsToFix[0].id], jsonReplacer, 2);
-                    } catch (e) {
-                        message.textContent = '无法显示修复示例，因为数据结构过于复杂或存在循环引用。';
-                    }
-
-                    diffContainer.style.display = '';
-                    actions.style.display = '';
-
-                    const hideModal = () => {
-                        modal.classList.remove('visible');
-                        modal.classList.add('hidden');
-                    };
-                    
-                    const onConfirm = async () => {
-                        hideModal();
-                        showMessage('正在修复记录...', 'info');
-
-                        // 调试日志：显示修复前后的数据
-                        console.log('[数据结构修复] 修复前记录数量:', Object.keys(records).length);
-                        console.log('[数据结构修复] 待修复记录数量:', recordsToFix.length);
-                        console.log('[数据结构修复] 修复预览数据:', fixedRecordsPreview);
-
-                        const allRecords = { ...records, ...fixedRecordsPreview };
-                        console.log('[数据结构修复] 合并后记录数量:', Object.keys(allRecords).length);
-
-                        // 显示一个修复示例
-                        const firstFixedId = Object.keys(fixedRecordsPreview)[0];
-                        if (firstFixedId) {
-                            console.log('[数据结构修复] 修复示例 - 原记录:', records[firstFixedId]);
-                            console.log('[数据结构修复] 修复示例 - 新记录:', fixedRecordsPreview[firstFixedId]);
-                        }
-
-                        await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
-                        console.log('[数据结构修复] 数据已保存到存储');
-
-                        showMessage(`成功修复了 ${recordsToFix.length} 条记录。页面将刷新。`, 'success');
-                        logAsync('INFO', `数据结构修复完成，共修复 ${recordsToFix.length} 条记录。`);
-                        setTimeout(() => window.location.reload(), 1500);
-                    };
-
-                    const onCancel = () => {
-                        hideModal();
-                        logAsync('INFO', '用户取消了数据结构修复操作。');
-                    };
-
-                    confirmBtn.onclick = onConfirm;
-                    cancelBtn.onclick = onCancel;
-                } else {
-                    message.textContent = '数据结构检查完成，所有记录都符合标准，无需修复。';
-                    diffContainer.style.display = 'none';
-                    actions.style.display = '';
-
-                    const okBtn = document.createElement('button');
-                    okBtn.textContent = '好的';
-                    okBtn.className = 'button-like';
-                    okBtn.onclick = () => {
-                        modal.classList.remove('visible');
-                        modal.classList.add('hidden');
-                    };
-                    
-                    actions.innerHTML = '';
-                    actions.appendChild(okBtn);
-
-                    logAsync('INFO', '数据结构检查完成，未发现问题。');
-                }
-            } catch (error: any) {
-                showMessage(`检查数据结构时出错: ${error.message}`, 'error');
-                logAsync('ERROR', '检查数据结构时发生错误。', { error: error.message, stack: error.stack });
-            }
-        })();
+    // 新的事件监听器 - 使用弹窗系统
+    viewJsonBtn.addEventListener('click', () => {
+        dataViewModal.show({
+            title: '原始设置 (JSON)',
+            data: STATE.settings,
+            dataType: 'json',
+            editable: false,
+            filename: `javdb-settings-${new Date().toISOString().split('T')[0]}.json`,
+            info: '当前扩展的所有设置配置'
+        });
     });
 
-    async function loadRawLogs() {
+    editJsonBtn.addEventListener('click', () => {
+        dataViewModal.show({
+            title: '编辑设置 (JSON)',
+            data: STATE.settings,
+            dataType: 'json',
+            editable: true,
+            onSave: async (data: string) => {
+                const settingsObject = JSON.parse(data);
+                await applyImportedData(JSON.stringify({ settings: settingsObject }));
+                logAsync('JSON 配置已通过弹窗编辑器更新', 'INFO');
+            },
+            info: '编辑模式 - 请谨慎修改配置'
+        });
+    });
+
+    exportJsonBtn.addEventListener('click', handleExportData);
+
+    viewRawLogsBtn.addEventListener('click', () => {
+        const logs = STATE.logs || [];
+        dataViewModal.show({
+            title: '原始日志 (Raw Logs)',
+            data: logs,
+            dataType: 'json',
+            editable: false,
+            filename: `javdb-logs-${new Date().toISOString().split('T')[0]}.json`,
+            info: `共 ${logs.length} 条日志记录`
+        });
+    });
+
+    testLogBtn.addEventListener('click', handleTestLog);
+
+    viewRawRecordsBtn.addEventListener('click', () => {
+        const records = STATE.records || [];
+        dataViewModal.show({
+            title: '原始番号库数据 (Raw Records)',
+            data: records,
+            dataType: 'json',
+            editable: false,
+            filename: `javdb-records-${new Date().toISOString().split('T')[0]}.json`,
+            info: `共 ${records.length} 条番号记录`
+        });
+    });
+
+    checkDataStructureBtn.addEventListener('click', handleDataStructureCheck);
+
+    // 查看演员数据（只读）
+    viewActorsBtn.addEventListener('click', async () => {
         try {
-            // 从 STATE 直接获取日志，而不是重新从 storage 读取
-            const logs = STATE.logs || [];
-            rawLogsTextarea.value = JSON.stringify(logs, null, 2);
-            rawLogsTextarea.classList.remove('hidden'); // Show the textarea
-            showMessage('Raw logs refreshed.', 'success');
-            logAsync('INFO', '用户刷新并显示了原始日志。');
-        } catch (error: any) {
-            const errorMessage = `Error loading logs: ${error.message}`;
-            rawLogsTextarea.value = errorMessage;
-            rawLogsTextarea.classList.remove('hidden'); // Also show on error
-            showMessage('Failed to refresh raw logs.', 'error');
-            logAsync('ERROR', '显示原始日志时出错。', { error: error.message });
+            const { actorManager } = await import('../../services/actorManager');
+            const actorsData = await actorManager.getAllActors();
+
+            dataViewModal.show({
+                title: '演员库数据',
+                data: actorsData,
+                dataType: 'json',
+                editable: false,
+                filename: `javdb-actors-${new Date().toISOString().split('T')[0]}.json`,
+                info: `共 ${actorsData.length} 个演员记录`
+            });
+        } catch (error) {
+            console.error('加载演员数据失败:', error);
+            showMessage('加载演员数据失败', 'error');
         }
+    });
+
+    // 编辑演员数据（可编辑保存）
+    const editActorsBtn = document.getElementById('editActorsBtn') as HTMLButtonElement | null;
+    if (editActorsBtn) {
+        editActorsBtn.addEventListener('click', async () => {
+            try {
+                const { actorManager } = await import('../../services/actorManager');
+                const actorsData = await actorManager.getAllActors();
+
+                dataViewModal.show({
+                    title: '编辑演员库 (JSON)',
+                    data: actorsData,
+                    dataType: 'json',
+                    editable: true,
+                    info: '编辑模式 - 请谨慎修改，保存将覆盖现有演员库',
+                    onSave: async (text: string) => {
+                        try {
+                            const parsed = JSON.parse(text) as ActorRecord[];
+                            if (!Array.isArray(parsed)) throw new Error('JSON 顶层应为数组');
+                            // 使用 replace 模式完全覆盖
+                            const { actorManager } = await import('../../services/actorManager');
+                            await actorManager.importActors(parsed, 'replace');
+                            showMessage('演员库已保存', 'success');
+                        } catch (e) {
+                            console.error('保存演员库失败:', e);
+                            showMessage('保存演员库失败：' + (e as Error).message, 'error');
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('加载演员数据失败:', error);
+                showMessage('加载演员数据失败', 'error');
+            }
+        });
     }
 
+    // 测试日志功能
     async function handleTestLog() {
         console.log("Attempting to send a test log message...");
-        await logAsync('INFO', 'This is a test log from the dashboard.', { timestamp: new Date().toLocaleTimeString() });
-        showMessage('Test log sent. Refreshing raw logs...', 'success');
-        await loadRawLogs();
+        await logAsync('This is a test log from the dashboard.', 'INFO', { timestamp: new Date().toLocaleTimeString() });
+        showMessage('测试日志已发送', 'success');
     }
 
-    function loadRawRecords() {
+    // 数据结构检查函数（兼容旧版“修复确认”流程）
+    function handleDataStructureCheck(): void {
         try {
             const records = STATE.records || [];
-            rawRecordsTextarea.value = JSON.stringify(records, null, 2);
-            rawRecordsTextarea.classList.remove('hidden'); // Show the textarea
-            showMessage('Raw records refreshed.', 'success');
-            logAsync('INFO', '用户刷新并显示了原始番号库数据。');
-        } catch (error: any) {
-            const errorMessage = `Error loading records: ${error.message}`;
-            rawRecordsTextarea.value = errorMessage;
-            rawRecordsTextarea.classList.remove('hidden'); // Also show on error
-            showMessage('Failed to refresh raw records.', 'error');
-            logAsync('ERROR', '显示原始番号库数据时出错。', { error: error.message });
+            // 内联规范化函数，避免作用域/构建时丢失
+            const normalize = (recs: VideoRecord[]) => {
+                const now = Date.now();
+                const normalized: VideoRecord[] = [];
+                const changedIndices: number[] = [];
+                recs.forEach((rec, idx) => {
+                    const before = JSON.stringify(rec);
+                    const n: VideoRecord = {
+                        ...DEFAULT_VIDEO_RECORD,
+                        ...rec,
+                        id: String(rec.id ?? ''),
+                        title: String(rec.title ?? ''),
+                        status: (rec.status as VideoStatus) ?? 'viewed',
+                        createdAt: typeof rec.createdAt === 'number' ? rec.createdAt : now,
+                        updatedAt: typeof rec.updatedAt === 'number' ? rec.updatedAt : now,
+                        url: String(rec.url ?? ''),
+                        tags: Array.isArray(rec.tags) ? rec.tags : [],
+                        actors: Array.isArray(rec.actors) ? rec.actors : [],
+                        studio: String((rec as any).studio ?? ''),
+                        releaseDate: String((rec as any).releaseDate ?? ''),
+                        duration: String((rec as any).duration ?? ''),
+                        rating: typeof (rec as any).rating === 'number' ? (rec as any).rating : 0,
+                        notes: String((rec as any).notes ?? '')
+                    } as VideoRecord;
+                    const after = JSON.stringify(n);
+                    normalized.push(n);
+                    if (before !== after) changedIndices.push(idx);
+                });
+                return { normalized, changedIndices };
+            };
+
+            const { normalized, changedIndices } = normalize(records);
+
+            if (changedIndices.length === 0) {
+                showMessage('数据结构正常，无需修复', 'success');
+                return;
+            }
+
+            // 生成对比文本（仅展示有改动的样例，避免页面卡顿）
+            const { beforeText, afterText } = buildDiffTexts(records, normalized, changedIndices);
+
+            // 打开确认修复弹窗（使用当前页面已有的 data-check-modal）
+            openDataCheckModal({
+                message: `检测到 ${changedIndices.length} 条记录存在结构问题。是否应用修复？\n（仅填充缺失字段的默认值，不会覆盖已有有效数据）`,
+                beforeText,
+                afterText,
+                onConfirm: async () => {
+                    await saveNormalizedRecords(normalized);
+                    showMessage('数据结构修复完成', 'success');
+                },
+                onCancel: () => {
+                    showMessage('已取消修复', 'info');
+                }
+            });
+        } catch (error) {
+            console.error('数据结构检查失败:', error);
+            showMessage('数据结构检查失败', 'error');
         }
     }
 
-    // function enableRawRecordsEdit() {
-    //     rawRecordsTextarea.readOnly = false;
-    //     rawRecordsTextarea.focus();
-    //     editRawRecordsBtn.classList.add('hidden');
-    //     saveRawRecordsBtn.classList.remove('hidden');
-    //     showMessage('Raw records editing enabled. Be careful!', 'warn');
-    //     logAsync('INFO', '用户启用了高级设置中的原始番号库数据编辑模式。');
-    // }
-
-    // async function handleSaveRawRecords() {
-    //     logAsync('INFO', '用户点击了“保存原始番号库数据”按钮。');
-    //     try {
-    //         const recordsObject = JSON.parse(rawRecordsTextarea.value);
-    //         // Construct a format that applyImportedData can understand
-    //         const dataToImport = {
-    //             data: recordsObject.reduce((acc: Record<string, VideoRecord>, record: VideoRecord) => {
-    //                 acc[record.id] = record;
-    //                 return acc;
-    //             }, {})
-    //         };
-    //         // Use applyImportedData to process the records, with overwrite mode
-    //         await applyImportedData(JSON.stringify(dataToImport), 'data', 'overwrite');
-    //         showMessage('Raw records saved successfully. The page will now reload.', 'success');
-    //         logAsync('INFO', '原始番号库数据已成功解析并应用。');
-    //     } catch (error: any) {
-    //         showMessage(`Error parsing or applying records JSON: ${error.message}`, 'error');
-    //         console.error("Failed to save raw records:", error);
-    //         logAsync('ERROR', '保存原始番号库数据时出错。', { error: error.message });
-    //     } finally {
-    //         // Reset UI after attempting to save
-    //         rawRecordsTextarea.readOnly = true;
-    //         saveRawRecordsBtn.classList.add('hidden');
-    //         editRawRecordsBtn.classList.remove('hidden');
-    //         loadRawRecords(); // Re-load to show the current state
-    //     }
-    // }
-
-    function loadJsonConfig() {
-        // 只显示设置，不显示数据
-        jsonConfigTextarea.value = JSON.stringify(STATE.settings, null, 2);
-    }
-
-    function enableJsonEdit() {
-        jsonConfigTextarea.readOnly = false;
-        jsonConfigTextarea.focus();
-        editJsonBtn.classList.add('hidden');
-        saveJsonBtn.classList.remove('hidden');
-        showMessage('JSON editing enabled. Be careful!', 'warn');
-        logAsync('INFO', '用户启用了高级设置中的 JSON 编辑模式。');
-    }
-
-    async function handleSaveJson() {
-        logAsync('INFO', '用户点击了“保存 JSON”按钮。');
-        try {
-            // 假设文本框中的内容是 settings 对象
-            const settingsObject = JSON.parse(jsonConfigTextarea.value);
-            // 将其包装在 { settings: ... } 结构中以供 applyImportedData 使用
-            await applyImportedData(JSON.stringify({ settings: settingsObject }));
-            logAsync('INFO', 'JSON 配置已成功解析并应用。');
-        } catch (error: any) {
-            showMessage(`Error parsing or applying JSON: ${error.message}`, 'error');
-            console.error("Failed to save JSON settings:", error);
-            logAsync('ERROR', '保存 JSON 配置时出错。', { error: error.message });
-        } finally {
-            // 保存后重置UI
-            jsonConfigTextarea.readOnly = true;
-            saveJsonBtn.classList.add('hidden');
-            editJsonBtn.classList.remove('hidden');
-            // 重新加载配置以确认更改（applyImportedData 成功后会刷新页面，但这作为一个保险措施）
-            loadJsonConfig();
-        }
-    }
-    
+    // 导出数据功能
     async function handleExportData() {
-        // 导出完整数据（设置+影片记录+用户账号信息），与侧边栏导出功能保持一致
-        logAsync('INFO', '用户在“高级设置”中点击了导出按钮。');
+        logAsync('用户在"高级设置"中点击了导出按钮。', 'INFO');
+        try {
+            const exportData = {
+                settings: STATE.settings,
+                records: STATE.records,
+                logs: STATE.logs,
+                exportedAt: new Date().toISOString(),
+                version: '1.13.347'
+            };
 
-        // 获取用户账号信息
-        const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `javdb-complete-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-        const dataToExport = {
-            settings: STATE.settings,
-            data: STATE.records.reduce((acc, record) => {
-                acc[record.id] = record;
-                return acc;
-            }, {} as Record<string, VideoRecord>),
-            userProfile: userProfile
-        };
-        const dataStr = JSON.stringify(dataToExport, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        showMessage('完整备份导出成功（包含账号信息）', 'success');
-        logAsync('INFO', '高级设置中的数据导出成功，包含用户账号信息。');
+            showMessage('完整备份已导出', 'success');
+            logAsync('完整数据备份导出成功', 'INFO');
+        } catch (error) {
+            console.error('导出数据失败:', error);
+            showMessage('导出数据失败', 'error');
+            logAsync('导出数据失败', 'ERROR', { error });
+        }
     }
 
-    editJsonBtn.addEventListener('click', enableJsonEdit);
-    saveJsonBtn.addEventListener('click', handleSaveJson);
-    exportJsonBtn.addEventListener('click', handleExportData);
-    refreshRawLogsBtn.addEventListener('click', loadRawLogs);
-    testLogBtn.addEventListener('click', handleTestLog);
-    refreshRawRecordsBtn.addEventListener('click', loadRawRecords);
-    // editRawRecordsBtn.addEventListener('click', enableRawRecordsEdit);
-    // saveRawRecordsBtn.addEventListener('click', handleSaveRawRecords);
-    
-    loadJsonConfig();
-    // loadRawLogs(); // Removed initial auto-load for performance
-} 
+    // 分析数据结构
+    function analyzeDataStructure(records: VideoRecord[]): string {
+        const analysis = [];
+        analysis.push('=== 番号库数据结构分析报告 ===\n');
+        analysis.push(`生成时间: ${new Date().toLocaleString()}\n`);
+        analysis.push(`总记录数: ${records.length}\n`);
+
+        if (records.length === 0) {
+            analysis.push('\n⚠️ 警告: 没有找到任何记录\n');
+            return analysis.join('');
+        }
+
+        // 状态统计
+        const statusStats: Record<string, number> = {};
+        records.forEach(record => {
+            statusStats[record.status] = (statusStats[record.status] || 0) + 1;
+        });
+
+        analysis.push('\n=== 状态分布 ===');
+        Object.entries(statusStats).forEach(([status, count]) => {
+            analysis.push(`${status}: ${count} 条记录`);
+        });
+
+        // 字段完整性检查
+        analysis.push('\n=== 字段完整性检查 ===');
+        const requiredFields = ['id', 'title', 'status', 'createdAt', 'updatedAt'];
+        const fieldStats: Record<string, { missing: number, empty: number }> = {};
+
+        requiredFields.forEach(field => {
+            fieldStats[field] = { missing: 0, empty: 0 };
+        });
+
+        records.forEach(record => {
+            requiredFields.forEach(field => {
+                if (!(field in record)) {
+                    fieldStats[field].missing++;
+                } else if (!record[field as keyof VideoRecord]) {
+                    fieldStats[field].empty++;
+                }
+            });
+        });
+
+        requiredFields.forEach(field => {
+            const stats = fieldStats[field];
+            if (stats.missing > 0 || stats.empty > 0) {
+                analysis.push(`⚠️ ${field}: 缺失 ${stats.missing} 个, 空值 ${stats.empty} 个`);
+            } else {
+                analysis.push(`✅ ${field}: 完整`);
+            }
+        });
+
+        // 数据质量检查
+        analysis.push('\n=== 数据质量检查 ===');
+        const duplicateIds = findDuplicateIds(records);
+        if (duplicateIds.length > 0) {
+            analysis.push(`⚠️ 发现重复ID: ${duplicateIds.join(', ')}`);
+        } else {
+            analysis.push('✅ 没有重复ID');
+        }
+
+        const invalidDates = records.filter(r => r.createdAt > Date.now() || r.updatedAt > Date.now()).length;
+        if (invalidDates > 0) {
+            analysis.push(`⚠️ 发现 ${invalidDates} 条记录的时间戳异常`);
+        } else {
+            analysis.push('✅ 时间戳正常');
+        }
+
+        return analysis.join('\n');
+    }
+
+    /*
+    // 删除重复的 return
+
+	        return analysis.join('\n');
+	    }
+
+    */
+
+    // 规范化记录（填充缺失字段、修正异常类型），返回新数组和变更索引
+    function normalizeRecords(records: VideoRecord[]): { normalized: VideoRecord[]; changedIndices: number[] } {
+        const normalized: VideoRecord[] = [];
+        const changedIndices: number[] = [];
+        const now = Date.now();
+
+        records.forEach((rec, idx) => {
+            const before = JSON.stringify(rec);
+            const n: VideoRecord = {
+                ...DEFAULT_VIDEO_RECORD,
+                ...rec,
+                id: String(rec.id ?? ''),
+                title: String(rec.title ?? ''),
+                status: (rec.status as VideoStatus) ?? 'viewed',
+                createdAt: typeof rec.createdAt === 'number' ? rec.createdAt : now,
+                updatedAt: typeof rec.updatedAt === 'number' ? rec.updatedAt : now,
+                url: String(rec.url ?? ''),
+                tags: Array.isArray(rec.tags) ? rec.tags : [],
+                actors: Array.isArray(rec.actors) ? rec.actors : [],
+                studio: String((rec as any).studio ?? ''),
+                releaseDate: String((rec as any).releaseDate ?? ''),
+                duration: String((rec as any).duration ?? ''),
+                rating: typeof (rec as any).rating === 'number' ? (rec as any).rating : 0,
+                notes: String((rec as any).notes ?? '')
+            } as VideoRecord;
+
+            const after = JSON.stringify(n);
+            normalized.push(n);
+            if (before !== after) changedIndices.push(idx);
+        });
+
+        return { normalized, changedIndices };
+    }
+
+    // 生成修复对比文本（最多展示前 N 条差异，避免卡顿）
+    function buildDiffTexts(beforeList: VideoRecord[], afterList: VideoRecord[], changedIdx: number[], limit = 5) {
+        const sample = changedIdx.slice(0, limit);
+        const beforeParts: string[] = [];
+        const afterParts: string[] = [];
+        sample.forEach(i => {
+            beforeParts.push(`[#${i}] ${beforeList[i].id}\n` + JSON.stringify(beforeList[i], null, 2));
+            afterParts.push(`[#${i}] ${afterList[i].id}\n` + JSON.stringify(afterList[i], null, 2));
+        });
+        return {
+            beforeText: beforeParts.join('\n\n-------------------------\n\n'),
+            afterText: afterParts.join('\n\n-------------------------\n\n')
+        };
+    }
+
+    // 打开“数据结构修复确认”弹窗，绑定按钮
+    function openDataCheckModal({
+        message,
+        beforeText,
+        afterText,
+        onConfirm,
+        onCancel
+    }: {
+        message: string;
+        beforeText: string;
+        afterText: string;
+        onConfirm: () => void | Promise<void>;
+        onCancel?: () => void;
+    }) {
+        const modal = document.getElementById('data-check-modal');
+        const msg = document.getElementById('data-check-modal-message');
+        const preBefore = document.getElementById('data-check-diff-before');
+        const preAfter = document.getElementById('data-check-diff-after');
+        const btnConfirm = document.getElementById('data-check-confirm-btn') as HTMLButtonElement;
+        const btnCancel = document.getElementById('data-check-cancel-btn') as HTMLButtonElement;
+
+        if (!modal || !msg || !preBefore || !preAfter || !btnConfirm || !btnCancel) {
+            console.error('data-check-modal 相关元素不存在，回退为文本报告弹窗');
+            dataViewModal.show({ title: '数据结构分析报告', data: message + '\n\n' + beforeText, dataType: 'text' });
+            return;
+        }
+
+        msg.textContent = message;
+        preBefore.textContent = beforeText;
+        preAfter.textContent = afterText;
+
+        // 先移除历史监听
+        const newConfirm = btnConfirm.cloneNode(true) as HTMLButtonElement;
+        const newCancel = btnCancel.cloneNode(true) as HTMLButtonElement;
+        btnConfirm.parentNode?.replaceChild(newConfirm, btnConfirm);
+        btnCancel.parentNode?.replaceChild(newCancel, btnCancel);
+
+        const hide = () => { modal.classList.remove('visible'); modal.classList.add('hidden'); };
+
+        newConfirm.onclick = async () => {
+            hide();
+            await onConfirm();
+        };
+        newCancel.onclick = () => { hide(); onCancel && onCancel(); };
+
+        modal.classList.remove('hidden');
+        modal.classList.add('visible');
+    }
+
+    // 保存规范化后的记录到本地存储
+    async function saveNormalizedRecords(newRecords: VideoRecord[]) {
+        const map: Record<string, VideoRecord> = {};
+        newRecords.forEach(r => { map[r.id] = r; });
+        await setValue(STORAGE_KEYS.VIEWED_RECORDS, map);
+        STATE.records = newRecords;
+    }
+
+    // 查找重复ID
+    function findDuplicateIds(records: VideoRecord[]): string[] {
+        const idCounts: Record<string, number> = {};
+        records.forEach(record => {
+            idCounts[record.id] = (idCounts[record.id] || 0) + 1;
+        });
+        return Object.keys(idCounts).filter(id => idCounts[id] > 1);
+    }
+}

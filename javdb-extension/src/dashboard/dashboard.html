@@ -1147,29 +1147,7 @@
                                 <h3>🚀 功能增强设置</h3>
                                 <p class="settings-description">解锁强大的增强功能，让您的JavDB体验更加丰富和高效！这些功能将显著提升浏览效率、数据完整性和操作便捷性。</p>
 
-                                <!-- 开发状态提示 -->
-                                <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                                    <h4 style="margin: 0 0 10px 0; color: white;">🚧 功能开发状态</h4>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-                                        <div>
-                                            <strong>🔧 开发中功能：</strong><br>
-                                            • 多数据源聚合<br>
-                                            • 智能图片缓存<br>
-                                            • 视频预览增强<br>
-                                            • 一键快捷复制
-                                        </div>
-                                        <div>
-                                            <strong>🔧 开发中功能：</strong><br>
-                                            • 多站点评分聚合<br>
-                                            • 演员信息增强<br>
-                                            • 键盘快捷键大师<br>
-                                            • 智能操作提示
-                                        </div>
-                                    </div>
-                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 13px;">
-                                        <strong>📝 说明：</strong>以上功能正在开发完善中，暂时不可用。其他功能正常使用。
-                                    </div>
-                                </div>
+
                             </div>
                             <div class="settings-panel-body">
                                 <!-- 隐藏的checkbox元素，用于JavaScript逻辑 -->
@@ -1667,11 +1645,11 @@
                                 <div class="settings-section">
                                     <h4>原始设置 (JSON)</h4>
                                     <div class="action-buttons-top">
-                                        <button id="editJsonBtn" class="btn">编辑</button>
-                                        <button id="saveJsonBtn" class="btn hidden">保存</button>
+                                        <button id="viewJsonBtn" class="btn">查看设置</button>
+                                        <button id="editJsonBtn" class="btn">编辑设置</button>
                                         <button id="exportJsonBtn" class="btn">导出完整备份</button>
                                     </div>
-                                    <textarea id="jsonConfig" readonly></textarea>
+                                    <p class="section-description">查看和编辑扩展的原始配置数据，支持JSON格式导入导出。</p>
                                 </div>
 
 
@@ -1679,23 +1657,17 @@
                                 <div class="settings-section">
                                     <h4>原始番号库数据 (Raw Records)</h4>
                                     <div class="action-buttons-top">
-                                        <button id="refreshRawRecordsBtn" class="btn">显示/刷新</button>
+                                        <button id="viewRawRecordsBtn" class="btn">查看数据</button>
                                         <button id="checkDataStructureBtn" class="btn">检查数据结构</button>
-                                        <!-- <button id="editRawRecordsBtn" class="btn">编辑</button> -->
-                                        <!-- <button id="saveRawRecordsBtn" class="btn hidden">保存</button> -->
                                     </div>
-                                    <textarea id="rawRecordsTextarea" readonly class="hidden"></textarea>
+                                    <p class="section-description">查看番号库的原始数据结构，检查数据完整性和格式。</p>
                                 </div>
 
                                 <div class="settings-section">
                                     <h4>演员库管理</h4>
                                     <div class="action-buttons-top">
-                                        <button id="loadActorsBtn" class="btn">加载演员库</button>
-                                        <button id="editActorsBtn" class="btn" disabled>编辑</button>
-                                        <button id="saveActorsBtn" class="btn hidden">保存</button>
-                                        <button id="exportActorsBtn" class="btn" disabled>导出演员库</button>
-                                        <button id="importActorsBtn" class="btn">导入演员库</button>
-                                        <input type="file" id="importActorsFile" accept=".json" style="display:none">
+                                        <button id="viewActorsBtn" class="btn">查看演员数据</button>
+                                        <button id="editActorsBtn" class="btn">编辑</button>
                                     </div>
                                     <div class="actors-stats" id="actorsStats" style="display:none">
                                         <div class="stats-grid">
@@ -1717,16 +1689,17 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <textarea id="actorsConfig" readonly placeholder="点击加载演员库按钮加载演员数据"></textarea>
+
+                                    <p class="section-description">查看演员库的详细数据，包含演员信息和统计数据。</p>
                                 </div>
 
                                 <div class="settings-section">
                                     <h4>原始日志 (Raw Logs)</h4>
                                     <div class="action-buttons-top">
-                                        <button id="refreshRawLogsBtn" class="btn">显示/刷新日志</button>
+                                        <button id="viewRawLogsBtn" class="btn">查看日志</button>
                                         <button id="testLogBtn" class="btn">测试日志</button>
                                     </div>
-                                    <textarea id="rawLogsTextarea" readonly class="hidden"></textarea>
+                                    <p class="section-description">查看扩展运行时产生的详细日志信息，用于调试和问题排查。</p>
                                 </div>
                             </div>
                         </div>
@@ -1800,7 +1773,7 @@
                                         </label>
                                         <input type="url" id="aiApiUrl" class="text-input"
                                                placeholder="https://api.openai.com 或其他兼容服务地址">
-                                        <p class="input-description">支持OpenAI API或New API兼容的服务地址。</p>
+                                        <p class="input-description">支持OpenAI API或One API兼容的服务地址。（不需要加“/v1”）</p>
                                     </div>
 
                                     <div class="form-group">
@@ -1945,15 +1918,15 @@
                                             设置管理:
                                         </label>
                                         <div class="form-group-inline">
-                                            <button type="button" id="exportAiSettings" class="btn btn-secondary">
+                                            <button type="button" id="exportAiSettings" class="btn btn-export">
                                                 <i class="fas fa-download"></i>
                                                 导出设置
                                             </button>
-                                            <button type="button" id="importAiSettings" class="btn btn-secondary">
+                                            <button type="button" id="importAiSettings" class="btn btn-import">
                                                 <i class="fas fa-upload"></i>
                                                 导入设置
                                             </button>
-                                            <button type="button" id="clearTestResults" class="btn btn-secondary">
+                                            <button type="button" id="clearTestResults" class="btn btn-clear">
                                                 <i class="fas fa-trash"></i>
                                                 清除测试结果
                                             </button>
@@ -1982,7 +1955,7 @@
                                         </div>
                                     </div>
                                     <div class="action-buttons">
-                                        <button id="resetAiSettings" class="btn btn-secondary">
+                                        <button id="resetAiSettings" class="btn btn-reset">
                                             <i class="fas fa-undo"></i>
                                             重置为默认
                                         </button>
@@ -2991,6 +2964,38 @@
                   <i class="fas fa-check"></i>
                   确定
               </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- 数据查看弹窗 -->
+  <div id="dataViewModal" class="modal">
+      <div class="modal-overlay">
+          <div class="modal-content data-view-modal">
+              <div class="modal-header">
+                  <h3 id="dataViewModalTitle">数据查看</h3>
+                  <button class="modal-close" id="dataViewModalClose">&times;</button>
+              </div>
+              <div class="modal-body">
+                  <div class="data-view-controls">
+                      <div class="control-group">
+                          <button id="dataViewEditBtn" class="btn btn-secondary">编辑</button>
+                          <button id="dataViewSaveBtn" class="btn btn-primary hidden">保存</button>
+                          <button id="dataViewCancelBtn" class="btn btn-secondary hidden">取消</button>
+                          <button id="dataViewCopyBtn" class="btn btn-outline">复制</button>
+                          <button id="dataViewDownloadBtn" class="btn btn-outline">下载</button>
+                      </div>
+                      <div class="data-info">
+                          <span id="dataViewInfo" class="data-info-text"></span>
+                      </div>
+                  </div>
+                  <div class="data-view-container">
+                      <textarea id="dataViewTextarea" readonly></textarea>
+                  </div>
+              </div>
+              <div class="modal-footer">
+                  <button id="dataViewCloseBtn" class="btn btn-secondary">关闭</button>
+              </div>
           </div>
       </div>
   </div>

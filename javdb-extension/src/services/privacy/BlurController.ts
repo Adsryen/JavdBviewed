@@ -27,6 +27,7 @@ export class BlurController implements IBlurController {
         // Dashboard 布局级保护 - 只模糊最外层容器，避免嵌套模糊
         '.video-list-container',          // 番号库整个容器
         '.actor-list-container',          // 演员库整个容器
+        '.new-works-list-section',        // 新作品显示容器
 
         // JavDB网站内容 - 视频相关
         '.video-cover',
@@ -359,6 +360,11 @@ export class BlurController implements IBlurController {
             return;
         }
 
+        // 检查当前是否在敏感页面
+        if (!this.shouldShowEyeIcon()) {
+            return; // 不在敏感页面，不显示眼睛图标
+        }
+
         const eyeIcon = document.createElement('div');
         eyeIcon.className = 'privacy-eye-icon';
         // 创建眼睛开启状态的SVG图标
@@ -476,6 +482,20 @@ export class BlurController implements IBlurController {
         };
 
         this.eyeIcons.set(element, eyeIcon);
+    }
+
+    /**
+     * 检查当前页面是否应该显示眼睛图标
+     */
+    private shouldShowEyeIcon(): boolean {
+        // 定义需要隐私保护的敏感页面
+        const SENSITIVE_PAGES = ['tab-records', 'tab-actors', 'tab-new-works'];
+
+        // 获取当前页面标识
+        const currentHash = window.location.hash.substring(1) || 'tab-records';
+        const [mainTab] = currentHash.split('/');
+
+        return SENSITIVE_PAGES.includes(mainTab);
     }
 
     /**
