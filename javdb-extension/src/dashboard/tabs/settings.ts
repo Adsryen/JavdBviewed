@@ -7,7 +7,7 @@ import { STORAGE_KEYS } from '../../utils/config';
 import { actorManager } from '../../services/actorManager';
 import { initPrivacySettings } from './privacy';
 import { onSettingsChanged } from '../../utils/logController';
-import { EXTENSION_DOMAINS, getAllEnabledDomains, getDomainsByCategory, getDomainStats, type DomainInfo } from '../../utils/domainConfig';
+import { EXTENSION_DOMAINS, getAllEnabledDomains, getDomainsByCategory, getDomainStats, toggleDomainEnabled, setDomainEnabled, getAllDomains, type DomainInfo } from '../../utils/domainConfig';
 
 // Import updateSyncStatus function
 declare function updateSyncStatus(): void;
@@ -1259,10 +1259,11 @@ function initManualNetworkTest(): void {
     const startButton = document.getElementById('start-ping-test') as HTMLButtonElement;
     const urlInput = document.getElementById('ping-url') as HTMLInputElement;
     const resultsContainer = document.getElementById('ping-results') as HTMLDivElement;
+    const resultsContainerWrapper = document.getElementById('ping-results-container') as HTMLDivElement;
     const buttonText = startButton?.querySelector('.button-text') as HTMLSpanElement;
     const spinner = startButton?.querySelector('.spinner') as HTMLDivElement;
 
-    if (!startButton || !urlInput || !resultsContainer || !buttonText || !spinner) {
+    if (!startButton || !urlInput || !resultsContainer || !resultsContainerWrapper || !buttonText || !spinner) {
         console.warn('Manual network test elements not found, skipping initialization');
         return;
     }
@@ -1270,10 +1271,15 @@ function initManualNetworkTest(): void {
     startButton.addEventListener('click', async () => {
         const urlValue = urlInput.value.trim();
         if (!urlValue) {
+            // 显示结果容器并显示错误信息
+            resultsContainerWrapper.style.display = 'block';
             resultsContainer.innerHTML = '<div class="ping-result-item failure"><i class="fas fa-times-circle icon"></i><span>❌ 请输入有效的URL地址</span></div>';
             showMessage('请先输入要测试的网址', 'warn');
             return;
         }
+
+        // 显示结果容器
+        resultsContainerWrapper.style.display = 'block';
 
         // 显示开始测试的提示
         showMessage('🚀 开始网络延迟测试...', 'info');
@@ -2939,13 +2945,18 @@ function showConfirmationModal(options: {
 function initBatchNetworkTest(): void {
     const testAllButton = document.getElementById('test-all-domains') as HTMLButtonElement;
     const testCoreButton = document.getElementById('test-core-domains') as HTMLButtonElement;
+    const toggleConfigButton = document.getElementById('toggle-domain-config') as HTMLButtonElement;
     const clearResultsButton = document.getElementById('clear-batch-results') as HTMLButtonElement;
     const batchResultsContainer = document.getElementById('batch-test-results') as HTMLDivElement;
+    const configPanel = document.getElementById('domain-config-panel') as HTMLDivElement;
 
-    if (!testAllButton || !testCoreButton || !clearResultsButton || !batchResultsContainer) {
+    if (!testAllButton || !testCoreButton || !toggleConfigButton || !clearResultsButton || !batchResultsContainer || !configPanel) {
         console.warn('Batch network test elements not found, skipping initialization');
         return;
     }
+
+    // 初始化域名配置面板
+    initDomainConfigPanel();
 
     // 一键测试所有域名
     testAllButton.addEventListener('click', async () => {
@@ -2957,6 +2968,23 @@ function initBatchNetworkTest(): void {
     testCoreButton.addEventListener('click', async () => {
         const coreDomains = getDomainsByCategory('core');
         await runBatchDomainTest(coreDomains, batchResultsContainer, testCoreButton);
+    });
+
+    // 切换域名配置面板
+    toggleConfigButton.addEventListener('click', () => {
+        const isVisible = configPanel.style.display !== 'none';
+        configPanel.style.display = isVisible ? 'none' : 'block';
+
+        // 更新按钮文本
+        const buttonText = toggleConfigButton.querySelector('.button-text');
+        if (buttonText) {
+            buttonText.textContent = isVisible ? '配置域名' : '隐藏配置';
+        }
+
+        // 如果显示配置面板，刷新内容
+        if (!isVisible) {
+            renderDomainConfig();
+        }
     });
 
     // 清空结果
@@ -2994,6 +3022,9 @@ async function runBatchDomainTest(domains: DomainInfo[], container: HTMLDivEleme
         showMessage('没有可测试的域名', 'warn');
         return;
     }
+
+    // 显示结果容器
+    container.style.display = 'block';
 
     // 禁用按钮并显示加载状态
     const originalText = button.querySelector('.button-text')?.textContent || '';
@@ -3199,6 +3230,8 @@ function removeTestProgress(container: HTMLDivElement): void {
  * 清空批量测试结果
  */
 function clearBatchResults(container: HTMLDivElement): void {
+    // 隐藏容器而不是显示占位符
+    container.style.display = 'none';
     container.innerHTML = `
         <div class="batch-results-placeholder">
             <i class="fas fa-info-circle"></i>
@@ -3206,4 +3239,129 @@ function clearBatchResults(container: HTMLDivElement): void {
         </div>
     `;
     showMessage('已清空测试结果', 'info');
+}
+
+// ==================== 域名配置功能 ====================
+
+/**
+ * 初始化域名配置面板
+ */
+function initDomainConfigPanel(): void {
+    const selectAllButton = document.getElementById('select-all-domains') as HTMLButtonElement;
+    const deselectAllButton = document.getElementById('deselect-all-domains') as HTMLButtonElement;
+    const resetDefaultButton = document.getElementById('reset-default-domains') as HTMLButtonElement;
+
+    if (!selectAllButton || !deselectAllButton || !resetDefaultButton) {
+        console.warn('Domain config panel elements not found');
+        return;
+    }
+
+    // 全选
+    selectAllButton.addEventListener('click', () => {
+        setAllDomainsEnabled(true);
+        renderDomainConfig();
+        updateDomainStats();
+        showMessage('已启用所有域名', 'success');
+    });
+
+    // 全不选
+    deselectAllButton.addEventListener('click', () => {
+        setAllDomainsEnabled(false);
+        renderDomainConfig();
+        updateDomainStats();
+        showMessage('已禁用所有域名', 'info');
+    });
+
+    // 恢复默认
+    resetDefaultButton.addEventListener('click', () => {
+        resetToDefaultDomains();
+        renderDomainConfig();
+        updateDomainStats();
+        showMessage('已恢复默认配置', 'success');
+    });
+}
+
+/**
+ * 渲染域名配置内容
+ */
+function renderDomainConfig(): void {
+    const configContent = document.getElementById('domain-config-content') as HTMLDivElement;
+    if (!configContent) return;
+
+    configContent.innerHTML = '';
+
+    Object.entries(EXTENSION_DOMAINS).forEach(([categoryKey, category]) => {
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'domain-category';
+
+        // 分类标题
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'category-title';
+        titleDiv.innerHTML = `
+            <span class="emoji">${category.icon}</span>
+            <span>${category.name}</span>
+            <span style="color: #6c757d; font-weight: normal; font-size: 11px;">(${category.description})</span>
+        `;
+        categoryDiv.appendChild(titleDiv);
+
+        // 域名列表
+        category.domains.forEach((domain, index) => {
+            const domainDiv = document.createElement('div');
+            domainDiv.className = `domain-config-item ${domain.enabled ? 'enabled' : 'disabled'}`;
+
+            domainDiv.innerHTML = `
+                <div class="domain-info-config">
+                    <div class="domain-name-config">${domain.name}</div>
+                    <div class="domain-url-config">${domain.domain}</div>
+                    <div class="domain-desc-config">${domain.description}</div>
+                </div>
+                <div class="domain-toggle">
+                    <span class="priority-badge ${domain.priority}">${domain.priority}</span>
+                    <div class="domain-switch ${domain.enabled ? 'enabled' : ''}" data-category="${categoryKey}" data-index="${index}">
+                    </div>
+                </div>
+            `;
+
+            // 添加点击事件
+            const switchElement = domainDiv.querySelector('.domain-switch') as HTMLDivElement;
+            switchElement.addEventListener('click', () => {
+                const newState = toggleDomainEnabled(categoryKey, index);
+                switchElement.classList.toggle('enabled', newState);
+                domainDiv.classList.toggle('enabled', newState);
+                domainDiv.classList.toggle('disabled', !newState);
+                updateDomainStats();
+
+                showMessage(`${domain.name} 已${newState ? '启用' : '禁用'}`, newState ? 'success' : 'info');
+            });
+
+            categoryDiv.appendChild(domainDiv);
+        });
+
+        configContent.appendChild(categoryDiv);
+    });
+}
+
+/**
+ * 设置所有域名的启用状态
+ */
+function setAllDomainsEnabled(enabled: boolean): void {
+    Object.entries(EXTENSION_DOMAINS).forEach(([categoryKey, category]) => {
+        category.domains.forEach((domain, index) => {
+            setDomainEnabled(categoryKey, index, enabled);
+        });
+    });
+}
+
+/**
+ * 恢复默认域名配置
+ */
+function resetToDefaultDomains(): void {
+    // 恢复到初始状态：除了Torrentz2，其他都启用
+    Object.entries(EXTENSION_DOMAINS).forEach(([categoryKey, category]) => {
+        category.domains.forEach((domain, index) => {
+            // Torrentz2 默认禁用，其他都启用
+            const shouldEnable = domain.domain !== 'torrentz2.eu';
+            setDomainEnabled(categoryKey, index, shouldEnable);
+        });
+    });
 }

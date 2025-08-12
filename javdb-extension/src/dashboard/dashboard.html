@@ -972,7 +972,7 @@
                                             <div class="spinner hidden"></div>
                                         </button>
                                     </div>
-                                    <div id="ping-results-container" style="margin-top: 20px;">
+                                    <div id="ping-results-container" style="margin-top: 20px; display: none;">
                                         <h4>测试结果:</h4>
                                         <div id="ping-results"></div>
                                     </div>
@@ -981,7 +981,7 @@
                                 <!-- 批量测试区域 -->
                                 <div class="network-test-section" style="margin-top: 30px;">
                                     <div class="section-header">
-                                        <h4><i class="fas fa-rocket"></i> 一键测试所有服务</h4>
+                                        <h4><i class="fas fa-rocket"></i> 一键测试</h4>
                                         <p class="section-description">快速检测拓展涉及的所有外部服务的连通性</p>
                                     </div>
 
@@ -1012,14 +1012,34 @@
                                             <i class="fas fa-home"></i>
                                             <span class="button-text">仅测试核心服务</span>
                                         </button>
+                                        <button id="toggle-domain-config" class="button-like secondary">
+                                            <i class="fas fa-cog"></i>
+                                            <span class="button-text">配置域名</span>
+                                        </button>
                                         <button id="clear-batch-results" class="button-like tertiary">
                                             <i class="fas fa-trash"></i>
                                             <span class="button-text">清空结果</span>
                                         </button>
                                     </div>
 
+                                    <!-- 域名配置面板 -->
+                                    <div id="domain-config-panel" class="domain-config-panel" style="display: none;">
+                                        <div class="config-header">
+                                            <h5><i class="fas fa-cog"></i> 域名测试配置</h5>
+                                            <p>选择要测试的服务域名，只有启用的域名会被测试</p>
+                                        </div>
+                                        <div id="domain-config-content" class="domain-config-content">
+                                            <!-- 动态生成的域名配置项 -->
+                                        </div>
+                                        <div class="config-actions">
+                                            <button id="select-all-domains" class="button-like small secondary">全选</button>
+                                            <button id="deselect-all-domains" class="button-like small secondary">全不选</button>
+                                            <button id="reset-default-domains" class="button-like small tertiary">恢复默认</button>
+                                        </div>
+                                    </div>
+
                                     <!-- 批量测试结果 -->
-                                    <div id="batch-test-results" class="batch-results-container">
+                                    <div id="batch-test-results" class="batch-results-container" style="display: none;">
                                         <div class="batch-results-placeholder">
                                             <i class="fas fa-info-circle"></i>
                                             <p>点击上方按钮开始批量测试</p>
