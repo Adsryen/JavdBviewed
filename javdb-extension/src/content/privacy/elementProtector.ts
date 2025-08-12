@@ -31,6 +31,13 @@ export class ElementProtector {
         '.actor-card-aliases',            // 演员别名
         '.actor-alias',                   // 单个别名
 
+        // Dashboard 新作品库 - 完整保护
+        '.new-works-list-section',        // 新作品显示容器
+        '.new-works-item',                // 单个新作品条目
+        '.new-works-title',               // 新作品标题
+        '.new-works-cover',               // 新作品封面
+        '.new-works-actor',               // 新作品演员信息
+
         // JavDB网站内容 - 视频相关
         '.movie-list .item',
         '.movie-list .cover',
@@ -275,6 +282,23 @@ export class ElementProtector {
                 aliases.forEach(alias => {
                     if (alias instanceof HTMLElement) elements.push(alias);
                 });
+            }
+        });
+
+        // 检测新作品库元素
+        const newWorksItems = document.querySelectorAll('.new-works-item, [class*="new-works"], [data-new-work-id]');
+        newWorksItems.forEach(item => {
+            if (item instanceof HTMLElement) {
+                elements.push(item); // 直接保护整个新作品条目
+
+                // 额外保护内部元素
+                const title = item.querySelector('.new-works-title, [class*="title"]');
+                const cover = item.querySelector('.new-works-cover, [class*="cover"], img');
+                const actor = item.querySelector('.new-works-actor, [class*="actor"]');
+
+                if (title instanceof HTMLElement) elements.push(title);
+                if (cover instanceof HTMLElement) elements.push(cover);
+                if (actor instanceof HTMLElement) elements.push(actor);
             }
         });
 

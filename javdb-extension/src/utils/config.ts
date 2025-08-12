@@ -82,6 +82,7 @@ export const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
             // Dashboard 布局级保护 - 只模糊最外层容器，避免嵌套模糊
             '.video-list-container',          // 番号库整个容器
             '.actor-list-container',          // 演员库整个容器
+            '.new-works-list-section',        // 新作品显示容器
 
             // JavDB网站内容 - 视频相关
             '.video-cover',

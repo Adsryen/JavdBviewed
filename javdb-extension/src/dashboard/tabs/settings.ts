@@ -889,27 +889,69 @@ function initSettingsNavigation(): void {
             const sectionId = item.getAttribute('data-section');
             if (!sectionId) return;
 
-            // Update active nav item
-            navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
+            // Update URL with sub-section using hash change
+            window.location.hash = `tab-settings/${sectionId}`;
 
-            // Show corresponding panel
-            panels.forEach(panel => panel.classList.remove('active'));
-            const targetPanel = document.getElementById(sectionId);
-            if (targetPanel) {
-                targetPanel.classList.add('active');
-            }
-
-            // Close mobile menu if open
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('open');
-            }
+            // 不需要手动调用 switchToSettingsSection，hashchange 事件会处理
         });
     });
+
+    // 创建切换设置子页面的函数
+    function switchToSettingsSection(sectionId: string) {
+        // Update active nav item
+        navItems.forEach(nav => nav.classList.remove('active'));
+        const targetNavItem = document.querySelector(`[data-section="${sectionId}"]`);
+        if (targetNavItem) {
+            targetNavItem.classList.add('active');
+        }
+
+        // Show corresponding panel
+        panels.forEach(panel => panel.classList.remove('active'));
+        const targetPanel = document.getElementById(sectionId);
+        if (targetPanel) {
+            targetPanel.classList.add('active');
+        }
+
+        // Close mobile menu if open
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+        }
+    }
 
     // Handle mobile menu toggle
     menuToggle?.addEventListener('click', () => {
         sidebar.classList.toggle('open');
+    });
+
+    // 处理页面加载时的初始子页面
+    const initialSection = (window as any).initialSettingsSection;
+    if (initialSection) {
+        switchToSettingsSection(initialSection);
+        // 清除临时存储的初始页面信息
+        delete (window as any).initialSettingsSection;
+    }
+
+    // 监听来自主页面的子页面切换事件
+    window.addEventListener('settingsSubSectionChange', (event: CustomEvent) => {
+        const { section } = event.detail;
+        if (section) {
+            switchToSettingsSection(section);
+        }
+    });
+
+    // 添加对直接hash变化的监听（用于浏览器前进后退）
+    window.addEventListener('hashchange', () => {
+        const currentHash = window.location.hash.substring(1);
+        const [mainTab, subSection] = currentHash.split('/');
+
+        // 只处理设置页面的子页面变化
+        if (mainTab === 'tab-settings' && subSection) {
+            // 检查当前是否已经在正确的子页面
+            const currentActivePanel = document.querySelector('.settings-panel.active');
+            if (currentActivePanel && currentActivePanel.id !== subSection) {
+                switchToSettingsSection(subSection);
+            }
+        }
     });
 
     // Close mobile menu when clicking outside

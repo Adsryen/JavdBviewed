@@ -228,96 +228,356 @@
     }
 }
 
-/* Advanced Settings Tab */
+/* Advanced Settings Tab - 现代化重新设计 */
+:root {
+    --advanced-primary: #6366f1;
+    --advanced-secondary: #8b5cf6;
+    --advanced-success: #10b981;
+    --advanced-warning: #f59e0b;
+    --advanced-error: #ef4444;
+    --advanced-bg: #f8fafc;
+    --advanced-card-bg: #ffffff;
+    --advanced-border: #e2e8f0;
+    --advanced-text: #1e293b;
+    --advanced-text-muted: #64748b;
+    --advanced-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --advanced-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 高级配置面板整体样式 */
+#advanced-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#advanced-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(99, 102, 241, 0.05) 0%,
+        rgba(139, 92, 246, 0.05) 50%,
+        rgba(16, 185, 129, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#advanced-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#advanced-settings .settings-panel-header h3 {
+    color: var(--advanced-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#advanced-settings .settings-panel-header h3::before {
+    content: '⚙️';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#advanced-settings .settings-description {
+    color: var(--advanced-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* 设置区块现代化卡片样式 */
+#advanced-settings .settings-section {
+    background: var(--advanced-card-bg);
+    border: 2px solid var(--advanced-border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--advanced-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+#advanced-settings .settings-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--advanced-primary) 0%, var(--advanced-secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#advanced-settings .settings-section:hover {
+    border-color: var(--advanced-primary);
+    box-shadow: var(--advanced-shadow-hover);
+    transform: translateY(-2px);
+}
+
+#advanced-settings .settings-section:hover::before {
+    opacity: 1;
+}
+
+#advanced-settings .settings-section h4 {
+    color: var(--advanced-text);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 为不同区块添加图标 */
+#advanced-settings .settings-section:nth-child(1) h4::before {
+    content: '📝';
+    font-size: 1.1em;
+}
+
+#advanced-settings .settings-section:nth-child(2) h4::before {
+    content: '🗃️';
+    font-size: 1.1em;
+}
+
+#advanced-settings .settings-section:nth-child(3) h4::before {
+    content: '👥';
+    font-size: 1.1em;
+}
+
+#advanced-settings .settings-section:nth-child(4) h4::before {
+    content: '📋';
+    font-size: 1.1em;
+}
+
+/* 文本区域现代化样式 */
 #jsonConfig,
 #actorsConfig,
 #rawLogsTextarea,
 #rawRecordsTextarea {
     width: 100%;
-    min-height: 200px;
-    padding: 10px;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    white-space: pre;
-    overflow-wrap: normal;
-    overflow-x: auto;
-    background-color: #0d1117;
-    color: #c9d1d9;
+    min-height: 240px;
+    padding: 16px;
+    border: 2px solid var(--advanced-border);
+    border-radius: 12px;
+    font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--advanced-text);
     resize: vertical;
-    transition: all 0.2s;
-    box-sizing: border-box; /* Add this line to fix overflow */
-    white-space: pre-wrap; /* 自动换行 */
-    word-wrap: break-word; /* 强制长单词断行 */
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 #jsonConfig:read-only,
 #actorsConfig:read-only,
 #rawLogsTextarea:read-only {
-    background-color: #161b22;
-    color: #8b949e;
-    border-color: #30363d;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: var(--advanced-text-muted);
+    border-color: var(--advanced-border);
 }
 
-/* 演员库统计样式 */
-.actors-stats {
-    margin: 15px 0;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
+/* 演员库统计样式 - 现代化重新设计 */
+#advanced-settings .actors-stats {
+    margin: 20px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    border: 2px solid var(--advanced-border);
+    box-shadow: var(--advanced-shadow);
+    transition: all 0.3s ease;
 }
 
-.stats-grid {
+#advanced-settings .actors-stats:hover {
+    border-color: var(--advanced-primary);
+    box-shadow: var(--advanced-shadow-hover);
+    transform: translateY(-1px);
+}
+
+#advanced-settings .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
 }
 
-.stat-item {
+#advanced-settings .stat-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 10px;
-    background: white;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid var(--advanced-border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.stat-label {
-    font-size: 12px;
-    color: #6c757d;
-    margin-bottom: 5px;
+#advanced-settings .stat-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--advanced-primary) 0%, var(--advanced-secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#advanced-settings .stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--advanced-primary);
+}
+
+#advanced-settings .stat-item:hover::before {
+    opacity: 1;
+}
+
+#advanced-settings .stat-label {
+    font-size: 13px;
+    color: var(--advanced-text-muted);
+    margin-bottom: 8px;
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.stat-value {
-    font-size: 18px;
-    font-weight: 600;
-    color: #495057;
+#advanced-settings .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--advanced-primary);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 为不同统计项添加特定颜色 */
+#advanced-settings .stat-item:nth-child(1) .stat-value {
+    color: var(--advanced-primary);
+}
+
+#advanced-settings .stat-item:nth-child(2) .stat-value {
+    color: #ec4899; /* 女演员 - 粉色 */
+}
+
+#advanced-settings .stat-item:nth-child(3) .stat-value {
+    color: #3b82f6; /* 男演员 - 蓝色 */
+}
+
+#advanced-settings .stat-item:nth-child(4) .stat-value {
+    color: var(--advanced-text-muted); /* 未知性别 - 灰色 */
 }
 
 /* 演员库特定的textarea样式 */
-#actorsConfig {
-    min-height: 300px;
+#advanced-settings #actorsConfig {
+    min-height: 320px;
 }
 
-#actorsConfig:placeholder-shown {
-    background-color: #f8f9fa;
-    color: #6c757d;
-    border-color: #dee2e6;
+#advanced-settings #actorsConfig:placeholder-shown {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--advanced-text-muted);
+}
+
+/* 文本区域状态指示器 */
+#advanced-settings .settings-section {
+    position: relative;
+}
+
+#advanced-settings .settings-section .status-indicator {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+#advanced-settings .settings-section.has-data .status-indicator {
+    background: var(--advanced-success);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+#advanced-settings .settings-section.editing .status-indicator {
+    background: var(--advanced-warning);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    animation: pulse 2s infinite;
+}
+
+#advanced-settings .settings-section.loading .status-indicator {
+    background: var(--advanced-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    animation: spin 1s linear infinite;
+}
+
+/* 文本区域行号显示 */
+#advanced-settings textarea {
+    position: relative;
+}
+
+#advanced-settings .textarea-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+#advanced-settings .line-numbers {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-right: 1px solid var(--advanced-border);
+    font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--advanced-text-muted);
+    padding: 16px 8px;
+    box-sizing: border-box;
+    user-select: none;
+    pointer-events: none;
+    border-radius: 12px 0 0 12px;
+}
+
+#advanced-settings textarea.with-line-numbers {
+    padding-left: 56px;
 }
 
 #jsonConfig:focus,
-#rawLogsTextarea:focus {
+#actorsConfig:focus,
+#rawLogsTextarea:focus,
+#rawRecordsTextarea:focus {
     outline: none;
-    border-color: #58a6ff;
-    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+    border-color: var(--advanced-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: #ffffff;
+    transform: scale(1.01);
 }
 
+/* 按钮组现代化样式 */
 .button-group {
     margin-top: 15px;
     display: flex;
@@ -804,24 +1064,102 @@
     outline: none;
 }
 
-/* --- Advanced Settings Button Bar --- */
-.action-buttons-top {
+/* --- Advanced Settings Button Bar - 现代化重新设计 --- */
+#advanced-settings .action-buttons-top {
     display: flex;
     gap: 12px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-.action-buttons-top .btn {
-    padding: 8px 16px;
+#advanced-settings .action-buttons-top .btn {
+    padding: 10px 18px;
     font-size: 14px;
-    font-weight: 500;
-    border: none;
-    border-radius: 6px;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--advanced-shadow);
     color: #fff;
+    position: relative;
+    overflow: hidden;
+    min-width: 120px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+#advanced-settings .action-buttons-top .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+#advanced-settings .action-buttons-top .btn:hover::before {
+    left: 100%;
+}
+
+#advanced-settings .action-buttons-top .btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: var(--advanced-shadow-hover);
+    filter: brightness(1.1);
+}
+
+#advanced-settings .action-buttons-top .btn:active {
+    transform: translateY(0) scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* 不同类型按钮的颜色方案 */
+#advanced-settings .action-buttons-top .btn:not(.hidden) {
+    background: linear-gradient(135deg, var(--advanced-primary) 0%, var(--advanced-secondary) 100%);
+}
+
+#advanced-settings .action-buttons-top .btn:not(.hidden):hover {
+    background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 特殊按钮样式 */
+#advanced-settings #editJsonBtn,
+#advanced-settings #editActorsBtn,
+#advanced-settings #loadActorsBtn {
+    background: linear-gradient(135deg, var(--advanced-success) 0%, #059669 100%);
+}
+
+#advanced-settings #editJsonBtn:hover,
+#advanced-settings #editActorsBtn:hover,
+#advanced-settings #loadActorsBtn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+#advanced-settings #saveJsonBtn,
+#advanced-settings #saveActorsBtn {
+    background: linear-gradient(135deg, var(--advanced-warning) 0%, #d97706 100%);
+}
+
+#advanced-settings #saveJsonBtn:hover,
+#advanced-settings #saveActorsBtn:hover {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+#advanced-settings #exportJsonBtn,
+#advanced-settings #exportActorsBtn {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+}
+
+#advanced-settings #exportJsonBtn:hover,
+#advanced-settings #exportActorsBtn:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
 }
 
 .action-buttons-top .btn:hover:not(:disabled) {
@@ -1218,6 +1556,280 @@
 #reloadExtensionBtn::before {
     content: '🔃';
     margin-right: 4px;
+}
+
+/* 高级配置页面按钮 - 移除图标，保持简洁 */
+
+/* 高级配置页面动画效果 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+#advanced-settings .settings-section {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+#advanced-settings .settings-section:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+#advanced-settings .settings-section:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+#advanced-settings .settings-section:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+#advanced-settings .settings-section:nth-child(4) {
+    animation-delay: 0.4s;
+}
+
+/* 加载状态动画 */
+#advanced-settings .btn.loading {
+    position: relative;
+    color: transparent !important;
+}
+
+#advanced-settings .btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #advanced-settings .action-buttons-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #advanced-settings .action-buttons-top .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    #advanced-settings .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    #advanced-settings .settings-section {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    #advanced-settings .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #advanced-settings .settings-section h4 {
+        font-size: 16px;
+    }
+
+    #advanced-settings .stat-value {
+        font-size: 20px;
+    }
+}
+
+/* 高级配置区块描述样式 */
+#advanced-settings .section-description {
+    color: var(--advanced-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 15px 0 0 0;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    border-left: 3px solid var(--advanced-primary);
+}
+
+/* 数据查看弹窗样式 */
+.data-view-modal {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 800px;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.data-view-modal .modal-header {
+    flex-shrink: 0;
+    padding: 20px 24px;
+    border-bottom: 2px solid var(--advanced-border);
+    background: linear-gradient(135deg, var(--advanced-primary) 0%, var(--advanced-secondary) 100%);
+    color: white;
+}
+
+.data-view-modal .modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.data-view-modal .modal-close {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.data-view-modal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.data-view-modal .modal-body {
+    flex: 1;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.data-view-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.data-view-controls .control-group {
+    display: flex;
+    gap: 8px;
+}
+
+.data-view-controls .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.data-view-controls .btn-outline {
+    background: transparent;
+    border: 1px solid var(--advanced-border);
+    color: var(--advanced-text);
+}
+
+.data-view-controls .btn-outline:hover {
+    background: var(--advanced-bg);
+    border-color: var(--advanced-primary);
+}
+
+.data-info-text {
+    font-size: 12px;
+    color: var(--advanced-text-muted);
+    font-weight: 500;
+}
+
+.data-view-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#dataViewTextarea {
+    flex: 1;
+    width: 100%;
+    padding: 16px;
+    border: 2px solid var(--advanced-border);
+    border-radius: 8px;
+    font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--advanced-text);
+    resize: none;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-y: auto;
+}
+
+#dataViewTextarea:focus {
+    outline: none;
+    border-color: var(--advanced-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: #ffffff;
+}
+
+#dataViewTextarea:read-only {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: var(--advanced-text-muted);
+}
+
+.data-view-modal .modal-footer {
+    flex-shrink: 0;
+    padding: 16px 24px;
+    border-top: 1px solid var(--advanced-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .data-view-modal {
+        width: 95vw;
+        height: 80vh;
+        margin: 10vh auto;
+    }
+
+    .data-view-controls {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .data-view-controls .control-group {
+        justify-content: center;
+    }
 }
 
 /* 翻译配置样式 */
