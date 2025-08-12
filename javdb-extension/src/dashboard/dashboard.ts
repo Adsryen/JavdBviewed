@@ -22,6 +22,7 @@ import { initUserProfileSection } from './userProfile';
 import { initDataSyncSection } from './dataSync';
 import { initializeDrive115Service } from '../services/drive115';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
+import './ui/dataViewModal'; // 确保dataViewModal被初始化
 
 /**
  * 设置Dashboard隐私保护监听 - 简化版，只监听标签切换
@@ -109,6 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
     initSyncTab();
     initSettingsTab();
+    initAdvancedSettingsTab(); // 初始化高级配置标签页
     initAISettingsTab();
     initDrive115Tab();
     initLogsTab();
@@ -237,22 +239,68 @@ async function initTabs(): Promise<void> {
             });
         }
 
-        const currentHash = window.location.hash.substring(1) || 'tab-records';
-        const targetTab = document.querySelector(`.tab-link[data-tab="${currentHash}"]`);
+        // 解析当前hash，支持二级路径
+        const fullHash = window.location.hash.substring(1) || 'tab-records';
+        const [mainTab, subSection] = fullHash.split('/');
+        const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
         switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
 
+        // 如果是设置页面且有子页面，存储子页面信息供设置页面使用
+        if (mainTab === 'tab-settings' && subSection) {
+            // 将子页面信息存储到全局状态中，供设置页面初始化时使用
+            (window as any).initialSettingsSection = subSection;
+        }
+
         // 页面加载时根据当前 hash 初始化对应的标签页
-        if (currentHash === 'tab-actors' && !actorsTab.isInitialized) {
+        if (mainTab === 'tab-actors' && !actorsTab.isInitialized) {
             initActorsTab().catch(error => {
                 console.error('页面加载时初始化演员库标签页失败:', error);
             });
         }
 
-        if (currentHash === 'tab-new-works' && !newWorksTab.isInitialized) {
+        if (mainTab === 'tab-new-works' && !newWorksTab.isInitialized) {
             initNewWorksTab().catch(error => {
                 console.error('页面加载时初始化新作品标签页失败:', error);
             });
         }
+
+        // 添加hashchange事件监听器，处理URL变化
+        window.addEventListener('hashchange', () => {
+            const newHash = window.location.hash.substring(1) || 'tab-records';
+            const [newMainTab, newSubSection] = newHash.split('/');
+
+            // 如果主标签页发生变化，切换主标签页
+            const currentActiveTab = document.querySelector('.tab-link.active');
+            const currentTabId = currentActiveTab?.getAttribute('data-tab');
+
+            if (currentTabId !== newMainTab) {
+                const newTargetTab = document.querySelector(`.tab-link[data-tab="${newMainTab}"]`);
+                if (newTargetTab) {
+                    switchTab(newTargetTab);
+
+                    // 延迟初始化相关标签页
+                    if (newMainTab === 'tab-actors' && !actorsTab.isInitialized) {
+                        initActorsTab().catch(error => {
+                            console.error('延迟初始化演员库标签页失败:', error);
+                        });
+                    }
+
+                    if (newMainTab === 'tab-new-works' && !newWorksTab.isInitialized) {
+                        initNewWorksTab().catch(error => {
+                            console.error('延迟初始化新作品标签页失败:', error);
+                        });
+                    }
+                }
+            }
+
+            // 如果是设置页面且有子页面，通知设置页面切换
+            if (newMainTab === 'tab-settings' && newSubSection) {
+                // 触发自定义事件，通知设置页面切换子页面
+                window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
+                    detail: { section: newSubSection }
+                }));
+            }
+        });
     } catch (error) {
         console.error('初始化标签页时出错:', error);
     }
