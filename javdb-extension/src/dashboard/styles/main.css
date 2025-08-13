@@ -818,13 +818,46 @@ button.primary {
 }
 
 .stat-item {
-    background: #f8f9fa;
+    background: transparent;
     padding: 15px;
     border-radius: 8px;
     text-align: center;
-    border: 1px solid #e9ecef;
+    border: none;
     transition: all 0.2s ease;
 }
+
+/* 仅在统计概览容器中美化卡片外观（不影响其他页面/弹窗） */
+.stats-section .stat-item {
+    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    padding: 20px 16px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 顶部色条，增强层次但不影响数字本体 */
+.stats-section .stat-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #7ab8ff 0%, #007bff 100%);
+    opacity: 0.95;
+}
+
+/* 不同统计项的色条配色（1-6） */
+.stats-section .stat-item:nth-child(1)::before { background: linear-gradient(90deg, #7ab8ff, #007bff); }
+.stats-section .stat-item:nth-child(2)::before { background: linear-gradient(90deg, #a8e6b7, #28a745); }
+.stats-section .stat-item:nth-child(3)::before { background: linear-gradient(90deg, #8be0eb, #17a2b8); }
+.stats-section .stat-item:nth-child(4)::before { background: linear-gradient(90deg, #ffd0a8, #fd7e14); }
+.stats-section .stat-item:nth-child(5)::before { background: linear-gradient(90deg, #d6c4f3, #6f42c1); }
+.stats-section .stat-item:nth-child(6)::before { background: linear-gradient(90deg, #e2e8f0, #6c757d); }
 
 .stat-item:hover {
     transform: translateY(-2px);
@@ -836,6 +869,11 @@ button.primary {
     font-weight: bold;
     color: #007bff;
     margin-bottom: 5px;
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
 }
 
 .stat-label {

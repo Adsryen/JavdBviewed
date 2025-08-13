@@ -240,7 +240,8 @@
     border-top: 1px solid #f1f5f9;
 }
 
-.stat-item {
+/* 限定在同步选项统计区域，避免影响全局 stat-item */
+.sync-option-stats .stat-item {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -251,7 +252,7 @@
     letter-spacing: 0.5px;
 }
 
-.stat-item::before {
+.sync-option-stats .stat-item::before {
     content: '';
     width: 6px;
     height: 6px;

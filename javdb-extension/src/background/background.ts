@@ -85,9 +85,14 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
             settings: settings,
             data: recordsToSync,
             userProfile: userProfile,
-            actorRecords: actorRecords, // 新增：演员库数据
-            logs: logs, // 新增：持久化日志
-            importStats: importStats // 新增：导入统计
+            actorRecords: actorRecords, // 演员库数据
+            logs: logs, // 持久化日志
+            importStats: importStats, // 导入统计
+            newWorks: { // 新增：新作品数据
+                subscriptions: await getValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {}),
+                records: await getValue(STORAGE_KEYS.NEW_WORKS_RECORDS, {}),
+                config: await getValue(STORAGE_KEYS.NEW_WORKS_CONFIG, {})
+            }
         };
         const now = new Date();
         const year = now.getFullYear();
@@ -183,6 +188,7 @@ async function performRestore(filename: string, options = {
             hasActorRecords: !!importData.actorRecords,
             hasLogs: !!importData.logs,
             hasImportStats: !!importData.importStats,
+            hasNewWorks: !!importData.newWorks,
             version: importData.version || '1.0',
             preview: options.preview
         });
@@ -200,7 +206,8 @@ async function performRestore(filename: string, options = {
                     userProfile: importData.userProfile || null,
                     actorRecords: importData.actorRecords || null,
                     logs: importData.logs || null,
-                    importStats: importData.importStats || null
+                    importStats: importData.importStats || null,
+                    newWorks: importData.newWorks || null
                 }
             };
         }
@@ -248,7 +255,21 @@ async function performRestore(filename: string, options = {
             await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, importData.importStats);
             await logger.info('Restored import statistics');
         }
-        
+
+        // 新增：恢复新作品数据
+        if (importData.newWorks) {
+            if (importData.newWorks.subscriptions) {
+                await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, importData.newWorks.subscriptions);
+            }
+            if (importData.newWorks.records) {
+                await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, importData.newWorks.records);
+            }
+            if (importData.newWorks.config) {
+                await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, importData.newWorks.config);
+            }
+            await logger.info('Restored new works data');
+        }
+
         return { success: true };
     } catch (error: any) {
         await logger.error('Failed to restore from WebDAV.', { error: error.message, filename });
