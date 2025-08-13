@@ -76,7 +76,7 @@
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-logs">日志</button>
             </div>
-    
+
             <div id="tab-records" class="tab-content active">
                 <div class="card">
                     <!-- 番号库统计信息 -->
@@ -2330,6 +2330,14 @@
                                       <span class="stat-label">演员收藏</span>
                                   </div>
                                   <div class="stat-item">
+                                      <span class="stat-number" id="quickNewWorksSubsCount">-</span>
+                                      <span class="stat-label">新作品订阅</span>
+                                  </div>
+                                  <div class="stat-item">
+                                      <span class="stat-number" id="quickNewWorksRecsCount">-</span>
+                                      <span class="stat-label">新作品记录</span>
+                                  </div>
+                                  <div class="stat-item">
                                       <span class="stat-number" id="quickConflictCount">-</span>
                                       <span class="stat-label">需处理冲突</span>
                                   </div>
@@ -2655,13 +2663,21 @@
                                   </label>
                                   <small>收藏的演员信息、性别、分类等数据</small>
                               </div>
-                              <div class="form-group-checkbox">
+                              <div class="form-group-checkbox available">
                                   <input type="checkbox" id="webdavRestoreLogs">
                                   <label for="webdavRestoreLogs">
                                       <i class="fas fa-file-alt"></i>
                                       日志记录
                                   </label>
                                   <small>扩展运行日志，用于故障排查（可选）</small>
+                              </div>
+                              <div class="form-group-checkbox available">
+                                  <input type="checkbox" id="webdavRestoreNewWorks" checked>
+                                  <label for="webdavRestoreNewWorks">
+                                      <i class="fas fa-bell"></i>
+                                      新作品（订阅/记录/配置）
+                                  </label>
+                                  <small>演员订阅、新作品采集记录以及新作品全局配置</small>
                               </div>
                               <div class="form-group-checkbox">
                                   <input type="checkbox" id="webdavRestoreImportStats">

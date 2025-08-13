@@ -392,7 +392,7 @@
     font-size: 0.95em;
     color: #ddd;
     cursor: pointer;
-} 
+}
 
 /* Custom Modal Styles - Self-contained and specific */
 .import-modal-overlay {
@@ -615,9 +615,41 @@
 .loading-spinner {
     font-size: 40px;
     color: #667eea;
-    margin-bottom: 20px;
-    animation: pulse 2s infinite;
+    width: 64px;
+    height: 64px;
+    display: flex;
+@keyframes pulse-fade {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .85; transform: scale(1.02); }
 }
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    animation: pulse-fade 2s infinite;
+}
+/* 确保旋转围绕中心（保底，已换用 CSS Spinner）*/
+#webdavRestoreLoading .loading-spinner i.fa-spinner,
+#webdavRestoreLoading .fa-spin { display: none; }
+
+/* WebDAV 恢复弹窗：使用纯 CSS Spinner，保证几何中心旋转 */
+#webdavRestoreLoading .loading-spinner {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 20px;
+  animation: none; /* 取消容器脉动动画，避免干扰视觉中心 */
+}
+#webdavRestoreLoading .loading-spinner::before {
+  content: '';
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid #667eea;
+  border-top-color: transparent;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+@keyframes spinner-rotate { to { transform: rotate(360deg); } }
 
 @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -2921,10 +2953,15 @@
     background: #ffffff;
 }
 
-.form-group-checkbox.available {
+.form-group-checkbox.available:has(input:checked) {
     border-color: #28a745;
     background: linear-gradient(135deg, #f8fff8 0%, #f0fff0 100%);
     box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+/* 未勾选时灰色基调（不影响 unavailable/warning）*/
+.form-group-checkbox:not(:has(input:checked)):not(.unavailable):not(.warning) {
+    border-color: #e2e8f0;
+    background: #f8fafc;
 }
 
 .form-group-checkbox.available:hover {
@@ -3039,6 +3076,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* 仅当勾选时显示右上角✅ */
+.form-group-checkbox.available:has(input:checked)::before,
+.form-group-checkbox.available:has(input:checked)::after {
+    display: flex;
+}
+.form-group-checkbox.available:not(:has(input:checked))::before,
+.form-group-checkbox.available:not(:has(input:checked))::after {
+    display: none;
 }
 
 .form-group-checkbox.available::after {
@@ -3232,9 +3279,9 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    background: #ffffff;
+    background: transparent;
     border-radius: 6px;
-    border: 1px solid #e9ecef;
+    border: none;
 }
 
 .stat-item.conflict {
@@ -4284,9 +4331,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: #f8fafc;
+    background: transparent;
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: none;
 }
 
 .stat-item.conflict {

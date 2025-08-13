@@ -630,27 +630,27 @@ export function initRecordsTab(): void {
         };
 
         statsContainer.innerHTML = `
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.total}</div>
                 <div class="stat-label">总番号数</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.viewed}</div>
                 <div class="stat-label">已观看</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.browsed}</div>
                 <div class="stat-label">已浏览</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.want}</div>
                 <div class="stat-label">我想看</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.thisWeek}</div>
                 <div class="stat-label">本周新增</div>
             </div>
-            <div class="stat-item">
+            <div class="stat-card new-works-stat">
                 <div class="stat-value">${stats.thisMonth}</div>
                 <div class="stat-label">本月新增</div>
             </div>

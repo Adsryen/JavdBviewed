@@ -490,31 +490,31 @@ export class ActorsTab {
             
             if (statsEl) {
                 statsEl.innerHTML = `
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.total}</div>
                         <div class="stat-label">总演员数</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byGender.female || 0}</div>
                         <div class="stat-label">女演员</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byGender.male || 0}</div>
                         <div class="stat-label">男演员</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byCategory.censored || 0}</div>
                         <div class="stat-label">有码</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byCategory.uncensored || 0}</div>
                         <div class="stat-label">无码</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byCategory.western || 0}</div>
                         <div class="stat-label">欧美</div>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.recentlyAdded}</div>
                         <div class="stat-label">本周新增</div>
                     </div>
