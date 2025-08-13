@@ -15,7 +15,7 @@ import { getDrive115Service } from '../../services/drive115';
 class Drive115SettingsManager {
     private settings: Drive115Settings = {
         enabled: false,
-        downloadDir: '${云下载}',
+        downloadDir: '',
         verifyCount: 5,
         maxFailures: 5,
         autoNotify: true
@@ -37,6 +37,7 @@ class Drive115SettingsManager {
         this.updateAutoSaveStatus('idle');
         console.log('115设置管理器初始化完成');
     }
+
 
     /**
      * 加载设置
@@ -62,10 +63,36 @@ class Drive115SettingsManager {
             this.autoSaveSettings();
         });
 
-        // 下载目录变化
+        // 展开/收起“如何获取ID”帮助
+        const howToToggle = document.getElementById('drive115HowToCidToggle') as HTMLButtonElement;
+        const howToBlock = document.getElementById('drive115HowToCid') as HTMLDivElement;
+        howToToggle?.addEventListener('click', () => {
+            if (!howToBlock) return;
+            const isHidden = howToBlock.style.display === 'none' || !howToBlock.style.display;
+            howToBlock.style.display = isHidden ? 'block' : 'none';
+            howToToggle.textContent = isHidden ? '收起说明' : '如何获取ID？';
+        });
+
+        // 下载目录变化（仅允许数字ID）
         const downloadDirInput = document.getElementById('drive115DownloadDir') as HTMLInputElement;
         downloadDirInput?.addEventListener('input', () => {
-            this.settings.downloadDir = downloadDirInput.value.trim();
+            // 仅保留数字
+            const digitsOnly = (downloadDirInput.value || '').replace(/[^0-9]/g, '');
+            if (downloadDirInput.value !== digitsOnly) {
+                const cursor = downloadDirInput.selectionStart || digitsOnly.length;
+                downloadDirInput.value = digitsOnly;
+                // 尽量保持光标位置
+                try { downloadDirInput.setSelectionRange(cursor - 1 >= 0 ? cursor - 1 : 0, cursor - 1 >= 0 ? cursor - 1 : 0); } catch {}
+            }
+
+            // 即时校验：启用时且为空 => 显示错误
+            const enabledCheckbox = document.getElementById('drive115Enabled') as HTMLInputElement;
+            const errorEl = document.getElementById('drive115DownloadDirError') as HTMLParagraphElement | null;
+            const showError = !!(enabledCheckbox?.checked && digitsOnly.length === 0);
+            if (errorEl) errorEl.style.display = showError ? 'block' : 'none';
+            if (downloadDirInput) downloadDirInput.classList.toggle('input-invalid', showError);
+
+            this.settings.downloadDir = digitsOnly;
             this.autoSaveSettings();
         });
 
@@ -220,6 +247,19 @@ export function initDrive115Tab(): void {
     // 初始化115设置自动保存管理器
     drive115SettingsManager.initialize();
 
+    // 标题图标：加载成功才显示
+    const titleIcon = document.getElementById('drive115TitleIcon') as HTMLImageElement | null;
+    if (titleIcon) {
+        const show = () => { titleIcon.style.display = 'inline-block'; };
+        const hide = () => { titleIcon.remove(); };
+        if (titleIcon.complete) {
+            if (titleIcon.naturalWidth > 0) show(); else hide();
+        } else {
+            titleIcon.addEventListener('load', show, { once: true });
+            titleIcon.addEventListener('error', hide, { once: true });
+        }
+    }
+
     // 初始化115日志查看
     initDrive115Logs();
 
@@ -264,7 +304,7 @@ function initDrive115Logs(): void {
         try {
             const drive115Service = getDrive115Service();
             const logsJson = await drive115Service.exportLogs();
-            
+
             const blob = new Blob([logsJson], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -274,7 +314,7 @@ function initDrive115Logs(): void {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
+
             showMessage('115网盘日志已导出', 'success');
         } catch (error) {
             console.error('导出115日志失败:', error);
@@ -445,7 +485,7 @@ function getLogTypeText(type: string): string {
         batch_start: '批量开始',
         batch_complete: '批量完成'
     };
-    
+
     return typeMap[type] || type;
 }
 
@@ -467,10 +507,10 @@ function initDrive115Test(): void {
         try {
             testSearchBtn.disabled = true;
             testSearchBtn.textContent = '搜索中...';
-            
+
             const drive115Service = getDrive115Service();
             const results = await drive115Service.searchFiles(query);
-            
+
             if (testResultsDiv) {
                 if (results.length === 0) {
                     testResultsDiv.innerHTML = '<div class="no-results">未找到匹配文件</div>';
@@ -489,7 +529,7 @@ function initDrive115Test(): void {
                     `;
                 }
             }
-            
+
             showMessage(`搜索完成，找到 ${results.length} 个文件`, 'success');
         } catch (error) {
             console.error('115搜索测试失败:', error);
@@ -509,10 +549,10 @@ function initDrive115Test(): void {
  */
 function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B';
-    
+
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
