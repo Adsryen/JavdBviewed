@@ -270,6 +270,23 @@ function updateServerStats(serverStats?: any): void {
             formatSyncTime(serverStats.lastSyncTime) : '未同步';
         syncTimeElement.textContent = syncTimeText;
 
+        // 强制移除背景色 - 通过内联样式覆盖
+        const statItems = statsContainer.querySelectorAll('.stat-item');
+        statItems.forEach(item => {
+            const element = item as HTMLElement;
+            element.style.background = 'transparent';
+            element.style.border = 'none';
+            element.style.backgroundColor = 'transparent';
+        });
+
+        // 强制移除 stat-value 元素的背景色
+        const statValues = statsContainer.querySelectorAll('.stat-value');
+        statValues.forEach(value => {
+            const element = value as HTMLElement;
+            element.style.background = 'transparent';
+            element.style.backgroundColor = 'transparent';
+        });
+
         // 显示统计数据容器
         statsContainer.style.display = 'block';
     } else {

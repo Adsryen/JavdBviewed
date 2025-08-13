@@ -164,14 +164,14 @@
     min-width: 0;
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: rgba(255, 255, 255, 0.08) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 .user-server-stats .stat-item:hover {
     transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.12) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .user-server-stats .stat-item i {
@@ -203,16 +203,18 @@
     line-height: 1;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 .user-server-stats .want-stat {
-    background: rgba(255, 215, 0, 0.1) !important;
-    border-color: rgba(255, 215, 0, 0.2) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .user-server-stats .want-stat:hover {
-    background: rgba(255, 215, 0, 0.15) !important;
-    border-color: rgba(255, 215, 0, 0.3) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .user-server-stats .want-stat i {
@@ -221,13 +223,13 @@
 }
 
 .user-server-stats .watched-stat {
-    background: rgba(74, 222, 128, 0.1) !important;
-    border-color: rgba(74, 222, 128, 0.2) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .user-server-stats .watched-stat:hover {
-    background: rgba(74, 222, 128, 0.15) !important;
-    border-color: rgba(74, 222, 128, 0.3) !important;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .user-server-stats .watched-stat i {
@@ -418,4 +420,34 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+}
+
+/* 强制覆盖通用 stat-item 样式 - 确保服务器数据区域无背景 */
+.user-profile-container .user-server-stats .stats-grid .stat-item,
+.user-profile-container .user-server-stats .stats-grid .stat-item.want-stat,
+.user-profile-container .user-server-stats .stats-grid .stat-item.watched-stat,
+div.user-server-stats div.stats-grid div.stat-item {
+    background: transparent !important;
+    border: none !important;
+    padding: 12px !important;
+}
+
+.user-profile-container .user-server-stats .stats-grid .stat-item:hover,
+.user-profile-container .user-server-stats .stats-grid .stat-item.want-stat:hover,
+.user-profile-container .user-server-stats .stats-grid .stat-item.watched-stat:hover,
+div.user-server-stats div.stats-grid div.stat-item:hover {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: translateY(-1px) !important;
+}
+
+/* 强制覆盖 stat-value 的背景色 */
+.user-profile-container .user-server-stats .stat-value,
+.user-server-stats .stat-value,
+div.user-server-stats span.stat-value,
+#server-want-count,
+#server-watched-count {
+    background: transparent !important;
+    background-color: transparent !important;
 }

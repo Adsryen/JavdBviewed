@@ -334,7 +334,7 @@
 .model-stats .stat-item {
     text-align: center;
     padding: 10px;
-    background: var(--ai-bg-color);
+    background: transparent;
     border-radius: 6px;
 }
 

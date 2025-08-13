@@ -184,9 +184,14 @@ function initializeQuickMode(diffResult: DataDiffResult): void {
     // 更新统计数据
     updateElement('quickVideoCount', diffResult.videoRecords.summary.totalLocal.toString());
     updateElement('quickActorCount', diffResult.actorRecords.summary.totalLocal.toString());
+    // 新增：新作品统计
+    updateElement('quickNewWorksSubsCount', diffResult.newWorks.subscriptions.summary.totalLocal.toString());
+    updateElement('quickNewWorksRecsCount', diffResult.newWorks.records.summary.totalLocal.toString());
 
     const totalConflicts = diffResult.videoRecords.summary.conflictCount +
-                          diffResult.actorRecords.summary.conflictCount;
+                          diffResult.actorRecords.summary.conflictCount +
+                          diffResult.newWorks.subscriptions.summary.conflictCount +
+                          diffResult.newWorks.records.summary.conflictCount;
     updateElement('quickConflictCount', totalConflicts.toString());
 
     // 绑定快捷恢复按钮
@@ -253,7 +258,8 @@ function startQuickRestore(): void {
                     restoreUserProfile: true, // 恢复用户资料
                     restoreActorRecords: true, // 恢复演员记录
                     restoreLogs: false,     // 不恢复日志
-                    restoreImportStats: true // 恢复导入统计
+                    restoreImportStats: true, // 恢复导入统计
+                    restoreNewWorks: true   // 新增：快捷恢复包含新作品
                 };
 
                 // 执行恢复
@@ -292,7 +298,8 @@ function startQuickRestore(): void {
                 restoreUserProfile: true, // 恢复用户资料
                 restoreActorRecords: true, // 恢复演员记录
                 restoreLogs: false,     // 不恢复日志
-                restoreImportStats: true // 恢复导入统计
+                restoreImportStats: true, // 恢复导入统计
+                restoreNewWorks: true   // 新增：快捷恢复包含新作品
             };
 
             // 执行恢复
@@ -374,6 +381,8 @@ function updateStrategyPreview(strategy: string, diffResult: DataDiffResult): vo
                     <ul>
                         <li>云端新增视频：${diffResult.videoRecords.summary.cloudOnlyCount.toLocaleString()} 条</li>
                         <li>云端新增演员：${diffResult.actorRecords.summary.cloudOnlyCount.toLocaleString()} 个</li>
+                        <li>云端新增新作品订阅：${diffResult.newWorks.subscriptions.summary.cloudOnlyCount.toLocaleString()} 个</li>
+                        <li>云端新增新作品记录：${diffResult.newWorks.records.summary.cloudOnlyCount.toLocaleString()} 条</li>
                     </ul>
                 </div>
                 <div class="preview-section">
@@ -381,6 +390,8 @@ function updateStrategyPreview(strategy: string, diffResult: DataDiffResult): vo
                     <ul>
                         <li>冲突视频记录：${diffResult.videoRecords.summary.conflictCount.toLocaleString()} 条 → 自动选择最新</li>
                         <li>冲突演员记录：${diffResult.actorRecords.summary.conflictCount.toLocaleString()} 个 → 自动选择最新</li>
+                        <li>冲突新作品订阅：${diffResult.newWorks.subscriptions.summary.conflictCount.toLocaleString()} 个</li>
+                        <li>冲突新作品记录：${diffResult.newWorks.records.summary.conflictCount.toLocaleString()} 条</li>
                     </ul>
                 </div>
             `;
@@ -606,6 +617,14 @@ function initializeConfirmation(): void {
                     <span class="stat-label">演员收藏：</span>
                     <span class="stat-value">${currentDiffResult.actorRecords.summary.totalLocal.toLocaleString()} 个</span>
                 </div>
+                <div class="stat">
+                    <span class="stat-label">新作品订阅：</span>
+                    <span class="stat-value">${currentDiffResult.newWorks.subscriptions.summary.totalLocal.toLocaleString()} 个</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">新作品记录：</span>
+                    <span class="stat-value">${currentDiffResult.newWorks.records.summary.totalLocal.toLocaleString()} 条</span>
+                </div>
             </div>
         </div>
     `;
@@ -630,7 +649,8 @@ function startWizardRestore(): void {
         restoreUserProfile: wizardState.selectedContent.includes('webdavRestoreUserProfile'),
         restoreActorRecords: wizardState.selectedContent.includes('webdavRestoreActorRecords') || wizardState.selectedContent.length === 0, // 默认恢复演员
         restoreLogs: wizardState.selectedContent.includes('webdavRestoreLogs'),
-        restoreImportStats: wizardState.selectedContent.includes('webdavRestoreImportStats')
+        restoreImportStats: wizardState.selectedContent.includes('webdavRestoreImportStats'),
+        restoreNewWorks: wizardState.selectedContent.includes('webdavRestoreNewWorks')
     };
 
     // 执行恢复
@@ -683,14 +703,13 @@ function showRestoreProgress(): void {
 async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
     // 保存合并后的数据到本地存储
     if (mergeResult.data) {
-        await setValue(STORAGE_KEYS.VIDEO_DATA, mergeResult.data.videoRecords || {});
+        // 修复：使用正确的键名
+        await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.data.videoRecords || {});
         await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.data.actorRecords || []);
 
         if (mergeResult.data.settings) {
-            // 保存设置
-            for (const [key, value] of Object.entries(mergeResult.data.settings)) {
-                await setValue(key, value);
-            }
+            // 统一：整包写回设置对象
+            await setValue(STORAGE_KEYS.SETTINGS, mergeResult.data.settings as any);
         }
 
         if (mergeResult.data.userProfile) {
@@ -719,14 +738,14 @@ export function showWebDAVRestoreModal(): void {
     // 重置状态
     selectedFile = null;
     resetModalState();
-    
+
     // 显示弹窗
     modal.classList.remove('hidden');
     modal.classList.add('visible');
-    
+
     // 绑定事件
     bindModalEvents();
-    
+
     // 开始获取文件列表
     fetchFileList();
 }
@@ -736,16 +755,16 @@ function resetModalState(): void {
     hideElement('webdavRestoreContent');
     hideElement('webdavRestoreError');
     hideElement('webdavRestoreOptions');
-    
+
     // 显示加载状态
     showElement('webdavRestoreLoading');
-    
+
     // 重置按钮状态
     const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
     if (confirmBtn) {
         confirmBtn.disabled = true;
     }
-    
+
     // 清空文件列表
     const fileList = document.getElementById('webdavFileList');
     if (fileList) {
@@ -799,7 +818,7 @@ function bindModalEvents(): void {
             backBtn.classList.add('hidden');
         };
     }
-    
+
     // 点击背景关闭
     const modal = document.getElementById('webdavRestoreModal');
     if (modal) {
@@ -813,12 +832,12 @@ function bindModalEvents(): void {
 
 function fetchFileList(): void {
     logAsync('INFO', '开始获取WebDAV文件列表');
-    
+
     // 显示加载状态
     hideElement('webdavRestoreContent');
     hideElement('webdavRestoreError');
     showElement('webdavRestoreLoading');
-    
+
     chrome.runtime.sendMessage({ type: 'webdav-list-files' }, response => {
         if (response?.success) {
             if (response.files && response.files.length > 0) {
@@ -1044,13 +1063,17 @@ async function performDataAnalysis(): Promise<void> {
  * 获取当前本地数据
  */
 async function getCurrentLocalData(): Promise<any> {
-    const [viewedRecords, actorRecords, settings, userProfile, logs, importStats] = await Promise.all([
+    const [viewedRecords, actorRecords, settings, userProfile, logs, importStats, nwSubs, nwRecords, nwConfig] = await Promise.all([
         getValue(STORAGE_KEYS.VIEWED_RECORDS, {}),
         getValue(STORAGE_KEYS.ACTOR_RECORDS, {}),
         getValue(STORAGE_KEYS.SETTINGS, {}),
         getValue(STORAGE_KEYS.USER_PROFILE, {}),
         getValue(STORAGE_KEYS.LOGS, []),
-        getValue(STORAGE_KEYS.LAST_IMPORT_STATS, {})
+        getValue(STORAGE_KEYS.LAST_IMPORT_STATS, {}),
+        // 新增：采集新作品本地数据
+        getValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {}),
+        getValue(STORAGE_KEYS.NEW_WORKS_RECORDS, {}),
+        getValue(STORAGE_KEYS.NEW_WORKS_CONFIG, {})
     ]);
 
     return {
@@ -1059,7 +1082,12 @@ async function getCurrentLocalData(): Promise<any> {
         settings,
         userProfile,
         logs,
-        importStats
+        importStats,
+        newWorks: {
+            subscriptions: nwSubs || {},
+            records: nwRecords || {},
+            config: nwConfig || {}
+        }
     };
 }
 
@@ -1194,6 +1222,39 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
 
             <div class="diff-category">
                 <div class="diff-header">
+                    <i class="fas fa-bell"></i>
+                    <span>新作品</span>
+                </div>
+                <div class="diff-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">订阅 云端新增:</span>
+                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.cloudOnlyCount}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">订阅 本地保留:</span>
+                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.totalLocal}</span>
+                    </div>
+                    <div class="stat-item conflict">
+                        <span class="stat-label">订阅 冲突:</span>
+                        <span class="stat-value">${diffResult.newWorks.subscriptions.summary.conflictCount}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">记录 云端新增:</span>
+                        <span class="stat-value">${diffResult.newWorks.records.summary.cloudOnlyCount}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">记录 本地保留:</span>
+                        <span class="stat-value">${diffResult.newWorks.records.summary.totalLocal}</span>
+                    </div>
+                    <div class="stat-item conflict">
+                        <span class="stat-label">记录 冲突:</span>
+                        <span class="stat-value">${diffResult.newWorks.records.summary.conflictCount}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diff-category">
+                <div class="diff-header">
                     <i class="fas fa-cogs"></i>
                     <span>扩展设置</span>
                 </div>
@@ -1311,6 +1372,12 @@ function configureRestoreOptions(cloudData: any): void {
             name: '日志记录'
         },
         {
+            id: 'webdavRestoreNewWorks',
+            dataKey: 'newWorks',
+            required: false,
+            name: '新作品（订阅/记录/配置）'
+        },
+        {
             id: 'webdavRestoreImportStats',
             dataKey: 'importStats',
             required: false, // 导入统计是可选的
@@ -1415,6 +1482,29 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
             if (data && data.lastImportTime) {
                 const date = new Date(data.lastImportTime);
                 statsText = `最后导入: ${date.toLocaleDateString()}`;
+    // 新作品订阅冲突
+    const newWorksSubsConflicts = diffResult.newWorks.subscriptions.conflicts;
+    if (newWorksSubsConflicts && newWorksSubsConflicts.length > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-link';
+        btn.id = 'viewNewWorksSubsConflicts';
+        btn.textContent = '查看新作品订阅冲突';
+        btn.onclick = () => showConflictResolution('newWorksSub', newWorksSubsConflicts);
+        const header = document.querySelector('.diff-summary');
+        header?.appendChild(btn);
+    }
+
+    // 新作品记录冲突
+    const newWorksRecConflicts = diffResult.newWorks.records.conflicts;
+    if (newWorksRecConflicts && newWorksRecConflicts.length > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-link';
+        btn.id = 'viewNewWorksRecConflicts';
+        btn.textContent = '查看新作品记录冲突';
+        btn.onclick = () => showConflictResolution('newWorksRec', newWorksRecConflicts);
+        const header = document.querySelector('.diff-summary');
+        header?.appendChild(btn);
+    }
             }
             break;
     }
@@ -1736,6 +1826,20 @@ async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions)
 
     if (options.restoreRecords && mergeResult.mergedData.videoRecords) {
         // 数据校验
+    // 新增：新作品
+    if (mergeResult.mergedData.newWorks) {
+        const nw = mergeResult.mergedData.newWorks;
+        if (nw.subscriptions) {
+            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, nw.subscriptions));
+        }
+        if (nw.records) {
+            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, nw.records));
+        }
+        if (nw.config) {
+            promises.push(setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, nw.config));
+        }
+    }
+
         validateVideoRecords(mergeResult.mergedData.videoRecords);
         promises.push(setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords));
     }
@@ -1912,7 +2016,11 @@ function updateOperationSummary(summary: any): void {
         { label: '保留视频记录', value: summary.videoRecords.kept, icon: 'fas fa-check' },
         { label: '新增演员收藏', value: summary.actorRecords.added, icon: 'fas fa-user-plus' },
         { label: '更新演员收藏', value: summary.actorRecords.updated, icon: 'fas fa-user-edit' },
-        { label: '保留演员收藏', value: summary.actorRecords.kept, icon: 'fas fa-user-check' }
+        { label: '保留演员收藏', value: summary.actorRecords.kept, icon: 'fas fa-user-check' },
+        { label: '新增新作品订阅', value: summary.newWorks?.subscriptions?.added ?? 0, icon: 'fas fa-bell' },
+        { label: '更新新作品订阅', value: summary.newWorks?.subscriptions?.updated ?? 0, icon: 'fas fa-bell' },
+        { label: '新增新作品记录', value: summary.newWorks?.records?.added ?? 0, icon: 'fas fa-bell' },
+        { label: '更新新作品记录', value: summary.newWorks?.records?.updated ?? 0, icon: 'fas fa-bell' }
     ];
 
     const html = summaryItems.map(item => `
@@ -2102,7 +2210,7 @@ function showError(message: string): void {
     hideElement('webdavRestoreLoading');
     hideElement('webdavRestoreContent');
     showElement('webdavRestoreError');
-    
+
     const errorMessage = document.getElementById('webdavRestoreErrorMessage');
     if (errorMessage) {
         errorMessage.textContent = message;
@@ -2115,7 +2223,7 @@ function closeModal(): void {
         modal.classList.remove('visible');
         modal.classList.add('hidden');
     }
-    
+
     selectedFile = null;
     logAsync('INFO', '用户关闭了WebDAV恢复弹窗');
 }
@@ -2486,7 +2594,7 @@ function showSettingsDifference(settingsDiff: any): void {
 /**
  * 显示冲突解决界面
  */
-function showConflictResolution(type: 'video' | 'actor', conflicts: any[]): void {
+function showConflictResolution(type: 'video' | 'actor' | 'newWorksSub' | 'newWorksRec', conflicts: any[]): void {
     currentConflicts = conflicts;
     currentConflictIndex = 0;
     conflictResolutions = {};
@@ -2525,18 +2633,19 @@ function displayCurrentConflict(): void {
 
     // 更新冲突标题和类型
     updateElement('conflictItemTitle', conflict.id);
-    updateElement('conflictItemType', conflict.local.title ? '视频记录' : '演员记录');
+    const typeText = type === 'video' ? '视频记录' : (type === 'actor' ? '演员记录' : (type === 'newWorksSub' ? '新作品订阅' : '新作品记录'));
+    updateElement('conflictItemType', typeText);
 
-    // 更新时间戳
-    updateElement('localVersionTime', formatTimestamp(conflict.local.updatedAt));
-    updateElement('cloudVersionTime', formatTimestamp(conflict.cloud.updatedAt));
+    // 更新时间戳（若数据包含时间）
+    if (conflict.local?.updatedAt) updateElement('localVersionTime', formatTimestamp(conflict.local.updatedAt));
+    if (conflict.cloud?.updatedAt) updateElement('cloudVersionTime', formatTimestamp(conflict.cloud.updatedAt));
 
-    // 更新版本内容
-    displayVersionContent('localVersionContent', conflict.local);
-    displayVersionContent('cloudVersionContent', conflict.cloud);
+    // 更新版本内容（视频/演员/新作品订阅/新作品记录）
+    displayVersionContent('localVersionContent', conflict.local, type);
+    displayVersionContent('cloudVersionContent', conflict.cloud, type);
 
     // 设置默认选择
-    const currentResolution = conflictResolutions[conflict.id] || conflict.recommendation;
+    const currentResolution = conflictResolutions[conflict.id] || conflict.recommendation || 'merge';
     const resolutionInput = document.querySelector(`input[name="currentResolution"][value="${currentResolution}"]`) as HTMLInputElement;
     if (resolutionInput) {
         resolutionInput.checked = true;
@@ -2547,151 +2656,49 @@ function displayCurrentConflict(): void {
 }
 
 /**
- * 显示版本内容
+ * 显示版本内容（根据类型渲染）
  */
-function displayVersionContent(containerId: string, data: any): void {
+function displayVersionContent(containerId: string, data: any, type: 'video' | 'actor' | 'newWorksSub' | 'newWorksRec'): void {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     let html = '';
 
-    if (data.title) {
-        // 视频记录
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-video"></i>
-                标题:
-            </span>
-            <span class="field-value">${data.title || '未知'}</span>
-        </div>`;
-
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-eye"></i>
-                状态:
-            </span>
-            <span class="field-value status-${data.status}">${getStatusText(data.status)}</span>
-        </div>`;
-
-        if (data.tags && data.tags.length > 0) {
-            const tagsHtml = data.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join('');
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-tags"></i>
-                    标签:
-                </span>
-                <span class="field-value tags">${tagsHtml}</span>
-            </div>`;
-        } else {
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-tags"></i>
-                    标签:
-                </span>
-                <span class="field-value empty">无标签</span>
-            </div>`;
-        }
-
-        if (data.releaseDate) {
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-calendar"></i>
-                    发行日期:
-                </span>
-                <span class="field-value">${data.releaseDate}</span>
-            </div>`;
-        }
-
-        if (data.javdbUrl) {
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-link"></i>
-                    链接:
-                </span>
-                <span class="field-value">
-                    <a href="${data.javdbUrl}" target="_blank" class="external-link">
-                        ${data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl}
-                    </a>
-                </span>
-            </div>`;
-        }
-
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-clock"></i>
-                更新时间:
-            </span>
-            <span class="field-value">${formatTimestamp(data.updatedAt)}</span>
-        </div>`;
-
-    } else {
-        // 演员记录
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-user"></i>
-                姓名:
-            </span>
-            <span class="field-value">${data.name || '未知'}</span>
-        </div>`;
-
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-venus-mars"></i>
-                性别:
-            </span>
-            <span class="field-value gender-${data.gender}">${getGenderText(data.gender)}</span>
-        </div>`;
-
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-folder"></i>
-                分类:
-            </span>
-            <span class="field-value category-${data.category}">${getCategoryText(data.category)}</span>
-        </div>`;
-
-        if (data.aliases && data.aliases.length > 0) {
-            const aliasesHtml = data.aliases.map((alias: string) => `<span class="tag">${alias}</span>`).join('');
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-id-badge"></i>
-                    别名:
-                </span>
-                <span class="field-value tags">${aliasesHtml}</span>
-            </div>`;
-        } else {
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-id-badge"></i>
-                    别名:
-                </span>
-                <span class="field-value empty">无别名</span>
-            </div>`;
-        }
-
-        if (data.avatarUrl) {
-            html += `<div class="field-item">
-                <span class="field-label">
-                    <i class="fas fa-image"></i>
-                    头像:
-                </span>
-                <span class="field-value">
-                    <img src="${data.avatarUrl}" alt="头像" class="actor-avatar" loading="lazy">
-                </span>
-            </div>`;
-        }
-
-        html += `<div class="field-item">
-            <span class="field-label">
-                <i class="fas fa-clock"></i>
-                更新时间:
-            </span>
-            <span class="field-value">${formatTimestamp(data.updatedAt)}</span>
-        </div>`;
+    if (type === 'video') {
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-video"></i> 标题:</span><span class="field-value">${data.title || '未知'}</span></div>`;
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-eye"></i> 状态:</span><span class="field-value status-${data.status}">${getStatusText(data.status)}</span></div>`;
+        if (data.tags && data.tags.length > 0) { const tagsHtml = data.tags.map((tag: string) => `<span class=\"tag\">${tag}</span>`).join(''); html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签:</span><span class=\"field-value tags\">${tagsHtml}</span></div>`; } else { html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签:</span><span class=\"field-value empty\">无标签</span></div>`; }
+        if (data.releaseDate) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar\"></i> 发行日期:</span><span class=\"field-value\">${data.releaseDate}</span></div>`;
+        if (data.javdbUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 链接:</span><span class=\"field-value\"><a href=\"${data.javdbUrl}\" target=\"_blank\" class=\"external-link\">${data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl}</a></span></div>`;
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间:</span><span class=\"field-value\">${formatTimestamp(data.updatedAt)}</span></div>`;
+    } else if (type === 'actor') {
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-user\"></i> 姓名:</span><span class=\"field-value\">${data.name || '未知'}</span></div>`;
+        if (data.gender) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-venus-mars\"></i> 性别:</span><span class=\"field-value\">${data.gender}</span></div>`;
+        if (data.category) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 分类:</span><span class=\"field-value\">${data.category}</span></div>`;
+        if (data.profileUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 资料链接:</span><span class=\"field-value\"><a href=\"${data.profileUrl}\" target=\"_blank\" class=\"external-link\">${data.profileUrl.length > 50 ? data.profileUrl.substring(0, 50) + '...' : data.profileUrl}</a></span></div>`;
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间:</span><span class=\"field-value\">${formatTimestamp(data.updatedAt)}</span></div>`;
+    } else if (type === 'newWorksSub') {
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-id-badge\"></i> 演员：</span><span class=\"field-value\">${data.actorName || '未知'}</span></div>`;
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-toggle-on\"></i> 订阅状态：</span><span class=\"field-value\">${data.enabled ? '启用' : '停用'}</span></div>`;
+        if (data.lastCheckTime) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 最后检查：</span><span class=\"field-value\">${formatTimestamp(data.lastCheckTime)}</span></div>`;
+        if (data.subscribedAt) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar-plus\"></i> 订阅时间：</span><span class=\"field-value\">${formatTimestamp(data.subscribedAt)}</span></div>`;
+    } else if (type === 'newWorksRec') {
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-film\"></i> 标题：</span><span class=\"field-value\">${data.title || '未知'}</span></div>`;
+        if (data.actorName) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-user\"></i> 演员：</span><span class=\"field-value\">${data.actorName}</span></div>`;
+        if (data.releaseDate) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar\"></i> 发行日期：</span><span class=\"field-value\">${data.releaseDate}</span></div>`;
+        if (data.tags && data.tags.length > 0) { const tagsHtml = data.tags.map((t: string) => `<span class=\"tag\">${t}</span>`).join(''); html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签：</span><span class=\"field-value tags\">${tagsHtml}</span></div>`; }
+        if (data.javdbUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 链接：</span><span class=\"field-value\"><a href=\"${data.javdbUrl}\" target=\"_blank\" class=\"external-link\">${data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl}</a></span></div>`;
+        if (data.discoveredAt) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-search\"></i> 发现时间：</span><span class=\"field-value\">${formatTimestamp(data.discoveredAt)}</span></div>`;
+        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间：</span><span class=\"field-value\">${formatTimestamp(data.updatedAt || Date.now())}</span></div>`;
     }
 
     container.innerHTML = html;
 }
+
+
+
+
+
 
 /**
  * 绑定冲突导航事件

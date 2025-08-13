@@ -2,6 +2,7 @@
 // 数据差异分析模块
 
 import type { VideoRecord, ActorRecord, ExtensionSettings } from '../types';
+import type { ActorSubscription, NewWorkRecord, NewWorksGlobalConfig } from '../services/newWorks/types';
 
 // 数据差异分析结果
 export interface DataDiffResult {
@@ -11,6 +12,7 @@ export interface DataDiffResult {
     userProfile: ProfileDiff;
     logs: LogsDiff;
     importStats: ImportStatsDiff;
+    newWorks: NewWorksDiff; // 新增：新作品差异
 }
 
 // 视频记录差异
@@ -93,6 +95,29 @@ export interface ImportStatsDiff {
     cloud?: any;
 }
 
+// 新作品差异
+export interface NewWorksDiff {
+    subscriptions: KeyedDiff<ActorSubscription>;
+    records: KeyedDiff<NewWorkRecord>;
+    config: SettingsDiff; // 复用 SettingsDiff 结构，比较配置对象
+}
+
+// 通用键值对差异结构
+export interface KeyedDiff<T> {
+    cloudOnly: Record<string, T>;
+    localOnly: Record<string, T>;
+    conflicts: Array<{ id: string; local: T; cloud: T; differences: string[]; }>;
+    identical: Record<string, T>;
+    summary: {
+        cloudOnlyCount: number;
+        localOnlyCount: number;
+        conflictCount: number;
+        identicalCount: number;
+        totalLocal: number;
+        totalCloud: number;
+    };
+}
+
 // 合并策略类型
 export type MergeStrategy = 'smart' | 'cloud-priority' | 'local-priority' | 'custom';
 
@@ -105,6 +130,7 @@ export interface MergeOptions {
     restoreActorRecords: boolean;
     restoreLogs: boolean;
     restoreImportStats: boolean;
+    restoreNewWorks?: boolean; // 新增：是否恢复新作品（订阅/记录/配置）
     customConflictResolutions?: Record<string, 'local' | 'cloud' | 'merge'>;
 }
 
@@ -139,6 +165,10 @@ export function analyzeDataDifferences(
         importStats: analyzeImportStatsDifferences(
             localData.importStats,
             cloudData.importStats
+        ),
+        newWorks: analyzeNewWorksDifferences(
+            localData.newWorks || {},
+            cloudData.newWorks || {}
         )
     };
 }
@@ -213,7 +243,7 @@ function findVideoRecordDifferences(local: VideoRecord, cloud: VideoRecord): str
     // 比较标签
     const localTags = new Set(local.tags || []);
     const cloudTags = new Set(cloud.tags || []);
-    if (localTags.size !== cloudTags.size || 
+    if (localTags.size !== cloudTags.size ||
         ![...localTags].every(tag => cloudTags.has(tag))) {
         differences.push('tags');
     }
@@ -228,8 +258,8 @@ function findVideoRecordDifferences(local: VideoRecord, cloud: VideoRecord): str
  * 获取视频记录的推荐处理方式
  */
 function getVideoRecordRecommendation(
-    local: VideoRecord, 
-    cloud: VideoRecord, 
+    local: VideoRecord,
+    cloud: VideoRecord,
     differences: string[]
 ): 'local' | 'cloud' | 'merge' {
     // 如果只有时间戳不同，选择更新的
@@ -323,7 +353,7 @@ function findActorRecordDifferences(local: ActorRecord, cloud: ActorRecord): str
     // 比较别名
     const localAliases = new Set(local.aliases || []);
     const cloudAliases = new Set(cloud.aliases || []);
-    if (localAliases.size !== cloudAliases.size || 
+    if (localAliases.size !== cloudAliases.size ||
         ![...localAliases].every(alias => cloudAliases.has(alias))) {
         differences.push('aliases');
     }
@@ -337,8 +367,8 @@ function findActorRecordDifferences(local: ActorRecord, cloud: ActorRecord): str
  * 获取演员记录的推荐处理方式
  */
 function getActorRecordRecommendation(
-    local: ActorRecord, 
-    cloud: ActorRecord, 
+    local: ActorRecord,
+    cloud: ActorRecord,
     differences: string[]
 ): 'local' | 'cloud' | 'merge' {
     // 如果只有时间戳不同，选择更新的
@@ -415,6 +445,101 @@ function analyzeProfileDifferences(local?: any, cloud?: any): ProfileDiff {
         differences
     };
 }
+
+/**
+ * 新作品差异分析
+ */
+function analyzeNewWorksDifferences(
+    localNewWorks: any,
+    cloudNewWorks: any
+): NewWorksDiff {
+    const localSubs: Record<string, ActorSubscription> = localNewWorks.subscriptions || {};
+    const cloudSubs: Record<string, ActorSubscription> = cloudNewWorks.subscriptions || {};
+    const localRecords: Record<string, NewWorkRecord> = localNewWorks.records || {};
+    const cloudRecords: Record<string, NewWorkRecord> = cloudNewWorks.records || {};
+    const localConfig: NewWorksGlobalConfig | undefined = localNewWorks.config;
+    const cloudConfig: NewWorksGlobalConfig | undefined = cloudNewWorks.config;
+
+    return {
+        subscriptions: analyzeKeyedDiff(localSubs, cloudSubs, diffActorSubscription),
+        records: analyzeKeyedDiff(localRecords, cloudRecords, diffNewWorkRecord),
+        config: analyzeSettingsDifferences(localConfig as any, cloudConfig as any)
+    };
+}
+
+// 泛型键值对差异分析
+function analyzeKeyedDiff<T extends { [k: string]: any }>(
+    localMap: Record<string, T>,
+    cloudMap: Record<string, T>,
+    diffFn: (l: T, c: T) => string[]
+): KeyedDiff<T> {
+    const cloudOnly: Record<string, T> = {};
+    const localOnly: Record<string, T> = {};
+    const conflicts: Array<{ id: string; local: T; cloud: T; differences: string[]; }> = [];
+    const identical: Record<string, T> = {};
+
+    const allIds = new Set([...Object.keys(localMap), ...Object.keys(cloudMap)]);
+    for (const id of allIds) {
+        const l = localMap[id];
+        const c = cloudMap[id];
+        if (!l && c) {
+            cloudOnly[id] = c;
+        } else if (l && !c) {
+            localOnly[id] = l;
+        } else if (l && c) {
+            const differences = diffFn(l, c);
+            if (differences.length === 0) {
+                identical[id] = l;
+            } else {
+                conflicts.push({ id, local: l, cloud: c, differences });
+            }
+        }
+    }
+
+    return {
+        cloudOnly,
+        localOnly,
+        conflicts,
+        identical,
+        summary: {
+            cloudOnlyCount: Object.keys(cloudOnly).length,
+            localOnlyCount: Object.keys(localOnly).length,
+            conflictCount: conflicts.length,
+            identicalCount: Object.keys(identical).length,
+            totalLocal: Object.keys(localMap).length,
+            totalCloud: Object.keys(cloudMap).length
+        }
+    };
+}
+
+// 对比订阅（ActorSubscription）差异
+function diffActorSubscription(l: ActorSubscription, c: ActorSubscription): string[] {
+    const diffs: string[] = [];
+    if (l.actorName !== c.actorName) diffs.push('actorName');
+    if (l.avatarUrl !== c.avatarUrl) diffs.push('avatarUrl');
+    if (l.enabled !== c.enabled) diffs.push('enabled');
+    if (l.lastCheckTime !== c.lastCheckTime) diffs.push('lastCheckTime');
+    if (l.subscribedAt !== c.subscribedAt) diffs.push('subscribedAt');
+    return diffs;
+}
+
+// 对比新作品记录（NewWorkRecord）差异
+function diffNewWorkRecord(l: NewWorkRecord, c: NewWorkRecord): string[] {
+    const diffs: string[] = [];
+    if (l.title !== c.title) diffs.push('title');
+    if (l.releaseDate !== c.releaseDate) diffs.push('releaseDate');
+    if (l.javdbUrl !== c.javdbUrl) diffs.push('javdbUrl');
+    if (l.coverImage !== c.coverImage) diffs.push('coverImage');
+    if ((l.tags || []).join('|') !== (c.tags || []).join('|')) diffs.push('tags');
+    if (l.isRead !== c.isRead) diffs.push('isRead');
+    if (l.status !== c.status) diffs.push('status');
+    if (l.discoveredAt !== c.discoveredAt) diffs.push('discoveredAt');
+    if (l.actorId !== c.actorId) diffs.push('actorId');
+    if (l.actorName !== c.actorName) diffs.push('actorName');
+    return diffs;
+}
+
+
 
 /**
  * 分析日志差异

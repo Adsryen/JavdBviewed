@@ -418,30 +418,30 @@
         grid-template-columns: 1fr;
         gap: 15px;
     }
-    
+
     .list-controls {
         grid-template-columns: 1fr;
         gap: 10px;
     }
-    
+
     .new-work-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
     }
-    
+
     .new-work-cover {
         width: 100%;
         height: 120px;
         margin-right: 0;
     }
-    
+
     .new-work-actions {
         margin-left: 0;
         width: 100%;
         justify-content: flex-end;
     }
-    
+
     .new-work-meta {
         flex-direction: column;
         gap: 8px;
@@ -524,6 +524,29 @@
 }
 
 /* 演员选择器弹窗样式 */
+
+/* 让“新作品”风格的统计卡片纵向排版，数字与文字垂直居中对齐 */
+.stats-grid .stat-card.new-works-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 6px; /* 数字与文字间距 */
+    padding: 18px 16px;
+}
+
+.stats-grid .stat-card.new-works-stat .stat-value {
+    line-height: 1; /* 避免视觉上上下不齐 */
+    margin: 0;      /* 使用gap控制间距 */
+    font-weight: 700;
+}
+
+.stats-grid .stat-card.new-works-stat .stat-label {
+    line-height: 1.2;
+    margin: 0;
+}
+
 .actor-selector-modal,
 .new-works-config-modal,
 .subscription-management-modal {

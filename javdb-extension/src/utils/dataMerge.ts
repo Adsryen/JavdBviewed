@@ -2,11 +2,13 @@
 // 数据智能合并模块
 
 import type { VideoRecord, ActorRecord, ExtensionSettings } from '../types';
-import type { 
-    DataDiffResult, 
-    MergeOptions, 
-    VideoRecordConflict, 
-    ActorRecordConflict 
+import { mergeKeyedMap } from './mergeKeyedMap';
+import type { ActorSubscription, NewWorkRecord } from '../services/newWorks/types';
+import type {
+    DataDiffResult,
+    MergeOptions,
+    VideoRecordConflict,
+    ActorRecordConflict
 } from './dataDiff';
 
 // 合并结果
@@ -21,6 +23,11 @@ export interface MergeResult {
         userProfile?: any;
         logs?: any[];
         importStats?: any;
+        newWorks?: {
+            subscriptions?: Record<string, ActorSubscription>;
+            records?: Record<string, NewWorkRecord>;
+            config?: any;
+        }
     };
 }
 
@@ -37,6 +44,11 @@ export interface MergeSummary {
         updated: number;
         kept: number;
         total: number;
+    };
+    newWorks: {
+        subscriptions: { added: number; updated: number; kept: number; total: number; };
+        records: { added: number; updated: number; kept: number; total: number; };
+        config: { updated: boolean };
     };
     settings: {
         updated: boolean;
@@ -65,6 +77,11 @@ export function mergeData(
         const summary: MergeSummary = {
             videoRecords: { added: 0, updated: 0, kept: 0, total: 0 },
             actorRecords: { added: 0, updated: 0, kept: 0, total: 0 },
+            newWorks: {
+                subscriptions: { added: 0, updated: 0, kept: 0, total: 0 },
+                records: { added: 0, updated: 0, kept: 0, total: 0 },
+                config: { updated: false }
+            },
             settings: { updated: false },
             userProfile: { updated: false },
             logs: { added: 0 },
@@ -116,6 +133,36 @@ export function mergeData(
             );
             summary.userProfile.updated = true;
         }
+        // 合并新作品（始终保留云端为主，避免过度复杂化；后续可按策略细化）
+        if (options.restoreNewWorks && cloudData.newWorks) {
+            mergedData.newWorks = {};
+            // 订阅
+            const subsResult = mergeKeyedMap<ActorSubscription>(
+                localData.newWorks?.subscriptions || {},
+                cloudData.newWorks.subscriptions || {},
+                diffResult.newWorks.subscriptions,
+                options
+            );
+            mergedData.newWorks.subscriptions = subsResult.merged;
+            summary.newWorks.subscriptions = subsResult.summary;
+
+            // 记录
+            const recsResult = mergeKeyedMap<NewWorkRecord>(
+                localData.newWorks?.records || {},
+                cloudData.newWorks.records || {},
+                diffResult.newWorks.records,
+                options
+            );
+            mergedData.newWorks.records = recsResult.merged;
+            summary.newWorks.records = recsResult.summary;
+
+            // 配置
+            if (cloudData.newWorks.config) {
+                mergedData.newWorks.config = cloudData.newWorks.config;
+                summary.newWorks.config.updated = true;
+            }
+        }
+
 
         // 合并日志
         if (options.restoreLogs && cloudData.logs) {
@@ -192,7 +239,7 @@ function mergeVideoRecords(
                 merged[record.id] = record;
                 added++;
             }
-            
+
             // 处理冲突记录
             for (const conflict of diff.conflicts) {
                 const resolution = options.customConflictResolutions?.[conflict.id] || 'merge';
@@ -220,7 +267,7 @@ function mergeVideoRecords(
                 merged[record.id] = record;
                 added++;
             }
-            
+
             // 智能处理冲突记录
             for (const conflict of diff.conflicts) {
                 switch (conflict.recommendation) {
@@ -256,30 +303,30 @@ function mergeVideoRecords(
  */
 function smartMergeVideoRecord(local: VideoRecord, cloud: VideoRecord): VideoRecord {
     const now = Date.now();
-    
+
     return {
         // 基础信息以最新为准
         ...local,
         ...cloud,
-        
+
         // 保留原始创建时间
         createdAt: local.createdAt || cloud.createdAt,
-        
+
         // 更新时间设为当前时间
         updatedAt: now,
-        
+
         // 标签合并去重
         tags: [...new Set([...(local.tags || []), ...(cloud.tags || [])])],
-        
+
         // 选择更完整的数据
         title: (cloud.title && cloud.title.length > (local.title?.length || 0)) ? cloud.title : local.title,
         releaseDate: cloud.releaseDate || local.releaseDate,
         javdbUrl: cloud.javdbUrl || local.javdbUrl,
         javdbImage: cloud.javdbImage || local.javdbImage,
-        
+
         // 状态以更高优先级为准（viewed > want > browsed）
         status: getHigherPriorityStatus(local.status, cloud.status),
-        
+
         // 合并增强数据
         enhancedData: mergeEnhancedData(local.enhancedData, cloud.enhancedData)
     };
@@ -302,7 +349,7 @@ function mergeEnhancedData(local?: any, cloud?: any): any {
     if (!local && !cloud) return undefined;
     if (!local) return cloud;
     if (!cloud) return local;
-    
+
     return {
         ...local,
         ...cloud,
@@ -345,7 +392,7 @@ function mergeActorRecords(
                 merged[record.id] = record;
                 added++;
             }
-            
+
             // 处理冲突记录
             for (const conflict of diff.conflicts) {
                 const resolution = options.customConflictResolutions?.[conflict.id] || 'merge';
@@ -371,7 +418,7 @@ function mergeActorRecords(
                 merged[record.id] = record;
                 added++;
             }
-            
+
             // 智能处理冲突记录
             for (const conflict of diff.conflicts) {
                 switch (conflict.recommendation) {
@@ -406,28 +453,28 @@ function mergeActorRecords(
  */
 function smartMergeActorRecord(local: ActorRecord, cloud: ActorRecord): ActorRecord {
     const now = Date.now();
-    
+
     return {
         ...local,
         ...cloud,
         createdAt: local.createdAt || cloud.createdAt,
         updatedAt: now,
-        
+
         // 合并别名
         aliases: [...new Set([...(local.aliases || []), ...(cloud.aliases || [])])],
-        
+
         // 选择更完整的数据
         name: cloud.name || local.name,
         avatarUrl: cloud.avatarUrl || local.avatarUrl,
         profileUrl: cloud.profileUrl || local.profileUrl,
         worksUrl: cloud.worksUrl || local.worksUrl,
-        
+
         // 合并详细信息
         details: {
             ...local.details,
             ...cloud.details
         },
-        
+
         // 合并同步信息
         syncInfo: cloud.syncInfo || local.syncInfo
     };
@@ -443,7 +490,7 @@ function mergeSettings(
 ): ExtensionSettings {
     if (!cloud) return local!;
     if (!local) return cloud;
-    
+
     // 根据策略决定如何合并设置
     switch (options?.strategy) {
         case 'cloud-priority':
@@ -461,8 +508,14 @@ function mergeSettings(
                 // 保留本地的用户体验设置
                 userExperience: local.userExperience
             };
+
+
+        }
     }
-}
+
+
+
+
 
 /**
  * 合并用户资料
@@ -470,7 +523,7 @@ function mergeSettings(
 function mergeUserProfile(local?: any, cloud?: any, options?: MergeOptions): any {
     if (!cloud) return local;
     if (!local) return cloud;
-    
+
     switch (options?.strategy) {
         case 'cloud-priority':
             return cloud;
@@ -495,13 +548,13 @@ function mergeLogs(local: any[], cloud: any[], options?: MergeOptions): any[] {
             // 合并并去重
             const merged = [...local];
             const localTimestamps = new Set(local.map(log => log.timestamp));
-            
+
             for (const cloudLog of cloud) {
                 if (!localTimestamps.has(cloudLog.timestamp)) {
                     merged.push(cloudLog);
                 }
             }
-            
+
             // 按时间戳排序
             return merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }
