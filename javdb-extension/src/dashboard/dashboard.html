@@ -1052,7 +1052,7 @@
                         <!-- 115网盘设置 -->
                         <div class="settings-panel" id="drive115-settings">
                             <div class="settings-panel-header">
-                                <h3>115网盘离线下载</h3>
+                                <h3><img id="drive115TitleIcon" src="https://w.115.com/m_r/web/static/images/icon_logo_cloud.svg?_vh=abd6a19_3" alt="115" class="drive115-title-icon">115网盘离线下载</h3>
                                 <p class="settings-description">配置115网盘离线下载功能，支持磁链自动下载和验证。</p>
                             </div>
                             <div class="settings-panel-body">
@@ -1060,12 +1060,18 @@
                                 <div class="settings-section">
                                     <h4>基础设置</h4>
                                     <div class="form-group">
-                                        <label class="checkbox-label">
+                                        <label class="switch" id="drive115EnabledSwitch">
                                             <input type="checkbox" id="drive115Enabled">
-                                            <span class="checkmark"></span>
-                                            启用115网盘功能
+                                            <span class="slider"></span>
+                                            <span class="switch-label">启用115网盘功能</span>
                                         </label>
                                         <p class="input-description">开启后可以使用115网盘离线下载功能。需要先登录115网盘。</p>
+                                        <div class="drive115-alert">
+                                            <div class="drive115-alert-icon">⚠️</div>
+                                            <div class="drive115-alert-content">
+                                                <strong>注意：</strong>需要自行打开一个标签页成功登录115网盘，并且关闭浏览器的页面睡眠模式，否则无法正常使用离线下载功能。
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1074,9 +1080,18 @@
                                     <div class="settings-section">
                                         <h4>下载设置</h4>
                                         <div class="form-group">
-                                            <label for="drive115DownloadDir">下载目录:</label>
-                                            <input type="text" id="drive115DownloadDir" placeholder="例如: ${云下载} 或 具体目录ID">
-                                            <p class="input-description">支持动态参数: ${#star}(演员), ${#series}(系列), ${#studio}(制作商)</p>
+                                            <label for="drive115DownloadDir">下载目录ID:</label>
+                                            <input type="text" id="drive115DownloadDir" placeholder="请输入目录ID（cid），例如：123456789">
+                                            <p class="input-description">仅支持填写目录ID（cid）。<button type="button" id="drive115HowToCidToggle" class="link-button" style="margin-left:8px;">如何获取ID？</button></p>
+                                            <div id="drive115HowToCid" class="help-collapsible" style="display:none; margin-top:6px;">
+                                                <ol style="padding-left:18px; margin:6px 0;">
+                                                    <li>在 115 网页端打开目标文件夹</li>
+                                                    <li>查看浏览器地址栏，找到 <code>cid=xxxxxxxx</code></li>
+                                                    <li>复制 <code>cid=</code> 后面的数字，粘贴到上面的输入框</li>
+                                                </ol>
+                                                <p style="color:#666; margin:4px 0 0;">例如：<code>https://115.com/?cid=123456789&...</code>，目录ID即 <code>123456789</code></p>
+                                            </div>
+                                            <p id="drive115DownloadDirError" class="input-error" style="display:none;">请输入目录ID</p>
                                         </div>
 
                                         <div class="form-group">
