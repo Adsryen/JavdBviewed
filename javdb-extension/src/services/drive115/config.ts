@@ -21,7 +21,7 @@ export const DRIVE115_ENDPOINTS = {
 // 115网盘默认配置
 export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   enabled: false,              // 默认关闭115功能
-  downloadDir: '${云下载}',    // 默认下载目录
+  downloadDir: '',             // 默认下载目录（留空，需填写目录ID）
   verifyCount: 5,              // 默认验证5次
   maxFailures: 5,              // 默认最大失败5次
   autoNotify: true,            // 默认开启通知

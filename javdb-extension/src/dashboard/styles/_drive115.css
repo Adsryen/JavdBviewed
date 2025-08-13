@@ -10,6 +10,113 @@
     filter: grayscale(1);
     pointer-events: none;
 }
+/* 醒目的注意提示样式 */
+#drive115-settings .drive115-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #fbbf24; /* amber-400 */
+    background: #fffbeb;        /* amber-50 */
+    color: #92400e;             /* amber-800 */
+    border-radius: 8px;
+    margin-top: 10px;
+}
+#drive115-settings .drive115-alert-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-top: 2px;
+}
+#drive115-settings .drive115-alert-content strong { margin-right: 4px; }
+
+/* 标题小图标 */
+#drive115-settings .settings-panel-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#drive115-settings .drive115-title-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+/* 标题图标默认隐藏，加载成功再显示 */
+#drive115-settings #drive115TitleIcon { display: none; }
+
+/* 开关样式 */
+#drive115-settings .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+#drive115-settings .switch input { display: none; }
+#drive115-settings .switch .slider {
+    position: relative;
+    width: 44px; height: 24px;
+    background: #d1d5db;
+    border-radius: 999px;
+    transition: background 0.2s ease;
+}
+#drive115-settings .switch .slider::before {
+    content: '';
+    position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 999px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transition: transform 0.2s ease;
+}
+#drive115-settings .switch input:checked + .slider {
+    background: #2563eb;
+}
+#drive115-settings .switch input:checked + .slider::before {
+    transform: translateX(20px);
+}
+#drive115-settings .switch .switch-label { color: #1f2937; }
+
+/* 输入错误样式 */
+#drive115-settings .input-error {
+    color: #dc2626; /* 红色 */
+    font-size: 0.9em;
+    margin: 6px 0 0;
+}
+#drive115-settings input.input-invalid {
+    border-color: #dc2626 !important;
+    outline-color: #dc2626 !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+/* “如何获取ID？”按钮与帮助块样式 */
+#drive115-settings .link-button {
+    background: transparent;
+    border: none;
+    color: #2563eb; /* 主题蓝 */
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 0.95em;
+}
+#drive115-settings .link-button:hover {
+    text-decoration: underline;
+}
+#drive115-settings .help-collapsible {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+#drive115-settings .help-collapsible ol {
+    margin: 0;
+}
+#drive115-settings .help-collapsible code {
+    background: #111827;
+    color: #e5e7eb;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85em;
+}
+
 
 /* 测试结果样式 */
 .test-results {
@@ -258,17 +365,17 @@
     .log-stats {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .log-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
     }
-    
+
     .action-buttons-top {
         flex-direction: column;
     }
-    
+
     .action-buttons-top .btn {
         width: 100%;
     }
@@ -278,11 +385,11 @@
     .log-stats {
         grid-template-columns: 1fr;
     }
-    
+
     .test-results {
         max-height: 200px;
     }
-    
+
     .logs-list {
         max-height: 300px;
     }
