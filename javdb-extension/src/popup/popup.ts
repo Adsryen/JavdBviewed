@@ -10,6 +10,13 @@ function initVersionInfo() {
     }
 }
 
+function initTitleLogo() {
+    const img = document.getElementById('titleLogo') as HTMLImageElement | null;
+    if (img) {
+        img.src = chrome.runtime.getURL('assets/favicon-32x32.png');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const dashboardButton = document.getElementById('dashboard-button') as HTMLButtonElement;
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
@@ -114,4 +121,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initialize();
     initVersionInfo();
-}); 
+    initTitleLogo();
+});
