@@ -39,20 +39,51 @@ function createToastContainer(): HTMLElement {
     return container;
 }
 
+
+// 以 message+type 为 key 的活动 toast 映射，用于合并与续命
+const activeToasts = new Map<string, { el: HTMLElement; count: number; timeoutId: number | null }>();
+
 export function showToast(message: string, type: 'info' | 'success' | 'error' = 'info'): void {
     // 确保Font Awesome已加载
     loadFontAwesome();
 
     const container = createToastContainer();
+    const key = `${type}:${message}`;
 
-    // 限制最大消息数量
-    while (container.children.length >= TOAST_CONFIG.MAX_MESSAGES) {
-        const lastChild = container.lastChild as HTMLElement;
-        if (lastChild) {
-            fadeOutToast(lastChild);
+    // 若已有同类 toast，合并并续命
+    const existing = activeToasts.get(key);
+    if (existing) {
+        existing.count += 1;
+        const countEl = existing.el.querySelector('.javdb-ext-toast-count') as HTMLElement | null;
+        if (countEl) {
+            countEl.textContent = `×${existing.count}`;
+            countEl.style.display = existing.count > 1 ? 'inline' : 'none';
+        }
+        // 续命：重置自动消失计时器
+        if (existing.timeoutId != null) {
+            clearTimeout(existing.timeoutId);
+        }
+        existing.timeoutId = window.setTimeout(() => {
+            fadeOutToast(existing.el);
+        }, TOAST_CONFIG.DISPLAY_DURATION);
+        return;
+    }
+
+    // 超过上限时，优先同步移除最旧的一条（避免 while + 异步导致死循环）
+    if (container.children.length >= TOAST_CONFIG.MAX_MESSAGES) {
+        const oldest = container.firstElementChild as HTMLElement | null;
+        if (oldest) {
+            const oldKey = oldest.getAttribute('data-toast-key') || '';
+            if (oldKey && activeToasts.has(oldKey)) {
+                const rec = activeToasts.get(oldKey)!;
+                if (rec.timeoutId != null) clearTimeout(rec.timeoutId);
+                activeToasts.delete(oldKey);
+            }
+            oldest.remove();
         }
     }
 
+    // 创建新 toast
     const toast = document.createElement('div');
 
     // 根据类型设置渐变背景
@@ -95,7 +126,7 @@ export function showToast(message: string, type: 'info' | 'success' | 'error' = 
         word-wrap: break-word;
     `;
 
-    // 创建图标元素
+    // 结构：icon + 文本 + 计数
     const icon = document.createElement('i');
     icon.className = iconClass;
     icon.style.cssText = `
@@ -104,25 +135,36 @@ export function showToast(message: string, type: 'info' | 'success' | 'error' = 
         flex-shrink: 0;
     `;
 
-    // 创建文本元素
     const textElement = document.createElement('span');
+    textElement.className = 'javdb-ext-toast-message';
     textElement.textContent = message;
 
-    // 组装toast
+    const countElement = document.createElement('span');
+    countElement.className = 'javdb-ext-toast-count';
+    countElement.style.cssText = `margin-left: 4px; font-weight: 600;`;
+    countElement.textContent = '×1';
+    countElement.style.display = 'none';
+
+    toast.setAttribute('data-toast-key', key);
+
     toast.appendChild(icon);
     toast.appendChild(textElement);
+    toast.appendChild(countElement);
     container.appendChild(toast);
 
-    // 触发动画
+    // 触发入场动画
     requestAnimationFrame(() => {
         toast.style.opacity = '1';
         toast.style.transform = 'translateX(0)';
     });
 
     // 自动消失
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
         fadeOutToast(toast);
     }, TOAST_CONFIG.DISPLAY_DURATION);
+
+    // 记录到映射
+    activeToasts.set(key, { el: toast, count: 1, timeoutId });
 }
 
 function fadeOutToast(toast: HTMLElement): void {
@@ -130,8 +172,12 @@ function fadeOutToast(toast: HTMLElement): void {
     toast.style.transform = 'translateX(100%)';
 
     setTimeout(() => {
+        const key = toast.getAttribute('data-toast-key') || '';
         if (toast.parentNode) {
             toast.parentNode.removeChild(toast);
+        }
+        if (key) {
+            activeToasts.delete(key);
         }
     }, TOAST_CONFIG.FADE_DURATION);
 }
