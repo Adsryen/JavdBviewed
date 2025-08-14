@@ -24,11 +24,11 @@ export class NewWorksManager {
      */
     async initialize(): Promise<void> {
         if (this.isLoaded) return;
-        
+
         try {
             // 加载全局配置
             this.globalConfig = await getValue<NewWorksGlobalConfig>(
-                STORAGE_KEYS.NEW_WORKS_CONFIG, 
+                STORAGE_KEYS.NEW_WORKS_CONFIG,
                 DEFAULT_NEW_WORKS_CONFIG
             );
 
@@ -50,7 +50,7 @@ export class NewWorksManager {
 
             // 加载新作品数据
             const newWorksData = await getValue<Record<string, NewWorkRecord>>(
-                STORAGE_KEYS.NEW_WORKS_RECORDS, 
+                STORAGE_KEYS.NEW_WORKS_RECORDS,
                 {}
             );
             this.newWorks.clear();
@@ -79,7 +79,7 @@ export class NewWorksManager {
      */
     async updateGlobalConfig(config: Partial<NewWorksGlobalConfig>): Promise<void> {
         await this.initialize();
-        
+
         this.globalConfig = { ...this.globalConfig, ...config };
         await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, this.globalConfig);
     }
@@ -89,7 +89,7 @@ export class NewWorksManager {
      */
     async addSubscription(actorId: string): Promise<void> {
         await this.initialize();
-        
+
         // 检查演员是否存在
         const actor = await actorManager.getActorById(actorId);
         if (!actor) {
@@ -118,7 +118,7 @@ export class NewWorksManager {
      */
     async removeSubscription(actorId: string): Promise<void> {
         await this.initialize();
-        
+
         if (this.subscriptions.has(actorId)) {
             this.subscriptions.delete(actorId);
             await this.saveSubscriptions();
@@ -181,7 +181,7 @@ export class NewWorksManager {
         // 搜索过滤
         if (search.trim()) {
             const lowerSearch = search.toLowerCase();
-            works = works.filter(work => 
+            works = works.filter(work =>
                 work.title.toLowerCase().includes(lowerSearch) ||
                 work.actorName.toLowerCase().includes(lowerSearch) ||
                 work.id.toLowerCase().includes(lowerSearch)
@@ -259,7 +259,7 @@ export class NewWorksManager {
      */
     async markAsRead(workIds: string[]): Promise<void> {
         await this.initialize();
-        
+
         let hasChanges = false;
         workIds.forEach(id => {
             const work = this.newWorks.get(id);
@@ -280,7 +280,7 @@ export class NewWorksManager {
      */
     async deleteWorks(workIds: string[]): Promise<void> {
         await this.initialize();
-        
+
         let hasChanges = false;
         workIds.forEach(id => {
             if (this.newWorks.has(id)) {
@@ -295,11 +295,32 @@ export class NewWorksManager {
     }
 
     /**
+     * 清理所有已读作品
+     * 返回删除的数量
+     */
+    async cleanupReadWorks(): Promise<number> {
+        await this.initialize();
+
+        const worksToDelete: string[] = [];
+        this.newWorks.forEach((work, id) => {
+            if (work.isRead) {
+                worksToDelete.push(id);
+            }
+        });
+
+        if (worksToDelete.length > 0) {
+            await this.deleteWorks(worksToDelete);
+        }
+
+        return worksToDelete.length;
+    }
+
+    /**
      * 清理旧作品
      */
     async cleanupOldWorks(): Promise<number> {
         await this.initialize();
-        
+
         if (!this.globalConfig.autoCleanup) {
             return 0;
         }
@@ -355,7 +376,7 @@ export class NewWorksManager {
         this.subscriptions.forEach((sub, id) => {
             subscriptionsObject[id] = sub;
         });
-        
+
         await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, subscriptionsObject);
     }
 
@@ -367,7 +388,7 @@ export class NewWorksManager {
         this.newWorks.forEach((work, id) => {
             newWorksObject[id] = work;
         });
-        
+
         await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, newWorksObject);
     }
 
@@ -376,7 +397,7 @@ export class NewWorksManager {
      */
     async addNewWork(work: NewWorkRecord): Promise<void> {
         await this.initialize();
-        
+
         // 检查是否已存在
         if (!this.newWorks.has(work.id)) {
             this.newWorks.set(work.id, work);
@@ -389,7 +410,7 @@ export class NewWorksManager {
      */
     async addNewWorks(works: NewWorkRecord[]): Promise<void> {
         await this.initialize();
-        
+
         let hasChanges = false;
         works.forEach(work => {
             if (!this.newWorks.has(work.id)) {

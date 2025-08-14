@@ -15,7 +15,7 @@ export class NewWorksTab {
     private pageSize: number = 20;
     private currentFilters: any = {
         search: '',
-        filter: 'all',
+        filter: 'unread',
         sort: 'discoveredAt_desc'
     };
     private selectedWorks: Set<string> = new Set();
@@ -129,6 +129,27 @@ export class NewWorksTab {
         } else {
             console.warn('未找到管理订阅按钮');
         }
+
+        // 清理已读按钮
+        const cleanupReadBtn = document.getElementById('cleanupReadWorksBtn');
+        if (cleanupReadBtn) {
+            cleanupReadBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const confirmed = await showDanger('将删除所有已读的新作品，操作不可撤销，确认继续？', '清理已读');
+                if (!confirmed) return;
+                try {
+                    const deleted = await newWorksManager.cleanupReadWorks();
+                    await this.render();
+                    showMessage(`已清理 ${deleted} 条已读作品`, 'success');
+                } catch (err) {
+                    console.error('清理已读失败:', err);
+                    showMessage('清理已读失败，请重试', 'error');
+                }
+            });
+            console.log('清理已读按钮事件已绑定');
+        } else {
+            console.warn('未找到清理已读按钮');
+        }
     }
 
     /**
@@ -149,6 +170,8 @@ export class NewWorksTab {
         // 过滤选择器
         const filterSelect = document.getElementById('newWorksFilterSelect') as HTMLSelectElement;
         if (filterSelect) {
+            // 初始化为未读
+            filterSelect.value = this.currentFilters.filter;
             filterSelect.addEventListener('change', (e) => {
                 this.currentFilters.filter = (e.target as HTMLSelectElement).value;
                 this.currentPage = 1;
