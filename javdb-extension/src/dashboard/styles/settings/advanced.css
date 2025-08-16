@@ -2,6 +2,17 @@
  * 高级配置设置面板样式
  */
 
+/* CSS变量定义 */
+:root {
+    --text-primary: #333;
+    --text-secondary: #666;
+    --bg-primary: #fff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f1f3f4;
+    --border-color: #e9ecef;
+    --primary-color: #007bff;
+}
+
 /* 高级配置设置面板特有样式 */
 #advanced-settings {
     /* 面板特有样式可以在这里定义 */

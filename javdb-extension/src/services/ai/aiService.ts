@@ -397,25 +397,7 @@ export class AIService {
         return Math.ceil(chineseChars / 1.5 + otherChars / 4);
     }
 
-    /**
-     * 获取使用统计
-     */
-    getUsageStats(): {
-        totalRequests: number;
-        successfulRequests: number;
-        failedRequests: number;
-        averageResponseTime: number;
-        lastRequestTime?: number;
-    } {
-        // 这里可以实现使用统计的存储和计算
-        // 目前返回模拟数据
-        return {
-            totalRequests: 0,
-            successfulRequests: 0,
-            failedRequests: 0,
-            averageResponseTime: 0
-        };
-    }
+
 }
 
 // 全局AI服务实例

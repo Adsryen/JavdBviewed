@@ -112,8 +112,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Volume Control
     async function setupVolumeControl() {
-        // 从存储中获取当前音量设置
-        const currentVolume = await getValue('previewVideoVolume', 50);
+        // 从设置对象中获取当前音量设置
+        const settings = await getSettings();
+        const currentVolumeFloat = settings.listEnhancement?.previewVolume || 0.2;
+        const currentVolume = Math.round(currentVolumeFloat * 100);
 
         // 更新滑块和显示值
         volumeSlider.value = currentVolume.toString();
@@ -124,8 +126,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const volume = parseInt((e.target as HTMLInputElement).value);
             volumeValue.textContent = `${volume}%`;
 
-            // 保存到存储
-            await setValue('previewVideoVolume', volume);
+            // 获取当前设置并更新音量
+            const currentSettings = await getSettings();
+            if (!currentSettings.listEnhancement) {
+                currentSettings.listEnhancement = {
+                    enabled: true,
+                    enableClickEnhancement: true,
+                    enableVideoPreview: true,
+                    enableListOptimization: true,
+                    previewDelay: 1000,
+                    previewVolume: 0.2,
+                    enableRightClickBackground: true
+                };
+            }
+            currentSettings.listEnhancement.previewVolume = volume / 100; // 转换为0-1范围
+
+            // 保存设置
+            await saveSettings(currentSettings);
 
             // 通知内容脚本音量已更改
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

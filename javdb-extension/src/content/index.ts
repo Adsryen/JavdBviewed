@@ -1,6 +1,6 @@
 // src/content/index.ts
 
-import { getSettings, getValue } from '../utils/storage';
+import { getSettings, getValue, setValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
@@ -13,7 +13,6 @@ import { initDrive115Features } from './drive115';
 import { globalCache } from '../utils/cache';
 import { defaultDataAggregator } from '../services/dataAggregator';
 import { quickCopyManager } from './quickCopy';
-import { getValue, setValue } from '../utils/storage';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
@@ -350,8 +349,9 @@ let currentVolume = 0.75; // 默认75%
 
 async function initVolumeControl() {
     try {
-        // 获取音量设置
-        currentVolume = (await getValue('previewVideoVolume', 75)) / 100;
+        // 从设置对象中获取音量设置
+        const settings = await getSettings();
+        currentVolume = settings.listEnhancement?.previewVolume || 0.2;
         log(`🎵 Volume control init: ${Math.round(currentVolume * 100)}%`);
 
         // 监听popup消息

@@ -1,5 +1,14 @@
 /* 新作品标签页样式 */
 
+/* CSS变量定义 */
+:root {
+    --text-color: #333;
+    --background-color: #fff;
+    --border-color: #e9ecef;
+    --border-radius: 8px;
+    --primary-color: #007bff;
+}
+
 /* 新作品控制区域 */
 .new-works-controls {
     display: grid;

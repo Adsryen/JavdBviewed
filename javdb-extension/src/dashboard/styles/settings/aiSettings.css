@@ -11,6 +11,19 @@
     --ai-border-color: #e2e8f0;
     --ai-text-color: #1e293b;
     --ai-text-muted: #64748b;
+
+    /* 补充缺失的通用变量 */
+    --text-primary: #333;
+    --text-secondary: #666;
+    --bg-primary: #fff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f1f3f4;
+    --border-color: #e9ecef;
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --info-bg-color: #d1ecf1;
 }
 
 /* AI设置标题 */
@@ -78,6 +91,7 @@
     font-size: 14px;
     transition: all 0.3s ease;
     background: white;
+    color: var(--ai-text-color, #333);
     box-sizing: border-box;
 }
 
@@ -402,37 +416,7 @@
     to { transform: rotate(360deg); }
 }
 
-/* 使用统计 */
-.usage-stats {
-    background: white;
-    border: 1px solid var(--ai-border-color);
-    border-radius: 8px;
-    padding: 15px;
-    margin-top: 10px;
-}
 
-.usage-stats .stats-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--ai-border-color);
-}
-
-.usage-stats .stats-row:last-child {
-    border-bottom: none;
-}
-
-.usage-stats .stat-label {
-    color: var(--ai-text-muted);
-    font-size: 14px;
-}
-
-.usage-stats .stat-value {
-    color: var(--ai-text-color);
-    font-weight: 500;
-    font-size: 14px;
-}
 
 
 
