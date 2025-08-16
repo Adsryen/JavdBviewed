@@ -13,6 +13,7 @@ import { initDrive115Features } from './drive115';
 import { globalCache } from '../utils/cache';
 import { defaultDataAggregator } from '../services/dataAggregator';
 import { quickCopyManager } from './quickCopy';
+import { getValue, setValue } from '../utils/storage';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
@@ -342,6 +343,175 @@ if (typeof window !== 'undefined') {
     };
 
     log('Successfully exposed concurrency tools to window object');
+}
+
+// === 音量控制功能 - 基于验证成功的调试脚本 ===
+let currentVolume = 0.75; // 默认75%
+
+async function initVolumeControl() {
+    try {
+        // 获取音量设置
+        currentVolume = (await getValue('previewVideoVolume', 75)) / 100;
+        log(`🎵 Volume control init: ${Math.round(currentVolume * 100)}%`);
+
+        // 监听popup消息
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (message.type === 'volume-changed') {
+                currentVolume = message.volume;
+                log(`🎚️ Volume updated: ${Math.round(currentVolume * 100)}%`);
+                applyVolumeToAllVideos();
+                sendResponse({ success: true });
+            }
+        });
+
+        // 监听点击事件 - 使用与调试脚本相同的逻辑
+        document.addEventListener('click', (e) => {
+            const target = e.target as Element;
+            const link = target.closest('a[data-fancybox], a[href*="preview-video"]');
+
+            if (link) {
+                log('🎬 Preview clicked!');
+
+                // 使用调试脚本验证成功的延迟策略
+                setTimeout(() => handleVideos(), 500);
+                setTimeout(() => handleVideos(), 1000);
+                setTimeout(() => handleVideos(), 2000);
+            }
+        });
+
+        log(`✅ Volume control ready`);
+
+    } catch (error) {
+        log(`❌ Volume control failed:`, error);
+    }
+}
+
+function handleVideos() {
+    const videos = document.querySelectorAll('video');
+    log(`📹 Found ${videos.length} videos`);
+
+    videos.forEach((video, index) => {
+        const v = video as HTMLVideoElement;
+        const style = getComputedStyle(v);
+
+        log(`Video ${index + 1}: id=${v.id}, display=${style.display}, muted=${v.muted}, volume=${v.volume}`);
+
+        // 如果是预览视频且可见，应用音量控制
+        if (isPreviewVideo(v) && style.display !== 'none') {
+            applyVolume(v);
+        }
+    });
+}
+
+function isPreviewVideo(video: HTMLVideoElement): boolean {
+    return video.id === 'preview-video' ||
+           video.className.includes('fancybox-video');
+}
+
+function applyVolume(video: HTMLVideoElement) {
+    log(`🔧 Applying volume ${Math.round(currentVolume * 100)}% to: ${video.id}`);
+
+    try {
+        log(`  Before: muted=${video.muted}, volume=${video.volume}`);
+
+        // 直接设置，就像手动测试一样
+        video.muted = false;
+        video.volume = currentVolume;
+
+        log(`  After: muted=${video.muted}, volume=${video.volume}`);
+
+        // 添加视觉指示器
+        addVolumeIndicator(video);
+
+    } catch (error) {
+        log(`❌ Apply volume error:`, error);
+    }
+}
+
+function applyVolumeToAllVideos() {
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+        const v = video as HTMLVideoElement;
+        if (isPreviewVideo(v)) {
+            applyVolume(v);
+        }
+    });
+}
+
+function addVolumeIndicator(video: HTMLVideoElement) {
+    try {
+        const container = video.parentElement;
+        if (!container) return;
+
+        // 移除已存在的指示器
+        const existing = container.querySelector('.volume-indicator');
+        if (existing) existing.remove();
+
+        // 创建指示器
+        const indicator = document.createElement('div');
+        indicator.className = 'volume-indicator';
+        indicator.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+        indicator.textContent = `🔊 ${Math.round(currentVolume * 100)}%`;
+
+        // 确保容器有相对定位
+        if (getComputedStyle(container).position === 'static') {
+            container.style.position = 'relative';
+        }
+
+        container.appendChild(indicator);
+
+        // 显示动画
+        setTimeout(() => indicator.style.opacity = '1', 100);
+
+        // 3秒后隐藏
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => {
+                if (indicator.parentNode) indicator.remove();
+            }, 300);
+        }, 3000);
+
+    } catch (error) {
+        log(`❌ Add indicator error:`, error);
+    }
+}
+
+// 初始化音量控制
+initVolumeControl();
+
+// 暴露到全局以便调试
+if (typeof window !== 'undefined') {
+    (window as any).javdbVolumeControl = {
+        checkVideos: () => {
+            const videos = document.querySelectorAll('video');
+            console.log(`Found ${videos.length} videos:`, videos);
+            return videos;
+        },
+        forceApply: (volume = 0.75) => {
+            const videos = document.querySelectorAll('video');
+            videos.forEach(video => {
+                video.muted = false;
+                video.volume = volume;
+                console.log(`Applied volume ${volume} to video:`, video);
+            });
+        },
+        getCurrentVolume: () => currentVolume,
+        handleVideos: handleVideos
+    };
 }
 
 // 页面卸载时清理资源

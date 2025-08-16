@@ -11,7 +11,7 @@ import type {
     NewWorksStats,
     NewWorksSearchResult
 } from './types';
-import type { ActorRecord } from '../../types';
+import type { ActorRecord, VideoRecord } from '../../types';
 import { actorManager } from '../actorManager';
 
 export class NewWorksManager {
@@ -340,6 +340,68 @@ export class NewWorksManager {
         }
 
         return worksToDelete.length;
+    }
+
+    /**
+     * 同步新作品状态与番号库记录
+     * 检查番号库中是否有对应记录，如果有则更新新作品的状态
+     */
+    async syncWithVideoRecords(): Promise<{ updated: number; details: Array<{ id: string; oldStatus: string; newStatus: string }> }> {
+        await this.initialize();
+
+        // 获取番号库记录
+        const videoRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+
+        let updatedCount = 0;
+        const updateDetails: Array<{ id: string; oldStatus: string; newStatus: string }> = [];
+        let hasChanges = false;
+
+        this.newWorks.forEach((work, id) => {
+            const videoRecord = videoRecords[id];
+            if (videoRecord) {
+                const oldStatus = work.isRead ? 'read' : 'unread';
+                let newIsRead = false;
+                let newStatus = 'new';
+
+                // 根据番号库记录的状态更新新作品状态
+                switch (videoRecord.status) {
+                    case 'viewed':
+                        newIsRead = true;
+                        newStatus = 'viewed';
+                        break;
+                    case 'browsed':
+                        newIsRead = true;
+                        newStatus = 'browsed';
+                        break;
+                    case 'want':
+                        newIsRead = false; // 想看状态不算已读
+                        newStatus = 'want';
+                        break;
+                }
+
+                // 如果状态有变化，更新记录
+                if (work.isRead !== newIsRead || work.status !== newStatus) {
+                    work.isRead = newIsRead;
+                    work.status = newStatus as any;
+                    this.newWorks.set(id, work);
+                    hasChanges = true;
+                    updatedCount++;
+
+                    updateDetails.push({
+                        id,
+                        oldStatus,
+                        newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})`
+                    });
+                }
+            }
+        });
+
+        // 保存更改
+        if (hasChanges) {
+            await this.saveNewWorks();
+        }
+
+        return { updated: updatedCount, details: updateDetails };
     }
 
     /**
