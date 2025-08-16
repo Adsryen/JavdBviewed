@@ -1,14 +1,13 @@
 @import url('./styles/main.css');
-@import url('./styles/_privacy.css');
 @import url('./styles/_tabs.css');
 @import url('./styles/_records.css');
-@import url('./styles/_settings.css');
-@import url('./styles/_logs.css');
 @import url('./styles/_toast.css');
 @import url('./styles/_modal.css');
 @import url('./styles/_stats.css');
 @import url('./styles/_userProfile.css');
 @import url('./styles/_dataSync.css');
-@import url('./styles/_drive115.css');
+/* _drive115.css 已迁移到 styles/settings/drive115.css */
 @import url('./styles/_newWorks.css');
-@import url('./styles/_networkTest.css');
+
+/* Settings related styles */
+@import url('./styles/settings/index.css');

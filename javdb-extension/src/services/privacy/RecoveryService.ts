@@ -292,6 +292,47 @@ export class RecoveryService implements IRecoveryService {
     }
 
     /**
+     * 检查是否有安全问题
+     */
+    async hasSecurityQuestions(): Promise<boolean> {
+        try {
+            const questions = await this.storage.loadSensitiveConfig<SecurityQuestion[]>('security_questions');
+            return !!(questions && questions.length > 0);
+        } catch (error) {
+            console.error('Failed to check security questions:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 检查是否有备份码
+     */
+    async hasBackupCode(): Promise<boolean> {
+        try {
+            const config = await this.storage.loadSensitiveConfig<PasswordRecoveryConfig>('recovery_config');
+            return !!(config && config.backupCode && !config.backupCodeUsed);
+        } catch (error) {
+            console.error('Failed to check backup code:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 显示安全问题设置对话框
+     */
+    async showSecurityQuestionsDialog(): Promise<boolean> {
+        try {
+            // 这里应该显示一个对话框让用户设置安全问题
+            // 目前返回false表示功能未实现
+            console.log('Security questions dialog not implemented yet');
+            return false;
+        } catch (error) {
+            console.error('Failed to show security questions dialog:', error);
+            return false;
+        }
+    }
+
+    /**
      * 获取恢复选项状态
      */
     async getRecoveryOptions(): Promise<{

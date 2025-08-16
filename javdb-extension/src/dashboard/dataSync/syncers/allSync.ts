@@ -5,6 +5,7 @@
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
 import { showMessage } from '../../ui/toast';
+import { log } from '../../../utils/logController';
 import { viewedSyncManager } from './viewedSync';
 import { wantSyncManager } from './wantSync';
 import type { SyncProgress, SyncResult } from '../types';
@@ -225,7 +226,7 @@ export class AllSyncManager {
         viewedSyncManager.cancel();
         wantSyncManager.cancel();
         
-        logAsync('INFO', '全部同步取消请求已发送');
+        log.verbose('全部同步取消请求已发送');
     }
 }
 

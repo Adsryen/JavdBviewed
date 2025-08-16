@@ -1,0 +1,129 @@
+/*!
+ * Font Awesome Free 6.0.0-beta3 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+ * Copyright 2021 Fonticons, Inc.
+ *
+ * Simplified version for Jav 助手 extension - CSS-only icons without font files
+ */
+
+/* Font face definition for Font Awesome */
+@font-face {
+    font-family: "Font Awesome 6 Free";
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url("data:font/woff2;base64,") format("woff2");
+}
+
+/* Base Font Awesome styles */
+.fa,.fas,.far,.fab {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    text-rendering: auto;
+    font-family: "Font Awesome 6 Free", sans-serif;
+    font-weight: 900;
+}
+
+/* Animation classes */
+.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Icon definitions - only icons used in the project */
+.fa-clock:before { content: "\f017"; }
+.fa-chevron-left:before { content: "\f053"; }
+.fa-sync-alt:before { content: "\f2f1"; }
+.fa-trash:before { content: "\f1f8"; }
+.fa-times:before { content: "\f00d"; }
+.fa-spinner:before { content: "\f110"; }
+.fa-filter:before { content: "\f0b0"; }
+.fa-search:before { content: "\f002"; }
+.fa-broom:before { content: "\f51a"; }
+.fa-user-plus:before { content: "\f234"; }
+.fa-list:before { content: "\f03a"; }
+.fa-info-circle:before { content: "\f05a"; }
+.fa-heart:before { content: "\f004"; }
+.fa-eye:before { content: "\f06e"; }
+.fa-users:before { content: "\f0c0"; }
+.fa-venus-mars:before { content: "\f228"; }
+.fa-check-circle:before { content: "\f058"; }
+.fa-bars:before { content: "\f0c9"; }
+.fa-cloud:before { content: "\f0c2"; }
+.fa-cloud-download-alt:before { content: "\f381"; }
+.fa-magic:before { content: "\f0d0"; }
+.fa-network-wired:before { content: "\f6ff"; }
+.fa-shield-alt:before { content: "\f3ed"; }
+.fa-cogs:before { content: "\f085"; }
+.fa-file-alt:before { content: "\f15c"; }
+.fa-robot:before { content: "\f544"; }
+.fa-tools:before { content: "\f7d9"; }
+.fa-plus:before { content: "\f067"; }
+.fa-cloud-upload-alt:before { content: "\f382"; }
+.fa-save:before { content: "\f0c7"; }
+.fa-camera:before { content: "\f030"; }
+.fa-adjust:before { content: "\f042"; }
+.fa-lock:before { content: "\f023"; }
+.fa-key:before { content: "\f084"; }
+.fa-edit:before { content: "\f044"; }
+.fa-hourglass-half:before { content: "\f252"; }
+.fa-sign-out-alt:before { content: "\f2f5"; }
+.fa-times-circle:before { content: "\f057"; }
+.fa-life-ring:before { content: "\f1cd"; }
+.fa-question-circle:before { content: "\f059"; }
+.fa-cog:before { content: "\f013"; }
+.fa-code:before { content: "\f121"; }
+.fa-exclamation-triangle:before { content: "\f071"; }
+.fa-link:before { content: "\f0c1"; }
+.fa-rocket:before { content: "\f135"; }
+.fa-play:before { content: "\f04f"; }
+.fa-home:before { content: "\f015"; }
+.fa-bug:before { content: "\f188"; }
+.fa-database:before { content: "\f1c0"; }
+.fa-power-off:before { content: "\f011"; }
+.fa-plug:before { content: "\f1e6"; }
+.fa-brain:before { content: "\f5dc"; }
+.fa-sliders-h:before { content: "\f1de"; }
+.fa-thermometer-half:before { content: "\f2c9"; }
+.fa-text-width:before { content: "\f035"; }
+.fa-stream:before { content: "\f550"; }
+.fa-comment-dots:before { content: "\f4ad"; }
+.fa-vial:before { content: "\f492"; }
+.fa-comment:before { content: "\f075"; }
+.fa-paper-plane:before { content: "\f1d8"; }
+.fa-download:before { content: "\f019"; }
+.fa-upload:before { content: "\f093"; }
+.fa-chart-bar:before { content: "\f080"; }
+.fa-undo:before { content: "\f0e2"; }
+.fa-copy:before { content: "\f0c5"; }
+.fa-folder-open:before { content: "\f07c"; }
+.fa-bolt:before { content: "\f0e7"; }
+.fa-route:before { content: "\f4d7"; }
+.fa-hdd:before { content: "\f0a0"; }
+.fa-hand-paper:before { content: "\f256"; }
+.fa-chevron-right:before { content: "\f054"; }
+.fa-chart-line:before { content: "\f201"; }
+.fa-video:before { content: "\f03d"; }
+.fa-code-branch:before { content: "\f126"; }
+.fa-check-square:before { content: "\f14a"; }
+.fa-user-circle:before { content: "\f2bd"; }
+.fa-bell:before { content: "\f0f3"; }
+.fa-arrow-left:before { content: "\f060"; }
+.fa-redo:before { content: "\f01e"; }
+.fa-check:before { content: "\f00c"; }
+.fa-exclamation-circle:before { content: "\f06a"; }
+.fa-star:before { content: "\f005"; }
+.fa-envelope:before { content: "\f0e0"; }
+.fa-user:before { content: "\f007"; }
+.fa-crown:before { content: "\f521"; }
+.fa-server:before { content: "\f233"; }
+.fa-user-slash:before { content: "\f506"; }
+.fa-sign-in-alt:before { content: "\f2f6"; }

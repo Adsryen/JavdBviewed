@@ -3,6 +3,7 @@
 
 import { getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS, DEFAULT_NEW_WORKS_CONFIG } from '../../utils/config';
+import { log } from '../../utils/logController';
 import type {
     ActorSubscription,
     NewWorksGlobalConfig,
@@ -37,13 +38,13 @@ export class NewWorksManager {
                 STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS,
                 {}
             );
-            console.log('NewWorksManager: 从存储加载的订阅数据:', subscriptionsData);
+            log.verbose('NewWorksManager: 从存储加载的订阅数据:', subscriptionsData);
             this.subscriptions.clear();
             Object.values(subscriptionsData).forEach(sub => {
                 // 确保 enabled 字段存在，如果不存在则默认为 true
                 if (sub.enabled === undefined) {
                     sub.enabled = true;
-                    console.log(`NewWorksManager: 订阅 ${sub.actorName} 缺少 enabled 字段，设置为 true`);
+                    log.verbose(`NewWorksManager: 订阅 ${sub.actorName} 缺少 enabled 字段，设置为 true`);
                 }
                 this.subscriptions.set(sub.actorId, sub);
             });
@@ -59,7 +60,7 @@ export class NewWorksManager {
             });
 
             this.isLoaded = true;
-            console.log(`NewWorksManager: Loaded ${this.subscriptions.size} subscriptions, ${this.newWorks.size} works`);
+            log.verbose(`NewWorksManager: Loaded ${this.subscriptions.size} subscriptions, ${this.newWorks.size} works`);
         } catch (error) {
             console.error('NewWorksManager: Failed to initialize:', error);
             throw error;
@@ -131,9 +132,9 @@ export class NewWorksManager {
     async getSubscriptions(): Promise<ActorSubscription[]> {
         await this.initialize();
         const subscriptions = Array.from(this.subscriptions.values());
-        console.log(`NewWorksManager: 获取订阅列表，共 ${subscriptions.length} 个订阅`);
+        log.verbose(`NewWorksManager: 获取订阅列表，共 ${subscriptions.length} 个订阅`);
         subscriptions.forEach(sub => {
-            console.log(`  - ${sub.actorName} (${sub.actorId}): enabled=${sub.enabled}`);
+            log.verbose(`  - ${sub.actorName} (${sub.actorId}): enabled=${sub.enabled}`);
         });
         return subscriptions;
     }
@@ -146,13 +147,13 @@ export class NewWorksManager {
 
         const subscription = this.subscriptions.get(actorId);
         if (subscription) {
-            console.log(`NewWorksManager: 切换订阅状态 - 演员: ${subscription.actorName}, 从 ${subscription.enabled} 切换到 ${enabled}`);
+            log.verbose(`NewWorksManager: 切换订阅状态 - 演员: ${subscription.actorName}, 从 ${subscription.enabled} 切换到 ${enabled}`);
             subscription.enabled = enabled;
             this.subscriptions.set(actorId, subscription);
             await this.saveSubscriptions();
-            console.log(`NewWorksManager: 订阅状态已保存`);
+            log.verbose(`NewWorksManager: 订阅状态已保存`);
         } else {
-            console.warn(`NewWorksManager: 未找到演员订阅 ${actorId}`);
+            log.warn(`NewWorksManager: 未找到演员订阅 ${actorId}`);
         }
     }
 
@@ -350,7 +351,7 @@ export class NewWorksManager {
         const subscriptions = Array.from(this.subscriptions.values());
         const works = Array.from(this.newWorks.values());
 
-        console.log(`NewWorksManager: 统计信息 - 订阅数: ${subscriptions.length}, 新作品数: ${works.length}`);
+        log.verbose(`NewWorksManager: 统计信息 - 订阅数: ${subscriptions.length}, 新作品数: ${works.length}`);
 
         const now = Date.now();
         const todayStart = new Date().setHours(0, 0, 0, 0);
@@ -364,7 +365,7 @@ export class NewWorksManager {
             lastCheckTime: this.globalConfig.lastGlobalCheck
         };
 
-        console.log('NewWorksManager: 返回统计信息:', stats);
+        log.verbose('NewWorksManager: 返回统计信息:', stats);
         return stats;
     }
 

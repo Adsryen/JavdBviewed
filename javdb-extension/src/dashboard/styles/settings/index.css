@@ -1,0 +1,24 @@
+/**
+ * 设置样式文件索引
+ * 统一导入所有设置相关的样式文件
+ */
+
+/* 基础设置样式 */
+@import url('./settings.css');
+
+/* 功能模块样式 */
+@import url('./privacy.css');
+@import url('./logs.css');
+@import url('./aiSettings.css');
+@import url('./networkTest.css');
+@import url('./drive115.css');
+
+/* 子设置面板样式 */
+@import url('./display.css');
+@import url('./searchEngine.css');
+@import url('./webdav.css');
+@import url('./sync.css');
+@import url('./enhancement.css');
+@import url('./globalActions.css');
+@import url('./advanced.css');
+@import url('./update.css');

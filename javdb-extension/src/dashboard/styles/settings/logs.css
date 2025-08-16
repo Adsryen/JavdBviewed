@@ -1,0 +1,488 @@
+/* Log Container */
+#logContainer {
+    margin-top: 20px;
+}
+#logContainer h4 {
+    font-size: 16px;
+    margin: 0 0 10px 0;
+}
+#log {
+    background: #2b2b2b;
+    color: #f1f1f1;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+  
+/* =================================================================
+   =================== LOGS TAB FILTERS ============================
+   ================================================================= */
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f7f9fc;
+    border-radius: 8px;
+    border: 1px solid #e8e8e8;
+}
+
+.filters label {
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    margin: 0;
+}
+
+#log-level-filter {
+    padding: 8px 35px 8px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right .5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+}
+
+#log-level-filter:hover {
+    border-color: #aaa;
+}
+
+#log-level-filter:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.filters .button-like {
+    box-shadow: none;
+}
+
+/* =================================================================
+   =================== LOGS TAB MODERN STYLES ======================
+   ================================================================= */
+
+.log-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 5px;
+    background-color: #f7f9fc;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+}
+
+#log-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.log-entry {
+    background-color: #fff;
+    border-radius: 8px;
+    border-left: 5px solid #ccc; /* Default border color */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: box-shadow 0.3s ease;
+}
+
+.log-entry:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.log-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+}
+
+.log-level-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.log-message {
+    flex-grow: 1;
+    font-size: 14px;
+    color: #333;
+}
+
+.log-timestamp {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+
+.log-data-details {
+    border-top: 1px solid #f0f0f0;
+}
+
+.log-data-details summary {
+    cursor: pointer;
+    padding: 8px 15px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+    outline: none;
+}
+.log-data-details summary:hover {
+    background-color: #f9f9f9;
+}
+
+
+.log-data-details pre {
+    background-color: #fdfdfd;
+    padding: 15px;
+    margin: 0;
+    font-size: 12px;
+    color: #444;
+    white-space: pre-wrap;
+    word-break: break-all;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* Log Level Specific Styles */
+.log-level-info { border-left-color: #2a9d8f; }
+.log-level-info .log-level-badge { background-color: #2a9d8f; }
+
+.log-level-warn { border-left-color: #e76f51; }
+.log-level-warn .log-level-badge { background-color: #e76f51; }
+
+.log-level-error { border-left-color: #d90429; }
+.log-level-error .log-level-badge { background-color: #d90429; }
+
+.log-level-debug { border-left-color: #264653; }
+.log-level-debug .log-level-badge { background-color: #264653; }
+
+.no-logs-message {
+    text-align: center;
+    padding: 40px;
+    color: #777;
+    font-size: 16px;
+}
+
+/* =================================================================
+   =================== 日志设置面板样式 ============================
+   ================================================================= */
+
+/* 日志设置面板特有样式 */
+#log-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#log-settings .logging-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#log-settings .logging-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#log-settings .logging-section h4 i {
+    color: var(--primary-color);
+}
+
+#log-settings .section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+#log-settings .form-group {
+    margin-bottom: 1rem;
+}
+
+#log-settings .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#log-settings .form-group input,
+#log-settings .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+#log-settings .form-group input:focus,
+#log-settings .form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+#log-settings .form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+#log-settings .form-group-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+#log-settings .form-group-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#log-settings .input-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+#log-settings .log-config {
+    border-left: 4px solid var(--primary-color);
+}
+
+#log-settings .log-display {
+    border-left: 4px solid var(--info-color);
+}
+
+#log-settings .log-controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+#log-settings .log-controls button,
+#log-settings .log-controls select {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+#log-settings .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#log-settings .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#log-settings .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#log-settings .btn-secondary:hover {
+    background: var(--bg-primary);
+}
+
+#log-settings .btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+#log-settings .btn-danger:hover {
+    background: var(--danger-hover-color);
+}
+
+#log-settings .btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+#log-settings .btn-success:hover {
+    background: var(--success-hover-color);
+}
+
+#log-settings button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#log-settings .log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    padding: 1rem;
+}
+
+#log-settings .log-entry {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 4px solid;
+    font-size: 0.9rem;
+}
+
+#log-settings .log-entry.log-error {
+    background: var(--danger-bg-color);
+    border-left-color: var(--danger-color);
+}
+
+#log-settings .log-entry.log-warn {
+    background: var(--warning-bg-color);
+    border-left-color: var(--warning-color);
+}
+
+#log-settings .log-entry.log-info {
+    background: var(--info-bg-color);
+    border-left-color: var(--info-color);
+}
+
+#log-settings .log-entry.log-debug {
+    background: var(--bg-primary);
+    border-left-color: var(--text-secondary);
+}
+
+#log-settings .log-entry.log-default {
+    background: var(--bg-primary);
+    border-left-color: var(--border-color);
+}
+
+#log-settings .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+#log-settings .log-level {
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+#log-settings .log-error .log-level {
+    background: var(--danger-color);
+    color: white;
+}
+
+#log-settings .log-warn .log-level {
+    background: var(--warning-color);
+    color: white;
+}
+
+#log-settings .log-info .log-level {
+    background: var(--info-color);
+    color: white;
+}
+
+#log-settings .log-debug .log-level {
+    background: var(--text-secondary);
+    color: white;
+}
+
+#log-settings .log-timestamp {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+#log-settings .log-message {
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+
+#log-settings .log-data {
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#log-settings .log-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 2rem;
+}
+
+#log-settings .log-error {
+    text-align: center;
+    color: var(--danger-color);
+    font-style: italic;
+    padding: 2rem;
+}
+
+#log-settings .log-info {
+    background: var(--info-bg-color);
+    color: var(--info-color);
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    #log-settings .log-controls {
+        flex-direction: column;
+    }
+
+    #log-settings .log-controls button,
+    #log-settings .log-controls select {
+        width: 100%;
+    }
+
+    #log-settings .log-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    #log-settings .log-container {
+        max-height: 300px;
+    }
+}

@@ -3,6 +3,7 @@
  */
 
 import { logAsync } from '../../logger';
+import { log } from '../../../utils/logController';
 import { viewedSyncManager } from './viewedSync';
 import { wantSyncManager } from './wantSync';
 import { actorSyncManager } from './actorSync';
@@ -83,7 +84,7 @@ export class SyncManagerFactory {
         wantSyncManager.cancel();
         actorSyncManager.cancel();
         allSyncManager.cancel();
-        logAsync('INFO', '取消所有同步');
+        log.verbose('取消所有同步');
     }
 
     /**

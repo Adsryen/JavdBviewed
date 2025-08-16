@@ -3,6 +3,7 @@
 
 import type { NewWorksManager } from './manager';
 import type { NewWorksCollector } from './collector';
+import { log } from '../../utils/logController';
 
 export class NewWorksScheduler {
     private intervalId?: number;
@@ -39,9 +40,9 @@ export class NewWorksScheduler {
             }
 
             this.isInitialized = true;
-            console.log('NewWorksScheduler: 初始化完成');
+            log.verbose('NewWorksScheduler: 初始化完成');
         } catch (error) {
-            console.error('NewWorksScheduler: 初始化失败:', error);
+            log.error('NewWorksScheduler: 初始化失败:', error);
         }
     }
 
@@ -50,7 +51,7 @@ export class NewWorksScheduler {
      */
     async start(): Promise<void> {
         if (this.isRunning) {
-            console.log('NewWorksScheduler: 定时任务已在运行');
+            log.verbose('NewWorksScheduler: 定时任务已在运行');
             return;
         }
 
@@ -58,7 +59,7 @@ export class NewWorksScheduler {
             const config = await this.manager!.getGlobalConfig();
 
             if (!config.enabled) {
-                console.log('NewWorksScheduler: 新作品功能未启用');
+                log.verbose('NewWorksScheduler: 新作品功能未启用');
                 return;
             }
 
@@ -69,16 +70,16 @@ export class NewWorksScheduler {
             }, intervalMs) as unknown as number;
 
             this.isRunning = true;
-            console.log(`NewWorksScheduler: 定时任务已启动，间隔 ${config.checkInterval} 小时`);
+            log.info(`NewWorksScheduler: 定时任务已启动，间隔 ${config.checkInterval} 小时`);
 
             // 如果从未检查过，立即执行一次
             if (!config.lastGlobalCheck) {
-                console.log('NewWorksScheduler: 首次运行，立即执行检查');
+                log.verbose('NewWorksScheduler: 首次运行，立即执行检查');
                 setTimeout(() => this.runCollectionTask(), 5000); // 延迟5秒执行
             }
 
         } catch (error) {
-            console.error('NewWorksScheduler: 启动定时任务失败:', error);
+            log.error('NewWorksScheduler: 启动定时任务失败:', error);
         }
     }
 
@@ -92,7 +93,7 @@ export class NewWorksScheduler {
         }
         
         this.isRunning = false;
-        console.log('NewWorksScheduler: 定时任务已停止');
+        log.verbose('NewWorksScheduler: 定时任务已停止');
     }
 
     /**
@@ -108,7 +109,7 @@ export class NewWorksScheduler {
      */
     private async runCollectionTask(): Promise<void> {
         try {
-            console.log('NewWorksScheduler: 开始执行定时采集任务');
+            log.verbose('NewWorksScheduler: 开始执行定时采集任务');
 
             // 获取配置和订阅
             const config = await this.manager!.getGlobalConfig();
@@ -116,7 +117,7 @@ export class NewWorksScheduler {
             const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
 
             if (activeSubscriptions.length === 0) {
-                console.log('NewWorksScheduler: 没有活跃的订阅演员，跳过检查');
+                log.verbose('NewWorksScheduler: 没有活跃的订阅演员，跳过检查');
                 return;
             }
 
@@ -131,10 +132,10 @@ export class NewWorksScheduler {
                 lastGlobalCheck: Date.now()
             });
 
-            console.log(`NewWorksScheduler: 定时采集完成，发现 ${result.discovered} 个新作品`);
+            log.info(`NewWorksScheduler: 定时采集完成，发现 ${result.discovered} 个新作品`);
 
         } catch (error) {
-            console.error('NewWorksScheduler: 定时采集任务失败:', error);
+            log.error('NewWorksScheduler: 定时采集任务失败:', error);
         }
     }
 
@@ -208,10 +209,10 @@ export class NewWorksScheduler {
                 chrome.notifications.onClicked.removeListener(onClicked);
             }, 10000);
 
-            console.log(`NewWorksScheduler: 通知已发送，发现 ${count} 个新作品`);
+            log.verbose(`NewWorksScheduler: 通知已发送，发现 ${count} 个新作品`);
 
         } catch (error) {
-            console.error('NewWorksScheduler: 发送通知失败:', error);
+            log.error('NewWorksScheduler: 发送通知失败:', error);
         }
     }
 
@@ -223,25 +224,25 @@ export class NewWorksScheduler {
         errors: string[];
     }> {
         try {
-            console.log('NewWorksScheduler: 手动触发检查');
+            log.verbose('NewWorksScheduler: 手动触发检查');
 
             const config = await this.manager!.getGlobalConfig();
             const subscriptions = await this.manager!.getSubscriptions();
-            console.log('NewWorksScheduler: 获取到订阅数据:', subscriptions.length, '个订阅');
-            console.log('NewWorksScheduler: 订阅详情:', subscriptions.map(sub => ({
+            log.verbose('NewWorksScheduler: 获取到订阅数据:', subscriptions.length, '个订阅');
+            log.verbose('NewWorksScheduler: 订阅详情:', subscriptions.map(sub => ({
                 id: sub.actorId,
                 name: sub.actorName,
                 enabled: sub.enabled
             })));
 
             const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
-            console.log('NewWorksScheduler: 活跃订阅数量:', activeSubscriptions.length);
+            log.verbose('NewWorksScheduler: 活跃订阅数量:', activeSubscriptions.length);
 
             if (activeSubscriptions.length === 0) {
                 const errorMsg = subscriptions.length === 0
                     ? '没有订阅任何演员，请先添加订阅'
                     : `共有 ${subscriptions.length} 个订阅，但都已禁用，请在管理订阅中启用`;
-                console.log('NewWorksScheduler: ' + errorMsg);
+                log.verbose('NewWorksScheduler: ' + errorMsg);
                 return { discovered: 0, errors: [errorMsg] };
             }
 
@@ -288,7 +289,7 @@ export class NewWorksScheduler {
     cleanup(): void {
         this.stop();
         this.isInitialized = false;
-        console.log('NewWorksScheduler: 资源已清理');
+        log.verbose('NewWorksScheduler: 资源已清理');
     }
 }
 

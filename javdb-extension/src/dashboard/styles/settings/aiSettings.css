@@ -672,6 +672,189 @@
     #ai-settings .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+}
 
+/* =================================================================
+   =================== AI设置面板补充样式 ===========================
+   ================================================================= */
 
+/* AI设置面板特有样式补充 */
+#ai-settings .ai-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#ai-settings .ai-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#ai-settings .ai-section h4 i {
+    color: var(--primary-color);
+}
+
+#ai-settings .ai-config {
+    border-left: 4px solid var(--primary-color);
+}
+
+#ai-settings .ai-features {
+    border-left: 4px solid var(--success-color);
+}
+
+#ai-settings .ai-advanced {
+    border-left: 4px solid var(--warning-color);
+}
+
+#ai-settings .api-key-input {
+    position: relative;
+}
+
+#ai-settings .api-key-input input[type="password"] {
+    padding-right: 3rem;
+}
+
+#ai-settings .toggle-password {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    font-size: 1rem;
+}
+
+#ai-settings .toggle-password:hover {
+    color: var(--text-primary);
+}
+
+#ai-settings .model-info {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+#ai-settings .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#ai-settings .feature-item {
+    padding: 1rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+#ai-settings .feature-item h6 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#ai-settings .feature-item p {
+    margin: 0 0 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#ai-settings .connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 1rem;
+}
+
+#ai-settings .connection-status.success {
+    background: var(--success-bg-color);
+    color: var(--success-color);
+}
+
+#ai-settings .connection-status.error {
+    background: var(--danger-bg-color);
+    color: var(--danger-color);
+}
+
+#ai-settings .connection-status.testing {
+    background: var(--info-bg-color);
+    color: var(--info-color);
+}
+
+#ai-settings .warning-notice {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--warning-color);
+    margin-bottom: 1.5rem;
+}
+
+#ai-settings .warning-notice h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#ai-settings .warning-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#ai-settings .info-notice {
+    background: var(--info-bg-color);
+    color: var(--info-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--info-color);
+    margin-bottom: 1.5rem;
+}
+
+#ai-settings .info-notice h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#ai-settings .info-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* AI设置面板响应式补充 */
+@media (max-width: 768px) {
+    #ai-settings .ai-actions {
+        flex-direction: column;
+    }
+
+    #ai-settings .ai-actions button {
+        width: 100%;
+    }
+
+    #ai-settings .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #ai-settings .slider-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }

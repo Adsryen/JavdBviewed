@@ -1,0 +1,73 @@
+/**
+ * 搜索引擎设置面板样式
+ */
+
+/* 搜索引擎设置面板特有样式 */
+#search-engine-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#search-engine-settings .search-engine-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 2fr 1fr 80px;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#search-engine-settings .search-engine-item {
+    display: grid;
+    grid-template-columns: 60px 1fr 2fr 1fr 80px;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: var(--bg-primary);
+}
+
+#search-engine-settings .icon-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#search-engine-settings .engine-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+}
+
+#search-engine-settings .name-input,
+#search-engine-settings .url-template-input,
+#search-engine-settings .icon-url-input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+#search-engine-settings .actions-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#search-engine-settings .delete-engine {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#search-engine-settings .delete-engine:hover {
+    background: var(--danger-hover-color);
+}

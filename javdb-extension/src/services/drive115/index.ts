@@ -185,6 +185,54 @@ export class Drive115Service {
   async importLogs(jsonData: string) {
     return this.logger.importLogs(jsonData);
   }
+
+  /**
+   * 测试搜索功能
+   */
+  async testSearch(query: string): Promise<{ success: boolean; count?: number; error?: string; results?: any[] }> {
+    try {
+      if (!this.isEnabled()) {
+        return {
+          success: false,
+          error: '115功能未启用，请先在设置中启用115网盘功能'
+        };
+      }
+
+      console.log('开始测试115搜索功能:', query);
+
+      const results = await this.searchFiles(query);
+
+      console.log('115搜索测试完成:', {
+        query,
+        resultCount: results.length,
+        results: results.slice(0, 3) // 只显示前3个结果用于调试
+      });
+
+      return {
+        success: true,
+        count: results.length,
+        results: results
+      };
+    } catch (error) {
+      console.error('115搜索测试失败:', error);
+
+      let errorMessage = '搜索测试失败';
+      if (error instanceof Error) {
+        if (error.message.includes('未登录') || error.message.includes('not logged in')) {
+          errorMessage = '请先登录115网盘';
+        } else if (error.message.includes('网络') || error.message.includes('network')) {
+          errorMessage = '网络连接失败，请检查网络状态';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
 }
 
 /**

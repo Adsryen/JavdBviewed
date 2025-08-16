@@ -595,3 +595,239 @@
         width: 100%;
     }
 }
+
+/* =================================================================
+   =================== 网络测试设置面板样式 ========================
+   ================================================================= */
+
+/* 网络测试设置面板特有样式 */
+#network-test-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#network-test-settings .test-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+#network-test-settings .test-controls button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+#network-test-settings .test-controls .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#network-test-settings .test-controls .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#network-test-settings .test-controls .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#network-test-settings .test-controls .btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+#network-test-settings .test-controls button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#network-test-settings .test-progress {
+    margin-bottom: 1.5rem;
+    display: none;
+}
+
+#network-test-settings .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+#network-test-settings .progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+#network-test-settings .progress-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+#network-test-settings .test-results {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    min-height: 200px;
+}
+
+#network-test-settings .test-placeholder {
+    color: var(--text-secondary);
+    text-align: center;
+    font-style: italic;
+    margin: 2rem 0;
+}
+
+#network-test-settings .test-running {
+    color: var(--info-color);
+    text-align: center;
+    margin: 2rem 0;
+}
+
+#network-test-settings .test-running::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 0.5rem;
+    border: 2px solid var(--info-color);
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#network-test-settings .test-result-success {
+    padding: 1rem;
+    background: var(--success-bg-color);
+    color: var(--success-color);
+    border-radius: 6px;
+    border-left: 4px solid var(--success-color);
+    margin-bottom: 1rem;
+}
+
+#network-test-settings .test-result-error {
+    padding: 1rem;
+    background: var(--danger-bg-color);
+    color: var(--danger-color);
+    border-radius: 6px;
+    border-left: 4px solid var(--danger-color);
+    margin-bottom: 1rem;
+}
+
+#network-test-settings .test-result-success i,
+#network-test-settings .test-result-error i {
+    margin-right: 0.5rem;
+}
+
+#network-test-settings .test-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#network-test-settings .test-result-item {
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+#network-test-settings .test-result-item.test-result-success {
+    background: var(--success-bg-color);
+    color: var(--success-color);
+    border-left-color: var(--success-color);
+}
+
+#network-test-settings .test-result-item.test-result-error {
+    background: var(--danger-bg-color);
+    color: var(--danger-color);
+    border-left-color: var(--danger-color);
+}
+
+#network-test-settings .test-result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+#network-test-settings .test-result-details {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+#network-test-settings .test-result-details div {
+    margin-bottom: 0.25rem;
+}
+
+#network-test-settings .test-summary {
+    background: var(--bg-tertiary);
+    padding: 1.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+#network-test-settings .test-summary h5 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#network-test-settings .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+#network-test-settings .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+#network-test-settings .stat-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#network-test-settings .stat-value {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+    #network-test-settings .test-controls {
+        flex-direction: column;
+    }
+
+    #network-test-settings .test-controls button {
+        width: 100%;
+    }
+
+    #network-test-settings .test-results-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #network-test-settings .summary-stats {
+        grid-template-columns: 1fr;
+    }
+}

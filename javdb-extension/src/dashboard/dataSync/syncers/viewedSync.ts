@@ -5,6 +5,7 @@
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
 import { showMessage } from '../../ui/toast';
+import { log } from '../../../utils/logController';
 import { getApiClient } from '../api';
 import type { SyncProgress, SyncResult } from '../types';
 import type { SyncMode } from '../../config/syncConfig';
@@ -154,7 +155,7 @@ export class ViewedSyncManager {
     public cancel(): void {
         if (this.abortController) {
             this.abortController.abort();
-            logAsync('INFO', '已观看同步取消请求已发送');
+            log.verbose('已观看同步取消请求已发送');
         }
     }
 }

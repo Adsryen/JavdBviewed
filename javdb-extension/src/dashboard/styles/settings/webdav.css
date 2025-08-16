@@ -1,0 +1,155 @@
+/**
+ * WebDAV设置面板样式
+ */
+
+/* WebDAV设置面板特有样式 */
+#webdav-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#webdav-settings .webdav-controls-container {
+    margin-bottom: 1.5rem;
+}
+
+#webdav-settings .webdav-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+#webdav-settings .webdav-enable-control {
+    margin: 0;
+}
+
+#webdav-settings .webdav-enable-control label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#webdav-settings .webdav-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+#webdav-settings .webdav-status.enabled {
+    color: var(--success-color);
+}
+
+#webdav-settings .webdav-status.disabled {
+    color: var(--text-secondary);
+}
+
+#webdav-settings #webdavSubControls {
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+#webdav-settings #webdavSubControls.enabled {
+    opacity: 1;
+}
+
+#webdav-settings #webdav-fields-container {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 1rem;
+}
+
+#webdav-settings .form-group {
+    margin-bottom: 1rem;
+}
+
+#webdav-settings .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#webdav-settings .form-group input[type="text"],
+#webdav-settings .form-group input[type="password"],
+#webdav-settings .form-group input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+#webdav-settings .form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+#webdav-settings .input-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+#webdav-settings .webdav-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+#webdav-settings .webdav-actions button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+#webdav-settings .webdav-actions .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#webdav-settings .webdav-actions .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#webdav-settings .webdav-actions .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#webdav-settings .webdav-actions .btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+#webdav-settings .webdav-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#webdav-settings .sync-status {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    border-left: 4px solid var(--info-color);
+}
+
+#webdav-settings .sync-status .status-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+#webdav-settings .sync-status .status-value {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
