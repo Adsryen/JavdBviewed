@@ -18,7 +18,12 @@ const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => 
 
 async function log(level: LogLevel, message: string, data?: any) {
     const logFunction = consoleMap[level] || console.log;
-    logFunction(`[${level}] ${message}`, data); // Keep console logging
+    // 只在有数据时才输出数据，避免输出 undefined
+    if (data !== undefined) {
+        logFunction(`[${level}] ${message}`, data);
+    } else {
+        logFunction(`[${level}] ${message}`);
+    }
 
     try {
         const [logs, settings] = await Promise.all([

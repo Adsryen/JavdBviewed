@@ -1,0 +1,205 @@
+/**
+ * 全局操作设置面板样式
+ */
+
+/* 全局操作设置面板特有样式 */
+#global-actions-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#global-actions-settings .actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+#global-actions-settings .action-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+#global-actions-settings .action-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#global-actions-settings .action-section h4 i {
+    color: var(--primary-color);
+}
+
+#global-actions-settings .action-section p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+#global-actions-settings .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+#global-actions-settings .action-buttons button {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#global-actions-settings .btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+#global-actions-settings .btn-danger:hover {
+    background: var(--danger-hover-color);
+}
+
+#global-actions-settings .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#global-actions-settings .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#global-actions-settings .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#global-actions-settings .btn-secondary:hover {
+    background: var(--bg-primary);
+}
+
+#global-actions-settings .btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+#global-actions-settings .btn-warning:hover {
+    background: var(--warning-hover-color);
+}
+
+#global-actions-settings button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#global-actions-settings .stats-section {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+#global-actions-settings .stats-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#global-actions-settings .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+#global-actions-settings .stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+#global-actions-settings .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+#global-actions-settings .stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+#global-actions-settings .warning-section {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--warning-color);
+    margin-bottom: 1.5rem;
+}
+
+#global-actions-settings .warning-section h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#global-actions-settings .warning-section p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#global-actions-settings .import-section {
+    position: relative;
+}
+
+#global-actions-settings .import-file-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#global-actions-settings .data-management {
+    border-left: 4px solid var(--info-color);
+}
+
+#global-actions-settings .cache-management {
+    border-left: 4px solid var(--warning-color);
+}
+
+#global-actions-settings .danger-zone {
+    border-left: 4px solid var(--danger-color);
+}
+
+#global-actions-settings .danger-zone h4 {
+    color: var(--danger-color);
+}
+
+@media (max-width: 768px) {
+    #global-actions-settings .actions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    #global-actions-settings .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    #global-actions-settings .action-buttons button {
+        text-align: center;
+    }
+}

@@ -1,0 +1,268 @@
+/* 日志标签页样式 */
+
+/* 日志过滤器区域 */
+.log-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.log-filters .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.log-filters label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.log-filters select {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    color: #495057;
+    min-width: 120px;
+}
+
+.log-filters select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 日志操作按钮 */
+.log-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.log-actions button {
+    padding: 8px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    color: #495057;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.log-actions button:hover {
+    background: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.log-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.log-actions button.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.log-actions button.primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+.log-actions button.danger {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.log-actions button.danger:hover {
+    background: #c82333;
+    border-color: #c82333;
+}
+
+/* 日志容器 */
+.log-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 5px;
+    background-color: #f7f9fc;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+}
+
+/* 日志主体 */
+#log-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 无日志提示 */
+.no-logs {
+    text-align: center;
+    padding: 40px;
+    color: #777;
+    font-size: 16px;
+}
+
+/* 日志条目 */
+.log-entry {
+    background-color: #fff;
+    border-radius: 8px;
+    border-left: 5px solid #ccc; /* Default border color */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: box-shadow 0.3s ease;
+}
+
+.log-entry:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+/* 日志头部 */
+.log-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+}
+
+/* 日志等级徽章 */
+.log-level-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+/* 日志消息 */
+.log-message {
+    flex-grow: 1;
+    font-size: 14px;
+    color: #333;
+}
+
+/* 日志时间戳 */
+.log-timestamp {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+
+/* 日志详细数据 */
+.log-data-details {
+    border-top: 1px solid #f0f0f0;
+}
+
+.log-data-details summary {
+    cursor: pointer;
+    padding: 8px 15px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+    outline: none;
+}
+
+.log-data-details summary:hover {
+    background-color: #f9f9f9;
+}
+
+.log-data-details pre {
+    background-color: #fdfdfd;
+    padding: 15px;
+    margin: 0;
+    font-size: 12px;
+    color: #444;
+    white-space: pre-wrap;
+    word-break: break-all;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* 不同等级的日志样式 */
+.log-level-info {
+    border-left-color: #2a9d8f;
+}
+.log-level-info .log-level-badge {
+    background-color: #2a9d8f;
+}
+
+.log-level-warn {
+    border-left-color: #e76f51;
+}
+.log-level-warn .log-level-badge {
+    background-color: #e76f51;
+}
+
+.log-level-error {
+    border-left-color: #d90429;
+}
+.log-level-error .log-level-badge {
+    background-color: #d90429;
+}
+
+.log-level-debug {
+    border-left-color: #264653;
+}
+.log-level-debug .log-level-badge {
+    background-color: #264653;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .log-filters {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .log-actions {
+        flex-direction: column;
+    }
+    
+    .log-entry {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+    }
+    
+    .log-time,
+    .log-level {
+        min-width: auto;
+    }
+    
+    .log-data {
+        margin-left: 0;
+        max-width: 100%;
+    }
+}
+
+/* 滚动条样式 */
+.log-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
