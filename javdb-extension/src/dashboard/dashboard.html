@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="./actors.css">
   <link rel="stylesheet" href="./sync.css">
   <link rel="stylesheet" href="./styles/_newWorks.css">
+  <link rel="stylesheet" href="./styles/_modal.css">
+  <link rel="stylesheet" href="./styles/settings/_input-optimization.css">
+  <link rel="stylesheet" href="./styles/settings/enhancement.css">
   <link rel="stylesheet" href="./styles/logs.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -1465,22 +1468,29 @@
                                                 <p class="sub-description">自定义列表页的增强功能，提升浏览效率和用户体验。</p>
                                             </div>
 
-                                            <div class="form-group">
-                                                <label class="checkbox-label">
-                                                    <input type="checkbox" id="enableClickEnhancement" checked>
-                                                    <span class="checkmark"></span>
-                                                    启用点击增强
-                                                </label>
-                                                <p class="input-description">左键直接打开，右键后台打开。模拟油猴脚本的点击行为。</p>
-                                            </div>
+                                            <!-- 并排滑块选项 -->
+                                            <div class="dual-toggle-container">
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🖱️ 启用点击增强</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="enableClickEnhancement" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">左键直接打开，右键后台打开。模拟油猴脚本的点击行为。</p>
+                                                </div>
 
-                                            <div class="form-group">
-                                                <label class="checkbox-label">
-                                                    <input type="checkbox" id="enableVideoPreview" checked>
-                                                    <span class="checkmark"></span>
-                                                    启用视频预览
-                                                </label>
-                                                <p class="input-description">鼠标悬浮在影片封面上时播放预览视频（需要预览源支持）。</p>
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🎬 启用视频预览</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="enableVideoPreview" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">鼠标悬浮在影片封面上时播放预览视频（需要预览源支持）。</p>
+                                                </div>
                                             </div>
 
                                             <div class="form-group">
@@ -1489,10 +1499,15 @@
                                                 <p class="input-description">鼠标悬浮多久后开始播放预览，建议1000毫秒。</p>
                                             </div>
 
-                                            <div class="form-group">
-                                                <label for="previewVolume">预览音量:</label>
-                                                <input type="range" id="previewVolume" min="0" max="1" step="0.1" value="0.2">
-                                                <span id="previewVolumeValue">20%</span>
+                                            <div class="form-group volume-control-group">
+                                                <div class="volume-header">
+                                                    <label for="previewVolume">🔊 预览音量</label>
+                                                    <span id="previewVolumeValue" class="volume-percentage">20%</span>
+                                                </div>
+                                                <div class="volume-slider-wrapper">
+                                                    <input type="range" id="previewVolume" class="modern-range" min="0" max="1" step="0.01" value="0.2">
+                                                    <div class="range-track-fill"></div>
+                                                </div>
                                                 <p class="input-description">预览视频的音量大小，建议保持较低音量。</p>
                                             </div>
 
@@ -1532,22 +1547,32 @@
                                                 <p class="sub-description">自定义详情页快捷按钮的位置和功能。仅在视频详情页生效。</p>
                                             </div>
 
-                                            <div class="form-group">
-                                                <label for="anchorButtonPosition">按钮位置:</label>
-                                                <select id="anchorButtonPosition" class="select-input">
-                                                    <option value="right-center">右侧中央</option>
-                                                    <option value="right-bottom">右下角</option>
-                                                </select>
-                                                <p class="input-description">选择优化后按钮的显示位置</p>
-                                            </div>
+                                            <!-- 锚点配置并排选项 -->
+                                            <div class="anchor-config-container">
+                                                <div class="anchor-config-option">
+                                                    <div class="config-header">
+                                                        <span class="config-title">📍 按钮位置</span>
+                                                        <div class="modern-select-wrapper">
+                                                            <select id="anchorButtonPosition" class="modern-select">
+                                                                <option value="right-center">右侧中央</option>
+                                                                <option value="right-bottom">右下角</option>
+                                                            </select>
+                                                            <span class="select-arrow">▼</span>
+                                                        </div>
+                                                    </div>
+                                                    <p class="config-description">选择优化后按钮的显示位置</p>
+                                                </div>
 
-                                            <div class="form-group">
-                                                <label class="checkbox-label">
-                                                    <input type="checkbox" id="showPreviewButton" checked>
-                                                    <span class="checkmark"></span>
-                                                    显示预览图按钮
-                                                </label>
-                                                <p class="input-description">在快捷按钮中显示"预览图"按钮，点击可快速跳转到预览图区域。</p>
+                                                <div class="anchor-config-option">
+                                                    <div class="config-header">
+                                                        <span class="config-title">🖼️ 显示预览图按钮</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="showPreviewButton" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="config-description">在快捷按钮中显示"预览图"按钮，点击可快速跳转到预览图区域。</p>
+                                                </div>
                                             </div>
 
                                             <div class="info-box">
@@ -1964,15 +1989,7 @@
                                         <p class="input-description">导出设置用于备份，导入设置用于恢复配置（不包含API密钥）。</p>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label>
-                                            <i class="fas fa-chart-bar"></i>
-                                            使用统计:
-                                        </label>
-                                        <div id="aiUsageStats" class="usage-stats">
-                                            <!-- 使用统计将在这里显示 -->
-                                        </div>
-                                    </div>
+
                                 </div>
 
                                 <!-- 操作按钮 -->
