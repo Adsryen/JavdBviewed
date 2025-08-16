@@ -5,15 +5,17 @@ import { initRecordsTab } from './tabs/records';
 import { actorsTab } from './tabs/actors';
 import { newWorksTab } from './tabs/newWorks';
 import { syncTab } from './tabs/sync';
+import { logsTab } from './tabs/logs';
 import { initSettingsTab } from './tabs/settings';
-import { initAdvancedSettingsTab } from './tabs/advanced';
-import { initLogsTab } from './tabs/logs';
-import { initAISettingsTab } from './tabs/aiSettings';
-import { initializeNetworkTestTab } from './tabs/network';
-import { initDrive115Tab } from './tabs/drive115';
+// initAdvancedSettingsTab 已迁移到模块化设置系统中
+// initLogsTab 已迁移到模块化设置系统中
+// initAISettingsTab 已迁移到模块化设置系统中
+// initializeNetworkTestTab 已迁移到模块化设置系统中
+// drive115 功能已迁移到模块化设置系统中
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
+import { log } from '../utils/logController';
 import { VIDEO_STATUS } from '../utils/config';
 import { showWebDAVRestoreModal } from './webdavRestore';
 import { setValue, getValue } from '../utils/storage';
@@ -29,14 +31,14 @@ import './ui/dataViewModal'; // 确保dataViewModal被初始化
  */
 async function setupDashboardPrivacyMonitoring() {
     try {
-        console.log('Setting up simplified Dashboard privacy monitoring...');
+        log.privacy('Setting up simplified Dashboard privacy monitoring...');
 
         const reapplyPrivacy = async () => {
             try {
                 if (window.privacyManager) {
                     const state = window.privacyManager.getState();
                     if (state.isBlurred) {
-                        console.log('Reapplying privacy protection after tab change...');
+                        log.privacy('Reapplying privacy protection after tab change...');
                         await window.privacyManager.forceReapplyScreenshotMode();
                     }
                 }
@@ -50,7 +52,7 @@ async function setupDashboardPrivacyMonitoring() {
         const checkHashChange = () => {
             const currentHash = window.location.hash;
             if (currentHash !== lastHash) {
-                console.log(`Tab changed from ${lastHash} to ${currentHash}`);
+                log.privacy(`Tab changed from ${lastHash} to ${currentHash}`);
                 lastHash = currentHash;
                 setTimeout(reapplyPrivacy, 300); // 减少延迟时间
             }
@@ -59,7 +61,7 @@ async function setupDashboardPrivacyMonitoring() {
         // 定期检查hash变化（避免事件监听器的复杂性）
         setInterval(checkHashChange, 1000);
 
-        console.log('Simplified Dashboard privacy monitoring setup complete');
+        log.privacy('Simplified Dashboard privacy monitoring setup complete');
     } catch (error) {
         console.error('Failed to setup Dashboard privacy monitoring:', error);
     }
@@ -68,15 +70,17 @@ async function setupDashboardPrivacyMonitoring() {
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
 
+    // 日志控制器已在模块加载时自动初始化，这里不需要重复初始化
+
     // 清理搜索引擎配置中的测试数据
     await cleanupSearchEngines();
 
     // 初始化隐私保护系统
     try {
-        console.log('Initializing privacy system for Dashboard...');
+        log.privacy('Initializing privacy system for Dashboard...');
         const { initializePrivacySystem } = await import('../services/privacy');
         await initializePrivacySystem();
-        console.log('Privacy system initialized successfully for Dashboard');
+        log.privacy('Privacy system initialized successfully for Dashboard');
 
         // 设置Dashboard特定的隐私监听
         setupDashboardPrivacyMonitoring();
@@ -110,10 +114,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
     initSyncTab();
     initSettingsTab();
-    initAdvancedSettingsTab(); // 初始化高级配置标签页
-    initAISettingsTab();
-    initDrive115Tab();
-    initLogsTab();
+    // initAdvancedSettingsTab(); // 已迁移到模块化设置系统
+    // initAISettingsTab(); // 已迁移到模块化设置系统
+    // initDrive115Tab(); // 已迁移到模块化设置系统
+    // initLogsTab(); // 已迁移到模块化设置系统
     initSidebarActions();
     initUserProfileSection();
     // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
@@ -226,10 +230,12 @@ async function initTabs(): Promise<void> {
                             }
                         }
 
-                        if (tabId === 'tab-logs') {
-                            const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
-                            if (refreshButton) {
-                                refreshButton.click();
+                        // 延迟初始化日志标签页
+                        if (tabId === 'tab-logs' && !logsTab.isInitialized) {
+                            try {
+                                await logsTab.initialize();
+                            } catch (error) {
+                                console.error('延迟初始化日志标签页失败:', error);
                             }
                         }
                     });

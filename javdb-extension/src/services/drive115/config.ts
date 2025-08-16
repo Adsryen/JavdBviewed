@@ -42,16 +42,21 @@ export const VERIFICATION_WINDOW_CONFIG = {
   features: 'toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no',
 } as const;
 
-// 搜索参数配置
+// 搜索参数配置（基于048202e版本）
 export const SEARCH_CONFIG = {
   offset: 0,
   limit: 11500,
+  date: '',
   aid: 1,
   cid: 0,
+  pick_code: '',
   type: 4,                     // 视频文件类型
+  source: '',
   format: 'json',
   o: 'user_ptime',            // 按修改时间排序
   asc: 0,                     // 降序
+  star: '',
+  suffix: '',
 } as const;
 
 // 离线任务配置

@@ -651,3 +651,281 @@ body.privacy-authenticated {
     display: flex;
     gap: 12px;
 }
+
+/* =================================================================
+   =================== 隐私设置面板样式 ============================
+   ================================================================= */
+
+/* 隐私保护设置面板特有样式 */
+#privacy-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#privacy-settings .privacy-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#privacy-settings .privacy-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#privacy-settings .privacy-section h4 i {
+    color: var(--primary-color);
+}
+
+#privacy-settings .section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+#privacy-settings .form-group {
+    margin-bottom: 1rem;
+}
+
+#privacy-settings .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#privacy-settings .form-group input,
+#privacy-settings .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+#privacy-settings .form-group input:focus,
+#privacy-settings .form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+#privacy-settings .form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+#privacy-settings .form-group-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+#privacy-settings .form-group-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#privacy-settings .input-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+#privacy-settings .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+#privacy-settings .slider-container input[type="range"] {
+    flex: 1;
+    margin: 0;
+}
+
+#privacy-settings .slider-value {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+#privacy-settings .status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+#privacy-settings .status-success {
+    background: var(--success-bg-color);
+    color: var(--success-color);
+}
+
+#privacy-settings .status-warning {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+}
+
+#privacy-settings .status-error {
+    background: var(--danger-bg-color);
+    color: var(--danger-color);
+}
+
+#privacy-settings .privacy-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+#privacy-settings .privacy-actions button {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+#privacy-settings .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#privacy-settings .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#privacy-settings .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#privacy-settings .btn-secondary:hover {
+    background: var(--bg-primary);
+}
+
+#privacy-settings .btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+#privacy-settings .btn-warning:hover {
+    background: var(--warning-hover-color);
+}
+
+#privacy-settings button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#privacy-settings .screenshot-mode {
+    border-left: 4px solid var(--info-color);
+}
+
+#privacy-settings .private-mode {
+    border-left: 4px solid var(--warning-color);
+}
+
+#privacy-settings .recovery-options {
+    border-left: 4px solid var(--success-color);
+}
+
+#privacy-settings .password-section {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
+#privacy-settings .recovery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#privacy-settings .recovery-item {
+    padding: 1rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+#privacy-settings .recovery-item h6 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#privacy-settings .recovery-item p {
+    margin: 0 0 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#privacy-settings .test-section {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+#privacy-settings .warning-notice {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--warning-color);
+    margin-bottom: 1.5rem;
+}
+
+#privacy-settings .warning-notice h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#privacy-settings .warning-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+    #privacy-settings .privacy-actions {
+        flex-direction: column;
+    }
+
+    #privacy-settings .privacy-actions button {
+        width: 100%;
+    }
+
+    #privacy-settings .recovery-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #privacy-settings .slider-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

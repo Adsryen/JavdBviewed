@@ -6,6 +6,7 @@ import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
 import { showMessage } from '../../ui/toast';
 import { actorSyncService } from '../../../services/actorSync';
+import { log } from '../../../utils/logController';
 import type { SyncProgress, SyncResult } from '../types';
 import type { SyncMode } from '../../config/syncConfig';
 
@@ -253,7 +254,7 @@ export class ActorSyncManager {
      */
     public cancel(): void {
         actorSyncService.cancelSync();
-        logAsync('INFO', '演员同步取消请求已发送');
+        log.verbose('演员同步取消请求已发送');
     }
 }
 

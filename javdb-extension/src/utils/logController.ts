@@ -29,6 +29,7 @@ class LogController {
                 showStorageLogs: settings.logging?.showStorageLogs || false
             };
             this.initialized = true;
+            console.log('[LogController] Initialized with config:', JSON.stringify(this.config));
         } catch (error) {
             console.warn('Failed to initialize log controller, using defaults');
             this.initialized = true;
@@ -46,6 +47,10 @@ class LogController {
      * 检查是否应该显示详细日志
      */
     shouldShowVerbose(): boolean {
+        // 如果未初始化，默认不显示详细日志
+        if (!this.initialized) {
+            return false;
+        }
         return this.config.verboseMode;
     }
 
@@ -53,6 +58,10 @@ class LogController {
      * 检查是否应该显示隐私相关日志
      */
     shouldShowPrivacyLogs(): boolean {
+        // 如果未初始化，默认不显示隐私日志
+        if (!this.initialized) {
+            return false;
+        }
         return this.config.showPrivacyLogs;
     }
 
@@ -60,6 +69,10 @@ class LogController {
      * 检查是否应该显示存储相关日志
      */
     shouldShowStorageLogs(): boolean {
+        // 如果未初始化，默认不显示存储日志
+        if (!this.initialized) {
+            return false;
+        }
         return this.config.showStorageLogs;
     }
 
@@ -67,16 +80,19 @@ class LogController {
      * 条件性日志输出 - 详细模式
      */
     verbose(message: string, ...args: any[]): void {
-        if (this.shouldShowVerbose()) {
+        // 强制检查：只有在明确启用详细模式时才显示
+        if (this.initialized && this.config.verboseMode === true) {
             console.log(`[VERBOSE] ${message}`, ...args);
         }
+        // 如果未初始化或详细模式未启用，则不显示任何内容
     }
 
     /**
      * 条件性日志输出 - 隐私相关
      */
     privacy(message: string, ...args: any[]): void {
-        if (this.shouldShowPrivacyLogs()) {
+        // 强制检查：只有在明确启用隐私日志时才显示
+        if (this.initialized && this.config.showPrivacyLogs === true) {
             console.log(`[PRIVACY] ${message}`, ...args);
         }
     }
@@ -85,7 +101,8 @@ class LogController {
      * 条件性日志输出 - 存储相关
      */
     storage(message: string, ...args: any[]): void {
-        if (this.shouldShowStorageLogs()) {
+        // 强制检查：只有在明确启用存储日志时才显示
+        if (this.initialized && this.config.showStorageLogs === true) {
             console.log(`[STORAGE] ${message}`, ...args);
         }
     }
@@ -146,8 +163,10 @@ class LogController {
 // 创建全局实例
 const logController = new LogController();
 
-// 自动初始化
-logController.initialize().catch(console.error);
+// 延迟初始化，确保在设置加载后进行
+setTimeout(() => {
+    logController.initialize().catch(console.error);
+}, 100);
 
 export { logController };
 

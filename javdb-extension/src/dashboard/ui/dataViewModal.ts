@@ -3,6 +3,8 @@
  * 统一管理高级配置页面的数据查看功能
  */
 
+import { log } from '../../utils/logController';
+
 export interface DataViewOptions {
     title: string;
     data: any;
@@ -63,7 +65,7 @@ export class DataViewModal {
             }
 
             this.initEventListeners();
-            console.log('DataViewModal: 初始化成功');
+            log.verbose('DataViewModal: 初始化成功');
         } catch (error) {
             console.error('DataViewModal: 初始化失败', error);
         }
@@ -104,7 +106,7 @@ export class DataViewModal {
     }
 
     public show(options: DataViewOptions): void {
-        console.log('DataViewModal.show() 被调用', options.title);
+        log.verbose('DataViewModal.show() 被调用', options.title);
 
         if (!this.modal) {
             console.error('DataViewModal: 弹窗元素未初始化');
@@ -245,7 +247,7 @@ export class DataViewModal {
 
     private showMessage(message: string, type: 'success' | 'error'): void {
         // 这里可以集成现有的消息显示系统
-        console.log(`[${type.toUpperCase()}] ${message}`);
+        log.verbose(`[${type.toUpperCase()}] ${message}`);
         
         // 如果有全局的showMessage函数，可以调用它
         if (typeof (window as any).showMessage === 'function') {

@@ -3,6 +3,7 @@
  */
 
 import { logAsync } from '../logger';
+import { log } from '../../utils/logController';
 import { showMessage } from '../ui/toast';
 import { SyncUI } from './ui';
 import { SyncManagerFactory } from './syncers';
@@ -280,7 +281,7 @@ export function resetSyncState(): void {
         // 重置UI
         ui.reset();
 
-        logAsync('INFO', '同步状态已重置');
+        log.verbose('同步状态已重置');
     } catch (error: any) {
         logAsync('ERROR', '重置同步状态失败', { error: error.message });
     }

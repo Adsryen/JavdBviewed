@@ -1,0 +1,508 @@
+/* 115网盘设置样式 */
+
+/* 115设置容器 */
+.drive115-settings-container {
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.drive115-settings-container.disabled {
+    opacity: 0.5;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+/* 醒目的注意提示样式 */
+#drive115-settings .drive115-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #fbbf24; /* amber-400 */
+    background: #fffbeb;        /* amber-50 */
+    color: #92400e;             /* amber-800 */
+    border-radius: 8px;
+    margin-top: 10px;
+}
+#drive115-settings .drive115-alert-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-top: 2px;
+}
+#drive115-settings .drive115-alert-content strong { margin-right: 4px; }
+
+/* 标题小图标 */
+#drive115-settings .settings-panel-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#drive115-settings .drive115-title-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+/* 标题图标默认隐藏，加载成功再显示 */
+#drive115-settings #drive115TitleIcon { display: none; }
+
+/* 现代化滑块开关样式 */
+#drive115-settings .drive115-toggle-wrapper {
+    margin-bottom: 15px;
+}
+
+#drive115-settings .drive115-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    padding: 12px 0;
+}
+
+#drive115-settings .drive115-toggle-text {
+    font-weight: 500;
+    color: var(--text-primary, #374151);
+    font-size: 14px;
+}
+
+#drive115-settings .drive115-toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+#drive115-settings .drive115-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+#drive115-settings .drive115-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    border-radius: 13px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 2px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:before {
+    transform: translateX(24px);
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-slider:hover {
+    transform: scale(1.02);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+#drive115-settings .drive115-toggle-input:focus + .drive115-toggle-slider {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* 禁用状态 */
+#drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f3f4f6;
+}
+
+#drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider:before {
+    background: #e5e7eb;
+}
+
+/* 设置组样式 */
+#drive115-settings .settings-group {
+    margin-bottom: 25px;
+    padding: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+#drive115-settings .settings-group h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* 设置项样式 */
+#drive115-settings .setting-item {
+    margin-bottom: 15px;
+}
+
+#drive115-settings .setting-item:last-child {
+    margin-bottom: 0;
+}
+
+#drive115-settings .setting-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #374151;
+}
+
+#drive115-settings .setting-item input[type="text"],
+#drive115-settings .setting-item input[type="number"] {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+#drive115-settings .setting-item input[type="text"]:focus,
+#drive115-settings .setting-item input[type="number"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#drive115-settings .setting-item input.input-invalid {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+#drive115-settings .setting-item .help-text {
+    margin-top: 5px;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+#drive115-settings .setting-item .error-text {
+    margin-top: 5px;
+    font-size: 13px;
+    color: #ef4444;
+    display: none;
+}
+
+/* 按钮样式 */
+#drive115-settings .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#drive115-settings .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#drive115-settings .btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+#drive115-settings .btn-primary:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+#drive115-settings .btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+#drive115-settings .btn-secondary:hover:not(:disabled) {
+    background: #4b5563;
+}
+
+#drive115-settings .btn-outline {
+    background: transparent;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+#drive115-settings .btn-outline:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+/* 测试功能样式 */
+#drive115-settings .test-section {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+#drive115-settings .test-section .setting-item {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+#drive115-settings .test-section .btn {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+/* 日志容器样式 */
+#drive115-settings .log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 10px;
+}
+
+#drive115-settings .log-entry {
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#drive115-settings .log-entry:last-child {
+    border-bottom: none;
+}
+
+#drive115-settings .log-time {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+#drive115-settings .log-level {
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+#drive115-settings .log-message {
+    color: #374151;
+}
+
+#drive115-settings .log-entry.log-error .log-level {
+    color: #ef4444;
+}
+
+#drive115-settings .log-entry.log-warning .log-level {
+    color: #f59e0b;
+}
+
+#drive115-settings .log-entry.log-info .log-level {
+    color: #3b82f6;
+}
+
+#drive115-settings .log-entry.log-debug .log-level {
+    color: #6b7280;
+}
+
+#drive115-settings .no-logs {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    margin: 20px 0;
+}
+
+/* 日志操作按钮 */
+#drive115-settings .log-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+/* 自动保存状态 */
+#drive115-settings .auto-save-status {
+    font-size: 13px;
+    margin-top: 15px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+#drive115-settings .auto-save-status.status-idle {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+#drive115-settings .auto-save-status.status-saving {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+#drive115-settings .auto-save-status.status-saved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+#drive115-settings .auto-save-status.status-error {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* 帮助展开/收起 */
+#drive115-settings .help-toggle {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 13px;
+    padding: 0;
+    margin-left: 8px;
+}
+
+#drive115-settings .help-toggle:hover {
+    color: #2563eb;
+}
+
+#drive115-settings .help-content {
+    margin-top: 10px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    display: none;
+}
+
+#drive115-settings .help-content ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+#drive115-settings .help-content li {
+    margin-bottom: 8px;
+}
+
+#drive115-settings .help-content code {
+    background: #e2e8f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #drive115-settings .test-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #drive115-settings .test-section .btn {
+        margin-top: 10px;
+    }
+    
+    #drive115-settings .log-actions {
+        flex-wrap: wrap;
+    }
+    
+    #drive115-settings .setting-item input[type="text"],
+    #drive115-settings .setting-item input[type="number"] {
+        max-width: 100%;
+    }
+}
+
+/* 测试结果样式 */
+#drive115-settings .test-results {
+    margin-top: 15px;
+}
+
+#drive115-settings .test-result-header {
+    margin-bottom: 10px;
+}
+
+#drive115-settings .test-result-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#drive115-settings .test-result-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+#drive115-settings .test-result-list {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+#drive115-settings .test-result-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+}
+
+#drive115-settings .test-result-item:last-child {
+    border-bottom: none;
+}
+
+#drive115-settings .test-result-item:hover {
+    background: var(--bg-secondary);
+}
+
+#drive115-settings .test-result-item .file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+#drive115-settings .test-result-item .file-info {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+#drive115-settings .test-result-item .file-size {
+    font-weight: 500;
+}
+
+#drive115-settings .test-result-more {
+    margin: 10px 0 0 0;
+    padding: 8px 15px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}

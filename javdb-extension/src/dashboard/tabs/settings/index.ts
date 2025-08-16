@@ -1,0 +1,258 @@
+/**
+ * 设置模块主入口文件
+ * 导出所有设置子模块和管理器
+ *
+ * 这个文件是新的模块化设置系统的核心入口点。
+ * 它负责：
+ * 1. 导出所有设置相关的类型和接口
+ * 2. 导出所有设置子模块的实例
+ * 3. 提供统一的初始化和管理函数
+ * 4. 管理设置面板的生命周期
+ */
+
+// 基础设施
+export * from './types';
+export * from './base/interfaces';
+
+// 设置面板管理器
+export { settingsPanelManager } from './base/SettingsPanelManager';
+
+// 注意：设置子模块现在通过动态导入加载，避免循环依赖和构建冲突
+
+/**
+ * 初始化所有设置面板
+ *
+ * 这个函数负责：
+ * 1. 动态导入所有设置模块（避免循环依赖）
+ * 2. 将设置面板注册到管理器中
+ * 3. 批量初始化所有面板
+ *
+ * 注意：新增设置模块时，需要在这里添加相应的导入和注册代码
+ */
+export async function initAllSettingsPanels(): Promise<void> {
+    try {
+        console.log('[Settings] 开始初始化模块化设置系统...');
+
+        const { settingsPanelManager } = await import('./base/SettingsPanelManager');
+        const { getDisplaySettings } = await import('./display');
+        const { getSearchEngineSettings } = await import('./searchEngine');
+        const { getWebdavSettings } = await import('./webdav');
+        const { getSyncSettings } = await import('./sync');
+        const { getEnhancementSettings } = await import('./enhancement');
+        const { getNetworkTestSettings } = await import('./networkTest');
+        const { getGlobalActionsSettings } = await import('./globalActions');
+        const { getPrivacySettings } = await import('./privacy');
+        const { getAdvancedSettings } = await import('./advanced');
+        const { getLoggingSettings } = await import('./logging');
+        const { getAiSettings } = await import('./ai');
+        const { getDrive115Settings } = await import('./drive115');
+        const { getUpdateSettings } = await import('./update');
+
+        // 注册所有设置面板
+        // 所有12个主要设置模块都已完成迁移！
+        settingsPanelManager.registerPanel(await getDisplaySettings());
+        settingsPanelManager.registerPanel(await getSearchEngineSettings());
+        settingsPanelManager.registerPanel(await getWebdavSettings());
+        settingsPanelManager.registerPanel(await getSyncSettings());
+        settingsPanelManager.registerPanel(await getEnhancementSettings());
+        settingsPanelManager.registerPanel(await getNetworkTestSettings());
+        settingsPanelManager.registerPanel(await getGlobalActionsSettings());
+        settingsPanelManager.registerPanel(await getPrivacySettings());
+        settingsPanelManager.registerPanel(await getAdvancedSettings());
+        settingsPanelManager.registerPanel(await getLoggingSettings());
+        settingsPanelManager.registerPanel(await getAiSettings());
+        settingsPanelManager.registerPanel(await getDrive115Settings());
+        settingsPanelManager.registerPanel(await getUpdateSettings());
+
+        // 初始化所有面板
+        await settingsPanelManager.initAllPanels();
+
+        console.log('[Settings] 所有设置面板初始化完成');
+    } catch (error) {
+        console.error('[Settings] 初始化设置面板失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 保存所有设置面板
+ *
+ * 批量保存所有已注册的设置面板的数据
+ * 这个函数会并行保存所有面板，提高性能
+ */
+export async function saveAllSettingsPanels(): Promise<void> {
+    try {
+        console.log('[Settings] 开始保存所有设置面板...');
+        const { settingsPanelManager } = await import('./base/SettingsPanelManager');
+        await settingsPanelManager.saveAllPanels();
+        console.log('[Settings] 所有设置面板保存完成');
+    } catch (error) {
+        console.error('[Settings] 保存设置面板失败:', error);
+        throw error;
+    }
+}
+
+/**
+ * 销毁所有设置面板
+ *
+ * 清理所有设置面板的资源，包括：
+ * 1. 移除事件监听器
+ * 2. 清理定时器
+ * 3. 重置状态
+ */
+export function destroyAllSettingsPanels(): void {
+    try {
+        console.log('[Settings] 开始销毁所有设置面板...');
+        const { settingsPanelManager } = require('./base/SettingsPanelManager');
+        settingsPanelManager.destroyAllPanels();
+        console.log('[Settings] 所有设置面板已销毁');
+    } catch (error) {
+        console.error('[Settings] 销毁设置面板失败:', error);
+    }
+}
+
+/**
+ * 初始化设置面板切换功能
+ */
+function initSettingsPanelSwitching(): void {
+    try {
+        const settingsSidebar = document.getElementById('settingsSidebar');
+        if (!settingsSidebar) {
+            console.warn('[Settings] 设置侧边栏未找到');
+            return;
+        }
+
+        // 为所有设置导航项添加点击事件
+        const navItems = settingsSidebar.querySelectorAll('.settings-nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                const targetSection = item.getAttribute('data-section');
+                if (!targetSection) return;
+
+                // 移除所有导航项的active状态
+                navItems.forEach(nav => nav.classList.remove('active'));
+                // 添加当前项的active状态
+                item.classList.add('active');
+
+                // 隐藏所有设置面板
+                const allPanels = document.querySelectorAll('.settings-panel');
+                allPanels.forEach(panel => {
+                    panel.classList.remove('active');
+                    (panel as HTMLElement).style.display = 'none';
+                });
+
+                // 显示目标设置面板
+                const targetPanel = document.getElementById(targetSection);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                    targetPanel.style.display = 'block';
+                }
+
+                // 更新URL以支持二级锚点
+                const currentHash = window.location.hash;
+                const newHash = `#tab-settings/${targetSection}`;
+                if (currentHash !== newHash) {
+                    // 使用 replaceState 避免触发 hashchange 事件
+                    if (history.replaceState) {
+                        history.replaceState(null, '', newHash);
+                    } else {
+                        // 临时移除 hashchange 监听器，避免循环触发
+                        const hashChangeHandler = (window as any).settingsHashChangeHandler;
+                        if (hashChangeHandler) {
+                            window.removeEventListener('hashchange', hashChangeHandler);
+                            window.location.hash = newHash;
+                            setTimeout(() => {
+                                window.addEventListener('hashchange', hashChangeHandler);
+                            }, 0);
+                        } else {
+                            window.location.hash = newHash;
+                        }
+                    }
+                }
+
+                // 特殊处理：115网盘设置面板切换时刷新UI
+                if (targetSection === 'drive115-settings') {
+                    setTimeout(async () => {
+                        try {
+                            const { settingsPanelManager } = await import('./base/SettingsPanelManager');
+                            const drive115Panel = settingsPanelManager.getPanel('drive115-settings');
+                            if (drive115Panel && typeof (drive115Panel as any).refreshUI === 'function') {
+                                console.log('[Settings] 刷新115网盘设置UI...');
+                                (drive115Panel as any).refreshUI();
+                            }
+                        } catch (error) {
+                            console.warn('[Settings] 刷新115网盘设置UI失败:', error);
+                        }
+                    }, 50);
+                }
+
+                console.log(`[Settings] 切换到设置面板: ${targetSection}`);
+            });
+        });
+
+        // 处理页面加载时的初始子页面（二级锚点）
+        const initialSection = (window as any).initialSettingsSection;
+        if (initialSection) {
+            // 如果有指定的初始子页面，切换到该页面
+            const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${initialSection}"]`);
+            if (targetNavItem) {
+                (targetNavItem as HTMLElement).click();
+                console.log(`[Settings] 切换到指定的初始子页面: ${initialSection}`);
+            } else {
+                console.warn(`[Settings] 未找到指定的子页面: ${initialSection}`);
+                // 如果找不到指定页面，显示第一个面板
+                if (navItems.length > 0) {
+                    const firstItem = navItems[0] as HTMLElement;
+                    firstItem.click();
+                }
+            }
+            // 清理全局状态
+            delete (window as any).initialSettingsSection;
+        } else {
+            // 如果没有指定初始页面，默认显示第一个设置页面
+            if (navItems.length > 0) {
+                const firstItem = navItems[0] as HTMLElement;
+                firstItem.click();
+            }
+        }
+
+        // 监听设置子页面切换事件
+        window.addEventListener('settingsSubSectionChange', (event: CustomEvent) => {
+            const { section } = event.detail;
+            console.log(`[Settings] 收到子页面切换事件: ${section}`);
+
+            const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${section}"]`);
+            if (targetNavItem) {
+                (targetNavItem as HTMLElement).click();
+                console.log(`[Settings] 切换到子页面: ${section}`);
+            } else {
+                console.warn(`[Settings] 未找到目标子页面: ${section}`);
+            }
+        });
+
+        console.log('[Settings] 设置面板切换功能初始化完成');
+    } catch (error) {
+        console.error('[Settings] 初始化设置面板切换功能失败:', error);
+    }
+}
+
+/**
+ * 完整的设置标签页初始化函数
+ * 包括面板初始化和切换功能
+ */
+export async function initSettingsTab(): Promise<void> {
+    try {
+        // 初始化所有设置面板
+        await initAllSettingsPanels();
+
+        // 初始化面板切换功能
+        initSettingsPanelSwitching();
+
+        console.log('[Settings] 设置标签页初始化完成');
+    } catch (error) {
+        console.error('[Settings] 设置标签页初始化失败:', error);
+        throw error;
+    }
+}

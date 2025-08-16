@@ -1,0 +1,114 @@
+/*!
+ * SVG Icons for Jav 助手 extension
+ * Replaces Font Awesome icons with inline SVG for better compatibility
+ */
+
+/* Base icon styles */
+.icon, .fa, .fas, .far, .fab {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    fill: currentColor;
+}
+
+/* Icon size variants */
+.fa-lg { font-size: 1.25em; }
+.fa-2x { font-size: 2em; }
+.fa-3x { font-size: 3em; }
+
+/* Animation */
+.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Simple Unicode-based icons */
+
+/* User Circle Icon */
+.fa-user-circle:before,
+.fas.fa-user-circle:before {
+    content: "👤";
+    font-style: normal;
+}
+
+/* Envelope Icon */
+.fa-envelope:before,
+.fas.fa-envelope:before {
+    content: "✉";
+    font-style: normal;
+}
+
+/* User Icon */
+.fa-user:before,
+.fas.fa-user:before {
+    content: "👤";
+    font-style: normal;
+}
+
+/* Sync Alt Icon */
+.fa-sync-alt:before,
+.fas.fa-sync-alt:before {
+    content: "🔄";
+    font-style: normal;
+}
+
+/* Sign Out Alt Icon */
+.fa-sign-out-alt:before,
+.fas.fa-sign-out-alt:before {
+    content: "🚪";
+    font-style: normal;
+}
+
+/* Crown Icon */
+.fa-crown:before,
+.fas.fa-crown:before {
+    content: "👑";
+    font-style: normal;
+}
+
+/* Server Icon */
+.fa-server:before,
+.fas.fa-server:before {
+    content: "🖥";
+    font-style: normal;
+}
+
+/* Star Icon */
+.fa-star:before,
+.fas.fa-star:before {
+    content: "⭐";
+    font-style: normal;
+}
+
+/* Check Icon */
+.fa-check:before,
+.fas.fa-check:before {
+    content: "✓";
+    font-style: normal;
+}
+
+/* Clock Icon */
+.fa-clock:before,
+.fas.fa-clock:before {
+    content: "🕐";
+    font-style: normal;
+}
+
+/* User Slash Icon */
+.fa-user-slash:before,
+.fas.fa-user-slash:before {
+    content: "🚫";
+    font-style: normal;
+}
+
+/* Sign In Alt Icon */
+.fa-sign-in-alt:before,
+.fas.fa-sign-in-alt:before {
+    content: "🔑";
+    font-style: normal;
+}

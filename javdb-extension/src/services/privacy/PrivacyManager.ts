@@ -100,7 +100,7 @@ export class PrivacyManager implements IPrivacyManager {
             await this.savePrivacyState();
 
             this.emitEvent('blur-applied', { mode: 'screenshot' });
-            console.log('Screenshot mode enabled');
+            log.privacy('Screenshot mode enabled');
         } catch (error) {
             console.error('Failed to enable screenshot mode:', error);
             throw new Error('启用截图模式失败');
@@ -122,7 +122,7 @@ export class PrivacyManager implements IPrivacyManager {
             await this.savePrivacyState();
 
             this.emitEvent('blur-removed', { mode: 'screenshot' });
-            console.log('Screenshot mode disabled');
+            log.privacy('Screenshot mode disabled');
         } catch (error) {
             console.error('Failed to disable screenshot mode:', error);
             throw new Error('禁用截图模式失败');
@@ -136,21 +136,67 @@ export class PrivacyManager implements IPrivacyManager {
         try {
             const settings = await getSettings();
             if (!settings.privacy.screenshotMode.enabled) {
-                console.log('Screenshot mode not enabled, skipping force reapply');
+                log.privacy('Screenshot mode not enabled, skipping force reapply');
                 return;
             }
 
-            console.log('Force reapplying screenshot mode...');
+            log.privacy('Force reapplying screenshot mode...');
             await this.blurController.forceReapplyBlur(settings.privacy.screenshotMode.protectedElements);
 
             this.currentState.isBlurred = true;
             await this.savePrivacyState();
 
             this.emitEvent('blur-applied', { mode: 'screenshot-force' });
-            console.log('Screenshot mode force reapplied successfully');
+            log.privacy('Screenshot mode force reapplied successfully');
         } catch (error) {
             console.error('Failed to force reapply screenshot mode:', error);
             throw new Error('强制重新应用截图模式失败');
+        }
+    }
+
+    /**
+     * 更新截图模式设置
+     */
+    async updateScreenshotSettings(updates: Partial<{
+        blurIntensity: number;
+        autoBlurTrigger: string;
+        showEyeIcon: boolean;
+        temporaryViewDuration: number;
+    }>): Promise<void> {
+        try {
+            const settings = await getSettings();
+
+            // 更新设置
+            if (updates.blurIntensity !== undefined) {
+                settings.privacy.screenshotMode.blurIntensity = updates.blurIntensity;
+                // 立即更新模糊控制器的强度
+                this.blurController.setBlurIntensity(updates.blurIntensity);
+            }
+
+            if (updates.autoBlurTrigger !== undefined) {
+                settings.privacy.screenshotMode.autoBlurTrigger = updates.autoBlurTrigger as any;
+            }
+
+            if (updates.showEyeIcon !== undefined) {
+                settings.privacy.screenshotMode.showEyeIcon = updates.showEyeIcon;
+            }
+
+            if (updates.temporaryViewDuration !== undefined) {
+                settings.privacy.screenshotMode.temporaryViewDuration = updates.temporaryViewDuration;
+            }
+
+            // 保存设置
+            await saveSettings(settings);
+
+            // 如果截图模式已启用，重新应用模糊效果以使用新设置
+            if (settings.privacy.screenshotMode.enabled && this.currentState.isBlurred) {
+                await this.blurController.forceReapplyBlur(settings.privacy.screenshotMode.protectedElements);
+            }
+
+            log.privacy('Screenshot settings updated:', updates);
+        } catch (error) {
+            console.error('Failed to update screenshot settings:', error);
+            throw new Error('更新截图设置失败');
         }
     }
 
@@ -188,7 +234,7 @@ export class PrivacyManager implements IPrivacyManager {
                 await this.enableScreenshotMode();
             }
 
-            console.log('Private mode enabled');
+            log.privacy('Private mode enabled');
         } catch (error) {
             console.error('Failed to enable private mode:', error);
             throw error;
@@ -210,10 +256,48 @@ export class PrivacyManager implements IPrivacyManager {
             await this.savePrivacyState();
 
             this.emitEvent('unlocked', { mode: 'private' });
-            console.log('Private mode disabled');
+            log.privacy('Private mode disabled');
         } catch (error) {
             console.error('Failed to disable private mode:', error);
             throw new Error('禁用私密模式失败');
+        }
+    }
+
+    /**
+     * 更新私密模式设置
+     */
+    async updatePrivateModeSettings(updates: Partial<{
+        sessionTimeout: number;
+        lockOnTabLeave: boolean;
+        lockOnExtensionClose: boolean;
+    }>): Promise<void> {
+        try {
+            const settings = await getSettings();
+
+            // 更新设置
+            if (updates.sessionTimeout !== undefined) {
+                settings.privacy.privateMode.sessionTimeout = updates.sessionTimeout;
+                // 如果会话正在运行，重新启动会话以应用新的超时时间
+                if (this.currentState.isAuthenticated) {
+                    await this.sessionManager.startSession(updates.sessionTimeout);
+                }
+            }
+
+            if (updates.lockOnTabLeave !== undefined) {
+                settings.privacy.privateMode.lockOnTabLeave = updates.lockOnTabLeave;
+            }
+
+            if (updates.lockOnExtensionClose !== undefined) {
+                settings.privacy.privateMode.lockOnExtensionClose = updates.lockOnExtensionClose;
+            }
+
+            // 保存设置
+            await saveSettings(settings);
+
+            log.privacy('Private mode settings updated:', updates);
+        } catch (error) {
+            console.error('Failed to update private mode settings:', error);
+            throw new Error('更新私密模式设置失败');
         }
     }
 
@@ -255,7 +339,7 @@ export class PrivacyManager implements IPrivacyManager {
                 }
 
                 this.emitEvent('authenticated', {});
-                console.log('Authentication successful');
+                log.privacy('Authentication successful');
             }
 
             return result;
@@ -365,7 +449,7 @@ export class PrivacyManager implements IPrivacyManager {
             await saveSettings(settings);
 
             this.emitEvent('password-changed', {});
-            console.log('Password set successfully');
+            log.privacy('Password set successfully');
 
             return { success: true };
         } catch (error) {
@@ -448,7 +532,7 @@ export class PrivacyManager implements IPrivacyManager {
         if (settings.privacy.privateMode.enabled &&
             settings.privacy.privateMode.requirePassword &&
             !this.currentState.isAuthenticated) {
-            console.log('Locking due to private mode requirements');
+            log.privacy('Locking due to private mode requirements');
             await this.lock();
         }
         // 如果启用了截图模式，应用模糊

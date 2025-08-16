@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./actors.css">
   <link rel="stylesheet" href="./sync.css">
   <link rel="stylesheet" href="./styles/_newWorks.css">
-  <link rel="stylesheet" href="./styles/_aiSettings.css">
+  <link rel="stylesheet" href="./styles/logs.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -507,6 +507,10 @@
                             <div class="settings-nav-item" data-section="global-actions">
                                 <i class="fas fa-tools"></i>
                                 <span>全局操作</span>
+                            </div>
+                            <div class="settings-nav-item" data-section="update-settings">
+                                <i class="fas fa-download"></i>
+                                <span>检查更新</span>
                             </div>
                         </div>
                     </div>
@@ -1056,7 +1060,7 @@
                         <!-- 115网盘设置 -->
                         <div class="settings-panel" id="drive115-settings">
                             <div class="settings-panel-header">
-                                <h3><img id="drive115TitleIcon" src="https://w.115.com/m_r/web/static/images/icon_logo_cloud.svg?_vh=abd6a19_3" alt="115" class="drive115-title-icon">115网盘离线下载</h3>
+                                <h3><img id="drive115TitleIcon" src="../assets/115-logo.svg" alt="115" class="drive115-title-icon">115网盘离线下载</h3>
                                 <p class="settings-description">配置115网盘离线下载功能，支持磁链自动下载和验证。</p>
                             </div>
                             <div class="settings-panel-body">
@@ -1064,11 +1068,15 @@
                                 <div class="settings-section">
                                     <h4>基础设置</h4>
                                     <div class="form-group">
-                                        <label class="switch" id="drive115EnabledSwitch">
-                                            <input type="checkbox" id="drive115Enabled">
-                                            <span class="slider"></span>
-                                            <span class="switch-label">启用115网盘功能</span>
-                                        </label>
+                                        <div class="drive115-toggle-wrapper">
+                                            <label class="drive115-toggle-label">
+                                                <span class="drive115-toggle-text">启用115网盘功能</span>
+                                                <div class="drive115-toggle-switch">
+                                                    <input type="checkbox" id="drive115Enabled" class="drive115-toggle-input">
+                                                    <span class="drive115-toggle-slider"></span>
+                                                </div>
+                                            </label>
+                                        </div>
                                         <p class="input-description">开启后可以使用115网盘离线下载功能。需要先登录115网盘。</p>
                                         <div class="drive115-alert">
                                             <div class="drive115-alert-icon">⚠️</div>
@@ -2030,6 +2038,79 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 检查更新设置 -->
+                        <div class="settings-panel" id="update-settings">
+                            <div class="settings-panel-header">
+                                <h3>检查更新</h3>
+                                <p class="settings-description">管理扩展程序的更新检查设置，获取最新版本信息。</p>
+                            </div>
+                            <div class="settings-panel-body">
+                                <div class="settings-section">
+                                    <h4>版本信息</h4>
+                                    <div class="version-info">
+                                        <div class="version-item">
+                                            <span class="version-label">当前版本:</span>
+                                            <span class="version-value" id="currentVersion">加载中...</span>
+                                        </div>
+                                        <div class="version-item">
+                                            <span class="version-label">最新版本:</span>
+                                            <span class="version-value" id="latestVersion">检查中...</span>
+                                        </div>
+                                        <div class="version-item">
+                                            <span class="version-label">上次检查:</span>
+                                            <span class="version-value" id="lastUpdateCheck">从未检查</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="settings-section">
+                                    <h4>自动检查设置</h4>
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="autoUpdateCheck">
+                                        <label for="autoUpdateCheck">启用自动检查更新</label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="updateCheckInterval">检查间隔:</label>
+                                        <select id="updateCheckInterval" class="select-input">
+                                            <option value="6">6小时</option>
+                                            <option value="12">12小时</option>
+                                            <option value="24">24小时</option>
+                                            <option value="72">3天</option>
+                                            <option value="168">1周</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="includePrerelease">
+                                        <label for="includePrerelease">包含预发布版本</label>
+                                    </div>
+                                </div>
+
+                                <div class="settings-section">
+                                    <h4>手动操作</h4>
+                                    <div class="action-buttons-top">
+                                        <button id="checkUpdateNow" class="btn primary">立即检查</button>
+                                        <button id="viewChangelog" class="btn">查看更新日志</button>
+                                        <button id="downloadUpdate" class="btn success" style="display: none;">下载更新</button>
+                                    </div>
+                                    <p class="input-description">
+                                        <strong>立即检查:</strong> 手动检查是否有新版本可用。<br>
+                                        <strong>查看更新日志:</strong> 查看最新版本的更新内容和修复。<br>
+                                        <strong>下载更新:</strong> 当有新版本时，跳转到下载页面。
+                                    </p>
+                                </div>
+
+                                <div class="settings-section" id="updateNotification" style="display: none;">
+                                    <h4>更新通知</h4>
+                                    <div class="update-notification">
+                                        <div class="notification-content">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span id="updateMessage">检查更新状态...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2039,23 +2120,29 @@
                     <div class="settings-section">
                         <h4>日志记录</h4>
                         <p class="settings-description">测试连接到指定服务器的延迟。输入一个URL，然后点击“开始测试”。</p>
-                        <div class="filters">
-                            <label for="log-level-filter">筛选等级:</label>
-                            <select id="log-level-filter">
-                                <option value="ALL">全部</option>
-                                <option value="INFO">信息</option>
-                                <option value="WARN">警告</option>
-                                <option value="ERROR">错误</option>
-                                <option value="DEBUG">调试</option>
-                            </select>
-                            <label for="log-source-filter">日志来源:</label>
-                            <select id="log-source-filter">
-                                <option value="ALL">全部来源</option>
-                                <option value="GENERAL">常规日志</option>
-                                <option value="DRIVE115">115网盘</option>
-                            </select>
-                            <button id="refresh-logs-button" class="button-like">刷新</button>
-                            <button id="clear-logs-button" class="button-like danger">清空日志</button>
+                        <div class="log-filters">
+                            <div class="filter-group">
+                                <label for="log-level-filter">筛选等级</label>
+                                <select id="log-level-filter">
+                                    <option value="ALL">全部</option>
+                                    <option value="INFO">信息</option>
+                                    <option value="WARN">警告</option>
+                                    <option value="ERROR">错误</option>
+                                    <option value="DEBUG">调试</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="log-source-filter">日志来源</label>
+                                <select id="log-source-filter">
+                                    <option value="ALL">全部来源</option>
+                                    <option value="GENERAL">常规日志</option>
+                                    <option value="DRIVE115">115网盘</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="log-actions">
+                            <button id="refresh-logs-button" class="primary">刷新</button>
+                            <button id="clear-logs-button" class="danger">清空日志</button>
                         </div>
                         <div class="log-container">
                             <div id="log-body">

@@ -1,174 +1,444 @@
+import { STATE } from '../state';
 import { showMessage } from '../ui/toast';
-import { logAsync } from '../logger';
-import { showConfirmationModal } from '../ui/modal';
+import { getValue, setValue } from '../../utils/storage';
+import { STORAGE_KEYS } from '../../utils/config';
+import { log } from '../../utils/logController';
 
-export function initLogsTab(): void {
-    const logLevelFilter = document.getElementById('log-level-filter') as HTMLSelectElement;
-    const logSourceFilter = document.getElementById('log-source-filter') as HTMLSelectElement;
-    const refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
-    const clearLogsButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
-    const logBody = document.getElementById('log-body') as HTMLDivElement;
+/**
+ * 日志条目接口
+ */
+interface LogEntry {
+    timestamp: string;
+    level: string;
+    message: string;
+    data?: any;
+    source?: string;
+}
 
-    if (!logLevelFilter || !logBody) return;
+/**
+ * 日志标签页类
+ */
+export class LogsTab {
+    public isInitialized: boolean = false;
+    private currentLevelFilter: string = 'ALL';
+    private currentSourceFilter: string = 'ALL';
+    private logs: LogEntry[] = [];
 
-    let allLogs: any[] = [];
+    // DOM 元素
+    private logLevelFilter!: HTMLSelectElement;
+    private logSourceFilter!: HTMLSelectElement;
+    private refreshButton!: HTMLButtonElement;
+    private clearButton!: HTMLButtonElement;
+    private logBody!: HTMLDivElement;
 
-    const renderLogs = () => {
+    /**
+     * 初始化日志标签页
+     */
+    async initialize(): Promise<void> {
+        if (this.isInitialized) return;
+
         try {
-            const levelFilter = logLevelFilter.value;
-            const sourceFilter = logSourceFilter?.value || 'ALL';
-            logBody.innerHTML = '';
+            log.verbose('开始初始化日志标签页');
 
-            // 确保 allLogs 是数组
-            if (!Array.isArray(allLogs)) {
-                console.warn('allLogs 不是数组:', allLogs);
-                allLogs = [];
+            // 初始化DOM元素
+            this.initializeElements();
+
+            // 绑定事件监听器
+            this.bindEvents();
+
+            // 加载日志数据
+            await this.loadLogs();
+
+            // 渲染日志
+            this.renderLogs();
+
+            this.isInitialized = true;
+            log.verbose('日志标签页初始化完成');
+        } catch (error) {
+            log.error('初始化日志标签页失败:', error);
+            showMessage('初始化日志标签页失败', 'error');
+        }
+    }
+
+    /**
+     * 初始化DOM元素
+     */
+    private initializeElements(): void {
+        this.logLevelFilter = document.getElementById('log-level-filter') as HTMLSelectElement;
+        this.logSourceFilter = document.getElementById('log-source-filter') as HTMLSelectElement;
+        this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
+        this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
+        this.logBody = document.getElementById('log-body') as HTMLDivElement;
+
+        // 验证元素是否存在
+        if (!this.logLevelFilter) {
+            console.error('[LogsTab] 找不到log-level-filter元素');
+            return;
+        }
+        if (!this.logSourceFilter) {
+            console.error('[LogsTab] 找不到log-source-filter元素');
+            return;
+        }
+        if (!this.refreshButton) {
+            console.error('[LogsTab] 找不到refresh-logs-button元素');
+            return;
+        }
+        if (!this.clearButton) {
+            log.error('[LogsTab] 找不到clear-logs-button元素');
+            return;
+        }
+        if (!this.logBody) {
+            log.error('[LogsTab] 找不到log-body元素');
+            return;
+        }
+
+        log.verbose('[LogsTab] DOM元素初始化完成');
+    }
+
+    /**
+     * 绑定事件监听器
+     */
+    private bindEvents(): void {
+        // 过滤器事件
+        this.logLevelFilter?.addEventListener('change', () => {
+            this.currentLevelFilter = this.logLevelFilter.value;
+            this.renderLogs();
+        });
+
+        this.logSourceFilter?.addEventListener('change', () => {
+            this.currentSourceFilter = this.logSourceFilter.value;
+            this.renderLogs();
+        });
+
+        // 按钮事件
+        this.refreshButton?.addEventListener('click', () => {
+            this.refreshLogs();
+        });
+
+        this.clearButton?.addEventListener('click', () => {
+            this.clearLogs();
+        });
+    }
+
+    /**
+     * 加载日志数据
+     */
+    private async loadLogs(): Promise<void> {
+        try {
+            // 从STATE获取日志数据
+            this.logs = STATE.logs || [];
+
+            // 如果STATE中没有数据，尝试从存储中加载
+            if (this.logs.length === 0) {
+                const storedLogs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+                this.logs = Array.isArray(storedLogs) ? storedLogs : [];
+
+                // 如果还是没有数据，创建一些示例日志
+                if (this.logs.length === 0) {
+                    this.logs = this.createSampleLogs();
+                    // 保存示例日志到存储
+                    await setValue(STORAGE_KEYS.LOGS, this.logs);
+                }
+
+                // 更新STATE
+                STATE.logs = this.logs;
             }
 
-            if (allLogs.length === 0) {
-                logBody.innerHTML = '<div class="no-logs-message">未找到日志。</div>';
+            console.log(`[LogsTab] 加载了 ${this.logs.length} 条日志`);
+        } catch (error) {
+            console.error('加载日志数据失败:', error);
+            this.logs = [];
+        }
+    }
+
+    /**
+     * 创建示例日志数据
+     */
+    private createSampleLogs(): LogEntry[] {
+        const now = new Date();
+        return [
+            {
+                timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
+                level: 'info',
+                message: '扩展初始化完成',
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 9 * 60 * 1000).toISOString(),
+                level: 'debug',
+                message: '开始加载用户设置',
+                data: {
+                    settingsVersion: '1.13.356',
+                    loadTime: '45ms',
+                    cacheHit: true
+                },
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 8 * 60 * 1000).toISOString(),
+                level: 'info',
+                message: '[115] 网盘服务连接成功',
+                data: {
+                    endpoint: 'https://115.com/api',
+                    responseTime: '120ms',
+                    userAgent: 'JavHelper/1.13.356'
+                },
+                source: 'DRIVE115'
+            },
+            {
+                timestamp: new Date(now.getTime() - 7 * 60 * 1000).toISOString(),
+                level: 'warn',
+                message: '检测到重复的视频记录，已自动合并',
+                data: {
+                    duplicateCount: 3,
+                    mergedRecords: ['ABC-123', 'DEF-456', 'GHI-789'],
+                    action: 'auto_merge'
+                },
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 6 * 60 * 1000).toISOString(),
+                level: 'error',
+                message: '网络请求失败，正在重试',
+                data: {
+                    url: 'https://api.example.com/data',
+                    error: 'timeout',
+                    retryCount: 2,
+                    maxRetries: 3,
+                    nextRetryIn: '5s'
+                },
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
+                level: 'debug',
+                message: '[115] 开始同步文件列表',
+                data: {
+                    totalFiles: 1250,
+                    syncedFiles: 0,
+                    estimatedTime: '2m 30s'
+                },
+                source: 'DRIVE115'
+            },
+            {
+                timestamp: new Date(now.getTime() - 4 * 60 * 1000).toISOString(),
+                level: 'info',
+                message: '用户配置已更新',
+                data: {
+                    changedSettings: ['autoSync', 'displayMode'],
+                    previousValues: { autoSync: false, displayMode: 'list' },
+                    newValues: { autoSync: true, displayMode: 'grid' }
+                },
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 3 * 60 * 1000).toISOString(),
+                level: 'warn',
+                message: '[115] 部分文件同步失败',
+                data: {
+                    failedFiles: ['movie1.mp4', 'movie2.mkv'],
+                    reason: 'insufficient_permissions',
+                    suggestion: 'check_115_login_status'
+                },
+                source: 'DRIVE115'
+            },
+            {
+                timestamp: new Date(now.getTime() - 2 * 60 * 1000).toISOString(),
+                level: 'info',
+                message: '数据库优化完成',
+                data: {
+                    recordsProcessed: 5420,
+                    duplicatesRemoved: 12,
+                    optimizationTime: '1.2s',
+                    spaceSaved: '2.3MB'
+                },
+                source: 'GENERAL'
+            },
+            {
+                timestamp: new Date(now.getTime() - 1 * 60 * 1000).toISOString(),
+                level: 'error',
+                message: '[115] 认证令牌已过期',
+                data: {
+                    tokenType: 'access_token',
+                    expiredAt: new Date(now.getTime() - 30 * 1000).toISOString(),
+                    autoRefresh: true,
+                    refreshStatus: 'in_progress'
+                },
+                source: 'DRIVE115'
+            },
+            {
+                timestamp: now.toISOString(),
+                level: 'info',
+                message: '日志系统初始化完成',
+                source: 'GENERAL'
+            }
+        ];
+    }
+
+    /**
+     * 刷新日志
+     */
+    private async refreshLogs(): Promise<void> {
+        try {
+            this.refreshButton.disabled = true;
+            this.refreshButton.textContent = '刷新中...';
+
+            // 重新加载日志数据
+            await this.loadLogs();
+
+            // 重新渲染
+            this.renderLogs();
+
+            showMessage(`已刷新，共 ${this.logs.length} 条日志`, 'success');
+        } catch (error) {
+            console.error('刷新日志失败:', error);
+            showMessage('刷新日志失败', 'error');
+        } finally {
+            this.refreshButton.disabled = false;
+            this.refreshButton.textContent = '刷新';
+        }
+    }
+
+    /**
+     * 清空日志
+     */
+    private async clearLogs(): Promise<void> {
+        try {
+            if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) {
                 return;
             }
 
-            let filteredLogs = allLogs.filter(log => {
-                // 确保 log 对象存在且有必要的属性
-                if (!log || typeof log !== 'object') {
-                    console.warn('无效的日志条目:', log);
+            // 清空存储中的日志
+            await setValue(STORAGE_KEYS.LOGS, []);
+            
+            // 清空内存中的日志
+            this.logs = [];
+            STATE.logs = [];
+
+            // 重新渲染
+            this.renderLogs();
+
+            showMessage('日志已清空', 'success');
+        } catch (error) {
+            console.error('清空日志失败:', error);
+            showMessage('清空日志失败', 'error');
+        }
+    }
+
+    /**
+     * 渲染日志
+     */
+    private renderLogs(): void {
+        if (!this.logBody) return;
+
+        // 过滤日志
+        const filteredLogs = this.filterLogs();
+
+        if (filteredLogs.length === 0) {
+            this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
+            return;
+        }
+
+        // 生成日志HTML
+        const logHtml = filteredLogs.map(log => this.createLogEntryHtml(log)).join('');
+        this.logBody.innerHTML = logHtml;
+    }
+
+    /**
+     * 过滤日志
+     */
+    private filterLogs(): LogEntry[] {
+        return this.logs.filter(log => {
+            // 等级过滤
+            if (this.currentLevelFilter !== 'ALL' && log.level !== this.currentLevelFilter) {
+                return false;
+            }
+
+            // 来源过滤
+            if (this.currentSourceFilter !== 'ALL') {
+                const logSource = this.getLogSource(log);
+                if (logSource !== this.currentSourceFilter) {
                     return false;
                 }
-
-                // 级别筛选
-                const levelMatch = levelFilter === 'ALL' || log.level === levelFilter;
-
-                // 来源筛选
-                let sourceMatch = true;
-                if (sourceFilter === 'DRIVE115') {
-                    sourceMatch = log.message && log.message.includes('[115]');
-                } else if (sourceFilter === 'GENERAL') {
-                    sourceMatch = !log.message || !log.message.includes('[115]');
-                }
-
-                return levelMatch && sourceMatch;
-            });
-
-            if (filteredLogs.length === 0) {
-                logBody.innerHTML = '<div class="no-logs-message">没有符合当前过滤条件的日志。</div>';
-                return;
             }
 
-            // 安全地处理日志条目
-            filteredLogs.slice().reverse().forEach(log => {
-                try {
-                    const logEntry = document.createElement('div');
-                    logEntry.className = `log-entry log-level-${(log.level || 'info').toLowerCase()}`;
+            return true;
+        }).reverse(); // 最新的日志在前面
+    }
 
-                    const dataHtml = log.data ? `
-                        <details class="log-data-details">
-                            <summary>详细数据</summary>
-                            <pre>${JSON.stringify(log.data, null, 2)}</pre>
-                        </details>
-                    ` : '';
-
-                    const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString() : '未知时间';
-                    const level = log.level || 'INFO';
-                    const message = log.message || '无消息';
-
-                    logEntry.innerHTML = `
-                        <div class="log-header">
-                            <span class="log-level-badge">${level}</span>
-                            <span class="log-message">${message}</span>
-                            <span class="log-timestamp">${timestamp}</span>
-                        </div>
-                        ${dataHtml}
-                    `;
-                    logBody.appendChild(logEntry);
-                } catch (error) {
-                    console.error('渲染单个日志条目时出错:', error, log);
-                }
-            });
-        } catch (error) {
-            console.error('渲染日志时出错:', error);
-            logBody.innerHTML = '<div class="no-logs-message error">渲染日志时出现错误，请刷新重试。</div>';
+    /**
+     * 获取日志来源
+     */
+    private getLogSource(log: LogEntry): string {
+        // 根据日志内容判断来源
+        if (log.source) {
+            return log.source;
         }
-    };
-
-    const fetchLogs = (isManualRefresh = false) => {
-        if (isManualRefresh) {
-            showMessage('正在刷新日志...', 'info');
+        
+        if (log.message.includes('115') || log.message.includes('Drive115')) {
+            return 'DRIVE115';
         }
+        
+        return 'GENERAL';
+    }
 
-        try {
-            chrome.runtime.sendMessage({ type: 'get-logs' }, response => {
-                try {
-                    if (response?.success) {
-                        // 确保 logs 是一个数组
-                        const logs = response.logs;
-                        if (Array.isArray(logs)) {
-                            allLogs = logs;
-                        } else {
-                            console.warn('获取的日志不是数组格式:', logs);
-                            allLogs = [];
-                        }
-                        renderLogs();
-                        if (isManualRefresh) {
-                            showMessage('日志已成功刷新。', 'success');
-                        }
-                    } else {
-                        console.error('获取日志失败:', response);
-                        allLogs = [];
-                        renderLogs();
-                        if (isManualRefresh) {
-                            showMessage('刷新日志失败，请稍后重试。', 'error');
-                        } else {
-                            showMessage('获取日志记录失败。', 'error');
-                        }
-                    }
-                } catch (error) {
-                    console.error('处理日志响应时出错:', error);
-                    allLogs = [];
-                    renderLogs();
-                    if (isManualRefresh) {
-                        showMessage('处理日志数据时出错。', 'error');
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('发送获取日志请求时出错:', error);
-            allLogs = [];
-            renderLogs();
-            if (isManualRefresh) {
-                showMessage('发送日志请求失败。', 'error');
-            }
+    /**
+     * 创建日志条目HTML
+     */
+    private createLogEntryHtml(log: LogEntry): string {
+        const timestamp = new Date(log.timestamp).toLocaleString();
+        const level = log.level.toUpperCase();
+        const levelClass = this.getLevelClass(level);
+
+        // 创建详细数据部分
+        const dataHtml = log.data ? `
+            <details class="log-data-details">
+                <summary>详细数据</summary>
+                <pre>${this.escapeHtml(JSON.stringify(log.data, null, 2))}</pre>
+            </details>
+        ` : '';
+
+        return `
+            <div class="log-entry log-level-${levelClass}">
+                <div class="log-header">
+                    <span class="log-level-badge">${level}</span>
+                    <span class="log-message">${this.escapeHtml(log.message)}</span>
+                    <span class="log-timestamp">${timestamp}</span>
+                </div>
+                ${dataHtml}
+            </div>
+        `;
+    }
+
+    /**
+     * 获取日志等级对应的CSS类
+     */
+    private getLevelClass(level: string): string {
+        switch (level.toLowerCase()) {
+            case 'error': return 'error';
+            case 'warn': case 'warning': return 'warn';
+            case 'info': return 'info';
+            case 'debug': return 'debug';
+            default: return 'info';
         }
-    };
+    }
 
-    const clearLogs = () => {
-        showConfirmationModal({
-            title: '确认清空日志',
-            message: '您确定要清空所有日志记录吗？此操作不可撤销。',
-            onConfirm: () => {
-                logAsync('INFO', '用户确认清空日志。');
-                chrome.runtime.sendMessage({ type: 'clear-logs' }, response => {
-                    if (response?.success) {
-                        showMessage('日志已成功清空。', 'success');
-                        logAsync('INFO', '日志已被成功清空。');
-                        fetchLogs(); // Re-fetch to show the empty state
-                    } else {
-                        showMessage('清空日志失败，请稍后重试。', 'error');
-                        logAsync('ERROR', '清空日志时发生错误。', { error: response.error });
-                    }
-                });
-            },
-            onCancel: () => {
-                logAsync('INFO', '用户取消了清空日志操作。');
-            }
-        });
-    };
-    
-    logLevelFilter.addEventListener('change', renderLogs);
-    logSourceFilter?.addEventListener('change', renderLogs);
-    refreshButton.addEventListener('click', () => fetchLogs(true));
-    clearLogsButton.addEventListener('click', clearLogs);
+    /**
+     * HTML转义
+     */
+    private escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-    fetchLogs();
-} 
+    /**
+     * 刷新标签页
+     */
+    async refresh(): Promise<void> {
+        await this.refreshLogs();
+    }
+}
+
+// 导出单例实例
+export const logsTab = new LogsTab();

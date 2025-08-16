@@ -1,0 +1,23 @@
+/**
+ * 显示设置面板样式
+ */
+
+/* 显示设置面板特有样式 */
+#display-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#display-settings .form-group-checkbox {
+    margin-bottom: 1rem;
+}
+
+#display-settings .form-group-checkbox label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#display-settings .settings-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
