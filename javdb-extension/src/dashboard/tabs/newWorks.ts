@@ -7,7 +7,7 @@ import { actorSelector } from '../components/actorSelector';
 import { newWorksConfigModal } from '../components/newWorks/configModal';
 import { showMessage } from '../ui/toast';
 import { showConfirm, showDanger } from '../components/confirmModal';
-import type { NewWorkRecord, NewWorksStats, ActorRecord, ActorSubscription } from '../../types';
+import type { NewWorkRecord, NewWorksStats, ActorRecord, ActorSubscription, VideoRecord } from '../../types';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
@@ -37,6 +37,9 @@ export class NewWorksTab {
             // 渲染页面
             await this.render();
 
+            // 自动同步状态（静默执行）
+            this.autoSyncStatus();
+
             this.isInitialized = true;
             console.log('新作品标签页初始化完成');
         } catch (error) {
@@ -52,8 +55,13 @@ export class NewWorksTab {
             const checkDOM = () => {
                 const newWorksTab = document.getElementById('tab-new-works');
                 const configBtn = document.getElementById('newWorksGlobalConfigBtn');
+                const checkNowBtn = document.getElementById('checkNowBtn');
+                const syncStatusBtn = document.getElementById('syncStatusBtn');
+                const cleanupReadBtn = document.getElementById('cleanupReadWorksBtn');
+                const addSubscriptionBtn = document.getElementById('addSubscriptionBtn');
+                const manageSubscriptionsBtn = document.getElementById('manageSubscriptionsBtn');
 
-                if (newWorksTab && configBtn) {
+                if (newWorksTab && configBtn && checkNowBtn && syncStatusBtn && cleanupReadBtn && addSubscriptionBtn && manageSubscriptionsBtn) {
                     console.log('新作品标签页DOM元素已准备就绪');
                     resolve();
                 } else {
@@ -102,6 +110,19 @@ export class NewWorksTab {
             console.log('立即检查按钮事件已绑定');
         } else {
             console.warn('未找到立即检查按钮');
+        }
+
+        // 同步状态按钮
+        const syncStatusBtn = document.getElementById('syncStatusBtn');
+        if (syncStatusBtn) {
+            syncStatusBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('点击了同步状态按钮');
+                await this.syncNewWorksStatus();
+            });
+            console.log('同步状态按钮事件已绑定');
+        } else {
+            console.warn('未找到同步状态按钮');
         }
 
         // 添加订阅按钮
@@ -384,10 +405,12 @@ export class NewWorksTab {
         }
 
         let paginationHtml = '';
-        
+
         // 上一页
         if (this.currentPage > 1) {
-            paginationHtml += `<button class="pagination-btn" data-page="${this.currentPage - 1}">上一页</button>`;
+            paginationHtml += `<button class="page-button" data-page="${this.currentPage - 1}">上一页</button>`;
+        } else {
+            paginationHtml += `<button class="page-button" disabled>上一页</button>`;
         }
 
         // 页码
@@ -396,20 +419,25 @@ export class NewWorksTab {
 
         for (let i = startPage; i <= endPage; i++) {
             const activeClass = i === this.currentPage ? 'active' : '';
-            paginationHtml += `<button class="pagination-btn ${activeClass}" data-page="${i}">${i}</button>`;
+            paginationHtml += `<button class="page-button ${activeClass}" data-page="${i}">${i}</button>`;
         }
 
         // 下一页
         if (this.currentPage < pageCount) {
-            paginationHtml += `<button class="pagination-btn" data-page="${this.currentPage + 1}">下一页</button>`;
+            paginationHtml += `<button class="page-button" data-page="${this.currentPage + 1}">下一页</button>`;
+        } else {
+            paginationHtml += `<button class="page-button" disabled>下一页</button>`;
         }
 
         container.innerHTML = paginationHtml;
 
         // 添加分页事件监听器
-        container.querySelectorAll('.pagination-btn').forEach(btn => {
+        container.querySelectorAll('.page-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const page = parseInt((e.target as HTMLElement).dataset.page || '1');
+                const target = e.target as HTMLElement;
+                if (target.hasAttribute('disabled')) return;
+
+                const page = parseInt(target.dataset.page || '1');
                 this.currentPage = page;
                 this.render();
             });
@@ -524,6 +552,78 @@ export class NewWorksTab {
             await this.render();
         } catch (error) {
             console.error('删除作品失败:', error);
+        }
+    }
+
+    /**
+     * 同步新作品状态
+     */
+    private async syncNewWorksStatus(): Promise<void> {
+        try {
+            const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
+            if (syncBtn) {
+                syncBtn.disabled = true;
+                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+            }
+
+            console.log('开始同步新作品状态...');
+            const result = await newWorksManager.syncWithVideoRecords();
+
+            console.log('同步完成:', result);
+
+            // 刷新页面显示
+            await this.render();
+
+            // 显示同步结果
+            if (result.updated > 0) {
+                let message = `已同步 ${result.updated} 个作品的状态`;
+                if (result.details.length > 0) {
+                    // 显示前3个更新详情
+                    const detailsToShow = result.details.slice(0, 3);
+                    const detailsText = detailsToShow.map(d => `${d.id}: ${d.oldStatus} → ${d.newStatus}`).join('\n');
+                    message += `\n\n更新详情:\n${detailsText}`;
+                    if (result.details.length > 3) {
+                        message += `\n...还有 ${result.details.length - 3} 个作品`;
+                    }
+                }
+                showMessage(message, 'success');
+            } else {
+                showMessage('没有需要同步的作品状态', 'info');
+            }
+
+        } catch (error) {
+            console.error('同步新作品状态失败:', error);
+            showMessage('同步状态失败，请重试', 'error');
+        } finally {
+            const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
+            if (syncBtn) {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
+            }
+        }
+    }
+
+    /**
+     * 初始化时自动同步状态（静默执行）
+     */
+    private async autoSyncStatus(): Promise<void> {
+        try {
+            console.log('自动同步新作品状态...');
+            const result = await newWorksManager.syncWithVideoRecords();
+
+            if (result.updated > 0) {
+                console.log(`自动同步完成，更新了 ${result.updated} 个作品的状态`);
+                result.details.forEach(detail => {
+                    console.log(`• ${detail.id}: ${detail.oldStatus} → ${detail.newStatus}`);
+                });
+                // 静默更新，重新渲染页面
+                await this.render();
+            } else {
+                console.log('自动同步完成，没有需要更新的作品状态');
+            }
+        } catch (error) {
+            console.error('自动同步状态失败:', error);
+            // 自动同步失败不影响用户体验，只记录日志
         }
     }
 

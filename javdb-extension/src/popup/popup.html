@@ -19,6 +19,26 @@
             <div id="toggleWatchedContainer"></div>
             <div id="toggleViewedContainer"></div>
             <div id="toggleVRContainer"></div>
+
+            <!-- 音量控制 -->
+            <div class="volume-control-section">
+                <div class="volume-control-header">
+                    <span class="volume-icon">🔊</span>
+                    <span class="volume-label">预览视频音量</span>
+                    <span id="volumeValue" class="volume-value">50%</span>
+                </div>
+                <div class="volume-slider-container">
+                    <input type="range" id="volumeSlider" class="volume-slider"
+                           min="0" max="100" value="50" step="1">
+                    <div class="volume-marks">
+                        <span>静音</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="volume-description">
+                    设置详情页预览视频的默认音量
+                </div>
+            </div>
         </div>
         
         <div class="dashboard-link">
