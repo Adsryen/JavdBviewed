@@ -110,15 +110,19 @@ export interface ExtensionSettings {
         enableRightClickBackground: boolean; // 启用右键后台打开
     };
 
-    // 新增：列表增强配置
-    listEnhancement: {
-        enabled: boolean;
-        enableClickEnhancement: boolean; // 启用点击增强（左键直接打开，右键后台打开）
-        enableVideoPreview: boolean; // 启用视频预览
-        enableListOptimization: boolean; // 启用列表优化
-        previewDelay: number; // 预览延迟时间（毫秒）
-        previewVolume: number; // 预览音量（0-1）
-        enableRightClickBackground: boolean; // 启用右键后台打开
+    // 新增：Emby增强配置
+    emby: {
+        enabled: boolean; // 启用Emby增强功能
+        matchUrls: string[]; // 匹配的网址模式，支持通配符
+        videoCodePatterns: string[]; // 番号识别正则表达式模式
+        linkBehavior: 'javdb-direct' | 'javdb-search'; // 链接行为：直接跳转或搜索
+        enableAutoDetection: boolean; // 启用自动检测番号
+        highlightStyle: {
+            backgroundColor: string; // 高亮背景色
+            color: string; // 文字颜色
+            borderRadius: string; // 圆角
+            padding: string; // 内边距
+        };
     };
 
     // 新增：AI功能配置
