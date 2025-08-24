@@ -46,6 +46,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         const { getLoggingSettings } = await import('./logging');
         const { getAiSettings } = await import('./ai');
         const { getDrive115Settings } = await import('./drive115');
+        const { getEmbySettings } = await import('./emby');
         const { getUpdateSettings } = await import('./update');
 
         // 注册所有设置面板
@@ -62,6 +63,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         settingsPanelManager.registerPanel(await getLoggingSettings());
         settingsPanelManager.registerPanel(await getAiSettings());
         settingsPanelManager.registerPanel(await getDrive115Settings());
+        settingsPanelManager.registerPanel(await getEmbySettings());
         settingsPanelManager.registerPanel(await getUpdateSettings());
 
         // 初始化所有面板

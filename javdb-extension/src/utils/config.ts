@@ -275,6 +275,32 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableRightClickBackground: true,
     },
 
+    // 新增：Emby增强默认配置
+    emby: {
+        enabled: false, // 默认关闭，需要用户手动配置
+        matchUrls: [
+            '*.emby.com/*',
+            '*.jellyfin.org/*',
+            'localhost:8096/*',
+            '192.168.*.*:8096/*'
+        ], // 默认匹配常见的Emby/Jellyfin地址
+        videoCodePatterns: [
+            '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
+            '\\d{4,8}_\\d{1,3}', // 数字格式: 123456_01
+            'FC2-PPV-\\d+', // FC2格式
+            '\\d{6,12}', // 纯数字格式
+            '[a-z0-9]+-\\d+_\\d+' // 带字母的数字格式
+        ],
+        linkBehavior: 'javdb-search' as const, // 默认使用搜索
+        enableAutoDetection: true, // 默认启用自动检测
+        highlightStyle: {
+            backgroundColor: '#e3f2fd',
+            color: '#1976d2',
+            borderRadius: '4px',
+            padding: '2px 4px'
+        }
+    },
+
     // 新增：演员同步配置
     actorSync: DEFAULT_ACTOR_SYNC_CONFIG,
 

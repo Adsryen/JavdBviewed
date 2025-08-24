@@ -20,6 +20,7 @@ import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
 import { initializeContentPrivacy } from './privacy';
 import { listEnhancementManager } from './enhancements/listEnhancement';
+import { embyEnhancementManager } from './embyEnhancement';
 
 // --- Utility Functions ---
 
@@ -215,6 +216,14 @@ async function initialize(): Promise<void> {
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
         });
         listEnhancementManager.initialize();
+    }
+
+    // 初始化Emby增强功能
+    if (settings.emby?.enabled) {
+        log('Emby enhancement manager initialized');
+        embyEnhancementManager.initialize().catch(error => {
+            log('Failed to initialize Emby enhancement:', error);
+        });
     }
 
     // 初始化隐私保护功能
@@ -530,6 +539,11 @@ window.addEventListener('beforeunload', () => {
         // 清理键盘快捷键管理器
         if (keyboardShortcutsManager) {
             keyboardShortcutsManager.destroy?.();
+        }
+
+        // 清理Emby增强管理器
+        if (embyEnhancementManager) {
+            embyEnhancementManager.destroy();
         }
 
         log('Resources cleaned up on page unload');
