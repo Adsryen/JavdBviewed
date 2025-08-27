@@ -2132,11 +2132,16 @@
                                 <div class="settings-section">
                                     <h4>测试功能</h4>
                                     <div class="setting-item">
-                                        <button type="button" id="test-current-page" class="btn btn-primary">
-                                            <i class="fas fa-test-tube"></i> 测试当前页面
-                                        </button>
+                                        <div class="test-buttons-group">
+                                            <button type="button" id="test-current-page" class="btn btn-primary">
+                                                <i class="fas fa-globe"></i> 测试当前页面
+                                            </button>
+                                            <button type="button" id="test-sample-urls" class="btn btn-secondary">
+                                                <i class="fas fa-vial"></i> 测试示例网址
+                                            </button>
+                                        </div>
                                         <p class="setting-description">
-                                            测试当前页面是否匹配配置的网址模式。
+                                            测试网址模式匹配功能。可以测试当前页面或使用预设的示例网址（包含匹配和不匹配的案例）。
                                         </p>
                                         <div id="test-result" class="test-result"></div>
                                     </div>
