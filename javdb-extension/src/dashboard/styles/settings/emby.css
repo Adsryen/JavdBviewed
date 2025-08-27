@@ -19,36 +19,49 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 8px;
-    padding: 8px;
-    background-color: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+    margin-bottom: 12px;
+    padding: 0;
+    background: none;
+    border: none;
+    transition: none;
 }
 
-.url-item:hover {
-    border-color: #1976d2;
-    box-shadow: 0 2px 4px rgba(25, 118, 210, 0.1);
-}
+/* 移除hover效果，因为已经没有边框了 */
 
 .url-item:last-child {
     margin-bottom: 0;
 }
 
-.url-input {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    transition: border-color 0.2s ease;
+#emby-settings .url-input,
+.url-list .url-input,
+div.url-item input.url-input {
+    width: 100% !important;
+    flex: 1 !important;
+    padding: 10px 12px !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    background: white !important;
+    color: #1e293b !important;
+    box-sizing: border-box !important;
 }
 
-.url-input:focus {
-    outline: none;
-    border-color: #1976d2;
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+#emby-settings .url-input:focus,
+.url-list .url-input:focus,
+div.url-item input.url-input:focus {
+    outline: none !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+}
+
+#emby-settings .url-input:disabled,
+.url-list .url-input:disabled,
+div.url-item input.url-input:disabled {
+    background-color: #ffffff !important; /* 强制白色背景 */
+    color: #333333 !important; /* 深色文字 */
+    border-color: #dddddd !important;
+    opacity: 0.7 !important;
 }
 
 .url-input::placeholder {
@@ -103,7 +116,7 @@
 .test-error {
     background-color: #fff3e0;
     color: #ef6c00;
-    border: 1px solid #ffcc02;
+    border: 1px solid #ffb74d;
 }
 
 /* 帮助内容样式 */
@@ -129,21 +142,150 @@
     color: #1976d2;
 }
 
-/* 设置选择框样式 */
+/* 设置选择框样式 - 始终白底黑字 */
 .setting-select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: white;
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
     font-size: 14px;
+    transition: all 0.3s ease;
+    background: white !important;
+    color: #333333 !important;
+    box-sizing: border-box;
     min-width: 200px;
-    transition: border-color 0.2s ease;
+    cursor: pointer;
+}
+
+.setting-select:hover {
+    border-color: #cbd5e1;
+    background: white !important;
+    color: #333333 !important;
 }
 
 .setting-select:focus {
     outline: none;
-    border-color: #1976d2;
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    background: white !important;
+    color: #333333 !important;
+}
+
+.setting-select:disabled {
+    background: white !important;
+    color: #666666 !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* 测试功能样式 */
+.test-buttons-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.test-buttons-group .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+.test-result {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.test-results-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.test-case {
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.test-case.test-success {
+    background-color: #f0f9ff;
+    border-left-color: #10b981;
+}
+
+.test-case.test-failure {
+    background-color: #fef2f2;
+    border-left-color: #ef4444;
+}
+
+.test-case-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1e293b;
+}
+
+.test-case-details {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.test-case-details > div {
+    margin-bottom: 4px;
+}
+
+.test-url {
+    font-family: monospace;
+    background: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+.test-summary {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.test-summary.test-success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.test-summary.test-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.test-success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.test-info {
+    background-color: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.test-failure {
+    background-color: #fecaca;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+}
+
+.test-error {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
 }
 
 /* 按钮样式 */
@@ -219,8 +361,21 @@
     pointer-events: none;
 }
 
-/* 动画效果 */
-.url-item {
+/* 为不支持:has()的浏览器提供备选样式 */
+@supports not selector(:has(*)) {
+    .url-list-container.disabled .url-list {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .url-list-container.disabled .btn {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+}
+
+/* 动画效果 - 只对新添加的元素应用 */
+.url-item.new-item {
     animation: fadeIn 0.3s ease;
 }
 
