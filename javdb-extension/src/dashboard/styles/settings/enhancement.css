@@ -14,11 +14,70 @@
     --primary-color-rgb: 0, 123, 255;
     --warning-color: #ffc107;
     --warning-bg-color: #fff3cd;
+    
+    --enhancement-primary: #f59e0b;
+    --enhancement-secondary: #fbbf24;
+    --enhancement-bg: #f8fafc;
+    --enhancement-card-bg: #ffffff;
+    --enhancement-border: #e2e8f0;
+    --enhancement-text: #1e293b;
+    --enhancement-text-muted: #64748b;
+    --enhancement-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --enhancement-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* 功能增强设置面板特有样式 */
 #enhancement-settings {
-    /* 面板特有样式可以在这里定义 */
+    position: relative;
+    overflow: hidden;
+}
+
+#enhancement-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(245, 158, 11, 0.05) 0%,
+        rgba(251, 191, 36, 0.05) 50%,
+        rgba(252, 211, 77, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#enhancement-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#enhancement-settings .settings-panel-header h3 {
+    color: var(--enhancement-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#enhancement-settings .settings-panel-header h3::before {
+    content: '🚀';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#enhancement-settings .settings-description {
+    color: var(--enhancement-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
 #enhancement-settings .enhancement-grid {
