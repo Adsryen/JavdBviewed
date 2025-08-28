@@ -1200,6 +1200,9 @@
                                     <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableMagnetSearch">
                                     <input type="checkbox" id="enableListEnhancement">
+                                    <input type="checkbox" id="enableActorEnhancement" style="display: none;">
+                                    <input type="checkbox" id="enableAutoApplyTags" style="display: none;">
+                                    <input type="file" id="actorConfigFileInput" accept=".json" style="display: none;">
                                     <input type="checkbox" id="showEnhancedTooltips">
                                 </div>
 
@@ -1605,6 +1608,89 @@
                                                     <li>🧲 磁链下载 - 跳转到磁链下载区域</li>
                                                     <li>⬆️ TOP - 返回页面顶部</li>
                                                 </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">👤 演员页增强</h6>
+                                                    <span class="enhancement-feature-status available">演员页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableActorEnhancement"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在演员页自动保存和应用标签过滤器，支持跨演员页面的过滤器同步<br>
+                                            <strong>使用：</strong>在演员页选择标签后自动保存，切换到其他演员页时自动应用兼容的过滤器<br>
+                                            <strong>适用：</strong>演员页面（/actors/xxx），支持标签过滤器的自动保存和智能应用
+                                        </p>
+
+                                        <!-- 演员页增强详细配置 -->
+                                        <div class="sub-settings" id="actorEnhancementConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>👤 演员页增强配置</h5>
+                                                <p class="sub-description">自定义演员页的标签过滤器行为，提升浏览效率。</p>
+                                            </div>
+
+                                            <!-- 演员页配置选项 -->
+                                            <div class="dual-toggle-container">
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🔄 自动应用标签</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="enableAutoApplyTags" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">自动应用上次使用的标签过滤器到新的演员页</p>
+                                                    
+                                                    <!-- 上次应用的标签显示 -->
+                                                    <div class="last-applied-tags" id="lastAppliedTagsDisplay" style="margin-top: 10px;">
+                                                        <div class="tag-display-header">
+                                                            <span class="tag-display-title">📋 上次应用的标签：</span>
+                                                            <div class="tag-actions">
+                                                                <button class="btn-small btn-outline" id="clearLastAppliedTags" title="清除记录">🗑️</button>
+                                                                <button class="btn-small btn-outline" id="exportActorConfig" title="导出配置">📤</button>
+                                                                <button class="btn-small btn-outline" id="importActorConfig" title="导入配置">📥</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="applied-tags-container" id="appliedTagsContainer">
+                                                            <span class="no-tags-message">暂无记录</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🏷️ 默认标签设置</span>
+                                                        <div class="modern-select-wrapper">
+                                                            <select id="actorDefaultTags" class="modern-select" multiple>
+                                                                <option value="s">单体作品</option>
+                                                                <option value="d">数位马赛克</option>
+                                                                <option value="c">中文字幕</option>
+                                                                <option value="4k">4K</option>
+                                                                <option value="uncensored">无码流出</option>
+                                                            </select>
+                                                            <span class="select-arrow">▼</span>
+                                                        </div>
+                                                    </div>
+                                                    <p class="toggle-description">当没有保存的过滤器或兼容性检查失败时使用的默认标签</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="info-box">
+                                                <p><strong>功能说明：</strong></p>
+                                                <ul>
+                                                    <li>🔄 <strong>自动同步：</strong>在演员页选择标签后自动保存，切换演员时智能应用</li>
+                                                    <li>🧠 <strong>智能兼容：</strong>只应用当前演员页支持的标签，避免无效过滤</li>
+                                                    <li>📝 <strong>默认回退：</strong>当无保存记录或兼容性检查失败时，使用默认标签</li>
+                                                    <li>💾 <strong>存储限制：</strong>最多保存10个演员的过滤器记录，自动清理旧记录</li>
+                                                </ul>
                                             </div>
                                         </div>
                                     </div>
