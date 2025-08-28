@@ -104,6 +104,7 @@ export interface ExtensionSettings {
         enabled: boolean;
         enableClickEnhancement: boolean; // 启用点击增强（左键直接打开，右键后台打开）
         enableVideoPreview: boolean; // 启用视频预览
+        enableScrollPaging: boolean; // 启用滚动翻页
         enableListOptimization: boolean; // 启用列表优化
         previewDelay: number; // 预览延迟时间（毫秒）
         previewVolume: number; // 预览音量（0-1）

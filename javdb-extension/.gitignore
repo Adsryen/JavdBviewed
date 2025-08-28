@@ -6,6 +6,7 @@
 dist
 dist-*
 *.local
+*.tsbuildinfo
 
 # Local environment variables
 .env.local
