@@ -211,6 +211,7 @@ async function initialize(): Promise<void> {
             enableClickEnhancement: settings.listEnhancement?.enableClickEnhancement !== false,
             enableVideoPreview: settings.listEnhancement?.enableVideoPreview !== false,
             enableListOptimization: settings.listEnhancement?.enableListOptimization !== false,
+            enableScrollPaging: settings.listEnhancement?.enableScrollPaging === true,
             previewDelay: settings.listEnhancement?.previewDelay || 1000,
             previewVolume: settings.listEnhancement?.previewVolume || 0.2,
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
@@ -521,6 +522,9 @@ if (typeof window !== 'undefined') {
         getCurrentVolume: () => currentVolume,
         handleVideos: handleVideos
     };
+    
+    // 暴露列表增强管理器以便调试和测试
+    (window as any).listEnhancementManager = listEnhancementManager;
 }
 
 // 页面卸载时清理资源

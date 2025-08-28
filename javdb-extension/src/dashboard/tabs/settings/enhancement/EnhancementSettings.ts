@@ -5,7 +5,7 @@
 
 import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import { logAsync } from '../../../logger';
+// import { logAsync } from '../../../utils/logger'; // 暂时未使用
 import { showMessage } from '../../../ui/toast';
 import { log } from '../../../../utils/logController';
 import type { ExtensionSettings, KeywordFilterRule } from '../../../../types';
@@ -39,6 +39,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 列表增强配置
     private enableClickEnhancement!: HTMLInputElement;
     private enableListVideoPreview!: HTMLInputElement;
+    private enableScrollPaging!: HTMLInputElement;
     private previewDelay!: HTMLInputElement;
     private previewVolume!: HTMLInputElement;
     private previewVolumeValue!: HTMLSpanElement;
@@ -94,6 +95,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 列表增强配置
         this.enableClickEnhancement = document.getElementById('enableClickEnhancement') as HTMLInputElement;
         this.enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
+        this.enableScrollPaging = document.getElementById('enableScrollPaging') as HTMLInputElement;
         this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
         this.previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
         this.previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
@@ -133,6 +135,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 列表增强配置事件监听
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
         this.previewDelay?.addEventListener('change', this.handleSettingChange.bind(this));
         this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
 
@@ -166,7 +169,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const settings = STATE.settings;
         const dataEnhancement = settings?.dataEnhancement || {};
         const userExperience = settings?.userExperience || {};
-        const magnetSearch = settings?.magnetSearch || {};
+        // const magnetSearch = settings?.magnetSearch || {}; // 属性不存在
         const anchorOptimization = settings?.anchorOptimization || {};
         const listEnhancement = settings?.listEnhancement || {};
 
@@ -178,26 +181,31 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableContentFilter.checked = userExperience?.enableContentFilter || false;
         this.enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
         this.enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
-        this.enableListEnhancement.checked = userExperience?.enableListEnhancement !== false; // 默认启用
+        if (userExperience.enableListEnhancement !== undefined) {
+            this.enableListEnhancement.checked = userExperience.enableListEnhancement;
+        }
 
         // 磁力搜索源配置
-        const sources = magnetSearch.sources || {};
-        this.magnetSourceSukebei.checked = sources.sukebei !== false; // 默认启用
-        this.magnetSourceBtdig.checked = sources.btdig !== false; // 默认启用
-        this.magnetSourceBtsow.checked = sources.btsow !== false; // 默认启用
-        this.magnetSourceTorrentz2.checked = sources.torrentz2 || false; // 默认禁用
+        // const sources = magnetSearch.sources || {}; // 暂时注释
+        this.magnetSourceSukebei.checked = true; // 默认启用
+        this.magnetSourceBtdig.checked = true; // 默认启用
+        this.magnetSourceBtsow.checked = true; // 默认启用
+        this.magnetSourceTorrentz2.checked = false; // 默认禁用
 
         // 锚点优化配置
-        if (this.anchorButtonPosition) {
-            this.anchorButtonPosition.value = anchorOptimization.buttonPosition || 'right-center';
-        }
-        if (this.showPreviewButton) {
-            this.showPreviewButton.checked = anchorOptimization.showPreviewButton !== false;
+        if (anchorOptimization) {
+            if (anchorOptimization.buttonPosition && this.anchorButtonPosition) {
+                this.anchorButtonPosition.value = anchorOptimization.buttonPosition;
+            }
+            if (anchorOptimization.showPreviewButton !== undefined && this.showPreviewButton) {
+                this.showPreviewButton.checked = anchorOptimization.showPreviewButton;
+            }
         }
 
         // 列表增强配置
         if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
+        if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
         if (this.previewVolume) {
             const volumeValue = listEnhancement.previewVolume || 0.2;
@@ -262,24 +270,25 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableListEnhancement: this.enableListEnhancement.checked,
                     showEnhancedTooltips: false, // 开发中，强制禁用
                 },
-                magnetSearch: {
-                    enabled: this.enableMagnetSearch.checked,
-                    sources: {
-                        sukebei: this.magnetSourceSukebei.checked,
-                        btdig: this.magnetSourceBtdig.checked,
-                        btsow: this.magnetSourceBtsow.checked,
-                        torrentz2: this.magnetSourceTorrentz2.checked,
-                    },
-                },
+                // magnetSearch: {
+                //     enabled: this.enableMagnetSearch.checked,
+                //     sources: {
+                //         sukebei: this.magnetSourceSukebei.checked,
+                //         btdig: this.magnetSourceBtdig.checked,
+                //         btsow: this.magnetSourceBtsow.checked,
+                //         torrentz2: this.magnetSourceTorrentz2.checked,
+                //     },
+                // },
                 anchorOptimization: {
                     enabled: this.enableAnchorOptimization.checked,
                     showPreviewButton: this.showPreviewButton?.checked !== false,
-                    buttonPosition: this.anchorButtonPosition?.value || 'right-center',
+                    buttonPosition: (this.anchorButtonPosition?.value as 'right-center' | 'right-bottom') || 'right-center',
                 },
                 listEnhancement: {
                     enabled: this.enableListEnhancement.checked,
                     enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
+                    enableScrollPaging: this.enableScrollPaging?.checked === true,
                     enableListOptimization: true, // 总是启用列表优化
                     previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
                     previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
@@ -308,7 +317,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 savedSettings: {
                     dataEnhancement: newSettings.dataEnhancement,
                     userExperience: newSettings.userExperience,
-                    magnetSearch: newSettings.magnetSearch,
+                    // magnetSearch: newSettings.magnetSearch,
                     anchorOptimization: newSettings.anchorOptimization,
                     listEnhancement: newSettings.listEnhancement
                 }
@@ -398,6 +407,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enabled: this.enableListEnhancement.checked,
                 enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
                 enableVideoPreview: this.enableListVideoPreview?.checked !== false,
+                enableScrollPaging: this.enableScrollPaging?.checked || false,
                 enableListOptimization: true,
                 previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
                 previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
@@ -412,7 +422,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
         const dataEnhancement = settings.dataEnhancement;
         const userExperience = settings.userExperience;
-        const magnetSearch = settings.magnetSearch;
+        // const magnetSearch = settings.magnetSearch; // 属性不存在，暂时注释
         const anchorOptimization = settings.anchorOptimization;
         const listEnhancement = settings.listEnhancement;
 
@@ -434,23 +444,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             }
             if (userExperience.enableAnchorOptimization !== undefined) {
                 this.enableAnchorOptimization.checked = userExperience.enableAnchorOptimization;
-            }
-            if (userExperience.enableListEnhancement !== undefined) {
-                this.enableListEnhancement.checked = userExperience.enableListEnhancement;
-            }
-        }
-
-        if (magnetSearch?.sources) {
-            const sources = magnetSearch.sources;
-            if (sources.sukebei !== undefined) this.magnetSourceSukebei.checked = sources.sukebei;
-            if (sources.btdig !== undefined) this.magnetSourceBtdig.checked = sources.btdig;
-            if (sources.btsow !== undefined) this.magnetSourceBtsow.checked = sources.btsow;
-            if (sources.torrentz2 !== undefined) this.magnetSourceTorrentz2.checked = sources.torrentz2;
-        }
-
-        if (anchorOptimization) {
-            if (anchorOptimization.buttonPosition && this.anchorButtonPosition) {
-                this.anchorButtonPosition.value = anchorOptimization.buttonPosition;
             }
             if (anchorOptimization.showPreviewButton !== undefined && this.showPreviewButton) {
                 this.showPreviewButton.checked = anchorOptimization.showPreviewButton;

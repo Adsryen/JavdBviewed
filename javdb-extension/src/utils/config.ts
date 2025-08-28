@@ -248,6 +248,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableKeyboardShortcuts: false, // 开发中，暂时关闭
         enableMagnetSearch: false,
         enableAnchorOptimization: false,
+        enableListEnhancement: true, // 默认启用列表增强
         showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
@@ -269,6 +270,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enabled: true, // 默认启用
         enableClickEnhancement: true,
         enableVideoPreview: true,
+        enableScrollPaging: false, // 默认关闭滚动翻页
         enableListOptimization: true,
         previewDelay: 1000,
         previewVolume: 0.2,

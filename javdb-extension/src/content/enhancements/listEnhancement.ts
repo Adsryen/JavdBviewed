@@ -8,6 +8,7 @@ export interface ListEnhancementConfig {
   enableClickEnhancement: boolean;
   enableVideoPreview: boolean;
   enableListOptimization: boolean;
+  enableScrollPaging: boolean;
   previewDelay: number;
   previewVolume: number;
   enableRightClickBackground: boolean;
@@ -24,6 +25,7 @@ class ListEnhancementManager {
     enableClickEnhancement: true,
     enableVideoPreview: true,
     enableListOptimization: true,
+    enableScrollPaging: false,
     previewDelay: 1000,
     previewVolume: 0.2,
     enableRightClickBackground: true,
@@ -33,10 +35,27 @@ class ListEnhancementManager {
   private previewTimer: number | null = null;
   private isScrolling = false;
   private scrollTimer: number | null = null;
+  private isLoadingNextPage = false;
+  private currentPage = 1;
+  private maxPage: number | null = null;
+  private scrollPagingThreshold = 200; // 距离底部多少像素时开始加载
+  private scrollPagingHandler: ((event: Event) => void) | null = null;
 
   updateConfig(newConfig: Partial<ListEnhancementConfig>): void {
+    const oldConfig = { ...this.config };
     this.config = { ...this.config, ...newConfig };
     log('List enhancement config updated:', this.config);
+    
+    // 如果滚动翻页配置发生变化，重新初始化
+    if (oldConfig.enableScrollPaging !== this.config.enableScrollPaging) {
+      if (this.config.enableScrollPaging && this.config.enabled) {
+        this.initScrollPaging();
+        log('Scroll paging enabled and initialized');
+      } else {
+        this.cleanupScrollPaging();
+        log('Scroll paging disabled and cleaned up');
+      }
+    }
   }
 
   initialize(): void {
@@ -54,6 +73,11 @@ class ListEnhancementManager {
 
     // 监听新添加的项目
     this.observeNewItems();
+
+    // 初始化滚动翻页功能
+    if (this.config.enableScrollPaging) {
+      this.initScrollPaging();
+    }
 
     log('List enhancement initialized successfully');
   }
@@ -370,7 +394,6 @@ class ListEnhancementManager {
 
       // 处理不同的代码格式
       const normalizedCode = code.replace(/HEYZO-/gi, "").toLowerCase();
-      const upperCode = code.toUpperCase();
 
       // 根据代码模式生成可能的URL
       const urls: string[] = [];
@@ -610,6 +633,178 @@ class ListEnhancementManager {
     }
     titleElement.classList.add('x-title');
   }
+
+  private initScrollPaging(): void {
+    log('Initializing scroll paging...');
+    
+    // 清理之前的监听器
+    this.cleanupScrollPaging();
+    
+    // 获取当前页码和最大页码
+    this.updatePageInfo();
+    
+    // 创建并保存滚动监听器引用
+    this.scrollPagingHandler = this.handleScrollPaging.bind(this);
+    window.addEventListener('scroll', this.scrollPagingHandler, { passive: true });
+    
+    // 创建加载指示器
+    this.createLoadingIndicator();
+    
+    log('Scroll paging initialized');
+  }
+
+  private cleanupScrollPaging(): void {
+    log('Cleaning up scroll paging...');
+    
+    // 移除滚动监听器
+    if (this.scrollPagingHandler) {
+      window.removeEventListener('scroll', this.scrollPagingHandler);
+      this.scrollPagingHandler = null;
+    }
+    
+    // 移除加载指示器
+    const loadingIndicator = document.querySelector('.scroll-paging-loading');
+    if (loadingIndicator) {
+      loadingIndicator.remove();
+    }
+    
+    // 重置状态
+    this.isLoadingNextPage = false;
+    this.currentPage = 1;
+    this.maxPage = null;
+    
+    log('Scroll paging cleaned up');
+  }
+
+  private updatePageInfo(): void {
+    // 从URL获取当前页码
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageParam = urlParams.get('page');
+    this.currentPage = pageParam ? parseInt(pageParam, 10) : 1;
+    
+    // 尝试从分页器获取最大页码
+    const paginationLinks = document.querySelectorAll('.pagination-link');
+    let maxPageFromPagination = 0;
+    
+    paginationLinks.forEach(link => {
+      const href = (link as HTMLAnchorElement).href;
+      const match = href.match(/page=(\d+)/);
+      if (match) {
+        const pageNum = parseInt(match[1], 10);
+        if (pageNum > maxPageFromPagination) {
+          maxPageFromPagination = pageNum;
+        }
+      }
+    });
+    
+    // 如果找到了分页信息，设置最大页码
+    if (maxPageFromPagination > 0) {
+      this.maxPage = maxPageFromPagination;
+    }
+    
+    log(`Current page: ${this.currentPage}, Max page: ${this.maxPage}`);
+  }
+
+  private handleScrollPaging(): void {
+    // 如果正在加载或已到最后一页，则不处理
+    if (this.isLoadingNextPage || (this.maxPage && this.currentPage >= this.maxPage)) {
+      return;
+    }
+    
+    // 计算滚动位置
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    
+    // 检查是否接近底部
+    const distanceToBottom = documentHeight - (scrollTop + windowHeight);
+    
+    if (distanceToBottom <= this.scrollPagingThreshold) {
+      this.loadNextPage();
+    }
+  }
+
+  private async loadNextPage(): Promise<void> {
+    if (this.isLoadingNextPage) return;
+    if (this.maxPage && this.currentPage >= this.maxPage) {
+      log('Already at last page');
+      return;
+    }
+
+    this.isLoadingNextPage = true;
+    const nextPage = this.currentPage + 1;
+
+    try {
+      log(`Loading page ${nextPage}...`);
+      this.showLoadingIndicator();
+
+      const nextUrl = this.buildNextPageUrl(nextPage);
+      const response = await fetch(nextUrl);
+      const html = await response.text();
+
+      // 解析HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 提取新的影片项目
+      const newItems = doc.querySelectorAll('.movie-list .item');
+      const movieList = document.querySelector('.movie-list');
+
+      if (movieList && newItems.length > 0) {
+        newItems.forEach(item => {
+          movieList.appendChild(item.cloneNode(true));
+        });
+
+        this.currentPage = nextPage;
+        log(`Successfully loaded page ${nextPage}, added ${newItems.length} items`);
+
+        // 更新URL但不刷新页面
+        const newUrl = this.buildNextPageUrl(nextPage);
+        window.history.pushState({}, '', newUrl);
+      }
+
+    } catch (error) {
+      log('Failed to load next page:', error);
+    } finally {
+      this.isLoadingNextPage = false;
+      this.hideLoadingIndicator();
+    }
+  }
+
+  private buildNextPageUrl(nextPage: number): string {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', nextPage.toString());
+    return url.toString();
+  }
+
+  private createLoadingIndicator(): void {
+    if (document.getElementById('scroll-loading-indicator')) return;
+    
+    const indicator = document.createElement('div');
+    indicator.id = 'scroll-loading-indicator';
+    indicator.className = 'scroll-loading-indicator';
+    indicator.innerHTML = `
+      <div class="loading-spinner"></div>
+      <span class="loading-text">正在加载更多内容...</span>
+    `;
+    indicator.style.display = 'none';
+    
+    document.body.appendChild(indicator);
+  }
+
+  private showLoadingIndicator(): void {
+    const indicator = document.getElementById('scroll-loading-indicator');
+    if (indicator) {
+      indicator.style.display = 'flex';
+    }
+  }
+
+  private hideLoadingIndicator(): void {
+    const indicator = document.getElementById('scroll-loading-indicator');
+    if (indicator) {
+      indicator.style.display = 'none';
+    }
+  }
 }
 
 export const listEnhancementManager = new ListEnhancementManager();
@@ -711,6 +906,37 @@ function injectStyles(): void {
       .x-cover video {
         pointer-events: none;
       }
+    }
+
+    /* 滚动翻页加载指示器样式 */
+    .scroll-loading-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loading-text {
+      white-space: nowrap;
     }
   `;
 
