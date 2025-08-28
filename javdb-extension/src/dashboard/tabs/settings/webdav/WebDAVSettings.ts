@@ -222,12 +222,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     private async handleSaveSettings(): Promise<void> {
         try {
-            const result = await this.saveSettings();
-            if (result.success) {
-                showMessage('WebDAV设置已保存', 'success');
-            } else {
-                showMessage(`保存失败: ${result.error}`, 'error');
-            }
+            await this.saveSettings();
+            // 基类的 saveSettings 方法会自动显示成功消息，这里不需要重复显示
         } catch (error) {
             console.error('保存WebDAV设置失败:', error);
             showMessage('保存失败，请重试', 'error');
@@ -276,7 +272,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         try {
             await this.saveSettings();
             logAsync('INFO', '用户开始测试WebDAV连接');
-            showMessage('正在保存设置并测试连接...', 'info');
+            showMessage('正在测试连接...', 'info');
             this.testWebdavConnectionBtn.textContent = '连接测试中...';
             this.testWebdavConnectionBtn.disabled = true;
 
@@ -300,8 +296,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 this.testWebdavConnectionBtn.disabled = false;
             });
         } catch (error) {
-            showMessage('❌ 保存设置失败，无法进行连接测试', 'error');
-            logAsync('ERROR', `保存WebDAV设置失败：${error instanceof Error ? error.message : '未知错误'}`);
+            showMessage('❌ 无法进行连接测试', 'error');
+            logAsync('ERROR', `WebDAV连接测试失败：${error instanceof Error ? error.message : '未知错误'}`);
             this.testWebdavConnectionBtn.textContent = '测试连接';
             this.testWebdavConnectionBtn.disabled = false;
         }
@@ -316,7 +312,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         try {
             await this.saveSettings();
             logAsync('INFO', '用户开始诊断WebDAV连接');
-            showMessage('正在保存设置并进行详细诊断...', 'info');
+            showMessage('正在进行详细诊断...', 'info');
             this.diagnoseWebdavConnectionBtn.textContent = '诊断中...';
             this.diagnoseWebdavConnectionBtn.disabled = true;
 
@@ -344,8 +340,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 this.diagnoseWebdavConnectionBtn.disabled = false;
             });
         } catch (error) {
-            showMessage('❌ 保存设置失败，无法进行诊断', 'error');
-            logAsync('ERROR', `保存WebDAV设置失败：${error instanceof Error ? error.message : '未知错误'}`);
+            showMessage('❌ 无法进行诊断', 'error');
+            logAsync('ERROR', `WebDAV诊断失败：${error instanceof Error ? error.message : '未知错误'}`);
             this.diagnoseWebdavConnectionBtn.textContent = '诊断连接';
             this.diagnoseWebdavConnectionBtn.disabled = false;
         }
