@@ -24,6 +24,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private saveWebdavSettingsBtn!: HTMLButtonElement;
     private testWebdavConnectionBtn!: HTMLButtonElement;
     private diagnoseWebdavConnectionBtn!: HTMLButtonElement;
+    private toggleWebdavPasswordVisibilityBtn!: HTMLButtonElement;
     private lastSyncTime!: HTMLSpanElement;
 
     constructor() {
@@ -48,10 +49,12 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
         this.testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
         this.diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
+        this.toggleWebdavPasswordVisibilityBtn = document.getElementById('toggleWebdavPasswordVisibility') as HTMLButtonElement;
         this.lastSyncTime = document.getElementById('last-sync-time') as HTMLSpanElement;
 
         if (!this.webdavEnabled || !this.webdavUrl || !this.webdavUser || !this.webdavPass ||
-            !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn) {
+            !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn ||
+            !this.toggleWebdavPasswordVisibilityBtn) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -64,6 +67,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavEnabled.addEventListener('change', this.handleWebDAVEnabledChange.bind(this));
         this.testWebdavConnectionBtn.addEventListener('click', this.handleTestWebDAV.bind(this));
         this.diagnoseWebdavConnectionBtn.addEventListener('click', this.handleDiagnoseWebDAV.bind(this));
+        this.toggleWebdavPasswordVisibilityBtn.addEventListener('click', this.handleTogglePasswordVisibility.bind(this));
     }
 
     /**
@@ -74,6 +78,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavEnabled?.removeEventListener('change', this.handleWebDAVEnabledChange.bind(this));
         this.testWebdavConnectionBtn?.removeEventListener('click', this.handleTestWebDAV.bind(this));
         this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.handleDiagnoseWebDAV.bind(this));
+        this.toggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.handleTogglePasswordVisibility.bind(this));
     }
 
     /**
@@ -399,5 +404,21 @@ export class WebDAVSettings extends BaseSettingsPanel {
         }
 
         return resultMessage;
+    }
+
+    /**
+     * 处理密码可见性切换
+     */
+    private handleTogglePasswordVisibility(): void {
+        const isPassword = this.webdavPass.type === 'password';
+        this.webdavPass.type = isPassword ? 'text' : 'password';
+
+        const icon = this.toggleWebdavPasswordVisibilityBtn.querySelector('i');
+        if (icon) {
+            icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+        }
+
+        // 更新按钮标题
+        this.toggleWebdavPasswordVisibilityBtn.title = isPassword ? '隐藏密码' : '显示密码';
     }
 }

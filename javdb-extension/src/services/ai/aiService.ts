@@ -7,14 +7,12 @@ import type {
     ChatCompletionResponse,
     AIModel,
     ConnectionTestResult,
-    AIServiceStatus,
-    StreamChunk
+    AIServiceStatus
 } from '../../types/ai';
 import { DEFAULT_AI_SETTINGS } from '../../types/ai';
 import { NewApiClient, StreamParser } from './newApiClient';
 import { ModelManager } from './modelManager';
 import { getSettings, saveSettings as saveMainSettings } from '../../utils/storage';
-import type { ExtensionSettings } from '../../types';
 
 /**
  * AI服务核心类
@@ -43,7 +41,11 @@ export class AIService {
     private async loadSettings(): Promise<void> {
         try {
             const mainSettings = await getSettings();
-            this.settings = mainSettings.ai;
+            // 确保AI设置存在并正确合并默认值
+            this.settings = {
+                ...DEFAULT_AI_SETTINGS,
+                ...(mainSettings.ai || {})
+            };
             this.updateClients();
         } catch (error) {
             console.warn('加载AI设置失败:', error);
@@ -397,6 +399,25 @@ export class AIService {
         return Math.ceil(chineseChars / 1.5 + otherChars / 4);
     }
 
+    /**
+     * 重置设置到默认值
+     */
+    async resetSettings(): Promise<void> {
+        this.settings = { ...DEFAULT_AI_SETTINGS };
+        
+        try {
+            // 获取当前主设置
+            const mainSettings = await getSettings();
+            // 重置AI设置部分
+            mainSettings.ai = this.settings;
+            // 保存到主设置系统
+            await saveMainSettings(mainSettings);
+            this.updateClients();
+        } catch (error) {
+            console.error('重置AI设置失败:', error);
+            throw new Error('重置设置失败');
+        }
+    }
 
 }
 
