@@ -186,7 +186,15 @@
 
 /* 日志设置面板特有样式 */
 #log-settings {
-    /* 面板特有样式可以在这里定义 */
+    display: block;
+    width: 100%;
+}
+
+#log-settings .settings-panel-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 #log-settings .logging-section {
@@ -218,12 +226,18 @@
 }
 
 #log-settings .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
 }
 
 #log-settings .form-group label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0 !important;
     font-weight: 500;
     color: var(--text-primary);
 }
@@ -250,7 +264,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
 }
 
 #log-settings .form-group-checkbox input[type="checkbox"] {
@@ -268,6 +282,7 @@
     font-size: 0.8rem;
     color: var(--text-secondary);
     margin-top: 0.25rem;
+    margin-bottom: 0 !important;
     line-height: 1.4;
 }
 
