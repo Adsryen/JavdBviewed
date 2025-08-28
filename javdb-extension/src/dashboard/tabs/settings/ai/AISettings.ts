@@ -3,15 +3,12 @@
  * AI功能配置、模型管理、API设置等
  */
 
-import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import { aiService } from '../../../../services/ai/aiService';
 import type { ExtensionSettings } from '../../../../types';
 import type { AISettings, AIModel } from '../../../../types/ai';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
-import { saveSettings } from '../../../../utils/storage';
 
 /**
  * AI设置面板类
@@ -136,7 +133,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
         // 按钮事件
         this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this));
         this.loadModelsBtn?.addEventListener('click', this.handleLoadModels.bind(this));
-        this.saveAISettingsBtn?.addEventListener('click', this.handleSaveSettings.bind(this));
+        this.saveAISettingsBtn?.addEventListener('click', this.handleManualSave.bind(this));
         this.resetAISettingsBtn?.addEventListener('click', this.handleResetSettings.bind(this));
         this.sendTestMessageBtn?.addEventListener('click', this.handleSendTestMessage.bind(this));
         this.exportAISettingsBtn?.addEventListener('click', this.handleExportSettings.bind(this));
@@ -320,13 +317,15 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     private handleProviderChange(): void {
         // 根据提供商更新默认端点
-        const provider = this.apiProvider.value;
-        if (provider === 'openai') {
-            this.apiEndpoint.value = 'https://api.openai.com/v1';
-        } else if (provider === 'anthropic') {
-            this.apiEndpoint.value = 'https://api.anthropic.com/v1';
-        } else {
-            this.apiEndpoint.value = '';
+        if (this.apiProvider) {
+            const provider = this.apiProvider.value;
+            if (provider === 'openai') {
+                this.apiEndpoint.value = 'https://api.openai.com/v1';
+            } else if (provider === 'anthropic') {
+                this.apiEndpoint.value = 'https://api.anthropic.com/v1';
+            } else {
+                this.apiEndpoint.value = '';
+            }
         }
         
         this.emit('change');
@@ -352,8 +351,17 @@ export class AISettingsPanel extends BaseSettingsPanel {
     /**
      * 处理设置变化
      */
-    private handleSettingChange(): void {
+    private async handleSettingChange(): Promise<void> {
         this.emit('change');
+        
+        // 如果是模型选择变化，立即保存
+        if (this.selectedModel && this.selectedModel.value !== this.aiSettings.selectedModel) {
+            try {
+                await this.saveModelSelection();
+            } catch (error) {
+                console.warn('自动保存模型选择失败:', error);
+            }
+        }
     }
 
     /**
@@ -494,7 +502,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
     private async handleSendTestMessage(): Promise<void> {
         const message = this.testInput.value.trim();
         if (!message) {
-            showMessage('请输入测试消息', 'warning');
+            showMessage('请输入测试消息', 'warn');
             return;
         }
 
@@ -626,6 +634,44 @@ export class AISettingsPanel extends BaseSettingsPanel {
         const icon = this.toggleApiKeyVisibilityBtn.querySelector('i');
         if (icon) {
             icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+        }
+    }
+
+    /**
+     * 保存模型选择（单独保存，用于即时持久化）
+     */
+    private async saveModelSelection(): Promise<void> {
+        try {
+            const selectedModel = this.selectedModel.value;
+            if (selectedModel) {
+                // 更新本地设置
+                this.aiSettings.selectedModel = selectedModel;
+                
+                // 保存到aiService
+                await aiService.saveSettings({ selectedModel });
+                
+                console.log('模型选择已保存:', selectedModel);
+            }
+        } catch (error) {
+            console.error('保存模型选择失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 处理手动保存设置
+     */
+    private async handleManualSave(): Promise<void> {
+        try {
+            const result = await this.doSaveSettings();
+            if (result.success) {
+                showMessage('AI设置保存成功', 'success');
+            } else {
+                showMessage(`保存失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            showMessage('保存AI设置失败', 'error');
+            console.error('保存AI设置失败:', error);
         }
     }
 }

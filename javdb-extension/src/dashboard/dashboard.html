@@ -613,15 +613,20 @@
                                 <div id="webdav-fields-container">
                                     <div class="form-group">
                                         <label for="webdavUrl">WebDAV 地址:</label>
-                                        <input type="text" id="webdavUrl" placeholder="例如: https://dav.jianguoyun.com/dav/">
+                                        <input type="text" id="webdavUrl" placeholder="例如: https://dav.jianguoyun.com/dav/" style="width: 100%; max-width: none; box-sizing: border-box;">
                                     </div>
                                     <div class="form-group">
                                         <label for="webdavUser">用户名:</label>
-                                        <input type="text" id="webdavUser">
+                                        <input type="text" id="webdavUser" style="width: 100%; max-width: none; box-sizing: border-box;">
                                     </div>
                                     <div class="form-group">
                                         <label for="webdavPass">密码/应用密钥:</label>
-                                        <input type="password" id="webdavPass">
+                                        <div class="password-input-container" style="position: relative; display: block; width: 100%;">
+                                            <input type="password" id="webdavPass" style="width: 100%; max-width: none; padding-right: 45px; box-sizing: border-box;">
+                                            <button type="button" id="toggleWebdavPasswordVisibility" class="toggle-password-btn" title="显示/隐藏密码" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 6px; color: #64748b; z-index: 1000; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 3px;">
+                                                <i class="fas fa-eye" style="font-size: 14px; line-height: 1;"></i>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div class="button-group">
