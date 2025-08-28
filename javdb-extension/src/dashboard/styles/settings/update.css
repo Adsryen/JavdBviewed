@@ -2,8 +2,71 @@
  * 更新检查设置面板样式
  */
 
+/* CSS变量定义 */
+:root {
+    --update-primary: #06b6d4;
+    --update-secondary: #67e8f9;
+    --update-bg: #ecfeff;
+    --update-card-bg: #ffffff;
+    --update-border: #a5f3fc;
+    --update-text: #1e293b;
+    --update-text-muted: #64748b;
+    --update-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --update-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 更新设置面板特有样式 */
 #update-settings {
-    /* 面板基础样式继承自全局设置 */
+    position: relative;
+    overflow: hidden;
+}
+
+#update-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(6, 182, 212, 0.05) 0%,
+        rgba(103, 232, 249, 0.05) 50%,
+        rgba(165, 243, 252, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#update-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#update-settings .settings-panel-header h3 {
+    color: var(--update-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#update-settings .settings-panel-header h3::before {
+    content: '🔄';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#update-settings .settings-description {
+    color: var(--update-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
 /* 版本信息区域 - 只在检查更新页面生效 */

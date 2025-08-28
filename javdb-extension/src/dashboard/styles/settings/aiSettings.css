@@ -1,5 +1,72 @@
 /* AI设置页面样式 */
 
+/* CSS变量定义 */
+:root {
+    --ai-primary: #8b5cf6;
+    --ai-secondary: #a78bfa;
+    --ai-bg: #faf5ff;
+    --ai-card-bg: #ffffff;
+    --ai-border: #e9d5ff;
+    --ai-text: #1e293b;
+    --ai-text-muted: #64748b;
+    --ai-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --ai-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* AI设置面板特有样式 */
+#ai-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#ai-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(139, 92, 246, 0.05) 0%,
+        rgba(167, 139, 250, 0.05) 50%,
+        rgba(196, 181, 253, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#ai-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#ai-settings .settings-panel-header h3 {
+    color: var(--ai-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#ai-settings .settings-panel-header h3::before {
+    content: '🤖';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#ai-settings .settings-description {
+    color: var(--ai-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
 /* AI设置面板 */
 #ai-settings {
     --ai-primary-color: #4f46e5;
@@ -26,17 +93,7 @@
     --info-bg-color: #d1ecf1;
 }
 
-/* AI设置标题 */
-#ai-settings .settings-panel-header h3 {
-    color: var(--ai-primary-color);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#ai-settings .settings-panel-header h3 i {
-    font-size: 1.2em;
-}
+/* 原有的标题样式已在上方重新定义 */
 
 /* AI设置区块 */
 #ai-settings .settings-section {
@@ -112,6 +169,7 @@
     background: var(--ai-border-color);
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
     box-sizing: border-box;
 }
 

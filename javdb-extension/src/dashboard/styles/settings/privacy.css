@@ -1,5 +1,72 @@
 /* 隐私保护功能样式 */
 
+/* CSS变量定义 */
+:root {
+    --privacy-primary: #ef4444;
+    --privacy-secondary: #f87171;
+    --privacy-bg: #f8fafc;
+    --privacy-card-bg: #ffffff;
+    --privacy-border: #e2e8f0;
+    --privacy-text: #1e293b;
+    --privacy-text-muted: #64748b;
+    --privacy-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --privacy-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 隐私保护设置面板特有样式 */
+#privacy-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#privacy-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(239, 68, 68, 0.05) 0%,
+        rgba(248, 113, 113, 0.05) 50%,
+        rgba(252, 165, 165, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#privacy-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#privacy-settings .settings-panel-header h3 {
+    color: var(--privacy-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#privacy-settings .settings-panel-header h3::before {
+    content: '🔒';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#privacy-settings .settings-description {
+    color: var(--privacy-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
 /* 状态指示器 */
 .status-success {
     color: #4CAF50;
@@ -176,15 +243,17 @@
 
 /* 页面状态样式 */
 body.privacy-blur-active {
-    /* 可以添加全局模糊状态的样式 */
+    filter: blur(2px);
+    pointer-events: none;
 }
 
 body.privacy-locked {
-    /* 锁定状态的样式 */
+    overflow: hidden;
 }
 
 body.privacy-authenticated {
-    /* 认证状态的样式 */
+    filter: none;
+    pointer-events: auto;
 }
 
 /* 锁定状态下禁用交互 */
@@ -466,6 +535,7 @@ body.privacy-authenticated {
     background: #e5e7eb;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 .privacy-slider::-webkit-slider-thumb {
@@ -656,10 +726,7 @@ body.privacy-authenticated {
    =================== 隐私设置面板样式 ============================
    ================================================================= */
 
-/* 隐私保护设置面板特有样式 */
-#privacy-settings {
-    /* 面板特有样式可以在这里定义 */
-}
+/* 隐私保护设置面板特有样式已在文件开头定义 */
 
 #privacy-settings .privacy-section {
     background: var(--bg-secondary);

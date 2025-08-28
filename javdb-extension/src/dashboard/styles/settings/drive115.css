@@ -1,5 +1,72 @@
 /* 115网盘设置样式 */
 
+/* CSS变量定义 */
+:root {
+    --drive115-primary: #ff6b35;
+    --drive115-secondary: #ff8a65;
+    --drive115-bg: #fff3e0;
+    --drive115-card-bg: #ffffff;
+    --drive115-border: #ffcc02;
+    --drive115-text: #1e293b;
+    --drive115-text-muted: #64748b;
+    --drive115-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --drive115-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 115网盘设置面板特有样式 */
+#drive115-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#drive115-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(255, 107, 53, 0.05) 0%,
+        rgba(255, 138, 101, 0.05) 50%,
+        rgba(255, 204, 2, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#drive115-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#drive115-settings .settings-panel-header h3 {
+    color: var(--drive115-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .settings-panel-header h3::before {
+    content: '☁️';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#drive115-settings .settings-description {
+    color: var(--drive115-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
 /* 115设置容器 */
 .drive115-settings-container {
     transition: opacity 0.3s ease, filter 0.3s ease;

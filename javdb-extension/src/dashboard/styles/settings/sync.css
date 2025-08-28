@@ -2,9 +2,71 @@
  * 同步设置面板样式
  */
 
+/* CSS变量定义 */
+:root {
+    --sync-primary: #10b981;
+    --sync-secondary: #34d399;
+    --sync-bg: #f8fafc;
+    --sync-card-bg: #ffffff;
+    --sync-border: #e2e8f0;
+    --sync-text: #1e293b;
+    --sync-text-muted: #64748b;
+    --sync-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --sync-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* 同步设置面板特有样式 */
 #sync-settings {
-    /* 面板特有样式可以在这里定义 */
+    position: relative;
+    overflow: hidden;
+}
+
+#sync-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(16, 185, 129, 0.05) 0%,
+        rgba(52, 211, 153, 0.05) 50%,
+        rgba(110, 231, 183, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#sync-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#sync-settings .settings-panel-header h3 {
+    color: var(--sync-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#sync-settings .settings-panel-header h3::before {
+    content: '🔄';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#sync-settings .settings-description {
+    color: var(--sync-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
 #sync-settings .form-section {
