@@ -1,5 +1,72 @@
 /* Emby增强设置样式 */
 
+/* CSS变量定义 */
+:root {
+    --emby-primary: #00a4dc;
+    --emby-secondary: #52c4e8;
+    --emby-bg: #f8fafc;
+    --emby-card-bg: #ffffff;
+    --emby-border: #e2e8f0;
+    --emby-text: #1e293b;
+    --emby-text-muted: #64748b;
+    --emby-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --emby-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Emby设置面板特有样式 */
+#emby-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#emby-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(0, 164, 220, 0.05) 0%,
+        rgba(82, 196, 232, 0.05) 50%,
+        rgba(147, 197, 253, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#emby-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#emby-settings .settings-panel-header h3 {
+    color: var(--emby-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#emby-settings .settings-panel-header h3::before {
+    content: '📺';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#emby-settings .settings-description {
+    color: var(--emby-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
 /* URL列表容器 */
 .url-list-container {
     margin-top: 10px;

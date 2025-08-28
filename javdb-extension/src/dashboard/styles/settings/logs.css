@@ -1,3 +1,70 @@
+/* 日志页面样式 */
+
+/* CSS变量定义 */
+:root {
+    --logs-primary: #6366f1;
+    --logs-secondary: #818cf8;
+    --logs-bg: #f1f5f9;
+    --logs-card-bg: #ffffff;
+    --logs-border: #cbd5e1;
+    --logs-text: #1e293b;
+    --logs-text-muted: #64748b;
+    --logs-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --logs-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 日志设置面板特有样式 */
+#tab-logs {
+    position: relative;
+    overflow: hidden;
+}
+
+#tab-logs::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(99, 102, 241, 0.05) 0%,
+        rgba(129, 140, 248, 0.05) 50%,
+        rgba(165, 180, 252, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#tab-logs .card:first-child {
+    position: relative;
+    text-align: center;
+    padding-top: 20px;
+}
+
+#tab-logs .card:first-child .settings-section:first-child h4 {
+    color: var(--logs-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#tab-logs .card:first-child .settings-section:first-child h4::before {
+    content: '📋';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#logs-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+/* 日志页面的header样式已在上方定义 */
+
 /* Log Container */
 #logContainer {
     margin-top: 20px;
