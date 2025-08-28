@@ -83,6 +83,7 @@ export interface ExtensionSettings {
         enableMagnetSearch: boolean; // 启用磁力搜索
         enableAnchorOptimization: boolean; // 启用锚点优化
         enableListEnhancement: boolean; // 启用列表增强
+        enableActorEnhancement: boolean; // 启用演员页增强
         showEnhancedTooltips: boolean; // 显示增强提示
     };
 
@@ -109,6 +110,14 @@ export interface ExtensionSettings {
         previewDelay: number; // 预览延迟时间（毫秒）
         previewVolume: number; // 预览音量（0-1）
         enableRightClickBackground: boolean; // 启用右键后台打开
+    };
+
+    // 新增：演员页增强配置
+    actorEnhancement: {
+        enabled: boolean; // 启用演员页增强功能
+        autoApplyTags: boolean; // 自动应用保存的tag过滤器
+        defaultTags: string[]; // 默认应用的tags (如 ['s', 'd'])
+        defaultSortType: number; // 默认排序类型
     };
 
     // 新增：Emby增强配置

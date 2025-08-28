@@ -20,6 +20,7 @@ import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
 import { initializeContentPrivacy } from './privacy';
 import { listEnhancementManager } from './enhancements/listEnhancement';
+import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { embyEnhancementManager } from './embyEnhancement';
 
 // --- Utility Functions ---
@@ -219,6 +220,18 @@ async function initialize(): Promise<void> {
         listEnhancementManager.initialize();
     }
 
+    // 初始化演员页增强功能
+    if (settings.actorEnhancement?.enabled !== false) {
+        log('Actor enhancement manager initialized');
+        actorEnhancementManager.updateConfig({
+            enabled: true,
+            autoApplyTags: settings.actorEnhancement?.autoApplyTags !== false,
+            defaultTags: settings.actorEnhancement?.defaultTags || ['s', 'd'],
+            defaultSortType: settings.actorEnhancement?.defaultSortType || 0,
+        });
+        actorEnhancementManager.init();
+    }
+
     // 初始化Emby增强功能
     if (settings.emby?.enabled) {
         log('Emby enhancement manager initialized');
@@ -299,8 +312,8 @@ export function onExecute() {
     initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
 }
 
-// 监听来自popup或dashboard的设置更新消息
-chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+// 监听来自popup或dashboard的设置更新// 消息监听器
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type === 'settings-updated') {
         log('Settings updated, reloading settings and reprocessing items');
         // 重新加载设置并重新处理页面项目
@@ -335,6 +348,36 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
                 log(`Content filter rules updated: ${message.keywordRules.length} rules`);
             }, 100);
         }
+    } else if (message.type === 'ACTOR_ENHANCEMENT_SAVE_FILTER') {
+        // 保存当前演员页过滤器
+        try {
+            await actorEnhancementManager.saveCurrentTagFilter();
+            sendResponse({ success: true });
+        } catch (error) {
+            console.error('保存演员页过滤器失败:', error);
+            sendResponse({ success: false, error: error.message });
+        }
+        return true; // 保持消息通道开放
+    } else if (message.type === 'ACTOR_ENHANCEMENT_CLEAR_FILTERS') {
+        // 清除所有保存的过滤器
+        try {
+            await actorEnhancementManager.clearSavedFilters();
+            sendResponse({ success: true });
+        } catch (error) {
+            console.error('清除演员页过滤器失败:', error);
+            sendResponse({ success: false, error: error.message });
+        }
+        return true; // 保持消息通道开放
+    } else if (message.type === 'ACTOR_ENHANCEMENT_GET_STATUS') {
+        // 获取演员页增强状态
+        try {
+            const status = actorEnhancementManager.getStatus();
+            sendResponse(status);
+        } catch (error) {
+            console.error('获取演员页状态失败:', error);
+            sendResponse({ error: error.message });
+        }
+        return true; // 保持消息通道开放
     }
 });
 
@@ -525,6 +568,9 @@ if (typeof window !== 'undefined') {
     
     // 暴露列表增强管理器以便调试和测试
     (window as any).listEnhancementManager = listEnhancementManager;
+    
+    // 暴露演员页增强管理器以便调试和测试
+    (window as any).actorEnhancementManager = actorEnhancementManager;
 }
 
 // 页面卸载时清理资源
