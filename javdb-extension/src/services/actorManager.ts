@@ -78,7 +78,8 @@ export class ActorManager {
         sortBy: 'name' | 'updatedAt' | 'worksCount' = 'name',
         sortOrder: 'asc' | 'desc' = 'asc',
         genderFilter?: string,
-        categoryFilter?: string
+        categoryFilter?: string,
+        blacklistFilter: 'all' | 'exclude' | 'only' = 'all'
     ): Promise<ActorSearchResult> {
         await this.initialize();
 
@@ -101,6 +102,13 @@ export class ActorManager {
         // 分类筛选
         if (categoryFilter) {
             actors = actors.filter(actor => actor.category === categoryFilter);
+        }
+
+        // 黑名单筛选
+        if (blacklistFilter === 'exclude') {
+            actors = actors.filter(actor => !actor.blacklisted);
+        } else if (blacklistFilter === 'only') {
+            actors = actors.filter(actor => !!actor.blacklisted);
         }
         
         // 排序
@@ -145,6 +153,24 @@ export class ActorManager {
             pageSize,
             hasMore: endIndex < total
         };
+    }
+
+    /**
+     * 设置演员黑名单状态（本地字段）
+     */
+    async setBlacklisted(id: string, blacklisted: boolean): Promise<void> {
+        await this.initialize();
+        const existing = this.cache.get(id);
+        if (!existing) {
+            throw new Error(`Actor not found: ${id}`);
+        }
+        const updated: ActorRecord = {
+            ...existing,
+            blacklisted,
+            updatedAt: Date.now(),
+        };
+        this.cache.set(id, updated);
+        await this.saveToStorage();
     }
 
     /**
@@ -229,6 +255,7 @@ export class ActorManager {
         byCategory: Record<string, number>;
         recentlyAdded: number; // 最近7天添加的
         recentlyUpdated: number; // 最近7天更新的
+        blacklisted: number; // 被拉黑的演员数量（本地）
     }> {
         await this.initialize();
 
@@ -240,6 +267,7 @@ export class ActorManager {
         const byCategory: Record<string, number> = {};
         let recentlyAdded = 0;
         let recentlyUpdated = 0;
+        let blacklisted = 0;
 
         actors.forEach(actor => {
             // 按性别统计
@@ -257,6 +285,11 @@ export class ActorManager {
             if (actor.updatedAt > weekAgo) {
                 recentlyUpdated++;
             }
+
+            // 本地黑名单统计（仅本地字段）
+            if (actor.blacklisted) {
+                blacklisted++;
+            }
         });
 
         return {
@@ -264,7 +297,8 @@ export class ActorManager {
             byGender,
             byCategory,
             recentlyAdded,
-            recentlyUpdated
+            recentlyUpdated,
+            blacklisted
         };
     }
 
@@ -290,7 +324,8 @@ export class ActorManager {
      */
     async exportActors(): Promise<ActorRecord[]> {
         await this.initialize();
-        return Array.from(this.cache.values());
+        // 返回完整数据（包含 blacklisted），与演员库保持一致
+        return Array.from(this.cache.values()).map(actor => ({ ...actor }));
     }
 
     /**
@@ -324,6 +359,7 @@ export class ActorManager {
                 updated++;
                 actor.createdAt = existing.createdAt;
                 actor.updatedAt = now;
+                // 保持导入数据原貌（包含 blacklisted），不强制以本地为准
             } else {
                 imported++;
                 actor.createdAt = actor.createdAt || now;

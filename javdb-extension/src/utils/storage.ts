@@ -19,6 +19,7 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
 
 export async function getSettings(): Promise<ExtensionSettings> {
     const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
+
     log.storage('Loading settings from storage', {
         key: STORAGE_KEYS.SETTINGS,
         hasStoredSettings: !!storedSettings,
@@ -26,9 +27,17 @@ export async function getSettings(): Promise<ExtensionSettings> {
     });
 
     // Deep merge to ensure all nested properties from default are present
-    const mergedSettings = {
+    const mergedSettings: ExtensionSettings = {
         ...DEFAULT_SETTINGS,
         ...storedSettings,
+        actorLibrary: {
+            ...DEFAULT_SETTINGS.actorLibrary,
+            ...(storedSettings.actorLibrary || {}),
+            blacklist: {
+                ...DEFAULT_SETTINGS.actorLibrary.blacklist,
+                ...(storedSettings.actorLibrary?.blacklist || {}),
+            },
+        },
         display: {
             ...DEFAULT_SETTINGS.display,
             ...(storedSettings.display || {}),

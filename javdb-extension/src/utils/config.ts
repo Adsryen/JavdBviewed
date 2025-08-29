@@ -176,6 +176,13 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         hideBrowsed: false, // Corresponds to BROWSED status
         hideVR: false,
     },
+    // 演员库配置默认值
+    actorLibrary: {
+        blacklist: {
+            hideInList: true,
+            showBadge: true,
+        }
+    },
     webdav: {
         enabled: true,
         url: '',
@@ -249,6 +256,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableMagnetSearch: false,
         enableAnchorOptimization: false,
         enableListEnhancement: true, // 默认启用列表增强
+        enableActorEnhancement: false,
         showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
@@ -305,6 +313,14 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：演员同步配置
     actorSync: DEFAULT_ACTOR_SYNC_CONFIG,
+
+    // 新增：演员页增强默认配置
+    actorEnhancement: {
+        enabled: false,
+        autoApplyTags: false,
+        defaultTags: [],
+        defaultSortType: 0,
+    },
 
     // 新增：隐私保护配置
     privacy: DEFAULT_PRIVACY_CONFIG,

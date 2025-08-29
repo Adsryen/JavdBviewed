@@ -9,6 +9,14 @@ export interface ExtensionSettings {
         hideBrowsed: boolean;
         hideVR: boolean;
     };
+    // 演员库相关设置
+    actorLibrary: {
+        blacklist: {
+            hideInList: boolean; // 默认在演员库隐藏拉黑
+            showBadge: boolean;  // 非隐藏时显示角标
+        };
+    };
+
     webdav: {
         enabled: boolean;
         url: string;
@@ -222,6 +230,8 @@ export interface ActorRecord {
   worksUrl?: string; // 作品列表页地址
   createdAt: number; // 创建时间 (Unix timestamp)
   updatedAt: number; // 最后更新时间 (Unix timestamp)
+  // 本地偏好：是否拉黑
+  blacklisted?: boolean;
 
   // 可选的详细信息
   details?: {

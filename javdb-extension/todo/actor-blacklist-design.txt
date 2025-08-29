@@ -1,0 +1,133 @@
+# 演员黑名单改造方案（设计稿）
+
+更新时间：2025-08-29 11:04 (UTC+8)
+
+----------------------------------------
+1. 背景与目标
+----------------------------------------
+- 目标：在现有“演员库”中支持黑名单能力。
+- 行为约定：
+  - 收藏：来自 JavDB 的收藏演员，同步进入本地演员库。
+  - 拉黑：在演员页由用户手动点击按钮设置，仅本地偏好，不影响收藏同步。
+- 视图：
+  - 演员库默认隐藏已拉黑演员（排除黑名单）。
+  - 提供“仅显示拉黑”视图，便于集中管理。
+
+----------------------------------------
+2. 术语与约束
+----------------------------------------
+- 最小改动优先：不改变现有同步与数据结构的核心语义。
+- 兼容导入/同步：拉黑标记为本地字段，合并时保留。
+- UI 一致性：演员库与演员页均可操作拉黑；有徽标/置灰状态提示。
+
+----------------------------------------
+3. 数据模型
+----------------------------------------
+- 类型：在 `ActorRecord` 新增可选字段 `blacklisted?: boolean`（默认 false）。
+- 不新增“状态枚举”（后续如需要再升级为 `status`）。
+
+----------------------------------------
+4. 存储与配置
+----------------------------------------
+- 存储键：沿用 `STORAGE_KEYS.ACTOR_RECORDS` 保存 `ActorRecord`；`blacklisted` 就存于每条记录内。
+- 设置项（默认值）：
+  - `settings.actorLibrary.blacklist.hideInList = true`（默认隐藏拉黑）
+  - `settings.actorLibrary.blacklist.showBadge = true`（非隐藏视图显示角标）
+- 变更位置：
+  - `src/utils/config.ts` 的 `DEFAULT_SETTINGS` 新增 `actorLibrary.blacklist` 节点。
+  - `src/utils/storage.ts` 的 `getSettings()` 深合并逻辑自动兼容。
+
+----------------------------------------
+5. 服务层改造（src/services/actorManager.ts）
+----------------------------------------
+- 新增方法：
+  - `async setBlacklisted(id: string, value: boolean): Promise<void>`
+- 兼容合并：
+  - 在 `saveActor()`、`saveActors()`、`importActors()` 中，当缓存存在旧记录且新入参未显式提供 `blacklisted` 时，继承旧值，避免丢失本地拉黑。
+- 搜索增强：
+  - `searchActors(query, page, pageSize, sortBy, sortOrder, genderFilter, categoryFilter, blacklistFilter?)`
+  - `blacklistFilter` 取值：`'exclude' | 'only' | 'all'`，默认由设置决定：
+    - exclude：过滤 `a.blacklisted === true`
+    - only：仅保留 `a.blacklisted === true`
+    - all：不过滤
+
+----------------------------------------
+6. 演员库 UI（src/dashboard/tabs/actors.ts + dashboard.html + 样式）
+----------------------------------------
+- 顶部筛选：
+  - 新增下拉：全部(all) / 排除拉黑(exclude) / 仅拉黑(only)
+  - 初始化默认值：根据 `settings.actorLibrary.blacklist.hideInList` -> 默认 `exclude`
+- 卡片动作：
+  - 在 `.actor-card-actions` 内增加按钮：
+    - 未拉黑：`actor-blacklist-btn`（图标 `fa-ban`） -> `setBlacklisted(id, true)`
+    - 已拉黑：`actor-unblacklist-btn`（图标 `fa-undo`） -> `setBlacklisted(id, false)`
+  - 交互：
+    - 当前为 `exclude` -> 操作后 `loadActors()` 刷新
+    - 其它模式 -> 更新卡片 `data-blacklisted` 与图标/tooltip 即可
+- 样式：
+  - `.actor-card[data-blacklisted="true"]` 置灰/降不透明度
+  - 当 `showBadge=true` 且非隐藏模式，在头像角落显示“🚫”角标
+
+----------------------------------------
+7. 演员页按钮（src/content/enhancements/actorEnhancement.ts）
+----------------------------------------
+- 在演员页面操作区加入“拉黑/取消拉黑”按钮。
+- 调用 `actorManager.setBlacklisted(actorId, true/false)`，Toast 成功提示。
+- 不影响收藏同步。
+
+----------------------------------------
+8. 同步与导入/导出
+----------------------------------------
+- 同步（收藏）不处理 `blacklisted`；合并策略保证本地拉黑不被覆盖。
+- 导入/导出：复用现有 `exportActors()/importActors()`；保留 `blacklisted` 字段。
+- 如需未来单独导出“本地偏好”，可追加 `exportBlacklist()/importBlacklist()`（本次不做）。
+
+----------------------------------------
+9. 性能与边界
+----------------------------------------
+- 性能：过滤在分页前进行，影响极小；字段为布尔常量时间判定。
+- 边界：
+  - 被删除的演员其 `blacklisted` 不影响；再次同步出现仍生效。
+  - 统计口径保持“总库”；如需展示“已拉黑人数”，可在 `getStats()` 追加字段（可选）。
+
+----------------------------------------
+10. 开发步骤（建议提交顺序）
+----------------------------------------
+1) 类型/配置：
+   - `src/types/index.ts`：新增 `ActorRecord.blacklisted?`
+   - `src/utils/config.ts`：新增 `DEFAULT_SETTINGS.actorLibrary.blacklist`
+2) 服务层：
+   - `actorManager`：`setBlacklisted()`；合并策略；`searchActors()` 支持 `blacklistFilter`
+3) UI（演员库）：
+   - 顶部筛选下拉；卡片拉黑/取消按钮；徽标与置灰样式
+4) 演员页按钮：
+   - 一键拉黑/取消拉黑；Toast
+5) 打磨与验证：
+   - 词条/提示语；轻量动画；错误处理
+
+----------------------------------------
+11. 测试用例（核心）
+----------------------------------------
+- 默认视图为“排除拉黑”，拉黑后立刻从列表消失。
+- 切换“仅拉黑”可看到被拉黑的演员并可取消拉黑。
+- 同步后，已有演员的 `blacklisted` 不丢失。
+- 导入数据（merge/replace）时，旧记录 `blacklisted` 在未显式提供新值时被保留。
+- UI 卡片按钮图标与 tooltip 正确切换；徽标与置灰样式正确。
+
+----------------------------------------
+12. 回滚策略
+----------------------------------------
+- 字段级回滚：移除 `blacklisted` 字段读取与写入逻辑（其余模块不受影响）。
+- UI 回滚：隐藏筛选与按钮（CSS/DOM 级别），不影响既有功能。
+- 数据安全：`blacklisted` 为可选布尔，不影响 `ActorRecord` 反序列化；旧数据继续有效。
+
+----------------------------------------
+附：实施文件清单
+----------------------------------------
+- `src/types/index.ts`
+- `src/utils/config.ts`
+- `src/services/actorManager.ts`
+- `src/dashboard/tabs/actors.ts`
+- `src/content/enhancements/actorEnhancement.ts`
+- `src/dashboard/dashboard.html`
+- 样式：`src/dashboard/styles/*.css`

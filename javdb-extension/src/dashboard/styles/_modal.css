@@ -260,6 +260,124 @@
     transform: scale(1);
 }
 
+/* 降低数据查看弹窗的遮罩暗度，避免整体变暗过头 */
+#dataViewModal.modal {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ================= Data View Modal (Light Theme) ================ */
+/* 覆盖默认暗色样式，使“数据查看弹窗”符合整体浅色系 */
+.modal-content.data-view-modal {
+    background: #ffffff !important;
+    color: #2c3e50;
+    padding: 0; /* 使用内部结构的头/身/脚布局 */
+    width: 95%;
+    max-width: 920px;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.data-view-modal .modal-header {
+    background: linear-gradient(135deg, #eef2ff 0%, #e9d5ff 100%) !important; /* 柔和浅色而非深色 */
+    color: #374151 !important;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.data-view-modal .modal-header h3 {
+    color: #1f2937 !important;
+}
+
+.data-view-modal .modal-close {
+    color: #4b5563 !important;
+}
+
+.data-view-modal .modal-body {
+    background: #ffffff;
+    padding: 16px 16px 0 16px;
+}
+
+.data-view-modal .data-view-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 8px 12px 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.data-view-modal .data-view-controls .control-group {
+    display: flex;
+    gap: 8px;
+}
+
+.data-view-modal .data-info-text {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.data-view-modal .data-view-container {
+    padding: 12px 0 16px 0;
+}
+
+.data-view-modal #dataViewTextarea {
+    width: 100%;
+    min-height: 55vh;
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 12px;
+    box-sizing: border-box;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+}
+
+.data-view-modal #dataViewTextarea::-webkit-scrollbar {
+    width: 10px;
+}
+.data-view-modal #dataViewTextarea::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+.data-view-modal #dataViewTextarea::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+    border: 2px solid #f3f4f6;
+}
+.data-view-modal #dataViewTextarea::-webkit-scrollbar-thumb:hover {
+    background: #a5b4fc;
+}
+
+.data-view-modal #dataViewTextarea:read-only {
+    background: #fafafa;
+}
+
+.data-view-modal #dataViewTextarea:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.data-view-modal .modal-footer {
+    padding: 14px 16px 18px 16px;
+    border-top: 1px solid #f3f4f6;
+    background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+}
+
+/* 统一按钮在浅色背景下的观感（不改变全局按钮语义） */
+.data-view-modal .btn.btn-outline {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+}
+
+.data-view-modal .btn.btn-outline:hover {
+    background: #f9fafb;
+}
+
 /* 新作品配置弹窗的动画效果 */
 .new-works-config-modal .modal-overlay.visible .modal-content {
     transform: scale(1) !important;

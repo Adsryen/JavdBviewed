@@ -7,8 +7,7 @@ import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
-import { getValue, saveSettings } from '../../../../utils/storage';
-import { actorManager } from '../../../../services/actorManager';
+import { STORAGE_KEYS } from '../../../../utils/config';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 
@@ -268,9 +267,10 @@ export class AdvancedSettings extends BaseSettingsPanel {
     private async handleViewActors(): Promise<void> {
         try {
             const { dataViewModal } = await import('../../../ui/dataViewModal');
-            const { getValue } = await import('../../../../utils/storage');
+            const { getValue: getVal } = await import('../../../../utils/storage');
 
-            const actorsData = await getValue('actors', {});
+            // 读取正确的演员库存储键
+            const actorsData = await getVal(STORAGE_KEYS.ACTOR_RECORDS, {} as Record<string, any>);
 
             dataViewModal.show({
                 title: '演员库数据',
@@ -278,7 +278,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
                 dataType: 'json',
                 editable: false,
                 filename: `javdb-actors-${new Date().toISOString().split('T')[0]}.json`,
-                info: `共 ${Object.keys(actorsData).length} 个演员记录`
+                info: `共 ${Object.keys(actorsData || {}).length} 个演员记录`
             });
         } catch (error) {
             console.error('加载演员数据失败:', error);
@@ -292,9 +292,10 @@ export class AdvancedSettings extends BaseSettingsPanel {
     private async handleEditActors(): Promise<void> {
         try {
             const { dataViewModal } = await import('../../../ui/dataViewModal');
-            const { getValue, setValue } = await import('../../../../utils/storage');
+            const { getValue: getVal, setValue: setVal } = await import('../../../../utils/storage');
 
-            const actorsData = await getValue('actors', {});
+            // 读取正确的演员库存储键
+            const actorsData = await getVal(STORAGE_KEYS.ACTOR_RECORDS, {} as Record<string, any>);
 
             dataViewModal.show({
                 title: '编辑演员库 (JSON)',
@@ -305,7 +306,8 @@ export class AdvancedSettings extends BaseSettingsPanel {
                 onSave: async (text: string) => {
                     try {
                         const parsed = JSON.parse(text);
-                        await setValue('actors', parsed);
+                        // 保存到正确的演员库存储键
+                        await setVal(STORAGE_KEYS.ACTOR_RECORDS, parsed);
                         showMessage('演员库已保存', 'success');
                     } catch (e) {
                         console.error('保存演员库失败:', e);
