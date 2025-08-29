@@ -40,7 +40,7 @@ build.bat
 
 # md
 *.md
-# 排查todo
+# 排除todo文件夹
 !todo.md
 
 # temp

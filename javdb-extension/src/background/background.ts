@@ -90,7 +90,7 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
             settings: settings,
             data: recordsToSync,
             userProfile: userProfile,
-            actorRecords: actorRecords, // 演员库数据
+            actorRecords: actorRecords, // 演员库数据（包含 blacklisted）
             logs: logs, // 持久化日志
             importStats: importStats, // 导入统计
             newWorks: { // 新增：新作品数据
@@ -239,7 +239,7 @@ async function performRestore(filename: string, options = {
             await logger.info('Restored user profile');
         }
 
-        // 恢复演员库数据
+        // 恢复演员库数据（包含 blacklisted）
         if (importData.actorRecords && options.restoreActorRecords) {
             await setValue(STORAGE_KEYS.ACTOR_RECORDS, importData.actorRecords);
             await logger.info('Restored actor records', {

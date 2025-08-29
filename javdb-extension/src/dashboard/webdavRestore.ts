@@ -705,7 +705,8 @@ async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
     if (mergeResult.data) {
         // 修复：使用正确的键名
         await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.data.videoRecords || {});
-        await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.data.actorRecords || []);
+        // 直接写回演员库（包含 blacklisted）
+        await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.data.actorRecords || {});
 
         if (mergeResult.data.settings) {
             // 统一：整包写回设置对象
@@ -1847,7 +1848,14 @@ async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions)
     if (options.restoreActorRecords && mergeResult.mergedData.actorRecords) {
         // 数据校验
         validateActorRecords(mergeResult.mergedData.actorRecords);
-        promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.mergedData.actorRecords));
+        // 写回前剔除 blacklisted
+        const sanitized = Object.fromEntries(
+            Object.entries(mergeResult.mergedData.actorRecords || {}).map(([id, a]: any) => {
+                const { blacklisted, ...rest } = a || {};
+                return [id, rest];
+            })
+        );
+        promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
     }
 
     if (options.restoreSettings && mergeResult.mergedData.settings) {
@@ -2140,7 +2148,13 @@ export async function rollbackLastRestore(): Promise<void> {
         }
 
         if (backupData.data.actorRecords) {
-            promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, backupData.data.actorRecords));
+            const sanitized = Object.fromEntries(
+                Object.entries(backupData.data.actorRecords || {}).map(([id, a]: any) => {
+                    const { blacklisted, ...rest } = a || {};
+                    return [id, rest];
+                })
+            );
+            promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
         }
 
         if (backupData.data.settings) {

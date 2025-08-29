@@ -3,7 +3,7 @@
 /* 搜索和过滤区域 */
 .search-and-filter {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr; /* 搜索、性别、分类、黑名单、排序、分页大小 */
     gap: 12px;
     margin-bottom: 24px;
     padding: 20px;
@@ -41,6 +41,7 @@
 /* 统一的下拉选择框样式 */
 #actorGenderFilter,
 #actorCategoryFilter,
+#actorBlacklistFilter,
 #actorSortSelect,
 #actorPageSizeSelect {
     padding: 14px 18px;
@@ -62,6 +63,7 @@
 
 #actorGenderFilter:hover,
 #actorCategoryFilter:hover,
+#actorBlacklistFilter:hover,
 #actorSortSelect:hover,
 #actorPageSizeSelect:hover {
     border-color: #adb5bd;
@@ -71,12 +73,33 @@
 
 #actorGenderFilter:focus,
 #actorCategoryFilter:focus,
+#actorBlacklistFilter:focus,
 #actorSortSelect:focus,
 #actorPageSizeSelect:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12), 0 6px 20px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
+}
+
+/* 黑名单角标与弱化样式 */
+.actor-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.actor-badge-blacklisted {
+    background: #fdecec;
+    color: #b22a2a;
+    border: 1px solid #f5c2c2;
+}
+
+.actor-card[data-blacklisted="true"] {
+    opacity: 0.5;
+    filter: saturate(0.9) grayscale(0.1);
 }
 
 /* 响应式设计 */
