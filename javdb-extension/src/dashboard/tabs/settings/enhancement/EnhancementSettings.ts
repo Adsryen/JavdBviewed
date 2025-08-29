@@ -3,8 +3,8 @@
  * 解锁强大的增强功能，让JavDB体验更加丰富和高效
  */
 
-import { BaseSettingsPanel } from '../BaseSettingsPanel';
-import { STATE } from '../../../state/State';
+import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
+import { STATE } from '../../../state';
 import { getValue, setValue } from '../../../../utils/storage';
 import { showMessage } from '../../../ui/toast';
 import { log } from '../../../../utils/logController';
