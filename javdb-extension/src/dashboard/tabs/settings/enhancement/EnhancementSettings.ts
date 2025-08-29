@@ -47,7 +47,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
-    private actorDefaultTags!: HTMLSelectElement;
+    private actorDefaultTagInputs!: NodeListOf<HTMLInputElement>;
     private actorEnhancementConfig!: HTMLElement;
     private lastAppliedTagsDisplay!: HTMLElement;
     private appliedTagsContainer!: HTMLElement;
@@ -97,7 +97,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         
         // 演员页增强配置
         this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
-        this.actorDefaultTags = document.getElementById('actorDefaultTags') as HTMLSelectElement;
+        this.actorDefaultTagInputs = document.querySelectorAll('#actorDefaultTagsGroup input[name="actorDefaultTag"]') as NodeListOf<HTMLInputElement>;
         this.actorEnhancementConfig = document.getElementById('actorEnhancementConfig') as HTMLElement;
         this.lastAppliedTagsDisplay = document.getElementById('lastAppliedTagsDisplay') as HTMLElement;
         this.appliedTagsContainer = document.getElementById('appliedTagsContainer') as HTMLElement;
@@ -164,7 +164,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableAutoApplyTags?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.actorDefaultTags?.addEventListener('change', this.handleSettingChange.bind(this));
+        if (this.actorDefaultTagInputs) {
+            this.actorDefaultTagInputs.forEach(input => {
+                input.addEventListener('change', this.handleSettingChange.bind(this));
+            });
+        }
         this.previewDelay?.addEventListener('change', this.handleSettingChange.bind(this));
         this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
 
@@ -245,9 +249,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 演员页增强配置
         const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: ['s', 'd'], defaultSortType: 0 };
         if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
-        if (this.actorDefaultTags && actorEnhancement.defaultTags) {
-            Array.from(this.actorDefaultTags.options).forEach((option: HTMLOptionElement) => {
-                option.selected = actorEnhancement.defaultTags.includes(option.value);
+        if (this.actorDefaultTagInputs && actorEnhancement.defaultTags) {
+            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
+                input.checked = actorEnhancement.defaultTags.includes(input.value);
             });
         }
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
@@ -333,7 +337,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 actorEnhancement: {
                     enabled: this.enableActorEnhancement.checked,
                     autoApplyTags: this.enableAutoApplyTags?.checked !== false,
-                    defaultTags: this.actorDefaultTags ? Array.from(this.actorDefaultTags.selectedOptions).map((opt: HTMLOptionElement) => opt.value) : ['s', 'd'],
+                    defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
+                        ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
+                        : ['s', 'd'],
                     defaultSortType: 0,
                 },
                 contentFilter: {
@@ -405,7 +411,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
                 autoApplyTags: this.enableAutoApplyTags?.checked !== false,
-                defaultTags: this.actorDefaultTags ? Array.from(this.actorDefaultTags.selectedOptions).map((opt: HTMLOptionElement) => opt.value) : ['s', 'd'],
+                defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
+                    ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
+                    : ['s', 'd'],
                 defaultSortType: 0,
             },
         };
@@ -459,9 +467,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 演员页增强配置
         const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: ['s', 'd'], defaultSortType: 0 };
         if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
-        if (this.actorDefaultTags && actorEnhancement.defaultTags) {
-            Array.from(this.actorDefaultTags.options).forEach((option: HTMLOptionElement) => {
-                option.selected = actorEnhancement.defaultTags.includes(option.value);
+        if (this.actorDefaultTagInputs && actorEnhancement.defaultTags) {
+            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
+                input.checked = actorEnhancement.defaultTags.includes(input.value);
             });
         }
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
