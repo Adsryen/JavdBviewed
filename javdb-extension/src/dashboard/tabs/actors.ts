@@ -2,12 +2,12 @@
 // 演员库标签页
 
 import { actorManager } from '../../services/actorManager';
-import { ActorAvatar } from '../../components/ActorAvatar';
 import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
+import { getSettings } from '../../utils/storage';
 import { showDanger } from '../components/confirmModal';
 import { logAsync } from '../logger';
-import type { ActorRecord, ActorSearchResult } from '../../types';
+import type { ActorRecord, ActorSearchResult, ExtensionSettings } from '../../types';
 
 export class ActorsTab {
     private currentPage = 1;
@@ -17,8 +17,10 @@ export class ActorsTab {
     private currentOrder: 'asc' | 'desc' = 'asc';
     private currentGenderFilter = '';
     private currentCategoryFilter = '';
+    private currentBlacklistFilter: 'all' | 'exclude' | 'only' = 'all';
     private isLoading = false;
     public isInitialized = false;
+    private settings?: ExtensionSettings;
 
     /**
      * 初始化演员库标签页
@@ -28,6 +30,9 @@ export class ActorsTab {
 
         try {
             await actorManager.initialize();
+            // 读取设置以确定默认黑名单过滤
+            this.settings = await getSettings();
+            this.currentBlacklistFilter = this.settings.actorLibrary.blacklist.hideInList ? 'exclude' : 'all';
             this.setupEventListeners();
             this.setupDataUpdateListeners();
             await this.loadActors();
@@ -89,6 +94,17 @@ export class ActorsTab {
             });
         }
 
+        // 黑名单筛选（可选存在）
+        const blacklistFilter = document.getElementById('actorBlacklistFilter') as HTMLSelectElement;
+        if (blacklistFilter) {
+            blacklistFilter.addEventListener('change', () => {
+                const val = blacklistFilter.value as 'all' | 'exclude' | 'only';
+                this.currentBlacklistFilter = val;
+                this.currentPage = 1;
+                this.loadActors();
+            });
+        }
+
         // 每页显示数量
         const pageSizeSelect = document.getElementById('actorPageSizeSelect') as HTMLSelectElement;
         if (pageSizeSelect) {
@@ -137,7 +153,8 @@ export class ActorsTab {
                 this.currentSort as any,
                 this.currentOrder,
                 this.currentGenderFilter || undefined,
-                this.currentCategoryFilter || undefined
+                this.currentCategoryFilter || undefined,
+                this.currentBlacklistFilter
             );
 
             this.renderActorList(result);
@@ -224,8 +241,13 @@ export class ActorsTab {
         const escapeName = (name: string) => name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
         const escapeForJs = (name: string) => name.replace(/'/g, "\\'").replace(/"/g, '\\"');
 
+        const isBlacklisted = !!actor.blacklisted;
+        const showBadge = !!this.settings?.actorLibrary.blacklist.showBadge;
+        const blacklistBadge = isBlacklisted && showBadge ? `<span class="actor-badge actor-badge-blacklisted" title="已拉黑">黑名单</span>` : '';
+        const cardStyle = isBlacklisted ? 'style="opacity:0.5;"' : '';
+
         return `
-            <div class="actor-card" data-actor-id="${actor.id}">
+            <div class="actor-card" data-actor-id="${actor.id}" data-blacklisted="${isBlacklisted}" ${cardStyle}>
                 <div class="actor-card-avatar" id="actor-avatar-${actor.id}">
                     <!-- 头像将通过JS添加 -->
                 </div>
@@ -237,10 +259,10 @@ export class ActorsTab {
                         <span class="actor-name-text">${escapeName(actor.name)}</span>
                         <i class="fas fa-copy actor-name-copy-icon"></i>
                     </div>
-                    ${actor.aliases.length > 0 ? `
+                    ${(actor.aliases && actor.aliases.length > 0) ? `
                         <div class="actor-card-aliases" data-actor-id="${actor.id}">
                             <div class="actor-aliases-list">
-                                ${actor.aliases.map(alias => `
+                                ${(actor.aliases || []).map(alias => `
                                     <div class="actor-alias"
                                          title="点击复制：${escapeName(alias)}"
                                          data-actor-id="${actor.id}"
@@ -265,6 +287,7 @@ export class ActorsTab {
                             ${this.getCategoryText(actor.category)}
                         </span>
                         ${worksCount > 0 ? `<span class="actor-works-count">${worksCount} 作品</span>` : ''}
+                        ${blacklistBadge}
                     </div>
                     <div class="actor-card-sync">
                         <span class="sync-status sync-status-${actor.syncInfo?.syncStatus || 'unknown'}">
@@ -288,6 +311,11 @@ export class ActorsTab {
                             data-actor-id="${actor.id}"
                             title="删除">
                         <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="actor-action-btn actor-blacklist-toggle-btn"
+                            data-actor-id="${actor.id}"
+                            title="${isBlacklisted ? '取消拉黑' : '拉黑'}">
+                        <i class="fas fa-ban"></i>
                     </button>
                 </div>
             </div>
@@ -347,6 +375,24 @@ export class ActorsTab {
                 e.preventDefault();
                 const actorId = (e.currentTarget as HTMLElement).dataset.actorId!;
                 this.deleteActor(actorId);
+            });
+        }
+
+        // 拉黑/取消拉黑按钮事件
+        const blacklistBtn = document.querySelector(`[data-actor-id="${actor.id}"].actor-blacklist-toggle-btn`);
+        if (blacklistBtn) {
+            blacklistBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const actorId = (e.currentTarget as HTMLElement).dataset.actorId!;
+                const isBlacklisted = (document.querySelector(`[data-actor-id="${actor.id}"].actor-card`) as HTMLElement)?.dataset.blacklisted === 'true';
+                try {
+                    await actorManager.setBlacklisted(actorId, !isBlacklisted);
+                    await this.loadActors();
+                    await this.updateStats();
+                } catch (err) {
+                    console.error('切换黑名单状态失败:', err);
+                    showMessage('切换黑名单状态失败', 'error');
+                }
             });
         }
 
@@ -513,6 +559,10 @@ export class ActorsTab {
                     <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.byCategory.western || 0}</div>
                         <div class="stat-label">欧美</div>
+                    </div>
+                    <div class="stat-card new-works-stat">
+                        <div class="stat-value">${stats.blacklisted || 0}</div>
+                        <div class="stat-label">已拉黑</div>
                     </div>
                     <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.recentlyAdded}</div>
@@ -696,7 +746,7 @@ export class ActorsTab {
                         </div>
                         <div class="form-group">
                             <label for="edit-actor-aliases">别名 (用逗号分隔):</label>
-                            <input type="text" id="edit-actor-aliases" value="${actor.aliases.map(alias => this.escapeHtml(alias)).join(', ')}" />
+                            <input type="text" id="edit-actor-aliases" value="${(actor.aliases || []).map(alias => this.escapeHtml(alias)).join(', ')}" />
                         </div>
                         <div class="form-group">
                             <label for="edit-actor-gender">性别:</label>
