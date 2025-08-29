@@ -23,7 +23,7 @@ class ActorEnhancementManager {
   private config: ActorEnhancementConfig = {
     enabled: true,
     autoApplyTags: true,
-    defaultTags: ['s', 'd', 'c', 'b'], // 單體作品 + 含磁鏈 + 含字幕 + 可播放
+    defaultTags: ['s', 'd'], // 默認標籤：單體作品 + 含磁鏈
     defaultSortType: 0
   };
 

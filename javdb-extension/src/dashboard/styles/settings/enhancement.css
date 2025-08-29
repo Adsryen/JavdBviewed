@@ -820,6 +820,13 @@
     margin-bottom: 12px;
 }
 
+/* 当 toggle-header 内包含默认标签复选框组时，改为上下布局，标题在上，选项在下 */
+.toggle-header:has(#actorDefaultTagsGroup) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
 .toggle-title {
     margin: 0;
     font-size: 16px;
@@ -828,6 +835,42 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* 默认标签复选框组布局与样式 */
+#actorDefaultTagsGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#actorDefaultTagsGroup .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1;
+}
+
+#actorDefaultTagsGroup .checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+/* 如果 HTML 中带有 .checkmark 元素，默认隐藏，避免影响排版 */
+#actorDefaultTagsGroup .checkbox-label .checkmark {
+    display: none;
+}
+
+/* 选中态视觉强调 */
+#actorDefaultTagsGroup .checkbox-label:has(input:checked) {
+    border-color: #007bff;
+    background: #f0f8ff;
+    color: #0056b3;
 }
 
 /* 现代化滑块开关样式 */
