@@ -2,7 +2,7 @@
  * 115网盘内容脚本集成
  */
 
-import { getDrive115Service } from '../services/drive115';
+import { isDrive115Enabled, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import { log } from './state';
@@ -56,12 +56,9 @@ export async function initDrive115Features(): Promise<void> {
     try {
         // 静默初始化115功能
 
-        // 首先初始化115服务（加载设置）
-        const drive115Service = getDrive115Service();
-        await drive115Service.initialize();
-
-        // 检查是否启用115功能
-        if (!drive115Service.isEnabled()) {
+        // 通过统一路由判断是否启用115功能（屏蔽 v1/v2 差异）
+        const enabled = await isDrive115Enabled();
+        if (!enabled) {
             return;
         }
 
@@ -246,8 +243,8 @@ export async function handlePushToDrive115(
 ): Promise<void> {
     try {
         // 检查115功能是否启用
-        const drive115Service = getDrive115Service();
-        if (!drive115Service.isEnabled()) {
+        const enabled = await isDrive115Enabled();
+        if (!enabled) {
             showToast('115网盘功能未启用，请先在设置中启用', 'error');
             return;
         }
@@ -346,6 +343,55 @@ export async function handlePushToDrive115(
             button.innerHTML = '&nbsp;推送115&nbsp;';
             button.disabled = false;
             button.className = 'button is-success is-small drive115-push-btn';
+        }, 3000);
+    }
+}
+
+/**
+ * 处理批量下载（通过统一路由逐个推送）
+ */
+async function handleBatchDownload(
+    button: HTMLButtonElement,
+    videoId: string,
+    magnetLinks: Array<{ name: string; url: string }>
+): Promise<void> {
+    try {
+        button.disabled = true;
+        // 按钮原文本未使用，移除以消除警告
+        button.textContent = '批量下载中...';
+
+        const enabled = await isDrive115Enabled();
+        if (!enabled) {
+            showToast('115网盘功能未启用，请先在设置中启用', 'error');
+            return;
+        }
+
+        let successCount = 0;
+        for (const item of magnetLinks) {
+            try {
+                const res = await routerDownloadOffline({
+                    videoId,
+                    magnetUrl: item.url,
+                    autoVerify: false,
+                    notify: true
+                });
+                if (res.success) successCount++;
+            } catch (e) {
+                // 单条失败不阻断后续
+                console.warn('批量项下载失败:', e);
+            }
+        }
+
+        showToast(`批量下载完成，成功 ${successCount}/${magnetLinks.length}`, successCount > 0 ? 'success' : 'info');
+        button.textContent = successCount > 0 ? '批量完成' : '批量失败';
+    } catch (error) {
+        console.error('批量下载失败:', error);
+        showToast('批量下载失败', 'error');
+        button.textContent = '批量失败';
+    } finally {
+        setTimeout(() => {
+            button.disabled = false;
+            button.textContent = '批量下载全部';
         }, 3000);
     }
 }
@@ -717,8 +763,7 @@ async function handleSingleDownload(
         button.disabled = true;
         button.textContent = '下载中...';
 
-        const drive115Service = getDrive115Service();
-        const result = await drive115Service.downloadOffline({
+        const result = await routerDownloadOffline({
             videoId,
             magnetUrl,
             autoVerify: true,

@@ -25,6 +25,13 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   verifyCount: 5,              // 默认验证5次
   maxFailures: 5,              // 默认最大失败5次
   autoNotify: true,            // 默认开启通知
+  // v2: 基于 token 的新版配置默认值
+  enableV2: true,
+  v2AccessToken: '',
+  v2RefreshToken: '',
+  v2TokenExpiresAt: null,
+  // UI 默认选择 v2（首次使用无历史选择时生效）
+  lastSelectedVersion: 'v2',
 };
 
 // 存储键

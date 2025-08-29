@@ -3,19 +3,23 @@
  */
 
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import type { SettingsPanelConfig } from '../types';
 import { getSettings, saveSettings } from '../../../../utils/storage';
 import { showMessage } from '../../../ui/toast';
-import { logAsync } from '../../../logger';
 import { log } from '../../../../utils/logController';
-import type { ExtensionSettings, Drive115Settings } from '../../../../types';
-import { getDrive115Service } from '../../../../services/drive115';
+import type { ExtensionSettings } from '../../../../types';
+import type { Drive115Settings } from '../../../../services/drive115/types';
 import { DEFAULT_DRIVE115_SETTINGS } from '../../../../services/drive115/config';
+import { Drive115TabsController } from './Drive115TabsController';
+import { Drive115V1Pane } from './Drive115V1Pane';
+import { Drive115V2Pane } from './Drive115V2Pane';
+import { searchFiles } from '../../../../services/drive115Router';
+import { getLogs, clearLogs } from '../../../../services/drive115Router';
 
 export class Drive115SettingsPanel extends BaseSettingsPanel {
     private settings: Drive115Settings = { ...DEFAULT_DRIVE115_SETTINGS };
-    private autoSaveTimeout: number | null = null;
+    protected autoSaveTimeout: number | undefined = undefined;
     private isAutoSaving = false;
+    private tabsController: Drive115TabsController | null = null;
 
     constructor() {
         super({
@@ -24,6 +28,26 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             autoSave: true,
             saveDelay: 1000,
             requireValidation: true
+        });
+
+        // 版本切换：标题右侧 segmented 按钮
+        const verV1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
+        const verV2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+        verV1Btn?.addEventListener('click', () => {
+            // 切到 v1：更新持久化字段并同步关闭 enableV2
+            this.settings.lastSelectedVersion = 'v1';
+            this.settings.enableV2 = false;
+            this.updateUI();
+            this.autoSaveSettings();
+            this.tabsController?.switchTo('v1');
+        });
+        verV2Btn?.addEventListener('click', () => {
+            // 切到 v2：更新持久化字段并同步开启 enableV2
+            this.settings.lastSelectedVersion = 'v2';
+            this.settings.enableV2 = true;
+            this.updateUI();
+            this.autoSaveSettings();
+            this.tabsController?.switchTo('v2');
         });
     }
 
@@ -36,9 +60,9 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
     }
 
     /**
-     * 加载设置
+     * 加载设置（私有：避免与基类的公开 loadSettings 冲突）
      */
-    private async loadSettings(): Promise<void> {
+    private async loadDrive115Settings(): Promise<void> {
         try {
             const mainSettings = await getSettings();
             this.settings = { ...DEFAULT_DRIVE115_SETTINGS, ...mainSettings.drive115 };
@@ -61,69 +85,13 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.autoSaveSettings();
         });
 
-        // 展开/收起"如何获取ID"帮助
-        const howToToggle = document.getElementById('drive115HowToCidToggle') as HTMLButtonElement;
-        const howToBlock = document.getElementById('drive115HowToCid') as HTMLDivElement;
-        howToToggle?.addEventListener('click', () => {
-            if (!howToBlock) return;
-            const isHidden = howToBlock.style.display === 'none' || !howToBlock.style.display;
-            howToBlock.style.display = isHidden ? 'block' : 'none';
-            howToToggle.textContent = isHidden ? '收起说明' : '如何获取ID？';
-        });
-
-        // 下载目录变化（仅允许数字ID）
-        const downloadDirInput = document.getElementById('drive115DownloadDir') as HTMLInputElement;
-        downloadDirInput?.addEventListener('input', () => {
-            // 仅保留数字
-            const digitsOnly = (downloadDirInput.value || '').replace(/[^0-9]/g, '');
-            if (downloadDirInput.value !== digitsOnly) {
-                const cursor = downloadDirInput.selectionStart || digitsOnly.length;
-                downloadDirInput.value = digitsOnly;
-                // 尽量保持光标位置
-                try { downloadDirInput.setSelectionRange(cursor - 1 >= 0 ? cursor - 1 : 0, cursor - 1 >= 0 ? cursor - 1 : 0); } catch {}
-            }
-
-            // 即时校验：启用时且为空 => 显示错误
-            const enabledCheckbox = document.getElementById('drive115Enabled') as HTMLInputElement;
-            const errorEl = document.getElementById('drive115DownloadDirError') as HTMLParagraphElement | null;
-            const showError = !!(enabledCheckbox?.checked && digitsOnly.length === 0);
-            if (errorEl) errorEl.style.display = showError ? 'block' : 'none';
-            if (downloadDirInput) downloadDirInput.classList.toggle('input-invalid', showError);
-
-            this.settings.downloadDir = digitsOnly;
-            this.autoSaveSettings();
-        });
-
-        // 验证次数变化
-        const verifyCountInput = document.getElementById('drive115VerifyCount') as HTMLInputElement;
-        verifyCountInput?.addEventListener('input', () => {
-            const value = parseInt(verifyCountInput.value) || 5;
-            this.settings.verifyCount = Math.max(1, Math.min(10, value));
-            this.autoSaveSettings();
-        });
-
-        // 最大失败数变化
-        const maxFailuresInput = document.getElementById('drive115MaxFailures') as HTMLInputElement;
-        maxFailuresInput?.addEventListener('input', () => {
-            const value = parseInt(maxFailuresInput.value) || 5;
-            this.settings.maxFailures = Math.max(0, Math.min(20, value));
-            this.autoSaveSettings();
-        });
-
-        // 自动通知变化
-        const autoNotifyCheckbox = document.getElementById('drive115AutoNotify') as HTMLInputElement;
-        autoNotifyCheckbox?.addEventListener('change', () => {
-            this.settings.autoNotify = autoNotifyCheckbox.checked;
-            this.autoSaveSettings();
-        });
-
         // 测试搜索
         const testSearchInput = document.getElementById('testSearchInput') as HTMLInputElement;
         const testSearchButton = document.getElementById('testDrive115Search') as HTMLButtonElement;
         testSearchButton?.addEventListener('click', async () => {
             const query = testSearchInput?.value?.trim();
             if (!query) {
-                showMessage('请输入搜索关键词', 'warning');
+                showMessage('请输入搜索关键词', 'warn');
                 return;
             }
             await this.testSearch(query);
@@ -137,6 +105,8 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         refreshLogButton?.addEventListener('click', () => this.refreshLog());
         clearLogButton?.addEventListener('click', () => this.clearLog());
         exportLogButton?.addEventListener('click', () => this.exportLog());
+
+        // 其余 v1/v2 表单事件由各自 Pane 负责绑定
     }
 
     /**
@@ -184,6 +154,25 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             autoNotifyCheckbox.checked = this.settings.autoNotify;
         }
 
+        // v2: 更新新版 token 模式字段（enableV2 与 lastSelectedVersion 同步）
+        if (!this.settings.lastSelectedVersion) {
+            // 首次无记录默认 v2
+            this.settings.lastSelectedVersion = 'v2';
+            this.settings.enableV2 = true;
+        }
+        const enableV2Checkbox = document.getElementById('drive115EnableV2') as HTMLInputElement;
+        if (enableV2Checkbox) {
+            enableV2Checkbox.checked = !!this.settings.enableV2;
+        }
+        const v2AccessTokenInput = document.getElementById('drive115V2AccessToken') as HTMLInputElement;
+        if (v2AccessTokenInput) {
+            v2AccessTokenInput.value = this.settings.v2AccessToken || '';
+        }
+        const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as HTMLInputElement;
+        if (v2RefreshTokenInput) {
+            v2RefreshTokenInput.value = this.settings.v2RefreshToken || '';
+        }
+
         // 更新禁用状态
         const inputs = document.querySelectorAll('#drive115-settings input:not(#drive115Enabled), #drive115-settings button:not(#drive115HowToCidToggle)');
         inputs.forEach(input => {
@@ -200,10 +189,27 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             }
         }
 
+        // 子页可见性：根据 lastSelectedVersion 切换 v1/v2 容器
+        const v1Pane = document.getElementById('drive115V1Pane') as HTMLDivElement | null;
+        const v2Pane = document.getElementById('drive115V2Pane') as HTMLDivElement | null;
+        const v1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
+        const v2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+        const isV2 = this.settings.lastSelectedVersion === 'v2';
+        if (v1Pane) v1Pane.style.display = isV2 ? 'none' : 'block';
+        if (v2Pane) v2Pane.style.display = isV2 ? 'block' : 'none';
+        if (v1Btn) v1Btn.classList.toggle('active', !isV2);
+        if (v2Btn) v2Btn.classList.toggle('active', isV2);
+        if (v1Btn && v2Btn) {
+            // 最小样式同步，避免依赖额外CSS
+            v1Btn.style.background = !isV2 ? '#e3f2fd' : '#f7f7f7';
+            v2Btn.style.background = isV2 ? '#e3f2fd' : '#f7f7f7';
+        }
+
         // 更新错误状态
         const downloadDirError = document.getElementById('drive115DownloadDirError') as HTMLParagraphElement;
         const downloadDirInput2 = document.getElementById('drive115DownloadDir') as HTMLInputElement;
-        const showError = this.settings.enabled && !this.settings.downloadDir;
+        // 启用旧版模式时需要下载目录；v2 模式不强制
+        const showError = this.settings.enabled && !this.settings.enableV2 && !this.settings.downloadDir;
         if (downloadDirError) downloadDirError.style.display = showError ? 'block' : 'none';
         if (downloadDirInput2) downloadDirInput2.classList.toggle('input-invalid', showError);
     }
@@ -279,16 +285,11 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
                 button.textContent = '测试中...';
             }
 
-            const drive115Service = getDrive115Service();
-            const result = await drive115Service.testSearch(query);
-
-            if (result.success) {
-                showMessage(`搜索测试成功，找到 ${result.count || 0} 个结果`, 'success');
-                this.displayTestResults(result.results || [], query);
-            } else {
-                showMessage(`搜索测试失败: ${result.error || '未知错误'}`, 'error');
-                this.clearTestResults();
-            }
+            // 通过统一路由执行搜索
+            const results = await searchFiles(query);
+            const count = Array.isArray(results) ? results.length : 0;
+            showMessage(`搜索测试成功，找到 ${count} 个结果`, 'success');
+            this.displayTestResults(Array.isArray(results) ? results : [], query);
         } catch (error) {
             console.error('115搜索测试失败:', error);
             showMessage('搜索测试失败，请检查网络连接和115登录状态', 'error');
@@ -383,8 +384,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
      */
     private async refreshLog(): Promise<void> {
         try {
-            const drive115Service = getDrive115Service();
-            const logs = await drive115Service.getLogs();
+            const logs = await getLogs();
             this.displayLogs(logs);
         } catch (error) {
             console.error('刷新115日志失败:', error);
@@ -397,8 +397,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
      */
     private async clearLog(): Promise<void> {
         try {
-            const drive115Service = getDrive115Service();
-            await drive115Service.clearLogs();
+            await clearLogs();
             this.displayLogs([]);
             showMessage('日志已清空', 'success');
         } catch (error) {
@@ -412,10 +411,9 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
      */
     private async exportLog(): Promise<void> {
         try {
-            const drive115Service = getDrive115Service();
-            const logs = await drive115Service.getLogs();
+            const logs = await getLogs();
 
-            const logText = logs.map(log =>
+            const logText = logs.map((log: any) =>
                 `[${new Date(log.timestamp).toLocaleString()}] ${log.level}: ${log.message}`
             ).join('\n');
 
@@ -446,10 +444,10 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             return;
         }
 
-        const logHtml = logs.map(log => `
+        const logHtml = logs.map((log: any) => `
             <div class="log-entry log-${log.level}">
                 <span class="log-time">${new Date(log.timestamp).toLocaleString()}</span>
-                <span class="log-level">[${log.level.toUpperCase()}]</span>
+                <span class="log-level">[${(log.level || '').toString().toUpperCase()}]</span>
                 <span class="log-message">${log.message}</span>
             </div>
         `).join('');
@@ -465,22 +463,24 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
     async reset(): Promise<void> {
         this.settings = { ...DEFAULT_DRIVE115_SETTINGS };
         this.updateUI();
-        await this.save();
+        await this.saveSettings();
     }
 
     /**
      * 获取设置数据
      */
-    getSettings(): Drive115Settings {
-        return { ...this.settings };
+    getSettings(): Partial<ExtensionSettings> {
+        return { drive115: { ...this.settings } };
     }
 
     /**
      * 设置数据
      */
-    setSettings(settings: Partial<Drive115Settings>): void {
-        this.settings = { ...this.settings, ...settings };
-        this.updateUI();
+    setSettings(settings: Partial<ExtensionSettings>): void {
+        if (settings.drive115) {
+            this.settings = { ...this.settings, ...settings.drive115 } as Drive115Settings;
+            this.updateUI();
+        }
     }
 
     /**
@@ -490,7 +490,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         // 清理事件监听器
         if (this.autoSaveTimeout) {
             clearTimeout(this.autoSaveTimeout);
-            this.autoSaveTimeout = null;
+            this.autoSaveTimeout = undefined;
         }
     }
 
@@ -498,13 +498,38 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
      * 加载设置（BaseSettingsPanel要求的抽象方法）
      */
     protected async doLoadSettings(): Promise<void> {
-        await this.loadSettings();
+        await this.loadDrive115Settings();
         log.verbose('doLoadSettings: 准备更新UI，当前设置:', this.settings);
 
         // 延迟更新UI，确保DOM元素已加载
         setTimeout(() => {
             log.verbose('延迟更新UI开始...');
             this.updateUI();
+            // 初始化并同步 tabs 控制器
+            if (!this.tabsController) {
+                const ctx = {
+                    update: (patch: Partial<any>) => {
+                        this.settings = { ...(this.settings as any), ...(patch as any) } as any;
+                    },
+                    updateUI: () => this.updateUI(),
+                    save: () => this.autoSaveSettings()
+                };
+                const v1 = new Drive115V1Pane('drive115V1Pane', ctx);
+                const v2 = new Drive115V2Pane('drive115V2Pane', ctx);
+                this.tabsController = new Drive115TabsController({
+                    v1Pane: v1,
+                    v2Pane: v2,
+                    getCurrentVersion: () => (this.settings.lastSelectedVersion || (this.settings.enableV2 ? 'v2' : 'v1')) as 'v1' | 'v2',
+                    onVersionChange: (ver) => {
+                        // 可选：当由控制器驱动切换时，同步设置（目前按钮/复选框已做同步，此处兜底）
+                        this.settings.lastSelectedVersion = ver;
+                        this.settings.enableV2 = ver === 'v2';
+                        this.autoSaveSettings();
+                    }
+                });
+                this.tabsController.init();
+            }
+            this.tabsController?.switchTo(this.settings.enableV2 ? 'v2' : 'v1', { silent: true });
         }, 100);
 
         this.updateAutoSaveStatus('idle');
@@ -536,26 +561,32 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
      * 验证设置（BaseSettingsPanel要求的抽象方法）
      */
     protected doValidateSettings(): { isValid: boolean; errors: string[] } {
-        const errors: string[] = [];
-
-        if (this.settings.enabled) {
-            if (!this.settings.downloadDir) {
-                errors.push('启用115功能时必须设置下载目录ID');
-            }
-
-            if (this.settings.verifyCount < 1 || this.settings.verifyCount > 10) {
-                errors.push('验证次数必须在1-10之间');
-            }
-
-            if (this.settings.maxFailures < 0 || this.settings.maxFailures > 20) {
-                errors.push('最大失败数必须在0-20之间');
-            }
+        // 优先委托给子面板校验（已拆分逻辑）
+        if (this.tabsController) {
+            const errors = this.tabsController.validateAll();
+            return { isValid: errors.length === 0, errors };
         }
 
-        return {
-            isValid: errors.length === 0,
-            errors
-        };
+        // 回退：控制器未初始化时使用旧逻辑（保证安全）
+        const fallbackErrors: string[] = [];
+        if (this.settings.enabled) {
+            if (!this.settings.enableV2 && !this.settings.downloadDir) {
+                fallbackErrors.push('启用115旧版模式时必须设置下载目录ID');
+            }
+            if (this.settings.verifyCount < 1 || this.settings.verifyCount > 10) {
+                fallbackErrors.push('验证次数必须在1-10之间');
+            }
+            if (this.settings.maxFailures < 0 || this.settings.maxFailures > 50) {
+                fallbackErrors.push('最大失败数必须在0-50之间');
+            }
+            if (this.settings.enableV2) {
+                const at = this.settings.v2AccessToken || '';
+                const rt = this.settings.v2RefreshToken || '';
+                if (at && at.length < 8) fallbackErrors.push('access_token 看起来不正确（长度过短）');
+                if (rt && rt.length < 8) fallbackErrors.push('refresh_token 看起来不正确（长度过短）');
+            }
+        }
+        return { isValid: fallbackErrors.length === 0, errors: fallbackErrors };
     }
 
     /**
