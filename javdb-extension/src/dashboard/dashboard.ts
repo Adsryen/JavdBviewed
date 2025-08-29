@@ -22,7 +22,6 @@ import { setValue, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { initUserProfileSection } from './userProfile';
 import { initDataSyncSection } from './dataSync';
-import { initializeDrive115Service } from '../services/drive115';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import './ui/dataViewModal'; // 确保dataViewModal被初始化
 
@@ -101,12 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
-    // 初始化115服务
-    try {
-        await initializeDrive115Service();
-    } catch (error) {
-        console.error('初始化115服务失败:', error);
-    }
+    // 115 服务通过统一路由按需初始化，无需在此显式初始化
 
     await initTabs();
     initRecordsTab();
