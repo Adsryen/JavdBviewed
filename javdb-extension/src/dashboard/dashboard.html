@@ -1081,9 +1081,49 @@
                         <div class="settings-panel" id="drive115-settings">
                             <div class="settings-panel-header">
                                 <h3>115网盘离线下载</h3>
+                                <div class="settings-panel-actions" style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+                                    <div class="segmented-control" id="drive115VersionSwitch" style="display:flex; border:1px solid #ccc; border-radius:6px; overflow:hidden;">
+                                        <button type="button" data-ver="v1" id="drive115VerV1Btn" style="padding:6px 10px; border:none; background:#f7f7f7; cursor:pointer;">旧版</button>
+                                        <button type="button" data-ver="v2" id="drive115VerV2Btn" class="active" style="padding:6px 10px; border:none; background:#e3f2fd; cursor:pointer;">新版</button>
+                                    </div>
+                                </div>
                                 <p class="settings-description">配置115网盘离线下载功能，支持磁链自动下载和验证。</p>
                             </div>
                             <div class="settings-panel-body">
+                                <!-- 新版（v2）Token 模式 -->
+                                <div class="settings-section" id="drive115V2Pane">
+                                    <h4>新版（Token 模式）</h4>
+                                    <div class="form-group">
+                                        <div class="drive115-toggle-wrapper">
+                                            <label class="drive115-toggle-label">
+                                                <span class="drive115-toggle-text">使用新版 115（基于 token）</span>
+                                                <div class="drive115-toggle-switch">
+                                                    <input type="checkbox" id="drive115EnableV2" class="drive115-toggle-input">
+                                                    <span class="drive115-toggle-slider"></span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <p class="input-description">
+                                            新版将使用 access_token/refresh_token，不依赖旧版登录页面与签名流程。
+                                            <a id="drive115V2HelpLink" href="https://api.oplist.org/" target="_blank" rel="noopener noreferrer">如何获取 token？</a>
+                                        </p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="drive115V2AccessToken">access_token:</label>
+                                        <input type="password" id="drive115V2AccessToken" placeholder="粘贴 access_token">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="drive115V2RefreshToken">refresh_token:</label>
+                                        <div class="form-group-inline">
+                                            <input type="password" id="drive115V2RefreshToken" placeholder="粘贴 refresh_token">
+                                            <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
+                                        </div>
+                                        <p class="input-description">点击“手动刷新”会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
+                                    </div>
+                                </div>
+
                                 <!-- 基础设置 -->
                                 <div class="settings-section">
                                     <h4>基础设置</h4>
@@ -1108,8 +1148,8 @@
                                 </div>
 
                                 <div class="drive115-settings-container disabled">
-                                    <!-- 下载设置 -->
-                                    <div class="settings-section">
+                                    <!-- 旧版（v1）下载设置 -->
+                                    <div class="settings-section" id="drive115V1Pane">
                                         <h4>下载设置</h4>
                                         <div class="form-group">
                                             <label for="drive115DownloadDir">下载目录ID:</label>

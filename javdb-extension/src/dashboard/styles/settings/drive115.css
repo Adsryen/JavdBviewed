@@ -67,6 +67,60 @@
     line-height: 1.6;
 }
 
+/* 版本分段切换（标题右侧） */
+#drive115-settings .version-toggle {
+    position: absolute;
+    right: 0;
+    top: 20px;
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--drive115-shadow);
+}
+
+#drive115-settings .version-toggle button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    font-size: 12px;
+    line-height: 1;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#drive115-settings .version-toggle button + button {
+    border-left: 1px solid var(--border-color, #e5e7eb);
+}
+
+#drive115-settings .version-toggle button:hover {
+    background: var(--bg-hover, #f3f4f6);
+    color: var(--text-primary, #374151);
+}
+
+#drive115-settings .version-toggle button.active {
+    background: var(--drive115-bg, #fff3e0);
+    color: var(--drive115-primary, #ff6b35);
+    font-weight: 600;
+}
+
+#drive115-settings .version-toggle button:focus-visible {
+    outline: 2px solid var(--drive115-primary, #ff6b35);
+    outline-offset: -2px;
+}
+
+/* 移动端适配：绝对定位改为流式，居中显示 */
+@media (max-width: 768px) {
+    #drive115-settings .version-toggle {
+        position: static;
+        margin: 8px auto 0 auto;
+    }
+}
+
 /* 115设置容器 */
 .drive115-settings-container {
     transition: opacity 0.3s ease, filter 0.3s ease;

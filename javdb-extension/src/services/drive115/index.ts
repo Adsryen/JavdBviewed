@@ -14,7 +14,6 @@ import { DEFAULT_DRIVE115_SETTINGS } from './config';
 import { Drive115ApiClient } from './api';
 import { Drive115Logger } from './logger';
 import { getSettings, saveSettings as saveMainSettings } from '../../utils/storage';
-import type { ExtensionSettings } from '../../types';
 
 /**
  * 115网盘服务管理器
@@ -249,25 +248,4 @@ export async function initializeDrive115Service(): Promise<Drive115Service> {
   const service = getDrive115Service();
   await service.initialize();
   return service;
-}
-
-// 便捷函数导出
-export async function downloadOffline(options: OfflineDownloadOptions) {
-  const service = getDrive115Service();
-  return service.downloadOffline(options);
-}
-
-export async function downloadBatch(options: BatchOfflineOptions) {
-  const service = getDrive115Service();
-  return service.downloadBatch(options);
-}
-
-export async function searchFiles(query: string) {
-  const service = getDrive115Service();
-  return service.searchFiles(query);
-}
-
-export async function verifyDownload(videoId: string) {
-  const service = getDrive115Service();
-  return service.verifyDownload(videoId);
 }
