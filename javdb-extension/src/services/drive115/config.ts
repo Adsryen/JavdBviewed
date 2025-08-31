@@ -30,6 +30,10 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
+  v2AutoRefresh: true,         // 默认开启自动刷新
+  v2AutoRefreshSkewSec: 60,    // 默认提前60秒刷新
+  // v2: 接口基础域名（可在设置中修改）
+  v2ApiBaseUrl: 'https://proapi.115.com',
   // UI 默认选择 v2（首次使用无历史选择时生效）
   lastSelectedVersion: 'v2',
 };

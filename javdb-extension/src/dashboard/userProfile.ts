@@ -3,6 +3,8 @@ import { showMessage } from './ui/toast';
 import type { UserProfile } from '../types';
 import { userService } from './services/userService';
 import { emit } from './services/eventBus';
+import { getSettings } from '../utils/storage';
+import { getDrive115V2Service, type Drive115V2UserInfo } from '../services/drive115v2';
 
 // 重新导出用户服务的方法，保持向后兼容
 export const fetchUserProfile = () => userService.fetchUserProfile();
@@ -91,6 +93,19 @@ export function initUserProfileSection(): void {
                 </div>
             </div>
         </div>
+        <!-- 115 用户信息独立容器（与 JavDB 并列） -->
+        <div class="drive115-profile-container" style="margin-top:10px;">
+            <div id="drive115-user-info" class="drive115-user-info" style="display:none;">
+                <div class="stats-title" style="display:flex; align-items:center; gap:6px;">
+                    <img src="../assets/115-logo.svg" alt="115" style="width:16px;height:16px;"/>
+                    <span>115 账号</span>
+                    <span id="drive115-user-status" style="margin-left:auto; font-size:12px; color:#888;"></span>
+                </div>
+                <div id="drive115-user-box" class="card" style="padding:8px; border:1px solid #eee; border-radius:6px; margin-top:6px;">
+                    <p style="margin:0; color:#888;">未加载</p>
+                </div>
+            </div>
+        </div>
     `;
 
     // 绑定事件
@@ -98,6 +113,8 @@ export function initUserProfileSection(): void {
     
     // 加载已保存的用户信息
     loadUserProfile();
+    // 加载 115 用户信息
+    loadDrive115UserInfo();
 }
 
 /**
@@ -174,6 +191,8 @@ async function handleRefresh(): Promise<void> {
         } else {
             showMessage('刷新账号信息失败', 'error');
         }
+        // 同步刷新 115 用户信息
+        await loadDrive115UserInfo();
     } catch (error: any) {
         showMessage('刷新账号信息时发生错误', 'error');
         logAsync('ERROR', '刷新处理失败', { error: error.message });
@@ -247,6 +266,8 @@ function displayUserProfile(profile: UserProfile): void {
 
     // 刷新数据同步区域
     refreshDataSyncSection();
+    // 自动刷新 115 用户信息（不阻塞）
+    setTimeout(() => { loadDrive115UserInfo(); }, 0);
 }
 
 /**
@@ -351,5 +372,107 @@ function refreshDataSyncSection(): void {
         // logAsync('DEBUG', '已发送数据同步刷新请求');
     } catch (error: any) {
         logAsync('ERROR', '发送数据同步刷新请求失败', { error: error.message });
+    }
+}
+
+/**
+ * 加载并显示 115 v2 用户信息
+ */
+async function loadDrive115UserInfo(): Promise<void> {
+    const block = document.getElementById('drive115-user-info') as HTMLDivElement | null;
+    const statusEl = document.getElementById('drive115-user-status') as HTMLSpanElement | null;
+    const box = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+    if (!block || !box) return;
+
+    try {
+        // 读取设置（仅判断开关）
+        const settings = await getSettings();
+        const s = (settings as any)?.drive115 || {};
+        const enabled = !!s.enabled;
+        const enableV2 = !!s.enableV2;
+
+        if (!enabled) {
+            block.style.display = 'none';
+            return;
+        }
+
+        block.style.display = 'block';
+        set115Status('加载中…', 'info');
+        box.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
+
+        if (!enableV2) {
+            set115Status('未启用新版 115', 'warn');
+            box.innerHTML = '<p style="margin:0; color:#888;">请在设置中启用新版 115（Token 模式）</p>';
+            return;
+        }
+
+        const svc = getDrive115V2Service();
+        // 通过自动刷新机制获取有效 token
+        const vt = await svc.getValidAccessToken();
+        if (!vt.success) {
+            const msg = vt.message || '未配置或获取 access_token 失败';
+            set115Status(msg, 'warn');
+            box.innerHTML = `<p style=\"margin:0; color:#888;\">${msg || '请在设置中填写 refresh_token 并开启自动刷新，或手动刷新获取 access_token'}</p>`;
+            return;
+        }
+
+        const ret = await svc.fetchUserInfo(vt.accessToken);
+        if (!ret.success || !ret.data) {
+            set115Status(ret.message || '获取失败', 'error');
+            box.innerHTML = `<p style="margin:0; color:#d00;">${ret.message || '获取失败'}</p>`;
+            return;
+        }
+
+        set115Status('已更新', 'ok');
+        render115User(ret.data);
+    } catch (e: any) {
+        set115Status(e?.message || '加载失败', 'error');
+        box.innerHTML = `<p style="margin:0; color:#d00;">${e?.message || '加载失败'}</p>`;
+    }
+
+    function set115Status(msg: string, kind: 'ok'|'error'|'info'|'warn' = 'info') {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        const color = kind === 'ok' ? '#2e7d32' : kind === 'error' ? '#c62828' : kind === 'warn' ? '#ef6c00' : '#888';
+        (statusEl as any).style && ((statusEl as any).style.color = color);
+    }
+
+    function render115User(u: Drive115V2UserInfo) {
+        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        if (!container) return;
+        const name = u.name || (u as any).nick || (u as any).username || `UID ${u.uid || (u as any).user_id || (u as any).id || ''}`;
+        const avatar = u.avatar || (u as any).avatar_middle || (u as any).avatar_small || '';
+        const isVip = (() => {
+            const v: any = (u as any).is_vip; if (typeof v === 'boolean') return v ? '是' : '否'; if (typeof v === 'number') return v > 0 ? '是' : '否'; return '-';
+        })();
+        const spaceTotal = formatBytes((u as any).space_total);
+        const spaceUsed = formatBytes((u as any).space_used);
+        const spaceFree = formatBytes((u as any).space_free);
+
+        container.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${avatar ? `<img src="${avatar}" alt="avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">` : ''}
+            <div style="flex:1;">
+              <div style="font-weight:600;">${name || '-'}</div>
+              <div style="font-size:12px; color:#666;">UID: ${u.uid || (u as any).user_id || (u as any).id || '-'}</div>
+            </div>
+            <div style="font-size:12px; color:#666;">VIP: ${isVip}${(u as any).vip_level ? `（Lv.${(u as any).vip_level}）` : ''}</div>
+          </div>
+          <div style="margin-top:6px; font-size:12px; color:#444;">
+            <div>总空间：${spaceTotal}</div>
+            <div>已使用：${spaceUsed}</div>
+            <div>剩余：${spaceFree}</div>
+            ${(u as any).vip_expire ? `<div>到期：${(u as any).vip_expire}</div>` : ''}
+            ${(u as any).email ? `<div>邮箱：${(u as any).email}</div>` : ''}
+            ${(u as any).phone ? `<div>手机：${(u as any).phone}</div>` : ''}
+          </div>
+        `;
+    }
+
+    function formatBytes(n?: number): string {
+        if (typeof n !== 'number' || isNaN(n)) return '-';
+        const units = ['B','KB','MB','GB','TB','PB'];
+        let v = n; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
     }
 }

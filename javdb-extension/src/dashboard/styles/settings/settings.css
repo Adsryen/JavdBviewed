@@ -766,6 +766,37 @@
     background-color: #fff;
 }
 
+/* 全局统一输入框风格：与 AI 设置输入框一致 */
+.text-input,
+.select-input,
+.number-input,
+.textarea-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0; /* 与 aiSettings 的 --ai-border-color 接近 */
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: #fff;
+    color: #1e293b; /* 深色文字 */
+    box-sizing: border-box;
+}
+
+.text-input:focus,
+.select-input:focus,
+.number-input:focus,
+.textarea-input:focus {
+    outline: none;
+    border-color: #4f46e5; /* 与 AI 面板主色一致 */
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* 行为细化 */
+textarea.text-input,
+textarea.textarea-input {
+    resize: vertical;
+}
+
 .form-group-checkbox {
     display: flex;
     align-items: center;

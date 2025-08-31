@@ -7,11 +7,12 @@ import { getSettings } from '../../utils/storage';
 import type { ExtensionSettings } from '../../types';
 import type { OfflineDownloadOptions, BatchOfflineOptions } from '../drive115/types';
 import { getDrive115Service as getV1, initializeDrive115Service as initV1 } from '../drive115';
+import { getDrive115V2Service } from '../drive115v2';
 
 /**
  * 获取当前激活版本：true => v2，false => v1
  */
-async function isV2Enabled(): Promise<boolean> {
+export async function isV2Enabled(): Promise<boolean> {
   try {
     const settings: ExtensionSettings = await getSettings();
     const sel = settings.drive115?.lastSelectedVersion;
@@ -100,4 +101,21 @@ export async function clearLogs() {
 export async function exportLogs() {
   await initV1();
   return getV1().exportLogs();
+}
+
+/**
+ * v2：批量添加离线任务（多URL，\n分隔）
+ * 使用 /open/offline/add_task_urls
+ */
+export async function addTaskUrlsV2(params: { urls: string; wp_path_id?: string }): Promise<{ success: boolean; message?: string; data?: any[]; raw?: any }>{
+  if (!(await isV2Enabled())) {
+    throw new Error('115 v2 未启用');
+  }
+  const svc = getDrive115V2Service();
+  const vt = await svc.getValidAccessToken();
+  if (!vt.success) {
+    throw new Error(vt.message || '获取 access_token 失败');
+  }
+  const res = await svc.addTaskUrls({ accessToken: vt.accessToken, urls: params.urls, wp_path_id: params.wp_path_id });
+  return { success: res.success, message: res.message, data: (res as any).data, raw: res.raw };
 }

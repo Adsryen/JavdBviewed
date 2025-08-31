@@ -5,32 +5,32 @@
 
 /* CSS变量定义 */
 :root {
-    /* 边框颜色 */
-    --input-border-color: #e1e5e9;
-    --input-border-color-hover: #c6d0dd;
-    --input-border-color-focus: #007bff;
-    --input-border-color-error: #dc3545;
-    --input-border-color-success: #28a745;
-    
-    /* 边框宽度 */
+    /* 边框颜色（AI风格） */
+    --input-border-color: #e2e8f0;
+    --input-border-color-hover: #cbd5e1;
+    --input-border-color-focus: #4f46e5;
+    --input-border-color-error: #ef4444;
+    --input-border-color-success: #10b981;
+
+    /* 边框宽度与圆角（与 AI 输入一致） */
     --input-border-width: 2px;
     --input-border-radius: 8px;
-    
-    /* 阴影效果 */
-    --input-shadow-focus: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    --input-shadow-error: 0 0 0 3px rgba(220, 53, 69, 0.1);
-    --input-shadow-success: 0 0 0 3px rgba(40, 167, 69, 0.1);
-    
-    /* 背景颜色 */
+
+    /* 阴影效果（AI风格） */
+    --input-shadow-focus: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    --input-shadow-error: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    --input-shadow-success: 0 0 0 3px rgba(16, 185, 129, 0.1);
+
+    /* 背景颜色（白底） */
     --input-bg-color: #ffffff;
-    --input-bg-color-hover: #f8f9fa;
+    --input-bg-color-hover: #f8fafc;
     --input-bg-color-focus: #ffffff;
-    --input-bg-color-disabled: #f5f5f5;
-    
-    /* 文字颜色 */
-    --input-text-color: #495057;
-    --input-text-color-placeholder: #6c757d;
-    --input-text-color-disabled: #adb5bd;
+    --input-bg-color-disabled: #f1f5f9;
+
+    /* 文字颜色（深色文本） */
+    --input-text-color: #1e293b;
+    --input-text-color-placeholder: #64748b;
+    --input-text-color-disabled: #94a3b8;
 }
 
 /* 通用输入框样式 */
@@ -40,7 +40,7 @@
 .settings-panel input[type="url"],
 .settings-panel input[type="email"],
 .settings-panel input[type="search"],
-.settings-panel textarea,
+.settings-panel textarea:not(.textarea-input),
 .settings-panel select {
     /* 基础样式 */
     width: 100%;
@@ -70,7 +70,7 @@
 
 /* 占位符样式 */
 .settings-panel input::placeholder,
-.settings-panel textarea::placeholder {
+.settings-panel textarea:not(.textarea-input)::placeholder {
     color: var(--input-text-color-placeholder);
     opacity: 1;
 }
@@ -82,7 +82,7 @@
 .settings-panel input[type="url"]:hover,
 .settings-panel input[type="email"]:hover,
 .settings-panel input[type="search"]:hover,
-.settings-panel textarea:hover,
+.settings-panel textarea:not(.textarea-input):hover,
 .settings-panel select:hover {
     border-color: var(--input-border-color-hover);
     background-color: var(--input-bg-color-hover);
@@ -97,7 +97,7 @@
 .settings-panel input[type="url"]:focus,
 .settings-panel input[type="email"]:focus,
 .settings-panel input[type="search"]:focus,
-.settings-panel textarea:focus,
+.settings-panel textarea:not(.textarea-input):focus,
 .settings-panel select:focus {
     border-color: var(--input-border-color-focus);
     background-color: var(--input-bg-color-focus);
@@ -112,7 +112,7 @@
 .settings-panel input[type="url"]:disabled,
 .settings-panel input[type="email"]:disabled,
 .settings-panel input[type="search"]:disabled,
-.settings-panel textarea:disabled,
+.settings-panel textarea:not(.textarea-input):disabled,
 .settings-panel select:disabled {
     background-color: var(--input-bg-color-disabled);
     color: var(--input-text-color-disabled);
@@ -122,7 +122,7 @@
 }
 
 .settings-panel input:disabled:hover,
-.settings-panel textarea:disabled:hover,
+.settings-panel textarea:not(.textarea-input):disabled:hover,
 .settings-panel select:disabled:hover {
     transform: none;
     box-shadow: none;
@@ -130,7 +130,7 @@
 
 /* 错误状态 */
 .settings-panel input.error,
-.settings-panel textarea.error,
+.settings-panel textarea:not(.textarea-input).error,
 .settings-panel select.error {
     border-color: var(--input-border-color-error);
     box-shadow: var(--input-shadow-error);
@@ -138,7 +138,7 @@
 
 /* 成功状态 */
 .settings-panel input.success,
-.settings-panel textarea.success,
+.settings-panel textarea:not(.textarea-input).success,
 .settings-panel select.success {
     border-color: var(--input-border-color-success);
     box-shadow: var(--input-shadow-success);
@@ -159,7 +159,7 @@
 }
 
 /* 文本域 */
-.settings-panel textarea {
+.settings-panel textarea:not(.textarea-input) {
     min-height: 80px;
     resize: vertical;
     font-family: inherit;
@@ -296,7 +296,7 @@
 /* 响应式设计 */
 @media (max-width: 768px) {
     .settings-panel input,
-    .settings-panel textarea,
+    .settings-panel textarea:not(.textarea-input),
     .settings-panel select {
         padding: 10px 14px;
         font-size: 16px; /* 防止iOS缩放 */
@@ -316,13 +316,14 @@
 /* 暗色主题支持 */
 @media (prefers-color-scheme: dark) {
     :root {
-        --input-border-color: #4a5568;
-        --input-border-color-hover: #718096;
-        --input-bg-color: #2d3748;
-        --input-bg-color-hover: #4a5568;
-        --input-bg-color-disabled: #1a202c;
-        --input-text-color: #e2e8f0;
-        --input-text-color-placeholder: #a0aec0;
-        --input-text-color-disabled: #718096;
+        /* 维持与亮色一致，避免黑底白字 */
+        --input-border-color: #e2e8f0;
+        --input-border-color-hover: #cbd5e1;
+        --input-bg-color: #ffffff;
+        --input-bg-color-hover: #f8fafc;
+        --input-bg-color-disabled: #f1f5f9;
+        --input-text-color: #1e293b;
+        --input-text-color-placeholder: #64748b;
+        --input-text-color-disabled: #94a3b8;
     }
 }
