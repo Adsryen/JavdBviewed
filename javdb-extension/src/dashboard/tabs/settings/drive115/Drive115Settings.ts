@@ -164,6 +164,11 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         if (enableV2Checkbox) {
             enableV2Checkbox.checked = !!this.settings.enableV2;
         }
+        const v2ApiBaseUrlInput = document.getElementById('drive115V2ApiBaseUrl') as HTMLInputElement | null;
+        if (v2ApiBaseUrlInput) {
+            const val = (this.settings.v2ApiBaseUrl || DEFAULT_DRIVE115_SETTINGS.v2ApiBaseUrl || '').toString();
+            v2ApiBaseUrlInput.value = val;
+        }
         const v2AccessTokenInput = document.getElementById('drive115V2AccessToken') as HTMLInputElement;
         if (v2AccessTokenInput) {
             v2AccessTokenInput.value = this.settings.v2AccessToken || '';
@@ -171,6 +176,17 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as HTMLInputElement;
         if (v2RefreshTokenInput) {
             v2RefreshTokenInput.value = this.settings.v2RefreshToken || '';
+        }
+
+        // v2 自动刷新设置
+        const v2AutoRefreshCheckbox = document.getElementById('drive115V2AutoRefresh') as HTMLInputElement | null;
+        if (v2AutoRefreshCheckbox) {
+            v2AutoRefreshCheckbox.checked = !!this.settings.v2AutoRefresh;
+        }
+        const v2AutoRefreshSkewInput = document.getElementById('drive115V2AutoRefreshSkewSec') as HTMLInputElement | null;
+        if (v2AutoRefreshSkewInput) {
+            const skew = typeof this.settings.v2AutoRefreshSkewSec === 'number' ? this.settings.v2AutoRefreshSkewSec : (DEFAULT_DRIVE115_SETTINGS as any).v2AutoRefreshSkewSec || 60;
+            v2AutoRefreshSkewInput.value = String(Math.max(0, Math.floor(skew)));
         }
 
         // 更新禁用状态

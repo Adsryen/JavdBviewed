@@ -2,7 +2,7 @@
  * 115网盘内容脚本集成
  */
 
-import { isDrive115Enabled, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
+import { isDrive115Enabled, isV2Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import { log } from './state';
@@ -54,8 +54,6 @@ function logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: str
  */
 export async function initDrive115Features(): Promise<void> {
     try {
-        // 静默初始化115功能
-
         // 通过统一路由判断是否启用115功能（屏蔽 v1/v2 差异）
         const enabled = await isDrive115Enabled();
         if (!enabled) {
@@ -257,12 +255,24 @@ export async function handlePushToDrive115(
 
         log(`推送磁链到115网盘: ${magnetName} (${videoId})`);
 
-        // 使用新的跨域推送方法
-        const result = await pushToDrive115ViaCrossDomain({
-            videoId,
-            magnetUrl,
-            magnetName
-        });
+        // 根据版本选择推送方式：v2 直接调用 API；否则走跨域（v1）
+        let result: { success: boolean; data?: any; error?: string };
+        if (await isV2Enabled()) {
+            // v2 支持一次多个URL，这里单个拼接即可
+            const urls = magnetUrl; // 单条
+            try {
+                const res = await addTaskUrlsV2({ urls });
+                result = { success: res.success, data: res.data, error: res.message };
+            } catch (e: any) {
+                result = { success: false, error: e?.message || '推送失败' };
+            }
+        } else {
+            result = await pushToDrive115ViaCrossDomain({
+                videoId,
+                magnetUrl,
+                magnetName
+            });
+        }
 
         if (result.success) {
             // 成功状态

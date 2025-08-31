@@ -1110,17 +1110,53 @@
                                     </div>
 
                                     <div class="form-group">
+                                        <label for="drive115V2ApiBaseUrl">接口域名（v2）:</label>
+                                        <input type="text" id="drive115V2ApiBaseUrl" placeholder="例如：https://proapi.115.com" />
+                                        <p class="input-description">可自定义 v2 接口基础域名，默认 <code>https://proapi.115.com</code>。无需以斜杠结尾。</p>
+                                    </div>
+
+                                    <div class="form-group">
                                         <label for="drive115V2AccessToken">access_token:</label>
-                                        <input type="password" id="drive115V2AccessToken" placeholder="粘贴 access_token">
+                                        <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
                                     </div>
 
                                     <div class="form-group">
                                         <label for="drive115V2RefreshToken">refresh_token:</label>
                                         <div class="form-group-inline">
-                                            <input type="password" id="drive115V2RefreshToken" placeholder="粘贴 refresh_token">
+                                            <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                                            
                                             <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
                                         </div>
                                         <p class="input-description">点击“手动刷新”会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="form-group-inline" style="align-items:center; gap:12px;">
+                                            <label class="drive115-toggle-label" style="margin:0;">
+                                                <span class="drive115-toggle-text">自动刷新 access_token</span>
+                                                <div class="drive115-toggle-switch">
+                                                    <input type="checkbox" id="drive115V2AutoRefresh" class="drive115-toggle-input">
+                                                    <span class="drive115-toggle-slider"></span>
+                                                </div>
+                                            </label>
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                <label for="drive115V2AutoRefreshSkewSec" style="white-space:nowrap;">提前刷新(秒):</label>
+                                                <input type="number" id="drive115V2AutoRefreshSkewSec" min="0" step="1" value="60" style="width:100px;">
+                                            </div>
+                                        </div>
+                                        <p class="input-description">开启后，当 access_token 过期或将在指定秒数内过期时，将自动使用 refresh_token 刷新并保存。</p>
+                                    </div>
+
+                                    <!-- v2 用户信息展示 -->
+                                    <div class="form-group">
+                                        <div style="display:flex; align-items:center; gap:8px; margin:8px 0;">
+                                            <h5 style="margin:0;">115 账号信息</h5>
+                                            <button id="drive115V2FetchUserInfo" class="button-like">刷新用户信息</button>
+                                            <span id="drive115V2UserInfoStatus" style="font-size:12px; color:#888;"></span>
+                                        </div>
+                                        <div id="drive115V2UserInfoBox" class="card" style="padding:10px; border:1px solid #eee; border-radius:6px;">
+                                            <p style="margin:0; color:#888;">未加载用户信息</p>
+                                        </div>
                                     </div>
                                 </div>
 
