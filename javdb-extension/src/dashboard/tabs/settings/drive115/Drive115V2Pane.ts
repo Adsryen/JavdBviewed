@@ -1,5 +1,6 @@
 import type { IDrive115Pane } from './Drive115TabsController';
 import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../services/drive115v2';
+import { getSettings, saveSettings } from '../../../../utils/storage';
 
 type Drive115PaneContext = {
   update: (patch: Partial<any>) => void;
@@ -27,6 +28,7 @@ export class Drive115V2Pane implements IDrive115Pane {
       const borderBottom = parseFloat(cs.borderBottomWidth || '0') || 0;
       target += borderTop + borderBottom;
     }
+
     // 最小高度保护：至少容纳 rows 行（若未设置 rows，则按 2 行），避免出现第二行被裁切
     const lineHeight = parseFloat(cs.lineHeight || '0') || 0;
     const paddingTop = parseFloat(cs.paddingTop || '0') || 0;
@@ -157,6 +159,8 @@ export class Drive115V2Pane implements IDrive115Pane {
           v2TokenExpiresAt: (typeof expires_at === 'number' ? expires_at : null)
         });
         this.ctx?.save?.();
+        // 立即刷新UI以更新到期时间显示
+        this.ctx?.updateUI?.();
         // 自适应高度
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
         this.setUserInfoStatus('已刷新 access_token', 'ok');
@@ -187,6 +191,18 @@ export class Drive115V2Pane implements IDrive115Pane {
         }
         this.setUserInfoStatus('已更新', 'ok');
         this.renderUserInfo(ret.data);
+        // 持久化保存用户信息
+        try {
+          const settings: any = await getSettings();
+          const ns: any = { ...settings };
+          ns.drive115 = {
+            ...(settings?.drive115 || {}),
+            v2UserInfo: ret.data,
+            v2UserInfoUpdatedAt: Date.now(),
+            v2UserInfoExpired: false,
+          };
+          await saveSettings(ns);
+        } catch {}
       } catch (err: any) {
         this.setUserInfoStatus(err?.message || '发生错误', 'error');
         if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${err?.message || '发生错误'}</p>`;
@@ -211,12 +227,66 @@ export class Drive115V2Pane implements IDrive115Pane {
       setTimeout(() => {
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
       }, 0);
+      // 显示时优先渲染已缓存的 115 用户信息，并尝试后台刷新
+      this.renderCachedAndMaybeRefresh();
     }
   }
 
   hide(): void {
     const el = this.getElement();
     if (el) el.style.display = 'none';
+  }
+
+  // 优先渲染缓存，并在后台尝试刷新 + 持久化
+  private async renderCachedAndMaybeRefresh() {
+    try {
+      const settings: any = await getSettings();
+      const s = settings?.drive115 || {};
+      const enabled = !!s.enabled;
+      const enableV2 = !!s.enableV2;
+      const cachedUser: Drive115V2UserInfo | undefined = s.v2UserInfo;
+      const expired: boolean = !!s.v2UserInfoExpired;
+
+      if (!enabled) return;
+      // 先渲染缓存
+      if (cachedUser && Object.keys(cachedUser).length > 0) {
+        this.renderUserInfo(cachedUser);
+        this.setUserInfoStatus(expired ? '已过期（缓存）' : '已缓存', 'info');
+      }
+
+      if (!enableV2) return;
+
+      // 后台刷新（不阻塞 UI）
+      const svc = getDrive115V2Service();
+      const vt = await svc.getValidAccessToken();
+      if (!vt.success) {
+        // 标记缓存过期
+        const ns: any = { ...settings };
+        ns.drive115 = { ...(settings.drive115 || {}), v2UserInfoExpired: true };
+        await saveSettings(ns);
+        return;
+      }
+      const ret = await svc.fetchUserInfo(vt.accessToken);
+      if (!ret.success || !ret.data) {
+        const ns: any = { ...settings };
+        ns.drive115 = { ...(settings.drive115 || {}), v2UserInfoExpired: true };
+        await saveSettings(ns);
+        return;
+      }
+      // 渲染并持久化
+      this.renderUserInfo(ret.data);
+      this.setUserInfoStatus('已更新', 'ok');
+      const ns: any = { ...settings };
+      ns.drive115 = {
+        ...(settings.drive115 || {}),
+        v2UserInfo: ret.data,
+        v2UserInfoUpdatedAt: Date.now(),
+        v2UserInfoExpired: false,
+      };
+      await saveSettings(ns);
+    } catch (e) {
+      // 静默失败（不打断设置页操作）
+    }
   }
 
   // 校验 v2 相关字段（可选填：若填写则简单长度校验）
