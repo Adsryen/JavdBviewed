@@ -20,6 +20,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
     protected autoSaveTimeout: number | undefined = undefined;
     private isAutoSaving = false;
     private tabsController: Drive115TabsController | null = null;
+    private expiryTimer: number | undefined = undefined;
 
     constructor() {
         super({
@@ -28,26 +29,6 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             autoSave: true,
             saveDelay: 1000,
             requireValidation: true
-        });
-
-        // 版本切换：标题右侧 segmented 按钮
-        const verV1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
-        const verV2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
-        verV1Btn?.addEventListener('click', () => {
-            // 切到 v1：更新持久化字段并同步关闭 enableV2
-            this.settings.lastSelectedVersion = 'v1';
-            this.settings.enableV2 = false;
-            this.updateUI();
-            this.autoSaveSettings();
-            this.tabsController?.switchTo('v1');
-        });
-        verV2Btn?.addEventListener('click', () => {
-            // 切到 v2：更新持久化字段并同步开启 enableV2
-            this.settings.lastSelectedVersion = 'v2';
-            this.settings.enableV2 = true;
-            this.updateUI();
-            this.autoSaveSettings();
-            this.tabsController?.switchTo('v2');
         });
     }
 
@@ -83,6 +64,38 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.settings.enabled = enabledCheckbox.checked;
             this.updateUI();
             this.autoSaveSettings();
+        });
+
+        // 新版 v2 开关（持久化）
+        const enableV2Checkbox = document.getElementById('drive115EnableV2') as HTMLInputElement | null;
+        enableV2Checkbox?.addEventListener('change', async () => {
+            this.settings.enableV2 = !!enableV2Checkbox.checked;
+            this.settings.lastSelectedVersion = this.settings.enableV2 ? 'v2' : 'v1';
+            this.updateUI();
+            this.autoSaveSettings();
+            await this.saveImmediately(); // 关键开关：立即保存，避免刷新丢失
+        });
+
+        // 版本切换：标题右侧 segmented 按钮（确保在 DOM 存在后绑定）
+        const verV1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
+        const verV2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+        verV1Btn?.addEventListener('click', async () => {
+            // 切到 v1：更新持久化字段并同步关闭 enableV2
+            this.settings.lastSelectedVersion = 'v1';
+            this.settings.enableV2 = false;
+            this.updateUI();
+            this.autoSaveSettings();
+            await this.saveImmediately(); // 版本切换：立即保存
+            this.tabsController?.switchTo('v1');
+        });
+        verV2Btn?.addEventListener('click', async () => {
+            // 切到 v2：更新持久化字段并同步开启 enableV2
+            this.settings.lastSelectedVersion = 'v2';
+            this.settings.enableV2 = true;
+            this.updateUI();
+            this.autoSaveSettings();
+            await this.saveImmediately(); // 版本切换：立即保存
+            this.tabsController?.switchTo('v2');
         });
 
         // 测试搜索
@@ -178,6 +191,25 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             v2RefreshTokenInput.value = this.settings.v2RefreshToken || '';
         }
 
+        // v2 token 到期时间显示（并启动倒计时）
+        const expiryEl = document.getElementById('drive115V2TokenExpiry') as HTMLSpanElement | null;
+        if (expiryEl) {
+            const ts = (this.settings as any).v2TokenExpiresAt as number | undefined;
+            if (typeof ts === 'number' && ts > 0) {
+                const now = Math.floor(Date.now() / 1000);
+                const remain = ts - now;
+                const dateTimeText = this.formatDateTime(ts) || '';
+                const remainText = remain > 0 ? this.formatRemain(remain) : '已过期';
+                expiryEl.textContent = `${dateTimeText}（${remainText}）`;
+                expiryEl.style.color = remain > 0 ? (remain <= 3600 ? '#ef6c00' : '#2e7d32') : '#c62828';
+                this.startExpiryCountdown(ts);
+            } else {
+                expiryEl.textContent = '未知';
+                expiryEl.style.color = '#888';
+                this.stopExpiryCountdown();
+            }
+        }
+
         // v2 自动刷新设置
         const v2AutoRefreshCheckbox = document.getElementById('drive115V2AutoRefresh') as HTMLInputElement | null;
         if (v2AutoRefreshCheckbox) {
@@ -189,11 +221,22 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             v2AutoRefreshSkewInput.value = String(Math.max(0, Math.floor(skew)));
         }
 
-        // 更新禁用状态
-        const inputs = document.querySelectorAll('#drive115-settings input:not(#drive115Enabled), #drive115-settings button:not(#drive115HowToCidToggle)');
-        inputs.forEach(input => {
+        // 更新禁用状态（保留部分控件可用：版本开关、版本按钮、手动刷新、v2 接口域名输入）
+        const disableSelector = [
+            '#drive115-settings input:not(#drive115Enabled):not(#drive115EnableV2):not(#drive115V2ApiBaseUrl)',
+            '#drive115-settings button:not(#drive115HowToCidToggle):not(#drive115VerV1Btn):not(#drive115VerV2Btn):not(#drive115V2ManualRefresh)'
+        ].join(', ');
+        const toDisable = document.querySelectorAll(disableSelector);
+        toDisable.forEach(input => {
             (input as HTMLInputElement | HTMLButtonElement).disabled = !this.settings.enabled;
         });
+
+        // 明确保持以下控件可用（不受全局禁用影响）
+        const alwaysEnableIds = ['drive115EnableV2', 'drive115VerV1Btn', 'drive115VerV2Btn', 'drive115V2ManualRefresh', 'drive115V2ApiBaseUrl'];
+        for (const id of alwaysEnableIds) {
+            const el = document.getElementById(id) as HTMLInputElement | HTMLButtonElement | null;
+            if (el) el.disabled = false;
+        }
 
         // 更新容器的禁用状态
         const settingsContainer = document.querySelector('.drive115-settings-container') as HTMLElement;
@@ -265,6 +308,35 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
                 this.isAutoSaving = false;
             }
         }, 1000);
+    }
+
+    // 立刻保存设置（用于关键开关，避免用户在自动保存延迟期间刷新导致丢失）
+    private async saveImmediately(): Promise<void> {
+        try {
+            if (this.autoSaveTimeout) {
+                clearTimeout(this.autoSaveTimeout);
+                this.autoSaveTimeout = undefined;
+            }
+            this.updateAutoSaveStatus('saving');
+            this.isAutoSaving = true;
+            const currentSettings = await getSettings();
+            const newSettings: ExtensionSettings = {
+                ...currentSettings,
+                drive115: this.settings
+            };
+            await saveSettings(newSettings);
+            this.updateAutoSaveStatus('saved');
+            // 短暂显示已保存，再恢复 idle
+            setTimeout(() => {
+                if (!this.isAutoSaving) this.updateAutoSaveStatus('idle');
+            }, 1200);
+        } catch (e) {
+            console.error('立即保存115设置失败:', e);
+            this.updateAutoSaveStatus('error');
+            showMessage('保存设置失败', 'error');
+        } finally {
+            this.isAutoSaving = false;
+        }
     }
 
     /**
@@ -395,6 +467,32 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         return date.toLocaleDateString('zh-CN');
     }
 
+    // 格式化为 YYYY/M/D  HH:MM:SS（注意日期与时间中间两个空格）
+    private formatDateTime(tsSec: number): string {
+        if (!tsSec || isNaN(tsSec as any)) return '';
+        const d = new Date(tsSec * 1000);
+        const Y = d.getFullYear();
+        const M = d.getMonth() + 1; // 1-12 不补零，符合示例 2025/9/1
+        const D = d.getDate();
+        const hh = `${d.getHours()}`.padStart(2, '0');
+        const mm = `${d.getMinutes()}`.padStart(2, '0');
+        const ss = `${d.getSeconds()}`.padStart(2, '0');
+        return `${Y}/${M}/${D}  ${hh}:${mm}:${ss}`;
+    }
+
+    // 格式化剩余时间（秒），包含秒
+    private formatRemain(sec: number): string {
+        if (!sec || sec <= 0) return '已过期';
+        const d = Math.floor(sec / 86400);
+        const h = Math.floor((sec % 86400) / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        if (d > 0) return `${d}天${h}小时${m}分钟${s}秒`;
+        if (h > 0) return `${h}小时${m}分钟${s}秒`;
+        if (m > 0) return `${m}分钟${s}秒`;
+        return `${s}秒`;
+    }
+
     /**
      * 刷新日志
      */
@@ -508,6 +606,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             clearTimeout(this.autoSaveTimeout);
             this.autoSaveTimeout = undefined;
         }
+        this.stopExpiryCountdown();
     }
 
     /**
@@ -527,28 +626,62 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
                     update: (patch: Partial<any>) => {
                         this.settings = { ...(this.settings as any), ...(patch as any) } as any;
                     },
-                    updateUI: () => this.updateUI(),
-                    save: () => this.autoSaveSettings()
-                };
-                const v1 = new Drive115V1Pane('drive115V1Pane', ctx);
-                const v2 = new Drive115V2Pane('drive115V2Pane', ctx);
-                this.tabsController = new Drive115TabsController({
-                    v1Pane: v1,
-                    v2Pane: v2,
-                    getCurrentVersion: () => (this.settings.lastSelectedVersion || (this.settings.enableV2 ? 'v2' : 'v1')) as 'v1' | 'v2',
-                    onVersionChange: (ver) => {
-                        // 可选：当由控制器驱动切换时，同步设置（目前按钮/复选框已做同步，此处兜底）
-                        this.settings.lastSelectedVersion = ver;
-                        this.settings.enableV2 = ver === 'v2';
+                    updateUI: () => {
+                        this.updateUI();
+                    },
+                    // 子面板保存：既触发自动保存也做一次立即保存，避免刷新丢失
+                    save: async () => {
                         this.autoSaveSettings();
+                        await this.saveImmediately();
+                    }
+                } as const;
+
+                this.tabsController = new Drive115TabsController({
+                    v1Pane: new Drive115V1Pane('drive115V1Pane', ctx as any),
+                    v2Pane: new Drive115V2Pane('drive115V2Pane', ctx as any),
+                    getCurrentVersion: () => (this.settings.lastSelectedVersion === 'v2' ? 'v2' : 'v1'),
+                    onVersionChange: async (next) => {
+                        this.settings.lastSelectedVersion = next;
+                        this.settings.enableV2 = next === 'v2';
+                        this.updateUI();
+                        this.autoSaveSettings();
+                        await this.saveImmediately();
                     }
                 });
                 this.tabsController.init();
+                const cur = this.settings.lastSelectedVersion === 'v2' ? 'v2' : 'v1';
+                this.tabsController.switchTo(cur, { silent: true });
+            } else {
+                const cur = this.settings.lastSelectedVersion === 'v2' ? 'v2' : 'v1';
+                this.tabsController.switchTo(cur, { silent: true });
             }
-            this.tabsController?.switchTo(this.settings.enableV2 ? 'v2' : 'v1', { silent: true });
-        }, 100);
+        }, 0);
+    }
+    
+    // 启动倒计时，每秒更新剩余时间与颜色
+    private startExpiryCountdown(ts: number): void {
+        this.stopExpiryCountdown();
+        this.expiryTimer = window.setInterval(() => {
+            const el = document.getElementById('drive115V2TokenExpiry') as HTMLSpanElement | null;
+            if (!el) return;
+            const now = Math.floor(Date.now() / 1000);
+            const remain = ts - now;
+            const dateTimeText = this.formatDateTime(ts) || '';
+            const remainText = remain > 0 ? this.formatRemain(remain) : '已过期';
+            el.textContent = `${dateTimeText}（${remainText}）`;
+            el.style.color = remain > 0 ? (remain <= 3600 ? '#ef6c00' : '#2e7d32') : '#c62828';
+            if (remain <= -1) {
+                // 到期后保持一次最终状态并停止
+                this.stopExpiryCountdown();
+            }
+        }, 1000);
+    }
 
-        this.updateAutoSaveStatus('idle');
+    private stopExpiryCountdown(): void {
+        if (this.expiryTimer) {
+            clearInterval(this.expiryTimer);
+            this.expiryTimer = undefined;
+        }
     }
 
     /**

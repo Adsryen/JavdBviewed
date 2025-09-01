@@ -1094,9 +1094,9 @@
                                 <div class="settings-section" id="drive115V2Pane">
                                     <h4>新版（Token 模式）</h4>
                                     <div class="form-group">
-                                        <div class="drive115-toggle-wrapper">
-                                            <label class="drive115-toggle-label">
-                                                <span class="drive115-toggle-text">使用新版 115（基于 token）</span>
+                                        <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
+                                            <span class="drive115-toggle-text">使用新版 115（基于 token）</span>
+                                            <label class="drive115-toggle-label" style="margin:0;">
                                                 <div class="drive115-toggle-switch">
                                                     <input type="checkbox" id="drive115EnableV2" class="drive115-toggle-input">
                                                     <span class="drive115-toggle-slider"></span>
@@ -1118,6 +1118,9 @@
                                     <div class="form-group">
                                         <label for="drive115V2AccessToken">access_token:</label>
                                         <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                                        <p class="input-description" style="margin-top:6px;">
+                                            到期：<span id="drive115V2TokenExpiry">未知</span>
+                                        </p>
                                     </div>
 
                                     <div class="form-group">
@@ -1150,42 +1153,6 @@
                                     <!-- v2 用户信息展示 -->
                                     <div class="form-group">
                                         <div style="display:flex; align-items:center; gap:8px; margin:8px 0;">
-                                            <h5 style="margin:0;">115 账号信息</h5>
-                                            <button id="drive115V2FetchUserInfo" class="button-like">刷新用户信息</button>
-                                            <span id="drive115V2UserInfoStatus" style="font-size:12px; color:#888;"></span>
-                                        </div>
-                                        <div id="drive115V2UserInfoBox" class="card" style="padding:10px; border:1px solid #eee; border-radius:6px;">
-                                            <p style="margin:0; color:#888;">未加载用户信息</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 基础设置 -->
-                                <div class="settings-section">
-                                    <h4>基础设置</h4>
-                                    <div class="form-group">
-                                        <div class="drive115-toggle-wrapper">
-                                            <label class="drive115-toggle-label">
-                                                <span class="drive115-toggle-text">启用115网盘功能</span>
-                                                <div class="drive115-toggle-switch">
-                                                    <input type="checkbox" id="drive115Enabled" class="drive115-toggle-input">
-                                                    <span class="drive115-toggle-slider"></span>
-                                                </div>
-                                            </label>
-                                        </div>
-                                        <p class="input-description">开启后可以使用115网盘离线下载功能。需要先登录115网盘。</p>
-                                        <div class="drive115-alert">
-                                            <div class="drive115-alert-icon">⚠️</div>
-                                            <div class="drive115-alert-content">
-                                                <strong>注意：</strong>需要自行打开一个标签页成功登录115网盘，并且关闭浏览器的页面睡眠模式，否则无法正常使用离线下载功能。
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="drive115-settings-container disabled">
-                                    <!-- 旧版（v1）下载设置 -->
-                                    <div class="settings-section" id="drive115V1Pane">
                                         <h4>下载设置</h4>
                                         <div class="form-group">
                                             <label for="drive115DownloadDir">下载目录ID:</label>
