@@ -302,6 +302,24 @@
     transition: border-color 0.2s ease;
 }
 
+/* 禁用态统一灰化（避免主题样式覆盖） */
+#drive115-settings input:disabled,
+#drive115-settings textarea:disabled,
+#drive115-settings select:disabled {
+    background-color: #f5f5f5 !important;
+    color: #888 !important;
+    border-color: #e0e0e0 !important;
+    cursor: not-allowed !important;
+}
+
+/* 针对 v2 token 字段的明确样式（再加一层保险） */
+#drive115V2AccessToken:disabled,
+#drive115V2RefreshToken:disabled {
+    background-color: #f5f5f5 !important;
+    color: #888 !important;
+    border-color: #e0e0e0 !important;
+}
+
 #drive115-settings .setting-item input[type="text"]:focus,
 #drive115-settings .setting-item input[type="number"]:focus {
     outline: none;

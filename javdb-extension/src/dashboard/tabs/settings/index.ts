@@ -45,7 +45,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         const { getAdvancedSettings } = await import('./advanced');
         const { getLoggingSettings } = await import('./logging');
         const { getAiSettings } = await import('./ai');
-        const { getDrive115Settings } = await import('./drive115');
+        const { getDrive115SettingsV2 } = await import('./drive115');
         const { getEmbySettings } = await import('./emby');
         const { getUpdateSettings } = await import('./update');
 
@@ -62,7 +62,8 @@ export async function initAllSettingsPanels(): Promise<void> {
         settingsPanelManager.registerPanel(await getAdvancedSettings());
         settingsPanelManager.registerPanel(await getLoggingSettings());
         settingsPanelManager.registerPanel(await getAiSettings());
-        settingsPanelManager.registerPanel(await getDrive115Settings());
+        // 使用 v2 独立控制器，避免对 v1 的任何依赖
+        settingsPanelManager.registerPanel(await getDrive115SettingsV2());
         settingsPanelManager.registerPanel(await getEmbySettings());
         settingsPanelManager.registerPanel(await getUpdateSettings());
 
@@ -220,9 +221,9 @@ function initSettingsPanelSwitching(): void {
             }
         }
 
-        // 监听设置子页面切换事件
-        window.addEventListener('settingsSubSectionChange', (event: CustomEvent) => {
-            const { section } = event.detail;
+        // 监听设置子页面切换事件（自定义事件类型断言）
+        window.addEventListener('settingsSubSectionChange' as any, (event: Event) => {
+            const { section } = (event as CustomEvent).detail || {};
             console.log(`[Settings] 收到子页面切换事件: ${section}`);
 
             const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${section}"]`);

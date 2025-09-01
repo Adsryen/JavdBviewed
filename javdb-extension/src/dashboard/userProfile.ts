@@ -3,7 +3,7 @@ import { showMessage } from './ui/toast';
 import type { UserProfile } from '../types';
 import { userService } from './services/userService';
 import { emit } from './services/eventBus';
-import { getSettings } from '../utils/storage';
+import { getSettings, saveSettings } from '../utils/storage';
 import { getDrive115V2Service, type Drive115V2UserInfo } from '../services/drive115v2';
 
 // 重新导出用户服务的方法，保持向后兼容
@@ -397,8 +397,16 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         block.style.display = 'block';
-        set115Status('加载中…', 'info');
-        box.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
+        // 若存在已缓存的用户信息，先行展示，避免刷新/离线时为空
+        const cachedUser = (s as any).v2UserInfo as Drive115V2UserInfo | undefined;
+        const cachedExpired = !!(s as any).v2UserInfoExpired;
+        if (cachedUser && Object.keys(cachedUser).length > 0) {
+            render115User(cachedUser, (s as any)?.v2UserInfoUpdatedAt);
+            set115Status(cachedExpired ? '已过期（缓存）' : '已缓存', cachedExpired ? 'warn' : 'info');
+        } else {
+            set115Status('加载中…', 'info');
+            box.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
+        }
 
         if (!enableV2) {
             set115Status('未启用新版 115', 'warn');
@@ -413,6 +421,10 @@ async function loadDrive115UserInfo(): Promise<void> {
             const msg = vt.message || '未配置或获取 access_token 失败';
             set115Status(msg, 'warn');
             box.innerHTML = `<p style=\"margin:0; color:#888;\">${msg || '请在设置中填写 refresh_token 并开启自动刷新，或手动刷新获取 access_token'}</p>`;
+            // 标记缓存为过期
+            const newSettings: any = { ...settings };
+            newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
+            await saveSettings(newSettings);
             return;
         }
 
@@ -420,11 +432,24 @@ async function loadDrive115UserInfo(): Promise<void> {
         if (!ret.success || !ret.data) {
             set115Status(ret.message || '获取失败', 'error');
             box.innerHTML = `<p style="margin:0; color:#d00;">${ret.message || '获取失败'}</p>`;
+            // 失败也标记过期（当前 access_token 不可用于拉取用户信息）
+            const newSettings: any = { ...settings };
+            newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
+            await saveSettings(newSettings);
             return;
         }
 
         set115Status('已更新', 'ok');
-        render115User(ret.data);
+        render115User(ret.data, Date.now());
+        // 持久化用户信息与时间戳，并清除过期标记
+        const newSettings: any = { ...settings };
+        newSettings.drive115 = {
+            ...(settings as any).drive115,
+            v2UserInfo: ret.data,
+            v2UserInfoUpdatedAt: Date.now(),
+            v2UserInfoExpired: false,
+        };
+        await saveSettings(newSettings);
     } catch (e: any) {
         set115Status(e?.message || '加载失败', 'error');
         box.innerHTML = `<p style="margin:0; color:#d00;">${e?.message || '加载失败'}</p>`;
@@ -437,7 +462,7 @@ async function loadDrive115UserInfo(): Promise<void> {
         (statusEl as any).style && ((statusEl as any).style.color = color);
     }
 
-    function render115User(u: Drive115V2UserInfo) {
+    function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
         const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
         if (!container) return;
         const name = u.name || (u as any).nick || (u as any).username || `UID ${u.uid || (u as any).user_id || (u as any).id || ''}`;
@@ -445,13 +470,28 @@ async function loadDrive115UserInfo(): Promise<void> {
         const isVip = (() => {
             const v: any = (u as any).is_vip; if (typeof v === 'boolean') return v ? '是' : '否'; if (typeof v === 'number') return v > 0 ? '是' : '否'; return '-';
         })();
-        const spaceTotal = formatBytes((u as any).space_total);
-        const spaceUsed = formatBytes((u as any).space_used);
-        const spaceFree = formatBytes((u as any).space_free);
+        const totalNum: number | undefined = (u as any).space_total;
+        const usedNum: number | undefined = (u as any).space_used;
+        const freeNum: number | undefined = (u as any).space_free;
+        const spaceTotal = formatBytes(totalNum);
+        const spaceUsed = formatBytes(usedNum);
+        const spaceFree = formatBytes(freeNum);
+        const pct = (() => {
+          if (typeof usedNum === 'number' && typeof totalNum === 'number' && totalNum > 0) {
+            const p = Math.min(100, Math.max(0, (usedNum / totalNum) * 100));
+            return Number.isFinite(p) ? p : 0;
+          }
+          return NaN;
+        })();
+        const pctText = isNaN(pct as any) ? '-' : `${(pct >= 100 ? 100 : pct).toFixed(pct >= 10 ? 0 : 1)}%`;
+        const barColor = isNaN(pct as any) ? '#90caf9' : (pct < 60 ? '#4caf50' : pct < 85 ? '#ff9800' : '#e53935');
+        const updatedText = typeof updatedAtMs === 'number' ? new Date(updatedAtMs).toLocaleString() : '';
 
         container.innerHTML = `
           <div style="display:flex; align-items:center; gap:10px;">
-            ${avatar ? `<img src="${avatar}" alt="avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">` : ''}
+            ${avatar
+              ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
+              : `<div style="width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
             <div style="flex:1;">
               <div style="font-weight:600;">${name || '-'}</div>
               <div style="font-size:12px; color:#666;">UID: ${u.uid || (u as any).user_id || (u as any).id || '-'}</div>
@@ -466,6 +506,16 @@ async function loadDrive115UserInfo(): Promise<void> {
             ${(u as any).email ? `<div>邮箱：${(u as any).email}</div>` : ''}
             ${(u as any).phone ? `<div>手机：${(u as any).phone}</div>` : ''}
           </div>
+          <div style="margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
+              <span>空间使用</span>
+              <span>${pctText}${!isNaN(pct as any) ? `（已用 ${spaceUsed} / 总 ${spaceTotal}）` : ''}</span>
+            </div>
+            <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
+              <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
+            </div>
+          </div>
+          ${updatedText ? `<div style="margin-top:6px; font-size:11px; color:#888;">更新于：${updatedText}</div>` : ''}
         `;
     }
 
