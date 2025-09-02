@@ -8,7 +8,7 @@ import { getSettings, saveSettings } from '../../../../../utils/storage';
 import { showMessage } from '../../../../ui/toast';
 import { log } from '../../../../../utils/logController';
 import { Drive115V2Pane } from '../Drive115V2Pane';
-import { testSearchV2 } from '../../../../../services/drive115v2/search';
+import { searchFilesV2 } from '../../../../../services/drive115v2/search';
 import { getLogsV2, clearLogsV2 } from '../../../../../services/drive115v2/logs';
 // 避免从全局类型引入（其依赖 v1 类型），此处不再导入 ExtensionSettings，使用结构化 any
 
@@ -238,10 +238,14 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         button.disabled = true;
         button.textContent = '测试中...';
       }
-      const results = await testSearchV2(query);
-      const count = Array.isArray(results) ? results.length : 0;
+      const ret = await searchFilesV2({ search_value: query, limit: 20, offset: 0 });
+      if (!ret.success) {
+        throw new Error(ret.message || '搜索失败');
+      }
+      const results = Array.isArray(ret.data) ? ret.data : [];
+      const count = results.length;
       showMessage(`搜索测试成功（v2），找到 ${count} 个结果`, 'success');
-      this.displayTestResults(Array.isArray(results) ? results : [], query);
+      this.displayTestResults(results as any[], query);
     } catch (err) {
       console.error('115 v2 搜索测试失败:', err);
       showMessage('搜索测试失败，请检查 access_token 与网络', 'error');
@@ -273,11 +277,13 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       <div class="test-result-list">
         ${displayResults.map(file => `
           <div class="test-result-item">
-            <div class="file-name">${this.escapeHtml(file.n || file.name || '未知文件')}</div>
+            <div class="file-name">${this.escapeHtml(this.getFileName(file))}</div>
             <div class="file-info">
-              <span class="file-size">${this.formatFileSize(file.s || file.size || 0)}</span>
-              <span class="file-time">${this.formatTime(file.t || file.time || '')}</span>
+              <span class="file-type">${this.getTypeText(file)}</span>
+              ${this.getIsFile(file) ? `<span class=\"file-size\">${this.formatFileSize(this.getFileSize(file))}</span>` : ''}
+              <span class="file-time">${this.formatTime(this.getFileTime(file))}</span>
             </div>
+            ${file?.pick_code ? `<div class=\"file-extra\">提取码：${this.escapeHtml(String(file.pick_code))}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -308,6 +314,31 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     if (!timestamp) return '';
     const date = new Date(typeof timestamp === 'string' ? parseInt(timestamp) * 1000 : timestamp * 1000);
     return date.toLocaleDateString('zh-CN');
+  }
+
+  // 统一字段映射：兼容 v1 与 v2 返回结构
+  private getFileName(file: any): string {
+    return (file?.n || file?.name || file?.file_name || '未知文件') as string;
+  }
+
+  private getFileSize(file: any): number {
+    const val = file?.s ?? file?.size ?? file?.file_size;
+    const num = typeof val === 'string' ? parseInt(val, 10) : Number(val);
+    return Number.isFinite(num) && num > 0 ? num : 0;
+  }
+
+  private getFileTime(file: any): string | number {
+    return (file?.user_utime ?? file?.user_ptime ?? file?.t ?? file?.time ?? '') as any;
+  }
+
+  private getIsFile(file: any): boolean {
+    const cat = file?.file_category ?? file?.fc;
+    const s = String(cat ?? '');
+    return s === '1'; // 文档：1 文件；0 文件夹
+  }
+
+  private getTypeText(file: any): string {
+    return this.getIsFile(file) ? '文件' : '文件夹';
   }
 
   private formatDateTime(tsSec: number): string {
