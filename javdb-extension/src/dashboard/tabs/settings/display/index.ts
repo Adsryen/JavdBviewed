@@ -2,6 +2,8 @@
  * 显示设置模块入口
  */
 
+import type { DisplaySettings } from './DisplaySettings';
+
 // 注意：DisplaySettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建显示设置实例，避免循环依赖

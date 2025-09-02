@@ -24,6 +24,7 @@ import { initUserProfileSection } from './userProfile';
 import { initDataSyncSection } from './dataSync';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import './ui/dataViewModal'; // 确保dataViewModal被初始化
+import { getDrive115V2Service } from '../services/drive115v2';
 
 /**
  * 设置Dashboard隐私保护监听 - 简化版，只监听标签切换
@@ -40,6 +41,90 @@ async function setupDashboardPrivacyMonitoring() {
                         log.privacy('Reapplying privacy protection after tab change...');
                         await window.privacyManager.forceReapplyScreenshotMode();
                     }
+
+async function initDrive115QuotaSidebar(): Promise<void> {
+    try {
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (!box) return;
+
+        const svc = getDrive115V2Service();
+        // 获取可用 accessToken（自动刷新）
+        const tokenRet = await svc.getValidAccessToken();
+        if (!('success' in tokenRet) || !tokenRet.success) {
+            box.innerHTML = `
+                <div style="font-size:12px; color:#999;">
+                    无法获取配额：${(tokenRet as any)?.message || '未启用或缺少凭据'}
+                    <div style="margin-top:6px;">
+                        <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
+        if (!quotaRet.success) {
+            box.innerHTML = `
+                <div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>
+            `;
+            return;
+        }
+
+        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
+    } catch (e) {
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
+        console.error('initDrive115QuotaSidebar error:', e);
+    }
+}
+
+function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
+    const box = document.getElementById('drive115QuotaSidebar');
+    if (!box) return;
+
+    const total = typeof info.total === 'number' ? info.total : undefined;
+    const used = typeof info.used === 'number' ? info.used : undefined;
+    const surplus = typeof info.surplus === 'number' ? info.surplus : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
+
+    // 进度百分比（如果能算出来）
+    const percent = (() => {
+        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
+        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
+        return undefined;
+    })();
+
+    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
+
+    const barHtml = (percent !== undefined)
+        ? `
+        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
+            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
+        </div>
+        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
+        `
+        : '<div style="font-size:12px; color:#999;">暂无总额信息</div>';
+
+    box.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>总额</span>
+                <span>${fmt(total)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>已用</span>
+                <span>${fmt(used)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>剩余</span>
+                <span>${fmt(surplus)}</span>
+            </div>
+            ${barHtml}
+            <div style="margin-top:2px;">
+                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
+            </div>
+        </div>
+    `;
+}
                 }
             } catch (error) {
                 console.error('Failed to reapply privacy:', error);
@@ -119,7 +204,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     initInfoContainer();
     initHelpSystem();
     initModal();
+    initDrive115QuotaSidebar();
     updateSyncStatus();
+    // 监听来自设置页的配额刷新事件
+    window.addEventListener('drive115:refreshQuota' as any, () => {
+        initDrive115QuotaSidebar();
+    });
 });
 
 /**

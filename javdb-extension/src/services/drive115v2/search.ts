@@ -1,35 +1,42 @@
-import { getSettings } from '../../utils/storage';
-import { getDrive115V2Service } from './index';
+import { getDrive115V2Service, type Drive115V2SearchItem, type Drive115V2SearchQuery } from './index';
 
 /**
- * v2 专属：测试搜索（占位实现）
- * 说明：115 官方开放接口未稳定公开搜索文件 API。此处仅做可运行占位：
- * - 若拿到有效 access_token，则返回空数组并提示成功，验证鉴权与网络没问题。
- * - 后续若有稳定搜索端点，再在此实现真实搜索。
+ * v2 文件搜索便捷封装
+ * - 自动获取有效 access_token
+ * - 透传查询参数
  */
-export async function testSearchV2(query: string): Promise<any[]> {
-  const q = (query || '').trim();
-  if (!q) return [];
-
-  // 先确保 v2 模式下能拿到有效 access_token
+export async function searchFilesV2(query: Drive115V2SearchQuery): Promise<{
+  success: boolean;
+  message?: string;
+  count?: number;
+  data?: Drive115V2SearchItem[];
+  limit?: number;
+  offset?: number;
+}> {
   const svc = getDrive115V2Service();
   const tokenRet = await svc.getValidAccessToken();
   if (!tokenRet.success) {
-    throw new Error(tokenRet.message || '无法获取有效 access_token');
+    return { success: false, message: tokenRet.message || '无法获取有效 access_token' };
   }
+  // 基础参数校验与兜底
+  const q: Drive115V2SearchQuery = {
+    search_value: String(query.search_value ?? '').trim(),
+    limit: Number(query.limit ?? 20),
+    offset: Number(query.offset ?? 0),
+    file_label: query.file_label,
+    cid: query.cid,
+    gte_day: query.gte_day,
+    lte_day: query.lte_day,
+    fc: query.fc as any,
+    type: query.type as any,
+    suffix: query.suffix,
+  };
+  if (!q.search_value) return { success: false, message: 'search_value 不能为空' };
+  if (!Number.isFinite(q.limit) || q.limit <= 0) q.limit = 20;
+  if (!Number.isFinite(q.offset) || q.offset < 0) q.offset = 0;
 
-  // 预留真实搜索实现：
-  // const base = await (async () => {
-  //   const s = await getSettings();
-  //   const url = (s?.drive115?.v2ApiBaseUrl || '').toString().trim() || 'https://proapi.115.com';
-  //   return url.replace(/\/$/, '');
-  // })();
-  // const res = await fetch(`${base}/open/files/search?kw=${encodeURIComponent(q)}`, {
-  //   headers: { Authorization: `Bearer ${tokenRet.accessToken}`, Accept: 'application/json' }
-  // });
-  // const json = await res.json();
-  // return Array.isArray(json?.data?.files) ? json.data.files : [];
-
-  // 占位：鉴权成功则返回空数组，表示测试链路可用
-  return [];
+  const ret = await svc.searchFiles({ accessToken: tokenRet.accessToken, ...q });
+  return ret;
 }
+
+export type { Drive115V2SearchItem };
