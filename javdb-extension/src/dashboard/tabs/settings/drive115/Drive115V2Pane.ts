@@ -202,6 +202,8 @@ export class Drive115V2Pane implements IDrive115Pane {
             v2UserInfoExpired: false,
           };
           await saveSettings(ns);
+          // 用户信息成功后触发侧边栏配额刷新
+          try { window.dispatchEvent(new Event('drive115:refreshQuota')); } catch {}
         } catch {}
       } catch (err: any) {
         this.setUserInfoStatus(err?.message || '发生错误', 'error');

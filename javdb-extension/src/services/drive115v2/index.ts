@@ -46,6 +46,83 @@ export interface Drive115V2UserInfoResponse {
 }
 
 
+// v2 文件搜索：查询参数与返回类型
+export interface Drive115V2SearchQuery {
+  search_value: string; // 关键字（必填）
+  limit: number;        // 单页记录数（必填）
+  offset: number;       // 偏移量（必填）
+  file_label?: string;  // 标签（可选）
+  cid?: string | number; // 目录ID，-1 表示不返回列表任何内容（可选）
+  gte_day?: string;     // 开始时间 YYYY-MM-DD（可选）
+  lte_day?: string;     // 结束时间 YYYY-MM-DD（可选）
+  fc?: 1 | 2;           // 只显示文件或文件夹：1 文件夹；2 文件（可选）
+  type?: 1 | 2 | 3 | 4 | 5 | 6; // 一级分类：文档/图片/音乐/视频/压缩包/应用（可选）
+  suffix?: string;      // 其他后缀（可选）
+}
+
+export interface Drive115V2SearchItem {
+  file_id: string;
+  user_id: string;
+  sha1: string;
+  file_name: string;
+  file_size: string;
+  user_ptime: string;
+  user_utime: string;
+  pick_code: string;
+  parent_id: string;
+  area_id: string; // 1 正常，7 回收站，120 彻底删除
+  is_private: number; // 0 未隐藏，1 已隐藏
+  file_category: string; // 1 文件；0 文件夹（按文档原文）
+  ico: string; // 文件后缀
+  [k: string]: any;
+}
+
+export interface Drive115V2SearchResponse {
+  state?: boolean;
+  message?: string;
+  code?: number;
+  count?: number; // 符合条件总数
+  data?: Drive115V2SearchItem[];
+  limit?: number;
+  offset?: number;
+  [k: string]: any;
+}
+
+
+// 配额信息类型（/open/offline/get_quota_info）
+export interface Drive115V2QuotaExpireInfo {
+  expire_time?: number | string | null;
+  expire_text?: string;
+  [k: string]: any;
+}
+
+export interface Drive115V2QuotaItem {
+  name?: string;          // 配额类型名称
+  type?: string | number; // 配额类型标识
+  count?: number;         // 配额总数
+  used?: number;          // 已用
+  surplus?: number;       // 剩余
+  expire_info?: Drive115V2QuotaExpireInfo | null; // 过期信息
+  [k: string]: any;
+}
+
+export interface Drive115V2QuotaInfo {
+  total?: number;               // 总额度（若返回）
+  used?: number;                // 已使用总额（若返回）
+  surplus?: number;             // 总剩余（若返回）
+  list?: Drive115V2QuotaItem[]; // 各配额项
+  [k: string]: any;
+}
+
+export interface Drive115V2QuotaResponse {
+  state?: boolean;
+  message?: string;
+  code?: number;
+  data?: Drive115V2QuotaInfo | Drive115V2QuotaItem[] | any;
+  [k: string]: any;
+}
+
+
 class Drive115V2Service {
   private static instance: Drive115V2Service | null = null;
   // 基础域名：从设置读取（默认 https://proapi.115.com）
@@ -230,6 +307,120 @@ class Drive115V2Service {
       return { success: true, data: user, raw: json };
     } catch (e: any) {
       return { success: false, message: e?.message || '获取用户信息失败' };
+    }
+  }
+
+  /**
+   * 文件搜索（v2）
+   * GET {baseURL}/open/ufile/search
+   * Header: Authorization: Bearer <access_token>
+   * Query: search_value, limit, offset, file_label?, cid?, gte_day?, lte_day?, fc?, type?, suffix?
+   */
+  async searchFiles(params: { accessToken: string } & Drive115V2SearchQuery): Promise<
+    { success: boolean; message?: string; raw?: Drive115V2SearchResponse } &
+    { count?: number; data?: Drive115V2SearchItem[]; limit?: number; offset?: number }
+  > {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' } as any;
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/ufile/search`;
+
+      const qs = new URLSearchParams();
+      qs.set('search_value', String(params.search_value ?? ''));
+      qs.set('limit', String(params.limit ?? 20));
+      qs.set('offset', String(params.offset ?? 0));
+      if (params.file_label) qs.set('file_label', String(params.file_label));
+      if (params.cid !== undefined && params.cid !== null && String(params.cid).length > 0) qs.set('cid', String(params.cid));
+      if (params.gte_day) qs.set('gte_day', String(params.gte_day));
+      if (params.lte_day) qs.set('lte_day', String(params.lte_day));
+      if (params.fc) qs.set('fc', String(params.fc));
+      if (params.type) qs.set('type', String(params.type));
+      if (params.suffix) qs.set('suffix', String(params.suffix));
+
+      const res = await fetch(`${url}?${qs.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` } as any;
+      }
+
+      const json: Drive115V2SearchResponse = await res.json().catch(() => ({} as any));
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        return { success: false, message: json.message || '搜索失败', raw: json } as any;
+      }
+      const data = Array.isArray(json?.data) ? json.data as Drive115V2SearchItem[] : undefined;
+      return {
+        success: true,
+        count: typeof json.count === 'number' ? json.count : undefined,
+        data,
+        limit: typeof json.limit === 'number' ? json.limit : undefined,
+        offset: typeof json.offset === 'number' ? json.offset : undefined,
+        raw: json,
+      } as any;
+    } catch (e: any) {
+      return { success: false, message: e?.message || '搜索失败' } as any;
+    }
+  }
+
+  /**
+   * 获取离线下载配额信息（v2）
+   * GET {baseURL}/open/offline/get_quota_info
+   * Header: Authorization: Bearer <access_token>
+   */
+  async getQuotaInfo(params: { accessToken: string }): Promise<
+    { success: boolean; message?: string; raw?: Drive115V2QuotaResponse } & { data?: Drive115V2QuotaInfo }
+  > {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' } as any;
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/offline/get_quota_info`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` } as any;
+      }
+
+      const json: Drive115V2QuotaResponse = await res.json().catch(() => ({} as any));
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        return { success: false, message: json.message || json.error || '获取配额失败', raw: json } as any;
+      }
+
+      // 兼容 data 为对象或数组的两种形态
+      let info: Drive115V2QuotaInfo | undefined = undefined;
+      if (json && typeof json === 'object') {
+        if (Array.isArray(json.data)) {
+          info = { list: json.data as Drive115V2QuotaItem[] } as Drive115V2QuotaInfo;
+        } else if (json.data && typeof json.data === 'object') {
+          const d: any = json.data;
+          const list: Drive115V2QuotaItem[] | undefined = Array.isArray(d.list) ? d.list : (Array.isArray(d.quota_list) ? d.quota_list : undefined);
+          const total: number | undefined = typeof d.total === 'number' ? d.total : (typeof d.quota_total === 'number' ? d.quota_total : undefined);
+          const used: number | undefined = typeof d.used === 'number' ? d.used : (typeof d.quota_used === 'number' ? d.quota_used : undefined);
+          const surplus: number | undefined = typeof d.surplus === 'number' ? d.surplus : (typeof d.quota_surplus === 'number' ? d.quota_surplus : undefined);
+          info = { total, used, surplus, list } as Drive115V2QuotaInfo;
+        }
+      }
+      if (!info) info = {} as Drive115V2QuotaInfo;
+
+      return { success: true, data: info, raw: json } as any;
+    } catch (e: any) {
+      return { success: false, message: e?.message || '获取配额失败' } as any;
     }
   }
 

@@ -645,3 +645,56 @@
     color: var(--text-secondary);
     text-align: center;
 }
+
+/* 下载设置：响应式网格与表单细节 */
+#drive115-settings .form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 16px;
+    row-gap: 12px;
+}
+
+/* 仅作用于下载设置网格容器 */
+#drive115-settings .drive115-download-settings > .form-group {
+    grid-column: span 6;
+    min-width: 0;
+}
+
+#drive115-settings .drive115-download-settings > .form-group:first-child {
+    grid-column: span 12; /* 目录ID一行占满，便于显示帮助说明 */
+}
+
+#drive115-settings .drive115-download-settings .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary, #374151);
+}
+
+/* 输入宽度统一 */
+#drive115-settings .drive115-download-settings input[type="text"] {
+    width: 100%;
+}
+
+#drive115-settings .drive115-download-settings input[type="number"] {
+    width: 100%;
+    max-width: 160px; /* 数值输入不宜过宽 */
+}
+
+#drive115-settings .drive115-download-settings .input-description {
+    margin-top: 6px;
+}
+
+/* 复选对齐 */
+#drive115-settings .drive115-download-settings .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 响应式：小屏单列显示 */
+@media (max-width: 768px) {
+    #drive115-settings .drive115-download-settings > .form-group {
+        grid-column: span 12;
+    }
+}
