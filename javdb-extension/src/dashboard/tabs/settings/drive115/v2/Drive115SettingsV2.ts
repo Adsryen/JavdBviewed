@@ -9,7 +9,7 @@ import { showMessage } from '../../../../ui/toast';
 import { log } from '../../../../../utils/logController';
 import { Drive115V2Pane } from '../Drive115V2Pane';
 import { searchFilesV2 } from '../../../../../services/drive115v2/search';
-import { getLogsV2, clearLogsV2 } from '../../../../../services/drive115v2/logs';
+import { getLogsV2, clearLogsV2, addLogV2 } from '../../../../../services/drive115v2/logs';
 // 避免从全局类型引入（其依赖 v1 类型），此处不再导入 ExtensionSettings，使用结构化 any
 
 // v2 局部设置类型（仅包含 v2 需要的字段，避免依赖 v1 类型与默认值）
@@ -168,6 +168,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         showMessage('请输入搜索关键词', 'warn');
         return;
       }
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `设置面板：触发 v2 测试搜索，q="${query.slice(0,50)}"` });
       await this.testSearch(query);
     });
 
@@ -296,15 +297,18 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       }
       const ret = await searchFilesV2({ search_value: query, limit: 20, offset: 0 });
       if (!ret.success) {
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `设置面板：v2 测试搜索失败：${ret.message || '未知错误'}` });
         throw new Error(ret.message || '搜索失败');
       }
       const results = Array.isArray(ret.data) ? ret.data : [];
       const count = results.length;
       showMessage(`搜索测试成功（v2），找到 ${count} 个结果`, 'success');
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `设置面板：v2 测试搜索成功，返回 ${count} 条` });
       this.displayTestResults(results as any[], query);
     } catch (err) {
       console.error('115 v2 搜索测试失败:', err);
       showMessage('搜索测试失败，请检查 access_token 与网络', 'error');
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：v2 测试搜索异常：${(err as any)?.message || err || '未知异常'}` });
       this.clearTestResults();
     } finally {
       if (button) {
@@ -423,27 +427,32 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
 
   private async refreshLog(): Promise<void> {
     try {
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '设置面板：刷新 v2 日志' });
       const logs = await getLogsV2();
       this.displayLogs(logs as any);
     } catch (error) {
       console.error('刷新115 v2 日志失败:', error);
       showMessage('刷新日志失败', 'error');
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：刷新 v2 日志失败：${(error as any)?.message || '未知错误'}` });
     }
   }
 
   private async clearLog(): Promise<void> {
     try {
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '设置面板：清空 v2 日志' });
       await clearLogsV2();
       this.displayLogs([]);
       showMessage('日志已清空', 'success');
     } catch (error) {
       console.error('清空115 v2 日志失败:', error);
       showMessage('清空日志失败', 'error');
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：清空 v2 日志失败：${(error as any)?.message || '未知错误'}` });
     }
   }
 
   private async exportLog(): Promise<void> {
     try {
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '设置面板：导出 v2 日志' });
       const logs = await getLogsV2();
       const logText = logs.map((l: any) => `[${new Date(l.timestamp).toLocaleString()}] ${l.level}: ${l.message}`).join('\n');
       const blob = new Blob([logText], { type: 'text/plain' });
@@ -457,6 +466,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     } catch (error) {
       console.error('导出115 v2 日志失败:', error);
       showMessage('导出日志失败', 'error');
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：导出 v2 日志失败：${(error as any)?.message || '未知错误'}` });
     }
   }
 

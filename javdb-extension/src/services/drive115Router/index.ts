@@ -8,6 +8,7 @@ import type { ExtensionSettings } from '../../types';
 import type { OfflineDownloadOptions, BatchOfflineOptions } from '../drive115/types';
 import { getDrive115Service as getV1, initializeDrive115Service as initV1 } from '../drive115';
 import { getDrive115V2Service } from '../drive115v2';
+import { addLogV2 } from '../drive115v2/logs';
 
 /**
  * 获取当前激活版本：true => v2，false => v1
@@ -116,6 +117,14 @@ export async function addTaskUrlsV2(params: { urls: string; wp_path_id?: string 
   if (!vt.success) {
     throw new Error(vt.message || '获取 access_token 失败');
   }
+  const count = String(params.urls || '').split('\n').filter(s => s.trim()).length;
+  await addLogV2({ timestamp: Date.now(), level: 'info', message: `路由：调用 v2 批量添加离线任务，${count} 项，目录=${params.wp_path_id || '根'}` });
   const res = await svc.addTaskUrls({ accessToken: vt.accessToken, urls: params.urls, wp_path_id: params.wp_path_id });
+  if (!res.success) {
+    await addLogV2({ timestamp: Date.now(), level: 'error', message: `路由：v2 批量添加离线任务失败：${res.message || '未知错误'}` });
+  } else {
+    const returned = Array.isArray((res as any).data) ? (res as any).data.length : 0;
+    await addLogV2({ timestamp: Date.now(), level: 'info', message: `路由：v2 批量添加离线任务成功，返回 ${returned} 项` });
+  }
   return { success: res.success, message: res.message, data: (res as any).data, raw: res.raw };
 }
