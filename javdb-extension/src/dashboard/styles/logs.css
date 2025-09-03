@@ -91,6 +91,33 @@
     border-color: #c82333;
 }
 
+/* ===== 针对日志标签页按钮的显式配色（使用按钮ID，避免影响其它区域） ===== */
+#refresh-logs-button {
+    background: #28a745; /* 绿色 - 刷新 */
+    color: #fff;
+    border-color: #28a745;
+}
+#refresh-logs-button:hover:not(:disabled) {
+    background: #218838;
+    border-color: #218838;
+}
+
+#clear-logs-button {
+    background: #dc3545; /* 红色 - 清空 */
+    color: #fff;
+    border-color: #dc3545;
+}
+#clear-logs-button:hover:not(:disabled) {
+    background: #c82333;
+    border-color: #c82333;
+}
+
+#refresh-logs-button:disabled,
+#clear-logs-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* 日志容器 */
 .log-container {
     max-height: 600px;

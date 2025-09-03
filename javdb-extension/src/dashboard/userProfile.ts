@@ -5,6 +5,8 @@ import { userService } from './services/userService';
 import { emit } from './services/eventBus';
 import { getSettings, saveSettings } from '../utils/storage';
 import { getDrive115V2Service, type Drive115V2UserInfo, type Drive115V2QuotaInfo } from '../services/drive115v2';
+import { describe115Error } from '../services/drive115v2/errorCodes';
+import { showToast } from '../content/toast';
 
 // 115 加载并发保护
 let isLoadingDrive115 = false;
@@ -223,9 +225,10 @@ async function handleDrive115Refresh(): Promise<void> {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         await loadDrive115UserInfo(); // 内部已包含自动刷新 access_token 逻辑
-        showMessage('115 账号信息已更新', 'success');
+        showToast('115 账号信息已更新', 'success');
     } catch (error: any) {
-        showMessage('刷新 115 账号信息时发生错误', 'error');
+        const msg = describe115Error(error) || error?.message || '刷新 115 账号信息时发生错误';
+        showToast(msg, 'error');
         logAsync('ERROR', '115 刷新处理失败', { error: error?.message });
     } finally {
         btn.disabled = false;
@@ -451,35 +454,15 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         const svc = getDrive115V2Service();
-        // 1) 先校验/刷新 access_token（若无 expires_at 或即将过期则先主动刷新）
-        {
-            const drv: any = (settings as any).drive115 || {};
-            const nowSec = Math.floor(Date.now() / 1000);
-            const exp: any = drv.v2TokenExpiresAt;
-            const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
-            const needProactiveRefresh = !(typeof exp === 'number') || exp === null || (typeof exp === 'number' && exp - skewSec <= nowSec);
-            if (needProactiveRefresh) {
-                const rt = (drv.v2RefreshToken || '').toString().trim();
-                if (rt) {
-                    const ref = await svc.refreshToken(rt);
-                    if (ref.success && ref.token?.access_token) {
-                        const newSettings: any = { ...settings };
-                        newSettings.drive115 = { ...(settings as any).drive115 };
-                        newSettings.drive115.v2AccessToken = ref.token.access_token;
-                        newSettings.drive115.v2RefreshToken = ref.token.refresh_token || rt;
-                        newSettings.drive115.v2TokenExpiresAt = typeof ref.token.expires_at === 'number' ? ref.token.expires_at : null;
-                        await saveSettings(newSettings);
-                    }
-                }
-            }
-        }
-        // 2) 通过服务层自动处理 token 失效并获取用户信息（带调试日志）
+        // 通过服务层自动处理 token 失效并获取用户信息（内部已统一处理自动刷新与并发保护）
         console.debug('[drive115v2-ui] 调用 fetchUserInfoAuto() 获取 115 用户信息');
         const userAuto = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
         if (!userAuto.success || !userAuto.data) {
             console.debug('[drive115v2-ui] 获取 115 用户信息失败', { message: userAuto.message, raw: (userAuto as any).raw });
+            const emsg = describe115Error((userAuto as any).raw) || userAuto.message || '获取用户信息失败';
             set115Status('获取失败', 'error');
-            box.innerHTML = `<p style="margin:0; color:#d00;">${userAuto.message || '获取用户信息失败'}</p>`;
+            box.innerHTML = `<p style="margin:0; color:#d00;">${emsg}</p>`;
+            showToast(emsg, 'error');
             const newSettings: any = { ...settings };
             newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
             await saveSettings(newSettings);
@@ -487,6 +470,7 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         set115Status('已更新', 'ok');
+        showToast('已更新 115 用户信息', 'success');
         render115User(userAuto.data, Date.now());
         // 持久化用户信息与时间戳，并清除过期标记
         const newSettings: any = { ...settings };
@@ -498,25 +482,34 @@ async function loadDrive115UserInfo(): Promise<void> {
         };
         await saveSettings(newSettings);
 
-        // 3) 成功后再获取额度配额：重新取一次有效 access_token
+        // 3) 成功后再获取额度配额：直接使用当前设置中的 access_token，避免再次触发刷新
         try {
-            const vt2 = await svc.getValidAccessToken();
-            if (vt2.success) {
-                const quotaRet = await svc.getQuotaInfo({ accessToken: vt2.accessToken });
+            const s2 = await getSettings();
+            const at2: string = ((s2 as any)?.drive115?.v2AccessToken || '').toString().trim();
+            if (at2) {
+                const quotaRet = await svc.getQuotaInfo({ accessToken: at2 });
                 if (quotaRet.success && quotaRet.data) {
                     render115Quota(quotaRet.data);
                 } else if (!quotaRet.success) {
-                    render115QuotaHint(quotaRet.message || '获取配额失败');
+                    const qmsg = quotaRet.message || '获取配额失败';
+                    render115QuotaHint(qmsg);
+                    showToast(qmsg, 'info');
                 }
             } else {
-                render115QuotaHint(vt2.message || '获取配额失败');
+                const qmsg = '缺少 access_token，无法获取配额';
+                render115QuotaHint(qmsg);
+                showToast(qmsg, 'info');
             }
         } catch (e: any) {
-            render115QuotaHint(e?.message || '获取配额失败');
+            const qmsg = describe115Error(e) || e?.message || '获取配额失败';
+            render115QuotaHint(qmsg);
+            showToast(qmsg, 'error');
         }
     } catch (e: any) {
-        set115Status(e?.message || '加载失败', 'error');
-        box.innerHTML = `<p style="margin:0; color:#d00;">${e?.message || '加载失败'}</p>`;
+        const msg = describe115Error(e) || e?.message || '加载失败';
+        set115Status(msg, 'error');
+        box.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
+        showToast(msg, 'error');
     } finally {
         isLoadingDrive115 = false;
     }

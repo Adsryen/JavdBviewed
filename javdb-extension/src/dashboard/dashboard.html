@@ -1179,6 +1179,26 @@
                                             </div>
                                         </div>
 
+                                        <!-- 分组：添加云下载任务（多链接） -->
+                                        <div class="settings-group">
+                                            <h4>添加云下载任务（多链接）</h4>
+                                            <div class="form-group">
+                                                <label for="drive115V2AddUrls">下载链接（每行一个，支持 HTTP/HTTPS/FTP/Magnet/eD2k）:</label>
+                                                <textarea id="drive115V2AddUrls" class="textarea-input" placeholder="每行一条，例如：\nmagnet:?xt=urn:btih:...\nhttps://example.com/file.zip" rows="4" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                                                <p class="input-description">将多条链接按行分隔粘贴到此处。空行会被自动忽略。</p>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="drive115V2WpPathId">保存到目录ID（可选）:</label>
+                                                <input type="text" id="drive115V2WpPathId" placeholder="不填默认根目录（wp_path_id）" />
+                                                <p class="input-description">填写 115 目录 ID（wp_path_id/cid）。留空或 0 表示根目录。</p>
+                                            </div>
+                                            <div class="form-group">
+                                                <button id="drive115V2AddUrlsBtn" class="button-like">添加云下载任务</button>
+                                                <span id="drive115V2AddUrlsStatus" class="input-description" style="margin-left:10px; color:#888;"></span>
+                                            </div>
+                                            <div id="drive115V2AddUrlsResult" class="test-results" style="margin-top:8px;"></div>
+                                        </div>
+
                                         <!-- 分组：下载设置 -->
                                         <div class="settings-group">
                                             <h4>下载设置</h4>
