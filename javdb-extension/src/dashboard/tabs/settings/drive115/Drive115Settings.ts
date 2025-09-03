@@ -64,6 +64,12 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.settings.enabled = enabledCheckbox.checked;
             this.updateUI();
             this.autoSaveSettings();
+            // 通知全局：115 启用状态变更（用于侧边栏隐藏/显示）
+            try {
+                window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+                    detail: { enabled: !!this.settings.enabled, enableV2: !!this.settings.enableV2 }
+                }));
+            } catch (_) {}
         });
 
         // 新版 v2 开关（持久化）
@@ -74,12 +80,22 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.updateUI();
             this.autoSaveSettings();
             await this.saveImmediately(); // 关键开关：立即保存，避免刷新丢失
+            // 通知全局：新版 V2 切换，供侧边栏联动
+            try {
+                window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+                    detail: { enabled: !!this.settings.enabled, enableV2: !!this.settings.enableV2 }
+                }));
+            } catch (_) {}
         });
 
         // 版本切换：标题右侧 segmented 按钮（确保在 DOM 存在后绑定）
         const verV1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
         const verV2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+        
+        log.verbose('115版本切换按钮绑定:', { verV1Btn: !!verV1Btn, verV2Btn: !!verV2Btn });
+        
         verV1Btn?.addEventListener('click', async () => {
+            log.verbose('115 V1按钮被点击');
             // 切到 v1：更新持久化字段并同步关闭 enableV2
             this.settings.lastSelectedVersion = 'v1';
             this.settings.enableV2 = false;
@@ -87,8 +103,15 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.autoSaveSettings();
             await this.saveImmediately(); // 版本切换：立即保存
             this.tabsController?.switchTo('v1');
+            // 派发全局事件：视为启用 v1（用于侧边栏联动）
+            try {
+                window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+                    detail: { enabled: !!this.settings.enabled, enableV2: false }
+                }));
+            } catch (_) {}
         });
         verV2Btn?.addEventListener('click', async () => {
+            log.verbose('115 V2按钮被点击');
             // 切到 v2：更新持久化字段并同步开启 enableV2
             this.settings.lastSelectedVersion = 'v2';
             this.settings.enableV2 = true;
@@ -96,6 +119,12 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             this.autoSaveSettings();
             await this.saveImmediately(); // 版本切换：立即保存
             this.tabsController?.switchTo('v2');
+            // 派发全局事件：启用 v2（用于侧边栏联动）
+            try {
+                window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+                    detail: { enabled: !!this.settings.enabled, enableV2: true }
+                }));
+            } catch (_) {}
         });
 
         // 测试搜索
@@ -111,9 +140,10 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         });
 
         // 日志管理
-        const refreshLogButton = document.getElementById('drive115RefreshLog') as HTMLButtonElement;
-        const clearLogButton = document.getElementById('drive115ClearLog') as HTMLButtonElement;
-        const exportLogButton = document.getElementById('drive115ExportLog') as HTMLButtonElement;
+        // 日志按钮：兼容新旧ID（HTML中为 refreshDrive115Logs / clearDrive115Logs / exportDrive115Logs）
+        const refreshLogButton = (document.getElementById('drive115RefreshLog') || document.getElementById('refreshDrive115Logs')) as HTMLButtonElement | null;
+        const clearLogButton = (document.getElementById('drive115ClearLog') || document.getElementById('clearDrive115Logs')) as HTMLButtonElement | null;
+        const exportLogButton = (document.getElementById('drive115ExportLog') || document.getElementById('exportDrive115Logs')) as HTMLButtonElement | null;
 
         refreshLogButton?.addEventListener('click', () => this.refreshLog());
         clearLogButton?.addEventListener('click', () => this.clearLog());
