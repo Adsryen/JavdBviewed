@@ -121,8 +121,8 @@ export function initUserProfileSection(): void {
     
     // 加载已保存的用户信息
     loadUserProfile();
-    // 加载 115 用户信息
-    loadDrive115UserInfo();
+    // 加载 115 用户信息（仅渲染缓存，不触发网络刷新）
+    loadDrive115UserInfo({ allowNetwork: false });
 }
 
 /**
@@ -204,8 +204,8 @@ async function handleRefresh(): Promise<void> {
         } else {
             showMessage('刷新账号信息失败', 'error');
         }
-        // 同步刷新 115 用户信息
-        await loadDrive115UserInfo();
+        // 同步刷新 115 用户信息（不触发网络刷新，仅更新缓存展示）
+        await loadDrive115UserInfo({ allowNetwork: false });
     } catch (error: any) {
         showMessage('刷新账号信息时发生错误', 'error');
         logAsync('ERROR', '刷新处理失败', { error: error.message });
@@ -224,7 +224,7 @@ async function handleDrive115Refresh(): Promise<void> {
     try {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        await loadDrive115UserInfo(); // 内部已包含自动刷新 access_token 逻辑
+        await loadDrive115UserInfo({ allowNetwork: true }); // 仅手动触发时允许网络刷新
         showToast('115 账号信息已更新', 'success');
     } catch (error: any) {
         const msg = describe115Error(error) || error?.message || '刷新 115 账号信息时发生错误';
@@ -300,8 +300,8 @@ function displayUserProfile(profile: UserProfile): void {
 
     // 刷新数据同步区域
     refreshDataSyncSection();
-    // 自动刷新 115 用户信息（不阻塞）
-    setTimeout(() => { loadDrive115UserInfo(); }, 0);
+    // 自动展示 115 用户信息的缓存（不阻塞，不触发网络刷新）
+    setTimeout(() => { loadDrive115UserInfo({ allowNetwork: false }); }, 0);
 }
 
 /**
@@ -412,7 +412,7 @@ function refreshDataSyncSection(): void {
 /**
  * 加载并显示 115 v2 用户信息
  */
-async function loadDrive115UserInfo(): Promise<void> {
+async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<void> {
     if (isLoadingDrive115) {
         console.debug('[drive115v2-ui] 忽略重复的 115 加载请求（上一次尚未完成）');
         return;
@@ -447,6 +447,12 @@ async function loadDrive115UserInfo(): Promise<void> {
             box.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
         }
 
+        // 如果不允许网络请求，则到此为止（仅展示缓存）
+        if (!(opts?.allowNetwork === true)) {
+            // 若无缓存则保持“加载中…”或根据需要提示
+            return;
+        }
+
         if (!enableV2) {
             set115Status('未启用新版 115', 'warn');
             box.innerHTML = '<p style="margin:0; color:#888;">请在设置中启用新版 115（Token 模式）</p>';
@@ -454,8 +460,8 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         const svc = getDrive115V2Service();
-        // 通过服务层自动处理 token 失效并获取用户信息（内部已统一处理自动刷新与并发保护）
-        console.debug('[drive115v2-ui] 调用 fetchUserInfoAuto() 获取 115 用户信息');
+        // 仅在允许网络时才真实获取 115 用户信息
+        console.debug('[drive115v2-ui] 调用 fetchUserInfoAuto() 获取 115 用户信息（手动）');
         const userAuto = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
         if (!userAuto.success || !userAuto.data) {
             console.debug('[drive115v2-ui] 获取 115 用户信息失败', { message: userAuto.message, raw: (userAuto as any).raw });

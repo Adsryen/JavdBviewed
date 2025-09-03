@@ -337,7 +337,6 @@ export class Drive115V2Pane implements IDrive115Pane {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
       const enabled = !!s.enabled;
-      const enableV2 = !!s.enableV2;
       const cachedUser: Drive115V2UserInfo | undefined = s.v2UserInfo;
       const expired: boolean = !!s.v2UserInfoExpired;
 
@@ -347,37 +346,8 @@ export class Drive115V2Pane implements IDrive115Pane {
         this.renderUserInfo(cachedUser);
         this.setUserInfoStatus(expired ? '已过期（缓存）' : '已缓存', 'info');
       }
-
-      if (!enableV2) return;
-
-      // 后台刷新（不阻塞 UI）
-      const svc = getDrive115V2Service();
-      const vt = await svc.getValidAccessToken();
-      if (!vt.success) {
-        // 标记缓存过期
-        const ns: any = { ...settings };
-        ns.drive115 = { ...(settings.drive115 || {}), v2UserInfoExpired: true };
-        await saveSettings(ns);
-        return;
-      }
-      const ret = await svc.fetchUserInfo(vt.accessToken);
-      if (!ret.success || !ret.data) {
-        const ns: any = { ...settings };
-        ns.drive115 = { ...(settings.drive115 || {}), v2UserInfoExpired: true };
-        await saveSettings(ns);
-        return;
-      }
-      // 渲染并持久化
-      this.renderUserInfo(ret.data);
-      this.setUserInfoStatus('已更新', 'ok');
-      const ns: any = { ...settings };
-      ns.drive115 = {
-        ...(settings.drive115 || {}),
-        v2UserInfo: ret.data,
-        v2UserInfoUpdatedAt: Date.now(),
-        v2UserInfoExpired: false,
-      };
-      await saveSettings(ns);
+      // 禁止自动刷新：仅渲染缓存，直接返回
+      return;
     } catch (e) {
       // 静默失败（不打断设置页操作）
     }

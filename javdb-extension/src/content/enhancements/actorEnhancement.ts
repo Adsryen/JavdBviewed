@@ -5,6 +5,8 @@
 
 import { getValue, setValue } from '../../utils/storage';
 import { showToast } from '../toast';
+import type { ActorRecord } from '../../types';
+import { actorManager } from '../../services/actorManager';
 
 interface ActorTagFilter {
   tags: string[];
@@ -36,6 +38,249 @@ class ActorEnhancementManager {
     this.config = { ...this.config, ...newConfig };
   }
 
+  /**
+   * 从当前页面内容检测演员性别，规则与 actorSync 中保持一致
+   */
+  private detectGenderFromPage(): 'female' | 'male' | 'unknown' {
+    try {
+      const html = document.documentElement?.outerHTML || '';
+      // 优先匹配日文标签
+      if (html.includes('男優')) return 'male';
+      if (html.includes('女優')) return 'female';
+
+      // 其他中英文字样
+      const malePattern = /男优|男演员|male/i;
+      const femalePattern = /女优|女演员|actress|female/i;
+      if (malePattern.test(html)) return 'male';
+      if (femalePattern.test(html)) return 'female';
+
+      // 默认未知（与同步不同，这里不强制默认女性）
+      return 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  /**
+   * 监听收藏/取消收藏按钮，点击时同步演员数据到本地演员库
+   */
+  private setupCollectSyncListeners(): void {
+    const collectBtn = document.getElementById('button-collect-actor');
+    const uncollectBtn = document.getElementById('button-uncollect-actor');
+
+    const handler = async (action: 'collect' | 'uncollect') => {
+      try {
+        const parsed = this.parseActorFromPage();
+        if (!parsed) {
+          showToast('未能获取演员信息，操作失败', 'error');
+          return;
+        }
+
+        const existing = await actorManager.getActorById(parsed.id);
+
+        if (action === 'collect') {
+          // 合并已有数据，优先保留本地已存在的信息与黑名单状态
+          if (existing) {
+            parsed.name = existing.name || parsed.name;
+            parsed.aliases = (existing.aliases && existing.aliases.length > 0) ? existing.aliases : parsed.aliases;
+            if (typeof existing.blacklisted !== 'undefined') {
+              (parsed as any).blacklisted = existing.blacklisted;
+            }
+          }
+          await actorManager.saveActor(parsed);
+          console.log('[ActorEnhancement] 已收藏并保存到演员库:', parsed);
+          showToast('收藏成功', 'success');
+        } else {
+          // 取消收藏：若已拉黑，不删除，仅提示；否则删除
+          if (existing?.blacklisted) {
+            showToast('该演员已在黑名单，取消收藏不会删除演员库数据', 'info');
+            console.log('[ActorEnhancement] 已取消收藏，但因在黑名单中未删除记录:', existing);
+          } else {
+            const removed = await actorManager.deleteActor(parsed.id);
+            if (removed) {
+              showToast('已取消收藏，并从演员库删除', 'success');
+              console.log('[ActorEnhancement] 已取消收藏并从演员库删除:', parsed.id);
+            } else {
+              // 若本地不存在，也提示已取消收藏（对齐“成功与否均有toast”的要求）
+              console.log('[ActorEnhancement] 取消收藏：演员库无记录，无需删除:', parsed.id);
+              showToast('已取消收藏', 'success');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ActorEnhancement] 同步演员到本地失败:', err);
+        showToast('操作失败', 'error');
+      }
+    };
+
+    if (collectBtn && !collectBtn.getAttribute('data-sync-bound')) {
+      collectBtn.addEventListener('click', () => handler('collect'));
+      collectBtn.setAttribute('data-sync-bound', 'true');
+    }
+
+    if (uncollectBtn && !uncollectBtn.getAttribute('data-sync-bound')) {
+      uncollectBtn.addEventListener('click', () => handler('uncollect'));
+      uncollectBtn.setAttribute('data-sync-bound', 'true');
+    }
+  }
+
+  /**
+   * 在收藏按钮附近注入“拉黑/取消拉黑”按钮
+   */
+  private async injectBlacklistButton(): Promise<void> {
+    try {
+      const collectBtn = document.getElementById('button-collect-actor') as HTMLAnchorElement | null;
+      const uncollectBtn = document.getElementById('button-uncollect-actor') as HTMLAnchorElement | null;
+
+      // 使用计算样式判断可见性，避免被我们误改显示
+      const collectVisible = !!(collectBtn && window.getComputedStyle(collectBtn).display !== 'none');
+      const uncollectVisible = !!(uncollectBtn && window.getComputedStyle(uncollectBtn).display !== 'none');
+      const anchorBtn = (uncollectVisible && uncollectBtn) || (collectVisible && collectBtn) || uncollectBtn || collectBtn;
+      if (!anchorBtn) return;
+
+      // 避免重复注入
+      if (document.getElementById('button-blacklist-actor')) return;
+
+      // 仅对可见按钮进行并列布局设置，隐藏按钮保持隐藏
+      [
+        collectVisible ? collectBtn : null,
+        uncollectVisible ? uncollectBtn : null,
+      ].forEach(btn => {
+        if (btn) {
+          (btn as HTMLAnchorElement).style.display = 'inline-flex';
+          (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
+          if (!(btn as HTMLAnchorElement).className.includes('mr-2')) {
+            (btn as HTMLAnchorElement).classList.add('mr-2');
+          }
+        }
+      });
+
+      // 查询当前本地黑名单状态
+      let blacklisted = false;
+      try {
+        const existing = await actorManager.getActorById(this.currentActorId);
+        blacklisted = !!existing?.blacklisted;
+      } catch {}
+
+      // 创建按钮
+      const btn = document.createElement('a');
+      btn.id = 'button-blacklist-actor';
+      btn.href = 'javascript:void(0)';
+      btn.className = this.getBlacklistBtnClass(blacklisted);
+      btn.textContent = blacklisted ? '取消拉黑' : '拉黑';
+      (btn as HTMLAnchorElement).style.display = 'inline-flex';
+      (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
+
+      // 紧挨收藏按钮后面插入
+      anchorBtn.parentElement?.insertBefore(btn, anchorBtn.nextSibling);
+
+      // 点击事件
+      btn.addEventListener('click', async () => {
+        try {
+          // 确保本地有演员记录
+          let record = await actorManager.getActorById(this.currentActorId);
+          if (!record) {
+            const parsed = this.parseActorFromPage();
+            if (parsed) {
+              await actorManager.saveActor(parsed);
+              record = parsed;
+            }
+          }
+
+          if (!record) {
+            showToast('未能获取演员信息，无法拉黑', 'error');
+            return;
+          }
+
+          const newState = !blacklisted;
+          await actorManager.setBlacklisted(this.currentActorId, newState);
+          blacklisted = newState;
+
+          // 更新UI
+          btn.className = this.getBlacklistBtnClass(blacklisted);
+          btn.textContent = blacklisted ? '取消拉黑' : '拉黑';
+          showToast(blacklisted ? '已拉黑该演员' : '已取消拉黑', 'success');
+        } catch (e) {
+          console.error('[ActorEnhancement] 切换拉黑状态失败:', e);
+          showToast('操作失败', 'error');
+        }
+      });
+    } catch (e) {
+      console.error('[ActorEnhancement] 注入拉黑按钮失败:', e);
+    }
+  }
+
+  private getBlacklistBtnClass(blacklisted: boolean): string {
+    // 颜色规范：
+    // 拉黑（未拉黑状态下展示“拉黑”）：黑色按钮
+    // 取消拉黑（已拉黑状态下展示“取消拉黑”）：白色底按钮
+    return blacklisted
+      ? 'button is-white has-text-black ml-2'
+      : 'button is-black ml-2';
+  }
+
+  /**
+   * 从当前页面解析演员基本信息，构建 ActorRecord 以用于本地保存
+   */
+  private parseActorFromPage(): ActorRecord | null {
+    try {
+      const id = this.currentActorId;
+      if (!id) return null;
+
+      // 名称（优先从 .actor-section-name，其次从页面标题），清理尾随统计文本
+      const nameEl = document.querySelector('.actor-section-name') || document.querySelector('.title.is-4');
+      let nameRaw = (nameEl?.textContent || '').trim();
+      // 归一空白
+      nameRaw = nameRaw.replace(/\s+/g, ' ');
+      // 依次移除多种常见的“统计/数量”尾缀
+      let name = nameRaw
+        // 9 部影片 / 9 部作品
+        .replace(/\d+\s*部\s*(影片|作品)/gi, '')
+        // 共 9 部 / 共9部影片
+        .replace(/共\s*\d+\s*部(?:\s*(影片|作品))?/gi, '')
+        // 9 作品 / 9 个作品
+        .replace(/\d+\s*(个|件)?\s*(影片|作品)/gi, '')
+        // 点号分隔的『 · 9 部作品 』
+        .replace(/[·・•]\s*\d+\s*(部)?\s*(影片|作品)/gi, '')
+        // 括号里的数量（含中文括号）
+        .replace(/[\(（]\s*\d+\s*(部)?\s*(影片|作品)[^\)）]*[\)）]/gi, '')
+        // 尾部可能残留的连接符号
+        .replace(/[·・•|｜]\s*$/, '')
+        .trim();
+      if (!name) name = id;
+
+      // 头像
+      const avatarImg = document.querySelector('.actor-section img, .performer-avatar img, .avatar img') as HTMLImageElement | null;
+      const avatarUrl = avatarImg?.src || undefined;
+
+      const now = Date.now();
+
+      const detectedGender = this.detectGenderFromPage();
+
+      const record: ActorRecord = {
+        id,
+        name,
+        aliases: [],
+        gender: detectedGender,
+        category: 'unknown',
+        avatarUrl,
+        profileUrl: window.location.origin + window.location.pathname,
+        createdAt: now,
+        updatedAt: now,
+        syncInfo: {
+          source: 'javdb',
+          lastSyncAt: now,
+          syncStatus: 'success'
+        }
+      };
+
+      return record;
+    } catch (e) {
+      console.error('[ActorEnhancement] 解析演员页面失败:', e);
+      return null;
+    }
+  }
+
   async init(): Promise<void> {
     // 检查是否为演员页面
     this.isActorPage = /\/actors\/\w+/.test(window.location.pathname);
@@ -53,6 +298,12 @@ class ActorEnhancementManager {
 
     // 设置标签点击监听器
     this.setupTagClickListener();
+
+    // 设置收藏/取消收藏同步监听器
+    this.setupCollectSyncListeners();
+
+    // 注入拉黑/取消拉黑按钮
+    await this.injectBlacklistButton();
 
     // 应用保存的标签过滤器（延迟执行，确保页面加载完成）
     if (this.config.autoApplyTags) {
