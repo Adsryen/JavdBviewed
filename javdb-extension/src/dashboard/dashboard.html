@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./styles/_modal.css">
   <link rel="stylesheet" href="./styles/settings/_input-optimization.css">
   <link rel="stylesheet" href="./styles/settings/enhancement.css">
+  <link rel="stylesheet" href="./styles/settings/drive115.css">
   <link rel="stylesheet" href="./styles/logs.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -1091,149 +1092,170 @@
                             <div class="settings-panel-header">
                                 <h3>115网盘离线下载</h3>
                                 <div class="settings-panel-actions" style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-                                    <div class="segmented-control" id="drive115VersionSwitch" style="display:flex; border:1px solid #ccc; border-radius:6px; overflow:hidden;">
-                                        <button type="button" data-ver="v1" id="drive115VerV1Btn" style="padding:6px 10px; border:none; background:#f7f7f7; cursor:pointer;">旧版</button>
-                                        <button type="button" data-ver="v2" id="drive115VerV2Btn" class="active" style="padding:6px 10px; border:none; background:#e3f2fd; cursor:pointer;">新版</button>
-                                    </div>
+                                    
                                 </div>
                                 <p class="settings-description">配置115网盘离线下载功能，支持磁链自动下载和验证。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <!-- 新版（v2）Token 模式 -->
-                                <div class="settings-section" id="drive115V2Pane">
-                                    <h4>新版（Token 模式）</h4>
-                                    <div class="form-group">
-                                        <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
-                                            <span class="drive115-toggle-text">使用新版 115（基于 token）</span>
-                                            <label class="drive115-toggle-label" style="margin:0;">
-                                                <div class="drive115-toggle-switch">
-                                                    <input type="checkbox" id="drive115EnableV2" class="drive115-toggle-input">
-                                                    <span class="drive115-toggle-slider"></span>
+                                <div class="drive115-settings-container">
+                                    <!-- 新版（v2）Token 模式 -->
+                                    <div class="settings-section" id="drive115V2Pane">
+                                        <!-- 分组：模式与接口 -->
+                                        <div class="settings-group">
+                                            <h4>模式与接口</h4>
+                                            <div class="form-group">
+                                                <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
+                                                    <span class="drive115-toggle-text">启用 115 离线下载</span>
+                                                    <label class="drive115-toggle-label" style="margin:0;">
+                                                        <div class="drive115-toggle-switch">
+                                                            <input type="checkbox" id="drive115EnableV2" class="drive115-toggle-input">
+                                                            <span class="drive115-toggle-slider"></span>
+                                                        </div>
+                                                    </label>
                                                 </div>
-                                            </label>
+                                                <p class="input-description">
+                                                    新版将使用 access_token/refresh_token，不依赖旧版登录页面与签名流程。
+                                                    <a id="drive115V2HelpLink" href="https://api.oplist.org/" target="_blank" rel="noopener noreferrer">如何获取 token？</a>
+                                                </p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="drive115V2ApiBaseUrl">接口域名（v2）:</label>
+                                                <input type="text" id="drive115V2ApiBaseUrl" placeholder="例如：https://proapi.115.com" />
+                                                <p class="input-description">可自定义 v2 接口基础域名，默认 <code>https://proapi.115.com</code>。无需以斜杠结尾。</p>
+                                            </div>
                                         </div>
-                                        <p class="input-description">
-                                            新版将使用 access_token/refresh_token，不依赖旧版登录页面与签名流程。
-                                            <a id="drive115V2HelpLink" href="https://api.oplist.org/" target="_blank" rel="noopener noreferrer">如何获取 token？</a>
-                                        </p>
-                                    </div>
 
-                                    <div class="form-group">
-                                        <label for="drive115V2ApiBaseUrl">接口域名（v2）:</label>
-                                        <input type="text" id="drive115V2ApiBaseUrl" placeholder="例如：https://proapi.115.com" />
-                                        <p class="input-description">可自定义 v2 接口基础域名，默认 <code>https://proapi.115.com</code>。无需以斜杠结尾。</p>
-                                    </div>
+                                        <!-- 分组：凭据与有效期 -->
+                                        <div class="settings-group">
+                                            <h4>凭据与有效期</h4>
+                                            <div class="form-group">
+                                                <label for="drive115V2AccessToken">access_token:</label>
+                                                <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                                                <p class="input-description" style="margin-top:6px;">
+                                                    到期：<span id="drive115V2TokenExpiry">未知</span>
+                                                </p>
+                                            </div>
 
-                                    <div class="form-group">
-                                        <label for="drive115V2AccessToken">access_token:</label>
-                                        <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
-                                        <p class="input-description" style="margin-top:6px;">
-                                            到期：<span id="drive115V2TokenExpiry">未知</span>
-                                        </p>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="drive115V2RefreshToken">refresh_token:</label>
-                                        <div class="form-group-inline">
-                                            <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
-                                            
-                                            <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
-                                        </div>
-                                        <p class="input-description">点击“手动刷新”会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <div class="form-group-inline" style="align-items:center; gap:12px;">
-                                            <label class="drive115-toggle-label" style="margin:0;">
-                                                <span class="drive115-toggle-text">自动刷新 access_token</span>
-                                                <div class="drive115-toggle-switch">
-                                                    <input type="checkbox" id="drive115V2AutoRefresh" class="drive115-toggle-input">
-                                                    <span class="drive115-toggle-slider"></span>
+                                            <div class="form-group">
+                                                <label for="drive115V2RefreshToken">refresh_token:</label>
+                                                <div class="form-group-inline">
+                                                    <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                                                    
+                                                    <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
                                                 </div>
-                                            </label>
-                                            <div style="display:flex; align-items:center; gap:6px;">
-                                                <label for="drive115V2AutoRefreshSkewSec" style="white-space:nowrap;">提前刷新(秒):</label>
-                                                <input type="number" id="drive115V2AutoRefreshSkewSec" min="0" step="1" value="60" style="width:100px;">
+                                                <p class="input-description">点击“手动刷新”会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
                                             </div>
-                                        </div>
-                                        <p class="input-description">开启后，当 access_token 过期或将在指定秒数内过期时，将自动使用 refresh_token 刷新并保存。</p>
-                                    </div>
-                                    <!-- v2 用户信息展示 -->
-                                    <div class="form-group">
-                                        <h4>下载设置</h4>
-                                        <div class="form-grid drive115-download-settings">
+
                                             <div class="form-group">
-                                                <label for="drive115DownloadDir">下载目录ID:</label>
-                                                <input type="text" id="drive115DownloadDir" placeholder="请输入目录ID（cid），例如：123456789">
-                                                <p class="input-description">仅支持填写目录ID（cid）。<button type="button" id="drive115HowToCidToggle" class="link-button" style="margin-left:8px;">如何获取ID？</button></p>
-                                                <div id="drive115HowToCid" class="help-collapsible" style="display:none; margin-top:6px;">
-                                                    <ol style="padding-left:18px; margin:6px 0;">
-                                                        <li>在 115 网页端打开目标文件夹</li>
-                                                        <li>查看浏览器地址栏，找到 <code>cid=xxxxxxxx</code></li>
-                                                        <li>复制 <code>cid=</code> 后面的数字，粘贴到上面的输入框</li>
-                                                    </ol>
-                                                    <p style="color:#666; margin:4px 0 0;">例如：<code>https://115.com/?cid=123456789&...</code>，目录ID即 <code>123456789</code></p>
+                                                <div class="form-group-inline" style="align-items:center; gap:12px;">
+                                                    <label class="drive115-toggle-label" style="margin:0;">
+                                                        <span class="drive115-toggle-text">自动刷新 access_token</span>
+                                                        <div class="drive115-toggle-switch">
+                                                            <input type="checkbox" id="drive115V2AutoRefresh" class="drive115-toggle-input">
+                                                            <span class="drive115-toggle-slider"></span>
+                                                        </div>
+                                                    </label>
+                                                    <div style="display:flex; align-items:center; gap:6px;">
+                                                        <label for="drive115V2AutoRefreshSkewSec" style="white-space:nowrap;">提前刷新(秒):</label>
+                                                        <input type="number" id="drive115V2AutoRefreshSkewSec" min="0" step="1" value="60" style="width:100px;">
+                                                    </div>
                                                 </div>
-                                                <p id="drive115DownloadDirError" class="input-error" style="display:none;">请输入目录ID</p>
+                                                <p class="input-description">开启后，当 access_token 过期或将在指定秒数内过期时，将自动使用 refresh_token 刷新并保存。</p>
                                             </div>
+                                        </div>
 
-                                            <div class="form-group">
-                                                <label for="drive115VerifyCount">验证次数:</label>
-                                                <input type="number" id="drive115VerifyCount" class="number-input" min="1" max="20" value="5">
-                                                <p class="input-description">下载后验证文件的重试次数，建议3-5次。</p>
+                                        <!-- 分组：用户信息 -->
+                                        <div class="settings-group">
+                                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                                <h4 style="margin:0;">用户信息</h4>
+                                                <div class="action-buttons-top" style="margin:0;">
+                                                    <button id="drive115V2FetchUserInfo" class="btn">刷新用户信息</button>
+                                                </div>
                                             </div>
+                                            <p id="drive115V2UserInfoStatus" class="input-description" data-kind="info" style="margin:8px 0 12px; color:#888;">未加载</p>
+                                            <div id="drive115V2UserInfoBox" class="drive115-user-info-box" style="border:1px dashed var(--drive115-border-color, #e0e0e0); padding:12px; border-radius:8px; background:var(--drive115-surface, #fafafa); min-height:40px;">
+                                                <!-- 115 用户信息将由脚本渲染到此处 -->
+                                            </div>
+                                        </div>
 
-                                            <div class="form-group">
-                                                <label for="drive115MaxFailures">最大失败数:</label>
-                                                <input type="number" id="drive115MaxFailures" class="number-input" min="0" max="50" value="5">
-                                                <p class="input-description">批量下载时允许的最大失败次数，0表示不限制。</p>
-                                            </div>
+                                        <!-- 分组：下载设置 -->
+                                        <div class="settings-group">
+                                            <h4>下载设置</h4>
+                                            <div class="form-grid drive115-download-settings">
+                                                <div class="form-group">
+                                                    <label for="drive115DownloadDir">下载目录ID:</label>
+                                                    <input type="text" id="drive115DownloadDir" placeholder="请输入目录ID（cid），例如：123456789">
+                                                    <p class="input-description">仅支持填写目录ID（cid）。<button type="button" id="drive115HowToCidToggle" class="link-button" style="margin-left:8px;">如何获取ID？</button></p>
+                                                    <div id="drive115HowToCid" class="help-collapsible" style="display:none; margin-top:6px;">
+                                                        <ol style="padding-left:18px; margin:6px 0;">
+                                                            <li>在 115 网页端打开目标文件夹</li>
+                                                            <li>查看浏览器地址栏，找到 <code>cid=xxxxxxxx</code></li>
+                                                            <li>复制 <code>cid=</code> 后面的数字，粘贴到上面的输入框</li>
+                                                        </ol>
+                                                        <p style="color:#666; margin:4px 0 0;">例如：<code>https://115.com/?cid=123456789&...</code>，目录ID即 <code>123456789</code></p>
+                                                    </div>
+                                                    <p id="drive115DownloadDirError" class="input-error" style="display:none;">请输入目录ID</p>
+                                                </div>
 
-                                            <div class="form-group">
-                                                <label class="checkbox-label">
-                                                    <input type="checkbox" id="drive115AutoNotify" checked>
-                                                    <span class="checkmark"></span>
-                                                    自动通知
-                                                </label>
-                                                <p class="input-description">下载完成后自动显示通知。</p>
+                                                <div class="form-group">
+                                                    <label for="drive115VerifyCount">验证次数:</label>
+                                                    <input type="number" id="drive115VerifyCount" class="number-input" min="1" max="20" value="5">
+                                                    <p class="input-description">下载后验证文件的重试次数，建议3-5次。</p>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="drive115MaxFailures">最大失败数:</label>
+                                                    <input type="number" id="drive115MaxFailures" class="number-input" min="0" max="50" value="5">
+                                                    <p class="input-description">批量下载时允许的最大失败次数，0表示不限制。</p>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label class="checkbox-label">
+                                                        <input type="checkbox" id="drive115AutoNotify" checked>
+                                                        <span class="checkmark"></span>
+                                                        自动通知
+                                                    </label>
+                                                    <p class="input-description">下载完成后自动显示通知。</p>
+                                                </div>
                                             </div>
+                                        </div>
+
+                                        <!-- 分组：测试功能 -->
+                                        <div class="settings-group">
+                                            <h4>测试功能</h4>
+                                            <div class="form-group">
+                                                <label for="testSearchInput">测试搜索:</label>
+                                                <div class="form-group-inline">
+                                                    <input type="text" id="testSearchInput" placeholder="输入番号或关键词">
+                                                    <button id="testDrive115Search" class="button-like">测试搜索</button>
+                                                </div>
+                                                <p class="input-description">测试115网盘搜索功能是否正常工作。</p>
+                                            </div>
+                                            <div id="testResults" class="test-results"></div>
+                                        </div>
+
+                                        <!-- 分组：日志查看 -->
+                                        <div class="settings-group">
+                                            <h4>115网盘日志</h4>
+                                            <div class="action-buttons-top">
+                                                <button id="refreshDrive115Logs" class="btn">刷新日志</button>
+                                                <button id="clearDrive115Logs" class="btn danger">清空日志</button>
+                                                <button id="exportDrive115Logs" class="btn">导出日志</button>
+                                            </div>
+                                            <div id="drive115LogStats" class="log-stats"></div>
+                                            <div id="drive115LogsList" class="logs-list"></div>
                                         </div>
                                     </div>
 
-                                    <!-- 测试功能 -->
-                                    <div class="settings-section">
-                                        <h4>测试功能</h4>
-                                        <div class="form-group">
-                                            <label for="testSearchInput">测试搜索:</label>
-                                            <div class="form-group-inline">
-                                                <input type="text" id="testSearchInput" placeholder="输入番号或关键词">
-                                                <button id="testDrive115Search" class="button-like">测试搜索</button>
+                                    <!-- 分组：自动保存状态 -->
+                                    <div class="settings-group">
+                                        <div class="auto-save-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>设置修改后自动保存，无需手动操作</span>
+                                            <div id="drive115AutoSaveStatus" class="auto-save-status">
+                                                <!-- 自动保存状态将在这里显示 -->
                                             </div>
-                                            <p class="input-description">测试115网盘搜索功能是否正常工作。</p>
-                                        </div>
-                                        <div id="testResults" class="test-results"></div>
-                                    </div>
-
-                                    <!-- 日志查看 -->
-                                    <div class="settings-section">
-                                        <h4>115网盘日志</h4>
-                                        <div class="action-buttons-top">
-                                            <button id="refreshDrive115Logs" class="btn">刷新日志</button>
-                                            <button id="clearDrive115Logs" class="btn danger">清空日志</button>
-                                            <button id="exportDrive115Logs" class="btn">导出日志</button>
-                                        </div>
-                                        <div id="drive115LogStats" class="log-stats"></div>
-                                        <div id="drive115LogsList" class="logs-list"></div>
-                                    </div>
-                                </div>
-
-                                <!-- 自动保存状态 -->
-                                <div class="settings-section">
-                                    <div class="auto-save-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        <span>设置修改后自动保存，无需手动操作</span>
-                                        <div id="drive115AutoSaveStatus" class="auto-save-status">
-                                            <!-- 自动保存状态将在这里显示 -->
                                         </div>
                                     </div>
                                 </div>
