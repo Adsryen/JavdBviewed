@@ -1,4 +1,6 @@
 import { getSettings, saveSettings } from '../../utils/storage';
+import { describe115Error } from './errorCodes';
+import { addLogV2 } from './logs';
 
 /**
  * drive115v2: 基于 access_token/refresh_token 的新版 115 服务骨架
@@ -125,6 +127,8 @@ export interface Drive115V2QuotaResponse {
 
 class Drive115V2Service {
   private static instance: Drive115V2Service | null = null;
+  // 并发刷新保护：避免多处同时触发 refresh 导致频繁请求
+  private refreshingPromise: Promise<{ success: boolean; message?: string; token?: TokenPair; raw?: any }> | null = null;
   // 基础域名：从设置读取（默认 https://proapi.115.com）
   private async getBaseURL(): Promise<string> {
     try {
@@ -162,6 +166,7 @@ class Drive115V2Service {
       if (!rt) return { success: false, message: '缺少 refresh_token' };
 
       const url = `${this.refreshURL}/open/refreshToken`;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '开始刷新 access_token（v2）' });
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -172,7 +177,9 @@ class Drive115V2Service {
       });
 
       if (!res.ok) {
-        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` };
+        const msg = `刷新 access_token 网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg };
       }
 
       const json: any = await res.json().catch(() => ({} as any));
@@ -184,7 +191,8 @@ class Drive115V2Service {
       const expiresIn: number | undefined = Number(data?.expires_in ?? json?.expires_in);
 
       if (!ok || !at) {
-        const msg = json?.message || json?.error || '刷新失败';
+        const msg = describe115Error(json) || json?.message || json?.error || '刷新失败';
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `刷新 access_token 失败：${msg}` });
         return { success: false, message: msg, raw: json };
       }
 
@@ -194,9 +202,12 @@ class Drive115V2Service {
         refresh_token: newRt || rt,
         expires_at: expiresIn && !isNaN(expiresIn) ? nowSec + Math.max(0, expiresIn) : null,
       };
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `刷新 access_token 成功（expires_in=${expiresIn ?? '未知'}）` });
       return { success: true, token, raw: json };
     } catch (e: any) {
-      return { success: false, message: e?.message || '刷新失败' };
+      const msg = describe115Error(e) || e?.message || '刷新失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `刷新 access_token 异常：${msg}` });
+      return { success: false, message: msg };
     }
   }
 
@@ -218,13 +229,37 @@ class Drive115V2Service {
     const now = Math.floor(Date.now() / 1000);
     // 仅当存在明确的过期时间且尚未接近过期时，才视为仍然有效
     const stillValid = !!accessToken && (typeof expiresAt === 'number' && expiresAt - skewSec > now);
-    if (stillValid) return { success: true, accessToken };
+    if (stillValid) {
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 仍在有效期内（v2）' });
+      return { success: true, accessToken };
+    }
 
-    if (!autoRefresh) return { success: false, message: 'access_token 已过期且未开启自动刷新' };
+    if (!autoRefresh) {
+      const msg = 'access_token 已过期且未开启自动刷新（v2）';
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+      return { success: false, message: msg };
+    }
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
 
-    const ret = await this.refreshToken(refreshToken);
-    if (!ret.success || !ret.token) return { success: false, message: ret.message || '刷新失败' };
+    // 刷新并发保护：若已有刷新在进行，复用同一个 Promise
+    let ret: { success: boolean; message?: string; token?: TokenPair; raw?: any };
+    if (this.refreshingPromise) {
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '发现正在进行中的刷新任务，复用 Promise（v2）' });
+      ret = await this.refreshingPromise;
+    } else {
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: 'access_token 已过期，开始自动刷新（v2）' });
+      this.refreshingPromise = this.refreshToken(refreshToken);
+      try {
+        ret = await this.refreshingPromise;
+      } finally {
+        this.refreshingPromise = null;
+      }
+    }
+    if (!ret.success || !ret.token) {
+      const msg = ret.message || '刷新失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `自动刷新 access_token 失败：${msg}` });
+      return { success: false, message: msg };
+    }
 
     // 持久化新的 token
     const newAt = ret.token.access_token || '';
@@ -236,6 +271,7 @@ class Drive115V2Service {
     newSettings.drive115.v2RefreshToken = newRt;
     newSettings.drive115.v2TokenExpiresAt = newExp;
     await saveSettings(newSettings);
+    await addLogV2({ timestamp: Date.now(), level: 'info', message: '自动刷新 access_token 成功并已持久化（v2）' });
 
     return { success: true, accessToken: newAt };
   }
@@ -277,11 +313,11 @@ class Drive115V2Service {
     const settings = await getSettings();
     const drv = (settings?.drive115 || {}) as any;
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : (drv.v2AutoRefresh !== false); // 默认使用设置；可被强制覆盖
-    const refreshTokenStr: string = (drv.v2RefreshToken || '').trim();
 
     const vt = await this.getValidAccessToken({ forceAutoRefresh: autoRefresh });
     if (!vt.success) return { success: false, message: vt.message } as any;
 
+    await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取用户信息（v2）' });
     let first = await this.fetchUserInfo(vt.accessToken);
     if (first.success) return first;
 
@@ -291,30 +327,16 @@ class Drive115V2Service {
         raw: (first as any).raw,
         message: first.message,
       });
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: '获取用户信息失败，疑似 token 失效（v2）' });
     } else {
       console.debug('[drive115v2] 首次获取用户信息失败，但非 token 失效', {
         raw: (first as any).raw,
         message: first.message,
       });
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取用户信息失败：${first.message || '未知错误'}` });
     }
-    if (tokenInvalid && autoRefresh && refreshTokenStr) {
-      const ref = await this.refreshToken(refreshTokenStr);
-      console.debug('[drive115v2] 已尝试刷新 access_token', { success: ref.success, message: ref.message, raw: ref.raw });
-      if (ref.success && ref.token?.access_token) {
-        const newSettings: any = { ...(settings as any) };
-        newSettings.drive115 = { ...(settings as any).drive115 };
-        newSettings.drive115.v2AccessToken = ref.token.access_token;
-        newSettings.drive115.v2RefreshToken = ref.token.refresh_token || refreshTokenStr;
-        newSettings.drive115.v2TokenExpiresAt = typeof ref.token.expires_at === 'number' ? ref.token.expires_at : null;
-        await saveSettings(newSettings);
-        const second = await this.fetchUserInfo(ref.token.access_token);
-        console.debug('[drive115v2] 刷新后重试获取用户信息结果', { success: second.success, message: second.message, raw: (second as any).raw });
-        return second;
-      }
-      const msg = ref.message || first.message || 'access_token 无效，刷新失败';
-      return { success: false, message: `${msg}（请检查或重新获取 refresh_token）`, raw: (first as any).raw } as any;
-    }
-
+    // 为避免重复刷新，这里不再进行二次 refreshToken 调用。
+    // 自动刷新应由 getValidAccessToken 根据设置统一处理；若仍失败，直接返回首次结果供上层处理。
     return first;
   }
 
@@ -340,7 +362,9 @@ class Drive115V2Service {
       });
 
       if (!res.ok) {
-        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` };
+        const msg = `获取用户信息网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg };
       }
 
       const json: Drive115V2UserInfoResponse = await res.json().catch(() => ({} as any));
@@ -368,14 +392,20 @@ class Drive115V2Service {
       }
 
       if (!ok) {
-        return { success: false, message: json.error || json.message || `接口返回失败 errNo=${json.errNo ?? ''}`, raw: json };
+        const msg = describe115Error(json) || json.error || json.message || `接口返回失败 errNo=${json.errNo ?? ''}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取用户信息失败：${msg}` });
+        return { success: false, message: msg, raw: json };
       }
       if (!user || Object.keys(user).length === 0) {
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: '获取用户信息成功但数据为空' });
         return { success: false, message: '未获取到用户数据', raw: json };
       }
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取用户信息成功（v2）' });
       return { success: true, data: user, raw: json };
     } catch (e: any) {
-      return { success: false, message: e?.message || '获取用户信息失败' };
+      const msg = describe115Error(e) || e?.message || '获取用户信息失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取用户信息异常：${msg}` });
+      return { success: false, message: msg };
     }
   }
 
@@ -408,6 +438,7 @@ class Drive115V2Service {
       if (params.type) qs.set('type', String(params.type));
       if (params.suffix) qs.set('suffix', String(params.suffix));
 
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `开始搜索（v2）：q="${String(params.search_value ?? '').slice(0, 50)}"` });
       const res = await fetch(`${url}?${qs.toString()}`, {
         method: 'GET',
         headers: {
@@ -417,15 +448,20 @@ class Drive115V2Service {
       });
 
       if (!res.ok) {
-        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` } as any;
+        const msg = `搜索网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg } as any;
       }
 
       const json: Drive115V2SearchResponse = await res.json().catch(() => ({} as any));
       const ok = typeof json.state === 'boolean' ? json.state : true;
       if (!ok) {
-        return { success: false, message: json.message || '搜索失败', raw: json } as any;
+        const msg = describe115Error(json) || json.message || '搜索失败';
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `搜索失败：${msg}` });
+        return { success: false, message: msg, raw: json } as any;
       }
       const data = Array.isArray(json?.data) ? json.data as Drive115V2SearchItem[] : undefined;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `搜索成功（v2）：返回 ${Array.isArray(data) ? data.length : 0} 条` });
       return {
         success: true,
         count: typeof json.count === 'number' ? json.count : undefined,
@@ -435,7 +471,9 @@ class Drive115V2Service {
         raw: json,
       } as any;
     } catch (e: any) {
-      return { success: false, message: e?.message || '搜索失败' } as any;
+      const msg = describe115Error(e) || e?.message || '搜索失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `搜索异常：${msg}` });
+      return { success: false, message: msg } as any;
     }
   }
 
@@ -453,6 +491,7 @@ class Drive115V2Service {
 
       const base = await this.getBaseURL();
       const url = `${base}/open/offline/get_quota_info`;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取离线配额信息（v2）' });
       const res = await fetch(url, {
         method: 'GET',
         headers: {
@@ -462,13 +501,17 @@ class Drive115V2Service {
       });
 
       if (!res.ok) {
-        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` } as any;
+        const msg = `获取配额网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg } as any;
       }
 
       const json: Drive115V2QuotaResponse = await res.json().catch(() => ({} as any));
       const ok = typeof json.state === 'boolean' ? json.state : true;
       if (!ok) {
-        return { success: false, message: json.message || json.error || '获取配额失败', raw: json } as any;
+        const msg = describe115Error(json) || json.message || json.error || '获取配额失败';
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取配额失败：${msg}` });
+        return { success: false, message: msg, raw: json } as any;
       }
 
       // 兼容 data 为对象或数组的两种形态
@@ -487,9 +530,12 @@ class Drive115V2Service {
       }
       if (!info) info = {} as Drive115V2QuotaInfo;
 
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取离线配额信息成功（v2）' });
       return { success: true, data: info, raw: json } as any;
     } catch (e: any) {
-      return { success: false, message: e?.message || '获取配额失败' } as any;
+      const msg = describe115Error(e) || e?.message || '获取配额失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取配额异常：${msg}` });
+      return { success: false, message: msg } as any;
     }
   }
 
@@ -516,6 +562,8 @@ class Drive115V2Service {
       const body = new URLSearchParams({ urls: params.urls });
       if (params.wp_path_id && params.wp_path_id !== '0') body.set('wp_path_id', params.wp_path_id);
 
+      const count = String(params.urls || '').split('\n').filter(s => s.trim()).length;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `开始添加离线任务（v2）：${count} 项，目录=${params.wp_path_id || '根'}` });
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -527,18 +575,25 @@ class Drive115V2Service {
       });
 
       if (!res.ok) {
-        return { success: false, message: `网络错误: ${res.status} ${res.statusText}` };
+        const msg = `添加离线任务网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg };
       }
 
       const json: any = await res.json().catch(() => ({} as any));
       const ok = typeof json.state === 'boolean' ? json.state : true;
       if (!ok) {
-        return { success: false, message: json.message || json.error || '添加任务失败', raw: json };
+        const msg = describe115Error(json) || json.message || json.error || '添加任务失败';
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `添加离线任务失败：${msg}` });
+        return { success: false, message: msg, raw: json };
       }
       const data: any[] | undefined = Array.isArray(json?.data) ? json.data : undefined;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `添加离线任务成功（v2）：返回 ${Array.isArray(data) ? data.length : 0} 项` });
       return { success: true, data, raw: json };
     } catch (e: any) {
-      return { success: false, message: e?.message || '添加任务失败' };
+      const msg = describe115Error(e) || e?.message || '添加任务失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `添加离线任务异常：${msg}` });
+      return { success: false, message: msg };
     }
   }
 }

@@ -3,6 +3,7 @@
  */
 
 import { isDrive115Enabled, isV2Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
+import { addLogV2 } from '../services/drive115v2/logs';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import { log } from './state';
@@ -261,10 +262,18 @@ export async function handlePushToDrive115(
             // v2 支持一次多个URL，这里单个拼接即可
             const urls = magnetUrl; // 单条
             try {
+                await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 v2 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
                 const res = await addTaskUrlsV2({ urls });
                 result = { success: res.success, data: res.data, error: res.message };
+                if (res.success) {
+                    const returned = Array.isArray(res.data) ? res.data.length : 0;
+                    await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：v2 推送成功，返回 ${returned} 项，videoId=${videoId}` });
+                } else {
+                    await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：v2 推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
+                }
             } catch (e: any) {
                 result = { success: false, error: e?.message || '推送失败' };
+                await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：v2 推送异常：${e?.message || e || '未知异常'}，videoId=${videoId}，magnet=${magnetUrl}，page=${window.location.href}` });
             }
         } else {
             result = await pushToDrive115ViaCrossDomain({

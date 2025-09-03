@@ -413,6 +413,86 @@
     background: #f3f4f6;
 }
 
+/* ===== 115 面板内专属按钮配色（仅作用于本面板） ===== */
+/* 为没有 .btn 的 .button-like 提供基础外观（仅限 115 设置面板内） */
+#drive115-settings .button-like {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #6b7280; /* 默认次级色，若未被更具体的ID覆盖 */
+    color: #fff;
+}
+
+#drive115-settings .button-like:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 手动刷新 access_token（橙色强调） */
+#drive115-settings #drive115V2ManualRefresh {
+    background: #fb8c00;
+    color: #fff;
+}
+#drive115-settings #drive115V2ManualRefresh:hover:not(:disabled) {
+    background: #ef6c00;
+}
+
+/* 刷新用户信息（蓝色主按钮） */
+#drive115-settings #drive115V2FetchUserInfo {
+    background: #1e88e5;
+    color: #fff;
+}
+#drive115-settings #drive115V2FetchUserInfo:hover:not(:disabled) {
+    background: #1565c0;
+}
+
+/* 日志操作按钮（绿色=刷新，红色=清空，青色=导出） */
+#drive115-settings #refreshDrive115Logs {
+    background: #43a047; /* green-600 */
+    color: #fff;
+}
+#drive115-settings #refreshDrive115Logs:hover:not(:disabled) {
+    background: #2e7d32; /* green-800 */
+}
+
+#drive115-settings #clearDrive115Logs {
+    background: #e53935; /* red-600 */
+    color: #fff;
+}
+#drive115-settings #clearDrive115Logs:hover:not(:disabled) {
+    background: #c62828; /* red-800 */
+}
+
+#drive115-settings #exportDrive115Logs {
+    background: #00897b; /* teal-600 */
+    color: #fff;
+}
+#drive115-settings #exportDrive115Logs:hover:not(:disabled) {
+    background: #00695c; /* teal-800 */
+}
+
+/* “如何获取ID？” 链接式按钮（保持链接外观但更显眼） */
+#drive115-settings #drive115HowToCidToggle {
+    background: transparent;
+    border: none;
+    color: #1e88e5;
+    text-decoration: underline;
+    padding: 0 2px;
+    border-radius: 4px;
+}
+#drive115-settings #drive115HowToCidToggle:hover {
+    color: #1565c0;
+    background: rgba(29, 78, 216, 0.06);
+}
+
 /* 测试功能样式 */
 #drive115-settings .test-section {
     display: flex;

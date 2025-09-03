@@ -1,6 +1,9 @@
 import type { IDrive115Pane } from './Drive115TabsController';
 import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../services/drive115v2';
 import { getSettings, saveSettings } from '../../../../utils/storage';
+import { addTaskUrlsV2 } from '../../../../services/drive115Router';
+import { describe115Error } from '../../../../services/drive115v2/errorCodes';
+import { showToast } from '../../../../content/toast';
 
 type Drive115PaneContext = {
   update: (patch: Partial<any>) => void;
@@ -128,7 +131,7 @@ export class Drive115V2Pane implements IDrive115Pane {
 
     // 窗口大小变化时也重新计算
     window.addEventListener('resize', () => {
-      this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
+      this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken', 'drive115V2AddUrls']);
     });
 
     // 手动刷新按钮：调用刷新接口，成功后回填两个 token 并记录过期时间
@@ -145,7 +148,9 @@ export class Drive115V2Pane implements IDrive115Pane {
         const svc = getDrive115V2Service();
         const ret = await svc.refreshToken(rt);
         if (!ret.success || !ret.token) {
-          this.setUserInfoStatus(ret.message || '刷新失败', 'error');
+          const msg = describe115Error((ret as any).raw) || ret.message || '刷新失败';
+          this.setUserInfoStatus(msg, 'error');
+          showToast(msg, 'error');
           return;
         }
         // 回填新的 token
@@ -164,8 +169,11 @@ export class Drive115V2Pane implements IDrive115Pane {
         // 自适应高度
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
         this.setUserInfoStatus('已刷新 access_token', 'ok');
+        showToast('已刷新 access_token', 'success');
       } catch (err: any) {
-        this.setUserInfoStatus(err?.message || '刷新失败', 'error');
+        const msg = describe115Error(err) || err?.message || '刷新失败';
+        this.setUserInfoStatus(msg, 'error');
+        showToast(msg, 'error');
       }
     });
 
@@ -185,11 +193,14 @@ export class Drive115V2Pane implements IDrive115Pane {
         const svc = getDrive115V2Service();
         const ret = await svc.fetchUserInfo(token);
         if (!ret.success || !ret.data) {
-          this.setUserInfoStatus(ret.message || '获取失败', 'error');
-          if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${ret.message || '获取失败'}</p>`;
+          const msg = describe115Error((ret as any).raw) || ret.message || '获取失败';
+          this.setUserInfoStatus(msg, 'error');
+          if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
+          showToast(msg, 'error');
           return;
         }
         this.setUserInfoStatus('已更新', 'ok');
+        showToast('已获取用户信息', 'success');
         this.renderUserInfo(ret.data);
         // 持久化保存用户信息
         try {
@@ -206,8 +217,89 @@ export class Drive115V2Pane implements IDrive115Pane {
           try { window.dispatchEvent(new Event('drive115:refreshQuota')); } catch {}
         } catch {}
       } catch (err: any) {
-        this.setUserInfoStatus(err?.message || '发生错误', 'error');
-        if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${err?.message || '发生错误'}</p>`;
+        const msg = describe115Error(err) || err?.message || '发生错误';
+        this.setUserInfoStatus(msg, 'error');
+        if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
+        showToast(msg, 'error');
+      }
+    });
+
+    // 添加云下载任务（多链接）
+    const addUrlsTextarea = document.getElementById('drive115V2AddUrls') as HTMLTextAreaElement | null;
+    const wpPathIdInput = document.getElementById('drive115V2WpPathId') as HTMLInputElement | null;
+    const addBtn = document.getElementById('drive115V2AddUrlsBtn') as HTMLButtonElement | null;
+    const statusEl = document.getElementById('drive115V2AddUrlsStatus') as HTMLSpanElement | null;
+    const resultBox = document.getElementById('drive115V2AddUrlsResult') as HTMLDivElement | null;
+
+    // 自适应高度与输入事件
+    if (addUrlsTextarea) {
+      this.autoResize(addUrlsTextarea);
+      addUrlsTextarea.addEventListener('input', () => this.autoResize(addUrlsTextarea));
+    }
+
+    const setAddStatus = (msg: string, kind: 'info' | 'ok' | 'error' = 'info') => {
+      if (!statusEl) return;
+      statusEl.textContent = msg;
+      statusEl.style.color = kind === 'ok' ? '#2e7d32' : kind === 'error' ? '#c62828' : '#888';
+    };
+
+    const renderAddResults = (items: any[] | undefined) => {
+      if (!resultBox) return;
+      if (!Array.isArray(items) || items.length === 0) {
+        resultBox.innerHTML = '<p style="margin:0; color:#888;">无返回结果</p>';
+        return;
+      }
+      const rows = items.map((it: any, idx: number) => {
+        const ok = (it?.state === true) || (it?.success === true) || (it?.errcode === 0);
+        const url = (it?.url || it?.src || it?.link || '').toString();
+        const msg = (it?.message || it?.errmsg || it?.error || (ok ? '已提交' : '失败')).toString();
+        const tid = it?.task_id || it?.id || '';
+        return `
+          <div style="padding:6px 8px; border:1px solid ${ok ? '#c8e6c9' : '#ffcdd2'}; background:${ok ? '#e8f5e9' : '#ffebee'}; border-radius:6px; margin-bottom:6px;">
+            <div style="font-weight:600; color:${ok ? '#2e7d32' : '#c62828'};">第 ${idx + 1} 条：${ok ? '成功' : '失败'}${tid ? `（任务ID：${this.escapeHtml(String(tid))}）` : ''}</div>
+            ${url ? `<div style="color:#555; word-break:break-all;">URL：${this.escapeHtml(url)}</div>` : ''}
+            <div style="color:#777;">${this.escapeHtml(msg)}</div>
+          </div>
+        `;
+      }).join('');
+      resultBox.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">${rows}</div>
+      `;
+    };
+
+    addBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const raw = (addUrlsTextarea?.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (!raw.length) {
+        setAddStatus('请输入至少一条链接', 'error');
+        return;
+      }
+      const urls = raw.join('\n');
+      const folderId = (wpPathIdInput?.value || '').trim();
+
+      // 清空结果并提示
+      if (resultBox) resultBox.innerHTML = '';
+      setAddStatus('提交中…', 'info');
+      if (addBtn) addBtn.disabled = true;
+
+      try {
+        const ret = await addTaskUrlsV2({ urls, wp_path_id: folderId || undefined });
+        if (!ret.success) {
+          const msg = describe115Error((ret as any).raw) || ret.message || '添加任务失败';
+          setAddStatus(msg, 'error');
+          showToast(msg, 'error');
+          renderAddResults(ret.data as any[] | undefined);
+          return;
+        }
+        setAddStatus('已提交', 'ok');
+        showToast('已提交云下载任务', 'success');
+        renderAddResults(ret.data as any[] | undefined);
+      } catch (err: any) {
+        const msg = describe115Error(err) || err?.message || '请求失败';
+        setAddStatus(msg, 'error');
+        showToast(msg, 'error');
+      } finally {
+        if (addBtn) addBtn.disabled = false;
       }
     });
   }
