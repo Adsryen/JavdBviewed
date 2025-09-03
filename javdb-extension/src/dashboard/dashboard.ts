@@ -26,6 +26,21 @@ import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import './ui/dataViewModal'; // 确保dataViewModal被初始化
 import { getDrive115V2Service } from '../services/drive115v2';
 
+// 根据设置显隐左侧 115 网盘侧边栏容器（规则：V1 或 V2 任一开启即显示）
+function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
+    const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
+    if (!section) return;
+    const enabled = typeof enabledParam === 'boolean' ? enabledParam : !!STATE.settings?.drive115?.enabled;
+    const enableV2 = typeof enableV2Param === 'boolean' ? enableV2Param : !!STATE.settings?.drive115?.enableV2;
+    // 只要任一开启就显示
+    section.style.display = (enabled || enableV2) ? '' : 'none';
+}
+
+// 预置一个全局占位，避免其他模块在真实函数绑定前调用导致 ReferenceError
+(window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
+// 暴露给全局，避免作用域问题导致引用错误（在真实函数声明后会被覆盖为实现）
+(window as any).initDrive115QuotaSidebar = initDrive115QuotaSidebar;
+
 /**
  * 设置Dashboard隐私保护监听 - 简化版，只监听标签切换
  */
@@ -44,6 +59,25 @@ async function setupDashboardPrivacyMonitoring() {
 
 async function initDrive115QuotaSidebar(): Promise<void> {
     try {
+        // 侧边栏显示规则：V1 或 V2 任一开启
+        const enabled = !!STATE.settings?.drive115?.enabled;
+        const enableV2 = !!STATE.settings?.drive115?.enableV2;
+        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
+        if (!(enabled || enableV2)) {
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        // 若启用但不是V2（即V1模式），显示容器但不加载配额
+        if (enabled && !enableV2) {
+            if (section) section.style.display = '';
+            const box = document.getElementById('drive115QuotaSidebar');
+            if (box) box.innerHTML = '';
+            return;
+        }
+
+        // V2 启用：确保容器显示并加载配额
+        if (section) section.style.display = '';
         const box = document.getElementById('drive115QuotaSidebar');
         if (!box) return;
 
@@ -63,6 +97,112 @@ async function initDrive115QuotaSidebar(): Promise<void> {
         }
 
         const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
+
+/**
+ * 顶层定义：初始化左侧 115 配额侧边栏（V2）。
+ * 注意：与上方局部作用域中的同名函数不同，此处为模块级，确保在 DOMContentLoaded 中可用。
+ */
+async function initDrive115QuotaSidebar(): Promise<void> {
+    try {
+        // 侧边栏显示规则：V1 或 V2 任一开启
+        const enabled = !!STATE.settings?.drive115?.enabled;
+        const enableV2 = !!STATE.settings?.drive115?.enableV2;
+        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
+        if (!(enabled || enableV2)) {
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        // 若启用但不是V2（即V1模式），显示容器但不加载配额
+        if (enabled && !enableV2) {
+            if (section) section.style.display = '';
+            const box = document.getElementById('drive115QuotaSidebar');
+            if (box) box.innerHTML = '';
+            return;
+        }
+
+        // V2 启用：确保容器显示并加载配额
+        if (section) section.style.display = '';
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (!box) return;
+
+        const svc = getDrive115V2Service();
+        // 获取可用 accessToken（自动刷新）
+        const tokenRet = await svc.getValidAccessToken();
+        if (!('success' in tokenRet) || !tokenRet.success) {
+            box.innerHTML = `
+                <div style="font-size:12px; color:#999;">
+                    无法获取配额：${(tokenRet as any)?.message || '未启用或缺少凭据'}
+                    <div style="margin-top:6px;">
+                        <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
+        if (!quotaRet.success) {
+            box.innerHTML = `
+                <div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>
+            `;
+            return;
+        }
+
+        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
+    } catch (e) {
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
+        console.error('initDrive115QuotaSidebar error:', e);
+    }
+}
+
+function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
+    const box = document.getElementById('drive115QuotaSidebar');
+    if (!box) return;
+
+    const total = typeof info.total === 'number' ? info.total : undefined;
+    const used = typeof info.used === 'number' ? info.used : undefined;
+    const surplus = typeof info.surplus === 'number' ? info.surplus : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
+
+    const percent = (() => {
+        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
+        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
+        return undefined;
+    })();
+
+    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
+
+    const barHtml = (percent !== undefined)
+        ? `
+        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
+            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
+        </div>
+        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
+        `
+        : '<div style="font-size:12px; color:#999;">暂无总额信息</div>';
+
+    box.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>总额</span>
+                <span>${fmt(total)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>已用</span>
+                <span>${fmt(used)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>剩余</span>
+                <span>${fmt(surplus)}</span>
+            </div>
+            ${barHtml}
+            <div style="margin-top:2px;">
+                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
+            </div>
+        </div>
+    `;
+}
         if (!quotaRet.success) {
             box.innerHTML = `
                 <div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>
@@ -204,11 +344,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     initInfoContainer();
     initHelpSystem();
     initModal();
-    initDrive115QuotaSidebar();
+    // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
+    updateDrive115SidebarVisibility();
+    if (STATE.settings?.drive115?.enableV2) {
+        (window as any).initDrive115QuotaSidebar?.();
+    }
     updateSyncStatus();
     // 监听来自设置页的配额刷新事件
     window.addEventListener('drive115:refreshQuota' as any, () => {
-        initDrive115QuotaSidebar();
+        (window as any).initDrive115QuotaSidebar?.();
+    });
+    // 监听 115 启用状态变更，动态显隐侧边栏并在启用（V2）时加载配额
+    window.addEventListener('drive115:enabled-changed' as any, (e: any) => {
+        const enabled = !!(e?.detail?.enabled);
+        const enableV2 = !!(e?.detail?.enableV2);
+        updateDrive115SidebarVisibility(enabled, enableV2);
+        if (enableV2 || enabled) {
+            // V1 或 V2 任一开启先更新容器；仅当 V2 时加载配额
+            if (enableV2) (window as any).initDrive115QuotaSidebar?.();
+        }
     });
 });
 

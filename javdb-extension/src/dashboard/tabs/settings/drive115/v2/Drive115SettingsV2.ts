@@ -114,6 +114,49 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       this.settings.enabled = !!enabledCheckbox.checked;
       this.updateUI();
       this.autoSaveSettings();
+      // 派发全局事件
+      try {
+        window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+          detail: { enabled: !!this.settings.enabled, enableV2: !!this.settings.enableV2 }
+        }));
+      } catch (_) {}
+    });
+
+    // 版本切换按钮
+    const verV1Btn = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
+    const verV2Btn = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+    
+    log.verbose('115版本切换按钮绑定:', { verV1Btn: !!verV1Btn, verV2Btn: !!verV2Btn });
+    
+    verV1Btn?.addEventListener('click', async () => {
+      log.verbose('115 V1按钮被点击');
+      console.log('115 V1按钮被点击');
+      // 切到 v1：关闭 enableV2，但不修改 lastSelectedVersion（v2 控制器限定为 'v2'）
+      this.settings.enableV2 = false;
+      this.updateUI();
+      this.autoSaveSettings();
+      // 派发全局事件
+      try {
+        window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+          detail: { enabled: !!this.settings.enabled, enableV2: false }
+        }));
+      } catch (_) {}
+    });
+    
+    verV2Btn?.addEventListener('click', async () => {
+      log.verbose('115 V2按钮被点击');
+      console.log('115 V2按钮被点击');
+      // 切到 v2：开启 enableV2
+      this.settings.lastSelectedVersion = 'v2';
+      this.settings.enableV2 = true;
+      this.updateUI();
+      this.autoSaveSettings();
+      // 派发全局事件
+      try {
+        window.dispatchEvent(new CustomEvent('drive115:enabled-changed' as any, {
+          detail: { enabled: !!this.settings.enabled, enableV2: true }
+        }));
+      } catch (_) {}
     });
 
     // v2 专属：手动测试搜索（与 v1 彻底隔离）
@@ -147,6 +190,19 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     // 新版开关（与存储同步）
     const enableV2Checkbox = document.getElementById('drive115EnableV2') as HTMLInputElement | null;
     if (enableV2Checkbox) enableV2Checkbox.checked = !!this.settings.enableV2;
+
+    // 版本切换按钮状态更新
+    const v1BtnUI = document.getElementById('drive115VerV1Btn') as HTMLButtonElement | null;
+    const v2BtnUI = document.getElementById('drive115VerV2Btn') as HTMLButtonElement | null;
+    const isV2 = !!this.settings.enableV2;
+    if (v1BtnUI) {
+      v1BtnUI.classList.toggle('active', !isV2);
+      v1BtnUI.style.background = !isV2 ? '#e3f2fd' : '#f7f7f7';
+    }
+    if (v2BtnUI) {
+      v2BtnUI.classList.toggle('active', isV2);
+      v2BtnUI.style.background = isV2 ? '#e3f2fd' : '#f7f7f7';
+    }
 
     // 仅渲染 v2 Pane 所需字段
     const v2ApiBaseUrlInput = document.getElementById('drive115V2ApiBaseUrl') as HTMLInputElement | null;

@@ -4,7 +4,10 @@ import type { UserProfile } from '../types';
 import { userService } from './services/userService';
 import { emit } from './services/eventBus';
 import { getSettings, saveSettings } from '../utils/storage';
-import { getDrive115V2Service, type Drive115V2UserInfo } from '../services/drive115v2';
+import { getDrive115V2Service, type Drive115V2UserInfo, type Drive115V2QuotaInfo } from '../services/drive115v2';
+
+// 115 加载并发保护
+let isLoadingDrive115 = false;
 
 // 重新导出用户服务的方法，保持向后兼容
 export const fetchUserProfile = () => userService.fetchUserProfile();
@@ -100,6 +103,9 @@ export function initUserProfileSection(): void {
                     <img src="../assets/115-logo.svg" alt="115" style="width:16px;height:16px;"/>
                     <span>115 账号</span>
                     <span id="drive115-user-status" style="margin-left:auto; font-size:12px; color:#888;"></span>
+                    <button id="drive115-refresh-btn" class="refresh-btn" title="刷新 115 账号信息" style="margin-left:8px;">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
                 <div id="drive115-user-box" class="card" style="padding:8px; border:1px solid #eee; border-radius:6px; margin-top:6px;">
                     <p style="margin:0; color:#888;">未加载</p>
@@ -124,6 +130,7 @@ function bindUserProfileEvents(): void {
     const loginBtn = document.getElementById('login-btn');
     const refreshBtn = document.getElementById('refresh-profile-btn');
     const logoutBtn = document.getElementById('logout-btn');
+    const drive115RefreshBtn = document.getElementById('drive115-refresh-btn');
 
     if (loginBtn) {
         loginBtn.addEventListener('click', handleLogin);
@@ -135,6 +142,10 @@ function bindUserProfileEvents(): void {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    if (drive115RefreshBtn) {
+        drive115RefreshBtn.addEventListener('click', handleDrive115Refresh);
     }
 }
 
@@ -199,6 +210,26 @@ async function handleRefresh(): Promise<void> {
     } finally {
         refreshBtn.disabled = false;
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+    }
+}
+
+/**
+ * 处理 115 刷新按钮点击
+ */
+async function handleDrive115Refresh(): Promise<void> {
+    const btn = document.getElementById('drive115-refresh-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        await loadDrive115UserInfo(); // 内部已包含自动刷新 access_token 逻辑
+        showMessage('115 账号信息已更新', 'success');
+    } catch (error: any) {
+        showMessage('刷新 115 账号信息时发生错误', 'error');
+        logAsync('ERROR', '115 刷新处理失败', { error: error?.message });
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
     }
 }
 
@@ -379,6 +410,11 @@ function refreshDataSyncSection(): void {
  * 加载并显示 115 v2 用户信息
  */
 async function loadDrive115UserInfo(): Promise<void> {
+    if (isLoadingDrive115) {
+        console.debug('[drive115v2-ui] 忽略重复的 115 加载请求（上一次尚未完成）');
+        return;
+    }
+    isLoadingDrive115 = true;
     const block = document.getElementById('drive115-user-info') as HTMLDivElement | null;
     const statusEl = document.getElementById('drive115-user-status') as HTMLSpanElement | null;
     const box = document.getElementById('drive115-user-box') as HTMLDivElement | null;
@@ -415,24 +451,35 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         const svc = getDrive115V2Service();
-        // 通过自动刷新机制获取有效 token
-        const vt = await svc.getValidAccessToken();
-        if (!vt.success) {
-            const msg = vt.message || '未配置或获取 access_token 失败';
-            set115Status(msg, 'warn');
-            box.innerHTML = `<p style=\"margin:0; color:#888;\">${msg || '请在设置中填写 refresh_token 并开启自动刷新，或手动刷新获取 access_token'}</p>`;
-            // 标记缓存为过期
-            const newSettings: any = { ...settings };
-            newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
-            await saveSettings(newSettings);
-            return;
+        // 1) 先校验/刷新 access_token（若无 expires_at 或即将过期则先主动刷新）
+        {
+            const drv: any = (settings as any).drive115 || {};
+            const nowSec = Math.floor(Date.now() / 1000);
+            const exp: any = drv.v2TokenExpiresAt;
+            const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
+            const needProactiveRefresh = !(typeof exp === 'number') || exp === null || (typeof exp === 'number' && exp - skewSec <= nowSec);
+            if (needProactiveRefresh) {
+                const rt = (drv.v2RefreshToken || '').toString().trim();
+                if (rt) {
+                    const ref = await svc.refreshToken(rt);
+                    if (ref.success && ref.token?.access_token) {
+                        const newSettings: any = { ...settings };
+                        newSettings.drive115 = { ...(settings as any).drive115 };
+                        newSettings.drive115.v2AccessToken = ref.token.access_token;
+                        newSettings.drive115.v2RefreshToken = ref.token.refresh_token || rt;
+                        newSettings.drive115.v2TokenExpiresAt = typeof ref.token.expires_at === 'number' ? ref.token.expires_at : null;
+                        await saveSettings(newSettings);
+                    }
+                }
+            }
         }
-
-        const ret = await svc.fetchUserInfo(vt.accessToken);
-        if (!ret.success || !ret.data) {
-            set115Status(ret.message || '获取失败', 'error');
-            box.innerHTML = `<p style="margin:0; color:#d00;">${ret.message || '获取失败'}</p>`;
-            // 失败也标记过期（当前 access_token 不可用于拉取用户信息）
+        // 2) 通过服务层自动处理 token 失效并获取用户信息（带调试日志）
+        console.debug('[drive115v2-ui] 调用 fetchUserInfoAuto() 获取 115 用户信息');
+        const userAuto = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
+        if (!userAuto.success || !userAuto.data) {
+            console.debug('[drive115v2-ui] 获取 115 用户信息失败', { message: userAuto.message, raw: (userAuto as any).raw });
+            set115Status('获取失败', 'error');
+            box.innerHTML = `<p style="margin:0; color:#d00;">${userAuto.message || '获取用户信息失败'}</p>`;
             const newSettings: any = { ...settings };
             newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
             await saveSettings(newSettings);
@@ -440,19 +487,38 @@ async function loadDrive115UserInfo(): Promise<void> {
         }
 
         set115Status('已更新', 'ok');
-        render115User(ret.data, Date.now());
+        render115User(userAuto.data, Date.now());
         // 持久化用户信息与时间戳，并清除过期标记
         const newSettings: any = { ...settings };
         newSettings.drive115 = {
             ...(settings as any).drive115,
-            v2UserInfo: ret.data,
+            v2UserInfo: userAuto.data,
             v2UserInfoUpdatedAt: Date.now(),
             v2UserInfoExpired: false,
         };
         await saveSettings(newSettings);
+
+        // 3) 成功后再获取额度配额：重新取一次有效 access_token
+        try {
+            const vt2 = await svc.getValidAccessToken();
+            if (vt2.success) {
+                const quotaRet = await svc.getQuotaInfo({ accessToken: vt2.accessToken });
+                if (quotaRet.success && quotaRet.data) {
+                    render115Quota(quotaRet.data);
+                } else if (!quotaRet.success) {
+                    render115QuotaHint(quotaRet.message || '获取配额失败');
+                }
+            } else {
+                render115QuotaHint(vt2.message || '获取配额失败');
+            }
+        } catch (e: any) {
+            render115QuotaHint(e?.message || '获取配额失败');
+        }
     } catch (e: any) {
         set115Status(e?.message || '加载失败', 'error');
         box.innerHTML = `<p style="margin:0; color:#d00;">${e?.message || '加载失败'}</p>`;
+    } finally {
+        isLoadingDrive115 = false;
     }
 
     function set115Status(msg: string, kind: 'ok'|'error'|'info'|'warn' = 'info') {
@@ -517,6 +583,46 @@ async function loadDrive115UserInfo(): Promise<void> {
           </div>
           ${updatedText ? `<div style="margin-top:6px; font-size:11px; color:#888;">更新于：${updatedText}</div>` : ''}
         `;
+    }
+
+    function render115Quota(info: Drive115V2QuotaInfo) {
+        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        if (!container) return;
+        const list = Array.isArray(info.list) ? info.list : [];
+        const totalTxt = typeof info.total === 'number' ? info.total.toString() : '-';
+        const usedTxt = typeof info.used === 'number' ? info.used.toString() : undefined;
+        const surplusTxt = typeof info.surplus === 'number' ? info.surplus.toString() : undefined;
+        const rows = list.slice(0, 6).map(it => {
+            const name = it.name ?? `类型${it.type ?? ''}`;
+            const used = typeof it.used === 'number' ? it.used : undefined;
+            const surplus = typeof it.surplus === 'number' ? it.surplus : undefined;
+            const exp = it.expire_info?.expire_text || '';
+            return `<div style="display:flex; justify-content:space-between; font-size:12px; color:#444;">
+                <span>${name}${exp ? `（${exp}）` : ''}</span>
+                <span>${used !== undefined ? `已用 ${used}` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 ${surplus}` : ''}</span>
+            </div>`;
+        }).join('');
+        const summary = (usedTxt || surplusTxt) ? `<div style="font-size:12px; color:#666;">${usedTxt ? `总已用：${usedTxt}` : ''}${usedTxt && surplusTxt ? '，' : ''}${surplusTxt ? `总剩余：${surplusTxt}` : ''}</div>` : '';
+        container.insertAdjacentHTML('beforeend', `
+          <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #e0e0e0;">
+            <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#333; margin-bottom:4px;">
+              <i class="fas fa-ticket-alt"></i><span>离线配额</span>
+              <span style="margin-left:auto; font-size:12px; color:#888;">${totalTxt !== '-' ? `总额：${totalTxt}` : ''}</span>
+            </div>
+            ${rows || '<div style="font-size:12px; color:#888;">无配额信息</div>'}
+            ${summary}
+          </div>
+        `);
+    }
+
+    function render115QuotaHint(msg: string) {
+        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        if (!container) return;
+        container.insertAdjacentHTML('beforeend', `
+          <div style="margin-top:10px; font-size:12px; color:#ef6c00;">
+            <i class="fas fa-exclamation-triangle"></i> ${msg}
+          </div>
+        `);
     }
 
     function formatBytes(n?: number): string {
