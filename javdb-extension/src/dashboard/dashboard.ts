@@ -642,81 +642,112 @@ function initHelpSystem(): void {
 
     // 帮助内容
     const helpContent = `
+        <h3><i class="fas fa-rocket"></i> 快速开始</h3>
+        <ul>
+            <li><strong>打开仪表盘：</strong>点击扩展图标 → 进入“管理面板”。</li>
+            <li><strong>首次配置：</strong>在“设置 → WebDAV同步/功能增强/115网盘/隐私保护”等处完成开关与参数配置。</li>
+            <li><strong>立即体验：</strong>在“番号库/演员库/新作品”中浏览、筛选、批量管理你的记录。</li>
+        </ul>
+
         <h3><i class="fas fa-database"></i> 数据管理</h3>
         <ul>
-            <li><strong>记录管理：</strong>查看、编辑、删除已保存的视频记录，支持批量操作和状态筛选</li>
-            <li><strong>数据导入/导出：</strong>支持JSON格式的数据备份和恢复，兼容旧版本数据格式</li>
-            <li><strong>数据统计：</strong>实时显示已观看、已浏览、想看等各类视频的数量统计</li>
+            <li><strong>番号库：</strong>全面的本地记录库，支持搜索、标签筛选、排序、分页、批量刷新/删除等。</li>
+            <li><strong>演员库：</strong>同步 JavDB 收藏演员，支持性别/分类/拉黑筛选与排序，支持页大小调节。</li>
+            <li><strong>新作品：</strong>订阅演员并自动发现其新作，提供过滤配置、状态同步、清理已读与分页浏览。</li>
+            <li><strong>数据导入/导出：</strong>本地 JSON 备份与恢复；支持 WebDAV 云端跨设备备份与恢复。</li>
+            <li><strong>统计概览：</strong>实时统计“已观看/已浏览/想看”等数量，便于总览与清理。</li>
         </ul>
 
         <h3><i class="fas fa-user-circle"></i> 账号信息</h3>
         <ul>
-            <li><strong>账号登录：</strong>获取并显示JavDB账号信息，包括邮箱、用户名、用户类型</li>
-            <li><strong>信息管理：</strong>支持刷新账号信息和退出登录功能</li>
-            <li><strong>数据安全：</strong>登录信息仅用于数据同步，本地安全存储</li>
+            <li><strong>账号登录：</strong>显示并管理你的 JavDB 账号信息（邮箱、用户名、用户类型等）。</li>
+            <li><strong>仅用于同步：</strong>账号凭据只在本地用于与 JavDB 的数据同步，安全存储。</li>
         </ul>
 
-        <h3><i class="fas fa-sync-alt"></i> 数据同步</h3>
+        <h3><i class="fas fa-sync-alt"></i> 数据同步（JavDB ⇨ 本地）</h3>
         <ul>
-            <li><strong>同步全部：</strong>同步所有已观看和想看的视频数据到JavDB账号</li>
-            <li><strong>分类同步：</strong>支持单独同步已观看或想看数据</li>
-            <li><strong>演员收藏：</strong>同步收藏演员数据（功能即将推出）</li>
-            <li><strong>实时进度：</strong>显示同步进度和结果反馈</li>
+            <li><strong>同步全部：</strong>从 JavDB 拉取“已观看 + 想看”的所有记录到本地。</li>
+            <li><strong>分类同步：</strong>可单独拉取“想看”或“已看”记录，按需更新。</li>
+            <li><strong>收藏演员：</strong>支持同步收藏演员，并可单独补全/更新演员性别信息。</li>
+            <li><strong>进度与取消：</strong>展示“获取列表/拉取详情”两阶段进度，可随时取消。</li>
         </ul>
 
-        <h3><i class="fas fa-cog"></i> 设置配置</h3>
+        <h3><i class="fas fa-cloud"></i> WebDAV 备份与恢复</h3>
         <ul>
-            <li><strong>显示设置：</strong>控制在JavDB网站上是否自动隐藏已观看、已浏览或VR类型的影片</li>
-            <li><strong>WebDAV备份：</strong>配置云端存储服务，实现多设备间的数据备份</li>
-            <li><strong>搜索引擎：</strong>自定义外部搜索引擎，快速跳转到其他影片数据库网站</li>
+            <li><strong>自动/手动：</strong>支持手动上传/下载；可按需开启自动备份，保持多设备一致。</li>
+            <li><strong>服务兼容：</strong>适配坚果云、Nextcloud、TeraCloud、Yandex 等主流 WebDAV 服务。</li>
+            <li><strong>恢复向导：</strong>提供“快捷/向导/专家”三种模式，支持智能合并、策略选择与差异分析。</li>
+            <li><strong>可选内容：</strong>可分别恢复“扩展设置/观看记录/账号信息/演员库/日志/新作品”等数据类别。</li>
         </ul>
 
-        <h3><i class="fas fa-cloud"></i> WebDAV 备份</h3>
+        <h3><i class="fas fa-cloud-download-alt"></i> 115 网盘集成</h3>
         <ul>
-            <li><strong>自动备份：</strong>支持定时自动上传和下载数据，保持多设备数据一致性</li>
-            <li><strong>手动备份：</strong>随时手动执行上传/下载操作，支持增量备份</li>
-            <li><strong>兼容性：</strong>支持坚果云、TeraCloud、Yandex等主流WebDAV服务</li>
-            <li><strong>完整备份：</strong>包含设置、记录、账号信息的完整数据备份</li>
+            <li><strong>推送下载：</strong>在详情页可一键将磁力链接推送至 115 离线下载。</li>
+            <li><strong>验证码处理：</strong>自动处理验证流程，失败可重试；成功可自动联动标记状态。</li>
+            <li><strong>配额侧栏：</strong>若开启 115-V2，将在侧边栏显示网盘配额（总额/已用/剩余）。</li>
         </ul>
 
-        <h3><i class="fas fa-list-alt"></i> 日志系统</h3>
+        <h3><i class="fas fa-tv"></i> Emby 增强</h3>
         <ul>
-            <li><strong>操作日志：</strong>记录所有重要操作和错误信息，便于问题排查</li>
-            <li><strong>日志筛选：</strong>支持按日志级别（INFO、WARN、ERROR）筛选显示</li>
-            <li><strong>日志管理：</strong>自动清理过期日志，支持手动清空和导出</li>
+            <li><strong>信息联动：</strong>在 Emby 页面增强展示与跳转体验（如与番号、演员信息联动）。</li>
         </ul>
 
-        <h3><i class="fas fa-network-wired"></i> 网络测试</h3>
+        <h3><i class="fas fa-eye"></i> 显示与内容过滤</h3>
         <ul>
-            <li><strong>连接测试：</strong>测试WebDAV服务器连接状态和响应时间</li>
-            <li><strong>性能监控：</strong>监控同步操作的网络性能和成功率</li>
-            <li><strong>故障诊断：</strong>提供详细的网络错误信息和解决建议</li>
+            <li><strong>列表隐藏：</strong>可在访问 JavDB 时自动隐藏“已看/已浏览/VR”影片，净化列表。</li>
+            <li><strong>样式自定义：</strong>可调整标记颜色、显示位置与样式，兼顾可读性与密度。</li>
         </ul>
 
-        <h3><i class="fas fa-tools"></i> 高级功能</h3>
+        <h3><i class="fas fa-search"></i> 搜索引擎跳转</h3>
         <ul>
-            <li><strong>数据结构检查：</strong>自动检测和修复数据格式问题，确保数据完整性</li>
-            <li><strong>数据迁移：</strong>支持从旧版本格式自动迁移到新版本数据结构</li>
-            <li><strong>JSON编辑：</strong>高级用户可直接编辑原始JSON数据，支持语法高亮</li>
+            <li><strong>自定义引擎：</strong>为番号点击配置多个外部搜索站点，使用 <code>{{ID}}</code> 作为占位符。</li>
+            <li><strong>图标与顺序：</strong>可设置展示图标与顺序，便于快速分流检索。</li>
         </ul>
 
-        <h3><i class="fas fa-keyboard"></i> 快捷操作</h3>
+        <h3><i class="fas fa-magic"></i> 功能增强</h3>
         <ul>
-            <li><strong>批量选择：</strong>使用Ctrl+点击或Shift+点击进行多选操作</li>
-            <li><strong>快速筛选：</strong>点击状态标签快速筛选对应状态的记录</li>
-            <li><strong>搜索功能：</strong>支持按视频ID、标题等关键词快速搜索</li>
+            <li><strong>磁链聚合：</strong>自动聚合站内外磁力资源并高亮（参见“功能增强/磁力聚合”）。</li>
+            <li><strong>快速复制：</strong>一键复制番号/标题/磁链等信息，提升整理效率。</li>
+            <li><strong>锚点优化：</strong>改良链接交互：左键前台、右键后台打开；支持悬浮预览（若有源）。</li>
+            <li><strong>详情增强：</strong>在视频详情页提供快捷标记、跳转与辅助信息展示。</li>
+        </ul>
+
+        <h3><i class="fas fa-shield-alt"></i> 隐私保护</h3>
+        <ul>
+            <li><strong>截图模式：</strong>一键模糊敏感区域；切换标签后自动恢复隐私效果。</li>
+            <li><strong>隐私设置：</strong>可在“设置 → 隐私保护”中自定义策略与强度。</li>
+        </ul>
+
+        <h3><i class="fas fa-keyboard"></i> 快捷键</h3>
+        <ul>
+            <li><code>Ctrl + Shift + M</code>：快速标记当前视频为“已观看”。</li>
+            <li><code>Ctrl + Shift + W</code>：快速标记当前视频为“想看”。</li>
+            <li><strong>多选操作：</strong>支持 Ctrl/Shift 组合多选；点击状态标签可快速筛选。</li>
+        </ul>
+
+        <h3><i class="fas fa-list-alt"></i> 日志与诊断</h3>
+        <ul>
+            <li><strong>运行日志：</strong>记录操作、告警与错误，支持按级别筛选、清空、导出。</li>
+            <li><strong>网络测试：</strong>测试 WebDAV 连通性、响应时间与同步性能，便于诊断。</li>
+        </ul>
+
+        <h3><i class="fas fa-tools"></i> 高级工具</h3>
+        <ul>
+            <li><strong>数据结构检查：</strong>自动检测并修复历史数据格式问题，保持一致性。</li>
+            <li><strong>数据迁移：</strong>从旧版本升级后自动迁移数据结构，附进度显示。</li>
+            <li><strong>JSON 编辑：</strong>为进阶用户提供原始 JSON 查看与编辑能力（请谨慎操作）。</li>
         </ul>
 
         <h3><i class="fas fa-question-circle"></i> 常见问题</h3>
         <ul>
-            <li><strong>数据丢失：</strong>如果数据意外丢失，可尝试从WebDAV云端恢复</li>
-            <li><strong>同步失败：</strong>检查网络连接和WebDAV配置，查看日志获取详细错误信息</li>
-            <li><strong>性能问题：</strong>大量数据时建议定期清理无用记录，保持数据库精简</li>
+            <li><strong>数据丢失：</strong>可通过 WebDAV 恢复；或导入你先前导出的本地 JSON 备份。</li>
+            <li><strong>同步异常：</strong>检查网络与登录状态，查看“日志”获取详细错误并定位。</li>
+            <li><strong>性能建议：</strong>大量记录时建议定期清理无用数据，合理设置并发以提升体验。</li>
         </ul>
 
         <div class="help-footer">
-            <p><i class="fas fa-info-circle"></i> <strong>提示：</strong>所有数据都存储在本地浏览器中，请定期备份重要数据。</p>
-            <p><i class="fas fa-github"></i> 如遇到问题或有功能建议，欢迎在GitHub项目页面提交Issue。</p>
+            <p><i class="fas fa-info-circle"></i> <strong>提示：</strong>所有数据默认存储在本地浏览器中，建议开启 WebDAV 自动备份以避免丢失。</p>
+            <p><i class="fas fa-github"></i> 欢迎在 GitHub 提交 Issue/Discussion 反馈问题或提出建议。</p>
         </div>
     `;
 
