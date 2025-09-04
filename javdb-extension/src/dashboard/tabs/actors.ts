@@ -851,7 +851,10 @@ export class ActorsTab {
         // 保存演员
         modal.querySelector('#save-actor')?.addEventListener('click', async () => {
             try {
-                // 先尝试从JSON解析
+                // 先将当前表单内容同步到 JSON，防止用户未点击“表单 → JSON”时修改丢失
+                formToJson();
+
+                // 再从 JSON 文本解析
                 const updatedActor = JSON.parse(jsonTextarea.value);
 
                 // 验证必要字段
@@ -889,6 +892,9 @@ export class ActorsTab {
                 // 关闭modal并刷新列表
                 closeModal();
                 await this.loadActors();
+                await this.updateStats();
+                // 广播全局事件，供其他模块感知变更
+                document.dispatchEvent(new Event('actors-data-updated'));
 
                 logAsync('INFO', '演员数据已更新', {
                     actorId: updatedActor.id,
