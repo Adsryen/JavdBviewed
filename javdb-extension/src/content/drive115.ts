@@ -7,6 +7,7 @@ import { addLogV2 } from '../services/drive115v2/logs';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import { log } from './state';
+import { getSettings } from '../utils/storage';
 
 /**
  * 记录日志到扩展日志系统
@@ -258,12 +259,27 @@ export async function handlePushToDrive115(
 
         // 根据版本选择推送方式：v2 直接调用 API；否则走跨域（v1）
         let result: { success: boolean; data?: any; error?: string };
+        // 记录将要使用的保存目录（仅 v2 有意义）
+        let currentWpPathId: string | undefined = undefined;
         if (await isV2Enabled()) {
             // v2 支持一次多个URL，这里单个拼接即可
             const urls = magnetUrl; // 单条
             try {
                 await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 v2 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
-                const res = await addTaskUrlsV2({ urls });
+                // 读取默认保存目录（如未设置则传 '0' 表示根目录）
+                let wpPathId: string | undefined;
+                try {
+                    const settings: any = await getSettings();
+                    const def = (settings?.drive115?.defaultWpPathId ?? '').toString().trim();
+                    if (def === '') {
+                        wpPathId = '0';
+                    } else {
+                        wpPathId = def;
+                    }
+                    currentWpPathId = wpPathId;
+                } catch {}
+
+                const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId });
                 result = { success: res.success, data: res.data, error: res.message };
                 if (res.success) {
                     const returned = Array.isArray(res.data) ? res.data.length : 0;
@@ -297,6 +313,8 @@ export async function handlePushToDrive115(
                     videoId: videoId,
                     magnetName: magnetName,
                     magnetUrl: magnetUrl,
+                    // 记录保存目录（仅当 v2 且设置了 defaultWpPathId 才会有值）
+                    wp_path_id: currentWpPathId,
                     timestamp: new Date().toISOString(),
                     action: 'push_success'
                 }).then(() => {
@@ -342,6 +360,7 @@ export async function handlePushToDrive115(
             videoId: videoId,
             magnetName: magnetName,
             magnetUrl: magnetUrl,
+            wp_path_id: currentWpPathId,
             error: errorMessage,
             timestamp: new Date().toISOString(),
             action: 'push_failed'

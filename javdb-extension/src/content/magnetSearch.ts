@@ -103,6 +103,9 @@ export class MagnetSearchManager {
         return;
       }
 
+      // 注入统一样式，确保磁力列表布局不会溢出
+      this.addUnifiedMagnetStyles();
+
       // 添加搜索源标签
       this.addSearchSourceTags();
 
@@ -904,6 +907,10 @@ export class MagnetSearchManager {
     const item = document.createElement('div');
     item.className = `item columns is-desktop ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
     item.setAttribute('data-privacy-protected', 'true');
+    // 统一使用弹性布局，避免 Bulma columns 的列宽不一致导致溢出
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.flexWrap = 'nowrap';
 
     // 如果是搜索结果，添加特殊样式
     if (result.source !== 'JavDB') {
@@ -914,8 +921,9 @@ export class MagnetSearchManager {
     // 创建磁力名称列 - 使用固定宽度以对齐按钮
     const nameColumn = document.createElement('div');
     nameColumn.className = 'magnet-name column';
-    nameColumn.style.width = 'calc(100% - 280px)'; // 为按钮和日期列预留固定空间
-    nameColumn.style.minWidth = '300px'; // 确保最小宽度
+    // 自适应宽度，并允许内容被省略号正确截断
+    nameColumn.style.flex = '1 1 auto';
+    nameColumn.style.minWidth = '0';
 
     const magnetLink = document.createElement('a');
     magnetLink.href = result.magnet;
@@ -981,8 +989,11 @@ export class MagnetSearchManager {
     // 创建按钮列 - 固定宽度
     const buttonsColumn = document.createElement('div');
     buttonsColumn.className = 'buttons column';
-    buttonsColumn.style.width = '200px'; // 固定按钮列宽度
-    buttonsColumn.style.flexShrink = '0'; // 防止收缩
+    // 使用自然宽度，避免固定宽度导致整体溢出
+    buttonsColumn.style.flex = '0 0 auto';
+    buttonsColumn.style.display = 'flex';
+    buttonsColumn.style.alignItems = 'center';
+    buttonsColumn.style.gap = '6px';
 
     // 复制按钮
     const copyButton = document.createElement('button');
@@ -1226,6 +1237,55 @@ export class MagnetSearchManager {
 
       .magnet-search-tag.is-warning {
         animation: pulse 1.5s infinite;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /**
+   * 注入统一的磁力列表样式，解决宽度溢出及换行不当问题
+   */
+  private addUnifiedMagnetStyles(): void {
+    if (document.getElementById('unified-magnet-list-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'unified-magnet-list-styles';
+    style.textContent = `
+      /* 统一磁力列表的 flex 布局与溢出处理 */
+      #magnets-content .item.columns.is-desktop {
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+      }
+      #magnets-content .item .magnet-name.column {
+        min-width: 0; /* 允许内部文本正确截断 */
+      }
+      #magnets-content .item .magnet-name .name {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #magnets-content .item .buttons.column {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      #magnets-content .item .date.column {
+        flex: 0 0 80px;
+        text-align: center;
+      }
+      /* 小屏优化：当空间不足时允许在按钮前换行，避免横向溢出 */
+      @media (max-width: 768px) {
+        #magnets-content .item.columns.is-desktop {
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+        #magnets-content .item .date.column {
+          order: 3;
+        }
       }
     `;
     document.head.appendChild(style);

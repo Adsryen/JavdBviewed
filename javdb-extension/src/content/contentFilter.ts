@@ -260,24 +260,39 @@ export class ContentFilterManager {
    * 查找视频项目元素
    */
   private findVideoItems(): HTMLElement[] {
+    // 仅选择具体的卡片元素，避免误选列表容器
     const selectors = [
       '.movie-list .item',
       '.video-list .item',
-      '.grid-item',
       '.movie-item',
       '.video-item',
       '.item',
-      '[class*="movie"]',
-      '[class*="video"]',
+      '.grid-item'
     ];
 
     const items: HTMLElement[] = [];
-    
+
     selectors.forEach(selector => {
       const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        if (this.isVideoItem(element as HTMLElement)) {
-          items.push(element as HTMLElement);
+      elements.forEach(node => {
+        let el = node as HTMLElement;
+
+        // 如果命中的是容器，跳过
+        if (el.matches('.movie-list, .video-list, .videos, .movies, .list, .grid, .grid-list')) {
+          return;
+        }
+
+        // 如果命中的是子元素，提升到最近的卡片元素
+        const card = el.closest('.item, .movie-item, .video-item, .grid-item') as HTMLElement || el;
+
+        // 如果卡片本身仍是容器（极端情况），跳过
+        if (card.matches('.movie-list, .video-list, .videos, .movies, .list, .grid, .grid-list')) {
+          return;
+        }
+
+        // 仅当确认为视频卡片，且不包含其它卡片（避免对容器应用样式）
+        if (this.isVideoItem(card)) {
+          items.push(card);
         }
       });
     });
@@ -290,12 +305,24 @@ export class ContentFilterManager {
    * 判断是否为视频项目
    */
   private isVideoItem(element: HTMLElement): boolean {
-    // 检查是否包含视频相关信息
-    const hasTitle = element.querySelector('.title, h1, h2, h3, h4, h5, h6');
-    const hasImage = element.querySelector('img');
-    const hasLink = element.querySelector('a[href*="/v/"], a[href*="/movie/"]');
-    
-    return !!(hasTitle || hasImage || hasLink);
+    // 明确排除列表/网格容器
+    if (element.matches('.movie-list, .video-list, .videos, .movies, .list, .grid, .grid-list')) {
+      return false;
+    }
+
+    // 必须是卡片类或其本身有链接到详情页
+    const isCardClass = element.matches('.item, .movie-item, .video-item, .grid-item');
+    const hasLink = !!element.querySelector('a[href*="/v/"], a[href*="/movie/"]');
+
+    // 若该元素内部仍包含其它卡片，视为容器而非单个卡片
+    const containsCards = !!element.querySelector('.item, .movie-item, .video-item, .grid-item');
+
+    if (containsCards) {
+      return false;
+    }
+
+    // 简化条件：是卡片类，或具备到详情页的链接
+    return isCardClass || hasLink;
   }
 
   /**
@@ -763,7 +790,7 @@ export class ContentFilterManager {
    * 清除所有过滤效果
    */
   private clearAllFilters(): void {
-    this.filteredElements.forEach((rule, element) => {
+    this.filteredElements.forEach((_, element) => {
       // 检查是否应该被默认功能隐藏
       const shouldBeHiddenByDefault = this.shouldBeHiddenByDefault(element);
 
@@ -825,9 +852,12 @@ export class ContentFilterManager {
       // 检查是否有新的视频项目添加
       let hasNewVideoItems = false;
 
-      for (const mutation of mutations) {
+      for (let m = 0; m < mutations.length; m++) {
+        const mutation = mutations[m];
         if (mutation.type === 'childList') {
-          for (const node of mutation.addedNodes) {
+          const added = mutation.addedNodes;
+          for (let i = 0; i < added.length; i++) {
+            const node = added[i];
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as HTMLElement;
               // 只有当添加的元素可能是视频项目时才重新应用过滤
