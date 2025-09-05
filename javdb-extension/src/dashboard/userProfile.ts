@@ -530,8 +530,16 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
         const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
         if (!container) return;
-        const name = u.name || (u as any).nick || (u as any).username || `UID ${u.uid || (u as any).user_id || (u as any).id || ''}`;
-        const avatar = u.avatar || (u as any).avatar_middle || (u as any).avatar_small || '';
+        // 统一字段映射（兼容 v2 与旧版）
+        const uid = (u as any).uid || (u as any).user_id || (u as any).id || '';
+        const name = (u as any).user_name || (u as any).name || (u as any).nick || (u as any).username || (uid ? `UID ${uid}` : '-');
+        const avatar = (u as any).user_face_m || (u as any).user_face_l || (u as any).user_face_s || (u as any).avatar_middle || (u as any).avatar || (u as any).avatar_small || '';
+
+        // VIP 信息（优先 v2 的 vip_info）
+        const vipInfo = (u as any).vip_info || {};
+        const vipLevelName: string = vipInfo.level_name || '';
+        const vipExpireTs: number | undefined = typeof vipInfo.expire === 'number' ? vipInfo.expire : undefined;
+        const vipExpireText = vipExpireTs ? formatTsToYMD(vipExpireTs) : ((u as any).vip_expire || '');
         const parseBoolVip = (val: any): boolean | null => {
             if (typeof val === 'boolean') return val;
             if (typeof val === 'number') return val > 0;
@@ -543,31 +551,43 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
             return null;
         };
         const vipRaw: any = (u as any).is_vip ?? (u as any).vip ?? (u as any).vip_status;
-        const isVip = (() => {
+        const isVip = vipLevelName ? '是' : (() => {
             const b = parseBoolVip(vipRaw);
             if (b === true) return '是';
             if (b === false) return '否';
             return '-';
         })();
-        const toNumber = (x: any): number | undefined => {
+
+        // 空间信息（优先 v2 的 rt_space_info 中的 size 与 size_format）
+        const space = (u as any).rt_space_info || {};
+        const totalSizeNum: number | undefined = space?.all_total?.size;
+        const usedSizeNum: number | undefined = space?.all_use?.size;
+        const freeSizeNum: number | undefined = space?.all_remain?.size;
+        const totalText: string = space?.all_total?.size_format || formatBytes((u as any).space_total);
+        const usedText: string = space?.all_use?.size_format || formatBytes((u as any).space_used);
+        const freeText: string = space?.all_remain?.size_format || formatBytes((u as any).space_free);
+        const pct = (() => {
+          if (typeof usedSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) {
+            return Math.max(0, Math.min(100, (usedSizeNum / totalSizeNum) * 100));
+          }
+          // 回退：尝试根据 free/total 推算
+          if (typeof freeSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) {
+            return Math.max(0, Math.min(100, ((totalSizeNum - freeSizeNum) / totalSizeNum) * 100));
+          }
+          // 再回退：根据旧字段数值型估算
+          const toNumber = (x: any): number | undefined => {
             if (typeof x === 'number') return isFinite(x) ? x : undefined;
             if (typeof x === 'string') {
-                const s = x.replace(/[,\s]/g, '');
+                const s = x.replace(/[\,\s]/g, '');
                 const n = Number(s);
                 return isFinite(n) ? n : undefined;
             }
             return undefined;
-        };
-        const totalNum = toNumber((u as any).space_total);
-        const usedNum = toNumber((u as any).space_used);
-        const freeNum = toNumber((u as any).space_free);
-        const spaceTotal = formatBytes(totalNum as any);
-        const spaceUsed = formatBytes(usedNum as any);
-        const spaceFree = formatBytes(freeNum as any);
-        const pct = (() => {
+          };
+          const totalNum = toNumber((u as any).space_total);
+          const usedNum = toNumber((u as any).space_used);
           if (typeof usedNum === 'number' && typeof totalNum === 'number' && totalNum > 0) {
-            const p = Math.min(100, Math.max(0, (usedNum / totalNum) * 100));
-            return Number.isFinite(p) ? p : 0;
+            return Math.max(0, Math.min(100, (usedNum / totalNum) * 100));
           }
           return NaN;
         })();
@@ -579,31 +599,30 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
           <div style="display:flex; align-items:center; gap:10px;">
             ${avatar
               ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
-              : `<div style="width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
+              : `<div style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
             <div style="flex:1;">
               <div style="font-weight:600;">${name || '-'}</div>
-              <div style="font-size:12px; color:#666;">UID: ${u.uid || (u as any).user_id || (u as any).id || '-'}</div>
+              <div style="font-size:12px; color:#666;">UID: ${uid || '-' }${vipExpireText ? ` · 到期：${vipExpireText}` : ''}</div>
             </div>
-            <div style="font-size:12px; color:#666;">VIP: ${isVip}${(u as any).vip_level ? `（Lv.${(u as any).vip_level}）` : ''}</div>
+            <div style="font-size:12px; color:${isVip === '是' ? '#2e7d32' : '#666'};">VIP: ${isVip}${vipLevelName ? `（${vipLevelName}）` : ((u as any).vip_level ? `（Lv.${(u as any).vip_level}）` : '')}</div>
           </div>
           <div style="margin-top:6px; font-size:12px; color:#444;">
-            <div>总空间：${spaceTotal}</div>
-            <div>已使用：${spaceUsed}</div>
-            <div>剩余：${spaceFree}</div>
-            ${(u as any).vip_expire ? `<div>到期：${(u as any).vip_expire}</div>` : ''}
+            <div>总空间：${totalText}</div>
+            <div>已使用：${usedText}</div>
+            <div>剩余：${freeText}</div>
             ${(u as any).email ? `<div>邮箱：${(u as any).email}</div>` : ''}
             ${(u as any).phone ? `<div>手机：${(u as any).phone}</div>` : ''}
           </div>
           <div style="margin-top:8px;">
             <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
               <span>空间使用</span>
-              <span>${pctText}${!isNaN(pct as any) ? `（已用 ${spaceUsed} / 总 ${spaceTotal}）` : ''}</span>
+              <span>${pctText}${!isNaN(pct as any) ? `（已用 ${usedText} / 总 ${totalText}）` : ''}</span>
             </div>
             <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
               <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
             </div>
           </div>
-          ${updatedText ? `<div style="margin-top:6px; font-size:11px; color:#888;">更新于：${updatedText}</div>` : ''}
+          ${updatedText ? `<div style=\"margin-top:6px; font-size:11px; color:#888;\">更新于：${updatedText}</div>` : ''}
         `;
     }
 
@@ -651,7 +670,7 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         const toNum = (x: any): number | undefined => {
             if (typeof x === 'number') return isFinite(x) ? x : undefined;
             if (typeof x === 'string') {
-                const s = x.replace(/[,\s]/g, '');
+                const s = x.replace(/[\,\s]/g, '');
                 const v = Number(s);
                 return isFinite(v) ? v : undefined;
             }
@@ -662,5 +681,16 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         const units = ['B','KB','MB','GB','TB','PB'];
         let v = num; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
         return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
+    }
+
+    function formatTsToYMD(tsSec: number): string {
+        try {
+            if (!tsSec || isNaN(tsSec as any)) return '';
+            const d = new Date(tsSec * 1000);
+            const y = d.getFullYear();
+            const m = `${d.getMonth() + 1}`.padStart(2, '0');
+            const day = `${d.getDate()}`.padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        } catch { return ''; }
     }
 }
