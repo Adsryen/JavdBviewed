@@ -1044,10 +1044,14 @@
     background: #ffffff;
     border: 1px solid #dee2e6;
     transition: all 0.2s ease;
-    white-space: nowrap;
-    min-width: fit-content;
-    flex: 1;
-    justify-content: center;
+    /* 允许文本换行，避免在窄容器溢出 */
+    white-space: normal;
+    /* 避免被压缩到极窄导致逐字换行 */
+    flex: 0 0 auto;
+    /* 让标签至少按内容宽度展开 */
+    min-width: max-content;
+    max-width: 100%;
+    justify-content: flex-start;
 }
 
 .form-group.checkbox-group .checkbox-label:hover {
@@ -1104,7 +1108,10 @@
 .form-group.checkbox-group .checkbox-label span {
     user-select: none;
     font-size: 13px;
-    line-height: 1.2;
+    line-height: 1.3;
+    /* 避免中文逐字断行，保持水平一行展示 */
+    white-space: nowrap;
+    word-break: keep-all;
 }
 
 /* 响应式设计 */
