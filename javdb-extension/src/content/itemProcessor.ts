@@ -168,7 +168,7 @@ function processItem(item: HTMLElement): void {
 
     const finalIsVR = isVR || isVRInDataTitle;
 
-    if (STATE.settings?.display.hideVR && finalIsVR) {
+    if (!STATE.isSearchPage && STATE.settings?.display.hideVR && finalIsVR) {
         log(`Hiding VR video: ${videoId}`);
         item.style.display = 'none';
         // 添加标记，表示被默认功能隐藏

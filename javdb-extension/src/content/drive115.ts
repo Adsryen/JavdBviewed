@@ -485,18 +485,68 @@ async function markJavDBAsWatched(): Promise<void> {
         const currentUrl = window.location.href;
         const videoPath = window.location.pathname; // 例如: /v/bKwmOv
 
-        // 从页面中提取CSRF token
+        // 优先判断页面状态标签
+        const pageStatus = detectPageUserStatusFor115();
+        if (pageStatus === 'VIEWED') {
+            log('页面已存在“我看過這部影片”标签，跳过标记。');
+            return;
+        }
+
+        if (pageStatus === 'WANT') {
+            // 已存在“我想看”标签，需要通过编辑表单改为 watched
+            const formInfo = getEditReviewFormInfo();
+            if (!formInfo) {
+                throw new Error('未找到编辑表单或表单信息不完整（#edit_review）');
+            }
+
+            const actionPath = formInfo.action.startsWith('http') ? formInfo.action : `https://javdb.com${formInfo.action}`;
+            const token = formInfo.token || extractCSRFToken();
+            if (!token) {
+                throw new Error('无法获取CSRF token（编辑表单）');
+            }
+
+            const formData = new URLSearchParams({
+                '_method': 'put',
+                'authenticity_token': token,
+                'video_review[status]': 'watched',
+                'video_review[score]': '4',
+                'video_review[content]': '',
+                'commit': '保存'
+            });
+
+            log(`发送编辑评论（设为已看）请求到: ${actionPath}`);
+            const resp = await fetch(actionPath, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7,zh-HK;q=0.6',
+                    'Cache-Control': 'no-cache',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'Pragma': 'no-cache',
+                    'X-CSRF-Token': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': currentUrl
+                },
+                body: formData,
+                credentials: 'include'
+            });
+
+            if (!resp.ok) {
+                throw new Error(`JavDB编辑评论失败: HTTP ${resp.status}`);
+            }
+
+            log('JavDB服务器编辑评论成功，状态已更新为已看');
+            return;
+        }
+
+        // 默认：无标签，创建评论标记为已看
         const csrfToken = extractCSRFToken();
         if (!csrfToken) {
             throw new Error('无法获取CSRF token');
         }
-
         log(`提取到CSRF token: ${csrfToken.substring(0, 20)}...`);
 
-        // 构建reviews URL
         const reviewsUrl = `https://javdb.com${videoPath}/reviews`;
-
-        // 准备请求数据
         const formData = new URLSearchParams({
             'authenticity_token': csrfToken,
             'video_review[score]': '4',
@@ -504,10 +554,7 @@ async function markJavDBAsWatched(): Promise<void> {
             'video_review[status]': 'watched',
             'commit': '保存'
         });
-
         log(`发送标记已看请求到: ${reviewsUrl}`);
-
-        // 发送请求
         const response = await fetch(reviewsUrl, {
             method: 'POST',
             headers: {
@@ -566,6 +613,66 @@ function extractCSRFToken(): string | null {
         return null;
     } catch (error) {
         console.error('提取CSRF token失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 识别当前详情页中用户对该影片的账号状态（我看過/我想看）- 供115标记逻辑使用
+ * 返回 'VIEWED' / 'WANT' / null
+ */
+function detectPageUserStatusFor115(): 'VIEWED' | 'WANT' | null {
+    try {
+        // 方案1：通过用户区块的链接快速判断
+        const watchedAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/watched_videos"], .review-title a[href*="/users/watched_videos"]'
+        );
+        if (watchedAnchor) {
+            const text = watchedAnchor.textContent?.trim() || '';
+            const tagText = watchedAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我看過這部影片') || tagText.includes('我看過這部影片')) {
+                return 'VIEWED';
+            }
+        }
+
+        const wantAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/want_watch_videos"], .review-title a[href*="/users/want_watch_videos"]'
+        );
+        if (wantAnchor) {
+            const text = wantAnchor.textContent?.trim() || '';
+            const tagText = wantAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我想看這部影片') || tagText.includes('我想看這部影片')) {
+                return 'WANT';
+            }
+        }
+
+        // 方案2：全局兜底搜索
+        const tagSpans = Array.from(document.querySelectorAll<HTMLSpanElement>('span.tag'));
+        if (tagSpans.some(s => (s.textContent || '').includes('我看過這部影片'))) {
+            return 'VIEWED';
+        }
+        if (tagSpans.some(s => (s.textContent || '').includes('我想看這部影片'))) {
+            return 'WANT';
+        }
+    } catch {
+        // 忽略识别错误
+    }
+    return null;
+}
+
+/**
+ * 从当前页面解析 #edit_review 表单信息
+ */
+function getEditReviewFormInfo(): { action: string; token: string | null } | null {
+    try {
+        const form = document.querySelector<HTMLFormElement>('#edit_review');
+        if (!form) return null;
+        const action = form.getAttribute('action') || '';
+        if (!action) return null;
+        const tokenInput = form.querySelector<HTMLInputElement>('input[name="authenticity_token"]');
+        const token = tokenInput?.value || null;
+        return { action, token };
+    } catch (e) {
         return null;
     }
 }
