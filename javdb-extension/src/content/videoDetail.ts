@@ -12,6 +12,48 @@ import { setFavicon, getRandomDelay } from './utils';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { actorManager } from '../services/actorManager';
 
+// 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
+// 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
+function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null {
+    try {
+        // 方案1：通过用户区块的链接快速判断
+        const watchedAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/watched_videos"], .review-title a[href*="/users/watched_videos"]'
+        );
+        if (watchedAnchor) {
+            // 文本或内部tag文本包含“我看過這部影片”
+            const text = watchedAnchor.textContent?.trim() || '';
+            const tagText = watchedAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我看過這部影片') || tagText.includes('我看過這部影片')) {
+                return VIDEO_STATUS.VIEWED;
+            }
+        }
+
+        const wantAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/want_watch_videos"], .review-title a[href*="/users/want_watch_videos"]'
+        );
+        if (wantAnchor) {
+            const text = wantAnchor.textContent?.trim() || '';
+            const tagText = wantAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我想看這部影片') || tagText.includes('我想看這部影片')) {
+                return VIDEO_STATUS.WANT;
+            }
+        }
+
+        // 方案2：全局搜寻 tag 文本（结构变动时兜底）
+        const tagSpans = Array.from(document.querySelectorAll<HTMLSpanElement>('span.tag'));
+        if (tagSpans.some(s => (s.textContent || '').includes('我看過這部影片'))) {
+            return VIDEO_STATUS.VIEWED;
+        }
+        if (tagSpans.some(s => (s.textContent || '').includes('我想看這部影片'))) {
+            return VIDEO_STATUS.WANT;
+        }
+    } catch {
+        // 忽略识别错误，返回 null
+    }
+    return null;
+}
+
 // --- Page-Specific Logic ---
 
 export async function handleVideoDetailPage(): Promise<void> {
@@ -79,6 +121,48 @@ async function markActorsOnPage(): Promise<void> {
     } catch (error) {
         log('markActorsOnPage error:', error);
     }
+}
+
+// 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
+// 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
+function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null {
+    try {
+        // 方案1：通过用户区块的链接快速判断
+        const watchedAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/watched_videos"], .review-title a[href*="/users/watched_videos"]'
+        );
+        if (watchedAnchor) {
+            // 文本或内部tag文本包含“我看過這部影片”
+            const text = watchedAnchor.textContent?.trim() || '';
+            const tagText = watchedAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我看過這部影片') || tagText.includes('我看過這部影片')) {
+                return VIDEO_STATUS.VIEWED;
+            }
+        }
+
+        const wantAnchor = document.querySelector<HTMLAnchorElement>(
+            '.review-title a[href="/users/want_watch_videos"], .review-title a[href*="/users/want_watch_videos"]'
+        );
+        if (wantAnchor) {
+            const text = wantAnchor.textContent?.trim() || '';
+            const tagText = wantAnchor.querySelector('span.tag')?.textContent?.trim() || '';
+            if (text.includes('我想看這部影片') || tagText.includes('我想看這部影片')) {
+                return VIDEO_STATUS.WANT;
+            }
+        }
+
+        // 方案2：全局搜寻 tag 文本（结构变动时兜底）
+        const tagSpans = Array.from(document.querySelectorAll<HTMLSpanElement>('span.tag'));
+        if (tagSpans.some(s => (s.textContent || '').includes('我看過這部影片'))) {
+            return VIDEO_STATUS.VIEWED;
+        }
+        if (tagSpans.some(s => (s.textContent || '').includes('我想看這部影片'))) {
+            return VIDEO_STATUS.WANT;
+        }
+    } catch {
+        // 忽略识别错误，返回 null
+    }
+    return null;
 }
 
     // 并发控制：检查是否已经在处理这个视频
@@ -163,8 +247,10 @@ async function handleExistingRecord(
 
     log(`Updated fields for ${videoId}: [${changes.join(', ')}]`);
 
-    // 尝试将状态升级为'browsed'，但只有在优先级允许的情况下
-    const newStatus = safeUpdateStatus(record.status, VIDEO_STATUS.BROWSED);
+    // 尝试将状态升级为页面识别到的状态（viewed/want），否则退回到 browsed
+    const pageDetectedStatus = detectPageUserStatus();
+    const desiredStatus = pageDetectedStatus ?? VIDEO_STATUS.BROWSED;
+    const newStatus = safeUpdateStatus(record.status, desiredStatus);
     let statusChanged = false;
 
     if (newStatus !== oldStatus) {
@@ -196,9 +282,11 @@ async function handleExistingRecord(
             if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
             updatedRecord.updatedAt = now;
 
-            // 尝试状态升级
-            const newStatus = safeUpdateStatus(currentRecord.status, VIDEO_STATUS.BROWSED);
-            updatedRecord.status = newStatus;
+            // 尝试状态升级（优先采用页面识别状态，其次退回到 browsed）
+            const pageDetectedStatusInner = pageDetectedStatus; // 捕获外部变量
+            const desired = pageDetectedStatusInner ?? VIDEO_STATUS.BROWSED;
+            const upgraded = safeUpdateStatus(currentRecord.status, desired);
+            updatedRecord.status = upgraded;
 
             return updatedRecord;
         },
@@ -522,10 +610,13 @@ async function createVideoRecord(videoId: string, now: number, currentUrl: strin
             }
         }
 
+        // 页面状态识别（我看過/我想看）
+        const pageDetectedStatus = detectPageUserStatus();
+
         return {
             id: videoId,
             title: title,
-            status: VIDEO_STATUS.BROWSED,
+            status: pageDetectedStatus ?? VIDEO_STATUS.BROWSED,
             createdAt: now,
             updatedAt: now,
             tags: tags,
