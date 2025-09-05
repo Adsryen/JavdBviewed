@@ -249,9 +249,13 @@ async function initialize(): Promise<void> {
         log('Privacy system initialization failed:', error);
     }
 
-    STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE);
+    // 更稳健地识别搜索结果页：不仅依赖 DOM，还检查 URL
+    const url = new URL(window.location.href);
+    const isSearchPath = url.pathname === '/search';
+    const hasQParam = url.searchParams.has('q');
+    STATE.isSearchPage = !!document.querySelector(SELECTORS.SEARCH_RESULT_PAGE) || (isSearchPath && hasQParam);
     if (STATE.isSearchPage) {
-        log('Search page detected, hiding functions will be disabled.');
+        log('Search page detected (/search?q=...), hiding functions will be disabled.');
     }
 
     const faviconLink = document.querySelector<HTMLLinkElement>(SELECTORS.FAVICON);
