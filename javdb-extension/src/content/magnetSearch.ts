@@ -1251,31 +1251,127 @@ export class MagnetSearchManager {
     const style = document.createElement('style');
     style.id = 'unified-magnet-list-styles';
     style.textContent = `
+      /* 容器级别约束，避免出现横向滚动和超宽 */
+      #magnets-content {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+
+      /* 覆盖 Bulma 在该区域的负边距行为 */
+      #magnets-content .columns {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
       /* 统一磁力列表的 flex 布局与溢出处理 */
+      #magnets-content .item {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important; /* 防止内部偶发性溢出 */
+        padding-left: 8px !important;   /* 使用容器内边距提供间距，不依赖列的 padding */
+        padding-right: 8px !important;
+      }
+
+      /*
+       * 关键修复：父级 Bulma 栅格导致的超宽
+       * 仅当 .columns 包含 #magnets 时才生效，避免影响站点其它区域
+       */
+      .columns:has(#magnets) {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+      .columns:has(#magnets) > .column {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      /* 磁力页签相关容器的兜底约束 */
+      #tabs-container,
+      #magnets,
+      #magnets > article.message,
+      #magnets > article.message .message-body {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important; /* 避免在磁力区域内出现内层纵向滚动条 */
+      }
+
+      /* 显式限制视频详情页的 columns 负边距（不依赖 :has）*/
+      body > section.section > div.container > div.video-detail .columns {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      body > section.section > div.container > div.video-detail .columns > .column {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
       #magnets-content .item.columns.is-desktop {
         display: flex !important;
         align-items: center;
         gap: 8px;
+        width: 100% !important;             /* 强制与容器等宽 */
+        max-width: 100% !important;
+        box-sizing: border-box !important;   /* 将内边距计算入宽度 */
       }
+
+      /* 列的通用设置：允许内容收缩并正确截断 */
+      #magnets-content .item .column {
+        min-width: 0 !important;
+        padding-left: 0 !important;   /* 取消列内边距，避免在移除负边距后出现总宽度增加 */
+        padding-right: 0 !important;
+        box-sizing: border-box !important;
+        max-width: 100% !important;
+        flex-basis: auto !important;  /* 避免基础宽度为0导致布局异常 */
+      }
+
       #magnets-content .item .magnet-name.column {
-        min-width: 0; /* 允许内部文本正确截断 */
+        min-width: 0 !important; /* 允许内部文本正确截断 */
+        flex: 1 1 auto !important;
       }
+
+      /* 名称链接与文本本身的宽度约束与省略号 */
+      #magnets-content .item .magnet-name a {
+        display: block !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
       #magnets-content .item .magnet-name .name {
-        display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: block !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
       }
+
       #magnets-content .item .buttons.column {
         display: flex;
         align-items: center;
         gap: 6px;
-        flex: 0 0 auto;
-        white-space: nowrap;
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        max-width: 100% !important;
       }
       #magnets-content .item .date.column {
-        flex: 0 0 80px;
-        text-align: center;
+        flex: 0 0 80px !important;
+        text-align: center !important;
       }
       /* 小屏优化：当空间不足时允许在按钮前换行，避免横向溢出 */
       @media (max-width: 768px) {
