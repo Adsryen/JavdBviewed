@@ -13,7 +13,7 @@ import { Drive115TabsController } from './Drive115TabsController';
 import { Drive115V1Pane } from './Drive115V1Pane';
 import { Drive115V2Pane } from './Drive115V2Pane';
 import { searchFiles } from '../../../../services/drive115Router';
-import { getLogs, clearLogs } from '../../../../services/drive115Router';
+// 移除设置页日志功能：统一使用全局“日志”标签页
 
 export class Drive115SettingsPanel extends BaseSettingsPanel {
     private settings: Drive115Settings = { ...DEFAULT_DRIVE115_SETTINGS };
@@ -30,6 +30,52 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             saveDelay: 1000,
             requireValidation: true
         });
+    }
+
+    // 兜底隐藏：根据文本或已知ID隐藏设置页中的“115网盘日志”区域
+    private hideLogsSectionByText(): void {
+        try {
+            const root = document.getElementById('drive115-settings') || document.body;
+            if (!root) return;
+            // 通过已知ID直接隐藏
+            const knownIds = [
+                'drive115LogContainer',
+                'drive115RefreshLog', 'drive115ClearLog', 'drive115ExportLog',
+                'refreshDrive115Logs', 'clearDrive115Logs', 'exportDrive115Logs'
+            ];
+            for (const id of knownIds) {
+                const el = document.getElementById(id);
+                if (el) {
+                    const row = this.findSettingRow(el as HTMLElement);
+                    if (row) (row as HTMLElement).style.display = 'none';
+                    (el as HTMLElement).style.display = 'none';
+                }
+            }
+            // 文本匹配隐藏（如标题或分组标题存在“115网盘日志”字样）
+            const texts = ['115网盘日志', '115 日志', 'Drive115 日志'];
+            const nodes = Array.from(root.querySelectorAll<HTMLElement>('*'))
+                .filter(el => {
+                    const t = (el.textContent || '').trim();
+                    return t && texts.some(key => t.includes(key));
+                });
+            for (const el of nodes) {
+                const row = this.findSettingRow(el);
+                if (row) (row as HTMLElement).style.display = 'none';
+                el.style.display = 'none';
+            }
+        } catch {}
+    }
+
+    // 尝试向上找到一层设置行容器，便于整体隐藏
+    private findSettingRow(el: HTMLElement): HTMLElement | null {
+        let cur: HTMLElement | null = el;
+        for (let i = 0; i < 4 && cur; i++) {
+            if (cur.classList && (cur.classList.contains('form-group') || cur.classList.contains('setting-item') || cur.classList.contains('settings-row') || cur.id === 'drive115-settings')) {
+                return cur;
+            }
+            cur = cur.parentElement as HTMLElement | null;
+        }
+        return null;
     }
 
     /**
@@ -139,15 +185,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
             await this.testSearch(query);
         });
 
-        // 日志管理
-        // 日志按钮：兼容新旧ID（HTML中为 refreshDrive115Logs / clearDrive115Logs / exportDrive115Logs）
-        const refreshLogButton = (document.getElementById('drive115RefreshLog') || document.getElementById('refreshDrive115Logs')) as HTMLButtonElement | null;
-        const clearLogButton = (document.getElementById('drive115ClearLog') || document.getElementById('clearDrive115Logs')) as HTMLButtonElement | null;
-        const exportLogButton = (document.getElementById('drive115ExportLog') || document.getElementById('exportDrive115Logs')) as HTMLButtonElement | null;
-
-        refreshLogButton?.addEventListener('click', () => this.refreshLog());
-        clearLogButton?.addEventListener('click', () => this.clearLog());
-        exportLogButton?.addEventListener('click', () => this.exportLog());
+        // 日志管理（已移除）：设置页不再展示 115 日志，统一到“日志”标签页
 
         // 其余 v1/v2 表单事件由各自 Pane 负责绑定
     }
@@ -301,6 +339,9 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         const showError = this.settings.enabled && !this.settings.enableV2 && !this.settings.downloadDir;
         if (downloadDirError) downloadDirError.style.display = showError ? 'block' : 'none';
         if (downloadDirInput2) downloadDirInput2.classList.toggle('input-invalid', showError);
+
+        // 兜底隐藏日志区域（标题文本或已知ID），避免设置页出现“115网盘日志”块
+        this.hideLogsSectionByText();
     }
 
     /**
@@ -523,81 +564,7 @@ export class Drive115SettingsPanel extends BaseSettingsPanel {
         return `${s}秒`;
     }
 
-    /**
-     * 刷新日志
-     */
-    private async refreshLog(): Promise<void> {
-        try {
-            const logs = await getLogs();
-            this.displayLogs(logs);
-        } catch (error) {
-            console.error('刷新115日志失败:', error);
-            showMessage('刷新日志失败', 'error');
-        }
-    }
-
-    /**
-     * 清空日志
-     */
-    private async clearLog(): Promise<void> {
-        try {
-            await clearLogs();
-            this.displayLogs([]);
-            showMessage('日志已清空', 'success');
-        } catch (error) {
-            console.error('清空115日志失败:', error);
-            showMessage('清空日志失败', 'error');
-        }
-    }
-
-    /**
-     * 导出日志
-     */
-    private async exportLog(): Promise<void> {
-        try {
-            const logs = await getLogs();
-
-            const logText = logs.map((log: any) =>
-                `[${new Date(log.timestamp).toLocaleString()}] ${log.level}: ${log.message}`
-            ).join('\n');
-
-            const blob = new Blob([logText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `115-logs-${new Date().toISOString().slice(0, 10)}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            showMessage('日志已导出', 'success');
-        } catch (error) {
-            console.error('导出115日志失败:', error);
-            showMessage('导出日志失败', 'error');
-        }
-    }
-
-    /**
-     * 显示日志
-     */
-    private displayLogs(logs: any[]): void {
-        const logContainer = document.getElementById('drive115LogContainer') as HTMLDivElement;
-        if (!logContainer) return;
-
-        if (logs.length === 0) {
-            logContainer.innerHTML = '<p class="no-logs">暂无日志记录</p>';
-            return;
-        }
-
-        const logHtml = logs.map((log: any) => `
-            <div class="log-entry log-${log.level}">
-                <span class="log-time">${new Date(log.timestamp).toLocaleString()}</span>
-                <span class="log-level">[${(log.level || '').toString().toUpperCase()}]</span>
-                <span class="log-message">${log.message}</span>
-            </div>
-        `).join('');
-
-        logContainer.innerHTML = logHtml;
-    }
+    // 日志相关方法已移除（refreshLog / clearLog / exportLog / displayLogs）
 
 
 

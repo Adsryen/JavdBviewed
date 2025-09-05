@@ -10,6 +10,7 @@ import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
 import { setFavicon, getRandomDelay } from './utils';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
+import { actorManager } from '../services/actorManager';
 
 // --- Page-Specific Logic ---
 
@@ -21,6 +22,64 @@ export async function handleVideoDetailPage(): Promise<void> {
         log('Could not find video ID using any method. Aborting.');
         return;
     }
+
+// 在影片详情页对“演員/演员”区域内的演员链接进行标识：
+// - 若为已收藏（存在于本地演员库）则标记为绿色
+// - 若为黑名单（blacklisted = true）则标记为红色并添加删除线
+async function markActorsOnPage(): Promise<void> {
+    try {
+        await actorManager.initialize();
+
+        // 查找包含“演員/演员”的信息块
+        const blocks = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
+        const actorBlock = blocks.find(block => {
+            const strong = block.querySelector('strong');
+            const text = strong?.textContent?.trim() || '';
+            return text.includes('演員') || text.includes('演员');
+        });
+
+        if (!actorBlock) {
+            log('No actor panel-block found on this page.');
+            return;
+        }
+
+        const linkNodes = actorBlock.querySelectorAll<HTMLAnchorElement>('a[href^="/actors/"]');
+        if (!linkNodes || linkNodes.length === 0) {
+            log('No actor links found in actor panel-block.');
+            return;
+        }
+
+        const colorCollected = '#2e7d32'; // 绿色（已收藏）
+        const colorBlacklisted = '#d32f2f'; // 红色（黑名单）
+
+        for (const a of Array.from(linkNodes)) {
+            try {
+                const href = a.getAttribute('href') || '';
+                const idPart = href.split('/actors/')[1] || '';
+                const actorId = idPart.split('?')[0].split('#')[0];
+                if (!actorId) continue;
+
+                const record = await actorManager.getActorById(actorId);
+                if (!record) continue; // 未收藏/未同步
+
+                if (record.blacklisted) {
+                    a.style.color = colorBlacklisted;
+                    a.style.textDecoration = 'line-through';
+                    a.title = a.title ? `${a.title}（黑名单）` : '黑名单';
+                } else {
+                    a.style.color = colorCollected;
+                    a.style.textDecoration = 'none';
+                    a.title = a.title ? `${a.title}（已收藏）` : '已收藏';
+                }
+            } catch {
+                // 单个失败不阻断
+                continue;
+            }
+        }
+    } catch (error) {
+        log('markActorsOnPage error:', error);
+    }
+}
 
     // 并发控制：检查是否已经在处理这个视频
     const operationId = await concurrencyManager.startProcessingVideo(videoId);
@@ -42,7 +101,7 @@ export async function handleVideoDetailPage(): Promise<void> {
         }
 
         // 应用增强功能（如果启用）
-        if (STATE.settings.dataEnhancement.enableMultiSource) {
+        if (STATE.settings?.dataEnhancement?.enableMultiSource) {
             try {
                 log('Applying video detail enhancements...');
                 await videoDetailEnhancer.initialize();
@@ -50,6 +109,13 @@ export async function handleVideoDetailPage(): Promise<void> {
                 log('Enhancement failed, but continuing:', enhancementError);
                 // 增强功能失败不应该影响主要功能
             }
+        }
+
+        // 无论是否启用增强功能，都尝试为“演員”区域的演员添加标识
+        try {
+            await markActorsOnPage();
+        } catch (markErr) {
+            log('Marking actors on page failed:', markErr);
         }
     } catch (error) {
         log(`Error processing video ${videoId} (operation ${operationId}):`, error);

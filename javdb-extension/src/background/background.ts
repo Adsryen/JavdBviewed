@@ -1,4 +1,54 @@
 // src/background/background.ts
+// ================= 115 v2 后台代理（解决内容脚本 CORS） =================
+try {
+  // 避免重复注册
+  // @ts-ignore
+  const __drive115_v2_proxy_flag = (globalThis as any).__drive115_v2_proxy_flag;
+  if (!__drive115_v2_proxy_flag && typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    // @ts-ignore
+    (globalThis as any).__drive115_v2_proxy_flag = true;
+    chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+      if (!message || typeof message !== 'object') return;
+      if (message.type === 'drive115.add_task_urls_v2') {
+        const payload = message.payload || {};
+        const accessToken = String(payload.accessToken || '').trim();
+        const urls = String(payload.urls || '');
+        const wp_path_id = payload.wp_path_id;
+        const base = String(payload.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+        if (!accessToken || !urls) {
+          sendResponse({ success: false, message: '缺少 accessToken 或 urls' });
+          return true;
+        }
+
+        const fd = new FormData();
+        fd.set('urls', urls);
+        if (wp_path_id !== undefined) fd.set('wp_path_id', String(wp_path_id));
+
+        fetch(`${base}/open/offline/add_task_urls`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          },
+          body: fd,
+        })
+          .then(async (res) => {
+            const raw = await res.json().catch(() => ({} as any));
+            const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
+            const data = (raw && (raw.data || raw.result)) || undefined;
+            sendResponse({ success: ok, message: raw?.message || raw?.error, raw, data });
+          })
+          .catch((err) => {
+            sendResponse({ success: false, message: err?.message || '后台请求失败' });
+          });
+        return true; // 异步响应
+      }
+    });
+  }
+} catch (e) {
+  // 静默
+}
+
 
 import { getValue, setValue, getSettings, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';

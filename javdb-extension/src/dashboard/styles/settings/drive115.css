@@ -511,14 +511,7 @@
 }
 
 /* 日志容器样式 */
-#drive115-settings .log-container {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: #ffffff;
-    padding: 10px;
-}
+#drive115-settings .log-container { display: none !important; }
 
 #drive115-settings .log-entry {
     padding: 6px 0;
@@ -569,12 +562,23 @@
     margin: 20px 0;
 }
 
-/* 日志操作按钮 */
-#drive115-settings .log-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
+/* 日志操作按钮（隐藏） */
+#drive115-settings .log-actions { display: none !important; }
+
+/* 防御性隐藏可能存在的日志相关按钮（若 DOM 中存在这些 ID） */
+#drive115-settings #refreshDrive115Logs,
+#drive115-settings #clearDrive115Logs,
+#drive115-settings #exportDrive115Logs { display: none !important; }
+
+/* 防御性隐藏：统计与列表容器 */
+#drive115-settings #drive115LogStats,
+#drive115-settings #drive115LogsList { display: none !important; }
+
+/* 如果所在分组存在日志列表，则整块隐藏（现代浏览器支持 :has） */
+#drive115-settings .settings-group:has(#drive115LogsList) { display: none !important; }
+
+/* 可能的按钮容器类名 */
+#drive115-settings .action-buttons-top { display: none !important; }
 
 /* 自动保存状态 */
 #drive115-settings .auto-save-status {
@@ -647,6 +651,14 @@
     border-radius: 3px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 12px;
+}
+
+/* 隐藏旧版的“下载目录ID”控件，避免与 v2 合并字段重复 */
+#drive115DownloadDir,
+#drive115DownloadDirError,
+#drive115HowToCidToggle,
+#drive115HowToCid {
+    display: none !important;
 }
 
 /* 响应式设计 */

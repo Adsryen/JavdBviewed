@@ -558,20 +558,59 @@ class Drive115V2Service {
       const base = await this.getBaseURL();
       const url = `${base}/open/offline/add_task_urls`;
 
-      // 优先使用 application/x-www-form-urlencoded，兼容性更好
-      const body = new URLSearchParams({ urls: params.urls });
-      if (params.wp_path_id && params.wp_path_id !== '0') body.set('wp_path_id', params.wp_path_id);
+      // 优先走后台代理，避免内容脚本在 javdb.com 环境的 CORS 限制
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'drive115.add_task_urls_v2',
+                  payload: {
+                    accessToken: token,
+                    urls: params.urls,
+                    wp_path_id: params.wp_path_id,
+                    baseUrl: base,
+                  },
+                },
+                (resp) => resolve(resp)
+              );
+            } catch {
+              resolve(undefined);
+            }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            // 与原函数返回结构对齐
+            return {
+              success: !!bgResp.success,
+              message: bgResp.message,
+              raw: bgResp.raw,
+              data: bgResp.data,
+            } as any;
+          }
+        }
+      } catch {
+        // 忽略，继续走前台 fetch 回退
+      }
+
+      // 改为 multipart/form-data（FormData），便于携带 wp_path_id 且与官方接口一致
+      const fd = new FormData();
+      fd.set('urls', params.urls);
+      // 当外部提供 wp_path_id（即使为 '0'）时，始终携带
+      if (params.wp_path_id !== undefined) {
+        fd.set('wp_path_id', String(params.wp_path_id));
+      }
 
       const count = String(params.urls || '').split('\n').filter(s => s.trim()).length;
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: `开始添加离线任务（v2）：${count} 项，目录=${params.wp_path_id || '根'}` });
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `开始添加离线任务（v2）：${count} 项，目录=${params.wp_path_id ?? '未指定（根）'}` });
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+          // 不手动设置 Content-Type，交由浏览器注入含 boundary 的 multipart/form-data
           'Accept': 'application/json'
         },
-        body: body.toString(),
+        body: fd,
       });
 
       if (!res.ok) {

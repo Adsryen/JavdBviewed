@@ -9,7 +9,7 @@ import { showMessage } from '../../../../ui/toast';
 import { log } from '../../../../../utils/logController';
 import { Drive115V2Pane } from '../Drive115V2Pane';
 import { searchFilesV2 } from '../../../../../services/drive115v2/search';
-import { getLogsV2, clearLogsV2, addLogV2 } from '../../../../../services/drive115v2/logs';
+import { addLogV2 } from '../../../../../services/drive115v2/logs';
 // 避免从全局类型引入（其依赖 v1 类型），此处不再导入 ExtensionSettings，使用结构化 any
 
 // v2 局部设置类型（仅包含 v2 需要的字段，避免依赖 v1 类型与默认值）
@@ -172,13 +172,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       await this.testSearch(query);
     });
 
-    // 日志（v2 自有存储）
-    const refreshLogButton = document.getElementById('drive115RefreshLog') as HTMLButtonElement | null;
-    const clearLogButton = document.getElementById('drive115ClearLog') as HTMLButtonElement | null;
-    const exportLogButton = document.getElementById('drive115ExportLog') as HTMLButtonElement | null;
-    refreshLogButton?.addEventListener('click', () => this.refreshLog());
-    clearLogButton?.addEventListener('click', () => this.clearLog());
-    exportLogButton?.addEventListener('click', () => this.exportLog());
+    // 移除日志相关事件绑定（统一到全局“日志”标签页，不在设置页展示/维护）
   }
 
   private updateUI(): void {
@@ -260,9 +254,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       'testSearchInput',
       'testDrive115Search',
       'drive115V2ManualRefresh',
-      'drive115RefreshLog',
-      'drive115ClearLog',
-      'drive115ExportLog'
+      // 已移除设置页日志功能的相关按钮ID
     ];
     knownIds.forEach(id => {
       const el = document.getElementById(id) as (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement | null);
@@ -425,67 +417,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     return `${s}秒`;
   }
 
-  private async refreshLog(): Promise<void> {
-    try {
-      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '设置面板：刷新 v2 日志' });
-      const logs = await getLogsV2();
-      this.displayLogs(logs as any);
-    } catch (error) {
-      console.error('刷新115 v2 日志失败:', error);
-      showMessage('刷新日志失败', 'error');
-      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：刷新 v2 日志失败：${(error as any)?.message || '未知错误'}` });
-    }
-  }
-
-  private async clearLog(): Promise<void> {
-    try {
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: '设置面板：清空 v2 日志' });
-      await clearLogsV2();
-      this.displayLogs([]);
-      showMessage('日志已清空', 'success');
-    } catch (error) {
-      console.error('清空115 v2 日志失败:', error);
-      showMessage('清空日志失败', 'error');
-      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：清空 v2 日志失败：${(error as any)?.message || '未知错误'}` });
-    }
-  }
-
-  private async exportLog(): Promise<void> {
-    try {
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: '设置面板：导出 v2 日志' });
-      const logs = await getLogsV2();
-      const logText = logs.map((l: any) => `[${new Date(l.timestamp).toLocaleString()}] ${l.level}: ${l.message}`).join('\n');
-      const blob = new Blob([logText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `115-v2-logs-${new Date().toISOString().slice(0, 10)}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showMessage('日志已导出', 'success');
-    } catch (error) {
-      console.error('导出115 v2 日志失败:', error);
-      showMessage('导出日志失败', 'error');
-      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：导出 v2 日志失败：${(error as any)?.message || '未知错误'}` });
-    }
-  }
-
-  private displayLogs(logs: any[]): void {
-    const logContainer = document.getElementById('drive115LogContainer') as HTMLDivElement | null;
-    if (!logContainer) return;
-    if (!Array.isArray(logs) || logs.length === 0) {
-      logContainer.innerHTML = '<p class="no-logs">暂无日志记录</p>';
-      return;
-    }
-    const html = logs.map((log: any) => `
-      <div class="log-entry log-${log.level}">
-        <span class="log-time">${new Date(log.timestamp).toLocaleString()}</span>
-        <span class="log-level">[${(log.level || '').toString().toUpperCase()}]</span>
-        <span class="log-message">${log.message}</span>
-      </div>
-    `).join('');
-    logContainer.innerHTML = html;
-  }
+  // 已移除设置页日志功能：refreshLog / clearLog / exportLog / displayLogs
 
   private autoSaveSettings(): void {
     if (this.autoSaveTimeout) clearTimeout(this.autoSaveTimeout);
