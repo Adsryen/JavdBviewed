@@ -532,15 +532,38 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         if (!container) return;
         const name = u.name || (u as any).nick || (u as any).username || `UID ${u.uid || (u as any).user_id || (u as any).id || ''}`;
         const avatar = u.avatar || (u as any).avatar_middle || (u as any).avatar_small || '';
+        const parseBoolVip = (val: any): boolean | null => {
+            if (typeof val === 'boolean') return val;
+            if (typeof val === 'number') return val > 0;
+            if (typeof val === 'string') {
+                const s = val.trim().toLowerCase();
+                if (['1','true','yes','是','vip','年费vip','月费vip'].some(k => s.includes(k))) return true;
+                if (['0','false','no','否'].some(k => s === k)) return false;
+            }
+            return null;
+        };
+        const vipRaw: any = (u as any).is_vip ?? (u as any).vip ?? (u as any).vip_status;
         const isVip = (() => {
-            const v: any = (u as any).is_vip; if (typeof v === 'boolean') return v ? '是' : '否'; if (typeof v === 'number') return v > 0 ? '是' : '否'; return '-';
+            const b = parseBoolVip(vipRaw);
+            if (b === true) return '是';
+            if (b === false) return '否';
+            return '-';
         })();
-        const totalNum: number | undefined = (u as any).space_total;
-        const usedNum: number | undefined = (u as any).space_used;
-        const freeNum: number | undefined = (u as any).space_free;
-        const spaceTotal = formatBytes(totalNum);
-        const spaceUsed = formatBytes(usedNum);
-        const spaceFree = formatBytes(freeNum);
+        const toNumber = (x: any): number | undefined => {
+            if (typeof x === 'number') return isFinite(x) ? x : undefined;
+            if (typeof x === 'string') {
+                const s = x.replace(/[,\s]/g, '');
+                const n = Number(s);
+                return isFinite(n) ? n : undefined;
+            }
+            return undefined;
+        };
+        const totalNum = toNumber((u as any).space_total);
+        const usedNum = toNumber((u as any).space_used);
+        const freeNum = toNumber((u as any).space_free);
+        const spaceTotal = formatBytes(totalNum as any);
+        const spaceUsed = formatBytes(usedNum as any);
+        const spaceFree = formatBytes(freeNum as any);
         const pct = (() => {
           if (typeof usedNum === 'number' && typeof totalNum === 'number' && totalNum > 0) {
             const p = Math.min(100, Math.max(0, (usedNum / totalNum) * 100));
@@ -624,10 +647,20 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         `);
     }
 
-    function formatBytes(n?: number): string {
-        if (typeof n !== 'number' || isNaN(n)) return '-';
+    function formatBytes(n?: number | string): string {
+        const toNum = (x: any): number | undefined => {
+            if (typeof x === 'number') return isFinite(x) ? x : undefined;
+            if (typeof x === 'string') {
+                const s = x.replace(/[,\s]/g, '');
+                const v = Number(s);
+                return isFinite(v) ? v : undefined;
+            }
+            return undefined;
+        };
+        const num = toNum(n);
+        if (typeof num !== 'number') return '-';
         const units = ['B','KB','MB','GB','TB','PB'];
-        let v = n; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        let v = num; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
         return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
     }
 }

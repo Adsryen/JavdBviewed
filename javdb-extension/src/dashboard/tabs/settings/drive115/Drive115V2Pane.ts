@@ -31,7 +31,6 @@ export class Drive115V2Pane implements IDrive115Pane {
       const borderBottom = parseFloat(cs.borderBottomWidth || '0') || 0;
       target += borderTop + borderBottom;
     }
-
     // 最小高度保护：至少容纳 rows 行（若未设置 rows，则按 2 行），避免出现第二行被裁切
     const lineHeight = parseFloat(cs.lineHeight || '0') || 0;
     const paddingTop = parseFloat(cs.paddingTop || '0') || 0;
@@ -58,6 +57,58 @@ export class Drive115V2Pane implements IDrive115Pane {
     // 稍后再执行几次，覆盖异步填充值的场景
     setTimeout(run, 100);
     setTimeout(run, 300);
+  }
+
+  private hideLegacyDownloadDirRow(): void {
+    try {
+      const input = document.getElementById('drive115DownloadDir') as HTMLInputElement | null;
+      if (!input) return;
+      // 隐藏输入本身
+      input.style.display = 'none';
+      // 隐藏错误提示
+      const err = document.getElementById('drive115DownloadDirError') as HTMLParagraphElement | null;
+      if (err) err.style.display = 'none';
+      // 隐藏“如何获取ID”折叠与按钮
+      const howBtn = document.getElementById('drive115HowToCidToggle') as HTMLButtonElement | null;
+      const howBlock = document.getElementById('drive115HowToCid') as HTMLDivElement | null;
+      if (howBtn) howBtn.style.display = 'none';
+      if (howBlock) howBlock.style.display = 'none';
+      // 隐藏上一层容器行，尽量找到包含 label 的行
+      let row: HTMLElement | null = input.parentElement as HTMLElement | null;
+      for (let i = 0; i < 3 && row; i++) {
+        if (row.classList && (row.classList.contains('form-row') || row.classList.contains('settings-row'))) {
+          row.style.display = 'none';
+          break;
+        }
+        row = row.parentElement as HTMLElement | null;
+      }
+    } catch {}
+  }
+
+  // 兜底：通过文本内容隐藏旧版字段（当 ID 发生变化或由模板生成时）
+  private hideLegacyDownloadDirByText(): void {
+    try {
+      const root = document.getElementById('drive115-settings') || document.body;
+      if (!root) return;
+      const texts = ['下载目录ID', '如何获取ID'];
+      const candidates = Array.from(root.querySelectorAll<HTMLElement>('*'))
+        .filter(el => {
+          const t = (el.textContent || '').trim();
+          if (!t) return false;
+          return texts.some(key => t.includes(key));
+        });
+      for (const el of candidates) {
+        // 向上寻找一到两层“.form-group”或“.setting-item”容器隐藏
+        let row: HTMLElement | null = el;
+        for (let i = 0; i < 3 && row; i++) {
+          if (row.classList && (row.classList.contains('form-group') || row.classList.contains('setting-item') || row.classList.contains('settings-row'))) {
+            row.style.display = 'none';
+            break;
+          }
+          row = row.parentElement as HTMLElement | null;
+        }
+      }
+    } catch {}
   }
 
   private getElement(): HTMLElement | null {
@@ -133,6 +184,9 @@ export class Drive115V2Pane implements IDrive115Pane {
     window.addEventListener('resize', () => {
       this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken', 'drive115V2AddUrls']);
     });
+
+    // 事件绑定完成后，兜底隐藏旧版字段（防模板异步渲染）
+    this.hideLegacyDownloadDirByText();
 
     // 手动刷新按钮：调用刷新接口，成功后回填两个 token 并记录过期时间
     const manualRefreshBtn = document.getElementById('drive115V2ManualRefresh') as HTMLButtonElement | null;
@@ -237,6 +291,27 @@ export class Drive115V2Pane implements IDrive115Pane {
       addUrlsTextarea.addEventListener('input', () => this.autoResize(addUrlsTextarea));
     }
 
+    // 合并字段：将目录ID持久化为 settings.drive115.defaultWpPathId
+    if (wpPathIdInput) {
+      // 初次回填默认值
+      getSettings().then((settings: any) => {
+        const def = (settings?.drive115?.defaultWpPathId ?? '').toString();
+        if (!wpPathIdInput.value) wpPathIdInput.value = def;
+      }).catch(() => {});
+      // 变更时保存
+      const onWpChange = async () => {
+        try {
+          const val = (wpPathIdInput.value || '').trim();
+          const settings: any = await getSettings();
+          const ns: any = { ...settings };
+          ns.drive115 = { ...(settings?.drive115 || {}), defaultWpPathId: val };
+          await saveSettings(ns);
+        } catch {}
+      };
+      wpPathIdInput.addEventListener('input', onWpChange);
+      wpPathIdInput.addEventListener('change', onWpChange);
+    }
+
     const setAddStatus = (msg: string, kind: 'info' | 'ok' | 'error' = 'info') => {
       if (!statusEl) return;
       statusEl.textContent = msg;
@@ -275,7 +350,14 @@ export class Drive115V2Pane implements IDrive115Pane {
         return;
       }
       const urls = raw.join('\n');
-      const folderId = (wpPathIdInput?.value || '').trim();
+      // 目录ID优先使用表单值，否则回退到设置中的 defaultWpPathId
+      let folderId = (wpPathIdInput?.value || '').trim();
+      if (!folderId) {
+        try {
+          const settings: any = await getSettings();
+          folderId = (settings?.drive115?.defaultWpPathId || '').toString().trim();
+        } catch {}
+      }
 
       // 清空结果并提示
       if (resultBox) resultBox.innerHTML = '';
@@ -283,7 +365,9 @@ export class Drive115V2Pane implements IDrive115Pane {
       if (addBtn) addBtn.disabled = true;
 
       try {
-        const ret = await addTaskUrlsV2({ urls, wp_path_id: folderId || undefined });
+        // 空串 => 不传；显式 '0' => 传 '0'（根目录）
+        const wpArg = folderId === '' ? undefined : folderId;
+        const ret = await addTaskUrlsV2({ urls, wp_path_id: wpArg });
         if (!ret.success) {
           const msg = describe115Error((ret as any).raw) || ret.message || '添加任务失败';
           setAddStatus(msg, 'error');
@@ -307,6 +391,9 @@ export class Drive115V2Pane implements IDrive115Pane {
   mount(): void {
     this.getElement();
     this.bindEvents();
+    // v2 生效时，尽量隐藏旧版“下载目录ID”一组
+    this.hideLegacyDownloadDirRow();
+    this.hideLegacyDownloadDirByText();
   }
 
   unmount(): void {
@@ -323,6 +410,9 @@ export class Drive115V2Pane implements IDrive115Pane {
       }, 0);
       // 显示时优先渲染已缓存的 115 用户信息，并尝试后台刷新
       this.renderCachedAndMaybeRefresh();
+      // 再次隐藏旧版下载目录行（防止其他代码重新显示）
+      this.hideLegacyDownloadDirRow();
+      this.hideLegacyDownloadDirByText();
     }
   }
 
