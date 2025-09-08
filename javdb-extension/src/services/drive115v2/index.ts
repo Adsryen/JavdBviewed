@@ -160,29 +160,62 @@ class Drive115V2Service {
    * Headers: Content-Type: application/x-www-form-urlencoded
    * Body: refresh_token=<token>
    */
-  async refreshToken(refreshToken: string): Promise<{ success: boolean; message?: string; token?: TokenPair; raw?: any }>{
+  async refreshToken(refreshToken: string): Promise<{ success: boolean; message?: string; token?: TokenPair; raw?: any }> {
     try {
       const rt = (refreshToken || '').trim();
       if (!rt) return { success: false, message: '缺少 refresh_token' };
-
-      const url = `${this.refreshURL}/open/refreshToken`;
       await addLogV2({ timestamp: Date.now(), level: 'info', message: '开始刷新 access_token（v2）' });
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json'
-        },
-        body: new URLSearchParams({ refresh_token: rt }).toString(),
-      });
 
-      if (!res.ok) {
-        const msg = `刷新 access_token 网络错误: ${res.status} ${res.statusText}`;
-        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
-        return { success: false, message: msg };
+      // 优先通过后台代理，避免内容脚本 CORS
+      let json: any | undefined;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'drive115.refresh_token_v2',
+                  payload: { refreshToken: rt },
+                },
+                (resp) => resolve(resp)
+              );
+            } catch {
+              resolve(undefined);
+            }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            if (!bgResp.success) {
+              const msg = bgResp.message || '后台刷新失败';
+              await addLogV2({ timestamp: Date.now(), level: 'warn', message: `后台刷新失败：${msg}` });
+              return { success: false, message: msg, raw: bgResp.raw };
+            }
+            json = bgResp.raw || {};
+          }
+        }
+      } catch {
+        // 忽略后台调用错误，回退到前端 fetch
       }
 
-      const json: any = await res.json().catch(() => ({} as any));
+      // 若后台未返回，则回退前端直接请求
+      if (!json) {
+        const url = `${this.refreshURL}/open/refreshToken`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
+          body: new URLSearchParams({ refresh_token: rt }).toString(),
+        });
+
+        if (!res.ok) {
+          const msg = `刷新 access_token 网络错误: ${res.status} ${res.statusText}`;
+          await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+          return { success: false, message: msg };
+        }
+        json = await res.json().catch(() => ({} as any));
+      }
+
       // 兼容多种返回：{state, code, message, data:{access_token, refresh_token, expires_in}}
       const ok = (typeof json.state === 'boolean') ? json.state : true; // 若无 state 字段，则按照成功处理并通过字段兜底
       const data = json?.data || {};

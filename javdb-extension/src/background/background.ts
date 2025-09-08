@@ -42,6 +42,34 @@ try {
             sendResponse({ success: false, message: err?.message || '后台请求失败' });
           });
         return true; // 异步响应
+      } else if (message.type === 'drive115.refresh_token_v2') {
+        try {
+          const rt = String(message?.payload?.refreshToken || '').trim();
+          const refreshBase = 'https://passportapi.115.com';
+          if (!rt) {
+            sendResponse({ success: false, message: '缺少 refresh_token' });
+            return true;
+          }
+          const fd = new URLSearchParams();
+          fd.set('refresh_token', rt);
+          fetch(`${refreshBase}/open/refreshToken`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+            body: fd.toString(),
+          })
+            .then(async (res) => {
+              const raw = await res.json().catch(() => ({} as any));
+              const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
+              sendResponse({ success: ok, raw });
+            })
+            .catch((err) => {
+              sendResponse({ success: false, message: err?.message || '后台刷新请求失败' });
+            });
+          return true; // 异步响应
+        } catch (e: any) {
+          sendResponse({ success: false, message: e?.message || '后台刷新异常' });
+          return true;
+        }
       }
     });
   }

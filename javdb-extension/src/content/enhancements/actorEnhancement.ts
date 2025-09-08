@@ -7,6 +7,7 @@ import { getValue, setValue } from '../../utils/storage';
 import { showToast } from '../toast';
 import type { ActorRecord } from '../../types';
 import { actorManager } from '../../services/actorManager';
+import { newWorksManager } from '../../services/newWorks';
 
 interface ActorTagFilter {
   tags: string[];
@@ -210,6 +211,96 @@ class ActorEnhancementManager {
     }
   }
 
+  /**
+   * 在收藏按钮附近注入“订阅/取消订阅”按钮
+   */
+  private async injectSubscribeButton(): Promise<void> {
+    try {
+      const collectBtn = document.getElementById('button-collect-actor') as HTMLAnchorElement | null;
+      const uncollectBtn = document.getElementById('button-uncollect-actor') as HTMLAnchorElement | null;
+
+      const collectVisible = !!(collectBtn && window.getComputedStyle(collectBtn).display !== 'none');
+      const uncollectVisible = !!(uncollectBtn && window.getComputedStyle(uncollectBtn).display !== 'none');
+      const anchorBtn = (uncollectVisible && uncollectBtn) || (collectVisible && collectBtn) || uncollectBtn || collectBtn;
+      if (!anchorBtn) return;
+
+      // 避免重复注入
+      if (document.getElementById('button-subscribe-actor')) return;
+
+      // 仅对可见按钮进行并列布局设置，隐藏按钮保持隐藏
+      [
+        collectVisible ? collectBtn : null,
+        uncollectVisible ? uncollectBtn : null,
+      ].forEach(btn => {
+        if (btn) {
+          (btn as HTMLAnchorElement).style.display = 'inline-flex';
+          (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
+          if (!(btn as HTMLAnchorElement).className.includes('mr-2')) {
+            (btn as HTMLAnchorElement).classList.add('mr-2');
+          }
+        }
+      });
+
+      // 判断是否已订阅
+      let isSubscribed = false;
+      try {
+        const subs = await newWorksManager.getSubscriptions();
+        isSubscribed = subs.some(s => s.actorId === this.currentActorId);
+      } catch {}
+
+      // 创建按钮
+      const btn = document.createElement('a');
+      btn.id = 'button-subscribe-actor';
+      btn.href = 'javascript:void(0)';
+      btn.className = isSubscribed ? 'button is-info is-light ml-2' : 'button is-info ml-2';
+      btn.textContent = isSubscribed ? '取消订阅' : '订阅';
+      (btn as HTMLAnchorElement).style.display = 'inline-flex';
+      (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
+
+      // 插入到收藏/取消收藏按钮后面
+      anchorBtn.parentElement?.insertBefore(btn, anchorBtn.nextSibling);
+
+      // 点击事件：切换订阅
+      btn.addEventListener('click', async () => {
+        try {
+          // 确保本地有演员记录
+          let record = await actorManager.getActorById(this.currentActorId);
+          if (!record) {
+            const parsed = this.parseActorFromPage();
+            if (parsed) {
+              await actorManager.saveActor(parsed);
+              record = parsed;
+            }
+          }
+
+          if (!record) {
+            showToast('未能获取演员信息，无法订阅', 'error');
+            return;
+          }
+
+          if (!isSubscribed) {
+            await newWorksManager.addSubscription(this.currentActorId);
+            isSubscribed = true;
+            btn.className = 'button is-info is-light ml-2';
+            btn.textContent = '取消订阅';
+            showToast('已订阅该演员的新作品', 'success');
+          } else {
+            await newWorksManager.removeSubscription(this.currentActorId);
+            isSubscribed = false;
+            btn.className = 'button is-info ml-2';
+            btn.textContent = '订阅';
+            showToast('已取消订阅该演员', 'success');
+          }
+        } catch (e) {
+          console.error('[ActorEnhancement] 切换订阅状态失败:', e);
+          showToast('操作失败', 'error');
+        }
+      });
+    } catch (e) {
+      console.error('[ActorEnhancement] 注入订阅按钮失败:', e);
+    }
+  }
+
   private getBlacklistBtnClass(blacklisted: boolean): string {
     // 颜色规范：
     // 拉黑（未拉黑状态下展示“拉黑”）：黑色按钮
@@ -304,6 +395,9 @@ class ActorEnhancementManager {
 
     // 注入拉黑/取消拉黑按钮
     await this.injectBlacklistButton();
+
+    // 注入订阅/取消订阅按钮
+    await this.injectSubscribeButton();
 
     // 应用保存的标签过滤器（延迟执行，确保页面加载完成）
     if (this.config.autoApplyTags) {
