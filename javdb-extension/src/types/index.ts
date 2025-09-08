@@ -81,6 +81,11 @@ export interface ExtensionSettings {
             useGlobalModel: boolean; // 是否使用全局AI模型
             customModel?: string; // 自定义模型（当不使用全局模型时）
         };
+        // 新增：显示方式与目标位置
+        displayMode?: 'append' | 'replace'; // 展示方式：追加显示或替换原标题
+        targets?: {
+            currentTitle?: boolean; // 是否对影片页 .current-title 进行翻译
+        };
     };
 
     // 新增：用户体验配置

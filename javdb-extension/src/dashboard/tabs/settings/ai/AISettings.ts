@@ -515,13 +515,17 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
             if (this.testResults) {
                 this.testResults.style.display = 'block';
+                const reply = response.choices[0]?.message?.content || '';
+                const rawTokens = response.usage?.total_tokens || 0;
+                const estimatedTokens = rawTokens > 0 ? rawTokens : aiService.estimateTokenUsage(`${message}\n${reply}`);
+                const tokensText = rawTokens > 0 ? `${rawTokens} tokens` : `约 ${estimatedTokens} tokens`;
                 this.testResults.innerHTML = `
                     <div class="test-result success">
                         <h5>测试成功</h5>
                         <p><strong>发送:</strong> ${message}</p>
-                        <p><strong>回复:</strong> ${response.choices[0]?.message?.content || '无回复内容'}</p>
+                        <p><strong>回复:</strong> ${reply || '无回复内容'}</p>
                         <p><strong>模型:</strong> ${response.model}</p>
-                        <p><strong>用时:</strong> ${response.usage?.total_tokens || 0} tokens</p>
+                        <p><strong>用时:</strong> ${tokensText}</p>
                     </div>
                 `;
             }

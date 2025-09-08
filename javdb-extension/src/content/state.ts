@@ -60,4 +60,14 @@ export function setCurrentTitleStatus(status: string | null): void {
     currentTitleStatus = status;
 }
 
-export const log = (...args: any[]) => console.log('[JavDB Ext]', ...args);
+// 全局可控日志：通过 window.__JDB_VERBOSE 控制是否输出信息性日志
+export const log = (...args: any[]) => {
+    try {
+        const verbose = (typeof window !== 'undefined' && (window as any).__JDB_VERBOSE);
+        if (verbose !== false) {
+            console.log('[JavDB Ext]', ...args);
+        }
+    } catch {
+        console.log('[JavDB Ext]', ...args);
+    }
+};
