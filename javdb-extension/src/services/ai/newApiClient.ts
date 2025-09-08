@@ -62,6 +62,16 @@ export class NewApiClient {
         const timeoutId = setTimeout(() => controller.abort(), this.settings.timeout * 1000);
 
         try {
+            // Mixed Content 检查：HTTPS 页面请求 HTTP 接口会被浏览器拦截
+            if (typeof window !== 'undefined') {
+                const pageIsHttps = window.location.protocol === 'https:';
+                const reqIsHttp = url.startsWith('http://');
+                if (pageIsHttps && reqIsHttp) {
+                    const msg = `Mixed Content: 当前页面为 HTTPS，但 AI 接口为 HTTP（${url}）。请将 API 地址改为 HTTPS。`;
+                    console.error('[AI][createChatCompletion] ' + msg);
+                    throw new Error(msg);
+                }
+            }
             const response = await fetch(url, {
                 ...options,
                 headers,
@@ -104,13 +114,121 @@ export class NewApiClient {
      * 创建聊天完成（非流式）
      */
     async createChatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-        return this.makeRequest<ChatCompletionResponse>('/v1/chat/completions', {
-            method: 'POST',
-            body: JSON.stringify({
-                ...request,
-                stream: false
-            })
-        });
+        // 优先按 JSON 解析；若服务端错误返回 SSE（以 data: 开头的文本），则降级解析并聚合为一个响应
+        const url = this.buildApiUrl('/v1/chat/completions');
+        const headers = this.getAuthHeaders();
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.settings.timeout * 1000);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    ...request,
+                    stream: false
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorData: APIError = await response.json().catch(() => ({
+                    error: {
+                        message: `HTTP ${response.status}: ${response.statusText}`,
+                        type: 'http_error'
+                    }
+                }));
+                throw new Error(errorData.error.message);
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            // 常规 JSON
+            if (contentType.includes('application/json')) {
+                return await response.json();
+            }
+
+            // 某些网关会错误地以 text/event-stream 返回非流式结果
+            const raw = await response.text();
+            // 尝试直接作为 JSON
+            try {
+                return JSON.parse(raw);
+            } catch {
+                // 按 SSE 行解析并聚合
+                const lines = raw.split('\n');
+                const chunks: ChatCompletionResponse[] = [];
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    if (trimmed.startsWith('data: ')) {
+                        const data = trimmed.slice(6);
+                        if (data === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(data) as ChatCompletionResponse;
+                            chunks.push(parsed);
+                        } catch {
+                            // 跳过无法解析的行
+                        }
+                    } else {
+                        // 非标准行，尝试 JSON
+                        try {
+                            const parsed = JSON.parse(trimmed) as ChatCompletionResponse;
+                            chunks.push(parsed);
+                        } catch {
+                            // 忽略
+                        }
+                    }
+                }
+
+                if (chunks.length === 0) {
+                    throw new Error('无法解析AI服务返回内容');
+                }
+
+                // 聚合 content
+                let finalText = '';
+                let model = this.settings.selectedModel || chunks[0]?.model || '';
+                let id = chunks[0]?.id || 'sse_fallback';
+                let created = Math.floor(Date.now() / 1000);
+
+                for (const c of chunks) {
+                    const piece = (c as any)?.choices?.[0]?.delta?.content
+                              ?? (c as any)?.choices?.[0]?.message?.content
+                              ?? '';
+                    if (piece) finalText += piece;
+                    if (!model && (c as any)?.model) model = (c as any).model;
+                    if ((c as any)?.id) id = (c as any).id;
+                    if ((c as any)?.created) created = (c as any).created;
+                }
+
+                const result: ChatCompletionResponse = {
+                    id,
+                    object: 'chat.completion',
+                    created,
+                    model,
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'stop',
+                            message: { role: 'assistant', content: finalText }
+                        } as any
+                    ],
+                    usage: undefined
+                } as ChatCompletionResponse;
+
+                return result;
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('请求超时');
+                }
+                throw error;
+            }
+            throw new Error('未知错误');
+        }
     }
 
     /**

@@ -98,14 +98,11 @@ async function initialize(): Promise<void> {
                     service: settings.translation?.traditional?.service || 'google',
                     apiKey: settings.translation?.traditional?.apiKey,
                     timeout: 5000,
-                    sourceLanguage: settings.translation?.traditional?.sourceLanguage || 'ja',
-                    targetLanguage: settings.translation?.traditional?.targetLanguage || 'zh-CN',
                 },
                 javLibrary: {
                     enabled: settings.dataEnhancement.enableRatingAggregation || settings.dataEnhancement.enableActorInfo,
                     baseUrl: 'https://www.javlibrary.com',
                     timeout: 15000,
-                    language: 'en',
                 },
                 javStore: { enabled: false, baseUrl: '', timeout: 10000 },
                 javSpyl: { enabled: false, baseUrl: '', timeout: 10000 },
@@ -114,18 +111,18 @@ async function initialize(): Promise<void> {
             },
         });
 
-        // 配置AI翻译服务
-        if (settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'ai') {
-            defaultDataAggregator.updateAITranslatorConfig({
-                enabled: true,
-                useGlobalModel: settings.translation.ai?.useGlobalModel !== false,
-                customModel: settings.translation.ai?.customModel,
-                timeout: 30000,
-                maxRetries: 2,
-                sourceLanguage: 'ja',
-                targetLanguage: 'zh-CN',
-            });
-        }
+    }
+
+    // 无论是否启用多源，都根据翻译设置初始化 AI 翻译配置，确保定点翻译可用
+    if (settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'ai') {
+        defaultDataAggregator.updateAITranslatorConfig({
+            enabled: true,
+            useGlobalModel: true, // 已写死使用 AI 设置中的模型
+            timeout: 30000,
+            maxRetries: 2,
+            sourceLanguage: 'ja',
+            targetLanguage: 'zh-CN',
+        });
     }
 
     // 初始化用户体验优化功能
@@ -173,7 +170,7 @@ async function initialize(): Promise<void> {
         log('Magnet search manager initialized');
 
         // 从设置中获取磁力搜索源配置
-        const magnetSearchConfig = settings.magnetSearch || {};
+        const magnetSearchConfig = (settings as any).magnetSearch || {};
         const sources = magnetSearchConfig.sources || {};
 
         magnetSearchManager.updateConfig({
@@ -246,7 +243,8 @@ async function initialize(): Promise<void> {
         await initializeContentPrivacy();
         log('Privacy system initialized successfully');
     } catch (error) {
-        log('Privacy system initialization failed:', error);
+        const err = error as any;
+        log('Privacy system initialization failed:', err?.message || err);
     }
 
     // 更稳健地识别搜索结果页：不仅依赖 DOM，还检查 URL

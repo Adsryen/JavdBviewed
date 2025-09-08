@@ -2,6 +2,8 @@
 // 视频详情页增强功能
 
 import { defaultDataAggregator } from '../services/dataAggregator';
+import { aiService } from '../services/ai/aiService';
+import { showToast } from './toast';
 import { VideoMetadata, ImageData, RatingData, ActorData } from '../services/dataAggregator/types';
 import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
@@ -31,6 +33,88 @@ export class VideoDetailEnhancer {
   }
 
   /**
+   * 针对影片详情页标题 .current-title 的定点翻译
+   */
+  private async translateCurrentTitleIfNeeded(): Promise<void> {
+    try {
+      const settings = STATE.settings;
+      if (!settings || !settings.dataEnhancement?.enableTranslation) return;
+
+      const targetEnabled = settings.translation?.targets?.currentTitle === true;
+      if (!targetEnabled) {
+        log('[Translation] current-title target is disabled by settings. Skipping.');
+        return;
+      }
+
+      log('[Translation] Trying to translate .current-title ...');
+      // 查找页面中的 current-title 元素（带等待重试）
+      const titleEl = await this.waitForElement('h2.title.is-4 .current-title', 3000, 300) as HTMLElement | null;
+      if (!titleEl) {
+        log('[Translation] .current-title not found after waiting. Skip translating.');
+        return;
+      }
+
+      const original = titleEl.textContent?.trim() || '';
+      if (!original) return;
+
+      // 根据 provider 选择翻译方式（AI 前置校验：是否启用且选择了模型）
+      const provider = settings.translation?.provider || 'traditional';
+      if (provider === 'ai') {
+        const ai = aiService.getSettings();
+        if (!ai.enabled) {
+          showToast('标题翻译失败：AI 功能未启用，请在“AI 设置”中开启', 'error');
+          return;
+        }
+        if (!ai.apiKey) {
+          showToast('标题翻译失败：未配置 API Key，请在“AI 设置”中填写', 'error');
+          return;
+        }
+        if (!ai.selectedModel) {
+          showToast('标题翻译失败：未选择模型，请在“AI 设置”中选择模型', 'error');
+          return;
+        }
+      }
+      const resp = provider === 'ai'
+        ? await defaultDataAggregator.translateTextWithAI(original)
+        : await defaultDataAggregator.translateText(original);
+
+      if (!resp.success || !resp.data?.translatedText) {
+        const reason = resp.error || '翻译失败';
+        showToast(`标题翻译失败：${reason}`, 'error');
+        return;
+      }
+      const translated = resp.data.translatedText;
+
+      // 显示方式：append（保留原文，追加显示）或 replace（替换原文）
+      const mode = settings.translation?.displayMode || 'append';
+      if (mode === 'replace') {
+        titleEl.textContent = translated;
+      } else {
+        // 追加显示：在标题下方插入翻译块
+        const container = this.createTranslationContainer(original, translated);
+        // 插入在 .current-title 所在的 strong 后面
+        titleEl.parentElement?.insertBefore(container, titleEl.nextSibling);
+      }
+      log('[Translation] current-title translated successfully.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      showToast(`标题翻译失败：${msg}`, 'error');
+      log('Error translating current-title:', error);
+    }
+  }
+
+  // 等待元素出现的辅助方法
+  private async waitForElement(selector: string, timeoutMs = 3000, intervalMs = 200): Promise<Element | null> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return null;
+  }
+
+  /**
    * 初始化详情页增强
    */
   async initialize(): Promise<void> {
@@ -50,8 +134,11 @@ export class VideoDetailEnhancer {
 
       // 获取增强数据
       this.enhancedData = await defaultDataAggregator.getEnhancedVideoInfo(this.videoId);
-      
-      // 应用增强功能
+
+      // 先执行“current-title”定点翻译（独立于聚合数据 translatedTitle）
+      await this.translateCurrentTitleIfNeeded();
+
+      // 应用增强功能（保留原有增强：如封面、评分、演员信息、以及聚合层可能带来的标题翻译展示）
       await this.applyEnhancements();
 
       // 隐藏加载指示器
@@ -135,14 +222,11 @@ export class VideoDetailEnhancer {
     try {
       // 查找标题元素 - 更新为JavDB的实际结构
       const titleElements = document.querySelectorAll('h2.title.is-4 .current-title, h2.title.is-4, h1, .title, .video-title, .movie-title');
-      
-      for (const titleElement of titleElements) {
+      for (let i = 0; i < titleElements.length; i++) {
+        const titleElement = titleElements[i] as HTMLElement;
         const originalTitle = titleElement.textContent?.trim();
         if (originalTitle && originalTitle.length > 5) {
-          // 创建翻译标题容器
           const translationContainer = this.createTranslationContainer(originalTitle, translatedTitle);
-          
-          // 插入翻译
           titleElement.parentElement?.insertBefore(translationContainer, titleElement.nextSibling);
           break;
         }

@@ -11,6 +11,7 @@ import { log } from '../../../../utils/logController';
 import type { ExtensionSettings, KeywordFilterRule } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
+import { aiService } from '../../../../services/ai/aiService';
 
 /**
  * 功能增强设置面板类
@@ -58,6 +59,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 配置区域元素
     private translationConfig!: HTMLDivElement;
+    // 翻译相关元素
+    private translationProviderSel!: HTMLSelectElement;
+    private traditionalServiceSel!: HTMLSelectElement;
+    private traditionalApiKeyInput!: HTMLInputElement;
+    private traditionalApiKeyGroup!: HTMLDivElement;
+    private currentTranslationServiceLabel!: HTMLElement;
+    private aiConfigContainer!: HTMLDivElement;
+    private traditionalConfigContainer!: HTMLDivElement;
+    private translateCurrentTitleChk!: HTMLInputElement;
+    private translationDisplayModeSel!: HTMLSelectElement;
+    private aiCurrentModelLabel!: HTMLElement;
+    private aiModelEmptyTip!: HTMLElement;
+    private goAiSettingsBtn!: HTMLButtonElement;
     private magnetSourcesConfig!: HTMLDivElement;
     private contentFilterConfig!: HTMLElement;
     private anchorOptimizationConfig!: HTMLElement;
@@ -126,6 +140,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 配置区域元素
         this.translationConfig = document.getElementById('translationConfig') as HTMLDivElement;
+        // 翻译相关元素
+        this.translationProviderSel = document.getElementById('translationProvider') as HTMLSelectElement;
+        this.traditionalServiceSel = document.getElementById('traditionalTranslationService') as HTMLSelectElement;
+        this.traditionalApiKeyInput = document.getElementById('traditionalApiKey') as HTMLInputElement;
+        this.traditionalApiKeyGroup = document.getElementById('traditionalApiKeyGroup') as HTMLDivElement;
+        this.currentTranslationServiceLabel = document.getElementById('currentTranslationService') as HTMLElement;
+        this.aiConfigContainer = document.getElementById('aiTranslationConfig') as HTMLDivElement;
+        this.traditionalConfigContainer = document.getElementById('traditionalTranslationConfig') as HTMLDivElement;
+        this.translateCurrentTitleChk = document.getElementById('translateCurrentTitle') as HTMLInputElement;
+        this.translationDisplayModeSel = document.getElementById('translationDisplayMode') as HTMLSelectElement;
+        this.aiCurrentModelLabel = document.getElementById('aiCurrentModel') as HTMLElement;
+        this.aiModelEmptyTip = document.getElementById('aiModelEmptyTip') as HTMLElement;
+        this.goAiSettingsBtn = document.getElementById('goAiSettingsBtn') as HTMLButtonElement;
         this.magnetSourcesConfig = document.getElementById('magnetSourcesConfig') as HTMLDivElement;
         this.contentFilterConfig = document.getElementById('contentFilterConfig') as HTMLElement;
         this.anchorOptimizationConfig = document.getElementById('anchorOptimizationConfig') as HTMLElement;
@@ -155,6 +182,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 锚点优化配置事件监听
         this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
+
+        // 翻译配置事件监听
+        this.translationProviderSel?.addEventListener('change', this.onTranslationProviderChange.bind(this));
+        this.traditionalServiceSel?.addEventListener('change', this.onTraditionalServiceChange.bind(this));
+        this.traditionalApiKeyInput?.addEventListener('input', this.handleSettingChange.bind(this));
+        this.goAiSettingsBtn?.addEventListener('click', this.navigateToAISettings.bind(this));
+        this.translateCurrentTitleChk?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.translationDisplayModeSel?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 列表增强配置事件监听
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -212,6 +247,37 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 数据增强设置
         this.enableTranslation.checked = dataEnhancement?.enableTranslation || false;
         this.cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
+
+        // 翻译配置 - 仅支持 Google 与 AI
+        const defaultTranslation = {
+            provider: 'traditional' as 'traditional' | 'ai',
+            traditional: { service: 'google' as 'google', sourceLanguage: 'ja', targetLanguage: 'zh-CN' },
+            ai: { useGlobalModel: true as boolean, customModel: '' as string | undefined }
+        };
+        const translation = (settings as any).translation || defaultTranslation;
+
+        if (this.translationProviderSel) {
+            this.translationProviderSel.value = translation.provider || 'traditional';
+        }
+        if (this.traditionalServiceSel) {
+            this.traditionalServiceSel.value = 'google';
+        }
+        // API 密钥组：Google 无需展示
+        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
+
+        // 固定使用 AI 设置中的模型，无需本地切换
+
+        // 回填目标与显示方式
+        if (this.translateCurrentTitleChk) {
+            this.translateCurrentTitleChk.checked = !!translation.targets?.currentTitle;
+        }
+        if (this.translationDisplayModeSel) {
+            this.translationDisplayModeSel.value = translation.displayMode || 'append';
+        }
+
+        // 初始显示状态
+        this.applyTranslationProviderUI();
+        await this.updateAiCurrentModelUI();
 
         // 用户体验增强设置
         this.enableContentFilter.checked = userExperience?.enableContentFilter || false;
@@ -308,6 +374,23 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableRatingAggregation: false, // 开发中，强制禁用
                     enableActorInfo: false, // 开发中，强制禁用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
+                },
+                // 翻译配置保存
+                translation: {
+                    provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',
+                    traditional: {
+                        service: 'google',
+                        apiKey: this.traditionalApiKeyInput?.value?.trim() || undefined,
+                        sourceLanguage: 'ja',
+                        targetLanguage: 'zh-CN',
+                    },
+                    ai: {
+                        useGlobalModel: true,
+                    },
+                    displayMode: (this.translationDisplayModeSel?.value as 'append' | 'replace') || 'append',
+                    targets: {
+                        currentTitle: this.translateCurrentTitleChk?.checked === true,
+                    }
                 },
                 userExperience: {
                     enableQuickCopy: false, // 开发中，强制禁用
@@ -504,6 +587,28 @@ export class EnhancementSettings extends BaseSettingsPanel {
             this.translationConfig.style.display = this.enableTranslation.checked ? 'block' : 'none';
         }
 
+        // 翻译配置 UI 回填
+        const defaultTranslation = {
+            provider: 'traditional' as 'traditional' | 'ai',
+            traditional: { service: 'google' as 'google', sourceLanguage: 'ja', targetLanguage: 'zh-CN' },
+            ai: { useGlobalModel: true as boolean, customModel: '' as string | undefined }
+        };
+        const translation = (settings as any).translation || defaultTranslation;
+        if (this.translationProviderSel) this.translationProviderSel.value = translation.provider || 'traditional';
+        if (this.traditionalServiceSel) this.traditionalServiceSel.value = 'google';
+        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
+        // 固定使用 AI 设置中的模型，无需本地切换
+
+        if (this.translateCurrentTitleChk) {
+            this.translateCurrentTitleChk.checked = !!translation.targets?.currentTitle;
+        }
+        if (this.translationDisplayModeSel) {
+            this.translationDisplayModeSel.value = translation.displayMode || 'append';
+        }
+
+        this.applyTranslationProviderUI();
+        this.updateAiCurrentModelUI();
+
         // 初始化功能增强开关
         this.initEnhancementToggles();
 
@@ -647,6 +752,72 @@ export class EnhancementSettings extends BaseSettingsPanel {
             } else {
                 this.translationConfig.style.display = 'none';
             }
+        }
+    }
+
+    /**
+     * 处理翻译服务切换
+     */
+    private onTranslationProviderChange(): void {
+        this.applyTranslationProviderUI();
+        // 更新“当前使用”标签
+        if (this.currentTranslationServiceLabel) {
+            const isAI = this.translationProviderSel?.value === 'ai';
+            this.currentTranslationServiceLabel.textContent = isAI ? 'AI 翻译' : 'Google 翻译';
+        }
+        // 若切AI，刷新模型显示
+        if (this.translationProviderSel?.value === 'ai') {
+            this.updateAiCurrentModelUI();
+        }
+        this.handleSettingChange();
+    }
+
+    /**
+     * 传统服务切换（目前仅 Google）
+     */
+    private onTraditionalServiceChange(): void {
+        // 只有 Google，无需 API Key
+        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
+        this.handleSettingChange();
+    }
+
+    // 本地不再切换 AI 模型，直接使用 AI 设置中的模型
+
+    /**
+     * 应用翻译服务 UI 显示
+     */
+    private applyTranslationProviderUI(): void {
+        const isAI = this.translationProviderSel?.value === 'ai';
+        if (this.traditionalConfigContainer) this.traditionalConfigContainer.style.display = isAI ? 'none' : 'block';
+        if (this.aiConfigContainer) this.aiConfigContainer.style.display = isAI ? 'block' : 'none';
+    }
+
+    /**
+     * 更新 AI 当前模型显示
+     */
+    private async updateAiCurrentModelUI(): Promise<void> {
+        try {
+            if (!this.aiCurrentModelLabel || !this.aiModelEmptyTip) return;
+            const ai = aiService.getSettings();
+            const model = (ai?.selectedModel || '').trim();
+            this.aiCurrentModelLabel.textContent = model || '未设置';
+            this.aiModelEmptyTip.style.display = model ? 'none' : 'block';
+        } catch (e) {
+            console.warn('[Enhancement] 获取AI当前模型失败:', e);
+        }
+    }
+
+    /**
+     * 跳转到 AI 设置
+     */
+    private navigateToAISettings(): void {
+        try {
+            // 切换到设置- AI 设置子页面
+            window.location.hash = '#tab-settings/ai-settings';
+            // 触发设置子页面切换事件，确保立即切换
+            window.dispatchEvent(new CustomEvent('settingsSubSectionChange' as any, { detail: { section: 'ai-settings' } }));
+        } catch (e) {
+            console.warn('[Enhancement] 跳转 AI 设置失败:', e);
         }
     }
 

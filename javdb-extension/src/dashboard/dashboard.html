@@ -1239,6 +1239,7 @@
                                                     </label>
                                                     <p class="input-description">下载完成后自动显示通知。</p>
                                                 </div>
+                                                
                                             </div>
                                         </div>
 
@@ -1377,7 +1378,7 @@
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>自动将日文标题翻译为中文，支持Google翻译等多种服务<br>
+                                            <strong>效果：</strong>自动将日文标题翻译为中文，支持 Google 翻译与 AI 翻译<br>
                                             <strong>使用：</strong>在视频详情页会在原标题下方显示中文翻译，帮助理解内容
                                         </p>
 
@@ -1398,11 +1399,11 @@
                                                     <i class="fas fa-cogs"></i> 翻译服务类型：
                                                 </label>
                                                 <select id="translationProvider" class="select-input" style="width: 100%;">
-                                                    <option value="traditional">传统翻译服务 (Google/百度/有道)</option>
-                                                    <option value="ai">AI翻译服务</option>
+                                                    <option value="traditional">Google 翻译</option>
+                                                    <option value="ai">AI 翻译</option>
                                                 </select>
                                                 <p class="input-description" style="margin-top: 5px; font-size: 12px;">
-                                                    传统服务稳定快速，AI服务更智能但需要配置AI设置
+                                                    Google 服务稳定快速；AI 服务更智能但需要先在 AI 设置中配置
                                                 </p>
                                             </div>
 
@@ -1414,8 +1415,6 @@
                                                     </label>
                                                     <select id="traditionalTranslationService" class="select-input" style="width: 100%;">
                                                         <option value="google">Google 翻译 (免费)</option>
-                                                        <option value="baidu">百度翻译 (需要API密钥)</option>
-                                                        <option value="youdao">有道翻译 (需要API密钥)</option>
                                                     </select>
                                                 </div>
 
@@ -1426,43 +1425,45 @@
                                                     <input type="password" id="traditionalApiKey" class="text-input"
                                                            placeholder="输入API密钥" style="width: 100%;">
                                                     <p class="input-description" style="margin-top: 5px; font-size: 12px;">
-                                                        百度翻译格式：appid:key，有道翻译格式：appKey:appSecret
+                                                        Google 翻译无需密钥
                                                     </p>
                                                 </div>
                                             </div>
 
                                             <!-- AI翻译服务配置 -->
                                             <div id="aiTranslationConfig" class="translation-provider-config" style="display: none;">
-                                                <div class="form-group" style="margin-bottom: 10px;">
-                                                    <label class="checkbox-label" style="margin-bottom: 10px;">
-                                                        <input type="checkbox" id="useGlobalAiModel">
-                                                        <span class="checkmark"></span>
-                                                        使用全局AI模型
-                                                    </label>
-                                                    <p class="input-description" style="margin-top: 5px; font-size: 12px;">
-                                                        使用AI设置中配置的全局模型，或为翻译功能单独配置模型
-                                                    </p>
-                                                </div>
-
-                                                <div id="customAiModelGroup" class="form-group" style="display: none; margin-bottom: 10px;">
-                                                    <label for="customTranslationModel" style="display: block; margin-bottom: 5px; font-weight: 500;">
-                                                        翻译专用模型：
-                                                    </label>
-                                                    <select id="customTranslationModel" class="select-input" style="width: 100%;">
-                                                        <option value="">请先在AI设置中配置API</option>
-                                                    </select>
-                                                    <p class="input-description" style="margin-top: 5px; font-size: 12px;">
-                                                        为翻译功能单独选择模型，建议选择成本较低的模型
-                                                    </p>
-                                                </div>
-
                                                 <div class="ai-translation-status" style="padding: 10px; background: #e3f2fd; border-radius: 4px; margin-top: 10px;">
                                                     <div style="display: flex; align-items: center; gap: 8px;">
                                                         <i class="fas fa-info-circle" style="color: #1976d2;"></i>
                                                         <span style="font-size: 12px; color: #1976d2;">
-                                                            AI翻译需要先在"AI设置"中配置API密钥和服务地址
+                                                            AI 翻译将直接使用“AI 设置”中的当前模型。如未设置，请先前往配置
                                                         </span>
                                                     </div>
+                                                    <div style="margin-top:8px; font-size: 12px; color:#333;">
+                                                        当前模型：<span id="aiCurrentModel" style="font-weight:600; color:#007bff;">未设置</span>
+                                                        <button id="goAiSettingsBtn" class="btn-secondary btn-sm" style="margin-left:8px;">前往 AI 设置</button>
+                                                    </div>
+                                                    <div id="aiModelEmptyTip" style="display:none; margin-top:8px; font-size:12px; color:#d9534f;">
+                                                        未检测到当前模型，请点击“前往 AI 设置”进行配置
+                                                    </div>
+                                                </div>
+
+                                                <!-- 翻译目标与显示方式配置（AI 翻译） -->
+                                                <div class="form-group" style="margin-top: 12px;">
+                                                    <label style="display:block; margin-bottom:6px; font-weight:600;">翻译目标位置</label>
+                                                    <label class="checkbox-label" style="display:flex; align-items:center; gap:8px;">
+                                                        <input type="checkbox" id="translateCurrentTitle">
+                                                        <span class="checkmark"></span>
+                                                        影片页标题（current-title）
+                                                    </label>
+                                                </div>
+
+                                                <div class="form-group" style="margin-top: 8px;">
+                                                    <label for="translationDisplayMode" style="display:block; margin-bottom:6px; font-weight:600;">显示方式</label>
+                                                    <select id="translationDisplayMode" class="select-input" style="width: 100%;">
+                                                        <option value="append">保留原始（追加显示）</option>
+                                                        <option value="replace">替换原始标题</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
