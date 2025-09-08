@@ -317,7 +317,7 @@ export function onExecute() {
 }
 
 // 监听来自popup或dashboard的设置更新// 消息监听器
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'settings-updated') {
         log('Settings updated, reloading settings and reprocessing items');
         // 重新加载设置并重新处理页面项目
@@ -329,7 +329,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             // 在默认隐藏功能处理完后，重新应用智能过滤
             if (settings.userExperience.enableContentFilter) {
                 setTimeout(() => {
-                    contentFilterManager.applyFilters();
+                    // 使用公开方法触发重新应用：更新关键字规则会在已初始化时清理并重新应用过滤
+                    const keywordRules = settings.contentFilter?.keywordRules || [];
+                    contentFilterManager.updateKeywordRules(keywordRules);
                     log('Content filter reapplied after settings update');
                 }, 100);
             }
@@ -354,23 +356,25 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         }
     } else if (message.type === 'ACTOR_ENHANCEMENT_SAVE_FILTER') {
         // 保存当前演员页过滤器
-        try {
-            await actorEnhancementManager.saveCurrentTagFilter();
-            sendResponse({ success: true });
-        } catch (error) {
-            console.error('保存演员页过滤器失败:', error);
-            sendResponse({ success: false, error: error.message });
-        }
+        actorEnhancementManager.saveCurrentTagFilter()
+            .then(() => {
+                sendResponse({ success: true });
+            })
+            .catch((error: any) => {
+                console.error('保存演员页过滤器失败:', error);
+                sendResponse({ success: false, error: (error && error.message) || String(error) });
+            });
         return true; // 保持消息通道开放
     } else if (message.type === 'ACTOR_ENHANCEMENT_CLEAR_FILTERS') {
         // 清除所有保存的过滤器
-        try {
-            await actorEnhancementManager.clearSavedFilters();
-            sendResponse({ success: true });
-        } catch (error) {
-            console.error('清除演员页过滤器失败:', error);
-            sendResponse({ success: false, error: error.message });
-        }
+        actorEnhancementManager.clearSavedFilters()
+            .then(() => {
+                sendResponse({ success: true });
+            })
+            .catch((error: any) => {
+                console.error('清除演员页过滤器失败:', error);
+                sendResponse({ success: false, error: (error && error.message) || String(error) });
+            });
         return true; // 保持消息通道开放
     } else if (message.type === 'ACTOR_ENHANCEMENT_GET_STATUS') {
         // 获取演员页增强状态

@@ -769,6 +769,11 @@ export class ActorsTab {
                             <label for="edit-actor-avatar">头像URL:</label>
                             <input type="url" id="edit-actor-avatar" value="${actor.avatarUrl || ''}" />
                         </div>
+                        <div class="form-group-checkbox">
+                            <input type="checkbox" id="edit-actor-blacklisted" ${actor.blacklisted ? 'checked' : ''} />
+                            <label for="edit-actor-blacklisted">加入黑名单</label>
+                            <small class="form-hint">仅本地偏好，不影响收藏同步</small>
+                        </div>
                     </div>
                     <div class="json-editor">
                         <label for="edit-actor-json">原始JSON数据:</label>
@@ -795,6 +800,7 @@ export class ActorsTab {
         const genderSelect = modal.querySelector('#edit-actor-gender') as HTMLSelectElement;
         const categorySelect = modal.querySelector('#edit-actor-category') as HTMLSelectElement;
         const avatarInput = modal.querySelector('#edit-actor-avatar') as HTMLInputElement;
+        const blacklistedCheckbox = modal.querySelector('#edit-actor-blacklisted') as HTMLInputElement;
         const jsonTextarea = modal.querySelector('#edit-actor-json') as HTMLTextAreaElement;
 
         // 表单到JSON的转换
@@ -806,6 +812,9 @@ export class ActorsTab {
                 gender: genderSelect.value as 'female' | 'male' | 'unknown',
                 category: categorySelect.value as 'censored' | 'uncensored' | 'western' | 'unknown',
                 avatarUrl: avatarInput.value.trim() || undefined,
+                blacklisted: !!(blacklistedCheckbox && blacklistedCheckbox.checked),
+                profileUrl: actor.profileUrl,
+                worksUrl: actor.worksUrl,
                 details: actor.details,
                 syncInfo: actor.syncInfo,
                 createdAt: actor.createdAt,
@@ -824,6 +833,7 @@ export class ActorsTab {
                 genderSelect.value = jsonData.gender || 'unknown';
                 categorySelect.value = jsonData.category || 'unknown';
                 avatarInput.value = jsonData.avatarUrl || '';
+                if (blacklistedCheckbox) blacklistedCheckbox.checked = !!jsonData.blacklisted;
             } catch (error) {
                 showMessage('JSON格式错误，无法解析', 'error');
             }

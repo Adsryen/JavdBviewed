@@ -241,6 +241,8 @@ export async function handlePushToDrive115(
     magnetUrl: string,
     magnetName: string
 ): Promise<void> {
+    // 记录将要使用的保存目录（仅 v2 有意义），需在 try/catch 之外声明避免作用域问题
+    let currentWpPathId: string | undefined = undefined;
     try {
         // 检查115功能是否启用
         const enabled = await isDrive115Enabled();
@@ -259,8 +261,6 @@ export async function handlePushToDrive115(
 
         // 根据版本选择推送方式：v2 直接调用 API；否则走跨域（v1）
         let result: { success: boolean; data?: any; error?: string };
-        // 记录将要使用的保存目录（仅 v2 有意义）
-        let currentWpPathId: string | undefined = undefined;
         if (await isV2Enabled()) {
             // v2 支持一次多个URL，这里单个拼接即可
             const urls = magnetUrl; // 单条
