@@ -814,9 +814,9 @@ export class NewWorksTab {
                                         </div>
                                     </div>
                                     <div class="subscription-actions">
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" ${sub.enabled ? 'checked' : ''} data-action="toggle">
-                                            <span class="toggle-slider"></span>
+                                        <label class="ui-toggle">
+                                            <input class="ui-toggle__input" type="checkbox" ${sub.enabled ? 'checked' : ''} data-action="toggle">
+                                            <span class="ui-toggle__slider"></span>
                                         </label>
                                         <button class="btn-danger" data-action="remove">
                                             <i class="fas fa-trash"></i> 移除

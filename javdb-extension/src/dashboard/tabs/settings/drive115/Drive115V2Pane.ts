@@ -160,8 +160,22 @@ export class Drive115V2Pane implements IDrive115Pane {
     const v2AccessTokenInput = document.getElementById('drive115V2AccessToken') as (HTMLInputElement | HTMLTextAreaElement | null);
     v2AccessTokenInput?.addEventListener('input', () => {
       const val = (v2AccessTokenInput as any).value || '';
-      this.ctx?.update({ v2AccessToken: (val as string).trim() });
+      const trimmed = (val as string).trim();
+      // 当手动修改 access_token 时：
+      // 1) 持久化新的 access_token
+      // 2) 将到期时间重置为当前时间起 2 小时（7200 秒）
+      // 3) 标记用户信息未过期（与 UI 提示相关）
+      const nowSec = Math.floor(Date.now() / 1000);
+      const twoHoursLater = nowSec + 7200;
+      this.ctx?.update({
+        v2AccessToken: trimmed,
+        v2TokenExpiresAt: twoHoursLater,
+        // 与 UI 关联的过期提示标记（若存在该字段，则置为未过期）
+        v2UserInfoExpired: false as any,
+      });
+      // 立刻保存并刷新 UI，让“到期时间/倒计时”即时更新
       this.ctx?.save?.();
+      this.ctx?.updateUI?.();
       if (v2AccessTokenInput && 'rows' in v2AccessTokenInput) this.autoResize(v2AccessTokenInput as HTMLTextAreaElement);
     });
     // 初始也调整一次高度
