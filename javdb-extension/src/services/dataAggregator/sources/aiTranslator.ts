@@ -111,20 +111,15 @@ export class AITranslatorService {
         throw new Error('No AI model configured for translation');
       }
 
-      // 发送AI请求
-      const response = await aiService.chat({
-        messages,
-        model,
-        maxTokens: 500, // 翻译通常不需要太多token
-        temperature: 0.3, // 翻译需要较低的创造性
-        stream: false
-      });
+      // 发送AI请求（使用统一的 sendMessage 接口）
+      // aiService 会使用其 settings.selectedModel；此处已在上面决定 model，并依赖“全局模型”生效
+      const chatResponse = await aiService.sendMessage(messages as any);
 
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'AI translation request failed');
+      const reply = chatResponse?.choices?.[0]?.message?.content || '';
+      const translatedText = reply.trim();
+      if (!translatedText) {
+        throw new Error('Empty translation content');
       }
-
-      const translatedText = response.data.content.trim();
 
       return {
         originalText: text,
