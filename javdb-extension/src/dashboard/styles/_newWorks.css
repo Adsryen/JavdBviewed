@@ -1,3 +1,51 @@
+/* === 订阅管理弹窗滑块 - 最终覆盖，避免全局干扰 === */
+.subscription-management-modal .toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  vertical-align: middle;
+  line-height: 0;
+}
+.subscription-management-modal .toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.subscription-management-modal .toggle-switch .toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background: #dfe3e6;
+  cursor: pointer;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+.subscription-management-modal .toggle-switch .toggle-slider:before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s ease;
+}
+.subscription-management-modal .toggle-switch input:checked + .toggle-slider {
+  background: #0d6efd;
+  box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.15);
+}
+.subscription-management-modal .toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+.subscription-management-modal .toggle-switch .toggle-slider:hover {
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+.subscription-management-modal .toggle-switch input:focus + .toggle-slider {
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
 /* 新作品标签页样式 */
 
 /* CSS变量定义 */
@@ -595,12 +643,126 @@
     width: 800px;
 }
 
+/* 演员选择器（添加订阅）弹窗 - 浅色主题覆盖 */
+.actor-selector-modal .modal-overlay {
+    background-color: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.actor-selector-modal .modal-content {
+    background: #ffffff;
+    color: #212529;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.actor-selector-modal .modal-header,
+.actor-selector-modal .modal-footer {
+    background-color: #ffffff;
+    border-color: #e9ecef;
+}
+
+.actor-selector-modal .modal-header h3 {
+    color: #212529;
+}
+
+.actor-selector-modal .modal-close-btn {
+    color: #6c757d;
+}
+
+.actor-selector-modal .modal-close-btn:hover {
+    color: #343a40;
+}
+
 .new-works-config-modal .modal-content {
     width: 600px;
 }
 
 .subscription-management-modal .modal-content {
     width: 700px;
+}
+
+/* 订阅管理弹窗 - 浅色主题覆盖 */
+.subscription-management-modal .modal-overlay {
+    /* 覆盖通用深色遮罩，改为浅色半透明并增加毛玻璃效果 */
+    background-color: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.subscription-management-modal .modal-content {
+    /* 白底 + 浅边框 + 柔和阴影 */
+    background: #ffffff;
+    color: #212529;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.subscription-management-modal .modal-header,
+.subscription-management-modal .modal-footer {
+    background-color: #ffffff;
+    border-color: #e9ecef;
+}
+
+.subscription-management-modal .modal-header h3 {
+    color: #212529;
+}
+
+.subscription-management-modal .modal-close-btn {
+    color: #6c757d;
+}
+
+.subscription-management-modal .modal-close-btn:hover {
+    color: #343a40;
+}
+
+/* 列表项与控件在浅色主题下的微调，保证层级对比与可读性 */
+.subscription-management-modal .subscription-item {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+}
+
+.subscription-management-modal .subscription-name {
+    color: #212529;
+}
+
+.subscription-management-modal .subscription-meta {
+    color: #6c757d;
+}
+
+.subscription-management-modal .toggle-slider {
+    background-color: #dfe3e6;
+    display: block;            /* 防止行内元素高度计算异常 */
+    height: 24px;              /* 确保与容器一致 */
+    border-radius: 24px;       /* 圆角容器 */
+    position: absolute;        /* 显式定位，防全局样式覆盖 */
+    top: 0; left: 0; right: 0; bottom: 0;
+    cursor: pointer;           /* 手势提示 */
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.subscription-management-modal input:checked + .toggle-slider {
+    background-color: #0d6efd; /* 浅色主题下的主色 */
+    box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.15);
+}
+
+/* 修正滑块小圆点的垂直对齐（使用 top 而非 bottom） */
+.subscription-management-modal .toggle-slider:before {
+    top: 3px;
+    left: 3px;
+    bottom: auto;
+    width: 18px;               /* 显式尺寸，避免被全局覆盖 */
+    height: 18px;
+    transition: transform 0.25s ease;
+}
+
+/* 容器本身的对齐优化 */
+.subscription-management-modal .toggle-switch {
+    vertical-align: middle;
+    position: relative;          /* 统一定位上下文 */
+    width: 44px;                 /* 统一宽度 */
+    height: 24px;                /* 统一高度 */
+    display: inline-block;       /* 防止行高干扰 */
+    line-height: 0;              /* 避免继承行高影响内部定位 */
 }
 
 .modal-header {
