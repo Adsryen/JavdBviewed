@@ -68,6 +68,10 @@ export async function initDrive115Features(): Promise<void> {
             await addDrive115ButtonToDetailPage();
         }
 
+        // 等待容器元素出现，避免初始化过早导致刷新后不渲染
+        await waitForElement('#drive115-user-box', 5000, 150);
+        await waitForElement('#drive115-user-status', 3000, 150);
+
         // 渲染115用户配额（只读缓存）；并绑定刷新按钮
         try {
             await refreshDrive115QuotaUI({ forceRefresh: false });
@@ -99,7 +103,12 @@ async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promis
     try {
         const statusEl = document.getElementById('drive115-user-status');
         // 刷新按钮在 init 中统一绑定
-        const userBox = document.getElementById('drive115-user-box');
+        let userBox = document.getElementById('drive115-user-box');
+        if (!userBox) {
+            // 尝试短暂等待容器出现
+            await waitForElement('#drive115-user-box', 2000, 100);
+            userBox = document.getElementById('drive115-user-box');
+        }
 
         // 先只从本地存储读取，不进行网络请求
         let cached: any | null = null;
@@ -121,7 +130,7 @@ async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promis
                     statusEl.setAttribute('title', ua);
                 }
                 // 渲染配额区块（仅使用缓存）
-                renderQuotaSection(userBox, cached.data, cached.updatedAt);
+                renderQuotaSection(userBox as HTMLElement | null, cached.data, cached.updatedAt);
             } else {
                 // 没有缓存，保持不拉取，仅提示状态
                 console.log('[Drive115] Quota(cache): 未找到本地缓存（不触发网络请求）');
@@ -130,7 +139,7 @@ async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promis
                     statusEl.setAttribute('title', '');
                 }
                 // 清空或占位
-                renderQuotaSection(userBox, null, undefined);
+                renderQuotaSection(userBox as HTMLElement | null, null, undefined);
             }
         } else {
             // 仅在强制刷新时才进行网络请求，并在成功后由服务写回存储
@@ -148,7 +157,7 @@ async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promis
                     statusEl.setAttribute('title', ua);
                 }
                 // 渲染最新配额
-                renderQuotaSection(userBox, fresh.data || null, fresh.updatedAt);
+                renderQuotaSection(userBox as HTMLElement | null, fresh.data || null, fresh.updatedAt);
             } else {
                 console.warn('[Drive115] 手动刷新配额失败：', fresh.message);
                 if (statusEl) statusEl.textContent = '刷新失败';

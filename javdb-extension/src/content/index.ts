@@ -74,6 +74,28 @@ async function initialize(): Promise<void> {
     log(`Loaded ${Object.keys(STATE.records).length} records.`);
     log('Display settings:', STATE.settings.display);
 
+    // 提前保存原始 favicon，供后续状态切换使用（优先级最高的 UI 反馈）
+    const earlyFaviconLink = document.querySelector<HTMLLinkElement>(SELECTORS.FAVICON);
+    if (earlyFaviconLink) {
+        STATE.originalFaviconUrl = earlyFaviconLink.href;
+        log(`Original favicon URL saved (early): ${STATE.originalFaviconUrl}`);
+    } else {
+        log('No favicon link found (early)');
+    }
+
+    // 若为影片详情页，优先执行：识别/回写 + 立即更新网页 icon（不再等待 1s 延迟）
+    if (window.location.pathname.startsWith('/v/')) {
+        await handleVideoDetailPage();
+        // 立刻检查并更新状态（包括 favicon 与标题）
+        checkAndUpdateVideoStatus();
+        // 定期复查以应对动态变动
+        setInterval(checkAndUpdateVideoStatus, 2000);
+        // 初始化115功能（保持与之前相近的延时初始化，避免阻塞首屏与状态UI）
+        setTimeout(() => {
+            initDrive115Features();
+        }, 1500);
+    }
+
     // 初始化缓存系统
     if (settings.dataEnhancement.enableImageCache) {
         log('Cache system initialized');
@@ -256,13 +278,7 @@ async function initialize(): Promise<void> {
         log('Search page detected (/search?q=...), hiding functions will be disabled.');
     }
 
-    const faviconLink = document.querySelector<HTMLLinkElement>(SELECTORS.FAVICON);
-    if (faviconLink) {
-        STATE.originalFaviconUrl = faviconLink.href;
-        log(`Original favicon URL saved: ${STATE.originalFaviconUrl}`);
-    } else {
-        log('No favicon link found');
-    }
+    // 注意：原始 favicon 已在上方提前保存，这里无需再次保存
 
     processVisibleItems();
     setupObserver();
@@ -275,22 +291,7 @@ async function initialize(): Promise<void> {
         }, 100); // 短暂延迟确保默认隐藏功能先执行
     }
 
-    if (window.location.pathname.startsWith('/v/')) {
-        await handleVideoDetailPage();
-
-        // 初始状态检查
-        setTimeout(() => {
-            checkAndUpdateVideoStatus();
-        }, 1000);
-
-        // 初始化115功能
-        setTimeout(() => {
-            initDrive115Features();
-        }, 1500);
-
-        // 定期检查状态（每2秒）
-        setInterval(checkAndUpdateVideoStatus, 2000);
-    } else {
+    if (!window.location.pathname.startsWith('/v/')) {
         // 在列表页也初始化115功能
         setTimeout(() => {
             initDrive115Features();
