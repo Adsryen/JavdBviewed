@@ -175,26 +175,7 @@ export class DataAggregator {
       };
     }
 
-    // 尝试从缓存获取
-    if (this.config.enableCache) {
-      const cached = await globalCache.getTranslation(text);
-      if (cached) {
-        return {
-          success: true,
-          data: {
-            originalText: text,
-            translatedText: cached,
-            sourceLanguage: 'ja',
-            targetLanguage: 'zh-CN',
-            service: 'cached',
-            timestamp: Date.now(),
-          },
-          source: 'Cache',
-          timestamp: Date.now(),
-          cached: true,
-        };
-      }
-    }
+    // 取消翻译缓存：总是直接调用翻译服务
 
     // 根据配置选择翻译服务
     let result: ApiResponse<TranslationResult>;
@@ -208,12 +189,6 @@ export class DataAggregator {
       result = await this.translator.translate(text);
     }
 
-    // 缓存翻译结果
-    if (result.success && result.data && this.config.enableCache) {
-      const ttl = this.config.cacheExpiration * 60 * 60 * 1000;
-      await globalCache.setTranslation(text, result.data.translatedText, ttl);
-    }
-
     return result;
   }
 
@@ -221,34 +196,9 @@ export class DataAggregator {
    * 使用AI翻译文本
    */
   async translateTextWithAI(text: string): Promise<ApiResponse<TranslationResult>> {
-    // 尝试从缓存获取
-    if (this.config.enableCache) {
-      const cached = await globalCache.getTranslation(text);
-      if (cached) {
-        return {
-          success: true,
-          data: {
-            originalText: text,
-            translatedText: cached,
-            sourceLanguage: 'ja',
-            targetLanguage: 'zh-CN',
-            service: 'cached',
-            timestamp: Date.now(),
-          },
-          source: 'Cache',
-          timestamp: Date.now(),
-          cached: true,
-        };
-      }
-    }
+    // 取消翻译缓存：总是直接调用 AI 翻译服务
 
     const result = await this.aiTranslator.translate(text);
-
-    // 缓存翻译结果
-    if (result.success && result.data && this.config.enableCache) {
-      const ttl = this.config.cacheExpiration * 60 * 60 * 1000;
-      await globalCache.setTranslation(text, result.data.translatedText, ttl);
-    }
 
     return result;
   }

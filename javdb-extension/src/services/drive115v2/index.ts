@@ -146,6 +146,115 @@ class Drive115V2Service {
     return this.instance;
   }
 
+  /**
+   * 获取离线配额信息（v2）
+   * GET {baseURL}/open/offline/get_quota_info
+   * Header: Authorization: Bearer <access_token>
+   */
+  async getQuotaInfo(params: { accessToken: string }): Promise<
+    { success: boolean; message?: string; raw?: Drive115V2QuotaResponse } & { data?: Drive115V2QuotaInfo }
+  > {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' } as any;
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/offline/get_quota_info`;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取离线配额信息（v2）' });
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const msg = `获取离线配额网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg } as any;
+      }
+
+      const json: Drive115V2QuotaResponse = await res.json().catch(() => ({} as any));
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        const msg = describe115Error(json) || json.message || '获取配额失败';
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取离线配额失败：${msg}` });
+        return { success: false, message: msg, raw: json } as any;
+      }
+
+      // 兼容 data 直接为数组或对象
+      let info: Drive115V2QuotaInfo | undefined = undefined;
+      if (json && typeof json === 'object') {
+        if (json.data && typeof json.data === 'object') {
+          if (Array.isArray(json.data)) {
+            info = { list: json.data as any[] } as Drive115V2QuotaInfo;
+          } else {
+            info = json.data as Drive115V2QuotaInfo;
+          }
+        } else {
+          // 回退：将可能的已知字段平铺映射
+          const candidate: any = json;
+          const picked: any = {};
+          let hasAny = false;
+          for (const k of ['total','used','surplus','list']) {
+            if (k in candidate) { picked[k] = candidate[k]; hasAny = true; }
+          }
+          if (hasAny) info = picked as Drive115V2QuotaInfo;
+        }
+      }
+
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取离线配额信息成功（v2）' });
+      return { success: true, data: info, raw: json } as any;
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '获取配额失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取离线配额异常：${msg}` });
+      return { success: false, message: msg } as any;
+    }
+  }
+
+  /**
+   * 存储优先获取离线配额：默认仅读取本地缓存；仅在 forceRefresh 时进行网络请求并持久化
+   * 缓存键：chrome.storage.local['drive115_quota_cache'] => { data: Drive115V2QuotaInfo, updatedAt: number }
+   */
+  async getQuotaInfoAuto(opts?: { forceAutoRefresh?: boolean; forceRefresh?: boolean }): Promise<
+    { success: boolean; data?: Drive115V2QuotaInfo; cached?: boolean; updatedAt?: number; message?: string; raw?: Drive115V2QuotaResponse }
+  > {
+    try {
+      // 1) 读取本地缓存
+      try {
+        const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
+        const cached = bag?.['drive115_quota_cache'];
+        if (!opts?.forceRefresh && cached && cached.data) {
+          return { success: true, data: cached.data as Drive115V2QuotaInfo, cached: true, updatedAt: Number(cached.updatedAt) || undefined } as any;
+        }
+      } catch {}
+
+      // 2) 非强制刷新则直接返回“未命中缓存”
+      if (!opts?.forceRefresh) {
+        return { success: false, message: 'no-cache' } as any;
+      }
+
+      // 3) 强制刷新：获取有效 token 并请求网络
+      const vt = await this.getValidAccessToken({ forceAutoRefresh: !!opts?.forceAutoRefresh });
+      if (!vt.success) return { success: false, message: vt.message } as any;
+
+      const fresh = await this.getQuotaInfo({ accessToken: vt.accessToken });
+      if (!fresh.success) return { success: false, message: fresh.message, raw: fresh.raw } as any;
+
+      // 4) 写回本地缓存
+      const record = { data: fresh.data || ({} as Drive115V2QuotaInfo), updatedAt: Date.now() };
+      try {
+        await (chrome as any)?.storage?.local?.set?.({ 'drive115_quota_cache': record });
+      } catch {}
+
+      return { success: true, data: record.data, cached: false, updatedAt: record.updatedAt, raw: fresh.raw } as any;
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '获取配额失败';
+      return { success: false, message: msg } as any;
+    }
+  }
+
   private constructor() {}
 
   // 预留：手动刷新 access_token（未来会调用 https://api.oplist.org/ 流程）

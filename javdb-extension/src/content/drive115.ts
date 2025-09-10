@@ -3,6 +3,7 @@
  */
 
 import { isDrive115Enabled, isV2Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
+import { getDrive115V2Service } from '../services/drive115v2';
 import { addLogV2 } from '../services/drive115v2/logs';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
@@ -67,13 +68,156 @@ export async function initDrive115Features(): Promise<void> {
             await addDrive115ButtonToDetailPage();
         }
 
+        // 渲染115用户配额（只读缓存）；并绑定刷新按钮
+        try {
+            await refreshDrive115QuotaUI({ forceRefresh: false });
+        } catch (e) {
+            console.warn('[Drive115] 初次渲染配额失败：', e);
+        }
+        try {
+            const refreshBtn = document.getElementById('drive115-refresh-btn');
+            if (refreshBtn && !(refreshBtn as any)._bound_drive115_quota_refresh) {
+                (refreshBtn as any)._bound_drive115_quota_refresh = true;
+                refreshBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        await refreshDrive115QuotaUI({ forceRefresh: true });
+                    } catch (err) {
+                        console.warn('[Drive115] 点击刷新配额异常：', err);
+                    }
+                });
+            }
+        } catch {}
+
         // 静默完成115功能初始化
     } catch (error) {
         console.error('初始化115功能失败:', error);
     }
 }
 
+async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promise<void> {
+    try {
+        const statusEl = document.getElementById('drive115-user-status');
+        // 刷新按钮在 init 中统一绑定
+        const userBox = document.getElementById('drive115-user-box');
 
+        // 先只从本地存储读取，不进行网络请求
+        let cached: any | null = null;
+        try {
+            const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
+            cached = bag?.['drive115_quota_cache'] || null;
+        } catch {}
+
+        if (!opts?.forceRefresh) {
+            // 初始化或普通渲染：仅展示缓存，不触发拉取
+            if (cached && cached.data) {
+                const t = cached.data.total ?? 'n/a';
+                const u = cached.data.used ?? 'n/a';
+                const s = cached.data.surplus ?? 'n/a';
+                const ua = cached.updatedAt ? new Date(cached.updatedAt).toLocaleString() : '';
+                console.log(`[Drive115] Quota(cache): total=${t} used=${u} surplus=${s} updatedAt=${ua}`);
+                if (statusEl) {
+                    statusEl.textContent = '已缓存';
+                    statusEl.setAttribute('title', ua);
+                }
+                // 渲染配额区块（仅使用缓存）
+                renderQuotaSection(userBox, cached.data, cached.updatedAt);
+            } else {
+                // 没有缓存，保持不拉取，仅提示状态
+                console.log('[Drive115] Quota(cache): 未找到本地缓存（不触发网络请求）');
+                if (statusEl) {
+                    statusEl.textContent = '未缓存';
+                    statusEl.setAttribute('title', '');
+                }
+                // 清空或占位
+                renderQuotaSection(userBox, null, undefined);
+            }
+        } else {
+            // 仅在强制刷新时才进行网络请求，并在成功后由服务写回存储
+            const svc = getDrive115V2Service();
+            if (statusEl) statusEl.textContent = '刷新中...';
+            const fresh = await svc.getQuotaInfoAuto({ forceAutoRefresh: true, forceRefresh: true });
+            if (fresh.success) {
+                const ft = fresh.data?.total ?? 'n/a';
+                const fu = fresh.data?.used ?? 'n/a';
+                const fs = fresh.data?.surplus ?? 'n/a';
+                const ua = fresh.updatedAt ? new Date(fresh.updatedAt).toLocaleString() : '';
+                console.log(`[Drive115] Quota(manual): total=${ft} used=${fu} surplus=${fs} updatedAt=${ua}`);
+                if (statusEl) {
+                    statusEl.textContent = '实时';
+                    statusEl.setAttribute('title', ua);
+                }
+                // 渲染最新配额
+                renderQuotaSection(userBox, fresh.data || null, fresh.updatedAt);
+            } else {
+                console.warn('[Drive115] 手动刷新配额失败：', fresh.message);
+                if (statusEl) statusEl.textContent = '刷新失败';
+            }
+        }
+    } catch (error) {
+        console.error('刷新配额UI失败：', error);
+    }
+}
+
+function renderQuotaSection(containerEl: HTMLElement | null, data: any | null, updatedAt?: number) {
+    try {
+        if (!containerEl) return;
+        // 查找或创建配额区块容器
+        let q: HTMLDivElement | null = containerEl.querySelector('#drive115-quota-section') as HTMLDivElement | null;
+        if (!q) {
+            q = document.createElement('div');
+            q.id = 'drive115-quota-section';
+            q.style.marginTop = '6px';
+            q.style.fontSize = '12px';
+            q.style.color = '#444';
+            containerEl.appendChild(q);
+        }
+
+        if (!data || typeof data !== 'object') {
+            q.innerHTML = `<div style="font-size:12px; color:#888;">暂无配额数据</div>`;
+            return;
+        }
+
+        // 数值与百分比
+        const total = Number(data.total ?? 0);
+        const used = Number(data.used ?? 0);
+        const surplus = Number(data.surplus ?? Math.max(0, total - used));
+        const percent = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0;
+
+        const fmt = (v: number) => formatBytesSmart(v);
+        const uaText = updatedAt ? new Date(updatedAt).toLocaleString() : '';
+
+        q.innerHTML = `
+          <div id="drive115-quota-lines" style="margin-top:6px; font-size:12px; color:#444;">
+            <div>总空间：<span id="drive115-quota-total">${fmt(total)}</span></div>
+            <div>已使用：<span id="drive115-quota-used">${fmt(used)}</span></div>
+            <div>剩余：<span id="drive115-quota-surplus">${fmt(surplus)}</span></div>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
+              <span>空间使用</span>
+              <span id="drive115-quota-percent">${percent.toFixed(0)}%（已用 ${fmt(used)} / 总 ${fmt(total)}）</span>
+            </div>
+            <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
+              <div id="drive115-quota-bar" style="height:100%; width:${percent}%; background:#ff9800; transition:width .3s ease;"></div>
+            </div>
+          </div>
+          <div id="drive115-quota-updated" style="margin-top:6px; font-size:11px; color:#888;">${uaText ? `更新于：${uaText}` : ''}</div>
+        `;
+    } catch (e) {
+        console.warn('[Drive115] 渲染配额区块失败：', e);
+    }
+}
+
+function formatBytesSmart(n?: number): string {
+    if (typeof n !== 'number' || isNaN(n)) return '0 B';
+    const units = ['B','KB','MB','GB','TB','PB'];
+    let v = n;
+    let i = 0;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    const digits = v >= 100 ? 0 : v >= 10 ? 1 : 2;
+    return `${v.toFixed(digits)}${units[i]}`;
+}
 
 /**
  * 在详情页添加115按钮
@@ -95,8 +239,6 @@ async function addDrive115ButtonToDetailPage(): Promise<void> {
     // 为每个磁力链接添加"推送115"按钮
     addPushButtonsToMagnetItems(videoId);
 }
-
-
 
 /**
  * 查找磁链区域

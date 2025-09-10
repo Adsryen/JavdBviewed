@@ -174,7 +174,11 @@ export class VideoDetailEnhancer {
     }
 
     if (this.options.enableTranslation && this.enhancedData.translatedTitle) {
-      promises.push(this.enhanceTitle(this.enhancedData.translatedTitle));
+      // 如果已通过 current-title 定点翻译插入了翻译块，则避免再次使用聚合层的缓存译文，防止重复
+      const alreadyHasTranslation = document.querySelector('.enhanced-translation');
+      if (!alreadyHasTranslation) {
+        promises.push(this.enhanceTitle(this.enhancedData.translatedTitle));
+      }
     }
 
     if (this.options.enableRating && this.enhancedData.ratings) {
