@@ -127,7 +127,8 @@ export class AITranslatorService {
         sourceLanguage: this.config.sourceLanguage,
         targetLanguage: this.config.targetLanguage,
         confidence: 0.9, // AI翻译的置信度
-        service: 'ai',
+        // 在 service 字段中包含具体模型，便于前端控制台输出引擎/模型来源
+        service: `ai:${model}`,
         timestamp: Date.now(),
       };
     } catch (error) {

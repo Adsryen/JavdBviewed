@@ -156,6 +156,9 @@ export class Drive115V2Pane implements IDrive115Pane {
     v2AutoRefreshSkewInput?.addEventListener('change', onSkewChange);
     v2AutoRefreshSkewInput?.addEventListener('input', onSkewChange);
 
+    // 动态注入：最小自动刷新间隔（分钟，>=30）+ 最近自动刷新时间（只读展示）
+    this.injectRefreshIntervalUI();
+
     // access_token 输入（兼容 input 或 textarea）
     const v2AccessTokenInput = document.getElementById('drive115V2AccessToken') as (HTMLInputElement | HTMLTextAreaElement | null);
     v2AccessTokenInput?.addEventListener('input', () => {
@@ -211,6 +214,9 @@ export class Drive115V2Pane implements IDrive115Pane {
         this.setUserInfoStatus('请先填写 refresh_token', 'error');
         return;
       }
+      // 限频校验：手动刷新也受“最小自动刷新间隔(分钟)”限制（不低于30）
+      const allow = await this.isManualRefreshAllowed_();
+      if (!allow) return;
       this.setUserInfoStatus('刷新中…', 'info');
       try {
         const svc = getDrive115V2Service();
@@ -232,6 +238,21 @@ export class Drive115V2Pane implements IDrive115Pane {
           v2TokenExpiresAt: (typeof expires_at === 'number' ? expires_at : null)
         });
         this.ctx?.save?.();
+        // 写入“最近接口刷新时间”，并确保最小间隔配置不低于30
+        try {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const settings: any = await getSettings();
+          const ns: any = { ...settings };
+          const minMin = Math.max(30, Number((settings?.drive115 || {}).v2MinRefreshIntervalMin ?? 60) || 60);
+          ns.drive115 = {
+            ...(settings?.drive115 || {}),
+            v2LastTokenRefreshAtSec: nowSec,
+            v2MinRefreshIntervalMin: minMin,
+          };
+          await saveSettings(ns);
+          // 同步刷新 UI 的“最近自动刷新时间”
+          await this.updateRefreshIntervalUIFromStorage();
+        } catch {}
         // 立即刷新UI以更新到期时间显示
         this.ctx?.updateUI?.();
         // 自适应高度
@@ -427,6 +448,8 @@ export class Drive115V2Pane implements IDrive115Pane {
       // 再次隐藏旧版下载目录行（防止其他代码重新显示）
       this.hideLegacyDownloadDirRow();
       this.hideLegacyDownloadDirByText();
+      // 同步刷新限频UI显示
+      this.updateRefreshIntervalUIFromStorage();
     }
   }
 
@@ -571,5 +594,115 @@ export class Drive115V2Pane implements IDrive115Pane {
     const div = document.createElement('div');
     div.textContent = text ?? '';
     return div.innerHTML;
+  }
+
+  // 动态注入“最小自动刷新间隔(分钟)”与“最近自动刷新时间”UI
+  private async injectRefreshIntervalUI(): Promise<void> {
+    try {
+      // 优先锚定在“提前刷新秒数”控件所在行附近
+      const skewEl = document.getElementById('drive115V2AutoRefreshSkewSec') as HTMLElement | null;
+      const atEl = document.getElementById('drive115V2AccessToken') as HTMLElement | null;
+      let host: HTMLElement | null = null;
+
+      const findRow = (el: HTMLElement | null): HTMLElement | null => {
+        if (!el) return null;
+        let cur: HTMLElement | null = el;
+        for (let i = 0; i < 4 && cur; i++) {
+          if (cur.classList && (cur.classList.contains('form-row') || cur.classList.contains('settings-row') || cur.classList.contains('form-group') || cur.id === 'drive115V2Pane')) return cur;
+          cur = cur.parentElement as HTMLElement | null;
+        }
+        return el.parentElement as HTMLElement | null;
+      };
+
+      host = findRow(skewEl) || findRow(atEl);
+      if (!host) return;
+
+      // 若已经存在则刷新显示
+      if (document.getElementById('drive115V2MinRefreshIntervalMin')) {
+        await this.updateRefreshIntervalUIFromStorage();
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.style.marginTop = '8px';
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '10px';
+      wrapper.innerHTML = `
+        <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:6px;">
+          最小自动刷新间隔(分钟)
+          <input id="drive115V2MinRefreshIntervalMin" type="number" min="30" step="1" style="width:96px; padding:4px 6px;" />
+          <span style="font-size:12px; color:#888;">不低于30</span>
+        </label>
+        <div style="font-size:12px; color:#666;">
+          最近自动刷新时间：<span id="drive115V2LastRefreshAt" style="color:#444;">-</span>
+        </div>
+      `;
+      host.appendChild(wrapper);
+
+      const input = wrapper.querySelector('#drive115V2MinRefreshIntervalMin') as HTMLInputElement | null;
+      input?.addEventListener('input', async () => {
+        try {
+          const raw = Math.floor(Number(input.value || 0));
+          const val = Math.max(30, isNaN(raw) ? 30 : raw);
+          input.value = String(val);
+          const settings: any = await getSettings();
+          const ns: any = { ...settings };
+          ns.drive115 = { ...(settings?.drive115 || {}), v2MinRefreshIntervalMin: val };
+          await saveSettings(ns);
+        } catch {}
+      });
+
+      await this.updateRefreshIntervalUIFromStorage();
+    } catch {}
+  }
+
+  private async updateRefreshIntervalUIFromStorage(): Promise<void> {
+    try {
+      const input = document.getElementById('drive115V2MinRefreshIntervalMin') as HTMLInputElement | null;
+      const lastEl = document.getElementById('drive115V2LastRefreshAt') as HTMLSpanElement | null;
+      const settings: any = await getSettings();
+      const s = settings?.drive115 || {};
+      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 60) || 60);
+      if (input) input.value = String(minMin);
+      const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
+      if (lastEl) lastEl.textContent = last > 0 ? this.formatLocalDateTime(last) : '-';
+    } catch {}
+  }
+
+  private formatLocalDateTime(tsSec: number): string {
+    if (!tsSec || isNaN(tsSec as any)) return '-';
+    const d = new Date(tsSec * 1000);
+    const Y = d.getFullYear();
+    const M = d.getMonth() + 1;
+    const D = d.getDate();
+    const hh = `${d.getHours()}`.padStart(2, '0');
+    const mm = `${d.getMinutes()}`.padStart(2, '0');
+    const ss = `${d.getSeconds()}`.padStart(2, '0');
+    return `${Y}/${M}/${D}  ${hh}:${mm}:${ss}`;
+  }
+
+  // 手动刷新限频判断（与服务层自动刷新一致，最小间隔不低于30分钟）
+  private async isManualRefreshAllowed_(): Promise<boolean> {
+    try {
+      const settings: any = await getSettings();
+      const s = settings?.drive115 || {};
+      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 60) || 60);
+      const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
+      if (last <= 0) return true;
+      const nowSec = Math.floor(Date.now() / 1000);
+      const remainSec = minMin * 60 - (nowSec - last);
+      if (remainSec > 0) {
+        const remainMin = Math.ceil(remainSec / 60);
+        const msg = `距离上次刷新不足最小间隔（${minMin}分钟），请稍后再试（剩余约 ${remainMin} 分钟）`;
+        this.setUserInfoStatus(msg, 'error');
+        showToast(msg, 'error');
+        return false;
+      }
+      return true;
+    } catch {
+      // 出错时不阻断
+      return true;
+    }
   }
 }
