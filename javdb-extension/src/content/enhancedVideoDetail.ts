@@ -84,6 +84,14 @@ export class VideoDetailEnhancer {
         return;
       }
       const translated = resp.data.translatedText;
+      // 控制台输出：显示使用的提供方与引擎/模型，以及原文与译文，方便确认来源
+      try {
+        const engine = resp.data.service || provider;
+        // 单行可读输出，避免只显示 "Object" 的情况
+        console.log(
+          `[Title Translation] provider=${provider} engine=${engine} source=${resp.source} cached=${resp.cached === true} original="${original}" translated="${translated}"`
+        );
+      } catch {}
 
       // 显示方式：append（保留原文，追加显示）或 replace（替换原文）
       const mode = settings.translation?.displayMode || 'append';

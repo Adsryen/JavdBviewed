@@ -256,6 +256,10 @@ class Drive115V2Service {
     const autoRefreshSetting: boolean = drv.v2AutoRefresh !== false; // 默认开启
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : autoRefreshSetting;
     const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
+    // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，强制不低于30分钟
+    const cfgMinMin: number = Math.max(30, Number(drv.v2MinRefreshIntervalMin ?? 60) || 60);
+    const minIntervalSec: number = cfgMinMin * 60;
+    const lastRefreshAtSec: number = Number(drv.v2LastTokenRefreshAtSec || 0) || 0;
 
     if (!accessToken && !refreshToken) return { success: false, message: '缺少 access_token/refresh_token' };
 
@@ -273,6 +277,16 @@ class Drive115V2Service {
       return { success: false, message: msg };
     }
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
+
+    // 刷新频率限制：30分钟下限；仅限制通过接口的自动刷新（手动改 token 不受限）
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (lastRefreshAtSec > 0 && (nowSec - lastRefreshAtSec) < minIntervalSec) {
+      const remain = minIntervalSec - (nowSec - lastRefreshAtSec);
+      const mins = Math.ceil(remain / 60);
+      const msg = `距离上次自动刷新不足最小间隔（${cfgMinMin}分钟），请稍后再试（剩余约 ${mins} 分钟）`;
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: `自动刷新被限频：${msg}` });
+      return { success: false, message: msg };
+    }
 
     // 刷新并发保护：若已有刷新在进行，复用同一个 Promise
     let ret: { success: boolean; message?: string; token?: TokenPair; raw?: any };
@@ -294,7 +308,7 @@ class Drive115V2Service {
       return { success: false, message: msg };
     }
 
-    // 持久化新的 token
+    // 持久化新的 token 与最近刷新时间
     const newAt = ret.token.access_token || '';
     const newRt = ret.token.refresh_token || refreshToken;
     const newExp = typeof ret.token.expires_at === 'number' ? ret.token.expires_at : null;
@@ -303,8 +317,11 @@ class Drive115V2Service {
     newSettings.drive115.v2AccessToken = newAt;
     newSettings.drive115.v2RefreshToken = newRt;
     newSettings.drive115.v2TokenExpiresAt = newExp;
+    newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
+    // 若未配置或配置低于30，保存时也进行一次下限保护
+    newSettings.drive115.v2MinRefreshIntervalMin = Math.max(30, Number(newSettings.drive115.v2MinRefreshIntervalMin ?? cfgMinMin) || cfgMinMin);
     await saveSettings(newSettings);
-    await addLogV2({ timestamp: Date.now(), level: 'info', message: '自动刷新 access_token 成功并已持久化（v2）' });
+    await addLogV2({ timestamp: Date.now(), level: 'info', message: `自动刷新 access_token 成功并已持久化（v2），记录时间戳=${nowSec}，限频=${newSettings.drive115.v2MinRefreshIntervalMin}分钟` });
 
     return { success: true, accessToken: newAt };
   }
@@ -511,72 +528,6 @@ class Drive115V2Service {
   }
 
   /**
-   * 获取离线下载配额信息（v2）
-   * GET {baseURL}/open/offline/get_quota_info
-   * Header: Authorization: Bearer <access_token>
-   */
-  async getQuotaInfo(params: { accessToken: string }): Promise<
-    { success: boolean; message?: string; raw?: Drive115V2QuotaResponse } & { data?: Drive115V2QuotaInfo }
-  > {
-    try {
-      const token = (params.accessToken || '').trim();
-      if (!token) return { success: false, message: '缺少 access_token' } as any;
-
-      const base = await this.getBaseURL();
-      const url = `${base}/open/offline/get_quota_info`;
-      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取离线配额信息（v2）' });
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!res.ok) {
-        const msg = `获取配额网络错误: ${res.status} ${res.statusText}`;
-        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
-        return { success: false, message: msg } as any;
-      }
-
-      const json: Drive115V2QuotaResponse = await res.json().catch(() => ({} as any));
-      const ok = typeof json.state === 'boolean' ? json.state : true;
-      if (!ok) {
-        const msg = describe115Error(json) || json.message || json.error || '获取配额失败';
-        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取配额失败：${msg}` });
-        return { success: false, message: msg, raw: json } as any;
-      }
-
-      // 兼容 data 为对象或数组的两种形态
-      let info: Drive115V2QuotaInfo | undefined = undefined;
-      if (json && typeof json === 'object') {
-        if (Array.isArray(json.data)) {
-          info = { list: json.data as Drive115V2QuotaItem[] } as Drive115V2QuotaInfo;
-        } else if (json.data && typeof json.data === 'object') {
-          const d: any = json.data;
-          const list: Drive115V2QuotaItem[] | undefined = Array.isArray(d.list) ? d.list : (Array.isArray(d.quota_list) ? d.quota_list : undefined);
-          const total: number | undefined = typeof d.total === 'number' ? d.total : (typeof d.quota_total === 'number' ? d.quota_total : undefined);
-          const used: number | undefined = typeof d.used === 'number' ? d.used : (typeof d.quota_used === 'number' ? d.quota_used : undefined);
-          const surplus: number | undefined = typeof d.surplus === 'number' ? d.surplus : (typeof d.quota_surplus === 'number' ? d.quota_surplus : undefined);
-          info = { total, used, surplus, list } as Drive115V2QuotaInfo;
-        }
-      }
-      if (!info) info = {} as Drive115V2QuotaInfo;
-
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取离线配额信息成功（v2）' });
-      return { success: true, data: info, raw: json } as any;
-    } catch (e: any) {
-      const msg = describe115Error(e) || e?.message || '获取配额失败';
-      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取配额异常：${msg}` });
-      return { success: false, message: msg } as any;
-    }
-  }
-
-  /**
-   * 添加离线下载任务（批量 URL）
-   * 请求：POST {baseURL}/open/offline/add_task_urls
-   * Header：Authorization: Bearer <access_token>
-   * Body: urls=... (以\n分隔); 可选 wp_path_id
    * 返回：{ state?: boolean, message?: string, code?: number, data?: any[] }
    */
   async addTaskUrls(params: {
