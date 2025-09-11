@@ -36,6 +36,8 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   v2ApiBaseUrl: 'https://proapi.115.com',
   // UI 默认选择 v2（首次使用无历史选择时生效）
   lastSelectedVersion: 'v2',
+  // 持久化的配额镜像（默认无）
+  quotaCache: null,
 };
 
 // 存储键

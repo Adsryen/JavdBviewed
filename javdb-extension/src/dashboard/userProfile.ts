@@ -424,6 +424,19 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     if (!block || !box) return;
 
     try {
+        // 确保基础与配额区域常驻（避免后续 innerHTML 覆盖导致配额块消失）
+        const ensureAreas = () => {
+            if (!box.querySelector('#drive115-user-basic') || !box.querySelector('#drive115-quota-box')) {
+                box.innerHTML = `
+                  <div id="drive115-user-basic"></div>
+                  <div id="drive115-quota-box" style="margin-top:10px;"></div>
+                `;
+            }
+        };
+        ensureAreas();
+        const basic = box.querySelector('#drive115-user-basic') as HTMLDivElement | null;
+        const quota = box.querySelector('#drive115-quota-box') as HTMLDivElement | null;
+
         // 读取设置（仅判断开关）
         const settings = await getSettings();
         const s = (settings as any)?.drive115 || {};
@@ -444,18 +457,29 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
             set115Status(cachedExpired ? '已过期（缓存）' : '已缓存', cachedExpired ? 'warn' : 'info');
         } else {
             set115Status('加载中…', 'info');
-            box.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
+            if (basic) basic.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
         }
+
+        // 同步展示已缓存的配额（若有）：优先使用设置镜像；若没有则先渲染占位为 0
+        try {
+            const quotaCache = (s as any)?.quotaCache;
+            if (quotaCache && quotaCache.data) {
+                render115Quota(quotaCache.data as any);
+            } else {
+                // 占位默认 0，避免空白
+                render115Quota({} as any);
+            }
+        } catch {}
 
         // 如果不允许网络请求，则到此为止（仅展示缓存）
         if (!(opts?.allowNetwork === true)) {
-            // 若无缓存则保持“加载中…”或根据需要提示
+            // 仅展示缓存：已在上方尝试渲染 quotaCache
             return;
         }
 
         if (!enableV2) {
             set115Status('未启用新版 115', 'warn');
-            box.innerHTML = '<p style="margin:0; color:#888;">请在设置中启用新版 115（Token 模式）</p>';
+            if (basic) basic.innerHTML = '<p style="margin:0; color:#888;">请在设置中启用新版 115（Token 模式）</p>';
             return;
         }
 
@@ -466,45 +490,46 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         if (!userAuto.success || !userAuto.data) {
             console.debug('[drive115v2-ui] 获取 115 用户信息失败', { message: userAuto.message, raw: (userAuto as any).raw });
             const emsg = describe115Error((userAuto as any).raw) || userAuto.message || '获取用户信息失败';
-            set115Status('获取失败', 'error');
-            box.innerHTML = `<p style="margin:0; color:#d00;">${emsg}</p>`;
-            showToast(emsg, 'error');
+            set115Status('获取失败（用户信息）', 'warn');
+            if (basic) basic.innerHTML = `<p style=\"margin:0; color:#ef6c00;\">${emsg}（已显示缓存或占位）</p>`;
+            showToast(emsg, 'info');
             const newSettings: any = { ...settings };
             newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
             await saveSettings(newSettings);
-            return;
+            // 不再提前 return；继续尝试获取配额，以保证配额区块可显示
+        } else {
+            set115Status('已更新', 'ok');
+            showToast('已更新 115 用户信息', 'success');
+            render115User(userAuto.data, Date.now());
+            // 持久化用户信息与时间戳，并清除过期标记
+            const newSettings: any = { ...settings };
+            newSettings.drive115 = {
+                ...(settings as any).drive115,
+                v2UserInfo: userAuto.data,
+                v2UserInfoUpdatedAt: Date.now(),
+                v2UserInfoExpired: false,
+            };
+            await saveSettings(newSettings);
         }
 
-        set115Status('已更新', 'ok');
-        showToast('已更新 115 用户信息', 'success');
-        render115User(userAuto.data, Date.now());
-        // 持久化用户信息与时间戳，并清除过期标记
-        const newSettings: any = { ...settings };
-        newSettings.drive115 = {
-            ...(settings as any).drive115,
-            v2UserInfo: userAuto.data,
-            v2UserInfoUpdatedAt: Date.now(),
-            v2UserInfoExpired: false,
-        };
-        await saveSettings(newSettings);
-
-        // 3) 成功后再获取额度配额：直接使用当前设置中的 access_token，避免再次触发刷新
+        // 3) 成功后再获取额度配额：使用自动流程（仅在 token 判定失效时才触发刷新，刷新受最小间隔限制）
         try {
-            const s2 = await getSettings();
-            const at2: string = ((s2 as any)?.drive115?.v2AccessToken || '').toString().trim();
-            if (at2) {
-                const quotaRet = await svc.getQuotaInfo({ accessToken: at2 });
-                if (quotaRet.success && quotaRet.data) {
-                    render115Quota(quotaRet.data);
-                } else if (!quotaRet.success) {
-                    const qmsg = quotaRet.message || '获取配额失败';
+            const quotaAuto = await svc.getQuotaInfoAuto({ forceAutoRefresh: true, forceRefresh: true });
+            if (quotaAuto.success && quotaAuto.data) {
+                render115Quota(quotaAuto.data);
+            } else {
+                // 回退：尝试使用刚刚保存到设置的镜像
+                const s2 = await getSettings();
+                const qc2 = (s2 as any)?.drive115?.quotaCache;
+                if (qc2 && qc2.data) {
+                    render115Quota(qc2.data as any);
+                } else {
+                    const qmsg = quotaAuto.message || '获取配额失败';
+                    // 最终兜底：渲染占位 0，并提示原因
+                    render115Quota({} as any);
                     render115QuotaHint(qmsg);
                     showToast(qmsg, 'info');
                 }
-            } else {
-                const qmsg = '缺少 access_token，无法获取配额';
-                render115QuotaHint(qmsg);
-                showToast(qmsg, 'info');
             }
         } catch (e: any) {
             const qmsg = describe115Error(e) || e?.message || '获取配额失败';
@@ -514,7 +539,8 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     } catch (e: any) {
         const msg = describe115Error(e) || e?.message || '加载失败';
         set115Status(msg, 'error');
-        box.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
+        const basic = box.querySelector('#drive115-user-basic') as HTMLDivElement | null;
+        if (basic) basic.innerHTML = `<p style=\"margin:0; color:#d00;\">${msg}</p>`;
         showToast(msg, 'error');
     } finally {
         isLoadingDrive115 = false;
@@ -528,7 +554,7 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     }
 
     function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
-        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        const container = document.getElementById('drive115-user-basic') as HTMLDivElement | null;
         if (!container) return;
         // 统一字段映射（兼容 v2 与旧版）
         const uid = (u as any).uid || (u as any).user_id || (u as any).id || '';
@@ -594,29 +620,58 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         const pctText = isNaN(pct as any) ? '-' : `${(pct >= 100 ? 100 : pct).toFixed(pct >= 10 ? 0 : 1)}%`;
         const barColor = isNaN(pct as any) ? '#90caf9' : (pct < 60 ? '#4caf50' : pct < 85 ? '#ff9800' : '#e53935');
         const updatedText = typeof updatedAtMs === 'number' ? new Date(updatedAtMs).toLocaleString() : '';
+        // VIP 到期渲染辅助：根据剩余天数变色与提示
+        const nowSec = Math.floor(Date.now() / 1000);
+        const daysLeft = typeof vipExpireTs === 'number' ? Math.floor((vipExpireTs - nowSec) / 86400) : undefined;
+        const expPillBg = (() => {
+          if (typeof daysLeft !== 'number') return '#f5f5f5';
+          if (daysLeft <= 7) return '#fdecea'; // 红系淡色
+          if (daysLeft <= 30) return '#fff3e0'; // 橙系淡色
+          return '#f5f5f5';
+        })();
+        const expPillColor = (() => {
+          if (typeof daysLeft !== 'number') return '#555';
+          if (daysLeft <= 7) return '#c62828';
+          if (daysLeft <= 30) return '#ef6c00';
+          return '#555';
+        })();
+        const expireTitle = vipExpireTs ? `到期：${vipExpireText}（约剩 ${typeof daysLeft === 'number' ? daysLeft : '?'} 天）` : '';
 
         container.innerHTML = `
           <div style="display:flex; align-items:center; gap:10px;">
             ${avatar
               ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
               : `<div style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
-            <div style="flex:1;">
-              <div style="font-weight:600;">${name || '-'}</div>
-              <div style="font-size:12px; color:#666;">UID: ${uid || '-' }${vipExpireText ? ` · 到期：${vipExpireText}` : ''}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="font-weight:700; font-size:14px; color:#222;">${name || '-'}</div>
+                ${isVip === '是' ? `
+                  <span title="${vipLevelName || 'VIP'}" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
+                    <i class=\"fas fa-crown\" style=\"color:#fff; font-size:11px;\"></i>
+                    ${vipLevelName || 'VIP'}
+                  </span>
+                ` : ''}
+              </div>
+              <div style="font-size:12px; color:#666; margin-top:2px;">UID: ${uid || '-'}</div>
+              ${vipExpireText ? `
+                <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:${expPillColor};\" title=\"${expireTitle}\">
+                  <span style=\"display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${expPillBg}; color:${expPillColor};\">
+                    <i class=\"fas fa-calendar-alt\"></i>
+                    到期 · ${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}
+                  </span>
+                </div>
+              ` : ''}
             </div>
-            <div style="font-size:12px; color:${isVip === '是' ? '#2e7d32' : '#666'};">VIP: ${isVip}${vipLevelName ? `（${vipLevelName}）` : ((u as any).vip_level ? `（Lv.${(u as any).vip_level}）` : '')}</div>
           </div>
-          <div style="margin-top:6px; font-size:12px; color:#444;">
-            <div>总空间：${totalText}</div>
-            <div>已使用：${usedText}</div>
-            <div>剩余：${freeText}</div>
-            ${(u as any).email ? `<div>邮箱：${(u as any).email}</div>` : ''}
-            ${(u as any).phone ? `<div>手机：${(u as any).phone}</div>` : ''}
+          <div style="margin-top:8px; font-size:12px; color:#444;">
+            <div>总 ${totalText} · 已用 ${usedText} · 剩余 ${freeText}</div>
+            ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：${(u as any).email}</div>` : ''}
+            ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：${(u as any).phone}</div>` : ''}
           </div>
           <div style="margin-top:8px;">
             <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
               <span>空间使用</span>
-              <span>${pctText}${!isNaN(pct as any) ? `（已用 ${usedText} / 总 ${totalText}）` : ''}</span>
+              <span>${pctText}</span>
             </div>
             <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
               <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
@@ -627,12 +682,16 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     }
 
     function render115Quota(info: Drive115V2QuotaInfo) {
-        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
         if (!container) return;
+        const toNum = (v: any): number | undefined => typeof v === 'number' && isFinite(v) ? v : undefined;
         const list = Array.isArray(info.list) ? info.list : [];
-        const totalTxt = typeof info.total === 'number' ? info.total.toString() : '-';
-        const usedTxt = typeof info.used === 'number' ? info.used.toString() : undefined;
-        const surplusTxt = typeof info.surplus === 'number' ? info.surplus.toString() : undefined;
+        const totalNum = toNum(info.total) ?? 0;
+        const usedNum = toNum(info.used) ?? 0;
+        const surplusNum = toNum(info.surplus) ?? (totalNum - usedNum >= 0 ? totalNum - usedNum : 0);
+        const totalTxt = totalNum.toString();
+        const usedTxt = usedNum.toString();
+        const surplusTxt = surplusNum.toString();
         const rows = list.slice(0, 6).map(it => {
             const name = it.name ?? `类型${it.type ?? ''}`;
             const used = typeof it.used === 'number' ? it.used : undefined;
@@ -643,27 +702,27 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
                 <span>${used !== undefined ? `已用 ${used}` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 ${surplus}` : ''}</span>
             </div>`;
         }).join('');
-        const summary = (usedTxt || surplusTxt) ? `<div style="font-size:12px; color:#666;">${usedTxt ? `总已用：${usedTxt}` : ''}${usedTxt && surplusTxt ? '，' : ''}${surplusTxt ? `总剩余：${surplusTxt}` : ''}</div>` : '';
-        container.insertAdjacentHTML('beforeend', `
-          <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #e0e0e0;">
+        const summary = `<div style=\"font-size:12px; color:#666;\">总额：${totalTxt}，总已用：${usedTxt}，总剩余：${surplusTxt}</div>`;
+        container.innerHTML = `
+          <div style="padding-top:8px; border-top:1px dashed #e0e0e0;">
             <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#333; margin-bottom:4px;">
               <i class="fas fa-ticket-alt"></i><span>离线配额</span>
-              <span style="margin-left:auto; font-size:12px; color:#888;">${totalTxt !== '-' ? `总额：${totalTxt}` : ''}</span>
+              <span style="margin-left:auto; font-size:12px; color:#888;">总额：${totalTxt}</span>
             </div>
-            ${rows || '<div style="font-size:12px; color:#888;">无配额信息</div>'}
+            ${rows || '<div style=\"font-size:12px; color:#888;\">暂无配额明细</div>'}
             ${summary}
           </div>
-        `);
+        `;
     }
 
     function render115QuotaHint(msg: string) {
-        const container = document.getElementById('drive115-user-box') as HTMLDivElement | null;
+        const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
         if (!container) return;
-        container.insertAdjacentHTML('beforeend', `
-          <div style="margin-top:10px; font-size:12px; color:#ef6c00;">
+        container.innerHTML = `
+          <div style="font-size:12px; color:#ef6c00;">
             <i class="fas fa-exclamation-triangle"></i> ${msg}
           </div>
-        `);
+        `;
     }
 
     function formatBytes(n?: number | string): string {

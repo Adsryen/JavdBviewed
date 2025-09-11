@@ -21,6 +21,12 @@ export interface Drive115Settings {
   
   // UI：用户选择的子版本（用于持久化 v1/v2 子页与全局路由）
   lastSelectedVersion?: 'v1' | 'v2';
+
+  // 配额缓存（需要随设置同步的只读镜像）
+  quotaCache?: {
+    data?: any;        // 兼容不同返回结构（Drive115V2QuotaInfo）
+    updatedAt?: number;
+  } | null;
 }
 
 // 115 API响应基础接口
