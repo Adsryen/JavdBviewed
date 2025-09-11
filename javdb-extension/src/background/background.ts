@@ -1019,20 +1019,19 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
         // 尝试多种方法验证URL
         let available = false;
 
-        // 方法1: 尝试HEAD请求
+        // 方法1: 尝试可读的 HEAD 请求（不使用 no-cors，便于读取状态码）
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
 
             const response = await fetch(url, {
                 method: 'HEAD',
-                mode: 'no-cors',
                 signal: controller.signal
             });
 
             clearTimeout(timeoutId);
-            available = response.type === 'opaque' || response.ok;
-            console.log(`[Background] HEAD check for ${url}: available=${available}, type=${response.type}`);
+            available = response.ok; // 必须为可读且 OK
+            console.log(`[Background] HEAD check for ${url}: available=${available}, status=${response.status}`);
 
             if (available) {
                 sendResponse({ success: true, available: true });
@@ -1042,14 +1041,13 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
             console.log(`[Background] HEAD request failed for ${url}:`, headError.message);
         }
 
-        // 方法2: 尝试带Range的GET请求
+        // 方法2: 尝试带 Range 的 GET（读取状态码，允许 200/206）
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
             const response = await fetch(url, {
                 method: 'GET',
-                mode: 'no-cors',
                 headers: {
                     'Range': 'bytes=0-1023'
                 },
@@ -1057,8 +1055,8 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
             });
 
             clearTimeout(timeoutId);
-            available = response.type === 'opaque' || response.ok;
-            console.log(`[Background] Range GET check for ${url}: available=${available}, type=${response.type}`);
+            available = response.ok || response.status === 206;
+            console.log(`[Background] Range GET check for ${url}: available=${available}, status=${response.status}`);
 
             if (available) {
                 sendResponse({ success: true, available: true });
@@ -1081,8 +1079,7 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
         // 方法4: 基于域名的启发式判断
         const knownGoodDomains = [
             'commondatastorage.googleapis.com', // Google测试视频
-            'sample.heyzo.com',
-            'my.cdn.tokyo-hot.com'
+            'sample.heyzo.com'
         ];
 
         const knownBadDomains = [
@@ -1095,15 +1092,12 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
         const isKnownGood = knownGoodDomains.some(domain => url.includes(domain));
         const isKnownBad = knownBadDomains.some(domain => url.includes(domain));
 
-        if (isKnownGood) {
-            console.log(`[Background] Known good domain for ${url}, assuming available`);
-            available = true;
-        } else if (isKnownBad) {
+        if (isKnownBad) {
             console.log(`[Background] Known problematic domain for ${url}, marking unavailable`);
             available = false;
         } else {
-            console.log(`[Background] Unknown domain for ${url}, assuming unavailable`);
-            available = false;
+            console.log(`[Background] Unknown or not explicitly allowed domain for ${url}, defaulting to unavailable`);
+            available = false; // 保守处理，避免误判
         }
 
         sendResponse({ success: true, available });
