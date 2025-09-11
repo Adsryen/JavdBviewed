@@ -49,10 +49,10 @@ export const TOAST_CONFIG = {
 };
 
 // 跟踪当前状态，避免重复设置
-export let currentFaviconState: 'original' | 'extension' | null = null;
+export let currentFaviconState: 'original' | 'viewed' | 'want' | 'browsed' | null = null;
 export let currentTitleStatus: string | null = null;
 
-export function setCurrentFaviconState(state: 'original' | 'extension' | null): void {
+export function setCurrentFaviconState(state: 'original' | 'viewed' | 'want' | 'browsed' | null): void {
     currentFaviconState = state;
 }
 
