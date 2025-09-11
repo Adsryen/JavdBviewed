@@ -124,6 +124,7 @@ export interface ExtensionSettings {
         previewDelay: number; // 预览延迟时间（毫秒）
         previewVolume: number; // 预览音量（0-1）
         enableRightClickBackground: boolean; // 启用右键后台打开
+        preferredPreviewSource?: 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl'; // 预览来源优先
     };
 
     // 新增：演员页增强配置

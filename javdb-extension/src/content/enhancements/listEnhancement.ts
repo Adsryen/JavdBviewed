@@ -12,6 +12,7 @@ export interface ListEnhancementConfig {
   previewDelay: number;
   previewVolume: number;
   enableRightClickBackground: boolean;
+  preferredPreviewSource?: 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
 }
 
 interface VideoPreviewSource {
@@ -238,10 +239,17 @@ class ListEnhancementManager {
 
   private showPreview(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }): void {
     coverElement.classList.add('x-preview', 'x-holding');
-    
+    // 预览延迟：0 表示禁用悬停预览
+    const delay = Number(this.config.previewDelay || 0);
+    if (delay <= 0) {
+      // 禁用：直接移除加载中的标记并返回
+      coverElement.classList.remove('x-holding');
+      return;
+    }
+
     this.previewTimer = window.setTimeout(() => {
       this.loadVideoPreview(coverElement, videoInfo);
-    }, Math.max(this.config.previewDelay, 100));
+    }, delay);
   }
 
   private hidePreview(coverElement: HTMLElement): void {
@@ -266,7 +274,7 @@ class ListEnhancementManager {
   private async loadVideoPreview(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
     try {
       // 获取视频预览源
-      const videoSources = await this.fetchVideoPreview(videoInfo.code);
+      const videoSources = await this.fetchVideoPreview(videoInfo);
       
       if (videoSources.length === 0) {
         log(`No preview sources found for ${videoInfo.code}`);
@@ -287,17 +295,17 @@ class ListEnhancementManager {
     }
   }
 
-  private async fetchVideoPreview(code: string): Promise<VideoPreviewSource[]> {
+  private async fetchVideoPreview(videoInfo: { code: string; title: string; url: string }): Promise<VideoPreviewSource[]> {
     const sources: VideoPreviewSource[] = [];
 
     try {
-      log(`Fetching video preview for code: ${code}`);
+      log(`Fetching video preview for code: ${videoInfo.code}`);
 
       // 对于特定的测试代码，使用测试视频
-      if (code.startsWith('TEST-')) {
-        const testUrl = this.getTestVideoUrl(code);
+      if (videoInfo.code.startsWith('TEST-')) {
+        const testUrl = this.getTestVideoUrl(videoInfo.code);
         if (testUrl) {
-          log(`Using test video URL for ${code}: ${testUrl}`);
+          log(`Using test video URL for ${videoInfo.code}: ${testUrl}`);
           sources.push({
             url: testUrl,
             type: 'video/mp4'
@@ -306,17 +314,27 @@ class ListEnhancementManager {
         }
       }
 
-      // 按优先级顺序尝试视频源（而不是并行）
-      const fetchMethods = [
-        { name: 'JavDB', method: () => this.fetchFromJavDB(code) },
-        { name: 'JavSpyl', method: () => this.fetchFromJavSpyl(code) },
-        { name: 'AVPreview', method: () => this.fetchFromAVPreview(code) },
-        { name: 'VBGFL', method: () => this.fetchFromVBGFL(code) },
-      ];
+      // 依据首选来源确定顺序
+      const autoOrder = ['javspyl', 'avpreview', 'vbgfl', 'javdb'] as const;
+      const preferred = this.config.preferredPreviewSource || 'auto';
+      const order = preferred === 'auto' ? autoOrder : ([preferred, ...autoOrder.filter(x => x !== preferred)] as const);
+      const fetchMethods = order.map((key) => {
+        switch (key) {
+          case 'javspyl':
+            return { name: 'JavSpyl', method: () => this.fetchFromJavSpyl(videoInfo.code) };
+          case 'avpreview':
+            return { name: 'AVPreview', method: () => this.fetchFromAVPreview(videoInfo.code) };
+          case 'vbgfl':
+            return { name: 'VBGFL', method: () => this.fetchFromVBGFL(videoInfo.code) };
+          case 'javdb':
+          default:
+            return { name: 'JavDB', method: () => this.fetchFromJavDB(videoInfo.url) };
+        }
+      });
 
       for (const { name, method } of fetchMethods) {
         try {
-          log(`Trying ${name} for ${code}...`);
+          log(`Trying ${name} for ${videoInfo.code}...`);
           const url = await method();
 
           if (url) {
@@ -335,21 +353,21 @@ class ListEnhancementManager {
               log(`${name} URL validation failed: ${url}`);
             }
           } else {
-            log(`${name} returned no URL for ${code}`);
+            log(`${name} returned no URL for ${videoInfo.code}`);
           }
         } catch (error) {
-          log(`${name} failed for ${code}:`, error);
+          log(`${name} failed for ${videoInfo.code}:`, error);
         }
       }
 
       if (sources.length === 0) {
-        log(`No preview sources found for ${code}`);
+        log(`No preview sources found for ${videoInfo.code}`);
       } else {
-        log(`Found preview source for ${code}:`, sources[0].url);
+        log(`Found preview source for ${videoInfo.code}:`, sources[0].url);
       }
 
     } catch (error) {
-      log(`Error fetching video preview for ${code}:`, error);
+      log(`Error fetching video preview for ${videoInfo.code}:`, error);
     }
 
     return sources;
@@ -398,8 +416,9 @@ class ListEnhancementManager {
       // 根据代码模式生成可能的URL
       const urls: string[] = [];
 
-      // Tokyo Hot
-      if (code.toLowerCase().includes('n') || /^\d+$/.test(normalizedCode)) {
+      // Tokyo Hot：仅限严格格式 N####（3-6 位数字），避免误判如 HUNTC-***
+      const isTokyoHot = /^n\d{3,6}$/i.test(normalizedCode);
+      if (isTokyoHot) {
         urls.push(`https://my.cdn.tokyo-hot.com/media/samples/${normalizedCode}.mp4`);
       }
 
@@ -504,37 +523,23 @@ class ListEnhancementManager {
   }
 
   // 从JavDB页面本身获取预览视频
-  private async fetchFromJavDB(code: string): Promise<string | null> {
+  private async fetchFromJavDB(detailUrl: string): Promise<string | null> {
     try {
-      log(`JavDB: Trying to fetch preview for ${code}`);
-
-      // 首先尝试从当前页面获取（如果我们已经在详情页）
-      if (window.location.pathname.includes(`/v/${code}`)) {
-        const previewVideo = document.querySelector('#preview-video source');
-        const videoUrl = previewVideo?.getAttribute('src');
-        if (videoUrl) {
-          log(`JavDB: Found preview on current page: ${videoUrl}`);
-          return videoUrl.startsWith('http') ? videoUrl : `https://javdb.com${videoUrl}`;
-        }
-      }
-
-      // 构建JavDB详情页URL
-      const javdbUrl = `https://javdb.com/v/${code}`;
-      log(`JavDB: Fetching from detail page: ${javdbUrl}`);
+      log(`JavDB: Trying to fetch preview from detail page: ${detailUrl}`);
 
       const response = await chrome.runtime.sendMessage({
         type: 'FETCH_JAVDB_PREVIEW',
-        url: javdbUrl
+        url: detailUrl
       });
 
       if (response?.success && response?.videoUrl) {
         log(`JavDB: Got preview from API: ${response.videoUrl}`);
         return response.videoUrl;
       } else {
-        log(`JavDB: No preview found via API for ${code}`);
+        log(`JavDB: No preview found via API for provided detail URL`);
       }
     } catch (error) {
-      log(`JavDB fetch error for ${code}:`, error);
+      log(`JavDB fetch error:`, error);
     }
     return null;
   }

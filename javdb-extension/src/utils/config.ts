@@ -227,9 +227,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：数据增强默认配置
     dataEnhancement: {
-        enableMultiSource: false, // 开发中，暂时关闭
-        enableImageCache: false, // 开发中，暂时关闭
-        enableVideoPreview: false, // 开发中，暂时关闭
+        enableMultiSource: false, // 仍未启用
+        enableImageCache: false,  // 仍未启用
+        enableVideoPreview: true, // 启用：视频预览增强
         enableTranslation: false,
         enableRatingAggregation: false, // 开发中，暂时关闭
         enableActorInfo: false, // 开发中，暂时关闭

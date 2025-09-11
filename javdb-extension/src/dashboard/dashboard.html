@@ -1357,15 +1357,21 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="enableVideoPreview" disabled>
-                                            <span class="checkmark"></span>
-                                            🎬 视频预览增强 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎬 视频预览增强</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableVideoPreview"></button>
+                                            </div>
                                         </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要多数据源支持）<br>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要预览源支持）<br>
                                             <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
+                                            <strong>延迟：</strong><span id="currentPreviewDelay">—</span> ms （前往下方「列表增强」中调整“预览延迟时间”）
                                         </p>
                                     </div>
 
@@ -1640,6 +1646,18 @@
                                                     <div class="range-track-fill"></div>
                                                 </div>
                                                 <p class="input-description">预览视频的音量大小，建议保持较低音量。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label>预览来源</label>
+                                                <div class="radio-group" id="previewSourceGroup">
+                                                    <label class="radio-item"><input type="radio" name="previewSource" id="previewSourceAuto" value="auto" checked> 自动（推荐）</label>
+                                                    <label class="radio-item"><input type="radio" name="previewSource" id="previewSourceJavDB" value="javdb"> JavDB</label>
+                                                    <label class="radio-item"><input type="radio" name="previewSource" id="previewSourceJavSpyl" value="javspyl"> JavSpyl</label>
+                                                    <label class="radio-item"><input type="radio" name="previewSource" id="previewSourceAVPreview" value="avpreview"> AVPreview</label>
+                                                    <label class="radio-item"><input type="radio" name="previewSource" id="previewSourceVBGFL" value="vbgfl"> 厂牌规则（VBGFL）</label>
+                                                </div>
+                                                <p class="input-description">选择悬停预览的首选来源。自动会按 JavSpyl → AVPreview → 厂牌规则 → JavDB 的顺序尝试。</p>
                                             </div>
 
                                             <div class="info-box">
