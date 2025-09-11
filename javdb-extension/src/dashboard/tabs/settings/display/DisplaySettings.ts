@@ -16,6 +16,7 @@ export class DisplaySettings extends BaseSettingsPanel {
     private hideViewedCheckbox!: HTMLInputElement;
     private hideBrowsedCheckbox!: HTMLInputElement;
     private hideVRCheckbox!: HTMLInputElement;
+    private hideWantCheckbox!: HTMLInputElement;
 
     constructor() {
         super({
@@ -34,8 +35,9 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideViewedCheckbox = document.getElementById('hideViewed') as HTMLInputElement;
         this.hideBrowsedCheckbox = document.getElementById('hideBrowsed') as HTMLInputElement;
         this.hideVRCheckbox = document.getElementById('hideVR') as HTMLInputElement;
+        this.hideWantCheckbox = document.getElementById('hideWant') as HTMLInputElement;
 
-        if (!this.hideViewedCheckbox || !this.hideBrowsedCheckbox || !this.hideVRCheckbox) {
+        if (!this.hideViewedCheckbox || !this.hideBrowsedCheckbox || !this.hideVRCheckbox || !this.hideWantCheckbox) {
             throw new Error('显示设置相关的DOM元素未找到');
         }
     }
@@ -47,6 +49,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideViewedCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
         this.hideBrowsedCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
         this.hideVRCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
+        this.hideWantCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -56,6 +59,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideViewedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideBrowsedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideVRCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.hideWantCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -68,6 +72,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideViewedCheckbox.checked = display.hideViewed || false;
         this.hideBrowsedCheckbox.checked = display.hideBrowsed || false;
         this.hideVRCheckbox.checked = display.hideVR || false;
+        this.hideWantCheckbox.checked = !!display.hideWant;
     }
 
     /**
@@ -80,7 +85,8 @@ export class DisplaySettings extends BaseSettingsPanel {
                 display: {
                     hideViewed: this.hideViewedCheckbox.checked,
                     hideBrowsed: this.hideBrowsedCheckbox.checked,
-                    hideVR: this.hideVRCheckbox.checked
+                    hideVR: this.hideVRCheckbox.checked,
+                    hideWant: this.hideWantCheckbox.checked
                 }
             };
 
@@ -124,7 +130,8 @@ export class DisplaySettings extends BaseSettingsPanel {
             display: {
                 hideViewed: this.hideViewedCheckbox.checked,
                 hideBrowsed: this.hideBrowsedCheckbox.checked,
-                hideVR: this.hideVRCheckbox.checked
+                hideVR: this.hideVRCheckbox.checked,
+                hideWant: this.hideWantCheckbox.checked
             }
         };
     }
@@ -143,6 +150,9 @@ export class DisplaySettings extends BaseSettingsPanel {
             }
             if (display.hideVR !== undefined) {
                 this.hideVRCheckbox.checked = display.hideVR;
+            }
+            if (display.hideWant !== undefined) {
+                this.hideWantCheckbox.checked = !!display.hideWant;
             }
         }
     }

@@ -68,7 +68,7 @@ function shouldHide(videoId: string): boolean {
         return false;
     }
 
-    const { hideViewed, hideBrowsed } = STATE.settings.display;
+    const { hideViewed, hideBrowsed, hideWant } = STATE.settings.display as any;
     const record = STATE.records[videoId];
 
     if (!record) {
@@ -77,11 +77,15 @@ function shouldHide(videoId: string): boolean {
 
     const isViewed = record.status === VIDEO_STATUS.VIEWED;
     const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
+    const isWant = record.status === VIDEO_STATUS.WANT;
 
     if (hideViewed && isViewed) {
         return true;
     }
     if (hideBrowsed && isBrowsed) {
+        return true;
+    }
+    if (hideWant && isWant) {
         return true;
     }
 
@@ -93,7 +97,7 @@ function getHideReason(videoId: string): string {
         return '';
     }
 
-    const { hideViewed, hideBrowsed } = STATE.settings.display;
+    const { hideViewed, hideBrowsed, hideWant } = (STATE.settings.display as any);
     const record = STATE.records[videoId];
 
     if (!record) {
@@ -102,12 +106,16 @@ function getHideReason(videoId: string): string {
 
     const isViewed = record.status === VIDEO_STATUS.VIEWED;
     const isBrowsed = record.status === VIDEO_STATUS.BROWSED;
+    const isWant = record.status === VIDEO_STATUS.WANT;
 
     if (hideViewed && isViewed) {
         return 'VIEWED';
     }
     if (hideBrowsed && isBrowsed) {
         return 'BROWSED';
+    }
+    if (hideWant && isWant) {
+        return 'WANT';
     }
 
     return '';
