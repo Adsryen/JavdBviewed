@@ -70,6 +70,32 @@ try {
           sendResponse({ success: false, message: e?.message || '后台刷新异常' });
           return true;
         }
+      } else if (message.type === 'drive115.get_quota_info_v2') {
+        try {
+          const accessToken = String(message?.payload?.accessToken || '').trim();
+          const base = String(message?.payload?.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+          if (!accessToken) {
+            sendResponse({ success: false, message: '缺少 access_token' });
+            return true;
+          }
+          fetch(`${base}/open/offline/get_quota_info`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/json'
+            },
+          }).then(async (res) => {
+            const raw = await res.json().catch(() => ({} as any));
+            const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
+            sendResponse({ success: ok, raw });
+          }).catch((err) => {
+            sendResponse({ success: false, message: err?.message || '后台配额请求失败' });
+          });
+          return true; // 异步响应
+        } catch (e: any) {
+          sendResponse({ success: false, message: e?.message || '后台配额异常' });
+          return true;
+        }
       }
     });
   }

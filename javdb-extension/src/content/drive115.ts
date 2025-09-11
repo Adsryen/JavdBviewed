@@ -110,12 +110,18 @@ async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promis
             userBox = document.getElementById('drive115-user-box');
         }
 
-        // 先只从本地存储读取，不进行网络请求
+        // 先只从设置镜像读取（持久化），其次再从本地缓存读取，不进行网络请求
         let cached: any | null = null;
         try {
-            const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
-            cached = bag?.['drive115_quota_cache'] || null;
+            const settings = await getSettings();
+            cached = (settings as any)?.drive115?.quotaCache || null;
         } catch {}
+        if (!cached) {
+            try {
+                const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
+                cached = bag?.['drive115_quota_cache'] || null;
+            } catch {}
+        }
 
         if (!opts?.forceRefresh) {
             // 初始化或普通渲染：仅展示缓存，不触发拉取
