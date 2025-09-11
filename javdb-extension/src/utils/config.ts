@@ -175,6 +175,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         hideViewed: false, // Corresponds to VIEWED status
         hideBrowsed: false, // Corresponds to BROWSED status
         hideVR: false,
+        hideWant: false,
     },
     // 演员库配置默认值
     actorLibrary: {

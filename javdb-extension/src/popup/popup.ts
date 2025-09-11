@@ -1,6 +1,5 @@
-import { getSettings, saveSettings, getValue, setValue } from '../utils/storage';
-import { STORAGE_KEYS, VIDEO_STATUS } from '../utils/config';
-import type { ExtensionSettings, VideoRecord } from '../types';
+import { getSettings, saveSettings } from '../utils/storage';
+import type { ExtensionSettings } from '../types';
 
 function initVersionInfo() {
     const versionContainer = document.getElementById('versionAuthorInfo');
@@ -24,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleWatchedContainer = document.getElementById('toggleWatchedContainer') as HTMLDivElement;
     const toggleViewedContainer = document.getElementById('toggleViewedContainer') as HTMLDivElement;
     const toggleVRContainer = document.getElementById('toggleVRContainer') as HTMLDivElement;
+    const toggleWantContainer = document.getElementById('toggleWantContainer') as HTMLDivElement;
     const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
 
@@ -59,11 +59,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         settings = await getSettings();
-        updateState(settings.display[key]);
+        updateState(!!settings.display[key]);
 
         button.addEventListener('click', async () => {
             settings = await getSettings();
-            const newState = !settings.display[key];
+            const current = !!settings.display[key];
+            const newState = !current;
             (settings.display[key] as boolean) = newState;
             await saveSettings(settings);
             updateState(newState);
@@ -133,6 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     enabled: true,
                     enableClickEnhancement: true,
                     enableVideoPreview: true,
+                    enableScrollPaging: false,
                     enableListOptimization: true,
                     previewDelay: 1000,
                     previewVolume: 0.2,
@@ -163,6 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的番号', '隐藏已看的番号');
         createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的番号', '隐藏已浏览的番号');
         createToggleButton('hideVR', toggleVRContainer, '显示VR番号', '隐藏VR番号');
+        createToggleButton('hideWant', toggleWantContainer, '显示想看的番号', '隐藏想看的番号');
 
         await setupVolumeControl();
 
