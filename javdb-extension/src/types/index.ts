@@ -8,6 +8,7 @@ export interface ExtensionSettings {
         hideViewed: boolean;
         hideBrowsed: boolean;
         hideVR: boolean;
+        hideWant?: boolean;
     };
     // 演员库相关设置
     actorLibrary: {
