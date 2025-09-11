@@ -161,24 +161,56 @@ class Drive115V2Service {
       const base = await this.getBaseURL();
       const url = `${base}/open/offline/get_quota_info`;
       await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取离线配额信息（v2）' });
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
 
-      if (!res.ok) {
-        const msg = `获取离线配额网络错误: ${res.status} ${res.statusText}`;
+      // 优先通过后台代理，避免某些环境下的 CORS/站点策略问题
+      let json: Drive115V2QuotaResponse | undefined;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                { type: 'drive115.get_quota_info_v2', payload: { accessToken: token, baseUrl: base } },
+                (resp) => resolve(resp)
+              );
+            } catch { resolve(undefined); }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            if (!bgResp.success) {
+              await addLogV2({ timestamp: Date.now(), level: 'warn', message: `后台配额请求失败：${bgResp.message || '未知'}` });
+              // 不中断，回退前端 fetch
+            } else {
+              json = (bgResp.raw || {}) as Drive115V2QuotaResponse;
+            }
+          }
+        }
+      } catch {}
+
+      // 回退：直接在前端发起 fetch
+      if (!json) {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const msg = `获取离线配额网络错误: ${res.status} ${res.statusText}`;
+          await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+          return { success: false, message: msg } as any;
+        }
+        json = await res.json().catch(() => ({} as any));
+      }
+      // 兜底保护：即便仍未得到 json，也给出失败信息
+      if (!json) {
+        const msg = '获取配额失败：未得到有效响应';
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
         return { success: false, message: msg } as any;
       }
-
-      const json: Drive115V2QuotaResponse = await res.json().catch(() => ({} as any));
-      const ok = typeof json.state === 'boolean' ? json.state : true;
+      const ok = typeof (json as any).state === 'boolean' ? (json as any).state : true;
       if (!ok) {
-        const msg = describe115Error(json) || json.message || '获取配额失败';
+        const msg = describe115Error(json) || (json as any).message || '获取配额失败';
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取离线配额失败：${msg}` });
         return { success: false, message: msg, raw: json } as any;
       }
@@ -186,15 +218,16 @@ class Drive115V2Service {
       // 兼容 data 直接为数组或对象
       let info: Drive115V2QuotaInfo | undefined = undefined;
       if (json && typeof json === 'object') {
-        if (json.data && typeof json.data === 'object') {
-          if (Array.isArray(json.data)) {
-            info = { list: json.data as any[] } as Drive115V2QuotaInfo;
+        const j: any = json as any;
+        if (j.data && typeof j.data === 'object') {
+          if (Array.isArray(j.data)) {
+            info = { list: j.data as any[] } as Drive115V2QuotaInfo;
           } else {
-            info = json.data as Drive115V2QuotaInfo;
+            info = j.data as Drive115V2QuotaInfo;
           }
         } else {
           // 回退：将可能的已知字段平铺映射
-          const candidate: any = json;
+          const candidate: any = j;
           const picked: any = {};
           let hasAny = false;
           for (const k of ['total','used','surplus','list']) {
@@ -203,6 +236,9 @@ class Drive115V2Service {
           if (hasAny) info = picked as Drive115V2QuotaInfo;
         }
       }
+
+      // 若成功但仍没有可渲染字段，给一个空对象，后续会在调用方尝试用用户信息兜底
+      if (!info) info = {} as Drive115V2QuotaInfo;
 
       await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取离线配额信息成功（v2）' });
       return { success: true, data: info, raw: json } as any;
@@ -223,6 +259,16 @@ class Drive115V2Service {
     try {
       // 1) 读取本地缓存
       try {
+        // 优先从设置中读取镜像
+        try {
+          const settings = await getSettings();
+          const cachedMirror: any = (settings as any)?.drive115?.quotaCache || null;
+          if (!opts?.forceRefresh && cachedMirror && cachedMirror.data) {
+            return { success: true, data: cachedMirror.data as Drive115V2QuotaInfo, cached: true, updatedAt: Number(cachedMirror.updatedAt) || undefined } as any;
+          }
+        } catch {}
+
+        // 其次从 chrome.storage 本地缓存读取
         const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
         const cached = bag?.['drive115_quota_cache'];
         if (!opts?.forceRefresh && cached && cached.data) {
@@ -235,17 +281,66 @@ class Drive115V2Service {
         return { success: false, message: 'no-cache' } as any;
       }
 
-      // 3) 强制刷新：获取有效 token 并请求网络
-      const vt = await this.getValidAccessToken({ forceAutoRefresh: !!opts?.forceAutoRefresh });
-      if (!vt.success) return { success: false, message: vt.message } as any;
+      // 3) 强制刷新：本次点击应当总是发起请求
+      //    先用现有 access_token 尝试；仅当判定 token 失效时才触发自动刷新（该刷新受最小间隔限制）
+      const settings = await getSettings();
+      const drv: any = settings?.drive115 || {};
+      let atTry: string = (drv.v2AccessToken || '').trim();
+      // 若完全没有 access_token，再走一次 getValidAccessToken（可能触发刷新）
+      if (!atTry) {
+        const vt0 = await this.getValidAccessToken({ forceAutoRefresh: !!opts?.forceAutoRefresh });
+        if (vt0.success) atTry = vt0.accessToken;
+      }
 
-      const fresh = await this.getQuotaInfo({ accessToken: vt.accessToken });
-      if (!fresh.success) return { success: false, message: fresh.message, raw: fresh.raw } as any;
+      // 第一次尝试：用现有 token 获取
+      let fresh = await this.getQuotaInfo({ accessToken: atTry });
+      if (!fresh.success) {
+        const tokenInvalid = this.isTokenInvalidResponse((fresh as any).raw) || /access[_\s-]?token/i.test(String(fresh.message || ''));
+        if (tokenInvalid) {
+          // 仅此时尝试自动刷新；该刷新内部有最小间隔限制
+          const vt = await this.getValidAccessToken({ forceAutoRefresh: !!opts?.forceAutoRefresh });
+          if (vt.success) {
+            fresh = await this.getQuotaInfo({ accessToken: vt.accessToken });
+            // 若重试仍失败，不直接返回，继续尝试用用户信息兜底
+          } else {
+            // 刷新被限频或失败，不直接返回，继续尝试用用户信息兜底
+          }
+        } else {
+          // 非 token 失效：不直接返回，进入兜底推导逻辑
+        }
+      }
 
-      // 4) 写回本地缓存
-      const record = { data: fresh.data || ({} as Drive115V2QuotaInfo), updatedAt: Date.now() };
+      // 4) 兜底：若接口不可用或返回无关键字段，尝试从用户信息的空间字段推导（v2UserInfo.rt_space_info）
+      let dataFinal: Drive115V2QuotaInfo | undefined = fresh.data as any;
+      const hasKeyNums = (o: any) => o && (typeof o.total === 'number' || typeof o.used === 'number' || typeof o.surplus === 'number');
+      if (!hasKeyNums(dataFinal)) {
+        try {
+          const settingsNow = await getSettings();
+          const rtsi = (settingsNow as any)?.drive115?.v2UserInfo?.rt_space_info;
+          const all_total = Number(rtsi?.all_total?.size ?? rtsi?.all_total ?? NaN);
+          const all_use = Number(rtsi?.all_use?.size ?? rtsi?.all_use ?? NaN);
+          const all_remain = Number(rtsi?.all_remain?.size ?? rtsi?.all_remain ?? NaN);
+          if (Number.isFinite(all_total) || Number.isFinite(all_use) || Number.isFinite(all_remain)) {
+            dataFinal = {
+              total: Number.isFinite(all_total) ? all_total : undefined,
+              used: Number.isFinite(all_use) ? all_use : undefined,
+              surplus: Number.isFinite(all_remain) ? all_remain : (Number.isFinite(all_total) && Number.isFinite(all_use) ? Math.max(0, all_total - all_use) : undefined),
+            } as Drive115V2QuotaInfo;
+          }
+        } catch {}
+      }
+
+      const record = { data: dataFinal || ({} as Drive115V2QuotaInfo), updatedAt: Date.now() };
       try {
         await (chrome as any)?.storage?.local?.set?.({ 'drive115_quota_cache': record });
+        // 同步镜像到设置，满足“配额需要存储同步”的需求
+        try {
+          const settings = await getSettings();
+          const newSettings: any = { ...(settings || {}) };
+          newSettings.drive115 = { ...(settings as any)?.drive115 };
+          newSettings.drive115.quotaCache = record;
+          await saveSettings(newSettings);
+        } catch {}
       } catch {}
 
       return { success: true, data: record.data, cached: false, updatedAt: record.updatedAt, raw: fresh.raw } as any;
@@ -344,7 +439,19 @@ class Drive115V2Service {
         refresh_token: newRt || rt,
         expires_at: expiresIn && !isNaN(expiresIn) ? nowSec + Math.max(0, expiresIn) : null,
       };
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: `刷新 access_token 成功（expires_in=${expiresIn ?? '未知'}）` });
+      // 立刻持久化：确保任何入口刷新都会保存
+      try {
+        const settings = await getSettings();
+        const newSettings: any = { ...(settings || {}) };
+        newSettings.drive115 = { ...(settings as any)?.drive115 };
+        newSettings.drive115.v2AccessToken = token.access_token;
+        newSettings.drive115.v2RefreshToken = token.refresh_token;
+        newSettings.drive115.v2TokenExpiresAt = token.expires_at ?? null;
+        // 记录最近刷新时间戳，便于限频逻辑协同
+        newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
+        await saveSettings(newSettings);
+      } catch {}
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `刷新 access_token 成功并已持久化（expires_in=${expiresIn ?? '未知'}）` });
       return { success: true, token, raw: json };
     } catch (e: any) {
       const msg = describe115Error(e) || e?.message || '刷新失败';
