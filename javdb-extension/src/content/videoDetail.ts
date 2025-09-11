@@ -8,7 +8,8 @@ import { STATE, SELECTORS, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { setFavicon, getRandomDelay } from './utils';
+import { getRandomDelay } from './utils';
+import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { actorManager } from '../services/actorManager';
 
@@ -121,48 +122,6 @@ async function markActorsOnPage(): Promise<void> {
     } catch (error) {
         log('markActorsOnPage error:', error);
     }
-}
-
-// 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
-// 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
-function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null {
-    try {
-        // 方案1：通过用户区块的链接快速判断
-        const watchedAnchor = document.querySelector<HTMLAnchorElement>(
-            '.review-title a[href="/users/watched_videos"], .review-title a[href*="/users/watched_videos"]'
-        );
-        if (watchedAnchor) {
-            // 文本或内部tag文本包含“我看過這部影片”
-            const text = watchedAnchor.textContent?.trim() || '';
-            const tagText = watchedAnchor.querySelector('span.tag')?.textContent?.trim() || '';
-            if (text.includes('我看過這部影片') || tagText.includes('我看過這部影片')) {
-                return VIDEO_STATUS.VIEWED;
-            }
-        }
-
-        const wantAnchor = document.querySelector<HTMLAnchorElement>(
-            '.review-title a[href="/users/want_watch_videos"], .review-title a[href*="/users/want_watch_videos"]'
-        );
-        if (wantAnchor) {
-            const text = wantAnchor.textContent?.trim() || '';
-            const tagText = wantAnchor.querySelector('span.tag')?.textContent?.trim() || '';
-            if (text.includes('我想看這部影片') || tagText.includes('我想看這部影片')) {
-                return VIDEO_STATUS.WANT;
-            }
-        }
-
-        // 方案2：全局搜寻 tag 文本（结构变动时兜底）
-        const tagSpans = Array.from(document.querySelectorAll<HTMLSpanElement>('span.tag'));
-        if (tagSpans.some(s => (s.textContent || '').includes('我看過這部影片'))) {
-            return VIDEO_STATUS.VIEWED;
-        }
-        if (tagSpans.some(s => (s.textContent || '').includes('我想看這部影片'))) {
-            return VIDEO_STATUS.WANT;
-        }
-    } catch {
-        // 忽略识别错误，返回 null
-    }
-    return null;
 }
 
     // 并发控制：检查是否已经在处理这个视频
@@ -292,7 +251,6 @@ async function handleExistingRecord(
             const desired = pageDetectedStatusInner ?? VIDEO_STATUS.BROWSED;
             const upgraded = safeUpdateStatus(currentRecord.status, desired);
             updatedRecord.status = upgraded;
-
             return updatedRecord;
         },
         operationId
@@ -311,7 +269,8 @@ async function handleExistingRecord(
         } else {
             showToast(`数据无变化: ${videoId}`, 'info');
         }
-        setFavicon(chrome.runtime.getURL("assets/jav.png"));
+        // 根据最新状态更新 favicon
+        updateFaviconForStatus(record.status);
 
     } else {
         log(`Failed to save updated record for ${videoId} (operation ${operationId}): ${result.error}`);
@@ -358,7 +317,8 @@ async function handleNewRecord(
                     log(`Successfully added new record for ${videoId} (operation ${delayedOperationId})`, newRecord);
                     showToast(`成功记录番号: ${videoId}`, 'success');
                 }
-                setFavicon(chrome.runtime.getURL("assets/jav.png"));
+                // 根据新建记录的状态更新 favicon
+                updateFaviconForStatus(newRecord.status);
             } else {
                 log(`Failed to save new record for ${videoId} (operation ${delayedOperationId}): ${result.error}`);
                 showToast(`保存失败: ${videoId} - ${result.error}`, 'error');

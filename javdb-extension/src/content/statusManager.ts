@@ -36,8 +36,8 @@ export function checkAndUpdateVideoStatus(): void {
     const record = STATE.records[videoId];
     const isRecorded = !!record;
 
-    // 更新favicon（只在需要时）
-    updateFaviconForStatus(isRecorded);
+    // 更新favicon（基于状态，且只在需要时）
+    updateFaviconForStatus(isRecorded ? record.status : null);
 
     // 更新页面标题（只在需要时）
     if (isRecorded) {
@@ -58,21 +58,25 @@ export function checkAndUpdateVideoStatus(): void {
     }
 }
 
-export function updateFaviconForStatus(isRecorded: boolean): void {
-    const targetState = isRecorded ? 'extension' : 'original';
+export function updateFaviconForStatus(status: string | null): void {
+    // 计算目标状态键：original / viewed / want / browsed
+    let targetState: 'original' | 'viewed' | 'want' | 'browsed';
+    if (!status) {
+        targetState = 'original';
+    } else if (status === VIDEO_STATUS.VIEWED) {
+        targetState = 'viewed';
+    } else if (status === VIDEO_STATUS.WANT) {
+        targetState = 'want';
+    } else {
+        targetState = 'browsed';
+    }
 
     // 如果状态没有改变，跳过设置
     if (currentFaviconState === targetState) {
         return;
     }
 
-    if (isRecorded) {
-        // 使用扩展的图标作为已记录状态的favicon
-        const extensionIconUrl = chrome.runtime.getURL("assets/switch.png");
-        log(`Setting favicon to extension icon: ${extensionIconUrl}`);
-        setFavicon(extensionIconUrl);
-        setCurrentFaviconState('extension');
-    } else {
+    if (targetState === 'original') {
         // 恢复原始favicon
         if (STATE.originalFaviconUrl) {
             log(`Restoring original favicon: ${STATE.originalFaviconUrl}`);
@@ -81,7 +85,20 @@ export function updateFaviconForStatus(isRecorded: boolean): void {
         } else {
             log('No original favicon URL to restore');
         }
+        return;
     }
+
+    // 基于状态选择不同图标
+    const iconMap: Record<'viewed' | 'want' | 'browsed', string> = {
+        viewed: 'assets/switch-viewed.png', // 绿色 - 已观看
+        want: 'assets/switch-want.png',     // 蓝色 - 想看
+        browsed: 'assets/switch-browsed.png'// 黄色 - 已浏览
+    };
+
+    const url = chrome.runtime.getURL(iconMap[targetState]);
+    log(`Setting favicon for status '${targetState}': ${url}`);
+    setFavicon(url);
+    setCurrentFaviconState(targetState);
 }
 
 export function updatePageTitleWithStatus(_videoId: string, status: string): void {
