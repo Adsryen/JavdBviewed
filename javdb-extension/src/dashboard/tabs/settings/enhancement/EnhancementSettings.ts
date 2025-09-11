@@ -45,6 +45,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private previewDelay!: HTMLInputElement;
     private previewVolume!: HTMLInputElement;
     private previewVolumeValue!: HTMLSpanElement;
+    private previewSourceAuto!: HTMLInputElement;
+    private previewSourceJavDB!: HTMLInputElement;
+    private previewSourceJavSpyl!: HTMLInputElement;
+    private previewSourceAVPreview!: HTMLInputElement;
+    private previewSourceVBGFL!: HTMLInputElement;
 
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
@@ -95,6 +100,28 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 获取当前选中的预览来源
+     */
+    private getPreferredPreviewSource(): 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl' {
+        if (this.previewSourceJavDB?.checked) return 'javdb';
+        if (this.previewSourceJavSpyl?.checked) return 'javspyl';
+        if (this.previewSourceAVPreview?.checked) return 'avpreview';
+        if (this.previewSourceVBGFL?.checked) return 'vbgfl';
+        return 'auto';
+    }
+
+    /**
+     * 同步“视频预览增强”的当前延迟展示到说明文字（#currentPreviewDelay）
+     */
+    private updateCurrentPreviewDelayDisplay(): void {
+        const span = document.getElementById('currentPreviewDelay');
+        if (!span) return;
+        const val = (this.previewDelay?.value || '').trim();
+        const n = parseInt(val || '0', 10);
+        span.textContent = isNaN(n) ? '—' : String(n);
+    }
+
+    /**
      * 初始化DOM元素
      */
     protected initializeElements(): void {
@@ -108,7 +135,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableAnchorOptimization = document.getElementById('enableAnchorOptimization') as HTMLInputElement;
         this.enableListEnhancement = document.getElementById('enableListEnhancement') as HTMLInputElement;
         this.enableActorEnhancement = document.getElementById('enableActorEnhancement') as HTMLInputElement;
-        
+
         // 演员页增强配置
         this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
         this.actorDefaultTagInputs = document.querySelectorAll('#actorDefaultTagsGroup input[name="actorDefaultTag"]') as NodeListOf<HTMLInputElement>;
@@ -137,6 +164,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
         this.previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
         this.previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
+        // 预览来源单选
+        this.previewSourceAuto = document.getElementById('previewSourceAuto') as HTMLInputElement;
+        this.previewSourceJavDB = document.getElementById('previewSourceJavDB') as HTMLInputElement;
+        this.previewSourceJavSpyl = document.getElementById('previewSourceJavSpyl') as HTMLInputElement;
+        this.previewSourceAVPreview = document.getElementById('previewSourceAVPreview') as HTMLInputElement;
+        this.previewSourceVBGFL = document.getElementById('previewSourceVBGFL') as HTMLInputElement;
 
         // 配置区域元素
         this.translationConfig = document.getElementById('translationConfig') as HTMLDivElement;
@@ -195,7 +228,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
-        
+
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableAutoApplyTags?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -205,6 +238,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
         this.previewDelay?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 同步“视频预览增强”描述里的当前延迟显示
+        this.previewDelay?.addEventListener('input', () => this.updateCurrentPreviewDelayDisplay());
         this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
 
         // 缓存过期时间
@@ -218,11 +253,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
             console.warn('[Enhancement] 未找到添加过滤规则按钮元素');
         }
 
+        // 预览来源变更
+        const previewSourceRadios = [this.previewSourceAuto, this.previewSourceJavDB, this.previewSourceJavSpyl, this.previewSourceAVPreview, this.previewSourceVBGFL].filter(Boolean) as HTMLInputElement[];
+        previewSourceRadios.forEach(r => r.addEventListener('change', this.handleSettingChange.bind(this)));
+
         // 设置样式支持（在DOM元素都初始化完成后）
         this.setupVolumeControlStyles();
-        
-        // 初始化演员页增强事件监听器
-        this.initializeActorEnhancementEvents();
     }
 
     /**
@@ -311,7 +347,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
         if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
-        
+
+        // 预览来源回填
+        const preferred = (listEnhancement as any).preferredPreviewSource || 'auto';
+        if (this.previewSourceAuto) this.previewSourceAuto.checked = preferred === 'auto';
+        if (this.previewSourceJavDB) this.previewSourceJavDB.checked = preferred === 'javdb';
+        if (this.previewSourceJavSpyl) this.previewSourceJavSpyl.checked = preferred === 'javspyl';
+        if (this.previewSourceAVPreview) this.previewSourceAVPreview.checked = preferred === 'avpreview';
+        if (this.previewSourceVBGFL) this.previewSourceVBGFL.checked = preferred === 'vbgfl';
+
         // 演员页增强配置
         const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: ['s', 'd'], defaultSortType: 0 };
         if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
@@ -321,6 +365,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
+        // 首次加载时更新“当前延迟”展示
+        this.updateCurrentPreviewDelayDisplay();
         if (this.previewVolume) {
             const volumeValue = listEnhancement.previewVolume || 0.2;
             this.previewVolume.value = String(volumeValue);
@@ -367,12 +413,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 dataEnhancement: {
-                    enableMultiSource: false, // 开发中，强制禁用
-                    enableImageCache: false, // 开发中，强制禁用
-                    enableVideoPreview: false, // 开发中，强制禁用
+                    enableMultiSource: false, // 仍未启用
+                    enableImageCache: false,  // 仍未启用
+                    // 将“视频预览增强”与列表增强的预览开关保持一致
+                    enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableTranslation: this.enableTranslation.checked,
-                    enableRatingAggregation: false, // 开发中，强制禁用
-                    enableActorInfo: false, // 开发中，强制禁用
+                    enableRatingAggregation: false, // 开发中，暂不启用
+                    enableActorInfo: false, // 开发中，暂不启用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
                 },
                 // 翻译配置保存
@@ -416,6 +463,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
                     previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
                     enableRightClickBackground: true, // 总是启用右键后台打开
+                    preferredPreviewSource: this.getPreferredPreviewSource(),
                 },
                 actorEnhancement: {
                     enabled: this.enableActorEnhancement.checked,
