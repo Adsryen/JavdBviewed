@@ -25,6 +25,8 @@ export interface ExtensionSettings {
         password: string;
         autoSync: boolean;
         syncInterval: number;
+        // 新增：保留备份天数，用于自动清理过期备份
+        retentionDays?: number;
         lastSync: string | null;
     };
     dataSync: {

@@ -21,6 +21,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private webdavPass!: HTMLInputElement;
     private webdavAutoSync!: HTMLInputElement;
     private webdavSyncInterval!: HTMLInputElement;
+    private webdavRetentionDays!: HTMLInputElement;
     private saveWebdavSettingsBtn!: HTMLButtonElement;
     private testWebdavConnectionBtn!: HTMLButtonElement;
     private diagnoseWebdavConnectionBtn!: HTMLButtonElement;
@@ -46,6 +47,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavPass = document.getElementById('webdavPass') as HTMLInputElement;
         this.webdavAutoSync = document.getElementById('webdavAutoSync') as HTMLInputElement;
         this.webdavSyncInterval = document.getElementById('webdav-sync-interval') as HTMLInputElement;
+        this.webdavRetentionDays = document.getElementById('webdav-retention-days') as HTMLInputElement;
         this.saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
         this.testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
         this.diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
@@ -54,7 +56,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
         if (!this.webdavEnabled || !this.webdavUrl || !this.webdavUser || !this.webdavPass ||
             !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn ||
-            !this.toggleWebdavPasswordVisibilityBtn) {
+            !this.toggleWebdavPasswordVisibilityBtn || !this.webdavRetentionDays) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -94,6 +96,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavPass.value = webdav.password || '';
         this.webdavAutoSync.checked = webdav.autoSync || false;
         this.webdavSyncInterval.value = String(webdav.syncInterval || 30);
+        this.webdavRetentionDays.value = String(webdav.retentionDays ?? 7);
         this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
 
         // 更新UI状态
@@ -115,6 +118,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                     password: this.webdavPass.value,
                     autoSync: this.webdavAutoSync.checked,
                     syncInterval: parseInt(this.webdavSyncInterval.value, 10),
+                    retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                     lastSync: STATE.settings?.webdav?.lastSync || ''
                 }
             };
@@ -163,6 +167,11 @@ export class WebDAVSettings extends BaseSettingsPanel {
             if (isNaN(syncInterval) || syncInterval < 5 || syncInterval > 1440) {
                 errors.push('同步间隔必须在5-1440分钟之间');
             }
+
+            const days = parseInt(this.webdavRetentionDays.value, 10);
+            if (isNaN(days) || days < 0 || days > 3650) {
+                errors.push('保留备份天数必须在0-3650之间');
+            }
         }
 
         return {
@@ -184,6 +193,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 password: this.webdavPass.value,
                 autoSync: this.webdavAutoSync.checked,
                 syncInterval: parseInt(this.webdavSyncInterval.value, 10),
+                retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                 lastSync: STATE.settings?.webdav?.lastSync || ''
             }
         };
@@ -212,6 +222,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
             if (webdav.syncInterval !== undefined) {
                 this.webdavSyncInterval.value = String(webdav.syncInterval);
+            }
+            if (webdav.retentionDays !== undefined) {
+                this.webdavRetentionDays.value = String(webdav.retentionDays);
             }
             if (webdav.lastSync !== undefined) {
                 this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
