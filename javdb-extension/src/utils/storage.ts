@@ -70,6 +70,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
                 ...(storedSettings.translation?.ai || {}),
             },
         },
+        videoEnhancement: {
+            ...DEFAULT_SETTINGS.videoEnhancement,
+            ...(storedSettings as any).videoEnhancement || {},
+        },
         userExperience: {
             ...DEFAULT_SETTINGS.userExperience,
             ...(storedSettings.userExperience || {}),

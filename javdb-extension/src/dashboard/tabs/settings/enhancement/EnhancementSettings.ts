@@ -27,6 +27,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableAnchorOptimization!: HTMLInputElement;
     private enableListEnhancement!: HTMLInputElement;
     private enableActorEnhancement!: HTMLInputElement;
+    private enableVideoEnhancement!: HTMLInputElement;
+
+    // 影片页增强子项
+    private veEnableCoverImage!: HTMLInputElement;
+    private veEnableTranslation!: HTMLInputElement;
+    private veEnableRating!: HTMLInputElement;
+    private veEnableActorInfo!: HTMLInputElement;
+    private veShowLoadingIndicator!: HTMLInputElement;
 
     // 磁力搜索源配置
     private magnetSourceSukebei!: HTMLInputElement;
@@ -81,6 +89,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private contentFilterConfig!: HTMLElement;
     private anchorOptimizationConfig!: HTMLElement;
     private listEnhancementConfig!: HTMLDivElement;
+    private videoEnhancementConfig!: HTMLDivElement;
 
     // 内容过滤相关元素
     private addFilterRuleBtn!: HTMLButtonElement;
@@ -135,6 +144,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableAnchorOptimization = document.getElementById('enableAnchorOptimization') as HTMLInputElement;
         this.enableListEnhancement = document.getElementById('enableListEnhancement') as HTMLInputElement;
         this.enableActorEnhancement = document.getElementById('enableActorEnhancement') as HTMLInputElement;
+        this.enableVideoEnhancement = document.getElementById('enableVideoEnhancement') as HTMLInputElement;
 
         // 演员页增强配置
         this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
@@ -190,12 +200,20 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.contentFilterConfig = document.getElementById('contentFilterConfig') as HTMLElement;
         this.anchorOptimizationConfig = document.getElementById('anchorOptimizationConfig') as HTMLElement;
         this.listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
+        this.videoEnhancementConfig = document.getElementById('videoEnhancementConfig') as HTMLDivElement;
+
+        // 影片页增强子项
+        this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
+        this.veEnableTranslation = document.getElementById('veEnableTranslation') as HTMLInputElement;
+        this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
+        this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
+        this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
 
         // 内容过滤相关元素
         this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
         this.filterRulesList = document.getElementById('filterRulesList') as HTMLElement;
 
-        if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement) {
+        if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
             throw new Error('功能增强设置相关的DOM元素未找到');
         }
     }
@@ -228,6 +246,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
+
+        // 影片页增强事件监听
+        this.enableVideoEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
+
+        // 影片页增强子项事件监听
+        this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableTranslation?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableRating?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableActorInfo?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -385,6 +413,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
             }
         }
 
+        // 影片页增强配置
+        const videoEnhancement = settings?.videoEnhancement || { enabled: false, enableCoverImage: true, enableTranslation: true, enableRating: true, enableActorInfo: true, showLoadingIndicator: true };
+        if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
+        if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
+        if (this.veEnableTranslation) this.veEnableTranslation.checked = videoEnhancement.enableTranslation !== false;
+        if (this.veEnableRating) this.veEnableRating.checked = videoEnhancement.enableRating !== false;
+        if (this.veEnableActorInfo) this.veEnableActorInfo.checked = videoEnhancement.enableActorInfo !== false;
+        if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
+
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
         this.currentFilterRules = contentFilter?.keywordRules || [];
@@ -421,6 +458,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableRatingAggregation: false, // 开发中，暂不启用
                     enableActorInfo: false, // 开发中，暂不启用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
+                },
+                // 影片页增强配置保存
+                videoEnhancement: {
+                    enabled: this.enableVideoEnhancement?.checked === true,
+                    enableCoverImage: this.veEnableCoverImage?.checked !== false,
+                    enableTranslation: this.veEnableTranslation?.checked !== false,
+                    enableRating: this.veEnableRating?.checked !== false,
+                    enableActorInfo: this.veEnableActorInfo?.checked !== false,
+                    showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
                 },
                 // 翻译配置保存
                 translation: {
@@ -482,11 +528,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
             await saveSettings(newSettings);
             STATE.settings = newSettings;
 
-            // 通知所有JavDB标签页设置已更新
+            // 通知所有JavDB标签页设置已更新（兼容大小写类型）
             chrome.tabs.query({ url: '*://javdb.com/*' }, (tabs) => {
                 tabs.forEach(tab => {
                     if (tab.id) {
-                        chrome.tabs.sendMessage(tab.id, { type: 'SETTINGS_UPDATED', settings: newSettings });
+                        try { chrome.tabs.sendMessage(tab.id, { type: 'settings-updated', settings: newSettings }); } catch {}
+                        try { chrome.tabs.sendMessage(tab.id, { type: 'SETTINGS_UPDATED', settings: newSettings }); } catch {}
                     }
                 });
             });
@@ -523,6 +570,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableListEnhancement: this.enableListEnhancement.checked,
                 enableActorEnhancement: this.enableActorEnhancement.checked,
                 showEnhancedTooltips: false,
+            },
+            videoEnhancement: {
+                enabled: this.enableVideoEnhancement?.checked === true,
+                enableCoverImage: this.veEnableCoverImage?.checked !== false,
+                enableTranslation: this.veEnableTranslation?.checked !== false,
+                enableRating: this.veEnableRating?.checked !== false,
+                enableActorInfo: this.veEnableActorInfo?.checked !== false,
+                showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,
@@ -774,6 +829,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
             case 'enableMagnetSearch':
                 subSettingsId = 'magnetSourcesConfig';
                 break;
+            case 'enableVideoEnhancement':
+                subSettingsId = 'videoEnhancementConfig';
+                break;
         }
 
         if (subSettingsId) {
@@ -891,6 +949,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 列表增强配置
         if (this.listEnhancementConfig) {
             this.listEnhancementConfig.style.display = this.enableListEnhancement.checked ? 'block' : 'none';
+        }
+        // 影片页增强配置
+        if (this.videoEnhancementConfig) {
+            this.videoEnhancementConfig.style.display = this.enableVideoEnhancement.checked ? 'block' : 'none';
         }
         
         // 演员页增强配置
