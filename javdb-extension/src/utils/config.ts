@@ -261,6 +261,16 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
+    // 新增：影片页增强默认配置
+    videoEnhancement: {
+        enabled: false,
+        enableCoverImage: true,
+        enableTranslation: true,
+        enableRating: true,
+        enableActorInfo: true,
+        showLoadingIndicator: true,
+    },
+
     // 新增：内容过滤默认配置
     contentFilter: {
         enabled: false,

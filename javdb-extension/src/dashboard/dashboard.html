@@ -63,14 +63,7 @@
                 </div>
             </div>
 
-            <!-- 115 网盘侧边栏配额摘要 -->
-            <div class="sidebar-section" id="drive115SidebarSection">
-                <h4>115 网盘</h4>
-                <div id="drive115QuotaSidebar" class="quota-summary">
-                    <!-- 由 JS 动态填充：配额摘要（总额/已用/剩余）及简单进度条 -->
-                    <div style="color:#888; font-size:12px;">正在加载配额信息...</div>
-                </div>
-            </div>
+            
 
         </div>
 
@@ -1304,6 +1297,7 @@
                                     <input type="checkbox" id="enableContentFilter">
                                     <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableMagnetSearch">
+                                    <input type="checkbox" id="enableVideoEnhancement">
                                     <input type="checkbox" id="enableListEnhancement">
                                     <input type="checkbox" id="enableActorEnhancement" style="display: none;">
                                     <input type="checkbox" id="enableAutoApplyTags" style="display: none;">
@@ -1667,6 +1661,93 @@
                                                     <li><strong>视频预览</strong> - 鼠标悬浮时自动播放预览视频（如果有预览源）</li>
                                                     <li><strong>列表优化</strong> - 优化影片卡片显示，添加功能按钮</li>
                                                 </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎞️ 影片页增强</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableVideoEnhancement"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>增强视频详情页的封面、评分、演员信息和标题翻译展示<br>
+                                            <strong>使用：</strong>进入视频详情页自动生效，可在下方自定义开启的增强项
+                                        </p>
+
+                                        <!-- 影片页增强详细配置 -->
+                                        <div class="sub-settings" id="videoEnhancementConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🎞️ 影片页增强配置</h5>
+                                                <p class="sub-description">选择希望在视频详情页启用的增强功能。</p>
+                                            </div>
+
+                                            <div class="dual-toggle-container">
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🖼️ 高质量封面</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="veEnableCoverImage" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">替换或补充为更高质量封面。</p>
+                                                </div>
+
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">🈶 标题翻译</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="veEnableTranslation" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">对影片页标题进行定点翻译（需开启“翻译”）。</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="dual-toggle-container">
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">⭐ 评分信息</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="veEnableRating" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">显示多站评分对比与统计（依赖多数据源）。</p>
+                                                </div>
+
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">👤 演员信息</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="veEnableActorInfo" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">展示演员资料与作品条目（依赖多数据源）。</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="single-toggle-container">
+                                                <div class="toggle-option">
+                                                    <div class="toggle-header">
+                                                        <span class="toggle-title">⌛ 显示加载指示器</span>
+                                                        <label class="modern-toggle">
+                                                            <input type="checkbox" id="veShowLoadingIndicator" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="toggle-description">增强加载时在页面显示提示，完成后自动隐藏。</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

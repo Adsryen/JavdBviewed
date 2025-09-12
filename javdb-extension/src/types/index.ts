@@ -101,6 +101,16 @@ export interface ExtensionSettings {
         showEnhancedTooltips: boolean; // 显示增强提示
     };
 
+    // 新增：影片页增强配置
+    videoEnhancement: {
+        enabled: boolean; // 启用影片页增强
+        enableCoverImage: boolean; // 启用高质量封面
+        enableTranslation: boolean; // 启用标题定点翻译
+        enableRating: boolean; // 启用评分信息
+        enableActorInfo: boolean; // 启用演员信息
+        showLoadingIndicator: boolean; // 显示加载指示器
+    };
+
     // 新增：内容过滤配置
     contentFilter: {
         enabled: boolean;

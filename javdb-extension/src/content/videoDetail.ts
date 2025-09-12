@@ -143,13 +143,11 @@ async function markActorsOnPage(): Promise<void> {
             await handleNewRecord(videoId, now, currentUrl, operationId);
         }
 
-        // 应用增强功能
-        // 1) 当启用多数据源时：执行所有增强（封面/评分/演员等 + 翻译）
-        // 2) 即使未启用多数据源，只要开启了翻译或勾选了 current-title 目标，也执行定点翻译
+        // 应用增强功能（新逻辑：以视频页增强开关为主，兼容旧逻辑）
+        const enableVideoEnhancement = STATE.settings?.videoEnhancement?.enabled === true;
         const enableMultiSource = STATE.settings?.dataEnhancement?.enableMultiSource;
         const enableTranslation = STATE.settings?.dataEnhancement?.enableTranslation;
-        // 只要启用了翻译，就执行增强器（其中包含对 current-title 的定点翻译与失败 toast）
-        if (enableMultiSource || enableTranslation) {
+        if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
                 log('Applying video detail enhancements...');
                 await videoDetailEnhancer.initialize();
