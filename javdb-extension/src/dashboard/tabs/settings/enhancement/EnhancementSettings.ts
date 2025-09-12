@@ -98,6 +98,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enhancementTogglesInitialized = false;
     private currentFilterRules: KeywordFilterRule[] = [];
 
+    // 子标签元素
+    private subtabLinks!: NodeListOf<HTMLButtonElement>;
+    private currentSubtab: 'list' | 'video' | 'actor' = 'list';
+
     constructor() {
         super({
             panelId: 'enhancement-settings',
@@ -202,6 +206,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
         this.videoEnhancementConfig = document.getElementById('videoEnhancementConfig') as HTMLDivElement;
 
+        // 子标签
+        this.subtabLinks = document.querySelectorAll('#enhancementSubTabs .subtab-link') as NodeListOf<HTMLButtonElement>;
+
         // 影片页增强子项
         this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
         this.veEnableTranslation = document.getElementById('veEnableTranslation') as HTMLInputElement;
@@ -287,6 +294,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 设置样式支持（在DOM元素都初始化完成后）
         this.setupVolumeControlStyles();
+
+        // 子标签切换
+        if (this.subtabLinks && this.subtabLinks.length > 0) {
+            this.subtabLinks.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor';
+                    this.switchSubtab(sub);
+                });
+            });
+        }
     }
 
     /**
@@ -440,6 +457,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 强制更新所有滑块状态以确保与存储同步
         this.updateAllToggleStates();
+
+        // 初始化子标签（读取最近一次选择）
+        try {
+            const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | null;
+            this.switchSubtab(last || 'list');
+        } catch {
+            this.switchSubtab('list');
+        }
     }
 
     /**
@@ -1495,6 +1520,41 @@ export class EnhancementSettings extends BaseSettingsPanel {
             } else {
                 console.warn(`[Enhancement] 未找到滑块或checkbox: ${toggleSelector}`);
             }
+        });
+    }
+
+    /**
+     * 切换子标签显示
+     */
+    private switchSubtab(sub: 'list' | 'video' | 'actor'): void {
+        this.currentSubtab = sub;
+        try { localStorage.setItem('enhancementSubtab', sub); } catch {}
+
+        // 更新按钮状态
+        if (this.subtabLinks && this.subtabLinks.length > 0) {
+            this.subtabLinks.forEach(btn => {
+                if (btn.getAttribute('data-subtab') === sub) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // 控制每个表单块的显示：根据 data-subtab 属性
+        const allGroups = document.querySelectorAll('#enhancement-settings .settings-section .form-group, #enhancement-settings .settings-section');
+        allGroups.forEach(el => {
+            const elem = el as HTMLElement;
+            const attr = elem.getAttribute('data-subtab');
+            if (!attr) {
+                // 无标注：默认显示（例如标题、说明块），或根据父容器标注
+                const parentAttr = elem.closest('[data-subtab]')?.getAttribute('data-subtab');
+                if (parentAttr) {
+                    elem.style.display = (parentAttr === sub) ? '' : 'none';
+                }
+                return;
+            }
+            elem.style.display = (attr === sub) ? '' : 'none';
         });
     }
 
