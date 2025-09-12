@@ -33,6 +33,21 @@ export class VideoDetailEnhancer {
   }
 
   /**
+   * 根据当前设置更新增强选项
+   */
+  public applyOptionsFromSettings(): void {
+    try {
+      const cfg = STATE.settings?.videoEnhancement;
+      if (!cfg) return;
+      this.options.enableCoverImage = cfg.enableCoverImage !== false;
+      this.options.enableTranslation = cfg.enableTranslation !== false;
+      this.options.enableRating = cfg.enableRating !== false;
+      this.options.enableActorInfo = cfg.enableActorInfo !== false;
+      this.options.showLoadingIndicator = cfg.showLoadingIndicator !== false;
+    } catch {}
+  }
+
+  /**
    * 针对影片详情页标题 .current-title 的定点翻译
    */
   private async translateCurrentTitleIfNeeded(): Promise<void> {
@@ -127,6 +142,8 @@ export class VideoDetailEnhancer {
    */
   async initialize(): Promise<void> {
     try {
+      // 将设置中的 videoEnhancement 子项应用到选项
+      this.applyOptionsFromSettings();
       this.videoId = extractVideoIdFromPage();
       if (!this.videoId) {
         log('No video ID found, skipping enhancement');
