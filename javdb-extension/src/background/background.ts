@@ -110,6 +110,7 @@ import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 import { newWorksScheduler } from '../services/newWorks';
+import JSZip from 'jszip';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -207,33 +208,50 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
         const day = now.getDate().toString().padStart(2, '0');
+        const hour = now.getHours().toString().padStart(2, '0');
+        const minute = now.getMinutes().toString().padStart(2, '0');
+        const second = now.getSeconds().toString().padStart(2, '0');
         const date = `${year}-${month}-${day}`;
-        const filename = `javdb-extension-backup-${date}.json`;
+        const filename = `javdb-extension-backup-${date}-${hour}-${minute}-${second}.zip`;
         
         let fileUrl = settings.webdav.url;
         if (!fileUrl.endsWith('/')) fileUrl += '/';
         fileUrl += filename.startsWith('/') ? filename.substring(1) : filename;
         
+        // 生成ZIP
+        const zip = new JSZip();
+        zip.file('backup.json', JSON.stringify(dataToExport, null, 2));
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
         await logger.info(`Uploading to ${fileUrl}`);
 
         const response = await fetch(fileUrl, {
             method: 'PUT',
             headers: {
                 'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/zip'
             },
-            body: JSON.stringify(dataToExport, null, 2)
+            body: zipBlob
         });
 
         if (!response.ok) {
             throw new Error(`Upload failed with status: ${response.status}`);
         }
 
-        // Update last sync time
+        // Update last sync time and cleanup old backups according to retention
         const updatedSettings = await getSettings();
         updatedSettings.webdav.lastSync = new Date().toISOString();
         await saveSettings(updatedSettings);
         await logger.info('WebDAV upload successful, updated last sync time.');
+
+        try {
+            const retentionDays = Number(updatedSettings.webdav.retentionDays ?? 7);
+            if (!isNaN(retentionDays) && retentionDays > 0) {
+                await cleanupOldBackups(retentionDays);
+            }
+        } catch (e) {
+            await logger.warn('Failed to cleanup old WebDAV backups', { error: (e as Error).message });
+        }
 
         return { success: true };
     } catch (error: any) {
@@ -287,8 +305,22 @@ async function performRestore(filename: string, options = {
             throw new Error(`Download failed with status: ${response.status}`);
         }
 
-        const fileContents = await response.text();
-        const importData = JSON.parse(fileContents);
+        const isZip = /\.zip$/i.test(finalUrl);
+        let importData: any;
+        if (isZip) {
+            const arrayBuf = await response.arrayBuffer();
+            const zip = await JSZip.loadAsync(arrayBuf);
+            // 优先尝试 backup.json
+            const jsonFile = zip.file('backup.json') || zip.file(/\.json$/i)[0];
+            if (!jsonFile) {
+                throw new Error('ZIP 中未找到 JSON 备份文件');
+            }
+            const jsonText = await jsonFile.async('text');
+            importData = JSON.parse(jsonText);
+        } else {
+            const fileContents = await response.text();
+            importData = JSON.parse(fileContents);
+        }
 
         await logger.info('Parsed backup data', {
             hasSettings: !!importData.settings,
@@ -469,6 +501,81 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
             username: settings.webdav.username ? '[CONFIGURED]' : '[NOT SET]'
         });
         return { success: false, error: error.message };
+    }
+}
+
+/**
+ * 清理超过保留天数的备份文件
+ */
+async function cleanupOldBackups(retentionDays: number): Promise<void> {
+    const settings = await getSettings();
+    if (!settings.webdav.enabled || !settings.webdav.url) {
+        return;
+    }
+
+    try {
+        const result = await listFiles();
+        if (!result.success || !result.files || result.files.length === 0) {
+            return;
+        }
+
+        const files = result.files
+            .filter(f => f.name.includes('javdb-extension-backup-') && (f.name.endsWith('.json') || f.name.endsWith('.zip')))
+            // 按名称中的时间排序，较新的在前（名称格式：javdb-extension-backup-YYYY-MM-DD-HH-MM-SS.json 或 -YYYY-MM-DD.json）
+            .sort((a, b) => a.name > b.name ? -1 : 1);
+
+        const nowMs = Date.now();
+        const maxAgeMs = retentionDays * 24 * 60 * 60 * 1000;
+
+        for (const file of files) {
+            // 如果服务器返回了 lastModified，优先使用它
+            let fileTime = 0;
+            if (file.lastModified && file.lastModified !== 'N/A') {
+                const parsed = Date.parse(file.lastModified);
+                if (!isNaN(parsed)) fileTime = parsed;
+            }
+
+            // 如果无法从 lastModified 得到时间，则从文件名解析
+            if (!fileTime) {
+                // 支持两种命名：YYYY-MM-DD-HH-MM-SS 和 YYYY-MM-DD
+                const match = file.name.match(/javdb-extension-backup-(\d{4}-\d{2}-\d{2})(?:-(\d{2})-(\d{2})-(\d{2}))?\.(json|zip)$/);
+                if (match) {
+                    const datePart = match[1];
+                    const h = match[2] || '00';
+                    const m = match[3] || '00';
+                    const s = match[4] || '00';
+                    const iso = `${datePart}T${h}:${m}:${s}Z`;
+                    const parsed = Date.parse(iso);
+                    if (!isNaN(parsed)) fileTime = parsed;
+                }
+            }
+
+            if (!fileTime) {
+                continue;
+            }
+
+            const ageMs = nowMs - fileTime;
+            if (ageMs > maxAgeMs) {
+                try {
+                    // 构造完整 URL 进行删除
+                    let base = settings.webdav.url;
+                    if (!base.endsWith('/')) base += '/';
+                    const fileUrl = new URL(file.path.startsWith('/') ? file.path.substring(1) : file.path, base).href;
+                    await fetch(fileUrl, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
+                            'User-Agent': 'JavDB-Extension/1.0'
+                        }
+                    });
+                    await logger.info('Deleted expired WebDAV backup', { name: file.name, url: fileUrl });
+                } catch (e) {
+                    await logger.warn('Failed to delete expired WebDAV backup', { name: file.name, error: (e as Error).message });
+                }
+            }
+        }
+    } catch (e) {
+        await logger.warn('cleanupOldBackups encountered an error', { error: (e as Error).message });
     }
 }
 
@@ -1319,6 +1426,14 @@ async function triggerAutoSync(): Promise<void> {
             const newSettings: ExtensionSettings = await getSettings();
             newSettings.webdav.lastSync = new Date().toISOString();
             await saveSettings(newSettings);
+            try {
+                const retentionDays = Number(newSettings.webdav.retentionDays ?? 7);
+                if (!isNaN(retentionDays) && retentionDays >= 0) {
+                    await cleanupOldBackups(retentionDays);
+                }
+            } catch (e) {
+                await logger.warn('Auto-sync cleanup failed', { error: (e as Error).message });
+            }
         } else {
             await logger.error('Daily auto-sync failed.', { error: response ? response.error : 'No response.' });
         }
