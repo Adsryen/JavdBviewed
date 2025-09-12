@@ -624,15 +624,15 @@
                                 </div>
 
                                 <div id="webdav-fields-container">
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label for="webdavUrl">WebDAV 地址:</label>
                                         <input type="text" id="webdavUrl" placeholder="例如: https://dav.jianguoyun.com/dav/" style="width: 100%; max-width: none; box-sizing: border-box;">
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label for="webdavUser">用户名:</label>
                                         <input type="text" id="webdavUser" style="width: 100%; max-width: none; box-sizing: border-box;">
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label for="webdavPass">密码/应用密钥:</label>
                                         <div class="password-input-container" style="position: relative; display: block; width: 100%;">
                                             <input type="password" id="webdavPass" style="width: 100%; max-width: none; padding-right: 45px; box-sizing: border-box;">
@@ -647,7 +647,7 @@
                                         <button type="button" id="testWebdavConnection">测试连接</button>
                                         <button type="button" id="diagnoseWebdavConnection">诊断连接</button>
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <p>上次同步: <span id="last-sync-time">从未</span></p>
                                     </div>
                                 </div>
@@ -671,13 +671,13 @@
                                     <h4>视频数据同步配置</h4>
                                     <p class="section-description">配置观看记录和想看列表的同步URL地址，页码参数将由程序自动添加。</p>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label for="dataSyncWantWatchUrl">想看列表URL:</label>
                                         <input type="url" id="dataSyncWantWatchUrl" class="text-input" placeholder="https://javdb.com/users/want_watch_videos">
                                         <p class="input-description">想看视频列表的URL地址，程序会自动添加页码参数。</p>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label for="dataSyncWatchedVideosUrl">已看列表URL:</label>
                                         <input type="url" id="dataSyncWatchedVideosUrl" class="text-input" placeholder="https://javdb.com/users/watched_videos">
                                         <p class="input-description">已观看视频列表的URL地址，程序会自动添加页码参数。</p>
@@ -690,7 +690,7 @@
                                     <h4>演员数据同步配置</h4>
                                     <p class="section-description">配置演员数据同步的行为和URL地址。</p>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <input type="checkbox" id="actorSyncEnabled">
                                             <span class="checkmark"></span>
@@ -699,7 +699,7 @@
                                         <p class="input-description">开启后可以从JavDB同步收藏演员数据到本地。</p>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="actor">
                                         <label class="checkbox-label">
                                             <input type="checkbox" id="actorAutoSync">
                                             <span class="checkmark"></span>
@@ -1287,6 +1287,12 @@
                                 <h3>功能增强设置</h3>
                                 <p class="settings-description">解锁强大的增强功能，让您的JavDB体验更加丰富和高效！这些功能将显著提升浏览效率、数据完整性和操作便捷性。</p>
 
+                                <div id="enhancementSubTabs" class="subtabs">
+                                    <button type="button" class="subtab-link" data-subtab="list">列表页增强</button>
+                                    <button type="button" class="subtab-link" data-subtab="video">影片页增强</button>
+                                    <button type="button" class="subtab-link" data-subtab="actor">演员页增强</button>
+                                </div>
+
 
                             </div>
                             <div class="settings-panel-body">
@@ -1302,11 +1308,11 @@
                                     <input type="checkbox" id="enableActorEnhancement" style="display: none;">
                                     <input type="checkbox" id="enableAutoApplyTags" style="display: none;">
                                     <input type="file" id="actorConfigFileInput" accept=".json" style="display: none;">
-                                    <input type="checkbox" id="showEnhancedTooltips">
+                                    
                                 </div>
 
                                 <!-- 数据增强 -->
-                                <div class="settings-section">
+                                <div class="settings-section" data-subtab="video">
                                     <h4>📊 数据增强 - 让信息更丰富</h4>
                                     <div class="form-group">
                                         <label class="checkbox-label" style="opacity: 0.6;">
@@ -1505,7 +1511,7 @@
                                 <!-- 用户体验 -->
                                 <div class="settings-section">
                                     <h4>⚡ 用户体验 - 让操作更高效</h4>
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label" style="opacity: 0.6;">
                                             <input type="checkbox" id="enableQuickCopy" disabled>
                                             <span class="checkmark"></span>
@@ -1518,7 +1524,7 @@
                                         </p>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1560,7 +1566,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1665,7 +1671,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1752,7 +1758,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1816,7 +1822,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="actor">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1916,20 +1922,9 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="enableKeyboardShortcuts" disabled>
-                                            <span class="checkmark"></span>
-                                            ⌨️ 键盘快捷键大师 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
-                                        </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>15+个快捷键让您告别鼠标，包括导航、复制、过滤等操作<br>
-                                            <strong>使用：</strong>按?键查看帮助，如Alt+H回首页、Ctrl+Shift+V复制番号、/键聚焦搜索框<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
-                                        </p>
-                                    </div>
+                                    
 
-                                    <div class="form-group">
+                                    <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
@@ -1988,18 +1983,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="showEnhancedTooltips" disabled>
-                                            <span class="checkmark"></span>
-                                            💡 智能操作提示 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
-                                        </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>显示功能使用提示、快捷键说明和操作指导<br>
-                                            <strong>使用：</strong>鼠标悬停在功能按钮上会显示详细说明，帮助快速上手<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
-                                        </p>
-                                    </div>
+                                    
                                 </div>
 
                                 <!-- 开发中 -->
