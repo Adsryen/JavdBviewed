@@ -33,7 +33,10 @@ export const STORAGE_KEYS = {
     // 新作品功能相关存储键
     NEW_WORKS_SUBSCRIPTIONS: 'new_works_subscriptions',
     NEW_WORKS_RECORDS: 'new_works_records',
-    NEW_WORKS_CONFIG: 'new_works_config'
+    NEW_WORKS_CONFIG: 'new_works_config',
+    
+    // 高级搜索方案存储键
+    ADV_SEARCH_PRESETS: 'adv_search_presets'
 } as const;
 
 export const VIDEO_STATUS = {
