@@ -60,6 +60,9 @@
                             <span class="sync-status-text">未同步</span>
                         </div>
                     </div>
+                    <!-- 分界线与版本信息（移动到侧边栏此处） -->
+                    <div class="sidebar-section-sep"></div>
+                    <div id="versionInfoSidebar"><!-- 版本信息将由 JS 动态填充 --></div>
                 </div>
             </div>
 
@@ -1308,16 +1311,21 @@
                                 <!-- 隐藏的checkbox元素，用于JavaScript逻辑 -->
                                 <div style="display: none;">
                                     <input type="checkbox" id="enableTranslation">
-                                    <input type="checkbox" id="enableQuickCopy">
                                     <input type="checkbox" id="enableContentFilter">
-                                    <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableMagnetSearch">
-                                    <input type="checkbox" id="enableVideoEnhancement">
+                                    <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableListEnhancement">
-                                    <input type="checkbox" id="enableActorEnhancement" style="display: none;">
-                                    <input type="checkbox" id="enableAutoApplyTags" style="display: none;">
-                                    <input type="file" id="actorConfigFileInput" accept=".json" style="display: none;">
-                                    
+                                    <input type="checkbox" id="enableVideoPreview">
+                                    <input type="checkbox" id="enableClickEnhancement">
+                                    <input type="checkbox" id="enableScrollPaging">
+                                    <input type="checkbox" id="enableActorEnhancement">
+                                    <input type="checkbox" id="enableVideoEnhancement">
+                                    <!-- 影片页增强子项（右侧通用开关的状态源） -->
+                                    <input type="checkbox" id="veEnableCoverImage">
+                                    <input type="checkbox" id="veEnableTranslation">
+                                    <input type="checkbox" id="veEnableRating">
+                                    <input type="checkbox" id="veEnableActorInfo">
+                                    <input type="checkbox" id="veShowLoadingIndicator">
                                 </div>
 
                                 <!-- 数据增强 -->
@@ -1364,24 +1372,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">🎬 视频预览增强</h6>
-                                                    <span class="enhancement-feature-status available">可用</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="enableVideoPreview"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要预览源支持）<br>
-                                            <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页<br>
-                                            <strong>延迟：</strong><span id="currentPreviewDelay">—</span> ms （前往下方「列表增强」中调整“预览延迟时间”）
-                                        </p>
-                                    </div>
+                                    
 
                                     <div class="form-group">
                                         <label class="checkbox-label">
@@ -1400,8 +1391,8 @@
                                             <strong>使用：</strong>在视频详情页会在原标题下方显示中文翻译，帮助理解内容
                                         </p>
 
-                                        <!-- 翻译服务配置 -->
-                                        <div id="translationConfig" class="translation-config" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+                                        <!-- 翻译服务配置（作为子设置，悬浮展开） -->
+                                        <div id="translationConfig" class="translation-config sub-settings" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
                                             <div class="translation-status">
                                                 <h5 style="margin: 0 0 10px 0; color: #495057;">
                                                     <i class="fas fa-language"></i> 翻译服务配置
@@ -1573,68 +1564,50 @@
                                         </div>
                                     </div>
 
+                                    <!-- 新：🖱️ 启用点击增强（独立区块，右侧通用开关） -->
                                     <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">📋 列表页增强</h6>
+                                                    <h6 class="enhancement-feature-name">🖱️ 启用点击增强</h6>
                                                     <span class="enhancement-feature-status available">列表页</span>
                                                 </div>
                                             </div>
                                             <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="enableListEnhancement"></button>
+                                                <button class="enhancement-toggle" data-target="enableClickEnhancement"></button>
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>增强列表页体验，包括左键直接打开、右键后台打开、鼠标悬浮视频预览<br>
-                                            <strong>使用：</strong>在影片列表页生效，左键点击直接跳转，右键点击后台打开，鼠标悬浮播放预览<br>
-                                            <strong>适用：</strong>所有影片列表页面，包括首页、演员页、分类页等
+                                            <strong>效果：</strong>左键直接在当前标签打开，右键在后台新标签打开（不中断当前浏览）。<br>
+                                            <strong>说明：</strong>该增强会统一列表中卡片/标题的点击行为，减少多余的页面跳转。<br>
+                                            <strong>适用：</strong>所有影片列表页（首页、搜索、分类、演员页的作品列表等）。
+                                        </p>
+                                    </div>
+
+                                    <!-- 新：🎬 视频预览增强（独立区块） -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎬 视频预览增强</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableVideoPreview"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页鼠标悬停时显示视频预览片段（需要预览源支持）<br>
+                                            <strong>使用：</strong>鼠标悬停在视频封面上即可预览，无需点击进入详情页<br>
+                                            <strong>延迟：</strong><span id="currentPreviewDelay">—</span> ms（可在本块子设置中调整“预览延迟时间”）
                                         </p>
 
-                                        <!-- 列表增强详细配置 -->
-                                        <div class="sub-settings" id="listEnhancementConfig" style="display: none;">
+                                        <!-- 视频预览增强独立子设置 -->
+                                        <div class="sub-settings" id="listVideoPreviewConfig" style="display: none;">
                                             <div class="sub-settings-header">
-                                                <h5>📋 列表增强配置</h5>
-                                                <p class="sub-description">自定义列表页的增强功能，提升浏览效率和用户体验。</p>
-                                            </div>
-
-                                            <!-- 并排滑块选项 -->
-                                            <div class="dual-toggle-container">
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">🖱️ 启用点击增强</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="enableClickEnhancement" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">左键直接打开，右键后台打开。模拟油猴脚本的点击行为。</p>
-                                                </div>
-
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">🎬 启用视频预览</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="enableVideoPreview" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">鼠标悬浮在影片封面上时播放预览视频（需要预览源支持）。</p>
-                                                </div>
-                                            </div>
-
-                                            <!-- 滚动翻页选项 -->
-                                            <div class="single-toggle-container">
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">📜 启用滚动翻页</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="enableScrollPaging">
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">滚动到页面底部时自动加载下一页内容，实现无感翻页体验。</p>
-                                                </div>
+                                                <h5>🎬 预览设置</h5>
+                                                <p class="sub-description">控制悬停预览的延迟、音量和来源。</p>
                                             </div>
 
                                             <div class="form-group">
@@ -1666,103 +1639,105 @@
                                                 </div>
                                                 <p class="input-description">选择悬停预览的首选来源。自动会按 JavSpyl → AVPreview → 厂牌规则 → JavDB 的顺序尝试。</p>
                                             </div>
-
-                                            <div class="info-box">
-                                                <p><strong>功能说明：</strong></p>
-                                                <ul>
-                                                    <li><strong>点击增强</strong> - 左键点击直接跳转，右键点击在后台打开新标签页</li>
-                                                    <li><strong>视频预览</strong> - 鼠标悬浮时自动播放预览视频（如果有预览源）</li>
-                                                    <li><strong>列表优化</strong> - 优化影片卡片显示，添加功能按钮</li>
-                                                </ul>
-                                            </div>
                                         </div>
                                     </div>
 
+                                    <!-- 新：📜 启用滚动翻页（独立区块，右侧通用开关） -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📜 启用滚动翻页</h6>
+                                                    <span class="enhancement-feature-status available">列表页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableScrollPaging"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>当滚动到页面底部时自动加载下一页列表，实现连续浏览。<br>
+                                            <strong>提示：</strong>如遇到站点限速或触发反爬，请适当停顿或关闭此项。<br>
+                                            <strong>适用：</strong>支持分页的影片列表页。
+                                        </p>
+                                    </div>
+
+                                    <!-- 新：🖼️ 高质量封面（独立区块，右侧通用开关） -->
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">🎞️ 影片页增强</h6>
+                                                    <h6 class="enhancement-feature-name">🖼️ 高质量封面</h6>
                                                     <span class="enhancement-feature-status available">详情页</span>
                                                 </div>
                                             </div>
                                             <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="enableVideoEnhancement"></button>
+                                                <button class="enhancement-toggle" data-target="veEnableCoverImage"></button>
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>增强视频详情页的封面、评分、演员信息和标题翻译展示<br>
-                                            <strong>使用：</strong>进入视频详情页自动生效，可在下方自定义开启的增强项
+                                            <strong>效果：</strong>在视频详情页替换或补充为更高质量的封面图。<br>
+                                            <strong>说明：</strong>优先使用外部数据源；加载失败时回退站内资源。
                                         </p>
+                                    </div>
 
-                                        <!-- 影片页增强详细配置 -->
-                                        <div class="sub-settings" id="videoEnhancementConfig" style="display: none;">
-                                            <div class="sub-settings-header">
-                                                <h5>🎞️ 影片页增强配置</h5>
-                                                <p class="sub-description">选择希望在视频详情页启用的增强功能。</p>
-                                            </div>
+                                    
 
-                                            <div class="dual-toggle-container">
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">🖼️ 高质量封面</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="veEnableCoverImage" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">替换或补充为更高质量封面。</p>
-                                                </div>
-
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">🈶 标题翻译</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="veEnableTranslation" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">对影片页标题进行定点翻译（需开启“翻译”）。</p>
+                                    <!-- 新：⭐ 评分信息（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">⭐ 评分信息</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
                                                 </div>
                                             </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableRating"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>汇总展示多站评分与统计信息。<br>
+                                            <strong>说明：</strong>可能依赖外部数据源，加载耗时略有增加。
+                                        </p>
+                                    </div>
 
-                                            <div class="dual-toggle-container">
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">⭐ 评分信息</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="veEnableRating" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">显示多站评分对比与统计（依赖多数据源）。</p>
-                                                </div>
-
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">👤 演员信息</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="veEnableActorInfo" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">展示演员资料与作品条目（依赖多数据源）。</p>
+                                    <!-- 新：👤 演员信息（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">👤 演员信息</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
                                                 </div>
                                             </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableActorInfo"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>展示演员基本资料与作品条目。<br>
+                                            <strong>说明：</strong>仅展示可匹配到的数据，加载失败时自动隐藏。
+                                        </p>
+                                    </div>
 
-                                            <div class="single-toggle-container">
-                                                <div class="toggle-option">
-                                                    <div class="toggle-header">
-                                                        <span class="toggle-title">⌛ 显示加载指示器</span>
-                                                        <label class="modern-toggle">
-                                                            <input type="checkbox" id="veShowLoadingIndicator" checked>
-                                                            <span class="toggle-slider"></span>
-                                                        </label>
-                                                    </div>
-                                                    <p class="toggle-description">增强加载时在页面显示提示，完成后自动隐藏。</p>
+                                    <!-- 新：⌛ 显示加载指示器（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">⌛ 显示加载指示器</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
                                                 </div>
                                             </div>
-                                        </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veShowLoadingIndicator"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在数据加载过程中显示进度或提示，完成后自动隐藏。<br>
+                                            <strong>说明：</strong>用于减轻长时间加载的空白等待感。
+                                        </p>
                                     </div>
 
                                     <div class="form-group" data-subtab="video">
@@ -1833,7 +1808,7 @@
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">👤 演员页增强</h6>
+                                                    <h6 class="enhancement-feature-name">🎯 影片类别过滤</h6>
                                                     <span class="enhancement-feature-status available">演员页</span>
                                                 </div>
                                             </div>
@@ -1842,34 +1817,34 @@
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>在演员页自动保存和应用标签过滤器，支持跨演员页面的过滤器同步<br>
-                                            <strong>使用：</strong>在演员页选择标签后自动保存，切换到其他演员页时自动应用兼容的过滤器<br>
-                                            <strong>适用：</strong>演员页面（/actors/xxx），支持标签过滤器的自动保存和智能应用
+                                            <strong>效果：</strong>在演员页按影片类别/标签进行过滤，并自动保存过滤条件，跨演员页智能应用<br>
+                                            <strong>使用：</strong>在演员页选择类别/标签后自动保存；切换到其他演员页时自动应用兼容的过滤条件<br>
+                                            <strong>适用：</strong>演员页面（/actors/xxx），支持影片类别/标签过滤条件的自动保存与智能应用
                                         </p>
 
-                                        <!-- 演员页增强详细配置 -->
+                                        <!-- 影片类别过滤详细配置 -->
                                         <div class="sub-settings" id="actorEnhancementConfig" style="display: none;">
                                             <div class="sub-settings-header">
-                                                <h5>👤 演员页增强配置</h5>
-                                                <p class="sub-description">自定义演员页的标签过滤器行为，提升浏览效率。</p>
+                                                <h5>🎯 影片类别过滤配置</h5>
+                                                <p class="sub-description">自定义演员页的类别/标签过滤器行为，提升浏览效率。</p>
                                             </div>
 
                                             <!-- 演员页配置选项 -->
                                             <div class="dual-toggle-container">
                                                 <div class="toggle-option">
                                                     <div class="toggle-header">
-                                                        <span class="toggle-title">🔄 自动应用标签</span>
+                                                        <span class="toggle-title">🔄 自动应用过滤器</span>
                                                         <label class="modern-toggle">
                                                             <input type="checkbox" id="enableAutoApplyTags" checked>
                                                             <span class="toggle-slider"></span>
                                                         </label>
                                                     </div>
-                                                    <p class="toggle-description">自动应用上次使用的标签过滤器到新的演员页</p>
+                                                    <p class="toggle-description">自动将上次使用的过滤条件应用到新的演员页</p>
                                                     
                                                     <!-- 上次应用的标签显示 -->
                                                     <div class="last-applied-tags" id="lastAppliedTagsDisplay" style="margin-top: 10px;">
                                                         <div class="tag-display-header">
-                                                            <span class="tag-display-title">📋 上次应用的标签：</span>
+                                                            <span class="tag-display-title">📋 上次应用的过滤条件：</span>
                                                             <div class="tag-actions">
                                                                 <button class="btn-small btn-outline" id="clearLastAppliedTags" title="清除记录">🗑️</button>
                                                                 <button class="btn-small btn-outline" id="exportActorConfig" title="导出配置">📤</button>
@@ -1884,7 +1859,7 @@
 
                                                 <div class="toggle-option">
                                                     <div class="toggle-header">
-                                                        <span class="toggle-title">🏷️ 默认标签设置</span>
+                                                        <span class="toggle-title">🏷️ 默认过滤条件</span>
                                                         <div id="actorDefaultTagsGroup" class="checkbox-group">
                                                             <label class="checkbox-label">
                                                                 <input type="checkbox" name="actorDefaultTag" value="s">
@@ -1913,16 +1888,16 @@
                                                             </label>
                                                         </div>
                                                     </div>
-                                                    <p class="toggle-description">当没有保存的过滤器或兼容性检查失败时使用的默认标签</p>
+                                                    <p class="toggle-description">当没有保存记录或兼容性检查失败时使用的默认过滤条件</p>
                                                 </div>
                                             </div>
 
                                             <div class="info-box">
                                                 <p><strong>功能说明：</strong></p>
                                                 <ul>
-                                                    <li>🔄 <strong>自动同步：</strong>在演员页选择标签后自动保存，切换演员时智能应用</li>
-                                                    <li>🧠 <strong>智能兼容：</strong>只应用当前演员页支持的标签，避免无效过滤</li>
-                                                    <li>📝 <strong>默认回退：</strong>当无保存记录或兼容性检查失败时，使用默认标签</li>
+                                                    <li>🔄 <strong>自动同步：</strong>在演员页选择类别/标签后自动保存，切换演员时智能应用</li>
+                                                    <li>🧠 <strong>智能兼容：</strong>只应用当前演员页支持的过滤条件，避免无效过滤</li>
+                                                    <li>📝 <strong>默认回退：</strong>当无保存记录或兼容性检查失败时，使用默认过滤条件</li>
                                                     <li>💾 <strong>存储限制：</strong>最多保存10个演员的过滤器记录，自动清理旧记录</li>
                                                 </ul>
                                             </div>
@@ -2590,11 +2565,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-
-            <div id="infoContainer">
-                <!-- 版本和作者信息将由 JS 动态填充 -->
             </div>
         </div>
     </div>
