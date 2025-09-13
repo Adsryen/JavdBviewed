@@ -197,18 +197,58 @@ function initSettingsPanelSwitching(): void {
 
         // 处理页面加载时的初始子页面（二级锚点）
         const initialSection = (window as any).initialSettingsSection;
+        // 解析当前 hash，判断主标签是否为设置页
+        const fullHash = window.location.hash.substring(1) || 'tab-records';
+        const [mainTab] = fullHash.split('/');
+
         if (initialSection) {
             // 如果有指定的初始子页面，切换到该页面
             const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${initialSection}"]`);
             if (targetNavItem) {
-                (targetNavItem as HTMLElement).click();
+                if (mainTab === 'tab-settings') {
+                    // 仅当当前主标签就是设置页时，才触发点击以同步 URL
+                    (targetNavItem as HTMLElement).click();
+                } else {
+                    // 非设置页：静默激活对应面板，不改 URL
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    targetNavItem.classList.add('active');
+                    const allPanels = document.querySelectorAll('.settings-panel');
+                    allPanels.forEach(panel => {
+                        panel.classList.remove('active');
+                        (panel as HTMLElement).style.display = 'none';
+                    });
+                    const targetPanel = document.getElementById(initialSection);
+                    if (targetPanel) {
+                        targetPanel.classList.add('active');
+                        targetPanel.style.display = 'block';
+                    }
+                }
                 console.log(`[Settings] 切换到指定的初始子页面: ${initialSection}`);
             } else {
                 console.warn(`[Settings] 未找到指定的子页面: ${initialSection}`);
-                // 如果找不到指定页面，显示第一个面板
+                // 如果找不到指定页面，根据是否在设置页决定是否 click
                 if (navItems.length > 0) {
                     const firstItem = navItems[0] as HTMLElement;
-                    firstItem.click();
+                    if (mainTab === 'tab-settings') {
+                        firstItem.click();
+                    } else {
+                        // 非设置页：静默激活第一个面板
+                        navItems.forEach(nav => nav.classList.remove('active'));
+                        firstItem.classList.add('active');
+                        const allPanels = document.querySelectorAll('.settings-panel');
+                        allPanels.forEach(panel => {
+                            panel.classList.remove('active');
+                            (panel as HTMLElement).style.display = 'none';
+                        });
+                        const firstPanelId = firstItem.getAttribute('data-section');
+                        if (firstPanelId) {
+                            const firstPanel = document.getElementById(firstPanelId);
+                            if (firstPanel) {
+                                firstPanel.classList.add('active');
+                                firstPanel.style.display = 'block';
+                            }
+                        }
+                    }
                 }
             }
             // 清理全局状态
@@ -217,7 +257,27 @@ function initSettingsPanelSwitching(): void {
             // 如果没有指定初始页面，默认显示第一个设置页面
             if (navItems.length > 0) {
                 const firstItem = navItems[0] as HTMLElement;
-                firstItem.click();
+                if (mainTab === 'tab-settings') {
+                    // 在设置页中，点击以同步二级锚点
+                    firstItem.click();
+                } else {
+                    // 不在设置页，静默激活，不修改 URL
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    firstItem.classList.add('active');
+                    const allPanels = document.querySelectorAll('.settings-panel');
+                    allPanels.forEach(panel => {
+                        panel.classList.remove('active');
+                        (panel as HTMLElement).style.display = 'none';
+                    });
+                    const firstPanelId = firstItem.getAttribute('data-section');
+                    if (firstPanelId) {
+                        const firstPanel = document.getElementById(firstPanelId);
+                        if (firstPanel) {
+                            firstPanel.classList.add('active');
+                            firstPanel.style.display = 'block';
+                        }
+                    }
+                }
             }
         }
 
