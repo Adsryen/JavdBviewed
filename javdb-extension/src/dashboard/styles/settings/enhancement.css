@@ -176,6 +176,39 @@
     font-weight: 600;
 }
 
+/* 子设置区域：默认隐藏，仅在悬浮触发展开（由 TS 添加 .is-open 类） */
+#enhancement-settings .sub-settings {
+    display: block; /* 保持占位用于动画计算 */
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: 0 solid var(--border-color);
+    border-bottom: 0 solid var(--border-color);
+    transition:
+        max-height 0.28s ease,
+        opacity 0.18s ease,
+        padding-top 0.18s ease,
+        padding-bottom 0.18s ease,
+        border-top-width 0.18s ease,
+        border-bottom-width 0.18s ease;
+}
+
+#enhancement-settings .sub-settings.is-open {
+    opacity: 1;
+    max-height: 800px; /* 足够大的值以容纳内容，实际高度由 JS 动态支持 */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+}
+
+/* 子设置内的说明与表单间距优化 */
+#enhancement-settings .sub-settings .input-description {
+    margin-top: 6px;
+}
+
 #enhancement-settings .form-group {
     margin-bottom: 1rem;
 }

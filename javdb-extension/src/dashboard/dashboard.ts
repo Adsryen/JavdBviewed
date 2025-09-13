@@ -605,7 +605,7 @@ function initStatsOverview(): void {
 }
 
 function initInfoContainer(): void {
-    const infoContainer = document.getElementById('infoContainer');
+    const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');
     if (!infoContainer) return;
 
     const version = import.meta.env.VITE_APP_VERSION || 'N/A';
