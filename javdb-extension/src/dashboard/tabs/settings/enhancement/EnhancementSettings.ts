@@ -1067,6 +1067,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'enableAutoApplyTags': 'actorEnhancementConfig',
             'enableContentFilter': 'contentFilterConfig',
             'enableAnchorOptimization': 'anchorOptimizationConfig',
+            'enableVideoPreview': 'listVideoPreviewConfig',
             'enableMagnetSearch': 'magnetSourcesConfig',
             'enableVideoEnhancement': 'videoEnhancementConfig',
         };
@@ -1576,7 +1577,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
             { toggleSelector: '[data-target="enableClickEnhancement"]', checkbox: this.enableClickEnhancement },
             { toggleSelector: '[data-target="enableVideoPreview"]', checkbox: this.enableListVideoPreview },
             { toggleSelector: '[data-target="enableScrollPaging"]', checkbox: this.enableScrollPaging },
-            { toggleSelector: '[data-target="enableAutoApplyTags"]', checkbox: this.enableAutoApplyTags }
+            { toggleSelector: '[data-target="enableAutoApplyTags"]', checkbox: this.enableAutoApplyTags },
+            // 影片页增强子项（右侧通用开关）
+            { toggleSelector: '[data-target="veEnableCoverImage"]', checkbox: this.veEnableCoverImage },
+            { toggleSelector: '[data-target="veEnableTranslation"]', checkbox: this.veEnableTranslation },
+            { toggleSelector: '[data-target="veEnableRating"]', checkbox: this.veEnableRating },
+            { toggleSelector: '[data-target="veEnableActorInfo"]', checkbox: this.veEnableActorInfo },
+            { toggleSelector: '[data-target="veShowLoadingIndicator"]', checkbox: this.veShowLoadingIndicator }
         ];
 
         toggleMappings.forEach(({ toggleSelector, checkbox }) => {
@@ -1618,8 +1625,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
 
-        // 控制所有带 data-subtab 的元素显示/隐藏（仅限内容区域，排除顶部子标签按钮）
-        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body [data-subtab]');
+        // 控制所有带 data-subtab 的元素显示/隐藏（仅限内容区域，显式排除顶部子标签按钮区域）
+        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body [data-subtab]:not(#enhancementSubTabs):not(#enhancementSubTabs *)');
         subtabElements.forEach(el => {
             const elem = el as HTMLElement;
             const attr = elem.getAttribute('data-subtab');

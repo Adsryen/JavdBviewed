@@ -448,6 +448,28 @@ button:disabled {
     font-weight: bold; /* 加粗以突出 */
 }
 
+/* Sidebar Version Info */
+#versionInfoSidebar {
+    padding-top: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #888;
+}
+#versionInfoSidebar .info-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+#versionInfoSidebar .info-label {
+    color: #888;
+}
+#versionInfoSidebar .info-value {
+    color: inherit; /* 继承 version-state-* 的颜色 */
+    padding: 0;
+    margin-left: 6px;
+    font-weight: 700;
+}
+
 /* Version State Colors */
 .version-state-clean {
     color: #2c3e50; /* 深灰近黑 */
