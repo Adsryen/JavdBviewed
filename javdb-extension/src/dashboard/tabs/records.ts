@@ -19,6 +19,23 @@ export function initRecordsTab(): void {
     const tagsFilterList = document.getElementById('tagsFilterList') as HTMLElement;
     const selectedTagsContainer = document.getElementById('selectedTagsContainer') as HTMLElement;
 
+    // Advanced search elements
+    const advToggleBtn = document.getElementById('advancedSearchToggle') as HTMLButtonElement;
+    const advPanel = document.getElementById('advancedSearchPanel') as HTMLDivElement;
+    const advAddBtn = document.getElementById('addConditionBtn') as HTMLButtonElement;
+    const advApplyBtn = document.getElementById('applyConditionsBtn') as HTMLButtonElement;
+    const advResetBtn = document.getElementById('resetConditionsBtn') as HTMLButtonElement;
+    const advConditionsEl = document.getElementById('advConditions') as HTMLDivElement;
+    const advPresetNameInput = document.getElementById('advPresetName') as HTMLInputElement;
+    const advPresetSelect = document.getElementById('advPresetSelect') as HTMLSelectElement;
+    const saveAdvPresetBtn = document.getElementById('saveAdvPresetBtn') as HTMLButtonElement;
+    const loadAdvPresetBtn = document.getElementById('loadAdvPresetBtn') as HTMLButtonElement;
+    const deleteAdvPresetBtn = document.getElementById('deleteAdvPresetBtn') as HTMLButtonElement;
+    const quickTimeField = document.getElementById('quickTimeField') as HTMLSelectElement;
+    const quickTimeValue = document.getElementById('quickTimeValue') as HTMLInputElement;
+    const quickTimeUnit = document.getElementById('quickTimeUnit') as HTMLSelectElement;
+    const addQuickTimeBtn = document.getElementById('addQuickTimeBtn') as HTMLButtonElement;
+
     // 批量操作相关元素
     const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
     const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
@@ -37,37 +54,256 @@ export function initRecordsTab(): void {
     let selectedTags = new Set<string>();
     let allTags = new Set<string>();
 
-    function createTooltip() {
-        if (tooltipElement) return;
-        tooltipElement = document.createElement('pre');
-        tooltipElement.id = 'json-tooltip';
-        document.body.appendChild(tooltipElement);
+    // Advanced search state
+    type FieldKey = 'id' | 'title' | 'status' | 'tags' | 'releaseDate' | 'createdAt' | 'updatedAt' | 'javdbUrl' | 'javdbImage';
+    type Comparator =
+        | 'contains' | 'equals' | 'starts_with' | 'ends_with'
+        | 'empty' | 'not_empty'
+        | 'eq' | 'gt' | 'gte' | 'lt' | 'lte'
+        | 'includes' | 'length_eq' | 'length_gt' | 'length_gte' | 'length_lt';
+    interface AdvCondition { id: string; field: FieldKey; op: Comparator; value?: string }
+    let advConditions: AdvCondition[] = [];
+
+    type AdvPresets = Record<string, AdvCondition[]>;
+
+    async function loadAdvPresets(): Promise<AdvPresets> {
+        const data = await chrome.storage.local.get(STORAGE_KEYS.ADV_SEARCH_PRESETS);
+        return (data && data[STORAGE_KEYS.ADV_SEARCH_PRESETS]) || {};
     }
 
-    function createImageTooltip() {
-        if (imageTooltipElement) return;
-        imageTooltipElement = document.createElement('div');
-        imageTooltipElement.id = 'image-tooltip';
-        imageTooltipElement.className = 'image-tooltip';
-        document.body.appendChild(imageTooltipElement);
+    async function saveAdvPresets(presets: AdvPresets): Promise<void> {
+        await chrome.storage.local.set({ [STORAGE_KEYS.ADV_SEARCH_PRESETS]: presets });
     }
 
-    function removeTooltip() {
-        if (tooltipElement) {
-            tooltipElement.remove();
-            tooltipElement = null;
+    async function refreshPresetSelect(): Promise<void> {
+        try {
+            const presets = await loadAdvPresets();
+            const current = advPresetSelect.value;
+            advPresetSelect.innerHTML = '<option value="">选择已保存方案...</option>';
+            Object.keys(presets).sort().forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                advPresetSelect.appendChild(opt);
+            });
+            // 保持选择不变
+            if (current && presets[current]) {
+                advPresetSelect.value = current;
+            }
+        } catch (e) {
+            console.error('刷新高级搜索方案下拉失败:', e);
         }
     }
 
-    function removeImageTooltip() {
-        if (imageTooltipElement) {
-            imageTooltipElement.remove();
-            imageTooltipElement = null;
+    function createAdvConditionRow(condition?: AdvCondition) {
+        const rowId = condition?.id || `cond_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const row = document.createElement('div');
+        row.className = 'adv-condition-row';
+        row.dataset.id = rowId;
+
+        const fieldSelect = document.createElement('select');
+        fieldSelect.className = 'adv-field';
+        const fieldOptions: { key: FieldKey; label: string }[] = [
+            { key: 'id', label: '番号(id)' },
+            { key: 'title', label: '标题(title)' },
+            { key: 'status', label: '状态(status)' },
+            { key: 'tags', label: '标签(tags)' },
+            { key: 'releaseDate', label: '发行日期(releaseDate)' },
+            { key: 'createdAt', label: '创建时间(createdAt)' },
+            { key: 'updatedAt', label: '更新时间(updatedAt)' },
+            { key: 'javdbUrl', label: 'JavDB链接(javdbUrl)' },
+            { key: 'javdbImage', label: '封面链接(javdbImage)' },
+        ];
+        fieldOptions.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.key;
+            o.textContent = opt.label;
+            fieldSelect.appendChild(o);
+        });
+
+        const opSelect = document.createElement('select');
+        opSelect.className = 'adv-operator';
+
+        const valueInput = document.createElement('input');
+        valueInput.className = 'adv-value';
+        valueInput.type = 'text';
+        valueInput.placeholder = '比较值';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'button-like adv-remove';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.title = '移除此条件';
+
+        function setOperatorsForField(field: FieldKey) {
+            opSelect.innerHTML = '';
+            const addOps = (ops: { value: Comparator; label: string }[]) => {
+                ops.forEach(op => {
+                    const o = document.createElement('option');
+                    o.value = op.value;
+                    o.textContent = op.label;
+                    opSelect.appendChild(o);
+                });
+            };
+            if (field === 'id' || field === 'title' || field === 'status' || field === 'releaseDate' || field === 'javdbUrl' || field === 'javdbImage') {
+                addOps([
+                    { value: 'contains', label: '包含' },
+                    { value: 'equals', label: '等于' },
+                    { value: 'starts_with', label: '开头是' },
+                    { value: 'ends_with', label: '结尾是' },
+                    { value: 'empty', label: '为空' },
+                    { value: 'not_empty', label: '非空' },
+                ]);
+            } else if (field === 'createdAt' || field === 'updatedAt') {
+                addOps([
+                    { value: 'eq', label: '等于(时间戳/毫秒)' },
+                    { value: 'gt', label: '大于' },
+                    { value: 'gte', label: '大于等于' },
+                    { value: 'lt', label: '小于' },
+                    { value: 'lte', label: '小于等于' },
+                    { value: 'empty', label: '为空' },
+                    { value: 'not_empty', label: '非空' },
+                ]);
+            } else if (field === 'tags') {
+                addOps([
+                    { value: 'includes', label: '包含某标签' },
+                    { value: 'length_eq', label: '标签数量 = ' },
+                    { value: 'length_gt', label: '标签数量 > ' },
+                    { value: 'length_gte', label: '标签数量 ≥ ' },
+                    { value: 'length_lt', label: '标签数量 < ' },
+                    { value: 'empty', label: '为空' },
+                    { value: 'not_empty', label: '非空' },
+                ]);
+            }
         }
+
+        function updateValueVisibility() {
+            const op = opSelect.value as Comparator;
+            if (op === 'empty' || op === 'not_empty') {
+                valueInput.style.display = 'none';
+            } else {
+                valueInput.style.display = '';
+            }
+        }
+
+        fieldSelect.addEventListener('change', () => {
+            setOperatorsForField(fieldSelect.value as FieldKey);
+            updateValueVisibility();
+        });
+        opSelect.addEventListener('change', updateValueVisibility);
+        removeBtn.addEventListener('click', () => {
+            const id = row.dataset.id!;
+            advConditions = advConditions.filter(c => c.id !== id);
+            row.remove();
+            currentPage = 1; updateFilteredRecords(); render();
+        });
+
+        // initial values
+        fieldSelect.value = (condition?.field || 'id') as string;
+        setOperatorsForField(fieldSelect.value as FieldKey);
+        if (condition?.op) opSelect.value = condition.op;
+        if (condition?.value !== undefined) valueInput.value = condition.value;
+        updateValueVisibility();
+
+        row.appendChild(fieldSelect);
+        row.appendChild(opSelect);
+        row.appendChild(valueInput);
+        row.appendChild(removeBtn);
+        advConditionsEl.appendChild(row);
     }
 
-    createTooltip();
-    createImageTooltip();
+    function parseAdvConditionsFromUI(): AdvCondition[] {
+        const rows = Array.from(advConditionsEl.querySelectorAll('.adv-condition-row')) as HTMLDivElement[];
+        return rows.map(row => {
+            const id = row.dataset.id || `cond_${Math.random()}`;
+            const field = (row.querySelector('.adv-field') as HTMLSelectElement).value as FieldKey;
+            const op = (row.querySelector('.adv-operator') as HTMLSelectElement).value as Comparator;
+            const valueEl = row.querySelector('.adv-value') as HTMLInputElement;
+            const value = (op === 'empty' || op === 'not_empty') ? undefined : (valueEl?.value ?? '');
+            return { id, field, op, value };
+        });
+    }
+
+    function clearAdvRows(): void {
+        advConditionsEl.innerHTML = '';
+    }
+
+    function rebuildAdvRows(conditions: AdvCondition[]): void {
+        clearAdvRows();
+        conditions.forEach(cond => createAdvConditionRow(cond));
+    }
+
+    function evaluateCondition(record: VideoRecord, cond: AdvCondition): boolean {
+        const getField = (key: FieldKey): any => {
+            switch (key) {
+                case 'id': return record.id ?? '';
+                case 'title': return record.title ?? '';
+                case 'status': return record.status ?? '';
+                case 'tags': return Array.isArray(record.tags) ? record.tags : [];
+                case 'releaseDate': return record.releaseDate ?? '';
+                case 'createdAt': return record.createdAt;
+                case 'updatedAt': return record.updatedAt;
+                case 'javdbUrl': return record.javdbUrl ?? '';
+                case 'javdbImage': return record.javdbImage ?? '';
+            }
+        };
+
+        const v = getField(cond.field);
+        const op = cond.op;
+        const compareVal = cond.value ?? '';
+
+        // helpers
+        const isEmpty = (val: any): boolean => {
+            if (Array.isArray(val)) return val.length === 0;
+            if (val === null || val === undefined) return true;
+            if (typeof val === 'string') return val.trim() === '';
+            return false;
+        };
+
+        if (op === 'empty') return isEmpty(v);
+        if (op === 'not_empty') return !isEmpty(v);
+
+        if (cond.field === 'id' || cond.field === 'title' || cond.field === 'status' || cond.field === 'releaseDate' || cond.field === 'javdbUrl' || cond.field === 'javdbImage') {
+            const sv = String(v).toLowerCase();
+            const cv = String(compareVal).toLowerCase();
+            switch (op) {
+                case 'contains': return sv.includes(cv);
+                case 'equals': return sv === cv;
+                case 'starts_with': return sv.startsWith(cv);
+                case 'ends_with': return sv.endsWith(cv);
+                default: return true;
+            }
+        }
+
+        if (cond.field === 'createdAt' || cond.field === 'updatedAt') {
+            const nv = Number(v);
+            const c = Number(compareVal);
+            if (Number.isNaN(nv)) return false;
+            switch (op) {
+                case 'eq': return nv === c;
+                case 'gt': return nv > c;
+                case 'gte': return nv >= c;
+                case 'lt': return nv < c;
+                case 'lte': return nv <= c;
+                default: return true;
+            }
+        }
+
+        if (cond.field === 'tags') {
+            const arr: string[] = Array.isArray(v) ? v : [];
+            switch (op) {
+                case 'includes': return compareVal ? arr.includes(compareVal) : false;
+                case 'length_eq': return arr.length === Number(compareVal || 0);
+                case 'length_gt': return arr.length > Number(compareVal || 0);
+                case 'length_gte': return arr.length >= Number(compareVal || 0);
+                case 'length_lt': return arr.length < Number(compareVal || 0);
+                default: return true;
+            }
+        }
+
+        return true;
+    }
+
+    // 注：高级过滤直接集成在 updateFilteredRecords 中，无需额外包装函数
 
     if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
@@ -102,7 +338,11 @@ export function initRecordsTab(): void {
                     (record.tags && Array.isArray(record.tags) &&
                      Array.from(selectedTags).every(tag => record.tags.includes(tag)));
 
-                return matchesSearch && matchesFilter && matchesTags;
+                const basicMatch = matchesSearch && matchesFilter && matchesTags;
+                if (!basicMatch) return false;
+
+                // Advanced search conditions (AND)
+                return advConditions.length === 0 || advConditions.every(c => evaluateCondition(record, c));
             });
 
             // Add sorting logic
@@ -166,344 +406,338 @@ export function initRecordsTab(): void {
                         console.warn('无效的记录对象:', record);
                         return;
                     }
-            const li = document.createElement('li');
-            li.className = 'video-item batch-mode'; // 始终使用batch-mode样式
 
-            // 设置选中状态
-            if (selectedRecords.has(record.id)) {
-                li.classList.add('selected');
-            }
+                    const li = document.createElement('li');
+                    li.className = 'video-item batch-mode'; // 始终使用batch-mode样式
 
-
-            // Create a container for search engine icons
-            const iconsContainer = document.createElement('div');
-            iconsContainer.className = 'video-search-icons';
-
-            // 确保 searchEngines 是数组
-            const searchEngines = Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [];
-
-            searchEngines.forEach(engine => {
-                try {
-                    // 确保 engine 对象有必要的属性
-                    if (!engine || !engine.urlTemplate || !engine.name) {
-                        console.warn('无效的搜索引擎配置:', engine);
-                        return;
+                    // 设置选中状态
+                    if (selectedRecords.has(record.id)) {
+                        li.classList.add('selected');
                     }
 
-                    const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
-                    const icon = document.createElement('a');
-                    icon.href = searchUrl;
-                    icon.target = '_blank';
-                    icon.title = `Search on ${engine.name}`;
+                    // Create a container for search engine icons
+                    const iconsContainer = document.createElement('div');
+                    iconsContainer.className = 'video-search-icons';
 
-                    const img = document.createElement('img');
-                    img.src = engine.icon && engine.icon.startsWith('assets/')
-                        ? chrome.runtime.getURL(engine.icon)
-                        : (engine.icon || chrome.runtime.getURL('assets/alternate-search.png'));
-                    img.alt = engine.name;
-                    img.onerror = () => { // Fallback icon
-                        img.src = chrome.runtime.getURL('assets/alternate-search.png');
-                    };
+                    // 确保 searchEngines 是数组
+                    const searchEngines = Array.isArray(STATE.settings?.searchEngines) ? STATE.settings.searchEngines : [];
 
-                    icon.appendChild(img);
-                    iconsContainer.appendChild(icon);
-                } catch (error) {
-                    console.error('创建搜索引擎图标时出错:', error, engine);
-                }
-            });
+                    searchEngines.forEach(engine => {
+                        try {
+                            // 确保 engine 对象有必要的属性
+                            if (!engine || !engine.urlTemplate || !engine.name) {
+                                console.warn('无效的搜索引擎配置:', engine);
+                                return;
+                            }
 
-            const createdDate = new Date(record.createdAt);
-            const updatedDate = new Date(record.updatedAt);
-            const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                            const searchUrl = engine.urlTemplate.replace('{{ID}}', encodeURIComponent(record.id));
+                            const icon = document.createElement('a');
+                            icon.href = searchUrl;
+                            icon.target = '_blank';
+                            icon.title = `Search on ${engine.name}`;
 
-            const formattedCreatedDate = formatDate(createdDate);
-            const formattedUpdatedDate = formatDate(updatedDate);
+                            const img = document.createElement('img');
+                            img.src = engine.icon && engine.icon.startsWith('assets/')
+                                ? chrome.runtime.getURL(engine.icon)
+                                : (engine.icon || chrome.runtime.getURL('assets/alternate-search.png'));
+                            img.alt = String(engine.name || '');
+                            img.onerror = () => { // Fallback icon
+                                img.src = chrome.runtime.getURL('assets/alternate-search.png');
+                            };
 
-            // 如果创建时间和更新时间相同，只显示一个时间
-            const timeDisplay = record.createdAt === record.updatedAt
-                ? `创建: ${formattedCreatedDate}`
-                : `创建: ${formattedCreatedDate}\n更新: ${formattedUpdatedDate}`;
-
-            const refreshButton = document.createElement('button');
-            refreshButton.className = 'refresh-button';
-            refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            refreshButton.title = '刷新源数据 - 从JavDB获取最新信息';
-            refreshButton.addEventListener('click', async (e) => {
-                e.stopPropagation(); 
-                
-                refreshButton.classList.add('is-loading');
-                refreshButton.disabled = true;
-                refreshButton.title = '正在同步数据...';
-
-                try {
-                    // First test if background script is responding
-                    console.log(`[Dashboard] Testing background script connection...`);
-                    const pingResponse = await chrome.runtime.sendMessage({ type: 'ping' });
-                    console.log(`[Dashboard] Ping response:`, pingResponse);
-
-                    if (!pingResponse || !pingResponse.success) {
-                        throw new Error('后台脚本无响应，请重新加载扩展');
-                    }
-
-                    console.log(`[Dashboard] Sending refresh request for videoId: ${record.id}`);
-                    const response = await chrome.runtime.sendMessage({
-                        type: 'refresh-record',
-                        videoId: record.id
+                            icon.appendChild(img);
+                            iconsContainer.appendChild(icon);
+                        } catch (error) {
+                            console.error('创建搜索引擎图标时出错:', error, engine);
+                        }
                     });
 
-                    console.log(`[Dashboard] Received response for ${record.id}:`, response);
+                    const createdDate = new Date(record.createdAt);
+                    const updatedDate = new Date(record.updatedAt);
+                    const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
-                    if (response?.success) {
-                        // Find the record in the main STATE and update it
-                        const recordIndex = STATE.records.findIndex(r => r.id === record.id);
-                        if (recordIndex !== -1) {
-                            STATE.records[recordIndex] = response.record;
-                        }
-                        updateFilteredRecords();
-                        render();
-                        showMessage(`'${record.id}' 已成功刷新。`, 'success');
-                    } else {
-                        // Handle cases where response is undefined or success is false
-                        const errorMessage = response?.error || '刷新请求未收到响应或失败';
-                        console.error(`[Dashboard] Refresh failed for ${record.id}:`, errorMessage);
-                        throw new Error(errorMessage);
-                    }
-                } catch (error: any) {
-                    console.error(`[Dashboard] Error during refresh for ${record.id}:`, error);
-                    showMessage(`刷新 '${record.id}' 失败: ${error.message}`, 'error');
-                } finally {
-                    console.log(`[Dashboard] Finalizing refresh UI for ${record.id}`);
-                    // This button might not exist anymore if the list was re-rendered, so check first.
-                    const newButton = document.querySelector(`[data-record-id="${record.id}"] .refresh-button`) as HTMLButtonElement;
-                    if (newButton) {
-                        newButton.classList.remove('is-loading');
-                        newButton.removeAttribute('disabled');
-                        newButton.title = '同步数据 - 从JavDB获取最新信息';
-                    }
-                }
-            });
+                    const formattedCreatedDate = formatDate(createdDate);
+                    const formattedUpdatedDate = formatDate(updatedDate);
 
-            // 创建删除按钮
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'delete-button';
-            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteButton.title = '删除此记录';
-            deleteButton.addEventListener('click', (e) => {
-                e.stopPropagation();
+                    // 如果创建时间和更新时间相同，只显示一个时间
+                    const timeDisplay = record.createdAt === record.updatedAt
+                        ? `创建: ${formattedCreatedDate}`
+                        : `创建: ${formattedCreatedDate}\n更新: ${formattedUpdatedDate}`;
 
-                // 使用确认modal
-                showConfirmationModal({
-                    title: '确认删除记录',
-                    message: `确定要删除记录 "${record.id}" 吗？\n\n标题: ${record.title}\n状态: ${record.status}\n\n此操作不可撤销！`,
-                    onConfirm: async () => {
+                    const refreshButton = document.createElement('button');
+                    refreshButton.className = 'refresh-button';
+                    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                    refreshButton.title = '刷新源数据 - 从JavDB获取最新信息';
+                    refreshButton.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+
+                        refreshButton.classList.add('is-loading');
+                        refreshButton.disabled = true;
+                        refreshButton.title = '正在同步数据...';
+
                         try {
-                            // 从STATE中删除记录
-                            const recordIndex = STATE.records.findIndex(r => r.id === record.id);
-                            if (recordIndex !== -1) {
-                                STATE.records.splice(recordIndex, 1);
+                            // First test if background script is responding
+                            console.log(`[Dashboard] Testing background script connection...`);
+                            const pingResponse = await chrome.runtime.sendMessage({ type: 'ping' });
+                            console.log(`[Dashboard] Ping response:`, pingResponse);
 
-                                // 保存到存储
-                                const recordsData = STATE.records.reduce((acc, record) => {
-                                    acc[record.id] = record;
-                                    return acc;
-                                }, {} as Record<string, VideoRecord>);
+                            if (!pingResponse || !pingResponse.success) {
+                                throw new Error('后台脚本无响应，请重新加载扩展');
+                            }
 
-                                await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: recordsData });
+                            console.log(`[Dashboard] Sending refresh request for videoId: ${record.id}`);
+                            const response = await chrome.runtime.sendMessage({
+                                type: 'refresh-record',
+                                videoId: record.id
+                            });
 
-                                // 更新显示
+                            console.log(`[Dashboard] Received response for ${record.id}:`, response);
+
+                            if (response?.success) {
+                                // Find the record in the main STATE and update it
+                                const recordIndex = STATE.records.findIndex(r => r.id === record.id);
+                                if (recordIndex !== -1) {
+                                    STATE.records[recordIndex] = response.record;
+                                }
                                 updateFilteredRecords();
                                 render();
-
-                                showMessage(`记录 "${record.id}" 已删除`, 'success');
+                                showMessage(`'${record.id}' 已成功刷新。`, 'success');
+                            } else {
+                                // Handle cases where response is undefined or success is false
+                                const errorMessage = response?.error || '刷新请求未收到响应或失败';
+                                console.error(`[Dashboard] Refresh failed for ${record.id}:`, errorMessage);
+                                throw new Error(errorMessage);
                             }
                         } catch (error: any) {
-                            console.error('删除记录时出错:', error);
-                            showMessage(`删除记录失败: ${error.message}`, 'error');
+                            console.error(`[Dashboard] Error during refresh for ${record.id}:`, error);
+                            showMessage(`刷新 '${record.id}' 失败: ${error.message}`, 'error');
+                        } finally {
+                            console.log(`[Dashboard] Finalizing refresh UI for ${record.id}`);
+                            // This button might not exist anymore if the list was re-rendered, so check first.
+                            const newButton = document.querySelector(`[data-record-id="${record.id}"] .refresh-button`) as HTMLButtonElement;
+                            if (newButton) {
+                                newButton.classList.remove('is-loading');
+                                newButton.removeAttribute('disabled');
+                                newButton.title = '同步数据 - 从JavDB获取最新信息';
+                            }
                         }
-                    },
-                    onCancel: () => {
-                        // 用户取消删除，不需要做任何操作
-                    }
-                });
-            });
-
-            // 创建统一的操作按钮容器
-            const actionButtonsContainer = document.createElement('div');
-            actionButtonsContainer.className = 'action-buttons-container';
-
-            // 编辑按钮
-            const editButton = document.createElement('button');
-            editButton.className = 'action-button edit-button';
-            editButton.innerHTML = '<i class="fas fa-edit"></i>';
-            editButton.title = '编辑记录';
-            editButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showEditModal(record);
-            });
-
-            // 同步按钮（重命名refresh按钮）
-            refreshButton.className = 'action-button sync-button';
-            refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            refreshButton.title = '刷新源数据';
-
-            // 删除按钮样式调整
-            deleteButton.className = 'action-button delete-button';
-            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteButton.title = '删除记录';
-
-            // 将按钮添加到容器
-            actionButtonsContainer.appendChild(editButton);
-            actionButtonsContainer.appendChild(refreshButton);
-            actionButtonsContainer.appendChild(deleteButton);
-
-            const controlsContainer = document.createElement('div');
-            controlsContainer.className = 'video-controls';
-            controlsContainer.appendChild(iconsContainer);
-            controlsContainer.appendChild(actionButtonsContainer);
-
-
-
-            // Create the video ID element (with or without link based on javdbUrl)
-            let videoIdHtml = '';
-            if (record.javdbUrl && record.javdbUrl.trim() !== '' && record.javdbUrl !== '#') {
-                videoIdHtml = `<a href="${record.javdbUrl}" target="_blank" class="video-id-link">${record.id}</a>`;
-            } else {
-                videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
-            }
-
-            // 生成tags HTML
-            const tagsHtml = record.tags && record.tags.length > 0
-                ? `<div class="video-tags">${record.tags.map(tag =>
-                    `<span class="video-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`
-                ).join('')}</div>`
-                : '';
-
-            li.innerHTML = `
-                <div class="video-content-wrapper">
-                    <div class="video-id-container">
-                        ${videoIdHtml}
-                    </div>
-                    ${tagsHtml}
-                    <span class="video-title">${record.title}</span>
-                </div>
-                <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
-                <span class="video-status status-${record.status}">${record.status}</span>
-            `;
-
-
-
-
-
-            // 添加图片悬浮功能到video-id-link
-            const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
-            if (videoIdLink && record.javdbImage) {
-                videoIdLink.addEventListener('mouseenter', (e) => {
-                    if (!imageTooltipElement) return;
-
-                    // 创建图片悬浮内容
-                    const tooltipContent = document.createElement('div');
-                    tooltipContent.className = 'image-tooltip-content';
-
-                    const img = document.createElement('img');
-                    img.src = record.javdbImage;
-                    img.alt = record.title;
-                    img.style.opacity = '0';
-
-                    const loadingDiv = document.createElement('div');
-                    loadingDiv.className = 'image-tooltip-loading';
-                    loadingDiv.textContent = '加载中...';
-
-                    // 添加图片加载事件监听器
-                    img.addEventListener('load', () => {
-                        img.style.opacity = '1';
-                        loadingDiv.style.display = 'none';
                     });
 
-                    img.addEventListener('error', () => {
-                        img.style.display = 'none';
-                        loadingDiv.textContent = '图片加载失败';
+                    // 创建删除按钮
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'delete-button';
+                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    deleteButton.title = '删除此记录';
+                    deleteButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+
+                        // 使用确认modal
+                        showConfirmationModal({
+                            title: '确认删除记录',
+                            message: `确定要删除记录 "${record.id}" 吗？\n\n标题: ${record.title}\n状态: ${record.status}\n\n此操作不可撤销！`,
+                            onConfirm: async () => {
+                                try {
+                                    // 从STATE中删除记录
+                                    const recordIndex = STATE.records.findIndex(r => r.id === record.id);
+                                    if (recordIndex !== -1) {
+                                        STATE.records.splice(recordIndex, 1);
+
+                                        // 保存到存储
+                                        const recordsData = STATE.records.reduce((acc, record) => {
+                                            acc[record.id] = record;
+                                            return acc;
+                                        }, {} as Record<string, VideoRecord>);
+
+                                        await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: recordsData });
+
+                                        // 更新显示
+                                        updateFilteredRecords();
+                                        render();
+
+                                        showMessage(`记录 "${record.id}" 已删除`, 'success');
+                                    }
+                                } catch (error: any) {
+                                    console.error('删除记录时出错:', error);
+                                    showMessage(`删除记录失败: ${error.message}`, 'error');
+                                }
+                            },
+                            onCancel: () => {
+                                // 用户取消删除，不需要做任何操作
+                            }
+                        });
                     });
 
-                    tooltipContent.appendChild(img);
-                    tooltipContent.appendChild(loadingDiv);
+                    // 创建统一的操作按钮容器
+                    const actionButtonsContainer = document.createElement('div');
+                    actionButtonsContainer.className = 'action-buttons-container';
 
-                    // 清空并添加新内容
-                    imageTooltipElement.innerHTML = '';
-                    imageTooltipElement.appendChild(tooltipContent);
+                    // 编辑按钮
+                    const editButton = document.createElement('button');
+                    editButton.className = 'action-button edit-button';
+                    editButton.innerHTML = '<i class="fas fa-edit"></i>';
+                    editButton.title = '编辑记录';
+                    editButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showEditModal(record);
+                    });
 
-                    imageTooltipElement.style.display = 'block';
-                    imageTooltipElement.style.opacity = '0';
+                    // 同步按钮（重命名refresh按钮）
+                    refreshButton.className = 'action-button sync-button';
+                    refreshButton.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                    refreshButton.title = '刷新源数据';
 
-                    // 位置更新
-                    const updateImageTooltipPosition = (event: MouseEvent) => {
-                        if (!imageTooltipElement) return;
-                        const x = event.clientX + 15;
-                        const y = event.clientY + 15;
-                        imageTooltipElement.style.left = `${x}px`;
-                        imageTooltipElement.style.top = `${y}px`;
-                    };
+                    // 删除按钮样式调整
+                    deleteButton.className = 'action-button delete-button';
+                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    deleteButton.title = '删除记录';
 
-                    updateImageTooltipPosition(e);
+                    // 将按钮添加到容器
+                    actionButtonsContainer.appendChild(editButton);
+                    actionButtonsContainer.appendChild(refreshButton);
+                    actionButtonsContainer.appendChild(deleteButton);
 
-                    // 延迟显示，避免快速移动时闪烁
-                    setTimeout(() => {
-                        if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
-                            imageTooltipElement.style.opacity = '1';
-                        }
-                    }, 200);
+                    const controlsContainer = document.createElement('div');
+                    controlsContainer.className = 'video-controls';
+                    controlsContainer.appendChild(iconsContainer);
+                    controlsContainer.appendChild(actionButtonsContainer);
 
-                    videoIdLink.addEventListener('mousemove', updateImageTooltipPosition);
-                });
-
-                videoIdLink.addEventListener('mouseleave', () => {
-                    if (imageTooltipElement) {
-                        imageTooltipElement.style.display = 'none';
-                        imageTooltipElement.style.opacity = '0';
+                    // Create the video ID element (with or without link based on javdbUrl)
+                    let videoIdHtml = '';
+                    if (record.javdbUrl && record.javdbUrl.trim() !== '' && record.javdbUrl !== '#') {
+                        videoIdHtml = `<a href="${record.javdbUrl}" target="_blank" class="video-id-link">${record.id}</a>`;
+                    } else {
+                        videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
                     }
-                });
-            }
 
-            // 添加点击事件处理
-            li.addEventListener('click', (e) => {
-                // 如果点击的是按钮、链接或标签，不触发选择
-                if ((e.target as HTMLElement).closest('button, a, .video-tag')) {
-                    return;
-                }
+                    // 生成tags HTML
+                    const tagsHtml = record.tags && record.tags.length > 0
+                        ? `<div class="video-tags">${record.tags.map(tag =>
+                            `<span class="video-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`
+                        ).join('')}</div>`
+                        : '';
 
-                // 直接切换选择状态
-                const isSelected = selectedRecords.has(record.id);
-                handleRecordSelection(record.id, !isSelected);
-            });
+                    li.innerHTML = `
+                        <div class="video-content-wrapper">
+                            <div class="video-id-container">
+                                ${videoIdHtml}
+                            </div>
+                            ${tagsHtml}
+                            <span class="video-title">${record.title}</span>
+                        </div>
+                        <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
+                        <span class="video-status status-${record.status}">${record.status}</span>
+                    `;
 
-            // 如果当前项被选中，添加选中样式
-            if (selectedRecords.has(record.id)) {
-                li.classList.add('selected');
-            }
+                    // 添加图片悬浮功能到video-id-link
+                    const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
+                    if (videoIdLink && record.javdbImage) {
+                        videoIdLink.addEventListener('mouseenter', (e) => {
+                            if (!imageTooltipElement) return;
 
-            // 为video-tag添加点击事件
-            const videoTags = li.querySelectorAll('.video-tag');
-            videoTags.forEach(tagElement => {
-                tagElement.addEventListener('click', (e) => {
-                    e.stopPropagation(); // 防止触发行选择
-                    const tag = tagElement.getAttribute('data-tag');
-                    if (tag) {
-                        if (selectedTags.has(tag)) {
-                            selectedTags.delete(tag);
-                        } else {
-                            selectedTags.add(tag);
-                        }
-                        currentPage = 1;
-                        updateFilteredRecords();
-                        render();
-                        refreshTagsFilterDisplay();
+                            // 创建图片悬浮内容
+                            const tooltipContent = document.createElement('div');
+                            tooltipContent.className = 'image-tooltip-content';
+
+                            const img = document.createElement('img');
+                            img.src = record.javdbImage;
+                            img.alt = String(record.title || '');
+                            img.style.opacity = '0';
+
+                            const loadingDiv = document.createElement('div');
+                            loadingDiv.className = 'image-tooltip-loading';
+                            loadingDiv.textContent = '加载中...';
+
+                            // 添加图片加载事件监听器
+                            img.addEventListener('load', () => {
+                                img.style.opacity = '1';
+                                loadingDiv.style.display = 'none';
+                            });
+
+                            img.addEventListener('error', () => {
+                                img.style.display = 'none';
+                                loadingDiv.textContent = '图片加载失败';
+                            });
+
+                            tooltipContent.appendChild(img);
+                            tooltipContent.appendChild(loadingDiv);
+
+                            // 清空并添加新内容
+                            imageTooltipElement.innerHTML = '';
+                            imageTooltipElement.appendChild(tooltipContent);
+
+                            imageTooltipElement.style.display = 'block';
+                            imageTooltipElement.style.opacity = '0';
+
+                            // 位置更新
+                            const updateImageTooltipPosition = (event: MouseEvent) => {
+                                if (!imageTooltipElement) return;
+                                const x = event.clientX + 15;
+                                const y = event.clientY + 15;
+                                imageTooltipElement.style.left = `${x}px`;
+                                imageTooltipElement.style.top = `${y}px`;
+                            };
+
+                            updateImageTooltipPosition(e);
+
+                            // 延迟显示，避免快速移动时闪烁
+                            setTimeout(() => {
+                                if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
+                                    imageTooltipElement.style.opacity = '1';
+                                }
+                            }, 200);
+
+                            videoIdLink.addEventListener('mousemove', updateImageTooltipPosition);
+                        });
+
+                        videoIdLink.addEventListener('mouseleave', () => {
+                            if (imageTooltipElement) {
+                                imageTooltipElement.style.display = 'none';
+                                imageTooltipElement.style.opacity = '0';
+                            }
+                        });
                     }
-                });
-            });
 
-            // Append the icons container to the list item
-            li.appendChild(controlsContainer);
-            li.dataset.recordId = record.id;
-            videoList.appendChild(li);
+                    // 添加点击事件处理
+                    li.addEventListener('click', (e) => {
+                        // 如果点击的是按钮、链接或标签，不触发选择
+                        if ((e.target as HTMLElement).closest('button, a, .video-tag')) {
+                            return;
+                        }
+
+                        // 直接切换选择状态
+                        const isSelected = selectedRecords.has(record.id);
+                        handleRecordSelection(record.id, !isSelected);
+                    });
+
+                    // 如果当前项被选中，添加选中样式
+                    if (selectedRecords.has(record.id)) {
+                        li.classList.add('selected');
+                    }
+
+                    // 为video-tag添加点击事件
+                    const videoTags = li.querySelectorAll('.video-tag');
+                    videoTags.forEach(tagElement => {
+                        tagElement.addEventListener('click', (e) => {
+                            e.stopPropagation(); // 防止触发行选择
+                            const tag = tagElement.getAttribute('data-tag');
+                            if (tag) {
+                                if (selectedTags.has(tag)) {
+                                    selectedTags.delete(tag);
+                                } else {
+                                    selectedTags.add(tag);
+                                }
+                                currentPage = 1;
+                                updateFilteredRecords();
+                                render();
+                                refreshTagsFilterDisplay();
+                            }
+                        });
+                    });
+
+                    // Append the icons container to the list item
+                    li.appendChild(controlsContainer);
+                    li.dataset.recordId = record.id;
+                    videoList.appendChild(li);
                 } catch (error) {
                     console.error('渲染记录项时出错:', error, record);
                 }
@@ -512,29 +746,6 @@ export function initRecordsTab(): void {
             console.error('渲染视频列表时出错:', error);
             videoList.innerHTML = '<li class="empty-list error">渲染列表时出现错误，请刷新重试。</li>';
         }
-    }
-
-    function updateTooltipPosition(e: MouseEvent) {
-        if (!tooltipElement) return;
-        const x = e.clientX + 15;
-        const y = e.clientY + 15;
-        const tooltipWidth = tooltipElement.offsetWidth;
-        const tooltipHeight = tooltipElement.offsetHeight;
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        let newX = x;
-        let newY = y;
-
-        if (x + tooltipWidth > viewportWidth) {
-            newX = viewportWidth - tooltipWidth - 15;
-        }
-        if (y + tooltipHeight > viewportHeight) {
-            newY = viewportHeight - tooltipHeight - 15;
-        }
-
-        tooltipElement.style.left = `${newX}px`;
-        tooltipElement.style.top = `${newY}px`;
     }
 
     function renderPagination() {
@@ -562,7 +773,7 @@ export function initRecordsTab(): void {
             const classNames = ['page-button'];
             if (options.isActive) classNames.push('active');
             if (options.isEllipsis) classNames.push('ellipsis');
-            
+
             button.className = classNames.join(' ');
 
             if (page) {
@@ -589,9 +800,9 @@ export function initRecordsTab(): void {
         if (currentPage > 1 && currentPage < pageCount) {
             pagesToShow.add(currentPage);
         }
-        
+
         const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
-        
+
         let lastPage: number | null = null;
         for (const page of sortedPages) {
             if (lastPage !== null && page - lastPage > 1) {
@@ -726,6 +937,116 @@ export function initRecordsTab(): void {
     searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
     sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
+
+    // Advanced search event listeners
+    if (advToggleBtn && advPanel) {
+        advToggleBtn.addEventListener('click', () => {
+            advPanel.style.display = advPanel.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+
+    if (advAddBtn) {
+        advAddBtn.addEventListener('click', () => {
+            const newCond: AdvCondition = { id: `cond_${Date.now()}`, field: 'id', op: 'contains', value: '' };
+            advConditions.push(newCond);
+            createAdvConditionRow(newCond);
+        });
+    }
+
+    if (advApplyBtn) {
+        advApplyBtn.addEventListener('click', () => {
+            advConditions = parseAdvConditionsFromUI();
+            currentPage = 1;
+            updateFilteredRecords();
+            render();
+        });
+    }
+
+    if (advResetBtn) {
+        advResetBtn.addEventListener('click', () => {
+            advConditions = [];
+            advConditionsEl.innerHTML = '';
+            currentPage = 1;
+            updateFilteredRecords();
+            render();
+        });
+    }
+
+    // Preset handlers
+    if (saveAdvPresetBtn) {
+        saveAdvPresetBtn.addEventListener('click', async () => {
+            const name = (advPresetNameInput?.value || '').trim();
+            if (!name) {
+                showMessage('请输入方案名称', 'warn');
+                return;
+            }
+            const presets = await loadAdvPresets();
+            const conditions = parseAdvConditionsFromUI();
+            presets[name] = conditions;
+            await saveAdvPresets(presets);
+            showMessage(`方案 "${name}" 已保存`, 'success');
+            await refreshPresetSelect();
+            advPresetSelect.value = name;
+        });
+    }
+
+    if (loadAdvPresetBtn) {
+        loadAdvPresetBtn.addEventListener('click', async () => {
+            const name = advPresetSelect?.value || '';
+            const presets = await loadAdvPresets();
+            if (!name || !presets[name]) {
+                showMessage('请选择要载入的方案', 'warn');
+                return;
+            }
+            advConditions = presets[name];
+            rebuildAdvRows(advConditions);
+            currentPage = 1;
+            updateFilteredRecords();
+            render();
+            showMessage(`已载入方案 "${name}"`, 'success');
+        });
+    }
+
+    if (deleteAdvPresetBtn) {
+        deleteAdvPresetBtn.addEventListener('click', async () => {
+            const name = advPresetSelect?.value || '';
+            const presets = await loadAdvPresets();
+            if (!name || !presets[name]) {
+                showMessage('请选择要删除的方案', 'warn');
+                return;
+            }
+            delete presets[name];
+            await saveAdvPresets(presets);
+            await refreshPresetSelect();
+            advPresetSelect.value = '';
+            showMessage(`方案 "${name}" 已删除`, 'success');
+        });
+    }
+
+    // Quick relative time condition
+    if (addQuickTimeBtn) {
+        addQuickTimeBtn.addEventListener('click', () => {
+            const field = (quickTimeField?.value || 'createdAt') as FieldKey;
+            const n = parseInt(quickTimeValue?.value || '0', 10);
+            const unit = quickTimeUnit?.value || 'days';
+            if (Number.isNaN(n) || n <= 0) {
+                showMessage('请输入有效的数字 N', 'warn');
+                return;
+            }
+            const now = Date.now();
+            const delta = unit === 'hours' ? n * 60 * 60 * 1000 : n * 24 * 60 * 60 * 1000;
+            const since = now - delta;
+            const cond: AdvCondition = { id: `cond_${Date.now()}`, field, op: 'gte', value: String(since) } as any;
+            advConditions.push(cond);
+            createAdvConditionRow(cond);
+            currentPage = 1;
+            updateFilteredRecords();
+            render();
+        });
+    }
+
+    // 初始化预置下拉
+    refreshPresetSelect();
 
     // Tags filter event listeners
     tagsFilterInput.addEventListener('click', () => {
@@ -1339,11 +1660,4 @@ export function initRecordsTab(): void {
         }
     }
 
-
-
-    // 清理函数，在页面切换时调用
-    return function cleanup() {
-        removeTooltip();
-        removeImageTooltip();
-    };
 }

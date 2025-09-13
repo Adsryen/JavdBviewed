@@ -140,7 +140,7 @@ async function markActorsOnPage(): Promise<void> {
         if (record) {
             await handleExistingRecord(videoId, record, now, currentUrl, operationId);
         } else {
-            await handleNewRecord(videoId, now, currentUrl, operationId);
+            await handleNewRecord(videoId, now, currentUrl);
         }
 
         // 应用增强功能（新逻辑：以视频页增强开关为主，兼容旧逻辑）
@@ -279,8 +279,7 @@ async function handleExistingRecord(
 async function handleNewRecord(
     videoId: string, 
     now: number, 
-    currentUrl: string, 
-    operationId: string
+    currentUrl: string
 ): Promise<void> {
     log(`No record found for ${videoId}. Scheduling to add as 'browsed'.`);
     
@@ -301,6 +300,8 @@ async function handleNewRecord(
             const newRecord = await createVideoRecord(videoId, now, currentUrl);
             if (!newRecord) {
                 log(`Failed to create record for ${videoId}`);
+                // 二次过滤：当 tags 与 描述 同时为空时，不保存并提示
+                showToast(`数据无效，已跳过保存: ${videoId}`, 'info');
                 return;
             }
 
@@ -426,6 +427,33 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
                     log(`Error with alternative selector ${selector}:`, error);
                 }
             }
+        }
+
+        // 提取描述文本，用于二次过滤（常见标签：描述/簡介/简介/說明/说明）
+        let descriptionText: string | undefined;
+        try {
+            const panelBlocksForDesc = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
+            for (const block of panelBlocksForDesc) {
+                const strongElement = block.querySelector('strong');
+                const label = strongElement?.textContent?.trim() || '';
+                if (['描述', '簡介', '简介', '說明', '说明'].some(k => label.includes(k))) {
+                    const valueEl = block.querySelector<HTMLElement>('.value');
+                    const text = (valueEl?.textContent || block.textContent || '').trim();
+                    if (text) {
+                        descriptionText = text;
+                        log(`Found description text: "${descriptionText.substring(0, 50)}${(descriptionText.length > 50 ? '...' : '')}"`);
+                        break;
+                    }
+                }
+            }
+        } catch (e) {
+            log('Error while extracting description text:', e);
+        }
+
+        // 二次过滤：当 tags 与 描述 同时为空时，不保存
+        if (tags.length === 0 && (!descriptionText || descriptionText.length === 0)) {
+            log('Secondary validation failed: both tags and description are empty. Skip saving.');
+            return null;
         }
 
         // 获取封面图片链接
