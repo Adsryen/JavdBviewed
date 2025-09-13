@@ -85,3 +85,91 @@
     font-size: 12px;
     font-style: italic;
 }
+
+/* --- Advanced Search (Records Tab) --- */
+.advanced-search-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.advanced-search-panel .adv-controls,
+.advanced-search-panel .adv-presets,
+.advanced-search-panel .adv-quicktime {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.advanced-search-panel .button-like {
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.advanced-search-panel input[type="text"],
+.advanced-search-panel input[type="number"],
+.advanced-search-panel select {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 8px;
+    height: 32px;
+}
+
+.adv-conditions-list {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.adv-condition-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.5fr auto;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.adv-condition-row .adv-field,
+.adv-condition-row .adv-operator,
+.adv-condition-row .adv-value {
+    width: 100%;
+}
+
+.adv-condition-row .adv-remove {
+    height: 32px;
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.advanced-search-panel .adv-hint {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+@media (max-width: 960px) {
+    .adv-condition-row {
+        grid-template-columns: 1fr 1fr 1fr auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .adv-condition-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .adv-condition-row .adv-value {
+        grid-column: span 2;
+    }
+}

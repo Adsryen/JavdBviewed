@@ -113,6 +113,7 @@
                             <option value="id_asc">按番号排序 (A-Z)</option>
                             <option value="id_desc">按番号排序 (Z-A)</option>
                         </select>
+                        <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">高级搜索</button>
                         <div class="tags-filter-container">
                             <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
                             <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
@@ -127,6 +128,42 @@
                                 <!-- 已选择的标签将由 JS 动态填充 -->
                             </div>
                         </div>
+                    </div>
+
+                    <!-- 高级搜索面板 -->
+                    <div id="advancedSearchPanel" class="advanced-search-panel" style="display:none; margin-top: 10px;">
+                        <div class="adv-controls">
+                            <button id="addConditionBtn" class="button-like"><i class="fas fa-plus"></i> 添加条件</button>
+                            <button id="applyConditionsBtn" class="button-like"><i class="fas fa-check"></i> 应用</button>
+                            <button id="resetConditionsBtn" class="button-like"><i class="fas fa-undo"></i> 重置</button>
+                        </div>
+                        <div class="adv-presets" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+                            <input type="text" id="advPresetName" placeholder="方案名称" style="min-width: 160px;">
+                            <button id="saveAdvPresetBtn" class="button-like"><i class="fas fa-save"></i> 保存方案</button>
+                            <select id="advPresetSelect" style="min-width: 180px;">
+                                <option value="">选择已保存方案...</option>
+                            </select>
+                            <button id="loadAdvPresetBtn" class="button-like"><i class="fas fa-folder-open"></i> 载入方案</button>
+                            <button id="deleteAdvPresetBtn" class="button-like"><i class="fas fa-trash"></i> 删除方案</button>
+                        </div>
+                        <div class="adv-quicktime" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+                            <label>相对时间：</label>
+                            <select id="quickTimeField">
+                                <option value="createdAt">创建时间</option>
+                                <option value="updatedAt">更新时间</option>
+                            </select>
+                            <label>最近</label>
+                            <input type="number" id="quickTimeValue" placeholder="N" min="1" value="7" style="width:80px;">
+                            <select id="quickTimeUnit">
+                                <option value="days">天</option>
+                                <option value="hours">小时</option>
+                            </select>
+                            <button id="addQuickTimeBtn" class="button-like"><i class="fas fa-plus-circle"></i> 添加快捷条件</button>
+                        </div>
+                        <div id="advConditions" class="adv-conditions-list">
+                            <!-- 条件行将由 JS 动态添加 -->
+                        </div>
+                        <div class="adv-hint">提示：可添加多个条件，所有条件将以“并且(AND)”的方式组合。选择“非空/为空”时无需输入比较值。</div>
                     </div>
 
                     <!-- 批量操作控件 -->
