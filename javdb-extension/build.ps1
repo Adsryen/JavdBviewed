@@ -1,6 +1,9 @@
 # JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
+# 模式标记：仅创建 GitHub Release（不更新版本、不构建）
+$onlyRelease = $false
+
 # 设置控制台编码为UTF-8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -25,7 +28,9 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  [4] Just Build (build without changing the version number)" -ForegroundColor White
     Write-Host "      Just Build - no version change" -ForegroundColor Gray
-    Write-Host "  [5] Exit" -ForegroundColor White
+    Write-Host "  [5] Only Create GitHub Release (no version change, no build)" -ForegroundColor White
+    Write-Host "      Only Release - use existing version and build artifact" -ForegroundColor Gray
+    Write-Host "  [6] Exit" -ForegroundColor White
     Write-Host ""
 }
 
@@ -60,7 +65,7 @@ function Show-Success {
 # 主循环
 while ($true) {
     Show-Menu
-    $choice = Get-UserChoice "Enter your choice (1-5)" "3"
+    $choice = Get-UserChoice "Enter your choice (1-6)" "3"
 
     switch ($choice) {
         "1" {
@@ -80,6 +85,13 @@ while ($true) {
             break
         }
         "5" {
+            # 仅创建 GitHub Release 模式
+            $onlyRelease = $true
+            # 标记一个非空的版本类型以通过后续校验
+            $versionType = "manual"
+            break
+        }
+        "6" {
             exit 0
         }
         default {
@@ -90,8 +102,8 @@ while ($true) {
     break
 }
 
-# 版本确认
-if ($versionType) {
+# 版本确认（仅当选择了版本更新时，才会进行）
+if ($versionType -and -not $onlyRelease) {
     Write-Host ""
     Write-Host "You have selected a $versionType release. This will create a new git commit and tag." -ForegroundColor Yellow
     $confirm = Get-UserChoice "Are you sure? (y/n)" "Y"
@@ -114,44 +126,54 @@ if ($versionType) {
     }
 }
 
-# 安装依赖和构建
-Write-Host ""
-Write-Host "Installing dependencies and building..." -ForegroundColor Green
-
-try {
-    Write-Host "Running pnpm install..." -ForegroundColor Gray
-    & pnpm install
-    if ($LASTEXITCODE -ne 0) {
-        throw "pnpm install failed"
-    }
-
-    Write-Host "Running pnpm run build..." -ForegroundColor Gray
-    & pnpm run build
-    if ($LASTEXITCODE -ne 0) {
-        throw "pnpm run build failed"
-    }
-
+# 安装依赖和构建（仅当非“仅创建Release”模式时执行）
+if (-not $onlyRelease) {
     Write-Host ""
-    Write-Host "Build and packaging finished successfully!" -ForegroundColor Green
+    Write-Host "Installing dependencies and building..." -ForegroundColor Green
+
+    try {
+        Write-Host "Running pnpm install..." -ForegroundColor Gray
+        & pnpm install
+        if ($LASTEXITCODE -ne 0) {
+            throw "pnpm install failed"
+        }
+
+        Write-Host "Running pnpm run build..." -ForegroundColor Gray
+        & pnpm run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "pnpm run build failed"
+        }
+
+        Write-Host ""
+        Write-Host "Build and packaging finished successfully!" -ForegroundColor Green
+        Write-Host ""
+    } catch {
+        Show-Error
+        exit 1
+    }
+} else {
     Write-Host ""
-} catch {
-    Show-Error
-    exit 1
+    Write-Host "Only Release mode: skipping dependency installation and build." -ForegroundColor Yellow
 }
 
-# 询问是否创建GitHub Release
-Write-Host ""
-Write-Host "Do you want to create a GitHub Release now?" -ForegroundColor Yellow
-Write-Host "  [Y] Yes, create release" -ForegroundColor White
-Write-Host "  [N] No, skip release (default)" -ForegroundColor White
-Write-Host ""
+# 询问是否创建GitHub Release（仅在非“仅创建Release”模式下询问；否则直接创建）
+if (-not $onlyRelease) {
+    Write-Host ""
+    Write-Host "Do you want to create a GitHub Release now?" -ForegroundColor Yellow
+    Write-Host "  [Y] Yes, create release" -ForegroundColor White
+    Write-Host "  [N] No, skip release (default)" -ForegroundColor White
+    Write-Host ""
 
-$releaseConfirm = Get-UserChoice "Enter your choice (Y,N)" "N"
+    $releaseConfirm = Get-UserChoice "Enter your choice (Y,N)" "N"
 
-if ($releaseConfirm.ToLower() -ne "y") {
-    Write-Host "OK. Skipping GitHub Release." -ForegroundColor Yellow
-    Show-Success
-    exit 0
+    if ($releaseConfirm.ToLower() -ne "y") {
+        Write-Host "OK. Skipping GitHub Release." -ForegroundColor Yellow
+        Show-Success
+        exit 0
+    }
+} else {
+    Write-Host ""
+    Write-Host "Only Release mode: proceeding to create GitHub Release..." -ForegroundColor Yellow
 }
 
 if (-not $versionType) {
