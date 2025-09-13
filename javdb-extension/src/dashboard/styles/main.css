@@ -60,6 +60,12 @@ body {
     justify-content: center;
 }
 
+/* thin separator line inside sidebar sections */
+.sidebar-section-sep {
+    border-top: 1px solid #e8e8e8;
+    margin: 12px 0;
+}
+
 .sidebar-toggle-btn {
     position: absolute;
     width: 10px;
@@ -129,6 +135,7 @@ body {
     padding: 25px;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     /* 修复高度 - 让main-content根据内容自动调整高度 */
     height: auto !important;
     min-height: calc(100vh - 90px) !important;
@@ -415,6 +422,13 @@ button:disabled {
     font-size: 13px;
     font-family: monospace;
     border-top: 1px solid #f0f0f0;
+}
+
+/* Ensure footer info stays at the bottom center within main-content */
+.main-content > #infoContainer {
+    position: static !important;
+    float: none !important;
+    align-self: stretch;
 }
 .info-item {
     display: inline-block;

@@ -1983,7 +1983,7 @@ textarea.textarea-input {
 
 /* 子设置样式 */
 .sub-settings {
-    margin-top: 15px;
+    margin-top: 0 !important; /* 由增强面板局部样式在展开时再添加间距，避免折叠占位 */
     padding: 20px;
     background: #f8f9fa;
     border: 1px solid #e9ecef;

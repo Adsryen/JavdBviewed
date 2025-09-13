@@ -96,6 +96,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private filterRulesList!: HTMLElement;
 
     private enhancementTogglesInitialized = false;
+    private subSettingsHoverInitialized = false;
+    private subSettingsOpenTimers: WeakMap<HTMLElement, number> = new WeakMap();
+    private subSettingsCollapseTimers: WeakMap<HTMLElement, number> = new WeakMap();
+    private subSettingsOpenedAt: WeakMap<HTMLElement, number> = new WeakMap();
     private currentFilterRules: KeywordFilterRule[] = [];
 
     // 子标签元素
@@ -124,7 +128,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
-     * 同步“视频预览增强”的当前延迟展示到说明文字（#currentPreviewDelay）
+     * 同步"视频预览增强"的当前延迟展示到说明文字（#currentPreviewDelay）
      */
     private updateCurrentPreviewDelayDisplay(): void {
         const span = document.getElementById('currentPreviewDelay');
@@ -206,6 +210,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
         this.videoEnhancementConfig = document.getElementById('videoEnhancementConfig') as HTMLDivElement;
 
+        // 让翻译配置在初始化阶段就具备统一的子设置类名，便于 hover 逻辑一次性绑定
+        if (this.translationConfig) {
+            if (!this.translationConfig.classList.contains('sub-settings')) {
+                this.translationConfig.classList.add('sub-settings');
+            }
+            // 避免内联样式强制显示/隐藏，交给统一 hover 控制
+            this.translationConfig.style.display = '';
+        }
+
         // 子标签
         this.subtabLinks = document.querySelectorAll('#enhancementSubTabs .subtab-link') as NodeListOf<HTMLButtonElement>;
 
@@ -259,21 +272,27 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 影片页增强子项事件监听
         this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableTranslation?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableTranslation?.addEventListener('change', () => {
+            this.handleSettingChange();
+            this.updateTranslationConfigVisibility();
+        });
         this.veEnableRating?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableActorInfo?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableAutoApplyTags?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableAutoApplyTags?.addEventListener('change', () => {
+            this.handleSettingChange();
+            this.toggleConfigSections();
+        });
         if (this.actorDefaultTagInputs) {
             this.actorDefaultTagInputs.forEach(input => {
                 input.addEventListener('change', this.handleSettingChange.bind(this));
             });
         }
         this.previewDelay?.addEventListener('change', this.handleSettingChange.bind(this));
-        // 同步“视频预览增强”描述里的当前延迟显示
+        // 同步"视频预览增强"描述里的当前延迟显示
         this.previewDelay?.addEventListener('input', () => this.updateCurrentPreviewDelayDisplay());
         this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
 
@@ -304,6 +323,74 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 });
             });
         }
+
+        // 折叠/展开 与 重置按钮
+        document.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (!target) return;
+            const action = target.getAttribute('data-action');
+            if (action === 'toggle-section') {
+                const sel = target.getAttribute('data-target') || '';
+                const section = document.querySelector(sel) as HTMLElement;
+                if (section) {
+                    section.classList.toggle('collapsed');
+                    try {
+                        const key = `enhancementSectionCollapsed:${section.id}`;
+                        const isCollapsed = section.classList.contains('collapsed');
+                        localStorage.setItem(key, isCollapsed ? '1' : '0');
+                    } catch {}
+                }
+            } else if (action === 'reset-section') {
+                const section = target.getAttribute('data-section') as 'list' | 'video' | 'actor';
+                this.resetSectionToDefaults(section);
+            }
+        });
+
+        // 绑定演员页增强相关按钮事件
+        this.initializeActorEnhancementEvents();
+
+        // 统一设置 sub-settings 悬浮展开/离开折叠
+        this.setupSubSettingsHoverBehavior();
+    }
+
+    /** 将单个板块重置为默认值 */
+    private async resetSectionToDefaults(section: 'list' | 'video' | 'actor'): Promise<void> {
+        const s = STATE.settings;
+        if (!s) return;
+        if (section === 'list') {
+            s.listEnhancement = {
+                enabled: true,
+                enableClickEnhancement: true,
+                enableVideoPreview: true,
+                enableScrollPaging: false,
+                enableListOptimization: true,
+                previewDelay: 1000,
+                previewVolume: 0.2,
+                enableRightClickBackground: true,
+                preferredPreviewSource: 'auto'
+            };
+        } else if (section === 'video') {
+            s.videoEnhancement = {
+                enabled: false,
+                enableCoverImage: true,
+                enableTranslation: true,
+                enableRating: true,
+                enableActorInfo: true,
+                showLoadingIndicator: true,
+            } as any;
+        } else if (section === 'actor') {
+            s.actorEnhancement = {
+                enabled: true,
+                autoApplyTags: true,
+                defaultTags: ['s','d'],
+                defaultSortType: 0,
+            } as any;
+        }
+
+        await saveSettings(s);
+        STATE.settings = s;
+        await this.doLoadSettings();
+        showMessage('已重置为默认值', 'success');
     }
 
     /**
@@ -410,7 +497,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
-        // 首次加载时更新“当前延迟”展示
+        // 首次加载时更新"当前延迟"展示
         this.updateCurrentPreviewDelayDisplay();
         if (this.previewVolume) {
             const volumeValue = listEnhancement.previewVolume || 0.2;
@@ -444,13 +531,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.currentFilterRules = contentFilter?.keywordRules || [];
         this.renderFilterRules();
 
+        // 将翻译配置容器迁移到“影片页增强 > 标题翻译”独立块中
+        this.mountTranslationConfigIntoVideoBlock();
+
         // 显示/隐藏配置区域
         this.toggleConfigSections();
 
-        // 确保翻译配置的显示状态正确
-        if (this.translationConfig) {
-            this.translationConfig.style.display = this.enableTranslation.checked ? 'block' : 'none';
-        }
+        // 统一由悬浮控制子设置显隐——不在此处强制显示翻译配置
 
         // 初始化功能增强开关
         this.initEnhancementToggles();
@@ -468,27 +555,61 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 将翻译配置(#translationConfig)移动到“影片页增强”的标题翻译独立区块内
+     */
+    private mountTranslationConfigIntoVideoBlock(): void {
+        try {
+            const videoTranslationBlock = document.getElementById('videoTranslationBlock');
+            if (!videoTranslationBlock || !this.translationConfig) return;
+
+            // 如果尚未挂载到独立块，则迁移
+            if (!videoTranslationBlock.contains(this.translationConfig)) {
+                videoTranslationBlock.appendChild(this.translationConfig);
+            }
+
+            // 使翻译配置也参与统一的悬浮展开逻辑
+            if (!this.translationConfig.classList.contains('sub-settings')) {
+                this.translationConfig.classList.add('sub-settings');
+            }
+
+            // 依据当前状态刷新可见性
+            this.updateTranslationConfigVisibility();
+        } catch {}
+    }
+
+    /**
      * 保存设置
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
+            const actorEnabledDerived = (
+                this.enableAutoApplyTags?.checked === true ||
+                (this.actorDefaultTagInputs && Array.from(this.actorDefaultTagInputs).some((i: HTMLInputElement) => i.checked))
+            );
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 dataEnhancement: {
                     enableMultiSource: false, // 仍未启用
                     enableImageCache: false,  // 仍未启用
-                    // 将“视频预览增强”与列表增强的预览开关保持一致
+                    // 将"视频预览增强"与列表增强的预览开关保持一致
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableTranslation: this.enableTranslation.checked,
                     enableRatingAggregation: false, // 开发中，暂不启用
                     enableActorInfo: false, // 开发中，暂不启用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
                 },
-                // 影片页增强配置保存
+                // 影片页增强配置保存（启用状态由任一子项或“标题翻译”开启决定）
                 videoEnhancement: {
-                    enabled: this.enableVideoEnhancement?.checked === true,
+                    enabled: (
+                        this.veEnableCoverImage?.checked === true ||
+                        this.enableTranslation?.checked === true ||
+                        this.veEnableRating?.checked === true ||
+                        this.veEnableActorInfo?.checked === true ||
+                        this.veShowLoadingIndicator?.checked === true
+                    ),
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
-                    enableTranslation: this.veEnableTranslation?.checked !== false,
+                    // 与“翻译”总开关保持一致，避免两处状态不一致
+                    enableTranslation: this.enableTranslation?.checked === true,
                     enableRating: this.veEnableRating?.checked !== false,
                     enableActorInfo: this.veEnableActorInfo?.checked !== false,
                     showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
@@ -517,7 +638,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableMagnetSearch: this.enableMagnetSearch.checked,
                     enableAnchorOptimization: this.enableAnchorOptimization.checked,
                     enableListEnhancement: this.enableListEnhancement.checked,
-                    enableActorEnhancement: this.enableActorEnhancement.checked,
+                    // 与派生的演员页增强状态保持一致
+                    enableActorEnhancement: actorEnabledDerived,
                     showEnhancedTooltips: false, // 开发中，强制禁用
                 },
                 anchorOptimization: {
@@ -537,7 +659,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     preferredPreviewSource: this.getPreferredPreviewSource(),
                 },
                 actorEnhancement: {
-                    enabled: this.enableActorEnhancement.checked,
+                    // 若任一子项启用即视为启用演员页增强
+                    enabled: actorEnabledDerived,
                     autoApplyTags: this.enableAutoApplyTags?.checked !== false,
                     defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
                         ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
@@ -802,7 +925,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 hiddenCheckbox.checked = !hiddenCheckbox.checked;
                 updateToggleState();
 
-                // 处理子设置显示/隐藏
+                // 仅记录可用状态（显示由 hover 控制）
                 this.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
 
                 // 特殊处理翻译功能的额外逻辑
@@ -830,46 +953,128 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 悬浮展开/离开折叠 sub-settings
+     */
+    private setupSubSettingsHoverBehavior(): void {
+        if (this.subSettingsHoverInitialized) return;
+        this.subSettingsHoverInitialized = true;
+
+        const groups = document.querySelectorAll('#enhancement-settings .form-group');
+        groups.forEach(group => {
+            const container = group as HTMLElement;
+            const sub = container.querySelector('.sub-settings') as HTMLElement | null;
+            if (!sub) return;
+
+            // 初始折叠（配合CSS动画）
+            sub.style.display = 'block'; // 覆盖HTML中的 inline display:none
+            sub.style.maxHeight = '0px';
+            sub.classList.remove('is-open');
+            // 折叠时移除上下边框，避免占位
+            sub.style.borderTopWidth = '0px';
+            sub.style.borderBottomWidth = '0px';
+            // 折叠时取消上下内边距，避免空白
+            sub.style.paddingTop = '0px';
+            sub.style.paddingBottom = '0px';
+
+            // 过渡结束后，若处于展开状态，将 max-height 设置为 none，避免内部高度变化导致跳动
+            const onTransitionEnd = (ev: TransitionEvent) => {
+                if (ev.propertyName !== 'max-height') return;
+                if (sub.classList.contains('is-open')) {
+                    sub.style.maxHeight = 'none';
+                }
+            };
+            sub.addEventListener('transitionend', onTransitionEnd);
+
+            const openWithIntent = () => {
+                // 清除关闭定时器
+                const cTimer = this.subSettingsCollapseTimers.get(container);
+                if (cTimer) { clearTimeout(cTimer); this.subSettingsCollapseTimers.delete(container); }
+                // 开启展开
+                sub.classList.add('is-open');
+                this.subSettingsOpenedAt.set(container, Date.now());
+                // 展开前恢复上下边框与内边距，配合过渡
+                sub.style.borderTopWidth = '';
+                sub.style.borderBottomWidth = '';
+                sub.style.paddingTop = '';
+                sub.style.paddingBottom = '';
+                // 如果之前设为 none，需要重置为准确高度再展开
+                if (sub.style.maxHeight === 'none') {
+                    sub.style.maxHeight = `${sub.scrollHeight}px`;
+                }
+                // 强制 reflow，确保过渡生效
+                void sub.offsetHeight;
+                const targetHeight = sub.scrollHeight;
+                sub.style.maxHeight = `${targetHeight}px`;
+            };
+
+            const closeWithDelay = () => {
+                // 取消待触发的打开
+                const oTimer = this.subSettingsOpenTimers.get(container);
+                if (oTimer) { clearTimeout(oTimer); this.subSettingsOpenTimers.delete(container); }
+                const minOpenMs = 420;
+                const openedAt = this.subSettingsOpenedAt.get(container) || 0;
+                const elapsed = Date.now() - openedAt;
+                const waitMore = elapsed < minOpenMs ? (minOpenMs - elapsed) : 0;
+                const timer = window.setTimeout(() => {
+                    // 若当前为 none，先设置为实际高度再收起，确保有动画
+                    if (sub.style.maxHeight === 'none') {
+                        sub.style.maxHeight = `${sub.scrollHeight}px`;
+                        // 进入下一帧再设置为 0，以触发展开到收起的过渡
+                        requestAnimationFrame(() => {
+                            sub.classList.remove('is-open');
+                            sub.style.maxHeight = '0px';
+                            sub.style.borderTopWidth = '0px';
+                            sub.style.borderBottomWidth = '0px';
+                            sub.style.paddingTop = '0px';
+                            sub.style.paddingBottom = '0px';
+                        });
+                    } else {
+                        sub.classList.remove('is-open');
+                        sub.style.maxHeight = '0px';
+                        sub.style.borderTopWidth = '0px';
+                        sub.style.borderBottomWidth = '0px';
+                        sub.style.paddingTop = '0px';
+                        sub.style.paddingBottom = '0px';
+                    }
+                }, 180 + waitMore);
+                this.subSettingsCollapseTimers.set(container, timer);
+            };
+
+            container.addEventListener('mouseenter', () => {
+                // 轻微延迟，避免抖动
+                const timer = window.setTimeout(openWithIntent, 120);
+                this.subSettingsOpenTimers.set(container, timer);
+            });
+
+            container.addEventListener('mouseleave', () => {
+                closeWithDelay();
+            });
+
+            // 焦点进入/离开时也维持展开，提升可访问性
+            container.addEventListener('focusin', () => openWithIntent());
+            container.addEventListener('focusout', () => closeWithDelay());
+        });
+    }
+
+    /**
      * 处理子设置的显示/隐藏
      */
     private handleSubSettingsToggle(targetId: string, isEnabled: boolean): void {
-        let subSettingsId: string | null = null;
-
-        switch (targetId) {
-            case 'enableTranslation':
-                subSettingsId = 'translationConfig';
-                break;
-            case 'enableContentFilter':
-                subSettingsId = 'contentFilterConfig';
-                break;
-            case 'enableAnchorOptimization':
-                subSettingsId = 'anchorOptimizationConfig';
-                break;
-            case 'enableListEnhancement':
-                subSettingsId = 'listEnhancementConfig';
-                break;
-            case 'enableActorEnhancement':
-                subSettingsId = 'actorEnhancementConfig';
-                break;
-            case 'enableMagnetSearch':
-                subSettingsId = 'magnetSourcesConfig';
-                break;
-            case 'enableVideoEnhancement':
-                subSettingsId = 'videoEnhancementConfig';
-                break;
-        }
-
-        if (subSettingsId) {
-            const subSettings = document.getElementById(subSettingsId);
-            if (subSettings) {
-                if (isEnabled) {
-                    subSettings.style.display = 'block';
-                    subSettings.classList.add('show');
-                } else {
-                    subSettings.style.display = 'none';
-                    subSettings.classList.remove('show');
-                }
-            }
+        // 仅记录可用状态，不直接控制显示（显示由 hover 行为接管）
+        const map: Record<string, string> = {
+            'enableTranslation': 'translationConfig',
+            'veEnableTranslation': 'translationConfig',
+            'enableAutoApplyTags': 'actorEnhancementConfig',
+            'enableContentFilter': 'contentFilterConfig',
+            'enableAnchorOptimization': 'anchorOptimizationConfig',
+            'enableMagnetSearch': 'magnetSourcesConfig',
+            'enableVideoEnhancement': 'videoEnhancementConfig',
+        };
+        const subSettingsId = map[targetId];
+        if (!subSettingsId) return;
+        const subSettings = document.getElementById(subSettingsId);
+        if (subSettings) {
+            subSettings.setAttribute('data-enabled', isEnabled ? '1' : '0');
         }
     }
 
@@ -877,13 +1082,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 更新翻译配置可见性
      */
     private updateTranslationConfigVisibility(): void {
-        if (this.translationConfig) {
-            if (this.enableTranslation.checked) {
-                this.translationConfig.style.display = 'block';
-            } else {
-                this.translationConfig.style.display = 'none';
-            }
-        }
+        if (!this.translationConfig) return;
+        const enabled = (this.veEnableTranslation?.checked === true) || (this.enableTranslation?.checked === true);
+        this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
+        this.translationConfig.style.display = 'none';
     }
 
     /**
@@ -891,7 +1093,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     private onTranslationProviderChange(): void {
         this.applyTranslationProviderUI();
-        // 更新“当前使用”标签
+        // 更新"当前使用"标签
         if (this.currentTranslationServiceLabel) {
             const isAI = this.translationProviderSel?.value === 'ai';
             this.currentTranslationServiceLabel.textContent = isAI ? 'AI 翻译' : 'Google 翻译';
@@ -956,33 +1158,40 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 切换配置区域显示/隐藏
      */
     private toggleConfigSections(): void {
-        // 磁力搜索源配置
+        // 磁力搜索源配置（仅标记状态，显示交给 hover 动画）
         if (this.magnetSourcesConfig) {
-            this.magnetSourcesConfig.style.display = this.enableMagnetSearch.checked ? 'block' : 'none';
+            this.magnetSourcesConfig.setAttribute('data-enabled', this.enableMagnetSearch.checked ? '1' : '0');
+            this.magnetSourcesConfig.style.display = 'block';
         }
 
-        // 内容过滤配置
+        // 内容过滤配置（仅标记状态，显示交给 hover 动画）
         if (this.contentFilterConfig) {
-            this.contentFilterConfig.style.display = this.enableContentFilter.checked ? 'block' : 'none';
+            this.contentFilterConfig.setAttribute('data-enabled', this.enableContentFilter.checked ? '1' : '0');
+            this.contentFilterConfig.style.display = 'block';
         }
 
-        // 锚点优化配置
+        // 锚点优化配置（仅标记状态，显示交给 hover 动画）
         if (this.anchorOptimizationConfig) {
-            this.anchorOptimizationConfig.style.display = this.enableAnchorOptimization.checked ? 'block' : 'none';
+            this.anchorOptimizationConfig.setAttribute('data-enabled', this.enableAnchorOptimization.checked ? '1' : '0');
+            this.anchorOptimizationConfig.style.display = 'block';
         }
 
-        // 列表增强配置
-        if (this.listEnhancementConfig) {
-            this.listEnhancementConfig.style.display = this.enableListEnhancement.checked ? 'block' : 'none';
-        }
-        // 影片页增强配置
+        // 列表/影片/演员子配置交由 hover 控制
         if (this.videoEnhancementConfig) {
-            this.videoEnhancementConfig.style.display = this.enableVideoEnhancement.checked ? 'block' : 'none';
+            const enabled = (
+                this.veEnableCoverImage?.checked === true ||
+                this.enableTranslation?.checked === true ||
+                this.veEnableRating?.checked === true ||
+                this.veEnableActorInfo?.checked === true ||
+                this.veShowLoadingIndicator?.checked === true
+            );
+            this.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');
+            this.videoEnhancementConfig.style.display = 'block';
         }
-        
-        // 演员页增强配置
-        if (this.actorEnhancementConfig) {
-            this.actorEnhancementConfig.style.display = this.enableActorEnhancement.checked ? 'block' : 'none';
+        const actorAutoApplyConfig = document.getElementById('actorAutoApplyConfig');
+        if (actorAutoApplyConfig) {
+            actorAutoApplyConfig.setAttribute('data-enabled', this.enableAutoApplyTags?.checked ? '1' : '0');
+            actorAutoApplyConfig.style.display = 'block';
         }
     }
 
@@ -1175,7 +1384,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private addFilterRule(): void {
         console.log('[Enhancement] 添加过滤规则按钮被点击');
         try {
-            this.showInlineRuleEditor();
+            this.openFilterRuleModal();
         } catch (error) {
             console.error('[Enhancement] 显示内联编辑器时出错:', error);
             showMessage('显示编辑器时出错，请检查控制台', 'error');
@@ -1195,11 +1404,103 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         console.log(`[Enhancement] 编辑规则: ${rule.name}`);
         try {
-            this.showInlineRuleEditor(rule, index);
+            this.openFilterRuleModal(rule, index);
         } catch (error) {
             console.error('[Enhancement] 显示内联编辑器时出错:', error);
             showMessage('显示内联编辑器时出错，请检查控制台', 'error');
         }
+    }
+
+    /**
+     * 打开规则弹窗
+     */
+    private openFilterRuleModal(rule?: KeywordFilterRule, index?: number): void {
+        const modal = document.getElementById('filterRuleModal');
+        if (!modal) {
+            console.warn('[Enhancement] 未找到过滤规则弹窗节点');
+            return;
+        }
+
+        // 标题
+        const title = document.getElementById('filterRuleModalTitle');
+        if (title) title.textContent = rule ? '编辑过滤规则' : '添加过滤规则';
+
+        // 填充字段
+        (document.getElementById('modalInlineRuleName') as HTMLInputElement).value = rule?.name || '';
+        (document.getElementById('modalInlineRuleKeyword') as HTMLInputElement).value = rule?.keyword || '';
+        (document.getElementById('modalInlineRuleAction') as HTMLSelectElement).value = rule?.action || 'hide';
+
+        const fieldsSel = document.getElementById('modalInlineRuleFields') as HTMLSelectElement;
+        if (fieldsSel) {
+            Array.from(fieldsSel.options).forEach(opt => {
+                opt.selected = !!rule?.fields?.includes(opt.value as any);
+            });
+        }
+
+        (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked = !!rule?.isRegex;
+        (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked = !!rule?.caseSensitive;
+        (document.getElementById('modalInlineRuleEnabled') as HTMLInputElement).checked = rule?.enabled !== false;
+        (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value = rule?.message || '';
+
+        // 事件绑定（先移除旧的）
+        const closeBtn = document.getElementById('filterRuleModalClose');
+        const cancelBtn = document.getElementById('cancelFilterRuleBtn');
+        const saveBtn = document.getElementById('saveFilterRuleBtn');
+
+        const hide = () => { modal.classList.remove('visible'); modal.classList.add('hidden'); };
+        closeBtn?.addEventListener('click', hide, { once: true });
+        cancelBtn?.addEventListener('click', hide, { once: true });
+
+        saveBtn?.addEventListener('click', () => {
+            this.saveFilterRuleFromModal(index);
+            hide();
+        }, { once: true });
+
+        // 显示
+        modal.classList.remove('hidden');
+        modal.classList.add('visible');
+    }
+
+    /** 保存弹窗中的规则 */
+    private saveFilterRuleFromModal(index?: number): void {
+        const name = (document.getElementById('modalInlineRuleName') as HTMLInputElement).value.trim();
+        const fieldsSelect = document.getElementById('modalInlineRuleFields') as HTMLSelectElement;
+        const action = (document.getElementById('modalInlineRuleAction') as HTMLSelectElement).value;
+        const keyword = (document.getElementById('modalInlineRuleKeyword') as HTMLInputElement).value.trim();
+        const isRegex = (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked;
+        const caseSensitive = (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked;
+        const enabled = (document.getElementById('modalInlineRuleEnabled') as HTMLInputElement).checked;
+        const message = (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value.trim();
+
+        if (!name) { showMessage('请输入规则名称', 'error'); return; }
+        if (!keyword) { showMessage('请输入关键词', 'error'); return; }
+        if (!action) { showMessage('请选择过滤动作', 'error'); return; }
+
+        const selectedFields = Array.from(fieldsSelect.selectedOptions).map(option => option.value) as ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
+        if (selectedFields.length === 0) { showMessage('请至少选择一个过滤字段', 'error'); return; }
+
+        const rule: KeywordFilterRule = {
+            id: typeof index === 'number' ? this.currentFilterRules[index].id : Date.now().toString(),
+            name,
+            keyword,
+            fields: selectedFields,
+            action: action as 'hide' | 'highlight' | 'blur' | 'mark',
+            isRegex,
+            caseSensitive,
+            enabled,
+            message: message || undefined
+        };
+
+        if (typeof index === 'number') {
+            this.currentFilterRules[index] = rule;
+            showMessage(`过滤规则 "${rule.name}" 已更新`, 'success');
+        } else {
+            this.currentFilterRules.push(rule);
+            showMessage(`过滤规则 "${rule.name}" 已添加`, 'success');
+        }
+
+        this.renderFilterRules();
+        this.handleSettingChange();
     }
 
     /**
@@ -1260,234 +1561,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
-     * 显示内联规则编辑器
-     */
-    private showInlineRuleEditor(rule?: KeywordFilterRule, index?: number): void {
-        console.log('[Enhancement] 显示内联规则编辑器', rule ? '编辑模式' : '新增模式');
-
-        // 隐藏添加按钮
-        const addBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
-        if (addBtn) {
-            addBtn.style.display = 'none';
-        }
-
-        // 创建内联编辑器HTML
-        const editorHTML = `
-            <div class="inline-rule-editor" id="inlineRuleEditor">
-                <div class="editor-header">
-                    <h5>${rule ? '编辑过滤规则' : '添加过滤规则'}</h5>
-                    <button type="button" class="btn-close" id="closeInlineEditor">&times;</button>
-                </div>
-                <div class="editor-body">
-                    <form id="inlineRuleForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="inlineRuleName">规则名称</label>
-                                <input type="text" id="inlineRuleName" value="${rule?.name || ''}" placeholder="输入规则名称" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="inlineRuleKeyword">关键词</label>
-                                <input type="text" id="inlineRuleKeyword" value="${rule?.keyword || ''}" placeholder="输入关键词或正则表达式" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="inlineRuleFields">过滤字段</label>
-                                <select id="inlineRuleFields" multiple>
-                                    <option value="title" ${rule?.fields?.includes('title') ? 'selected' : ''}>标题</option>
-                                    <option value="actor" ${rule?.fields?.includes('actor') ? 'selected' : ''}>演员</option>
-                                    <option value="studio" ${rule?.fields?.includes('studio') ? 'selected' : ''}>厂商</option>
-                                    <option value="genre" ${rule?.fields?.includes('genre') ? 'selected' : ''}>类型</option>
-                                    <option value="tag" ${rule?.fields?.includes('tag') ? 'selected' : ''}>标签</option>
-                                    <option value="video-id" ${rule?.fields?.includes('video-id') ? 'selected' : ''}>番号</option>
-                                </select>
-                                <small>按住Ctrl键可选择多个字段</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="inlineRuleAction">过滤动作</label>
-                                <select id="inlineRuleAction" required>
-                                    <option value="hide" ${rule?.action === 'hide' ? 'selected' : ''}>隐藏</option>
-                                    <option value="highlight" ${rule?.action === 'highlight' ? 'selected' : ''}>高亮</option>
-                                    <option value="blur" ${rule?.action === 'blur' ? 'selected' : ''}>模糊</option>
-                                    <option value="mark" ${rule?.action === 'mark' ? 'selected' : ''}>标记</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group checkbox-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="inlineRuleIsRegex" ${rule?.isRegex ? 'checked' : ''}>
-                                    <span>使用正则表达式</span>
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="inlineRuleCaseSensitive" ${rule?.caseSensitive ? 'checked' : ''}>
-                                    <span>区分大小写</span>
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="inlineRuleEnabled" ${rule?.enabled !== false ? 'checked' : ''}>
-                                    <span>启用此规则</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group full-width">
-                                <label for="inlineRuleMessage">提示信息（可选）</label>
-                                <textarea id="inlineRuleMessage" rows="2" placeholder="当规则匹配时显示的提示信息">${rule?.message || ''}</textarea>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="editor-footer">
-                    <button type="button" class="btn btn-secondary" id="cancelInlineEditor">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveInlineRule">保存</button>
-                </div>
-            </div>
-        `;
-
-        // 移除已存在的编辑器
-        const existingEditor = document.getElementById('inlineRuleEditor');
-        if (existingEditor) {
-            existingEditor.remove();
-        }
-
-        // 插入到过滤规则列表的顶部
-        const rulesList = document.getElementById('filterRulesList') as HTMLElement;
-        rulesList.insertAdjacentHTML('afterbegin', editorHTML);
-
-        // 绑定事件
-        this.bindInlineEditorEvents(index);
-    }
-
-    /**
-     * 绑定内联编辑器事件
-     */
-    private bindInlineEditorEvents(index?: number): void {
-        const saveBtn = document.getElementById('saveInlineRule') as HTMLButtonElement;
-        const cancelBtn = document.getElementById('cancelInlineEditor') as HTMLButtonElement;
-        const closeBtn = document.getElementById('closeInlineEditor') as HTMLButtonElement;
-
-        // 保存按钮事件
-        saveBtn.addEventListener('click', () => {
-            this.saveInlineRule(index);
-        });
-
-        // 取消按钮事件
-        cancelBtn.addEventListener('click', () => {
-            this.hideInlineEditor();
-        });
-
-        // 关闭按钮事件
-        closeBtn.addEventListener('click', () => {
-            this.hideInlineEditor();
-        });
-
-        // ESC键关闭
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                this.hideInlineEditor();
-                document.removeEventListener('keydown', handleKeyDown);
-            }
-        };
-        document.addEventListener('keydown', handleKeyDown);
-
-        // 为复选框组添加样式支持
-        this.setupCheckboxGroupStyles();
-
-        // 为锚点配置添加样式支持
-        this.setupAnchorConfigStyles();
-    }
-
-    /**
-     * 隐藏内联编辑器
-     */
-    private hideInlineEditor(): void {
-        const editor = document.getElementById('inlineRuleEditor');
-        if (editor) {
-            editor.remove();
-        }
-
-        // 显示添加按钮
-        const addBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
-        if (addBtn) {
-            addBtn.style.display = '';
-        }
-    }
-
-    /**
-     * 保存内联规则
-     */
-    private saveInlineRule(index?: number): void {
-        const name = (document.getElementById('inlineRuleName') as HTMLInputElement).value.trim();
-        const fieldsSelect = document.getElementById('inlineRuleFields') as HTMLSelectElement;
-        const action = (document.getElementById('inlineRuleAction') as HTMLSelectElement).value;
-        const keyword = (document.getElementById('inlineRuleKeyword') as HTMLInputElement).value.trim();
-        const isRegex = (document.getElementById('inlineRuleIsRegex') as HTMLInputElement).checked;
-        const caseSensitive = (document.getElementById('inlineRuleCaseSensitive') as HTMLInputElement).checked;
-        const enabled = (document.getElementById('inlineRuleEnabled') as HTMLInputElement).checked;
-        const message = (document.getElementById('inlineRuleMessage') as HTMLTextAreaElement).value.trim();
-
-        // 验证必填字段
-        if (!name) {
-            showMessage('请输入规则名称', 'error');
-            return;
-        }
-
-        if (!keyword) {
-            showMessage('请输入关键词', 'error');
-            return;
-        }
-
-        if (!action) {
-            showMessage('请选择过滤动作', 'error');
-            return;
-        }
-
-        // 获取选中的字段
-        const selectedFields = Array.from(fieldsSelect.selectedOptions).map(option => option.value) as ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
-        if (selectedFields.length === 0) {
-            showMessage('请至少选择一个过滤字段', 'error');
-            return;
-        }
-
-        // 创建规则对象
-        const rule: KeywordFilterRule = {
-            id: typeof index === 'number' ? this.currentFilterRules[index].id : Date.now().toString(),
-            name,
-            keyword,
-            fields: selectedFields,
-            action: action as 'hide' | 'highlight' | 'blur' | 'mark',
-            isRegex,
-            caseSensitive,
-            enabled,
-            message: message || undefined
-        };
-
-        // 保存规则
-        if (typeof index === 'number') {
-            // 编辑现有规则
-            this.currentFilterRules[index] = rule;
-            console.log(`[Enhancement] 更新过滤规则: ${rule.name}`);
-            showMessage(`过滤规则 "${rule.name}" 已更新`, 'success');
-        } else {
-            // 添加新规则
-            this.currentFilterRules.push(rule);
-            console.log(`[Enhancement] 添加过滤规则: ${rule.name}`);
-            showMessage(`过滤规则 "${rule.name}" 已添加`, 'success');
-        }
-
-        // 隐藏编辑器
-        this.hideInlineEditor();
-
-        // 重新渲染规则列表
-        this.renderFilterRules();
-
-        // 触发设置变更
-        this.handleSettingChange();
-    }
-
-
-
-    /**
      * 强制更新所有滑块状态
      */
     private updateAllToggleStates(): void {
@@ -1499,7 +1572,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             { toggleSelector: '[data-target="enableMagnetSearch"]', checkbox: this.enableMagnetSearch },
             { toggleSelector: '[data-target="enableAnchorOptimization"]', checkbox: this.enableAnchorOptimization },
             { toggleSelector: '[data-target="enableListEnhancement"]', checkbox: this.enableListEnhancement },
-            { toggleSelector: '[data-target="enableActorEnhancement"]', checkbox: this.enableActorEnhancement }
+            // 列表页增强子项
+            { toggleSelector: '[data-target="enableClickEnhancement"]', checkbox: this.enableClickEnhancement },
+            { toggleSelector: '[data-target="enableVideoPreview"]', checkbox: this.enableListVideoPreview },
+            { toggleSelector: '[data-target="enableScrollPaging"]', checkbox: this.enableScrollPaging },
+            { toggleSelector: '[data-target="enableAutoApplyTags"]', checkbox: this.enableAutoApplyTags }
         ];
 
         toggleMappings.forEach(({ toggleSelector, checkbox }) => {
@@ -1541,20 +1618,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
 
-        // 控制每个表单块的显示：根据 data-subtab 属性
-        const allGroups = document.querySelectorAll('#enhancement-settings .settings-section .form-group, #enhancement-settings .settings-section');
-        allGroups.forEach(el => {
+        // 控制所有带 data-subtab 的元素显示/隐藏（仅限内容区域，排除顶部子标签按钮）
+        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body [data-subtab]');
+        subtabElements.forEach(el => {
             const elem = el as HTMLElement;
             const attr = elem.getAttribute('data-subtab');
-            if (!attr) {
-                // 无标注：默认显示（例如标题、说明块），或根据父容器标注
-                const parentAttr = elem.closest('[data-subtab]')?.getAttribute('data-subtab');
-                if (parentAttr) {
-                    elem.style.display = (parentAttr === sub) ? '' : 'none';
-                }
-                return;
-            }
             elem.style.display = (attr === sub) ? '' : 'none';
+        });
+
+        // 读取并应用每个 section 的折叠状态
+        const sectionIds = ['listEnhancementConfig','videoEnhancementConfig','actorAutoApplyConfig','actorDefaultTagsConfig'];
+        sectionIds.forEach(id => {
+            const section = document.getElementById(id);
+            if (!section) return;
+            try {
+                const key = `enhancementSectionCollapsed:${id}`;
+                const collapsed = localStorage.getItem(key) === '1';
+                section.classList.toggle('collapsed', collapsed);
+            } catch {}
         });
     }
 
