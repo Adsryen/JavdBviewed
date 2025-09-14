@@ -23,6 +23,77 @@
                     <img id="title-icon" alt="Jav 助手" class="title-icon" style="display: none;">
                     <span class="title-text">Jav 助手</span>
                 </div>
+
+  <!-- Orchestrator Visualization Modal -->
+  <div id="orchestratorModal" class="modal-overlay hidden">
+    <div id="orchestratorModalContent" class="modal-content" style="width:86vw; max-width: 1200px; max-height: 86vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-project-diagram"></i>
+          功能编排可视化
+        </h3>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="button-like" id="orchestratorFullscreenBtn" title="全屏/退出全屏">全屏</button>
+          <button class="modal-close" id="orchestratorModalClose">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body" style="overflow:auto;">
+        <div id="orchestratorSummary" class="settings-description" style="margin-bottom:10px;">正在读取当前页面编排信息...</div>
+        <div class="orchestrator-toolbar" style="display:flex; gap:8px; align-items:center; margin: 6px 0 10px 0;">
+          <label>视图
+            <select id="orchViewMode">
+              <option value="design">设计</option>
+              <option value="realtime">实时</option>
+            </select>
+          </label>
+          <label>状态
+            <select id="orchFilterStatus">
+              <option value="all">全部</option>
+              <option value="running">运行中</option>
+              <option value="done">已完成</option>
+              <option value="error">错误</option>
+              <option value="scheduled">已排程</option>
+            </select>
+          </label>
+          <label>阶段
+            <select id="orchFilterPhase">
+              <option value="all">全部</option>
+              <option value="critical">critical</option>
+              <option value="high">high</option>
+              <option value="deferred">deferred</option>
+              <option value="idle">idle</option>
+            </select>
+          </label>
+          <input id="orchFilterSearch" type="search" placeholder="按 label 搜索" style="flex:1;" />
+        </div>
+        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:#52525b; line-height:1.6; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px;">
+          <div><strong>说明：</strong>本设计视图仅展示“代码中约定的任务编排顺序”，不依赖页面加载。</div>
+          <div>• <strong>critical</strong>：关键路径，首屏必须；串行完成。</div>
+          <div>• <strong>high</strong>：较高优先，尽快执行；并行触发。</div>
+          <div>• <strong>deferred</strong>：延后执行；常结合 <code>delay</code>/<code>idle</code>，避免阻塞首屏。</div>
+          <div>• <strong>idle</strong>：空闲时机再执行，对交互影响最低。</div>
+        </div>
+        <div class="orchestrator-grid" style="display:grid; grid-template-columns: 1fr 1.2fr; gap:14px;">
+          <div>
+            <h4>已注册任务</h4>
+            <div id="orchestratorPhases" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
+          </div>
+          <div>
+            <h4>事件时间线</h4>
+            <div id="orchestratorTimeline" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+        <button id="orchestratorOpenJavdbBtn" class="button-like" title="打开一个 JavDB 标签页用于连接">打开 JavDB</button>
+        <button id="orchestratorRefreshBtn" class="button-like">
+          <i class="fas fa-sync-alt"></i>
+          刷新
+        </button>
+        <button id="orchestratorCloseBtn" class="button-like">关闭</button>
+      </div>
+    </div>
+  </div>
                 <span id="helpBtn" title="功能说明">❓</span>
             </h1>
 
@@ -1340,6 +1411,8 @@
                                     <button type="button" class="subtab-link" data-subtab="list">列表页增强</button>
                                     <button type="button" class="subtab-link" data-subtab="video">影片页增强</button>
                                     <button type="button" class="subtab-link" data-subtab="actor">演员页增强</button>
+                                    <span style="flex:1"></span>
+                                    <button type="button" id="showOrchestratorBtn" class="button-like" title="查看当前页面功能编排">编排可视化</button>
                                 </div>
 
 

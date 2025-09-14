@@ -106,6 +106,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private subtabLinks!: NodeListOf<HTMLButtonElement>;
     private currentSubtab: 'list' | 'video' | 'actor' = 'list';
 
+    // 编排可视化相关
+    private showOrchestratorBtn!: HTMLButtonElement | null;
+    private orchestratorModal!: HTMLElement | null;
+    private orchestratorModalClose!: HTMLButtonElement | null;
+    private orchestratorCloseBtn!: HTMLButtonElement | null;
+    private orchestratorRefreshBtn!: HTMLButtonElement | null;
+    private orchestratorOpenJavdbBtn!: HTMLButtonElement | null;
+    private orchestratorFullscreenBtn!: HTMLButtonElement | null;
+    private orchestratorPhases!: HTMLElement | null;
+    private orchestratorTimeline!: HTMLElement | null;
+    private orchestratorSummary!: HTMLElement | null;
+    private orchestratorRuntimeListener?: (msg: any, sender: any, sendResponse: any) => void;
+    private orchFilterStatusSel!: HTMLSelectElement | null;
+    private orchFilterPhaseSel!: HTMLSelectElement | null;
+    private orchFilterSearchInput!: HTMLInputElement | null;
+    private orchViewModeSel!: HTMLSelectElement | null;
+    private orchestratorTimelineData: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }> = [];
+
     constructor() {
         super({
             panelId: 'enhancement-settings',
@@ -222,6 +240,22 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 子标签
         this.subtabLinks = document.querySelectorAll('#enhancementSubTabs .subtab-link') as NodeListOf<HTMLButtonElement>;
 
+        // 编排可视化元素
+        this.showOrchestratorBtn = document.getElementById('showOrchestratorBtn') as HTMLButtonElement | null;
+        this.orchestratorModal = document.getElementById('orchestratorModal');
+        this.orchestratorModalClose = document.getElementById('orchestratorModalClose') as HTMLButtonElement | null;
+        this.orchestratorCloseBtn = document.getElementById('orchestratorCloseBtn') as HTMLButtonElement | null;
+        this.orchestratorRefreshBtn = document.getElementById('orchestratorRefreshBtn') as HTMLButtonElement | null;
+        this.orchestratorOpenJavdbBtn = document.getElementById('orchestratorOpenJavdbBtn') as HTMLButtonElement | null;
+        this.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
+        this.orchestratorPhases = document.getElementById('orchestratorPhases');
+        this.orchestratorTimeline = document.getElementById('orchestratorTimeline');
+        this.orchestratorSummary = document.getElementById('orchestratorSummary');
+        this.orchFilterStatusSel = document.getElementById('orchFilterStatus') as HTMLSelectElement | null;
+        this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
+        this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
+        this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
+
         // 影片页增强子项
         this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
         this.veEnableTranslation = document.getElementById('veEnableTranslation') as HTMLInputElement;
@@ -324,6 +358,54 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
 
+        // 编排可视化按钮事件
+        if (this.showOrchestratorBtn) {
+            this.showOrchestratorBtn.addEventListener('click', () => this.openOrchestratorModal());
+        }
+        if (this.orchestratorModalClose) {
+            this.orchestratorModalClose.addEventListener('click', () => this.closeOrchestratorModal());
+        }
+        if (this.orchestratorCloseBtn) {
+            this.orchestratorCloseBtn.addEventListener('click', () => this.closeOrchestratorModal());
+        }
+        if (this.orchestratorRefreshBtn) {
+            this.orchestratorRefreshBtn.addEventListener('click', () => this.refreshOrchestratorState());
+        }
+        if (this.orchestratorFullscreenBtn) {
+            this.orchestratorFullscreenBtn.addEventListener('click', () => {
+                const content = document.getElementById('orchestratorModalContent');
+                if (!content) return;
+                const isFs = content.classList.toggle('fullscreen');
+                if (isFs) {
+                    this.orchestratorFullscreenBtn!.textContent = '退出全屏';
+                } else {
+                    this.orchestratorFullscreenBtn!.textContent = '全屏';
+                }
+                // 滚到底，避免切换后看不到尾部
+                this.orchestratorTimeline?.scrollTo({ top: (this.orchestratorTimeline as HTMLElement).scrollHeight });
+            });
+        }
+        if (this.orchestratorOpenJavdbBtn) {
+            this.orchestratorOpenJavdbBtn.addEventListener('click', async () => {
+                try {
+                    if (!chrome?.tabs?.create) return;
+                    await new Promise<void>((resolve) => {
+                        chrome.tabs.create({ url: 'https://javdb.com/' }, () => resolve());
+                    });
+                    // 等页面注入内容脚本
+                    setTimeout(() => this.refreshOrchestratorState(), 1500);
+                } catch (e) {
+                    console.warn('[Enhancement] 打开 JavDB 失败:', e);
+                }
+            });
+        }
+
+        // 过滤器事件
+        this.orchFilterStatusSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
+        this.orchFilterPhaseSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
+        this.orchFilterSearchInput?.addEventListener('input', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
+        this.orchViewModeSel?.addEventListener('change', () => this.refreshOrchestratorState());
+
         // 折叠/展开 与 重置按钮
         document.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
@@ -399,6 +481,285 @@ export class EnhancementSettings extends BaseSettingsPanel {
     protected unbindEvents(): void {
         // 这里可以添加解绑逻辑，但由于使用了bind，需要保存引用才能正确解绑
         // 为简化起见，暂时省略
+    }
+
+    // ===== Orchestrator Visualization =====
+    private async openOrchestratorModal(): Promise<void> {
+        if (!this.orchestratorModal) return;
+        this.orchestratorModal.classList.remove('hidden');
+        this.orchestratorModal.classList.add('visible');
+        // 打开时强制默认使用“设计”视图（更贴合你的诉求）
+        if (this.orchViewModeSel) this.orchViewModeSel.value = 'design';
+        await this.refreshOrchestratorState();
+        // 仅在“实时”模式下订阅事件
+        const mode = this.orchViewModeSel?.value || 'design';
+        if (mode === 'realtime') {
+            this.subscribeOrchestratorEvents();
+        } else {
+            this.unsubscribeOrchestratorEvents();
+        }
+    }
+
+    private closeOrchestratorModal(): void {
+        if (!this.orchestratorModal) return;
+        this.orchestratorModal.classList.add('hidden');
+        this.orchestratorModal.classList.remove('visible');
+        this.unsubscribeOrchestratorEvents();
+    }
+
+    private async refreshOrchestratorState(): Promise<void> {
+        try {
+            const mode = this.orchViewModeSel?.value || 'design';
+            if (mode === 'design') {
+                const spec = this.buildDesignSpec();
+                if (this.orchestratorSummary) this.orchestratorSummary.textContent = '展示设计视图：基于代码约定的默认编排时序（不依赖页面注入）';
+                this.renderOrchestratorPhases(spec);
+                // 将设计 spec 转成时间线（按顺序“已排程”）
+                const timeline: Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'scheduled'; ts: number }> = [];
+                const now = performance.now();
+                const phasesOrder: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
+                phasesOrder.forEach((p: 'critical'|'high'|'deferred'|'idle', i: number) => {
+                    const labels: string[] = spec[p] || [];
+                    labels.forEach((label: string, j: number) => timeline.push({ phase: p, label, status: 'scheduled', ts: now + i * 10 + j }));
+                });
+                this.orchestratorTimelineData = timeline as any;
+                this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+                // 设计视图不订阅事件
+                this.unsubscribeOrchestratorEvents();
+                return;
+            }
+
+            // 实时模式
+            if (this.orchestratorSummary) {
+                this.orchestratorSummary.textContent = '正在读取当前页面编排信息（实时）...';
+            }
+            const state = await this.requestOrchestratorStateFromActiveTab();
+            if (!state) {
+                if (this.orchestratorSummary) this.orchestratorSummary.textContent = '无法读取：请确保浏览器中已打开 JavDB 页面，并且扩展已注入内容脚本。';
+                if (this.orchestratorPhases) this.orchestratorPhases.textContent = '';
+                if (this.orchestratorTimeline) this.orchestratorTimeline.textContent = '';
+                return;
+            }
+            if (this.orchestratorSummary) {
+                this.orchestratorSummary.textContent = state.started ? '编排器已启动' : '编排器尚未启动';
+            }
+            this.renderOrchestratorPhases(state.phases || {});
+            this.orchestratorTimelineData = (state.timeline || []) as any[];
+            this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+            // 实时订阅
+            this.subscribeOrchestratorEvents();
+        } catch (e) {
+            if (this.orchestratorSummary) this.orchestratorSummary.textContent = '读取失败：' + String(e);
+        }
+    }
+
+    // 设计视图：根据代码中的编排约定构造静态规格
+    private buildDesignSpec(): Record<'critical'|'high'|'deferred'|'idle', string[]> {
+        // 注意：此处维护设计时序，不依赖页面是否开启
+        // 1) 列表页（非影片页）
+        //   - critical: 列表可见项处理、观察器初始化
+        // 2) 影片页增强（按我们拆分的子任务）
+        //   - high: initCore
+        //   - deferred: runCover, runTitle, runRating, runActors, finish
+        // 3) 其他增强（可按需追加）
+        const critical: string[] = [
+            'list:observe:init',
+        ];
+        const high: string[] = [
+            'videoEnhancement:initCore',
+        ];
+        const deferred: string[] = [
+            'videoEnhancement:runCover',
+            'videoEnhancement:runTitle',
+            'videoEnhancement:runRating',
+            'videoEnhancement:runActors',
+            'videoEnhancement:finish',
+        ];
+        const idle: string[] = [
+        ];
+        return { critical, high, deferred, idle };
+    }
+
+    private renderOrchestratorPhases(phases: Record<string, string[]>): void {
+        if (!this.orchestratorPhases) return;
+        const order: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
+        const phaseTitle: Record<'critical'|'high'|'deferred'|'idle', string> = {
+            critical: '关键（critical）',
+            high: '优先（high）',
+            deferred: '延迟（deferred）',
+            idle: '空闲（idle）',
+        };
+
+        const html: string[] = [];
+        html.push('<div class="orch-phases-grid">');
+        order.forEach((p) => {
+            const items = phases[p] || [];
+            html.push(`
+              <div class="orch-card">
+                <div class="orch-card-header">
+                  <span class="orch-phase">${phaseTitle[p]}</span>
+                  <span class="orch-count">${items.length} 项</span>
+                </div>
+                <ul class="orch-list">
+                  ${items.length === 0 ? '<li class="muted">(无任务)</li>' : items.map((label: string) => `<li title="${label}"><i class="dot"></i>${label}</li>`).join('')}
+                </ul>
+              </div>
+            `);
+        });
+        html.push('</div>');
+        this.orchestratorPhases.innerHTML = html.join('');
+        this.ensureOrchestratorLocalStyles();
+    }
+
+    private getTimelineFilters() {
+        const status = (this.orchFilterStatusSel?.value || 'all') as 'all' | 'running' | 'done' | 'error' | 'scheduled';
+        const phase = (this.orchFilterPhaseSel?.value || 'all') as 'all' | 'critical' | 'high' | 'deferred' | 'idle';
+        const keyword = (this.orchFilterSearchInput?.value || '').trim().toLowerCase();
+        return { status, phase, keyword };
+    }
+
+    private renderOrchestratorTimeline(timeline: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>): void {
+        if (!this.orchestratorTimeline) return;
+        const filters = this.getTimelineFilters();
+        const list = (timeline || []).filter(item => {
+            if (filters.status !== 'all' && item.status !== filters.status) return false;
+            if (filters.phase !== 'all' && item.phase !== filters.phase) return false;
+            if (filters.keyword && !(`${item.label}`.toLowerCase().includes(filters.keyword))) return false;
+            return true;
+        }).slice(-300);
+
+        const rows = list.map((item) => {
+            const t = item.ts ? item.ts.toFixed(1) : '';
+            const dur = typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-';
+            const badgeClass = `badge ${item.status}`;
+            const detail = item.detail ? `<div class="detail">${item.detail}</div>` : '';
+            return `
+              <div class="row">
+                <div class="col time">${t}</div>
+                <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
+                <div class="col phase">${item.phase}</div>
+                <div class="col label" title="${item.label}">${item.label}</div>
+                <div class="col duration">${dur}</div>
+              </div>
+              ${detail}
+            `;
+        }).join('');
+
+        const header = `
+          <div class="header">
+            <div class="col time">时间(ms)</div>
+            <div class="col status">状态</div>
+            <div class="col phase">阶段</div>
+            <div class="col label">任务</div>
+            <div class="col duration">耗时</div>
+          </div>
+        `;
+
+        const empty = '<div class="muted">(暂无事件)</div>';
+
+        this.orchestratorTimeline.innerHTML = `${header}${rows || empty}`;
+        this.ensureOrchestratorLocalStyles();
+        this.orchestratorTimeline.scrollTop = this.orchestratorTimeline.scrollHeight;
+    }
+
+    // 注入一次性的轻量样式，保证在暗色主题下也清晰
+    private ensureOrchestratorLocalStyles(): void {
+        if (document.getElementById('orch-local-style')) return;
+        const style = document.createElement('style');
+        style.id = 'orch-local-style';
+        style.textContent = `
+        #orchestratorModalContent.fullscreen { width:96vw !important; max-width:96vw !important; height:96vh !important; max-height:96vh !important; }
+        .orch-phases-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; }
+        .orch-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+        .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #f1f5f9; font-weight:600; }
+        .orch-list { list-style:none; margin:8px 10px; padding:0; }
+        .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:center; color:#111; }
+        .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; }
+        .orch-list li.muted { color:#9ca3af; }
+        .muted { color:#9ca3af; }
+        .header, .row { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
+        .header { font-weight:600; padding:6px 4px; border-bottom:1px solid #e5e7eb; background:#f8fafc; color:#111; }
+        .row { padding:6px 4px; border-bottom:1px dashed #eef2f7; }
+        .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
+        .badge.scheduled { background:#607d8b; }
+        .badge.running { background:#ff8f00; }
+        .badge.done { background:#2e7d32; }
+        .badge.error { background:#d32f2f; }
+        .detail { margin:0 4px 6px 4px; color:#b91c1c; font-size:12px; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    private subscribeOrchestratorEvents(): void {
+        if (!chrome?.runtime?.onMessage) return;
+        // 避免重复订阅
+        this.unsubscribeOrchestratorEvents();
+        this.orchestratorRuntimeListener = (message: any) => {
+            if (!message || message.type !== 'orchestrator:event') return;
+            const { event, payload } = message;
+            const item = { phase: payload?.phase || '-', label: payload?.label || String(event), status: (event || '').replace('task:', '') as string, ts: performance.now(), durationMs: payload?.durationMs };
+            // 标准化 status
+            if (!['scheduled','running','done','error'].includes(item.status)) {
+                // 对 run:start 等事件统一映射到 scheduled
+                item.status = 'scheduled' as any;
+            }
+            this.orchestratorTimelineData.push(item as any);
+            this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+        };
+        chrome.runtime.onMessage.addListener(this.orchestratorRuntimeListener as any);
+    }
+
+    private unsubscribeOrchestratorEvents(): void {
+        if (this.orchestratorRuntimeListener && chrome?.runtime?.onMessage) {
+            chrome.runtime.onMessage.removeListener(this.orchestratorRuntimeListener as any);
+            this.orchestratorRuntimeListener = undefined;
+        }
+    }
+
+    private async requestOrchestratorStateFromActiveTab(): Promise<any | null> {
+        try {
+            if (!chrome?.tabs?.query || !chrome?.tabs?.sendMessage) return null;
+            // 1) 在当前窗口内优先找活动的 JavDB 标签页
+            const tabsInWin = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+                chrome.tabs.query({ lastFocusedWindow: true }, resolve);
+            });
+            const isJavdb = (url?: string | null) => !!url && /\bjavdb\b/i.test(url) && !url.startsWith('chrome-extension://');
+            let target = (tabsInWin || []).find(t => t.active && isJavdb(t.url));
+            // 2) 若当前活动标签非 JavDB，则选择任意 JavDB 标签（最近一个）
+            if (!target) {
+                target = (tabsInWin || []).find(t => isJavdb(t.url));
+            }
+            // 3) 若当前窗口没有，跨窗口全局搜索
+            if (!target) {
+                const allTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+                    chrome.tabs.query({}, resolve);
+                });
+                target = (allTabs || []).find(t => isJavdb(t.url));
+            }
+            if (!target || !target.id) return null;
+
+            const resp = await new Promise<any>((resolve) => {
+                try {
+                    chrome.tabs.sendMessage(target!.id!, { type: 'orchestrator:getState' }, (reply) => {
+                        const err = chrome.runtime.lastError;
+                        if (err) {
+                            console.warn('[Enhancement] sendMessage to content failed:', err.message);
+                            resolve(null);
+                        } else {
+                            resolve(reply);
+                        }
+                    });
+                } catch (e) {
+                    console.warn('[Enhancement] sendMessage error:', e);
+                    resolve(null);
+                }
+            });
+            if (resp && resp.ok) return resp.state;
+            return null;
+        } catch (e) {
+            console.warn('[Enhancement] requestOrchestratorStateFromActiveTab failed:', e);
+            return null;
+        }
     }
 
     /**

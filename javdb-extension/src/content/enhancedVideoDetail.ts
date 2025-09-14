@@ -20,6 +20,8 @@ export class VideoDetailEnhancer {
   private videoId: string | null = null;
   private enhancedData: VideoMetadata | null = null;
   private options: EnhancementOptions;
+  // 计数器：用于外部编排时选择性隐藏加载指示器
+  private pendingParts = 0;
 
   constructor(options: Partial<EnhancementOptions> = {}) {
     this.options = {
@@ -142,38 +144,91 @@ export class VideoDetailEnhancer {
    */
   async initialize(): Promise<void> {
     try {
-      // 将设置中的 videoEnhancement 子项应用到选项
-      this.applyOptionsFromSettings();
-      this.videoId = extractVideoIdFromPage();
-      if (!this.videoId) {
-        log('No video ID found, skipping enhancement');
-        return;
-      }
-
-      log(`Enhancing video detail page for: ${this.videoId}`);
-
-      // 显示加载指示器
-      if (this.options.showLoadingIndicator) {
-        this.showLoadingIndicator();
-      }
-
-      // 获取增强数据
-      this.enhancedData = await defaultDataAggregator.getEnhancedVideoInfo(this.videoId);
-
-      // 先执行“current-title”定点翻译（独立于聚合数据 translatedTitle）
-      await this.translateCurrentTitleIfNeeded();
-
-      // 应用增强功能（保留原有增强：如封面、评分、演员信息、以及聚合层可能带来的标题翻译展示）
+      // 兼容旧行为：整体初始化 + 一次性应用所有增强
+      await this.initCore();
       await this.applyEnhancements();
-
-      // 隐藏加载指示器
-      if (this.options.showLoadingIndicator) {
-        this.hideLoadingIndicator();
-      }
-
+      this.hideLoadingIndicator();
       log('Video detail enhancement completed');
     } catch (error) {
       log('Error enhancing video detail:', error);
+      this.hideLoadingIndicator();
+    }
+  }
+
+  /**
+   * 轻量核心初始化：应用选项、解析 videoId、展示加载指示器、拉取增强数据、执行定点标题翻译。
+   * 注意：不执行封面/评分/演员等重型 UI 增强，便于外部通过编排器分步调度。
+   */
+  async initCore(): Promise<void> {
+    // 将设置中的 videoEnhancement 子项应用到选项
+    this.applyOptionsFromSettings();
+    this.videoId = extractVideoIdFromPage();
+    if (!this.videoId) {
+      log('No video ID found, skipping enhancement');
+      return;
+    }
+
+    log(`Enhancing video detail page (core) for: ${this.videoId}`);
+
+    if (this.options.showLoadingIndicator) {
+      this.showLoadingIndicator();
+    }
+
+    // 获取增强数据
+    this.enhancedData = await defaultDataAggregator.getEnhancedVideoInfo(this.videoId);
+
+    // 执行“current-title”定点翻译
+    await this.translateCurrentTitleIfNeeded();
+  }
+
+  /**
+   * 单独运行封面增强（供外部编排 deferred 调用）
+   */
+  async runCover(): Promise<void> {
+    if (!this.enhancedData) return;
+    if (this.options.enableCoverImage && this.enhancedData.images) {
+      await this.enhanceCoverImage(this.enhancedData.images);
+    }
+  }
+
+  /**
+   * 单独运行标题增强（聚合层译文展示，避免与定点翻译重复）
+   */
+  async runTitle(): Promise<void> {
+    if (!this.enhancedData) return;
+    if (this.options.enableTranslation && this.enhancedData.translatedTitle) {
+      const alreadyHasTranslation = document.querySelector('.enhanced-translation');
+      if (!alreadyHasTranslation) {
+        await this.enhanceTitle(this.enhancedData.translatedTitle);
+      }
+    }
+  }
+
+  /**
+   * 单独运行评分增强
+   */
+  async runRating(): Promise<void> {
+    if (!this.enhancedData) return;
+    if (this.options.enableRating && this.enhancedData.ratings) {
+      await this.enhanceRating(this.enhancedData.ratings);
+    }
+  }
+
+  /**
+   * 单独运行演员信息增强
+   */
+  async runActors(): Promise<void> {
+    if (!this.enhancedData) return;
+    if (this.options.enableActorInfo && this.enhancedData.actors) {
+      await this.enhanceActorInfo(this.enhancedData.actors);
+    }
+  }
+
+  /**
+   * 外部编排结束时可显式调用，统一隐藏加载指示器
+   */
+  finish(): void {
+    if (this.options.showLoadingIndicator) {
       this.hideLoadingIndicator();
     }
   }
