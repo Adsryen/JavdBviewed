@@ -11,6 +11,7 @@ import { showToast } from './toast';
 import { getRandomDelay } from './utils';
 import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
+import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
 
 // 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
@@ -149,11 +150,36 @@ async function markActorsOnPage(): Promise<void> {
         const enableTranslation = STATE.settings?.dataEnhancement?.enableTranslation;
         if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
-                log('Applying video detail enhancements...');
-                await videoDetailEnhancer.initialize();
+                log('Scheduling video detail enhancements via orchestrator...');
+                // 轻量核心初始化放在 high 阶段（尽快完成定点翻译与数据准备）
+                initOrchestrator.add('high', async () => {
+                    await videoDetailEnhancer.initCore();
+                }, { label: 'videoEnhancement:initCore' });
+
+                // 重型 UI 增强拆分为 deferred 阶段，空闲优先并设置小延迟
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runCover();
+                }, { label: 'videoEnhancement:runCover', idle: true, idleTimeout: 5000, delayMs: 800 });
+
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runTitle();
+                }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1000 });
+
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runRating();
+                }, { label: 'videoEnhancement:runRating', idle: true, idleTimeout: 5000, delayMs: 1200 });
+
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runActors();
+                }, { label: 'videoEnhancement:runActors', idle: true, idleTimeout: 5000, delayMs: 1400 });
+
+                // 在所有增强任务之后隐藏加载指示器
+                initOrchestrator.add('deferred', () => {
+                    videoDetailEnhancer.finish();
+                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 1800 });
             } catch (enhancementError) {
-                log('Enhancement failed, but continuing:', enhancementError);
-                // 增强功能失败不应该影响主要功能
+                log('Enhancement scheduling failed, but continuing:', enhancementError);
+                // 调度失败不影响主要功能
             }
         }
 
