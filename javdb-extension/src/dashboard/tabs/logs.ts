@@ -3,15 +3,12 @@ import { showMessage } from '../ui/toast';
 import { getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { log } from '../../utils/logController';
+import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
 
 /**
- * 日志条目接口
+ * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
  */
-interface LogEntry {
-    timestamp: string;
-    level: string;
-    message: string;
-    data?: any;
+interface LogEntry extends CoreLogEntry {
     source?: string;
 }
 
@@ -20,13 +17,27 @@ interface LogEntry {
  */
 export class LogsTab {
     public isInitialized: boolean = false;
-    private currentLevelFilter: string = 'ALL';
+    private currentLevelFilter: 'ALL' | LogLevel = 'ALL';
     private currentSourceFilter: string = 'ALL';
+    private currentSearchQuery: string = '';
+    private currentStartDate?: Date;
+    private currentEndDate?: Date;
+    private currentHasDataOnly: boolean = false;
     private logs: LogEntry[] = [];
+
+    // 分页状态
+    private currentPage: number = 1;
+    private pageSize: number = 20;
+    private logsPaginationEl!: HTMLElement;
+    private logsPerPageSelect!: HTMLSelectElement;
 
     // DOM 元素
     private logLevelFilter!: HTMLSelectElement;
     private logSourceFilter!: HTMLSelectElement;
+    private logSearchInput!: HTMLInputElement;
+    private logStartDateInput!: HTMLInputElement;
+    private logEndDateInput!: HTMLInputElement;
+    private logHasDataOnlyCheckbox!: HTMLInputElement;
     private refreshButton!: HTMLButtonElement;
     private clearButton!: HTMLButtonElement;
     private logBody!: HTMLDivElement;
@@ -66,9 +77,15 @@ export class LogsTab {
     private initializeElements(): void {
         this.logLevelFilter = document.getElementById('log-level-filter') as HTMLSelectElement;
         this.logSourceFilter = document.getElementById('log-source-filter') as HTMLSelectElement;
+        this.logSearchInput = document.getElementById('log-search-input') as HTMLInputElement;
+        this.logStartDateInput = document.getElementById('log-start-date') as HTMLInputElement;
+        this.logEndDateInput = document.getElementById('log-end-date') as HTMLInputElement;
+        this.logHasDataOnlyCheckbox = document.getElementById('log-has-data-only') as HTMLInputElement;
         this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
         this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
         this.logBody = document.getElementById('log-body') as HTMLDivElement;
+        this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
+        this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
 
         // 验证元素是否存在
         if (!this.logLevelFilter) {
@@ -77,6 +94,22 @@ export class LogsTab {
         }
         if (!this.logSourceFilter) {
             console.error('[LogsTab] 找不到log-source-filter元素');
+            return;
+        }
+        if (!this.logSearchInput) {
+            console.error('[LogsTab] 找不到log-search-input元素');
+            return;
+        }
+        if (!this.logStartDateInput) {
+            console.error('[LogsTab] 找不到log-start-date元素');
+            return;
+        }
+        if (!this.logEndDateInput) {
+            console.error('[LogsTab] 找不到log-end-date元素');
+            return;
+        }
+        if (!this.logHasDataOnlyCheckbox) {
+            console.error('[LogsTab] 找不到log-has-data-only元素');
             return;
         }
         if (!this.refreshButton) {
@@ -91,6 +124,14 @@ export class LogsTab {
             log.error('[LogsTab] 找不到log-body元素');
             return;
         }
+        if (!this.logsPaginationEl) {
+            console.error('[LogsTab] 找不到logsPagination元素');
+            return;
+        }
+        if (!this.logsPerPageSelect) {
+            console.error('[LogsTab] 找不到logsPerPageSelect元素');
+            return;
+        }
 
         log.verbose('[LogsTab] DOM元素初始化完成');
     }
@@ -101,14 +142,62 @@ export class LogsTab {
     private bindEvents(): void {
         // 过滤器事件
         this.logLevelFilter?.addEventListener('change', () => {
-            this.currentLevelFilter = this.logLevelFilter.value;
+            const raw = (this.logLevelFilter.value || 'ALL').toUpperCase();
+            this.currentLevelFilter = (raw === 'ALL' ? 'ALL' : (raw as LogLevel));
+            this.currentPage = 1;
             this.renderLogs();
         });
 
         this.logSourceFilter?.addEventListener('change', () => {
             this.currentSourceFilter = this.logSourceFilter.value;
+            this.currentPage = 1;
             this.renderLogs();
         });
+
+        // 搜索框（带防抖）
+        const debouncedSearch = this.debounce(() => {
+            this.currentSearchQuery = (this.logSearchInput.value || '').trim();
+            this.currentPage = 1;
+            this.renderLogs();
+        }, 250);
+        this.logSearchInput?.addEventListener('input', debouncedSearch);
+
+        // 日期范围
+        this.logStartDateInput?.addEventListener('change', () => {
+            const v = this.logStartDateInput.value;
+            this.currentStartDate = v ? new Date(v) : undefined;
+            this.currentPage = 1;
+            this.renderLogs();
+        });
+        this.logEndDateInput?.addEventListener('change', () => {
+            const v = this.logEndDateInput.value;
+            this.currentEndDate = v ? new Date(v) : undefined;
+            // 若仅输入结束日期，将其时间设置为当天 23:59:59.999
+            if (this.currentEndDate) {
+                this.currentEndDate.setHours(23, 59, 59, 999);
+            }
+            this.currentPage = 1;
+            this.renderLogs();
+        });
+
+        // 仅含详细数据
+        this.logHasDataOnlyCheckbox?.addEventListener('change', () => {
+            this.currentHasDataOnly = !!this.logHasDataOnlyCheckbox.checked;
+            this.currentPage = 1;
+            this.renderLogs();
+        });
+
+        // 每页数量选择
+        if (this.logsPerPageSelect) {
+            const val = parseInt(this.logsPerPageSelect.value || '20', 10);
+            this.pageSize = Number.isFinite(val) && val > 0 ? val : 20;
+            this.logsPerPageSelect.addEventListener('change', () => {
+                const v = parseInt(this.logsPerPageSelect.value || '20', 10);
+                this.pageSize = Number.isFinite(v) && v > 0 ? v : 20;
+                this.currentPage = 1;
+                this.renderLogs();
+            });
+        }
 
         // 按钮事件
         this.refreshButton?.addEventListener('click', () => {
@@ -159,13 +248,13 @@ export class LogsTab {
         return [
             {
                 timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
-                level: 'info',
+                level: 'INFO',
                 message: '扩展初始化完成',
                 source: 'GENERAL'
             },
             {
                 timestamp: new Date(now.getTime() - 9 * 60 * 1000).toISOString(),
-                level: 'debug',
+                level: 'DEBUG',
                 message: '开始加载用户设置',
                 data: {
                     settingsVersion: '1.13.356',
@@ -176,7 +265,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 8 * 60 * 1000).toISOString(),
-                level: 'info',
+                level: 'INFO',
                 message: '[115] 网盘服务连接成功',
                 data: {
                     endpoint: 'https://115.com/api',
@@ -187,7 +276,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 7 * 60 * 1000).toISOString(),
-                level: 'warn',
+                level: 'WARN',
                 message: '检测到重复的视频记录，已自动合并',
                 data: {
                     duplicateCount: 3,
@@ -198,7 +287,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 6 * 60 * 1000).toISOString(),
-                level: 'error',
+                level: 'ERROR',
                 message: '网络请求失败，正在重试',
                 data: {
                     url: 'https://api.example.com/data',
@@ -211,7 +300,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
-                level: 'debug',
+                level: 'DEBUG',
                 message: '[115] 开始同步文件列表',
                 data: {
                     totalFiles: 1250,
@@ -222,7 +311,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 4 * 60 * 1000).toISOString(),
-                level: 'info',
+                level: 'INFO',
                 message: '用户配置已更新',
                 data: {
                     changedSettings: ['autoSync', 'displayMode'],
@@ -233,7 +322,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 3 * 60 * 1000).toISOString(),
-                level: 'warn',
+                level: 'WARN',
                 message: '[115] 部分文件同步失败',
                 data: {
                     failedFiles: ['movie1.mp4', 'movie2.mkv'],
@@ -244,7 +333,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 2 * 60 * 1000).toISOString(),
-                level: 'info',
+                level: 'INFO',
                 message: '数据库优化完成',
                 data: {
                     recordsProcessed: 5420,
@@ -256,7 +345,7 @@ export class LogsTab {
             },
             {
                 timestamp: new Date(now.getTime() - 1 * 60 * 1000).toISOString(),
-                level: 'error',
+                level: 'ERROR',
                 message: '[115] 认证令牌已过期',
                 data: {
                     tokenType: 'access_token',
@@ -268,7 +357,7 @@ export class LogsTab {
             },
             {
                 timestamp: now.toISOString(),
-                level: 'info',
+                level: 'INFO',
                 message: '日志系统初始化完成',
                 source: 'GENERAL'
             }
@@ -336,18 +425,88 @@ export class LogsTab {
 
         if (filteredLogs.length === 0) {
             this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
+            this.renderPagination(0, 0);
             return;
         }
 
+        // 分页切片
+        const total = filteredLogs.length;
+        const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const pageItems = filteredLogs.slice(startIndex, startIndex + this.pageSize);
+
         // 生成日志HTML
-        const logHtml = filteredLogs.map(log => this.createLogEntryHtml(log)).join('');
+        const logHtml = pageItems.map(log => this.createLogEntryHtml(log)).join('');
         this.logBody.innerHTML = logHtml;
+
+        // 渲染分页
+        this.renderPagination(this.currentPage, totalPages);
+    }
+
+    /**
+     * 渲染分页控件
+     */
+    private renderPagination(currentPage: number, totalPages: number): void {
+        if (!this.logsPaginationEl) return;
+        if (totalPages <= 1) {
+            this.logsPaginationEl.innerHTML = '';
+            return;
+        }
+
+        const createBtn = (label: string, page: number, options: { disabled?: boolean; active?: boolean; ellipsis?: boolean } = {}) => {
+            if (options.ellipsis) {
+                return `<button class="page-button ellipsis" disabled>…</button>`;
+            }
+            const disabled = options.disabled ? 'disabled' : '';
+            const active = options.active ? 'active' : '';
+            return `<button class="page-button ${active}" data-page="${page}" ${disabled}>${label}</button>`;
+        };
+
+        const buttons: string[] = [];
+        // Prev
+        buttons.push(createBtn('«', Math.max(1, currentPage - 1), { disabled: currentPage === 1 }));
+
+        const windowSize = 2;
+        const pages: number[] = [];
+        pages.push(1);
+        for (let p = currentPage - windowSize; p <= currentPage + windowSize; p++) {
+            if (p > 1 && p < totalPages) pages.push(p);
+        }
+        if (totalPages > 1) pages.push(totalPages);
+        const uniqPages = Array.from(new Set(pages)).sort((a, b) => a - b);
+
+        let last = 0;
+        for (const p of uniqPages) {
+            if (last && p - last > 1) {
+                buttons.push(createBtn('…', last + 1, { ellipsis: true }));
+            }
+            buttons.push(createBtn(String(p), p, { active: p === currentPage }));
+            last = p;
+        }
+
+        // Next
+        buttons.push(createBtn('»', Math.min(totalPages, currentPage + 1), { disabled: currentPage === totalPages }));
+
+        this.logsPaginationEl.innerHTML = buttons.join('');
+
+        // 绑定点击事件
+        this.logsPaginationEl.querySelectorAll<HTMLButtonElement>('.page-button').forEach(btn => {
+            const p = btn.dataset.page ? parseInt(btn.dataset.page, 10) : NaN;
+            if (!Number.isFinite(p) || btn.classList.contains('ellipsis') || btn.disabled) return;
+            btn.addEventListener('click', () => {
+                if (p < 1) return;
+                this.currentPage = p;
+                this.renderLogs();
+            });
+        });
     }
 
     /**
      * 过滤日志
      */
     private filterLogs(): LogEntry[] {
+        const query = this.currentSearchQuery.toLowerCase();
         return this.logs.filter(log => {
             // 等级过滤
             if (this.currentLevelFilter !== 'ALL' && log.level !== this.currentLevelFilter) {
@@ -360,6 +519,25 @@ export class LogsTab {
                 if (logSource !== this.currentSourceFilter) {
                     return false;
                 }
+            }
+
+            // 是否仅含 data
+            if (this.currentHasDataOnly && !log.data) {
+                return false;
+            }
+
+            // 日期范围
+            if (this.currentStartDate || this.currentEndDate) {
+                const t = new Date(log.timestamp).getTime();
+                if (this.currentStartDate && t < this.currentStartDate.getTime()) return false;
+                if (this.currentEndDate && t > this.currentEndDate.getTime()) return false;
+            }
+
+            // 关键字搜索（消息与数据JSON）
+            if (query) {
+                const inMessage = (log.message || '').toLowerCase().includes(query);
+                const inData = log.data ? JSON.stringify(log.data).toLowerCase().includes(query) : false;
+                if (!inMessage && !inData) return false;
             }
 
             return true;
@@ -390,11 +568,24 @@ export class LogsTab {
         const level = log.level.toUpperCase();
         const levelClass = this.getLevelClass(level);
 
+        // 高亮命中
+        const highlight = (text: string) => {
+            const q = (this.currentSearchQuery || '').trim();
+            if (!q) return this.escapeHtml(text);
+            try {
+                const escaped = this.escapeHtml(text);
+                const re = new RegExp(this.escapeRegExp(q), 'ig');
+                return escaped.replace(re, (m) => `<mark class="log-highlight">${this.escapeHtml(m)}</mark>`);
+            } catch {
+                return this.escapeHtml(text);
+            }
+        };
+
         // 创建详细数据部分
         const dataHtml = log.data ? `
             <details class="log-data-details">
                 <summary>详细数据</summary>
-                <pre>${this.escapeHtml(JSON.stringify(log.data, null, 2))}</pre>
+                <pre>${highlight(JSON.stringify(log.data, null, 2))}</pre>
             </details>
         ` : '';
 
@@ -402,7 +593,7 @@ export class LogsTab {
             <div class="log-entry log-level-${levelClass}">
                 <div class="log-header">
                     <span class="log-level-badge">${level}</span>
-                    <span class="log-message">${this.escapeHtml(log.message)}</span>
+                    <span class="log-message">${highlight(log.message)}</span>
                     <span class="log-timestamp">${timestamp}</span>
                 </div>
                 ${dataHtml}
@@ -433,10 +624,29 @@ export class LogsTab {
     }
 
     /**
+     * 转义正则关键字
+     */
+    private escapeRegExp(text: string): string {
+        return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
      * 刷新标签页
      */
     async refresh(): Promise<void> {
         await this.refreshLogs();
+    }
+
+    /**
+     * 简易防抖
+     */
+    private debounce<T extends (...args: any[]) => void>(fn: T, delay = 200): T {
+        let timer: number | undefined;
+        // @ts-ignore
+        return ((...args: any[]) => {
+            if (timer) window.clearTimeout(timer);
+            timer = window.setTimeout(() => fn(...args), delay);
+        }) as T;
     }
 }
 
