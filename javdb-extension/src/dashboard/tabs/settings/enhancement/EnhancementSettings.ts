@@ -114,6 +114,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorRefreshBtn!: HTMLButtonElement | null;
     private orchestratorOpenJavdbBtn!: HTMLButtonElement | null;
     private orchestratorFullscreenBtn!: HTMLButtonElement | null;
+    private orchestratorCopyPhasesBtn!: HTMLButtonElement | null;
+    private orchestratorCopyTimelineBtn!: HTMLButtonElement | null;
     private orchestratorPhases!: HTMLElement | null;
     private orchestratorTimeline!: HTMLElement | null;
     private orchestratorSummary!: HTMLElement | null;
@@ -255,6 +257,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
         this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
         this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
+        this.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
+        this.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
 
         // 影片页增强子项
         this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
@@ -370,6 +374,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         if (this.orchestratorRefreshBtn) {
             this.orchestratorRefreshBtn.addEventListener('click', () => this.refreshOrchestratorState());
+        }
+        if (this.orchestratorCopyPhasesBtn) {
+            this.orchestratorCopyPhasesBtn.addEventListener('click', () => this.copyPhasesText());
+        }
+        if (this.orchestratorCopyTimelineBtn) {
+            this.orchestratorCopyTimelineBtn.addEventListener('click', () => this.copyTimelineText());
         }
         if (this.orchestratorFullscreenBtn) {
             this.orchestratorFullscreenBtn.addEventListener('click', () => {
@@ -510,19 +520,77 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private async refreshOrchestratorState(): Promise<void> {
         try {
             const mode = this.orchViewModeSel?.value || 'design';
+            // 设计视图：强制状态筛选为“已排程”，并禁用
+            if (this.orchFilterStatusSel) {
+                if (mode === 'design') {
+                    this.orchFilterStatusSel.value = 'scheduled';
+                    this.orchFilterStatusSel.disabled = true;
+                } else {
+                    this.orchFilterStatusSel.disabled = false;
+                }
+            }
             if (mode === 'design') {
                 const spec = this.buildDesignSpec();
                 if (this.orchestratorSummary) this.orchestratorSummary.textContent = '展示设计视图：基于代码约定的默认编排时序（不依赖页面注入）';
                 this.renderOrchestratorPhases(spec);
-                // 将设计 spec 转成时间线（按顺序“已排程”）
+                // 将设计 spec 转成时间线（相对时间）：
+                // critical 串行；high 并发（同一时间点）；deferred 在 critical 之后按顺序+偏移。
                 const timeline: Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'scheduled'; ts: number }> = [];
-                const now = performance.now();
-                const phasesOrder: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
-                phasesOrder.forEach((p: 'critical'|'high'|'deferred'|'idle', i: number) => {
-                    const labels: string[] = spec[p] || [];
-                    labels.forEach((label: string, j: number) => timeline.push({ phase: p, label, status: 'scheduled', ts: now + i * 10 + j }));
-                });
+                const crit = spec['critical'] || [];
+                const high = spec['high'] || [];
+                const defd = spec['deferred'] || [];
+                const idle = spec['idle'] || [];
+                let t = 0;
+                // critical 串行（步进10）
+                crit.forEach((label: string) => { timeline.push({ phase: 'critical', label, status: 'scheduled', ts: t }); t += 10; });
+                const tHigh = t; // high 并发起点
+                high.forEach((label: string) => { timeline.push({ phase: 'high', label, status: 'scheduled', ts: tHigh }); });
+                // deferred 从 critical 末尾后延迟20再开始，步进10
+                let tDef = t + 20;
+                defd.forEach((label: string) => { timeline.push({ phase: 'deferred', label, status: 'scheduled', ts: tDef }); tDef += 10; });
+                // idle 统一放到更靠后（比如 defd 结束后+50），步进10
+                let tIdle = Math.max(tDef, tHigh) + 50;
+                idle.forEach((label: string) => { timeline.push({ phase: 'idle', label, status: 'scheduled', ts: tIdle }); tIdle += 10; });
                 this.orchestratorTimelineData = timeline as any;
+                // 直接渲染（兜底），避免时间线区域空白
+                try {
+                    const mode: 'design'|'realtime' = 'design';
+                    const container = this.orchestratorTimeline as HTMLElement | null;
+                    if (container) {
+                        container.classList.add('timeline-design');
+                        container.classList.remove('timeline-realtime');
+                        const rows = (this.orchestratorTimelineData || []).map((item) => {
+                            const t = `${Math.round(item.ts)} ms`;
+                            const badgeClass = `badge ${item.status}`;
+                            const desc = this.getTaskDescription(item.label);
+                            return `
+                              <div class="row">
+                                <div class="col time">${t}</div>
+                                <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
+                                <div class="col phase">${item.phase}</div>
+                                <div class="col label" title="${item.label}">
+                                  <div class="label-main">${item.label}</div>
+                                  ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
+                                </div>
+                              </div>
+                            `;
+                        }).join('');
+                        const header = `
+                          <div class="header no-duration">
+                            <div class="col time">时间(相对)</div>
+                            <div class="col status">状态</div>
+                            <div class="col phase">阶段</div>
+                            <div class="col label">任务</div>
+                          </div>
+                        `;
+                        const empty = '<div class="muted">(暂无事件)</div>';
+                        container.innerHTML = `${header}${rows || empty}`;
+                        console.log('[Orchestrator][design] rows=%d', (this.orchestratorTimelineData || []).length);
+                    }
+                } catch (e) {
+                    console.warn('[Orchestrator] fallback render failed:', e);
+                }
+                // 常规渲染（保留原逻辑）
                 this.renderOrchestratorTimeline(this.orchestratorTimelineData);
                 // 设计视图不订阅事件
                 this.unsubscribeOrchestratorEvents();
@@ -556,26 +624,35 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 设计视图：根据代码中的编排约定构造静态规格
     private buildDesignSpec(): Record<'critical'|'high'|'deferred'|'idle', string[]> {
         // 注意：此处维护设计时序，不依赖页面是否开启
-        // 1) 列表页（非影片页）
-        //   - critical: 列表可见项处理、观察器初始化
-        // 2) 影片页增强（按我们拆分的子任务）
-        //   - high: initCore
-        //   - deferred: runCover, runTitle, runRating, runActors, finish
-        // 3) 其他增强（可按需追加）
+        // A) 系统内置（例：全局状态、图标、日志初始化等，可按需追加）
         const critical: string[] = [
+            'system:init',
             'list:observe:init',
         ];
+        // B) 高优先（快捷复制/快捷键、核心初始化等）
         const high: string[] = [
+            'quickCopy:init',
+            'keyboardShortcuts:init',
             'videoEnhancement:initCore',
         ];
+        // C) 延后/空闲（页面增强模块）
         const deferred: string[] = [
+            // 列表页增强
+            'list:preview:init',
+            'list:optimization:init',
+            // 影片页增强
             'videoEnhancement:runCover',
             'videoEnhancement:runTitle',
             'videoEnhancement:runRating',
             'videoEnhancement:runActors',
             'videoEnhancement:finish',
+            // 其他增强
+            'ux:contentFilter',
+            'ux:anchorOptimization',
+            'emby:badge',
         ];
         const idle: string[] = [
+            'ux:magnet:autoSearch',
         ];
         return { critical, high, deferred, idle };
     }
@@ -618,8 +695,32 @@ export class EnhancementSettings extends BaseSettingsPanel {
         return { status, phase, keyword };
     }
 
+    // 任务中文说明（可按需扩展）
+    private getTaskDescription(label: string): string {
+        const map: Record<string, string> = {
+            'system:init': '系统：全局初始化（图标/日志/状态等）',
+            'list:observe:init': '列表页：初始化可见项处理与观察器（首屏必要）',
+            'quickCopy:init': '快捷复制：初始化（按钮/事件）',
+            'keyboardShortcuts:init': '快捷键：注册键位与处理器',
+            'list:preview:init': '列表页：悬浮预览/延迟加载初始化',
+            'list:optimization:init': '列表页：结构与性能优化',
+            'videoEnhancement:initCore': '影片页：核心初始化（定点翻译、数据准备等）',
+            'videoEnhancement:runCover': '影片页：封面增强（更清晰/多源展示）',
+            'videoEnhancement:runTitle': '影片页：标题增强与翻译（AI/传统服务）',
+            'videoEnhancement:runRating': '影片页：评分/评分源整合展示',
+            'videoEnhancement:runActors': '影片页：演员信息增强（标识、标签等）',
+            'videoEnhancement:finish': '影片页：增强完成，收起加载指示',
+            'ux:contentFilter': '内容过滤：隐藏/高亮/模糊等',
+            'ux:anchorOptimization': '链接锚点：定位/跳转优化',
+            'ux:magnet:autoSearch': '磁力：自动检索与合并',
+            'emby:badge': 'Emby：收藏/已看徽标',
+        };
+        return map[label] || '';
+    }
+
     private renderOrchestratorTimeline(timeline: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>): void {
         if (!this.orchestratorTimeline) return;
+        const mode = this.orchViewModeSel?.value || 'design';
         const filters = this.getTimelineFilters();
         const list = (timeline || []).filter(item => {
             if (filters.status !== 'all' && item.status !== filters.status) return false;
@@ -628,40 +729,60 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return true;
         }).slice(-300);
 
+        const container = this.orchestratorTimeline as HTMLElement;
+        container.classList.toggle('timeline-design', mode === 'design');
+        container.classList.toggle('timeline-realtime', mode !== 'design');
+
         const rows = list.map((item) => {
-            const t = item.ts ? item.ts.toFixed(1) : '';
-            const dur = typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-';
+            const t = item.ts !== undefined ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`) : '';
+            const dur = mode === 'design' ? '' : (typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-');
             const badgeClass = `badge ${item.status}`;
-            const detail = item.detail ? `<div class="detail">${item.detail}</div>` : '';
+            const detail = item.detail ? `<div class=\"detail\">${item.detail}</div>` : '';
+            const desc = this.getTaskDescription(item.label);
             return `
               <div class="row">
                 <div class="col time">${t}</div>
                 <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
                 <div class="col phase">${item.phase}</div>
-                <div class="col label" title="${item.label}">${item.label}</div>
-                <div class="col duration">${dur}</div>
+                <div class="col label" title="${item.label}">
+                  <div class="label-main">${item.label}</div>
+                  ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
+                </div>
+                ${mode === 'design' ? '' : `<div class=\"col duration\">${dur}</div>`}
               </div>
               ${detail}
             `;
         }).join('');
 
-        const header = `
-          <div class="header">
-            <div class="col time">时间(ms)</div>
-            <div class="col status">状态</div>
-            <div class="col phase">阶段</div>
-            <div class="col label">任务</div>
-            <div class="col duration">耗时</div>
-          </div>
-        `;
+        const header = mode === 'design'
+          ? `
+            <div class="header no-duration">
+              <div class="col time">时间(相对)</div>
+              <div class="col status">状态</div>
+              <div class="col phase">阶段</div>
+              <div class="col label">任务</div>
+            </div>
+          `
+          : `
+            <div class="header with-duration">
+              <div class="col time">时间(ms)</div>
+              <div class="col status">状态</div>
+              <div class="col phase">阶段</div>
+              <div class="col label">任务</div>
+              <div class="col duration">耗时</div>
+            </div>
+          `;
 
-        const empty = '<div class="muted">(暂无事件)</div>';
-
+        const hasActiveFilter = (filters.status !== 'all') || (filters.phase !== 'all') || !!filters.keyword;
+        const empty = hasActiveFilter
+          ? '<div class=\"muted\">无匹配事件（请检查状态/阶段/搜索条件）</div>'
+          : '<div class=\"muted\">(暂无事件)</div>';
         this.orchestratorTimeline.innerHTML = `${header}${rows || empty}`;
         this.ensureOrchestratorLocalStyles();
         this.orchestratorTimeline.scrollTop = this.orchestratorTimeline.scrollHeight;
     }
 
+// ...
     // 注入一次性的轻量样式，保证在暗色主题下也清晰
     private ensureOrchestratorLocalStyles(): void {
         if (document.getElementById('orch-local-style')) return;
@@ -669,6 +790,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         style.id = 'orch-local-style';
         style.textContent = `
         #orchestratorModalContent.fullscreen { width:96vw !important; max-width:96vw !important; height:96vh !important; max-height:96vh !important; }
+        .orchestrator-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; }
+        .orchestrator-toolbar label { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; color:#111; }
+        .orchestrator-toolbar label > select { border:none; outline:none; background:transparent; color:#111; font-weight:600; }
+        .orchestrator-toolbar input[type="search"] { padding:8px 12px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; color:#111; min-width:240px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03); }
+        .orchestrator-toolbar input[type="search"]:focus { border-color:#60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); outline:none; }
         .orch-phases-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; }
         .orch-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
         .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #f1f5f9; font-weight:600; }
@@ -677,7 +803,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; }
         .orch-list li.muted { color:#9ca3af; }
         .muted { color:#9ca3af; }
-        .header, .row { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
+        .header.with-duration { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
+        .header.no-duration { display:grid; grid-template-columns: 90px 100px 110px 1fr; align-items:center; column-gap:8px; }
+        #orchestratorTimeline.timeline-realtime .row { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
+        #orchestratorTimeline.timeline-design .row { display:grid; grid-template-columns: 90px 100px 110px 1fr; align-items:center; column-gap:8px; }
         .header { font-weight:600; padding:6px 4px; border-bottom:1px solid #e5e7eb; background:#f8fafc; color:#111; }
         .row { padding:6px 4px; border-bottom:1px dashed #eef2f7; }
         .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
@@ -686,8 +815,57 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .badge.done { background:#2e7d32; }
         .badge.error { background:#d32f2f; }
         .detail { margin:0 4px 6px 4px; color:#b91c1c; font-size:12px; }
+        .label-main { font-weight:600; color:#111; }
+        .label-desc { color:#6b7280; font-size:12px; margin-top:2px; }
         `;
         document.head.appendChild(style);
+    }
+
+    // 复制“已注册任务”文本
+    private async copyPhasesText(): Promise<void> {
+        try {
+            const el = this.orchestratorPhases as HTMLElement | null;
+            if (!el) return;
+            const text = el.innerText || '';
+            await navigator.clipboard.writeText(text);
+            showMessage('任务清单已复制到剪贴板', 'success');
+        } catch {
+            // 兼容回退
+            try {
+                const el = this.orchestratorPhases as HTMLElement | null;
+                if (!el) return;
+                const ta = document.createElement('textarea');
+                ta.value = el.innerText || '';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showMessage('任务清单已复制到剪贴板', 'success');
+            } catch {}
+        }
+    }
+
+    // 复制“事件时间线”文本
+    private async copyTimelineText(): Promise<void> {
+        try {
+            const el = this.orchestratorTimeline as HTMLElement | null;
+            if (!el) return;
+            const text = el.innerText || '';
+            await navigator.clipboard.writeText(text);
+            showMessage('时间线已复制到剪贴板', 'success');
+        } catch {
+            try {
+                const el = this.orchestratorTimeline as HTMLElement | null;
+                if (!el) return;
+                const ta = document.createElement('textarea');
+                ta.value = el.innerText || '';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showMessage('时间线已复制到剪贴板', 'success');
+            } catch {}
+        }
     }
 
     private subscribeOrchestratorEvents(): void {
@@ -697,7 +875,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchestratorRuntimeListener = (message: any) => {
             if (!message || message.type !== 'orchestrator:event') return;
             const { event, payload } = message;
-            const item = { phase: payload?.phase || '-', label: payload?.label || String(event), status: (event || '').replace('task:', '') as string, ts: performance.now(), durationMs: payload?.durationMs };
+            const ts = (typeof payload?.relativeTs === 'number') ? payload.relativeTs : performance.now();
+            const item = { phase: payload?.phase || '-', label: payload?.label || String(event), status: (event || '').replace('task:', '') as string, ts, durationMs: payload?.durationMs, detail: payload?.error };
             // 标准化 status
             if (!['scheduled','running','done','error'].includes(item.status)) {
                 // 对 run:start 等事件统一映射到 scheduled

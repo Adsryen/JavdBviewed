@@ -26,7 +26,7 @@
 
   <!-- Orchestrator Visualization Modal -->
   <div id="orchestratorModal" class="modal-overlay hidden">
-    <div id="orchestratorModalContent" class="modal-content" style="width:86vw; max-width: 1200px; max-height: 86vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column;">
+    <div id="orchestratorModalContent" class="modal-content" style="width:94vw; max-width: 1600px; max-height: 88vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
       <div class="modal-header">
         <h3>
           <i class="fas fa-project-diagram"></i>
@@ -39,7 +39,7 @@
       </div>
       <div class="modal-body" style="overflow:auto;">
         <div id="orchestratorSummary" class="settings-description" style="margin-bottom:10px;">正在读取当前页面编排信息...</div>
-        <div class="orchestrator-toolbar" style="display:flex; gap:8px; align-items:center; margin: 6px 0 10px 0;">
+        <div class="orchestrator-toolbar" style="margin: 6px 0 10px 0;">
           <label>视图
             <select id="orchViewMode">
               <option value="design">设计</option>
@@ -64,9 +64,9 @@
               <option value="idle">idle</option>
             </select>
           </label>
-          <input id="orchFilterSearch" type="search" placeholder="按 label 搜索" style="flex:1;" />
+          <input id="orchFilterSearch" type="search" placeholder="按任务关键词搜索…" style="flex:1;" />
         </div>
-        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:#52525b; line-height:1.6; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px;">
+        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:#52525b; line-height:1.6; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; text-align:left;">
           <div><strong>说明：</strong>本设计视图仅展示“代码中约定的任务编排顺序”，不依赖页面加载。</div>
           <div>• <strong>critical</strong>：关键路径，首屏必须；串行完成。</div>
           <div>• <strong>high</strong>：较高优先，尽快执行；并行触发。</div>
@@ -75,11 +75,17 @@
         </div>
         <div class="orchestrator-grid" style="display:grid; grid-template-columns: 1fr 1.2fr; gap:14px;">
           <div>
-            <h4>已注册任务</h4>
+            <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span>已注册任务</span>
+              <button id="orchestratorCopyPhasesBtn" class="button-like" title="复制下方任务清单文本">复制</button>
+            </h4>
             <div id="orchestratorPhases" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
           </div>
           <div>
-            <h4>事件时间线</h4>
+            <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span>事件时间线</span>
+              <button id="orchestratorCopyTimelineBtn" class="button-like" title="复制下方时间线文本">复制</button>
+            </h4>
             <div id="orchestratorTimeline" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
           </div>
         </div>
