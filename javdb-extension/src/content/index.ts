@@ -1,8 +1,8 @@
 // src/content/index.ts
 
-import { getSettings, getValue, setValue } from '../utils/storage';
+import { getSettings, getValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
-import { STATE, SELECTORS, log } from './state';
+import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
 import { handleVideoDetailPage } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
@@ -22,6 +22,7 @@ import { initializeContentPrivacy } from './privacy';
 import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { embyEnhancementManager } from './embyEnhancement';
+import { initOrchestrator } from './initOrchestrator';
 
 // --- Utility Functions ---
 
@@ -29,35 +30,32 @@ import { embyEnhancementManager } from './embyEnhancement';
  * 移除不需要的按钮（官方App和Telegram频道）
  */
 function removeUnwantedButtons(): void {
-    // 等待页面加载完成后移除按钮
-    setTimeout(() => {
-        try {
-            // 查找并移除官方App按钮和Telegram按钮
-            const appButtons = document.querySelectorAll('a[href*="app.javdb"], a[href*="t.me/javdbnews"]');
-            appButtons.forEach(button => {
-                if (button.textContent?.includes('官方App') ||
-                    button.textContent?.includes('JavDB公告') ||
-                    button.textContent?.includes('Telegram')) {
-                    log(`Removing unwanted button: ${button.textContent}`);
-                    button.remove();
-                }
-            });
+    try {
+        // 查找并移除官方App按钮和Telegram按钮
+        const appButtons = document.querySelectorAll('a[href*="app.javdb"], a[href*="t.me/javdbnews"]');
+        appButtons.forEach(button => {
+            if (button.textContent?.includes('官方App') ||
+                button.textContent?.includes('JavDB公告') ||
+                button.textContent?.includes('Telegram')) {
+                log(`Removing unwanted button: ${button.textContent}`);
+                button.remove();
+            }
+        });
 
-            // 也可以通过CSS隐藏这些按钮
-            const style = document.createElement('style');
-            style.textContent = `
-                a[href*="app.javdb"]:not([href*="javdb.com"]),
-                a[href*="t.me/javdbnews"] {
-                    display: none !important;
-                }
-            `;
-            document.head.appendChild(style);
+        // 也可以通过CSS隐藏这些按钮
+        const style = document.createElement('style');
+        style.textContent = `
+            a[href*="app.javdb"]:not([href*="javdb.com"]),
+            a[href*="t.me/javdbnews"] {
+                display: none !important;
+            }
+        `;
+        document.head.appendChild(style);
 
-            log('Unwanted buttons removal completed');
-        } catch (error) {
-            log('Error removing unwanted buttons:', error);
-        }
-    }, 1000);
+        log('Unwanted buttons removal completed');
+    } catch (error) {
+        log('Error removing unwanted buttons:', error);
+    }
 }
 
 // --- Core Logic ---
@@ -88,12 +86,32 @@ async function initialize(): Promise<void> {
         await handleVideoDetailPage();
         // 立刻检查并更新状态（包括 favicon 与标题）
         checkAndUpdateVideoStatus();
-        // 定期复查以应对动态变动
-        setInterval(checkAndUpdateVideoStatus, 2000);
-        // 初始化115功能（保持与之前相近的延时初始化，避免阻塞首屏与状态UI）
-        setTimeout(() => {
-            initDrive115Features();
-        }, 1500);
+        // 定期复查以应对动态变动（从 2s 调整为 5s），并在稳定后停止
+        let lastStatusSignature = '';
+        let stableCount = 0;
+        const statusIntervalId = setInterval(() => {
+            try {
+                checkAndUpdateVideoStatus();
+                // 通过标题 + favicon 状态组合判断是否稳定
+                const signature = `${document.title}|${currentFaviconState ?? 'null'}|${currentTitleStatus ?? 'null'}`;
+                if (signature === lastStatusSignature && signature.includes('null') === false) {
+                    stableCount++;
+                } else {
+                    stableCount = 0;
+                    lastStatusSignature = signature;
+                }
+                // 连续稳定 3 次（约 15 秒）后停止轮询
+                if (stableCount >= 3) {
+                    clearInterval(statusIntervalId);
+                    log('Status appears stable. Stopping status polling.');
+                }
+            } catch (e) {
+                // 安全兜底：异常不影响后续执行
+                log('Status polling error:', e);
+            }
+        }, 5000);
+        // 初始化115功能：改由编排器延时调度，保持原 1500ms 行为
+        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:video', delayMs: 1500 });
     }
 
     // 初始化缓存系统
@@ -147,9 +165,13 @@ async function initialize(): Promise<void> {
         });
     }
 
-    // 初始化用户体验优化功能
+    // 页面类型判断
+    const path = window.location.pathname;
+    const isVideoPage = path.startsWith('/v/');
+    const isActorPage = path.startsWith('/actors/');
+
+    // 初始化用户体验优化功能（通过编排器注册到合适阶段）
     if (settings.userExperience.enableQuickCopy) {
-        log('Quick copy manager initialized');
         quickCopyManager.updateConfig({
             enabled: true,
             showButtons: true,
@@ -157,75 +179,70 @@ async function initialize(): Promise<void> {
             enableKeyboardShortcuts: settings.userExperience.enableKeyboardShortcuts,
             items: ['video-id', 'title', 'url', 'magnet', 'actor'],
         });
-        quickCopyManager.initialize();
-    }
-
-    if (settings.userExperience.enableContentFilter) {
-        const keywordRules = settings.contentFilter?.keywordRules || [];
-        log(`Keyword filter manager initialized with ${keywordRules.length} rules`);
-        if (keywordRules.length > 0) {
-            log('Keyword rules:', keywordRules.map(r => `${r.name}: ${r.keyword} (${r.action})`));
-        }
-        contentFilterManager.updateConfig({
-            enabled: true,
-            showFilteredCount: true,
-            keywordRules: keywordRules,
-        });
-        // 注意：不在这里立即初始化，而是在默认隐藏功能处理完后再初始化
+        initOrchestrator.add('high', () => quickCopyManager.initialize(), { label: 'ux:quickCopy:init' });
     }
 
     if (settings.userExperience.enableKeyboardShortcuts) {
-        log('Keyboard shortcuts manager initialized');
         keyboardShortcutsManager.updateConfig({
             enabled: true,
             showHelp: true,
             enableGlobalShortcuts: true,
             enablePageSpecificShortcuts: true,
         });
-        keyboardShortcutsManager.initialize();
+        initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init' });
     }
 
-    // 移除官方App和Telegram按钮
-    removeUnwantedButtons();
+    // 隐私保护统一在 high 阶段 await（由 orchestrator.run() 处理）
+    initOrchestrator.add('high', async () => {
+        log('Privacy system initializing...');
+        await initializeContentPrivacy();
+        log('Privacy system initialized successfully');
+    }, { label: 'privacy:init' });
+
+    // 移除官方App和Telegram按钮（用 orchestrator 延时 1000ms 保持原体验）
+    initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 1000 });
 
     if (settings.userExperience.enableMagnetSearch) {
-        log('Magnet search manager initialized');
-
-        // 从设置中获取磁力搜索源配置
-        const magnetSearchConfig = (settings as any).magnetSearch || {};
-        const sources = magnetSearchConfig.sources || {};
-
-        magnetSearchManager.updateConfig({
-            enabled: true,
-            showInlineResults: true,
-            showFloatingButton: true,
-            autoSearch: true, // 启用自动搜索
-            sources: {
-                sukebei: sources.sukebei !== false, // 默认启用
-                btdig: sources.btdig !== false, // 默认启用
-                btsow: sources.btsow !== false, // 默认启用
-                torrentz2: sources.torrentz2 || false, // 默认禁用
-                custom: [],
-            },
-            maxResults: 20,
-        });
-        magnetSearchManager.initialize();
+        // 通过编排器注册为 deferred 阶段任务（空闲优先），保持自动执行
+        initOrchestrator.add('deferred', () => {
+            try {
+                log('Magnet search manager deferred initialization');
+                const magnetSearchConfig = (settings as any).magnetSearch || {};
+                const sources = magnetSearchConfig.sources || {};
+                magnetSearchManager.updateConfig({
+                    enabled: true,
+                    showInlineResults: true,
+                    showFloatingButton: true,
+                    autoSearch: true,
+                    sources: {
+                        sukebei: sources.sukebei !== false,
+                        btdig: sources.btdig !== false,
+                        btsow: sources.btsow !== false,
+                        torrentz2: sources.torrentz2 || false,
+                        custom: [],
+                    },
+                    maxResults: 20,
+                });
+                magnetSearchManager.initialize();
+            } catch (e) {
+                log('Deferred magnet search initialization failed:', e);
+            }
+        }, { label: 'magnet:initialize', idle: true, idleTimeout: 5000, delayMs: 3000 });
     }
 
     if (settings.userExperience.enableAnchorOptimization) {
-        log('Anchor optimization manager initialized');
         anchorOptimizationManager.updateConfig({
             enabled: true,
             showPreviewButton: settings.anchorOptimization?.showPreviewButton !== false,
             buttonPosition: settings.anchorOptimization?.buttonPosition || 'right-center',
             customButtons: [],
         });
-        anchorOptimizationManager.initialize();
+        // 列表/演员页优先，影片页影响较小，归为 deferred
+        initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'ux:anchorOptimization:init', idle: true, delayMs: 1000 });
     }
 
-    // 初始化列表增强功能
+    // 初始化列表增强功能（列表/演员页常用）
     if (settings.userExperience.enableListEnhancement !== false) {
-        log('List enhancement manager initialized');
         listEnhancementManager.updateConfig({
             enabled: true,
             enableClickEnhancement: settings.listEnhancement?.enableClickEnhancement !== false,
@@ -236,38 +253,34 @@ async function initialize(): Promise<void> {
             previewVolume: settings.listEnhancement?.previewVolume || 0.2,
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
         });
-        listEnhancementManager.initialize();
+        if (!isVideoPage) {
+            initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init' });
+        }
     }
 
-    // 初始化演员页增强功能
-    if (settings.actorEnhancement?.enabled !== false) {
-        log('Actor enhancement manager initialized');
+    // 初始化演员页增强功能（仅演员页 critical）
+    if (settings.actorEnhancement?.enabled !== false && isActorPage) {
         actorEnhancementManager.updateConfig({
             enabled: true,
             autoApplyTags: settings.actorEnhancement?.autoApplyTags !== false,
             defaultTags: settings.actorEnhancement?.defaultTags || ['s', 'd'],
             defaultSortType: settings.actorEnhancement?.defaultSortType || 0,
         });
-        actorEnhancementManager.init();
+        initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
     }
 
-    // 初始化Emby增强功能
+    // 初始化Emby增强功能（延后执行）
     if (settings.emby?.enabled) {
-        log('Emby enhancement manager initialized');
-        embyEnhancementManager.initialize().catch(error => {
-            log('Failed to initialize Emby enhancement:', error);
-        });
+        initOrchestrator.add('deferred', async () => {
+            try {
+                await embyEnhancementManager.initialize();
+            } catch (error) {
+                log('Failed to initialize Emby enhancement:', error as any);
+            }
+        }, { label: 'embyEnhancement:init', idle: true, delayMs: 1500 });
     }
 
-    // 初始化隐私保护功能
-    try {
-        log('Privacy system initializing...');
-        await initializeContentPrivacy();
-        log('Privacy system initialized successfully');
-    } catch (error) {
-        const err = error as any;
-        log('Privacy system initialization failed:', err?.message || err);
-    }
+    // 隐私保护功能已通过编排器在 high 阶段初始化
 
     // 更稳健地识别搜索结果页：不仅依赖 DOM，还检查 URL
     const url = new URL(window.location.href);
@@ -280,26 +293,61 @@ async function initialize(): Promise<void> {
 
     // 注意：原始 favicon 已在上方提前保存，这里无需再次保存
 
-    processVisibleItems();
-    setupObserver();
+    // 将列表观察初始化纳入编排器（列表/演员页 critical）
+    const pathNow = window.location.pathname;
+    if (!pathNow.startsWith('/v/')) {
+        initOrchestrator.add('critical', () => {
+            processVisibleItems();
+            setupObserver();
+        }, { label: 'list:observe:init' });
+    }
 
-    // 在默认隐藏功能处理完后，再初始化智能内容过滤
+    // 在默认隐藏功能处理完后，再初始化智能内容过滤（统一由编排器调度）
     if (settings.userExperience.enableContentFilter) {
-        setTimeout(() => {
+        initOrchestrator.add('deferred', () => {
             contentFilterManager.initialize();
             log('Content filter initialized after default hide processing');
-        }, 100); // 短暂延迟确保默认隐藏功能先执行
+        }, { label: 'contentFilter:initialize', delayMs: 100 });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
-        // 在列表页也初始化115功能
-        setTimeout(() => {
-            initDrive115Features();
-        }, 2000);
+        // 在列表页也初始化115功能（由编排器统一延时调度）
+        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:list', delayMs: 2000 });
+    }
+
+    // 启动统一编排器（处理 deferred / idle 阶段任务）
+    try {
+        await initOrchestrator.run();
+    } catch (e) {
+        log('Init orchestrator run failed:', e);
     }
 
     initExportFeature();
 }
+
+// --- Messaging Bridge for Orchestrator Visualization ---
+try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+            try {
+                if (message && message.type === 'orchestrator:getState') {
+                    const o: any = (window as any).__initOrchestrator__;
+                    if (o && typeof o.getState === 'function') {
+                        const state = o.getState();
+                        sendResponse({ ok: true, state });
+                    } else {
+                        sendResponse({ ok: false, error: 'orchestrator not initialized yet' });
+                    }
+                    return true; // async response
+                }
+            } catch (err) {
+                sendResponse({ ok: false, error: String(err) });
+                return true;
+            }
+            return undefined;
+        });
+    }
+} catch {}
 
 // --- Entry Point ---
 
