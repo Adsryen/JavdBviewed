@@ -35,7 +35,25 @@
     min-width: 120px;
 }
 
+/* 搜索与日期输入样式与 select 保持一致 */
+.log-filters input[type="search"],
+.log-filters input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    color: #495057;
+}
+
 .log-filters select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.log-filters input[type="search"]:focus,
+.log-filters input[type="date"]:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
@@ -216,6 +234,14 @@
     word-break: break-all;
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
+}
+
+/* 关键词高亮 */
+.log-highlight {
+    background: #fff3cd;
+    color: #6c757d;
+    padding: 0 2px;
+    border-radius: 2px;
 }
 
 /* 不同等级的日志样式 */

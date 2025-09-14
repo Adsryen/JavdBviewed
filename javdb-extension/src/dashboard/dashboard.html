@@ -2649,8 +2649,12 @@
                 <div class="card">
                     <div class="settings-section">
                         <h4>日志记录</h4>
-                        <p class="settings-description">测试连接到指定服务器的延迟。输入一个URL，然后点击“开始测试”。</p>
+                        <p class="settings-description">在此查看扩展运行日志，可按等级、来源、关键词与时间范围进行筛选，并支持仅显示包含详细数据的日志。</p>
                         <div class="log-filters">
+                            <div class="filter-group" style="flex: 1; min-width: 240px;">
+                                <label for="log-search-input">关键词搜索</label>
+                                <input id="log-search-input" type="search" placeholder="搜索消息或详细数据..." />
+                            </div>
                             <div class="filter-group">
                                 <label for="log-level-filter">筛选等级</label>
                                 <select id="log-level-filter">
@@ -2669,6 +2673,18 @@
                                     <option value="DRIVE115">115网盘</option>
                                 </select>
                             </div>
+                            <div class="filter-group">
+                                <label>日期范围（起）</label>
+                                <input id="log-start-date" type="date" />
+                            </div>
+                            <div class="filter-group">
+                                <label>日期范围（止）</label>
+                                <input id="log-end-date" type="date" />
+                            </div>
+                            <div class="filter-group" style="align-self: flex-end;">
+                                <label for="log-has-data-only">仅含详细数据</label>
+                                <input id="log-has-data-only" type="checkbox" />
+                            </div>
                         </div>
                         <div class="log-actions">
                             <button id="refresh-logs-button" class="primary">刷新</button>
@@ -2677,6 +2693,20 @@
                         <div class="log-container">
                             <div id="log-body">
                                 <!-- Log entries will be inserted here -->
+                            </div>
+                        </div>
+                        <div class="pagination-controls">
+                            <div class="pagination" id="logsPagination">
+                                <!-- 分页控件将由 JS 动态填充 -->
+                            </div>
+                             <div class="records-per-page-selector">
+                                <label for="logsPerPageSelect">每页显示:</label>
+                                <select id="logsPerPageSelect">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
                             </div>
                         </div>
                     </div>
