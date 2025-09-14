@@ -203,8 +203,9 @@ async function initialize(): Promise<void> {
     initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 1000 });
 
     if (settings.userExperience.enableMagnetSearch) {
-        // 通过编排器注册为 deferred 阶段任务（空闲优先），保持自动执行
-        initOrchestrator.add('deferred', () => {
+        // 改为 idle 阶段，确保最后执行（空闲 + 更长延迟）
+        console.log('[JavDB Ext] Scheduling magnet search in idle phase (last)');
+        initOrchestrator.add('idle', () => {
             try {
                 log('Magnet search manager deferred initialization');
                 const magnetSearchConfig = (settings as any).magnetSearch || {};
@@ -227,7 +228,7 @@ async function initialize(): Promise<void> {
             } catch (e) {
                 log('Deferred magnet search initialization failed:', e);
             }
-        }, { label: 'magnet:initialize', idle: true, idleTimeout: 5000, delayMs: 3000 });
+        }, { label: 'ux:magnet:autoSearch', idle: true, idleTimeout: 10000, delayMs: 6000 });
     }
 
     if (settings.userExperience.enableAnchorOptimization) {
