@@ -127,6 +127,15 @@ async function initialize(): Promise<void> {
         defaultDataAggregator.updateConfig({
             enableCache: settings.dataEnhancement.enableImageCache,
             cacheExpiration: settings.dataEnhancement.cacheExpiration,
+        });
+        console.log('[JavDB Extension] Initializing traditional translator with settings:', {
+            enableTranslation: settings.dataEnhancement.enableTranslation,
+            provider: settings.translation?.provider,
+            service: settings.translation?.traditional?.service,
+            hasApiKey: !!settings.translation?.traditional?.apiKey
+        });
+
+        defaultDataAggregator.updateConfig({
             sources: {
                 blogJav: {
                     enabled: settings.dataEnhancement.enableMultiSource,
@@ -155,6 +164,13 @@ async function initialize(): Promise<void> {
 
     // 无论是否启用多源，都根据翻译设置初始化 AI 翻译配置，确保定点翻译可用
     if (settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'ai') {
+        console.log('[JavDB Extension] Initializing AI translator with settings:', {
+            enableTranslation: settings.dataEnhancement.enableTranslation,
+            provider: settings.translation?.provider,
+            aiEnabled: settings.ai?.enabled,
+            selectedModel: settings.ai?.selectedModel
+        });
+        
         defaultDataAggregator.updateAITranslatorConfig({
             enabled: true,
             useGlobalModel: true, // 已写死使用 AI 设置中的模型
@@ -162,6 +178,14 @@ async function initialize(): Promise<void> {
             maxRetries: 2,
             sourceLanguage: 'ja',
             targetLanguage: 'zh-CN',
+        });
+        
+        console.log('[JavDB Extension] AI translator configuration updated');
+    } else {
+        console.log('[JavDB Extension] AI translator not initialized:', {
+            enableTranslation: settings.dataEnhancement.enableTranslation,
+            provider: settings.translation?.provider,
+            reason: !settings.dataEnhancement.enableTranslation ? 'Translation disabled' : 'Provider not AI'
         });
     }
 

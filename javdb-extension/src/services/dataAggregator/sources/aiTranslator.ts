@@ -89,12 +89,16 @@ export class AITranslatorService {
    */
   private async translateWithAI(text: string): Promise<TranslationResult> {
     try {
+      console.log('[AITranslator] Starting AI translation for text:', text);
+      
       // 动态导入AI服务以避免循环依赖
       const { aiService } = await import('../../ai/aiService');
+      console.log('[AITranslator] AI service imported successfully');
 
       // 构建翻译提示词
       const systemPrompt = AI_PROMPTS.titleTranslation.system;
       const userPrompt = AI_PROMPTS.titleTranslation.user(text);
+      console.log('[AITranslator] Prompts prepared:', { systemPrompt, userPrompt });
 
       // 准备AI请求
       const messages = [
@@ -107,13 +111,20 @@ export class AITranslatorService {
         ? aiService.getSettings().selectedModel
         : this.config.customModel;
 
+      console.log('[AITranslator] Model selection:', {
+        useGlobalModel: this.config.useGlobalModel,
+        selectedModel: model,
+        aiSettings: aiService.getSettings()
+      });
+
       if (!model) {
         throw new Error('No AI model configured for translation');
       }
 
       // 发送AI请求（使用统一的 sendMessage 接口）
-      // aiService 会使用其 settings.selectedModel；此处已在上面决定 model，并依赖“全局模型”生效
+      console.log('[AITranslator] Sending AI request...');
       const chatResponse = await aiService.sendMessage(messages as any);
+      console.log('[AITranslator] AI response received:', chatResponse);
 
       const reply = chatResponse?.choices?.[0]?.message?.content || '';
       const translatedText = reply.trim();
@@ -121,7 +132,7 @@ export class AITranslatorService {
         throw new Error('Empty translation content');
       }
 
-      return {
+      const result = {
         originalText: text,
         translatedText,
         sourceLanguage: this.config.sourceLanguage,
@@ -131,7 +142,11 @@ export class AITranslatorService {
         service: `ai:${model}`,
         timestamp: Date.now(),
       };
+
+      console.log('[AITranslator] Translation completed successfully:', result);
+      return result;
     } catch (error) {
+      console.error('[AITranslator] Translation failed:', error);
       throw new DataSourceError(
         `AI translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'AITranslator'
