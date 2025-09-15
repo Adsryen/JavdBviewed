@@ -101,3 +101,25 @@ export async function retry<T>(
     
     throw lastError;
 }
+
+// 等待元素出现的工具函数
+export async function waitForElement(
+    selector: string, 
+    timeoutMs: number = 3000, 
+    intervalMs: number = 200
+): Promise<Element | null> {
+    const start = Date.now();
+    
+    while (Date.now() - start < timeoutMs) {
+        const element = document.querySelector(selector);
+        if (element) {
+            return element;
+        }
+        
+        // 等待指定的间隔时间
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    
+    log(`waitForElement timeout: ${selector} not found after ${timeoutMs}ms`);
+    return null;
+}

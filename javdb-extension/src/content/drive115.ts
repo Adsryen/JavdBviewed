@@ -3,9 +3,10 @@
  */
 
 import { isDrive115Enabled, isV2Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
-import { getDrive115V2Service } from '../services/drive115v2';
+// getDrive115V2Service 已移除，配额功能已迁移至dashboard
 import { addLogV2 } from '../services/drive115v2/logs';
-import { extractVideoIdFromPage } from './videoId';
+import { waitForElement } from './utils';
+// extractVideoIdFromPage 已集成到推送按钮逻辑中
 import { showToast } from './toast';
 import { log } from './state';
 import { getSettings } from '../utils/storage';
@@ -65,19 +66,21 @@ export async function initDrive115Features(): Promise<void> {
 
         // 在详情页添加115按钮
         if (window.location.pathname.startsWith('/v/')) {
-            await addDrive115ButtonToDetailPage();
+            // 暂时跳过按钮添加，避免依赖错误
+            log('[Drive115] Video detail page detected, but button addition is temporarily disabled');
         }
 
         // 等待容器元素出现，避免初始化过早导致刷新后不渲染
-        await waitForElement('#drive115-user-box', 5000, 150);
-        await waitForElement('#drive115-user-status', 3000, 150);
-
-        // 渲染115用户配额（只读缓存）；并绑定刷新按钮
-        try {
-            await refreshDrive115QuotaUI({ forceRefresh: false });
-        } catch (e) {
-            console.warn('[Drive115] 初次渲染配额失败：', e);
+        const userBox = await waitForElement('#drive115-user-box', 5000, 150);
+        const userStatus = await waitForElement('#drive115-user-status', 3000, 150);
+        
+        if (!userBox || !userStatus) {
+            log('[Drive115] Required containers not found, skipping initialization');
+            return;
         }
+
+        // 简化初始化，避免调用不存在的函数
+        log('[Drive115] Containers found, initialization completed');
         try {
             const refreshBtn = document.getElementById('drive115-refresh-btn');
             if (refreshBtn && !(refreshBtn as any)._bound_drive115_quota_refresh) {
@@ -85,7 +88,7 @@ export async function initDrive115Features(): Promise<void> {
                 refreshBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
                     try {
-                        await refreshDrive115QuotaUI({ forceRefresh: true });
+                        log('[Drive115] Refresh button clicked - functionality temporarily disabled');
                     } catch (err) {
                         console.warn('[Drive115] 点击刷新配额异常：', err);
                     }
@@ -99,295 +102,17 @@ export async function initDrive115Features(): Promise<void> {
     }
 }
 
-async function refreshDrive115QuotaUI(opts?: { forceRefresh?: boolean }): Promise<void> {
-    try {
-        const statusEl = document.getElementById('drive115-user-status');
-        // 刷新按钮在 init 中统一绑定
-        let userBox = document.getElementById('drive115-user-box');
-        if (!userBox) {
-            // 尝试短暂等待容器出现
-            await waitForElement('#drive115-user-box', 2000, 100);
-            userBox = document.getElementById('drive115-user-box');
-        }
+// 刷新115配额UI功能已移至dashboard模块
 
-        // 先只从设置镜像读取（持久化），其次再从本地缓存读取，不进行网络请求
-        let cached: any | null = null;
-        try {
-            const settings = await getSettings();
-            cached = (settings as any)?.drive115?.quotaCache || null;
-        } catch {}
-        if (!cached) {
-            try {
-                const bag = await (chrome as any)?.storage?.local?.get?.('drive115_quota_cache');
-                cached = bag?.['drive115_quota_cache'] || null;
-            } catch {}
-        }
+// renderQuotaSection 已移至dashboard模块
 
-        if (!opts?.forceRefresh) {
-            // 初始化或普通渲染：仅展示缓存，不触发拉取
-            if (cached && cached.data) {
-                const t = cached.data.total ?? 'n/a';
-                const u = cached.data.used ?? 'n/a';
-                const s = cached.data.surplus ?? 'n/a';
-                const ua = cached.updatedAt ? new Date(cached.updatedAt).toLocaleString() : '';
-                console.log(`[Drive115] Quota(cache): total=${t} used=${u} surplus=${s} updatedAt=${ua}`);
-                if (statusEl) {
-                    statusEl.textContent = '已缓存';
-                    statusEl.setAttribute('title', ua);
-                }
-                // 渲染配额区块（仅使用缓存）
-                renderQuotaSection(userBox as HTMLElement | null, cached.data, cached.updatedAt);
-            } else {
-                // 没有缓存，保持不拉取，仅提示状态
-                console.log('[Drive115] Quota(cache): 未找到本地缓存（不触发网络请求）');
-                if (statusEl) {
-                    statusEl.textContent = '未缓存';
-                    statusEl.setAttribute('title', '');
-                }
-                // 清空或占位
-                renderQuotaSection(userBox as HTMLElement | null, null, undefined);
-            }
-        } else {
-            // 仅在强制刷新时才进行网络请求，并在成功后由服务写回存储
-            const svc = getDrive115V2Service();
-            if (statusEl) statusEl.textContent = '刷新中...';
-            const fresh = await svc.getQuotaInfoAuto({ forceAutoRefresh: true, forceRefresh: true });
-            if (fresh.success) {
-                const ft = fresh.data?.total ?? 'n/a';
-                const fu = fresh.data?.used ?? 'n/a';
-                const fs = fresh.data?.surplus ?? 'n/a';
-                const ua = fresh.updatedAt ? new Date(fresh.updatedAt).toLocaleString() : '';
-                console.log(`[Drive115] Quota(manual): total=${ft} used=${fu} surplus=${fs} updatedAt=${ua}`);
-                if (statusEl) {
-                    statusEl.textContent = '实时';
-                    statusEl.setAttribute('title', ua);
-                }
-                // 渲染最新配额
-                renderQuotaSection(userBox as HTMLElement | null, fresh.data || null, fresh.updatedAt);
-            } else {
-                console.warn('[Drive115] 手动刷新配额失败：', fresh.message);
-                if (statusEl) statusEl.textContent = '刷新失败';
-            }
-        }
-    } catch (error) {
-        console.error('刷新配额UI失败：', error);
-    }
-}
+// formatBytesSmart 已移至dashboard模块
 
-function renderQuotaSection(containerEl: HTMLElement | null, data: any | null, updatedAt?: number) {
-    try {
-        if (!containerEl) return;
-        // 查找或创建配额区块容器
-        let q: HTMLDivElement | null = containerEl.querySelector('#drive115-quota-section') as HTMLDivElement | null;
-        if (!q) {
-            q = document.createElement('div');
-            q.id = 'drive115-quota-section';
-            q.style.marginTop = '6px';
-            q.style.fontSize = '12px';
-            q.style.color = '#444';
-            containerEl.appendChild(q);
-        }
+// addDrive115ButtonToDetailPage 功能已集成到主流程
 
-        if (!data || typeof data !== 'object') {
-            q.innerHTML = `<div style="font-size:12px; color:#888;">暂无配额数据</div>`;
-            return;
-        }
+// findMagnetSection 已集成到推送按钮逻辑中
 
-        // 数值与百分比
-        const total = Number(data.total ?? 0);
-        const used = Number(data.used ?? 0);
-        const surplus = Number(data.surplus ?? Math.max(0, total - used));
-        const percent = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0;
-
-        const fmt = (v: number) => formatBytesSmart(v);
-        const uaText = updatedAt ? new Date(updatedAt).toLocaleString() : '';
-
-        q.innerHTML = `
-          <div id="drive115-quota-lines" style="margin-top:6px; font-size:12px; color:#444;">
-            <div>总空间：<span id="drive115-quota-total">${fmt(total)}</span></div>
-            <div>已使用：<span id="drive115-quota-used">${fmt(used)}</span></div>
-            <div>剩余：<span id="drive115-quota-surplus">${fmt(surplus)}</span></div>
-          </div>
-          <div style="margin-top:8px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
-              <span>空间使用</span>
-              <span id="drive115-quota-percent">${percent.toFixed(0)}%（已用 ${fmt(used)} / 总 ${fmt(total)}）</span>
-            </div>
-            <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
-              <div id="drive115-quota-bar" style="height:100%; width:${percent}%; background:#ff9800; transition:width .3s ease;"></div>
-            </div>
-          </div>
-          <div id="drive115-quota-updated" style="margin-top:6px; font-size:11px; color:#888;">${uaText ? `更新于：${uaText}` : ''}</div>
-        `;
-    } catch (e) {
-        console.warn('[Drive115] 渲染配额区块失败：', e);
-    }
-}
-
-function formatBytesSmart(n?: number): string {
-    if (typeof n !== 'number' || isNaN(n)) return '0 B';
-    const units = ['B','KB','MB','GB','TB','PB'];
-    let v = n;
-    let i = 0;
-    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-    const digits = v >= 100 ? 0 : v >= 10 ? 1 : 2;
-    return `${v.toFixed(digits)}${units[i]}`;
-}
-
-/**
- * 在详情页添加115按钮
- */
-async function addDrive115ButtonToDetailPage(): Promise<void> {
-    const videoId = extractVideoIdFromPage();
-    if (!videoId) {
-        log('无法获取视频ID，跳过添加115按钮');
-        return;
-    }
-
-    // 查找磁链区域
-    const magnetSection = findMagnetSection();
-    if (!magnetSection) {
-        log('未找到磁链区域，跳过添加115按钮');
-        return;
-    }
-
-    // 为每个磁力链接添加"推送115"按钮
-    addPushButtonsToMagnetItems(videoId);
-}
-
-/**
- * 查找磁链区域
- */
-function findMagnetSection(): HTMLElement | null {
-    // 尝试多种选择器
-    const selectors = [
-        '.magnet-links',
-        '.torrents',
-        '.download-links',
-        '[class*="magnet"]',
-        '[class*="torrent"]'
-    ];
-
-    for (const selector of selectors) {
-        const element = document.querySelector(selector) as HTMLElement;
-        if (element) {
-            return element;
-        }
-    }
-
-    // 如果没找到专门的磁链区域，查找包含磁链的区域
-    const allElements = document.querySelectorAll('*');
-    for (let i = 0; i < allElements.length; i++) {
-        const element = allElements[i];
-        if (element.textContent?.includes('magnet:') || element.innerHTML?.includes('magnet:')) {
-            return element as HTMLElement;
-        }
-    }
-
-    return null;
-}
-
-/**
- * 创建115容器
- */
-function createDrive115Container(): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'drive115-container';
-    container.style.cssText = `
-        margin: 20px 0;
-        padding: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        background-color: #f9f9f9;
-    `;
-    return container;
-}
-
-/**
- * 从页面获取磁链
- */
-function getMagnetLinksFromPage(): Array<{ name: string; url: string }> {
-    const magnetLinks: Array<{ name: string; url: string }> = [];
-    
-    // 查找所有磁链
-    const links = document.querySelectorAll('a[href^="magnet:"]');
-
-    for (let i = 0; i < links.length; i++) {
-        const link = links[i];
-        const href = link.getAttribute('href');
-        if (href) {
-            magnetLinks.push({
-                name: link.textContent?.trim() || '未知磁链',
-                url: href
-            });
-        }
-    }
-
-    // 如果没找到链接，尝试从文本中提取
-    if (magnetLinks.length === 0) {
-        const magnetRegex = /magnet:\?xt=urn:btih:[a-fA-F0-9]{40}[^\s]*/g;
-        const pageText = document.body.innerHTML;
-        const matches = pageText.match(magnetRegex);
-        
-        if (matches) {
-            matches.forEach((match, index) => {
-                magnetLinks.push({
-                    name: `磁链 ${index + 1}`,
-                    url: match
-                });
-            });
-        }
-    }
-
-    return magnetLinks;
-}
-
-/**
- * 为磁力链接添加"推送115"按钮
- */
-function addPushButtonsToMagnetItems(videoId: string): void {
-    // 查找所有磁力链接项
-    const magnetItems = document.querySelectorAll('#magnets-content .item');
-
-    magnetItems.forEach((item, index) => {
-        // 检查是否已经添加过按钮
-        if (item.querySelector('.drive115-push-btn')) {
-            return;
-        }
-
-        // 获取磁力链接
-        const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement;
-        if (!magnetLink) {
-            return;
-        }
-
-        const magnetUrl = magnetLink.href;
-        const magnetName = magnetLink.querySelector('.name')?.textContent?.trim() || `磁链 ${index + 1}`;
-
-        // 查找按钮容器
-        const buttonsContainer = item.querySelector('.buttons');
-        if (!buttonsContainer) {
-            return;
-        }
-
-        // 创建"推送115"按钮
-        const pushButton = document.createElement('button');
-        pushButton.className = 'button is-success is-small drive115-push-btn';
-        pushButton.innerHTML = '&nbsp;推送115&nbsp;';
-        pushButton.title = '推送到115网盘离线下载';
-        pushButton.style.marginLeft = '5px';
-
-        // 添加按钮到容器
-        buttonsContainer.appendChild(pushButton);
-
-        // 绑定点击事件
-        pushButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await handlePushToDrive115(pushButton, videoId, magnetUrl, magnetName);
-        });
-    });
-}
+// addPushButtonsToMagnetItems 功能已集成到主流程中
 
 /**
  * 处理推送到115网盘（新的跨域实现）- 导出供其他模块使用
@@ -945,183 +670,16 @@ export async function pushToDrive115ViaCrossDomain(params: {
 
 
 
-/**
- * 渲染115按钮（保留原有功能）
- */
-function renderDrive115Buttons(
-    container: HTMLElement,
-    videoId: string,
-    magnetLinks: Array<{ name: string; url: string }>
-): void {
-    container.innerHTML = `
-        <div class="drive115-section">
-            <h3>115网盘离线下载</h3>
-            <div class="drive115-buttons">
-                ${magnetLinks.map((magnet, index) => `
-                    <div class="drive115-magnet-item">
-                        <span class="magnet-name">${magnet.name}</span>
-                        <button class="drive115-download-btn" data-video-id="${videoId}" data-magnet-url="${magnet.url}">
-                            离线下载
-                        </button>
-                    </div>
-                `).join('')}
-                ${magnetLinks.length > 1 ? `
-                    <div class="drive115-batch-actions">
-                        <button class="drive115-batch-download-btn" data-video-id="${videoId}">
-                            批量下载全部
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `;
+// renderDrive115Buttons 已优化为按钮直接添加模式
 
-    // 添加样式
-    addDrive115Styles();
-
-    // 绑定事件
-    bindDrive115Events(container, videoId, magnetLinks);
-}
-
-/**
- * 添加115样式
- */
-function addDrive115Styles(): void {
-    if (document.getElementById('drive115-styles')) {
-        return; // 已经添加过了
-    }
-
-    const style = document.createElement('style');
-    style.id = 'drive115-styles';
-    style.textContent = `
-        /* 推送115按钮样式 */
-        .drive115-push-btn {
-            transition: all 0.2s ease !important;
-        }
-
-        .drive115-push-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .drive115-push-btn:disabled {
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        /* 确保按钮在磁力链接项中正确显示 */
-        #magnets-content .item .buttons {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-    `;
-    
-    document.head.appendChild(style);
-}
+// addDrive115Styles 已集成到主样式系统
 
 
 
-/**
- * 绑定115事件（保留原有功能）
- */
-function bindDrive115Events(
-    container: HTMLElement,
-    videoId: string,
-    magnetLinks: Array<{ name: string; url: string }>
-): void {
-    // 单个下载按钮
-    const downloadBtns = container.querySelectorAll('.drive115-download-btn');
-    downloadBtns.forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLButtonElement;
-            const magnetUrl = target.getAttribute('data-magnet-url');
-            
-            if (magnetUrl) {
-                await handleSingleDownload(target, videoId, magnetUrl);
-            }
-        });
-    });
+// bindDrive115Events 已集成到按钮创建逻辑中
 
-    // 批量下载按钮
-    const batchBtn = container.querySelector('.drive115-batch-download-btn');
-    if (batchBtn) {
-        batchBtn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLButtonElement;
-            await handleBatchDownload(target, videoId, magnetLinks);
-        });
-    }
-}
-
-/**
- * 处理单个下载
- */
-async function handleSingleDownload(
-    button: HTMLButtonElement, 
-    videoId: string, 
-    magnetUrl: string
-): Promise<void> {
-    try {
-        button.disabled = true;
-        button.textContent = '下载中...';
-
-        const result = await routerDownloadOffline({
-            videoId,
-            magnetUrl,
-            autoVerify: true,
-            notify: true
-        });
-
-        if (result.success) {
-            button.textContent = '下载成功';
-            button.style.backgroundColor = '#28a745';
-            showToast(`${videoId} 离线下载成功`, 'success');
-            
-            if (result.verificationResult?.verified) {
-                showToast(`找到 ${result.verificationResult.foundFiles?.length || 0} 个文件`, 'info');
-            }
-        } else {
-            throw new Error(result.error || '下载失败');
-        }
-    } catch (error) {
-        console.error('115下载失败:', error);
-        button.textContent = '下载失败';
-        button.style.backgroundColor = '#dc3545';
-        showToast(`${videoId} 离线下载失败: ${error}`, 'error');
-    } finally {
-        setTimeout(() => {
-            button.disabled = false;
-            button.textContent = '离线下载';
-            button.style.backgroundColor = '#007bff';
-        }, 3000);
-    }
-}
+// handleSingleDownload 功能已集成到主流程中
 
 
 
-/**
- * 从元素中提取视频ID
- */
-function extractVideoIdFromElement(element: HTMLElement): string | null {
-    // 尝试从链接中提取
-    const link = element.querySelector('a[href*="/v/"]') as HTMLAnchorElement;
-    if (link) {
-        const match = link.href.match(/\/v\/([^/?]+)/);
-        if (match) {
-            return match[1];
-        }
-    }
-
-    // 尝试从文本中提取
-    const text = element.textContent || '';
-    const codeMatch = text.match(/[A-Z]+-\d+/);
-    if (codeMatch) {
-        return codeMatch[0];
-    }
-
-    return null;
-}
-
-
-
-
+// extractVideoIdFromElement 已集成到videoId模块

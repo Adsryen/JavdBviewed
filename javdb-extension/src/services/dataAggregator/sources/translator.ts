@@ -28,11 +28,20 @@ export class TranslatorService {
    */
   async translate(text: string): Promise<ApiResponse<TranslationResult>> {
     try {
+      console.log('[Translator] Starting translation with config:', {
+        enabled: this.config.enabled,
+        service: this.config.service,
+        hasApiKey: !!this.config.apiKey,
+        text: text
+      });
+
       if (!this.config.enabled) {
+        console.error('[Translator] Service is disabled');
         throw new DataSourceError('Translator service is disabled', 'Translator');
       }
 
       if (!text || text.trim().length === 0) {
+        console.error('[Translator] Empty text provided');
         throw new DataSourceError('Text to translate is empty', 'Translator');
       }
 
@@ -56,6 +65,8 @@ export class TranslatorService {
 
       let result: TranslationResult;
 
+      console.log('[Translator] Using service:', this.config.service);
+
       switch (this.config.service) {
         case 'google':
           result = await this.translateWithGoogle(text);
@@ -69,6 +80,8 @@ export class TranslatorService {
         default:
           throw new DataSourceError(`Unsupported translation service: ${this.config.service}`, 'Translator');
       }
+
+      console.log('[Translator] Translation completed:', result);
 
       return {
         success: true,
@@ -119,7 +132,9 @@ export class TranslatorService {
 
   private async translateWithGoogle(text: string): Promise<TranslationResult> {
     try {
-      // 使用Google Translate的免费API
+      console.log('[Translator] Starting Google Translate for:', text);
+      
+      // Google Translate免费API
       const url = 'https://translate.googleapis.com/translate_a/single';
       const params = new URLSearchParams({
         client: 'gtx',
@@ -129,10 +144,14 @@ export class TranslatorService {
         q: text,
       });
 
+      console.log('[Translator] Google API URL:', `${url}?${params}`);
+
       const response = await this.httpClient.get<any[]>(`${url}?${params}`, {
         timeout: this.config.timeout,
         retries: this.config.maxRetries,
       });
+
+      console.log('[Translator] Google API response:', response);
 
       if (!response || !response[0] || !response[0][0]) {
         throw new Error('Invalid response from Google Translate');
@@ -141,7 +160,7 @@ export class TranslatorService {
       const translatedText = response[0][0][0];
       const detectedLanguage = response[2] || this.config.sourceLanguage;
 
-      return {
+      const result = {
         originalText: text,
         translatedText,
         sourceLanguage: detectedLanguage,
@@ -150,7 +169,11 @@ export class TranslatorService {
         service: 'google',
         timestamp: Date.now(),
       };
+
+      console.log('[Translator] Google translation result:', result);
+      return result;
     } catch (error) {
+      console.error('[Translator] Google Translate error:', error);
       throw new DataSourceError(
         `Google Translate failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'GoogleTranslate'

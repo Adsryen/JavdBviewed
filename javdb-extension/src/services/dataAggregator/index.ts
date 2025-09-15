@@ -197,8 +197,11 @@ export class DataAggregator {
    */
   async translateTextWithAI(text: string): Promise<ApiResponse<TranslationResult>> {
     // 取消翻译缓存：总是直接调用 AI 翻译服务
+    console.log('[DataAggregator] translateTextWithAI called with text:', text);
+    console.log('[DataAggregator] AI translator config:', this.aiTranslator.getConfig());
 
     const result = await this.aiTranslator.translate(text);
+    console.log('[DataAggregator] AI translation result:', result);
 
     return result;
   }

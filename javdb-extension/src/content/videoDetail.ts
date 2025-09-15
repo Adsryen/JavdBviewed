@@ -58,8 +58,63 @@ function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] 
 
 // --- Page-Specific Logic ---
 
+/**
+ * 检查页面是否正常加载（通过navbar-item元素检测）
+ * 如果页面被安全拦截或请求频繁，navbar-item元素可能不存在
+ * 这是防止在异常页面状态下进行数据回写的安全措施
+ */
+export function isPageProperlyLoaded(): boolean {
+    try {
+        // 优先检查JavDB品牌logo - 这是最可靠的页面正常加载标志
+        const javdbLogoSelectors = [
+            'a.navbar-item[href="https://javdb.com"] svg',  // JavDB logo SVG
+            'a.navbar-item[href*="javdb.com"] svg',         // 包含javdb.com的logo
+            '.navbar-item svg[viewBox="0 0 326 111"]',      // 特定viewBox的JavDB SVG
+        ];
+
+        for (const selector of javdbLogoSelectors) {
+            const logoElements = document.querySelectorAll(selector);
+            if (logoElements.length > 0) {
+                log(`Page properly loaded - found JavDB logo with selector: ${selector}`);
+                return true;
+            }
+        }
+
+        // 备用检查：通用导航栏元素
+        const fallbackSelectors = [
+            '.navbar-item',           // 标准导航项
+            '.navbar .navbar-item',   // 嵌套在navbar中的导航项
+            'nav .navbar-item',       // 在nav标签中的导航项
+            '.navbar-brand',          // 导航栏品牌区域
+            '.navbar-menu',           // 导航栏菜单
+        ];
+
+        for (const selector of fallbackSelectors) {
+            const elements = document.querySelectorAll(selector);
+            if (elements.length > 0) {
+                log(`Page properly loaded - found ${elements.length} elements with fallback selector: ${selector}`);
+                return true;
+            }
+        }
+
+        // 如果没有找到导航栏元素，可能页面被拦截或加载异常
+        log('Page may be blocked or loading failed - no JavDB logo or navbar elements found');
+        return false;
+    } catch (error) {
+        log('Error checking page load status:', error);
+        return false;
+    }
+}
+
 export async function handleVideoDetailPage(): Promise<void> {
+    // 首先检查页面是否正常加载
+    if (!isPageProperlyLoaded()) {
+        log('Page not properly loaded (no navbar-item found), skipping video detail processing to avoid data corruption');
+        return;
+    }
+
     // 静默分析视频详情页
+    log('Page properly loaded, proceeding with video detail processing');
 
     const videoId = extractVideoIdFromPage();
     if (!videoId) {
