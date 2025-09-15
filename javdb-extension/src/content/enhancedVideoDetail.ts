@@ -76,27 +76,45 @@ export class VideoDetailEnhancer {
 
       // 根据 provider 选择翻译方式（AI 前置校验：是否启用且选择了模型）
       const provider = settings.translation?.provider || 'traditional';
+      console.log('[Translation] Provider selected:', provider, 'Original text:', original);
+      console.log('[Translation] Translation settings:', settings.translation);
+      console.log('[Translation] Data enhancement settings:', settings.dataEnhancement);
+      
       if (provider === 'ai') {
         const ai = aiService.getSettings();
+        console.log('[Translation] AI settings check:', {
+          enabled: ai.enabled,
+          hasApiKey: !!ai.apiKey,
+          selectedModel: ai.selectedModel
+        });
+        
         if (!ai.enabled) {
-          showToast('标题翻译失败：AI 功能未启用，请在“AI 设置”中开启', 'error');
+          console.error('[Translation] AI service not enabled');
+          showToast('标题翻译失败：AI 功能未启用，请在"AI 设置"中开启', 'error');
           return;
         }
         if (!ai.apiKey) {
-          showToast('标题翻译失败：未配置 API Key，请在“AI 设置”中填写', 'error');
+          console.error('[Translation] No API key configured');
+          showToast('标题翻译失败：未配置 API Key，请在"AI 设置"中填写', 'error');
           return;
         }
         if (!ai.selectedModel) {
-          showToast('标题翻译失败：未选择模型，请在“AI 设置”中选择模型', 'error');
+          console.error('[Translation] No model selected');
+          showToast('标题翻译失败：未选择模型，请在"AI 设置"中选择模型', 'error');
           return;
         }
+        console.log('[Translation] AI validation passed, proceeding with translation');
       }
+      console.log('[Translation] Calling translation service...');
       const resp = provider === 'ai'
         ? await defaultDataAggregator.translateTextWithAI(original)
         : await defaultDataAggregator.translateText(original);
 
+      console.log('[Translation] Translation response:', resp);
+
       if (!resp.success || !resp.data?.translatedText) {
         const reason = resp.error || '翻译失败';
+        console.error('[Translation] Translation failed:', reason);
         showToast(`标题翻译失败：${reason}`, 'error');
         return;
       }

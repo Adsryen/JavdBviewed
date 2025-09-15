@@ -2,8 +2,15 @@
 
 import { VIDEO_STATUS } from '../utils/config';
 import { STATE, SELECTORS, log } from './state';
+import { isPageProperlyLoaded } from './videoDetail';
 
 export function processVisibleItems(): void {
+    // 首先检查页面是否正常加载
+    if (!isPageProperlyLoaded()) {
+        log('Page not properly loaded (no navbar-item found), skipping list processing to avoid data corruption');
+        return;
+    }
+
     const items = document.querySelectorAll<HTMLElement>(SELECTORS.MOVIE_LIST_ITEM);
 
     // 只在没有找到项目时输出调试信息
