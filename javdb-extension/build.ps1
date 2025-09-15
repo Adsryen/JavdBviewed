@@ -1,7 +1,7 @@
 # JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
-# 模式标记：仅创建 GitHub Release（不更新版本、不构建）
+# 模式标记（已不再使用，仅保留占位以避免大范围改动）
 $onlyRelease = $false
 
 # 设置控制台编码为UTF-8
@@ -28,9 +28,7 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  [4] Just Build (build without changing the version number)" -ForegroundColor White
     Write-Host "      Just Build - no version change" -ForegroundColor Gray
-    Write-Host "  [5] Only Create GitHub Release (no version change, no build)" -ForegroundColor White
-    Write-Host "      Only Release - use existing version and build artifact" -ForegroundColor Gray
-    Write-Host "  [6] Exit" -ForegroundColor White
+    Write-Host "  [5] Exit" -ForegroundColor White
     Write-Host ""
 }
 
@@ -65,7 +63,7 @@ function Show-Success {
 # 主循环
 while ($true) {
     Show-Menu
-    $choice = Get-UserChoice "Enter your choice (1-6)" "3"
+    $choice = Get-UserChoice "Enter your choice (1-5)" "3"
 
     switch ($choice) {
         "1" {
@@ -85,13 +83,6 @@ while ($true) {
             break
         }
         "5" {
-            # 仅创建 GitHub Release 模式
-            $onlyRelease = $true
-            # 标记一个非空的版本类型以通过后续校验
-            $versionType = "manual"
-            break
-        }
-        "6" {
             exit 0
         }
         default {
@@ -126,8 +117,8 @@ if ($versionType -and -not $onlyRelease) {
     }
 }
 
-# 安装依赖和构建（仅当非“仅创建Release”模式时执行）
-if (-not $onlyRelease) {
+# 安装依赖和构建
+if ($true) {
     Write-Host ""
     Write-Host "Installing dependencies and building..." -ForegroundColor Green
 
@@ -151,29 +142,21 @@ if (-not $onlyRelease) {
         Show-Error
         exit 1
     }
-} else {
-    Write-Host ""
-    Write-Host "Only Release mode: skipping dependency installation and build." -ForegroundColor Yellow
 }
 
-# 询问是否创建GitHub Release（仅在非“仅创建Release”模式下询问；否则直接创建）
-if (-not $onlyRelease) {
-    Write-Host ""
-    Write-Host "Do you want to create a GitHub Release now?" -ForegroundColor Yellow
-    Write-Host "  [Y] Yes, create release" -ForegroundColor White
-    Write-Host "  [N] No, skip release (default)" -ForegroundColor White
-    Write-Host ""
+# 询问是否创建GitHub Release
+Write-Host ""
+Write-Host "Do you want to create a GitHub Release now?" -ForegroundColor Yellow
+Write-Host "  [Y] Yes, create release" -ForegroundColor White
+Write-Host "  [N] No, skip release (default)" -ForegroundColor White
+Write-Host ""
 
-    $releaseConfirm = Get-UserChoice "Enter your choice (Y,N)" "N"
+$releaseConfirm = Get-UserChoice "Enter your choice (Y,N)" "N"
 
-    if ($releaseConfirm.ToLower() -ne "y") {
-        Write-Host "OK. Skipping GitHub Release." -ForegroundColor Yellow
-        Show-Success
-        exit 0
-    }
-} else {
-    Write-Host ""
-    Write-Host "Only Release mode: proceeding to create GitHub Release..." -ForegroundColor Yellow
+if ($releaseConfirm.ToLower() -ne "y") {
+    Write-Host "OK. Skipping GitHub Release." -ForegroundColor Yellow
+    Show-Success
+    exit 0
 }
 
 if (-not $versionType) {
@@ -260,24 +243,34 @@ try {
     exit 1
 }
 
-# 获取最新提交信息
+# 获取从上次发布到当前的提交范围用于 Release Notes
 Write-Host "Getting latest commit information..." -ForegroundColor Gray
 try {
-    $commitMessage = & git log -1 --pretty=format:"%s"
-    $commitBody = & git log -1 --pretty=format:"%b"
-    $commitHash = & git log -1 --pretty=format:"%h"
+    # 找到上一次发布的 tag（不包含本次将要创建的 $tagName）
+    $allTagsRaw = & git tag --sort=-creatordate
+    $allTags = @()
+    if ($allTagsRaw) { $allTags = ($allTagsRaw -split "`n") | Where-Object { $_ -and $_.Trim() -ne '' } }
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to get commit information"
+    $prevTag = $null
+    foreach ($t in $allTags) { if ($t -ne $tagName) { $prevTag = $t; break } }
+
+    # 生成从上次 tag（若存在）到当前 HEAD 的提交日志，排除 merge commits
+    if ($prevTag) {
+        $changes = & git log --no-merges --pretty=format:"- %s (%h)" "$prevTag..HEAD"
+    } else {
+        $changes = & git log --no-merges --pretty=format:"- %s (%h)"
     }
 
-    # 构建 Release 描述
-    $releaseNotes = "## $commitMessage`n`n"
-    if (![string]::IsNullOrWhiteSpace($commitBody)) {
-        $releaseNotes += "$commitBody`n`n"
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Failed to get commit range information" }
+
+    # 如果没有提交变化，也要给个占位
+    if ([string]::IsNullOrWhiteSpace($changes)) { $changes = "- No changes since last release." }
+
+    # 构建 Release 描述（包含范围说明与版本信息）
+    $releaseNotes = "## Changes since "
+    if ($prevTag) { $releaseNotes += "$prevTag`n`n" } else { $releaseNotes += "initial commit`n`n" }
+    $releaseNotes += "$changes`n`n"
     $releaseNotes += "**Version:** $versionStr`n"
-    $releaseNotes += "**Commit:** $commitHash`n"
     $releaseNotes += "**Build Type:** $versionType release"
 
     Write-Host "Release notes preview:" -ForegroundColor Yellow
