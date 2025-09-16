@@ -214,26 +214,29 @@ async function handleRefresh(): Promise<void> {
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
     }
 }
-
 /**
  * 处理 115 刷新按钮点击
  */
 async function handleDrive115Refresh(): Promise<void> {
-    const btn = document.getElementById('drive115-refresh-btn') as HTMLButtonElement | null;
-    if (!btn) return;
+  const btn = document.getElementById('drive115-refresh-btn') as HTMLButtonElement | null;
+  if (!btn) return;
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    await loadDrive115UserInfo({ allowNetwork: true }); // 仅手动触发时允许网络刷新
+    // 由 loadDrive115UserInfo 内部负责根据结果展示成功/失败/提示，避免重复或误导性提示
+    // 刷新完成后，触发侧栏配额的刷新以保持 UI 一致
     try {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        await loadDrive115UserInfo({ allowNetwork: true }); // 仅手动触发时允许网络刷新
-        showToast('115 账号信息已更新', 'success');
-    } catch (error: any) {
-        const msg = describe115Error(error) || error?.message || '刷新 115 账号信息时发生错误';
-        showToast(msg, 'error');
-        logAsync('ERROR', '115 刷新处理失败', { error: error?.message });
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-    }
+      window.dispatchEvent(new CustomEvent('drive115:refreshQuota' as any));
+    } catch {}
+  } catch (error: any) {
+    const msg = describe115Error(error) || error?.message || '刷新 115 账号信息时发生错误';
+    showToast(msg, 'error');
+    logAsync('ERROR', '115 刷新处理失败', { error: error?.message });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+  }
 }
 
 /**
@@ -440,6 +443,8 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         // 读取设置（仅判断开关）
         const settings = await getSettings();
         const s = (settings as any)?.drive115 || {};
+        // 初始化/刷新“刷新按钮”的悬浮提示（上次刷新、最小间隔、剩余冷却、2小时次数）
+        try { updateRefreshTitleFromSettings(s); } catch {}
         const enabled = !!s.enabled;
         const enableV2 = !!s.enableV2;
 
@@ -496,7 +501,8 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
             const newSettings: any = { ...settings };
             newSettings.drive115 = { ...(settings as any).drive115, v2UserInfoExpired: true };
             await saveSettings(newSettings);
-            // 不再提前 return；继续尝试获取配额，以保证配额区块可显示
+            try { await refreshBtnTooltipFromStorage(); } catch {}
+
         } else {
             set115Status('已更新', 'ok');
             showToast('已更新 115 用户信息', 'success');
@@ -510,32 +516,11 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
                 v2UserInfoExpired: false,
             };
             await saveSettings(newSettings);
+            try { await refreshBtnTooltipFromStorage(); } catch {}
         }
 
-        // 3) 成功后再获取额度配额：使用自动流程（仅在 token 判定失效时才触发刷新，刷新受最小间隔限制）
-        try {
-            const quotaAuto = await svc.getQuotaInfoAuto({ forceAutoRefresh: true, forceRefresh: true });
-            if (quotaAuto.success && quotaAuto.data) {
-                render115Quota(quotaAuto.data);
-            } else {
-                // 回退：尝试使用刚刚保存到设置的镜像
-                const s2 = await getSettings();
-                const qc2 = (s2 as any)?.drive115?.quotaCache;
-                if (qc2 && qc2.data) {
-                    render115Quota(qc2.data as any);
-                } else {
-                    const qmsg = quotaAuto.message || '获取配额失败';
-                    // 最终兜底：渲染占位 0，并提示原因
-                    render115Quota({} as any);
-                    render115QuotaHint(qmsg);
-                    showToast(qmsg, 'info');
-                }
-            }
-        } catch (e: any) {
-            const qmsg = describe115Error(e) || e?.message || '获取配额失败';
-            render115QuotaHint(qmsg);
-            showToast(qmsg, 'error');
-        }
+        // helper moved to module scope
+
     } catch (e: any) {
         const msg = describe115Error(e) || e?.message || '加载失败';
         set115Status(msg, 'error');
@@ -544,64 +529,68 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         showToast(msg, 'error');
     } finally {
         isLoadingDrive115 = false;
+        try { await refreshBtnTooltipFromStorage(); } catch {}
     }
+}
 
-    function set115Status(msg: string, kind: 'ok'|'error'|'info'|'warn' = 'info') {
-        if (!statusEl) return;
-        statusEl.textContent = msg;
-        const color = kind === 'ok' ? '#2e7d32' : kind === 'error' ? '#c62828' : kind === 'warn' ? '#ef6c00' : '#888';
-        (statusEl as any).style && ((statusEl as any).style.color = color);
-    }
+function formatTsToYMD(tsSec: number): string {
+    try {
+        if (!tsSec || isNaN(tsSec as any)) return '';
+        const d = new Date(tsSec * 1000);
+        const y = d.getFullYear();
+        const m = `${d.getMonth() + 1}`.padStart(2, '0');
+        const day = `${d.getDate()}`.padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    } catch { return ''; }
+}
 
-    function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
-        const container = document.getElementById('drive115-user-basic') as HTMLDivElement | null;
-        if (!container) return;
-        // 统一字段映射（兼容 v2 与旧版）
-        const uid = (u as any).uid || (u as any).user_id || (u as any).id || '';
-        const name = (u as any).user_name || (u as any).name || (u as any).nick || (u as any).username || (uid ? `UID ${uid}` : '-');
-        const avatar = (u as any).user_face_m || (u as any).user_face_l || (u as any).user_face_s || (u as any).avatar_middle || (u as any).avatar || (u as any).avatar_small || '';
+// ===== 模块级工具函数：避免块级声明导致的作用域/提升问题 =====
+function set115Status(msg: string, kind: 'ok'|'error'|'info'|'warn' = 'info') {
+    const el = document.getElementById('drive115-user-status') as HTMLSpanElement | null;
+    if (!el) return;
+    el.textContent = msg;
+    const color = kind === 'ok' ? '#2e7d32' : kind === 'error' ? '#c62828' : kind === 'warn' ? '#ef6c00' : '#888';
+    (el as any).style && ((el as any).style.color = color);
+}
 
-        // VIP 信息（优先 v2 的 vip_info）
-        const vipInfo = (u as any).vip_info || {};
-        const vipLevelName: string = vipInfo.level_name || '';
-        const vipExpireTs: number | undefined = typeof vipInfo.expire === 'number' ? vipInfo.expire : undefined;
-        const vipExpireText = vipExpireTs ? formatTsToYMD(vipExpireTs) : ((u as any).vip_expire || '');
-        const parseBoolVip = (val: any): boolean | null => {
-            if (typeof val === 'boolean') return val;
-            if (typeof val === 'number') return val > 0;
-            if (typeof val === 'string') {
-                const s = val.trim().toLowerCase();
-                if (['1','true','yes','是','vip','年费vip','月费vip'].some(k => s.includes(k))) return true;
-                if (['0','false','no','否'].some(k => s === k)) return false;
-            }
-            return null;
-        };
-        const vipRaw: any = (u as any).is_vip ?? (u as any).vip ?? (u as any).vip_status;
-        const isVip = vipLevelName ? '是' : (() => {
-            const b = parseBoolVip(vipRaw);
-            if (b === true) return '是';
-            if (b === false) return '否';
-            return '-';
-        })();
-
-        // 空间信息（优先 v2 的 rt_space_info 中的 size 与 size_format）
-        const space = (u as any).rt_space_info || {};
-        const totalSizeNum: number | undefined = space?.all_total?.size;
-        const usedSizeNum: number | undefined = space?.all_use?.size;
-        const freeSizeNum: number | undefined = space?.all_remain?.size;
-        const totalText: string = space?.all_total?.size_format || formatBytes((u as any).space_total);
-        const usedText: string = space?.all_use?.size_format || formatBytes((u as any).space_used);
-        const freeText: string = space?.all_remain?.size_format || formatBytes((u as any).space_free);
-        const pct = (() => {
-          if (typeof usedSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) {
-            return Math.max(0, Math.min(100, (usedSizeNum / totalSizeNum) * 100));
-          }
-          // 回退：尝试根据 free/total 推算
-          if (typeof freeSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) {
-            return Math.max(0, Math.min(100, ((totalSizeNum - freeSizeNum) / totalSizeNum) * 100));
-          }
-          // 再回退：根据旧字段数值型估算
-          const toNumber = (x: any): number | undefined => {
+function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
+    const container = document.getElementById('drive115-user-basic') as HTMLDivElement | null;
+    if (!container) return;
+    const uid = (u as any).uid || (u as any).user_id || (u as any).id || '';
+    const name = (u as any).user_name || (u as any).name || (u as any).nick || (u as any).username || (uid ? `UID ${uid}` : '-');
+    const avatar = (u as any).user_face_m || (u as any).user_face_l || (u as any).user_face_s || (u as any).avatar_middle || (u as any).avatar || (u as any).avatar_small || '';
+    const vipInfo = (u as any).vip_info || {};
+    const vipLevelName: string = vipInfo.level_name || '';
+    const vipExpireTs: number | undefined = typeof vipInfo.expire === 'number' ? vipInfo.expire : undefined;
+    const vipExpireText = vipExpireTs ? formatTsToYMD(vipExpireTs) : ((u as any).vip_expire || '');
+    const parseBoolVip = (val: any): boolean | null => {
+        if (typeof val === 'boolean') return val;
+        if (typeof val === 'number') return val > 0;
+        if (typeof val === 'string') {
+            const s = val.trim().toLowerCase();
+            if (['1','true','yes','是','vip','年费vip','月费vip'].some(k => s.includes(k))) return true;
+            if (['0','false','no','否'].some(k => s === k)) return false;
+        }
+        return null;
+    };
+    const vipRaw: any = (u as any).is_vip ?? (u as any).vip ?? (u as any).vip_status;
+    const isVip = vipLevelName ? '是' : (() => {
+        const b = parseBoolVip(vipRaw);
+        if (b === true) return '是';
+        if (b === false) return '否';
+        return '-';
+    })();
+    const space = (u as any).rt_space_info || {};
+    const totalSizeNum: number | undefined = space?.all_total?.size;
+    const usedSizeNum: number | undefined = space?.all_use?.size;
+    const freeSizeNum: number | undefined = space?.all_remain?.size;
+    const totalText: string = space?.all_total?.size_format || formatBytes((u as any).space_total);
+    const usedText: string = space?.all_use?.size_format || formatBytes((u as any).space_used);
+    const freeText: string = space?.all_remain?.size_format || formatBytes((u as any).space_free);
+    const pct = (() => {
+        if (typeof usedSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) return Math.max(0, Math.min(100, (usedSizeNum / totalSizeNum) * 100));
+        if (typeof freeSizeNum === 'number' && typeof totalSizeNum === 'number' && totalSizeNum > 0) return Math.max(0, Math.min(100, ((totalSizeNum - freeSizeNum) / totalSizeNum) * 100));
+        const toNumber = (x: any): number | undefined => {
             if (typeof x === 'number') return isFinite(x) ? x : undefined;
             if (typeof x === 'string') {
                 const s = x.replace(/[\,\s]/g, '');
@@ -609,147 +598,170 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
                 return isFinite(n) ? n : undefined;
             }
             return undefined;
-          };
-          const totalNum = toNumber((u as any).space_total);
-          const usedNum = toNumber((u as any).space_used);
-          if (typeof usedNum === 'number' && typeof totalNum === 'number' && totalNum > 0) {
-            return Math.max(0, Math.min(100, (usedNum / totalNum) * 100));
-          }
-          return NaN;
-        })();
-        const pctText = isNaN(pct as any) ? '-' : `${(pct >= 100 ? 100 : pct).toFixed(pct >= 10 ? 0 : 1)}%`;
-        const barColor = isNaN(pct as any) ? '#90caf9' : (pct < 60 ? '#4caf50' : pct < 85 ? '#ff9800' : '#e53935');
-        const updatedText = typeof updatedAtMs === 'number' ? new Date(updatedAtMs).toLocaleString() : '';
-        // VIP 到期渲染辅助：根据剩余天数变色与提示
-        const nowSec = Math.floor(Date.now() / 1000);
-        const daysLeft = typeof vipExpireTs === 'number' ? Math.floor((vipExpireTs - nowSec) / 86400) : undefined;
-        const expPillBg = (() => {
-          if (typeof daysLeft !== 'number') return '#f5f5f5';
-          if (daysLeft <= 7) return '#fdecea'; // 红系淡色
-          if (daysLeft <= 30) return '#fff3e0'; // 橙系淡色
-          return '#f5f5f5';
-        })();
-        const expPillColor = (() => {
-          if (typeof daysLeft !== 'number') return '#555';
-          if (daysLeft <= 7) return '#c62828';
-          if (daysLeft <= 30) return '#ef6c00';
-          return '#555';
-        })();
-        const expireTitle = vipExpireTs ? `到期：${vipExpireText}（约剩 ${typeof daysLeft === 'number' ? daysLeft : '?'} 天）` : '';
-
-        container.innerHTML = `
-          <div style="display:flex; align-items:center; gap:10px;">
-            ${avatar
-              ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
-              : `<div style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
-            <div style="flex:1; min-width:0;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <div style="font-weight:700; font-size:14px; color:#222;">${name || '-'}</div>
-                ${isVip === '是' ? `
-                  <span title="${vipLevelName || 'VIP'}" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
-                    <i class=\"fas fa-crown\" style=\"color:#fff; font-size:11px;\"></i>
-                    ${vipLevelName || 'VIP'}
-                  </span>
-                ` : ''}
-              </div>
-              <div style="font-size:12px; color:#666; margin-top:2px;">UID: ${uid || '-'}</div>
-              ${vipExpireText ? `
-                <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:${expPillColor};\" title=\"${expireTitle}\">
-                  <span style=\"display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${expPillBg}; color:${expPillColor};\">
-                    <i class=\"fas fa-calendar-alt\"></i>
-                    到期 · ${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}
-                  </span>
-                </div>
-              ` : ''}
-            </div>
-          </div>
-          <div style="margin-top:8px; font-size:12px; color:#444;">
-            <div>总 ${totalText} · 已用 ${usedText} · 剩余 ${freeText}</div>
-            ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：${(u as any).email}</div>` : ''}
-            ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：${(u as any).phone}</div>` : ''}
-          </div>
-          <div style="margin-top:8px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
-              <span>空间使用</span>
-              <span>${pctText}</span>
-            </div>
-            <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
-              <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
-            </div>
-          </div>
-          ${updatedText ? `<div style=\"margin-top:6px; font-size:11px; color:#888;\">更新于：${updatedText}</div>` : ''}
-        `;
-    }
-
-    function render115Quota(info: Drive115V2QuotaInfo) {
-        const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
-        if (!container) return;
-        const toNum = (v: any): number | undefined => typeof v === 'number' && isFinite(v) ? v : undefined;
-        const list = Array.isArray(info.list) ? info.list : [];
-        const totalNum = toNum(info.total) ?? 0;
-        const usedNum = toNum(info.used) ?? 0;
-        const surplusNum = toNum(info.surplus) ?? (totalNum - usedNum >= 0 ? totalNum - usedNum : 0);
-        const totalTxt = totalNum.toString();
-        const usedTxt = usedNum.toString();
-        const surplusTxt = surplusNum.toString();
-        const rows = list.slice(0, 6).map(it => {
-            const name = it.name ?? `类型${it.type ?? ''}`;
-            const used = typeof it.used === 'number' ? it.used : undefined;
-            const surplus = typeof it.surplus === 'number' ? it.surplus : undefined;
-            const exp = it.expire_info?.expire_text || '';
-            return `<div style="display:flex; justify-content:space-between; font-size:12px; color:#444;">
-                <span>${name}${exp ? `（${exp}）` : ''}</span>
-                <span>${used !== undefined ? `已用 ${used}` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 ${surplus}` : ''}</span>
-            </div>`;
-        }).join('');
-        const summary = `<div style=\"font-size:12px; color:#666;\">总额：${totalTxt}，总已用：${usedTxt}，总剩余：${surplusTxt}</div>`;
-        container.innerHTML = `
-          <div style="padding-top:8px; border-top:1px dashed #e0e0e0;">
-            <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#333; margin-bottom:4px;">
-              <i class="fas fa-ticket-alt"></i><span>离线配额</span>
-              <span style="margin-left:auto; font-size:12px; color:#888;">总额：${totalTxt}</span>
-            </div>
-            ${rows || '<div style=\"font-size:12px; color:#888;\">暂无配额明细</div>'}
-            ${summary}
-          </div>
-        `;
-    }
-
-    function render115QuotaHint(msg: string) {
-        const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
-        if (!container) return;
-        container.innerHTML = `
-          <div style="font-size:12px; color:#ef6c00;">
-            <i class="fas fa-exclamation-triangle"></i> ${msg}
-          </div>
-        `;
-    }
-
-    function formatBytes(n?: number | string): string {
-        const toNum = (x: any): number | undefined => {
-            if (typeof x === 'number') return isFinite(x) ? x : undefined;
-            if (typeof x === 'string') {
-                const s = x.replace(/[\,\s]/g, '');
-                const v = Number(s);
-                return isFinite(v) ? v : undefined;
-            }
-            return undefined;
         };
-        const num = toNum(n);
-        if (typeof num !== 'number') return '-';
-        const units = ['B','KB','MB','GB','TB','PB'];
-        let v = num; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-        return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
-    }
+        const totalNum = toNumber((u as any).space_total);
+        const usedNum = toNumber((u as any).space_used);
+        if (typeof usedNum === 'number' && typeof totalNum === 'number' && totalNum > 0) return Math.max(0, Math.min(100, (usedNum / totalNum) * 100));
+        return NaN;
+    })();
+    const pctText = isNaN(pct as any) ? '-' : `${(pct >= 100 ? 100 : pct).toFixed(pct >= 10 ? 0 : 1)}%`;
+    const barColor = isNaN(pct as any) ? '#90caf9' : (pct < 60 ? '#4caf50' : pct < 85 ? '#ff9800' : '#e53935');
+    const updatedText = typeof updatedAtMs === 'number' ? new Date(updatedAtMs).toLocaleString() : '';
+    const nowSec = Math.floor(Date.now() / 1000);
+    const daysLeft = typeof vipExpireTs === 'number' ? Math.floor((vipExpireTs - nowSec) / 86400) : undefined;
+    const expPillBg = ((): string => {
+        if (typeof daysLeft !== 'number') return '#f5f5f5';
+        if (daysLeft <= 7) return '#fdecea';
+        if (daysLeft <= 30) return '#fff3e0';
+        return '#f5f5f5';
+    })();
+    const expPillColor = ((): string => {
+        if (typeof daysLeft !== 'number') return '#555';
+        if (daysLeft <= 7) return '#c62828';
+        if (daysLeft <= 30) return '#ef6c00';
+        return '#555';
+    })();
+    const expireTitle = vipExpireTs ? `到期：${vipExpireText}（约剩 ${typeof daysLeft === 'number' ? daysLeft : '?'} 天）` : '';
 
-    function formatTsToYMD(tsSec: number): string {
-        try {
-            if (!tsSec || isNaN(tsSec as any)) return '';
-            const d = new Date(tsSec * 1000);
-            const y = d.getFullYear();
-            const m = `${d.getMonth() + 1}`.padStart(2, '0');
-            const day = `${d.getDate()}`.padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        } catch { return ''; }
-    }
+    container.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        ${avatar
+          ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
+          : `<div style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-weight:700; font-size:14px; color:#222;">${name || '-'}</div>
+            ${isVip === '是' ? `
+              <span title="${vipLevelName || 'VIP'}" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
+                <i class=\"fas fa-crown\" style=\"color:#fff; font-size:11px;\"></i>
+                ${vipLevelName || 'VIP'}
+              </span>
+            ` : ''}
+          </div>
+          <div style="font-size:12px; color:#666; margin-top:2px;">UID: ${uid || '-'}</div>
+          ${vipExpireText ? `
+            <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:${expPillColor};\" title=\"${expireTitle}\"> 
+              <span style=\"display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${expPillBg}; color:${expPillColor};\">
+                <i class=\"fas fa-calendar-alt\"></i>
+                到期 · ${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}
+              </span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+      <div style="margin-top:8px; font-size:12px; color:#444;">
+        <div>总 ${totalText} · 已用 ${usedText} · 剩余 ${freeText}</div>
+        ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：${(u as any).email}</div>` : ''}
+        ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：${(u as any).phone}</div>` : ''}
+      </div>
+      <div style="margin-top:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
+          <span>空间使用</span>
+          <span>${pctText}</span>
+        </div>
+        <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
+          <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
+        </div>
+      </div>
+      ${updatedText ? `<div style=\"margin-top:6px; font-size:11px; color:#888;\">更新于：${updatedText}</div>` : ''}
+    `;
+}
+
+function render115Quota(info: Drive115V2QuotaInfo) {
+    const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
+    if (!container) return;
+    const toNum = (v: any): number | undefined => typeof v === 'number' && isFinite(v) ? v : undefined;
+    const list = Array.isArray(info.list) ? info.list : [];
+    const totalNum = toNum(info.total) ?? 0;
+    const usedNum = toNum(info.used) ?? 0;
+    const surplusNum = toNum(info.surplus) ?? (totalNum - usedNum >= 0 ? totalNum - usedNum : 0);
+    const totalTxt = totalNum.toString();
+    const usedTxt = usedNum.toString();
+    const surplusTxt = surplusNum.toString();
+    const rows = list.slice(0, 6).map(it => {
+        const name = it.name ?? `类型${it.type ?? ''}`;
+        const used = typeof it.used === 'number' ? it.used : undefined;
+        const surplus = typeof it.surplus === 'number' ? it.surplus : undefined;
+        const exp = it.expire_info?.expire_text || '';
+        return `<div style="display:flex; justify-content:space-between; font-size:12px; color:#444;">
+            <span>${name}${exp ? `（${exp}）` : ''}</span>
+            <span>${used !== undefined ? `已用 ${used}` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 ${surplus}` : ''}</span>
+        </div>`;
+    }).join('');
+    const summary = `<div style=\"font-size:12px; color:#666;\">总额：${totalTxt}，总已用：${usedTxt}，总剩余：${surplusTxt}</div>`;
+    container.innerHTML = `
+      <div style="padding-top:8px; border-top:1px dashed #e0e0e0;">
+        <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#333; margin-bottom:4px;">
+          <i class="fas fa-ticket-alt"></i><span>离线配额</span>
+          <span style="margin-left:auto; font-size:12px; color:#888;">总额：${totalTxt}</span>
+        </div>
+        ${rows || '<div style=\"font-size:12px; color:#888;\">暂无配额明细</div>'}
+        ${summary}
+      </div>
+    `;
+}
+
+function render115QuotaHint(msg: string) {
+    const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
+    if (!container) return;
+    container.innerHTML = `
+      <div style="font-size:12px; color:#ef6c00;">
+        <i class="fas fa-exclamation-triangle"></i> ${msg}
+      </div>
+    `;
+}
+
+function formatBytes(n?: number | string): string {
+    const toNum = (x: any): number | undefined => {
+        if (typeof x === 'number') return isFinite(x) ? x : undefined;
+        if (typeof x === 'string') {
+            const s = x.replace(/[\,\s]/g, '');
+            const v = Number(s);
+            return isFinite(v) ? v : undefined;
+        }
+        return undefined;
+    };
+    const num = toNum(n);
+    if (typeof num !== 'number') return '-';
+    const units = ['B','KB','MB','GB','TB','PB'];
+    let v = num; let i = 0; while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${units[i]}`;
+}
+
+function updateRefreshTitleFromSettings(drv: any) {
+    try {
+        const btn = document.getElementById('drive115-refresh-btn') as HTMLButtonElement | null;
+        if (!btn) return;
+        const minMin = Math.max(30, Number(drv?.v2MinRefreshIntervalMin ?? 30) || 30);
+        const last = Number(drv?.v2LastTokenRefreshAtSec || 0) || 0;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const remainSec = last > 0 ? (minMin * 60 - (nowSec - last)) : 0;
+        const remainMin = remainSec > 0 ? Math.ceil(remainSec / 60) : 0;
+        const fmt = (ts: number) => {
+            if (!ts || isNaN(ts as any)) return '-';
+            const d = new Date(ts * 1000);
+            const Y = d.getFullYear();
+            const M = d.getMonth() + 1;
+            const D = d.getDate();
+            const hh = `${d.getHours()}`.padStart(2, '0');
+            const mm = `${d.getMinutes()}`.padStart(2, '0');
+            const ss = `${d.getSeconds()}`.padStart(2, '0');
+            return `${Y}/${M}/${D}  ${hh}:${mm}:${ss}`;
+        };
+        const histRaw: any[] = Array.isArray(drv?.v2TokenRefreshHistorySec) ? drv.v2TokenRefreshHistorySec : [];
+        const hist: number[] = histRaw.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
+        const twoHoursAgo = nowSec - 7200;
+        const cnt2h = hist.filter(ts => ts >= twoHoursAgo).length;
+        const max2h = Math.max(1, Number(drv?.v2MaxRefreshPer2h ?? 3) || 3);
+        const text = `上次: ${last>0?fmt(last):'-'} · 最小间隔: ${minMin}m · 冷却剩余: ${remainMin>0?remainMin+'m':'无'} · 2小时: ${cnt2h}/${max2h}`;
+        btn.title = text;
+    } catch {}
+}
+
+async function refreshBtnTooltipFromStorage() {
+    try {
+        const st = await getSettings();
+        const drv = (st as any)?.drive115 || {};
+        updateRefreshTitleFromSettings(drv);
+    } catch {}
 }
