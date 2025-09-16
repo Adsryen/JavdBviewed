@@ -88,6 +88,68 @@ function formatRelativeTime(dateString: string): string {
     }
 }
 
+// 从备份文件名解析日期（优先从文件名提取，形如 javdb-extension-backup-YYYY-MM-DD[-HH-MM-SS].(json|zip)）
+function parseDateFromFilename(filename: string): Date | null {
+    const match = filename.match(/javdb-extension-backup-(\d{4}-\d{2}-\d{2})(?:-(\d{2})-(\d{2})-(\d{2}))?\.(?:json|zip)$/i);
+    if (!match) return null;
+    const datePart = match[1];
+    const h = match[2] || '00';
+    const m = match[3] || '00';
+    const s = match[4] || '00';
+    const iso = `${datePart}T${h}:${m}:${s}Z`;
+    const t = Date.parse(iso);
+    if (isNaN(t)) return null;
+    return new Date(t);
+}
+
+// 格式化日期为 YYYY-MM-DD（UTC）
+function formatDateYMD(date: Date): string {
+    const y = date.getUTCFullYear();
+    const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${mo}-${d}`;
+}
+
+// 更新“云端备份数量 & 范围”摘要
+function updateBackupSummary(files: WebDAVFile[]): void {
+    try {
+        const countEl = document.getElementById('webdavBackupCount');
+        const rangeEl = document.getElementById('webdavBackupRange');
+
+        if (countEl) countEl.textContent = String(files.length);
+
+        if (rangeEl) {
+            const dates: Date[] = [];
+            // 优先使用文件名解析
+            for (const f of files) {
+                const d = parseDateFromFilename(f.name);
+                if (d) dates.push(d);
+            }
+            // 若文件名解析不到，再尝试 lastModified
+            if (dates.length === 0) {
+                for (const f of files) {
+                    const t = Date.parse(f.lastModified);
+                    if (!isNaN(t)) dates.push(new Date(t));
+                }
+            }
+
+            if (dates.length > 0) {
+                dates.sort((a, b) => a.getTime() - b.getTime());
+                const first = dates[0];
+                const last = dates[dates.length - 1];
+                const firstStr = formatDateYMD(first);
+                const lastStr = formatDateYMD(last);
+                rangeEl.textContent = firstStr === lastStr ? firstStr : `${firstStr} ~ ${lastStr}`;
+            } else {
+                rangeEl.textContent = '未知';
+            }
+        }
+    } catch (e) {
+        // 安静失败，不阻断恢复流程
+        console.warn('[WebDAVRestore] Failed to update backup summary:', e);
+    }
+}
+
 /**
  * 初始化向导界面
  */
@@ -877,6 +939,9 @@ function displayFileList(files: WebDAVFile[]): void {
         latestFile: sortedFiles[0]?.name,
         latestDate: sortedFiles[0]?.lastModified
     });
+
+    // 更新摘要（数量与范围）
+    updateBackupSummary(sortedFiles);
 
     sortedFiles.forEach((file, index) => {
         const li = document.createElement('li');
