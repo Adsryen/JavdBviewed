@@ -634,8 +634,14 @@ export class Drive115V2Pane implements IDrive115Pane {
           <input id="drive115V2MinRefreshIntervalMin" type="number" min="30" step="1" style="width:96px; padding:4px 6px;" />
           <span style="font-size:12px; color:#888;">不低于30</span>
         </label>
+        <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:6px;">
+          2小时自动刷新上限(次)
+          <input id="drive115V2MaxRefreshPer2h" type="number" min="1" step="1" style="width:96px; padding:4px 6px;" />
+          <span style="font-size:12px; color:#888;">默认3</span>
+        </label>
         <div style="font-size:12px; color:#666;">
           最近自动刷新时间：<span id="drive115V2LastRefreshAt" style="color:#444;">-</span>
+          <span style="margin-left:12px;">2小时内已刷新：<span id="drive115V2Refresh2hStat" style="color:#444;">-</span></span>
         </div>
       `;
       host.appendChild(wrapper);
@@ -653,6 +659,20 @@ export class Drive115V2Pane implements IDrive115Pane {
         } catch {}
       });
 
+      const maxInput = wrapper.querySelector('#drive115V2MaxRefreshPer2h') as HTMLInputElement | null;
+      maxInput?.addEventListener('input', async () => {
+        try {
+          const raw = Math.floor(Number(maxInput.value || 0));
+          const val = Math.max(1, isNaN(raw) ? 3 : raw);
+          maxInput.value = String(val);
+          const settings: any = await getSettings();
+          const ns: any = { ...settings };
+          ns.drive115 = { ...(settings?.drive115 || {}), v2MaxRefreshPer2h: val };
+          await saveSettings(ns);
+          await this.updateRefreshIntervalUIFromStorage();
+        } catch {}
+      });
+
       await this.updateRefreshIntervalUIFromStorage();
     } catch {}
   }
@@ -661,12 +681,25 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const input = document.getElementById('drive115V2MinRefreshIntervalMin') as HTMLInputElement | null;
       const lastEl = document.getElementById('drive115V2LastRefreshAt') as HTMLSpanElement | null;
+      const maxInput = document.getElementById('drive115V2MaxRefreshPer2h') as HTMLInputElement | null;
+      const statEl = document.getElementById('drive115V2Refresh2hStat') as HTMLSpanElement | null;
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
-      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 60) || 60);
+      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 30) || 30);
       if (input) input.value = String(minMin);
       const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
       if (lastEl) lastEl.textContent = last > 0 ? this.formatLocalDateTime(last) : '-';
+      const maxPer2h = Math.max(1, Number(s.v2MaxRefreshPer2h ?? 3) || 3);
+      if (maxInput) maxInput.value = String(maxPer2h);
+      // 2小时窗口统计
+      try {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const histRaw: any[] = Array.isArray(s.v2TokenRefreshHistorySec) ? s.v2TokenRefreshHistorySec : [];
+        const hist: number[] = histRaw.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
+        const twoHoursAgo = nowSec - 7200;
+        const cnt = hist.filter(ts => ts >= twoHoursAgo).length;
+        if (statEl) statEl.textContent = `${cnt}/${maxPer2h}`;
+      } catch {}
     } catch {}
   }
 
@@ -687,7 +720,7 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
-      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 60) || 60);
+      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 30) || 30);
       const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
       if (last <= 0) return true;
       const nowSec = Math.floor(Date.now() / 1000);
@@ -699,6 +732,20 @@ export class Drive115V2Pane implements IDrive115Pane {
         showToast(msg, 'error');
         return false;
       }
+      // 2小时窗口限制（与服务层一致）
+      try {
+        const maxPer2h = Math.max(1, Number(s.v2MaxRefreshPer2h ?? 3) || 3);
+        const histRaw: any[] = Array.isArray(s.v2TokenRefreshHistorySec) ? s.v2TokenRefreshHistorySec : [];
+        const hist: number[] = histRaw.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
+        const twoHoursAgo = nowSec - 7200;
+        const cnt = hist.filter(ts => ts >= twoHoursAgo).length;
+        if (cnt >= maxPer2h) {
+          const msg = `2小时内刷新次数已达上限（${maxPer2h} 次），请稍后再试`;
+          this.setUserInfoStatus(msg, 'error');
+          showToast(msg, 'error');
+          return false;
+        }
+      } catch {}
       return true;
     } catch {
       // 出错时不阻断
