@@ -26,6 +26,57 @@ import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import './ui/dataViewModal'; // 确保dataViewModal被初始化
 import { getDrive115V2Service } from '../services/drive115v2';
 import { Drive115TasksManager } from './tabs/drive115Tasks';
+import { installConsoleProxy } from '../utils/consoleProxy';
+
+// 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
+installConsoleProxy({
+    level: 'DEBUG',
+    format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
+    categories: {
+        general: { enabled: true, match: () => true, label: 'DB', color: '#8e44ad' },
+    },
+});
+
+// 从设置应用控制台显示配置到代理（Dashboard）
+async function applyConsoleSettingsFromStorage_DB() {
+    try {
+        const { getSettings } = await import('../utils/storage');
+        const settings = await getSettings();
+        const logging: any = settings.logging || {};
+        const ctrl: any = (window as any).__JDB_CONSOLE__;
+        if (!ctrl) return;
+        if (logging.consoleLevel) ctrl.setLevel(logging.consoleLevel);
+        if (logging.consoleFormat) {
+            ctrl.setFormat({
+                showTimestamp: logging.consoleFormat.showTimestamp ?? true,
+                showSource: logging.consoleFormat.showSource ?? true,
+                color: logging.consoleFormat.color ?? true,
+                timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
+            });
+        }
+        if (logging.consoleCategories) {
+            const cfg = ctrl.getConfig();
+            const allKeys = Object.keys(cfg?.categories || {});
+            for (const key of allKeys) {
+                const flag = logging.consoleCategories[key];
+                if (flag === false) ctrl.disable(key);
+                else if (flag === true) ctrl.enable(key);
+            }
+        }
+    } catch (e) {
+        console.warn('[ConsoleProxy] Failed to apply settings in DB:', e);
+    }
+}
+
+applyConsoleSettingsFromStorage_DB();
+
+try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes['settings']) {
+            applyConsoleSettingsFromStorage_DB();
+        }
+    });
+} catch {}
 
 // 根据设置显隐左侧 115 网盘侧边栏容器（规则：V1 或 V2 任一开启即显示）
 function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {

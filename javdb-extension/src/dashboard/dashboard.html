@@ -2302,6 +2302,57 @@
                                     </label>
                                     <p class="input-description">显示数据存储和读取的详细日志信息。</p>
                                 </div>
+
+                                <!-- 统一控制台输出设置 -->
+                                <div class="settings-section">
+                                    <h4><i class="fas fa-terminal"></i> 控制台输出</h4>
+
+                                    <div class="form-group">
+                                        <label for="consoleLevel">日志级别（显示阈值）</label>
+                                        <select id="consoleLevel" class="text-input">
+                                            <option value="OFF">OFF</option>
+                                            <option value="ERROR">ERROR</option>
+                                            <option value="WARN">WARN</option>
+                                            <option value="INFO">INFO</option>
+                                            <option value="DEBUG" selected>DEBUG</option>
+                                        </select>
+                                        <p class="input-description">只显示该级别及以上的控制台输出。默认 DEBUG。</p>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="consoleShowTimestamp" checked>
+                                        <label for="consoleShowTimestamp"><i class="fas fa-clock"></i> 显示时间戳 (HH:mm:ss)</label>
+                                    </div>
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="consoleShowSource" checked>
+                                        <label for="consoleShowSource"><i class="fas fa-tag"></i> 显示来源标签</label>
+                                    </div>
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="consoleColor" checked>
+                                        <label for="consoleColor"><i class="fas fa-palette"></i> 启用彩色输出</label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="consoleTimeZone">时区</label>
+                                        <input type="text" id="consoleTimeZone" class="text-input" placeholder="Asia/Shanghai" value="Asia/Shanghai">
+                                        <p class="input-description">用于格式化时间戳，默认 Asia/Shanghai。</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label><i class="fas fa-layer-group"></i> 类别开关</label>
+                                        <div class="checkbox-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:6px;">
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryCore" checked> 核心 (core)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryOrchestrator" checked> 编排 (orchestrator)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryDrive115" checked> 115 (drive115)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryPrivacy" checked> 隐私 (privacy)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryMagnet" checked> 磁链 (magnet)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryActor" checked> 演员 (actor)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryStorage" checked> 存储 (storage)</label>
+                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryGeneral" checked> 通用 (general)</label>
+                                        </div>
+                                        <p class="input-description">用于快速按类别启用/禁用扩展自身控制台输出。</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
