@@ -508,7 +508,8 @@ class Drive115V2Service {
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : autoRefreshSetting;
     const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
     // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，强制不低于30分钟
-    const cfgMinMin: number = Math.max(30, Number(drv.v2MinRefreshIntervalMin ?? 60) || 60);
+    // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，强制不低于30分钟；默认改为30
+    const cfgMinMin: number = Math.max(30, Number(drv.v2MinRefreshIntervalMin ?? 30) || 30);
     const minIntervalSec: number = cfgMinMin * 60;
     const lastRefreshAtSec: number = Number(drv.v2LastTokenRefreshAtSec || 0) || 0;
 
@@ -529,8 +530,22 @@ class Drive115V2Service {
     }
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
 
-    // 刷新频率限制：30分钟下限；仅限制通过接口的自动刷新（手动改 token 不受限）
+    // 2小时滑动窗口刷新次数限制（默认最多3次，可通过 v2MaxRefreshPer2h 配置），仅限制通过接口的自动刷新
     const nowSec = Math.floor(Date.now() / 1000);
+    const maxPer2h: number = Math.max(1, Number(drv.v2MaxRefreshPer2h ?? 3) || 3);
+    const histRaw: any[] = Array.isArray(drv.v2TokenRefreshHistorySec) ? drv.v2TokenRefreshHistorySec : [];
+    const hist: number[] = histRaw
+      .map(v => Number(v))
+      .filter(v => Number.isFinite(v) && v > 0 && (nowSec - v) <= 86400); // 仅保留最近1天内的记录，防膨胀
+    const twoHoursAgo = nowSec - 7200;
+    const count2h = hist.filter(ts => ts >= twoHoursAgo).length;
+    if (count2h >= maxPer2h) {
+      const msg = `2小时内自动刷新次数已达上限（${maxPer2h} 次），请稍后再试`;
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: `自动刷新被2小时上限限制：${msg}` });
+      return { success: false, message: msg };
+    }
+
+    // 刷新频率限制：最小间隔
     if (lastRefreshAtSec > 0 && (nowSec - lastRefreshAtSec) < minIntervalSec) {
       const remain = minIntervalSec - (nowSec - lastRefreshAtSec);
       const mins = Math.ceil(remain / 60);
@@ -571,6 +586,17 @@ class Drive115V2Service {
     newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
     // 若未配置或配置低于30，保存时也进行一次下限保护
     newSettings.drive115.v2MinRefreshIntervalMin = Math.max(30, Number(newSettings.drive115.v2MinRefreshIntervalMin ?? cfgMinMin) || cfgMinMin);
+    // 刷新历史：更新并限制长度（仅保留最近 20 条）
+    try {
+      const histRaw2: any[] = Array.isArray(newSettings.drive115.v2TokenRefreshHistorySec) ? newSettings.drive115.v2TokenRefreshHistorySec : hist;
+      const updated = [...histRaw2, nowSec]
+        .map(v => Number(v))
+        .filter(v => Number.isFinite(v) && v > 0 && (nowSec - v) <= 86400);
+      newSettings.drive115.v2TokenRefreshHistorySec = updated.slice(-20);
+      if (typeof newSettings.drive115.v2MaxRefreshPer2h !== 'number') {
+        newSettings.drive115.v2MaxRefreshPer2h = maxPer2h;
+      }
+    } catch {}
     await saveSettings(newSettings);
     await addLogV2({ timestamp: Date.now(), level: 'info', message: `自动刷新 access_token 成功并已持久化（v2），记录时间戳=${nowSec}，限频=${newSettings.drive115.v2MinRefreshIntervalMin}分钟` });
 
@@ -610,35 +636,41 @@ class Drive115V2Service {
   /**
    * 获取用户信息（自动处理 access_token 失效：刷新并重试一次）
    */
-  async fetchUserInfoAuto(opts?: { forceAutoRefresh?: boolean }): Promise<{ success: boolean; data?: Drive115V2UserInfo; message?: string; raw?: Drive115V2UserInfoResponse }>{
+  async fetchUserInfoAuto(opts?: { forceAutoRefresh?: boolean }): Promise<{ success: boolean; data?: Drive115V2UserInfo; message?: string; raw?: Drive115V2UserInfoResponse }> {
     const settings = await getSettings();
     const drv = (settings?.drive115 || {}) as any;
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : (drv.v2AutoRefresh !== false); // 默认使用设置；可被强制覆盖
 
+    // 优先尝试直接使用现有 access_token（即使没有 expiresAt 也先试用，避免不必要的刷新）
+    const atTry = (drv.v2AccessToken || '').trim();
+    if (atTry) {
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '使用现有 access_token 获取用户信息（v2）' });
+      const first = await this.fetchUserInfo(atTry);
+      if (first.success) return first;
+
+      const tokenInvalid = this.isTokenInvalidResponse((first as any).raw) || /access[_\s-]?token/i.test(String(first.message || ''));
+      if (!tokenInvalid) {
+        // 与 token 失效无关，直接返回首次结果
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取用户信息失败（非 token 失效）：${first.message || '未知错误'}` });
+        return first;
+      }
+
+      // 确认 token 失效，再按需刷新
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: '检测到 token 失效，准备自动刷新并重试（v2）' });
+      if (!autoRefresh) {
+        return { success: false, message: 'access_token 已过期且未开启自动刷新（v2）' } as any;
+      }
+      const vt2 = await this.getValidAccessToken({ forceAutoRefresh: true });
+      if (!vt2.success) return { success: false, message: vt2.message } as any;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: '刷新后重试获取用户信息（v2）' });
+      return await this.fetchUserInfo(vt2.accessToken);
+    }
+
+    // 若没有 access_token，只能按设置执行自动刷新流程以获取一个可用的 token
     const vt = await this.getValidAccessToken({ forceAutoRefresh: autoRefresh });
     if (!vt.success) return { success: false, message: vt.message } as any;
-
-    await addLogV2({ timestamp: Date.now(), level: 'debug', message: '开始获取用户信息（v2）' });
-    let first = await this.fetchUserInfo(vt.accessToken);
-    if (first.success) return first;
-
-    const tokenInvalid = this.isTokenInvalidResponse((first as any).raw) || /access[_\s-]?token/i.test(String(first.message || ''));
-    if (tokenInvalid) {
-      console.debug('[drive115v2] 检测到 access_token 失效/过期，准备刷新并重试', {
-        raw: (first as any).raw,
-        message: first.message,
-      });
-      await addLogV2({ timestamp: Date.now(), level: 'warn', message: '获取用户信息失败，疑似 token 失效（v2）' });
-    } else {
-      console.debug('[drive115v2] 首次获取用户信息失败，但非 token 失效', {
-        raw: (first as any).raw,
-        message: first.message,
-      });
-      await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取用户信息失败：${first.message || '未知错误'}` });
-    }
-    // 为避免重复刷新，这里不再进行二次 refreshToken 调用。
-    // 自动刷新应由 getValidAccessToken 根据设置统一处理；若仍失败，直接返回首次结果供上层处理。
-    return first;
+    await addLogV2({ timestamp: Date.now(), level: 'debug', message: '首次无 token，使用 getValidAccessToken 后获取用户信息（v2）' });
+    return await this.fetchUserInfo(vt.accessToken);
   }
 
   /**
