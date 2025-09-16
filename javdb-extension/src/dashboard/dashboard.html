@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./styles/settings/_input-optimization.css">
   <link rel="stylesheet" href="./styles/settings/enhancement.css">
   <link rel="stylesheet" href="./styles/settings/drive115.css">
+  <link rel="stylesheet" href="./styles/drive115Tasks.css">
   <link rel="stylesheet" href="./styles/logs.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -160,6 +161,7 @@
                 <button class="tab-link" data-tab="tab-actors">演员库</button>
                 <button class="tab-link" data-tab="tab-new-works">新作品</button>
                 <button class="tab-link" data-tab="tab-sync">数据同步</button>
+                <button class="tab-link" data-tab="tab-drive115-tasks">115任务</button>
                 <button class="tab-link" data-tab="tab-settings">设置</button>
                 <button class="tab-link" data-tab="tab-logs">日志</button>
             </div>
@@ -573,11 +575,59 @@
                         <!-- 同步结果 -->
                         <div id="syncResult" class="sync-result" style="display: none;">
                             <i class="fas fa-check-circle"></i>
-                            <span id="syncResultText">同步完成</span>
+                            <span>同步完成</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-drive115-tasks" class="tab-content">
+                <div class="card">
+                    <div class="stats-section">
+                        <h4>115网盘下载任务</h4>
+                        <div id="drive115TasksStatsContainer" class="stats-grid">
+                            <!-- 统计信息将由 JS 动态填充 -->
                         </div>
                     </div>
 
+                    <!-- 任务操作控制栏 -->
+                    <div class="drive115-tasks-controls">
+                        <div class="task-input-group">
+                            <input type="text" id="drive115TaskUrlInput" placeholder="输入下载链接（支持HTTP(S)、FTP、磁力链、电驴链接）" class="task-url-input">
+                            <button id="drive115AddTaskBtn" class="button-like">
+                                <i class="fas fa-plus"></i>
+                                添加任务
+                            </button>
+                        </div>
+                        <div class="task-action-group">
+                            <button id="drive115RefreshTasksBtn" class="button-like">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新列表
+                            </button>
+                            <button id="drive115ClearTasksBtn" class="button-like danger">
+                                <i class="fas fa-trash"></i>
+                                清空所有
+                            </button>
+                        </div>
+                    </div>
 
+                    <!-- 任务列表容器 -->
+                    <div class="drive115-tasks-wrapper">
+                        <div id="drive115TasksLoading" class="loading-indicator" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>加载中...</span>
+                        </div>
+                        <div id="drive115TasksContainer" class="drive115-tasks-container">
+                            <!-- 任务列表将由 JS 动态填充 -->
+                        </div>
+                    </div>
+
+                    <!-- 分页控件 -->
+                    <div class="pagination-controls">
+                        <div id="drive115TasksPaginationContainer" class="pagination">
+                            <!-- 分页控件将由 JS 动态填充 -->
+                        </div>
+                    </div>
                 </div>
             </div>
 

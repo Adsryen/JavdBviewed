@@ -25,6 +25,7 @@ import { initDataSyncSection } from './dataSync';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import './ui/dataViewModal'; // 确保dataViewModal被初始化
 import { getDrive115V2Service } from '../services/drive115v2';
+import { Drive115TasksManager } from './tabs/drive115Tasks';
 
 // 根据设置显隐左侧 115 网盘侧边栏容器（规则：V1 或 V2 任一开启即显示）
 function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
@@ -474,6 +475,18 @@ async function initTabs(): Promise<void> {
                                 await logsTab.initialize();
                             } catch (error) {
                                 console.error('延迟初始化日志标签页失败:', error);
+                            }
+                        }
+
+                        // 延迟初始化115任务标签页
+                        if (tabId === 'tab-drive115-tasks') {
+                            try {
+                                if (!window.drive115TasksManager) {
+                                    window.drive115TasksManager = new Drive115TasksManager();
+                                    await window.drive115TasksManager.initialize();
+                                }
+                            } catch (error) {
+                                console.error('延迟初始化115任务标签页失败:', error);
                             }
                         }
                     });
