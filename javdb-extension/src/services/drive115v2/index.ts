@@ -124,6 +124,41 @@ export interface Drive115V2QuotaResponse {
   [k: string]: any;
 }
 
+// 云下载任务类型定义
+export interface Drive115V2Task {
+  info_hash?: string;        // 任务sha1
+  add_time?: number;         // 任务添加时间戳
+  percentDone?: number;      // 任务下载进度
+  size?: number;             // 任务总大小（字节）
+  name?: string;             // 任务名
+  last_update?: number;      // 任务最后更新时间戳
+  file_id?: string;          // 任务源文件（夹）对应文件（夹）id
+  delete_file_id?: string;   // 删除任务需删除源文件（夹）时，对应需传递的文件（夹）id
+  status?: number;           // 任务状态：-1下载失败；0分配中；1下载中；2下载成功
+  url?: string;              // 链接任务url
+  wp_path_id?: string;       // 任务源文件所在父文件夹id
+  def2?: number;             // 视频清晰度；1:标清 2:高清 3:超清 4:1080P 5:4k;100:原画
+  play_long?: number;        // 视频时长
+  can_appeal?: number;       // 是否可申诉
+  [k: string]: any;
+}
+
+export interface Drive115V2TaskListData {
+  page?: number;             // 当前第几页
+  page_count?: number;       // 总页数
+  count?: number;            // 总数量
+  tasks?: Drive115V2Task[];  // 云下载任务列表
+  [k: string]: any;
+}
+
+export interface Drive115V2TaskListResponse {
+  state?: boolean;
+  message?: string;
+  code?: number;
+  data?: Drive115V2TaskListData;
+  [k: string]: any;
+}
+
 
 class Drive115V2Service {
   private static instance: Drive115V2Service | null = null;
@@ -740,6 +775,253 @@ class Drive115V2Service {
       const msg = describe115Error(e) || e?.message || '搜索失败';
       await addLogV2({ timestamp: Date.now(), level: 'error', message: `搜索异常：${msg}` });
       return { success: false, message: msg } as any;
+    }
+  }
+
+  /**
+   * 获取云下载任务列表（v2）
+   * GET {baseURL}/open/offline/get_task_list
+   * Header: Authorization: Bearer <access_token>
+   */
+  async getTaskList(params: {
+    accessToken: string;
+    page?: number; // 页码，默认1
+  }): Promise<{ success: boolean; message?: string; raw?: Drive115V2TaskListResponse } & { data?: Drive115V2TaskListData }> {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' } as any;
+
+      const base = await this.getBaseURL();
+      const page = params.page || 1;
+      const url = `${base}/open/offline/get_task_list?page=${page}`;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `开始获取云下载任务列表（v2），页码：${page}` });
+
+      // 优先通过后台代理
+      let json: Drive115V2TaskListResponse | undefined;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                { type: 'drive115.get_task_list_v2', payload: { accessToken: token, page, baseUrl: base } },
+                (resp) => resolve(resp)
+              );
+            } catch { resolve(undefined); }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            if (!bgResp.success) {
+              await addLogV2({ timestamp: Date.now(), level: 'warn', message: `后台任务列表请求失败：${bgResp.message || '未知'}` });
+            } else {
+              json = (bgResp.raw || {}) as Drive115V2TaskListResponse;
+            }
+          }
+        }
+      } catch {}
+
+      // 回退：直接在前端发起 fetch
+      if (!json) {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const msg = `获取任务列表网络错误: ${res.status} ${res.statusText}`;
+          await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+          return { success: false, message: msg };
+        }
+
+        json = await res.json().catch(() => ({} as Drive115V2TaskListResponse));
+      }
+
+      const ok = typeof json?.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        const msg = describe115Error(json) || json?.message || json?.error || '获取任务列表失败';
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取任务列表失败：${msg}` });
+        return { success: false, message: msg, raw: json };
+      }
+
+      const data = json?.data || {};
+      const taskCount = data.tasks?.length || 0;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `获取任务列表成功（v2）：第${page}页，共${taskCount}个任务` });
+      return { success: true, data, raw: json };
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '获取任务列表失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取任务列表异常：${msg}` });
+      return { success: false, message: msg };
+    }
+  }
+
+  /**
+   * 删除云下载任务（v2）
+   * POST {baseURL}/open/offline/del_task
+   * Header: Authorization: Bearer <access_token>
+   * Body: info_hash=xxx&del_source_file=0
+   */
+  async deleteTask(params: {
+    accessToken: string;
+    info_hash: string;
+    del_source_file?: number; // 是否删除源文件：1删除；0不删除，默认0
+  }): Promise<{ success: boolean; message?: string; raw?: any }> {
+    try {
+      const token = (params.accessToken || '').trim();
+      const hash = (params.info_hash || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' };
+      if (!hash) return { success: false, message: '缺少 info_hash' };
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/offline/del_task`;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `开始删除云下载任务（v2）：${hash}` });
+
+      // 优先通过后台代理
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'drive115.del_task_v2',
+                  payload: {
+                    accessToken: token,
+                    info_hash: hash,
+                    del_source_file: params.del_source_file || 0,
+                    baseUrl: base,
+                  },
+                },
+                (resp) => resolve(resp)
+              );
+            } catch { resolve(undefined); }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            return {
+              success: !!bgResp.success,
+              message: bgResp.message,
+              raw: bgResp.raw,
+            };
+          }
+        }
+      } catch {}
+
+      // 回退：直接在前端发起 fetch
+      const fd = new FormData();
+      fd.set('info_hash', hash);
+      fd.set('del_source_file', String(params.del_source_file || 0));
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const msg = `删除任务网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg };
+      }
+
+      const json: any = await res.json().catch(() => ({} as any));
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        const msg = describe115Error(json) || json.message || json.error || '删除任务失败';
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `删除任务失败：${msg}` });
+        return { success: false, message: msg, raw: json };
+      }
+
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `删除任务成功（v2）：${hash}` });
+      return { success: true, raw: json };
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '删除任务失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `删除任务异常：${msg}` });
+      return { success: false, message: msg };
+    }
+  }
+
+  /**
+   * 清空云下载任务（v2）
+   * POST {baseURL}/open/offline/clear_task
+   * Header: Authorization: Bearer <access_token>
+   * Body: flag=1
+   */
+  async clearTasks(params: {
+    accessToken: string;
+    flag?: number; // 清除类型：0已完成、1全部、2失败、3进行中、4已完成+源文件、5全部+源文件，默认1
+  }): Promise<{ success: boolean; message?: string; raw?: any }> {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' };
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/offline/clear_task`;
+      const flag = params.flag ?? 1;
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `开始清空云下载任务（v2），类型：${flag}` });
+
+      // 优先通过后台代理
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'drive115.clear_task_v2',
+                  payload: {
+                    accessToken: token,
+                    flag,
+                    baseUrl: base,
+                  },
+                },
+                (resp) => resolve(resp)
+              );
+            } catch { resolve(undefined); }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            return {
+              success: !!bgResp.success,
+              message: bgResp.message,
+              raw: bgResp.raw,
+            };
+          }
+        }
+      } catch {}
+
+      // 回退：直接在前端发起 fetch
+      const fd = new FormData();
+      fd.set('flag', String(flag));
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const msg = `清空任务网络错误: ${res.status} ${res.statusText}`;
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        return { success: false, message: msg };
+      }
+
+      const json: any = await res.json().catch(() => ({} as any));
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        const msg = describe115Error(json) || json.message || json.error || '清空任务失败';
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `清空任务失败：${msg}` });
+        return { success: false, message: msg, raw: json };
+      }
+
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `清空任务成功（v2），类型：${flag}` });
+      return { success: true, raw: json };
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '清空任务失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `清空任务异常：${msg}` });
+      return { success: false, message: msg };
     }
   }
 
