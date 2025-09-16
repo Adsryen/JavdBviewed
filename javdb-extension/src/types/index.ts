@@ -57,7 +57,17 @@ export interface ExtensionSettings {
         verboseMode?: boolean; // 详细日志模式
         showPrivacyLogs?: boolean; // 显示隐私相关日志
         showStorageLogs?: boolean; // 显示存储相关日志
+        // 统一控制台代理设置
+        consoleLevel?: 'OFF' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
+        consoleFormat?: {
+            showTimestamp?: boolean;
+            showSource?: boolean;
+            color?: boolean;
+            timeZone?: string;
+        };
+        consoleCategories?: Record<string, boolean>; // key: 类别名（core/orchestrator/drive115/privacy/magnet/actor/storage/general），value: 是否启用
     };
+
     drive115: Drive115Settings; // 115网盘配置
 
     // 新增：数据增强配置

@@ -227,7 +227,26 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         verboseMode: false, // 详细日志模式（默认关闭以减少噪音）
         showPrivacyLogs: false, // 显示隐私相关日志（默认关闭）
         showStorageLogs: false, // 显示存储相关日志（默认关闭）
+        // 统一控制台代理默认配置
+        consoleLevel: 'DEBUG',
+        consoleFormat: {
+            showTimestamp: true,
+            showSource: true,
+            color: true,
+            timeZone: 'Asia/Shanghai',
+        },
+        consoleCategories: {
+            core: true,
+            orchestrator: true,
+            drive115: true,
+            privacy: true,
+            magnet: true,
+            actor: true,
+            storage: true,
+            general: true,
+        },
     },
+
     drive115: DEFAULT_DRIVE115_SETTINGS,
 
     // 新增：数据增强默认配置

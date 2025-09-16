@@ -110,27 +110,77 @@ import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 import { newWorksScheduler } from '../services/newWorks';
+import { installConsoleProxy } from '../utils/consoleProxy';
 import JSZip from 'jszip';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
+// 安装统一控制台代理（仅控制显示层，不改变入库逻辑）
+installConsoleProxy({
+  level: 'DEBUG',
+  format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
+  categories: {
+    general: { enabled: true, match: () => true, label: 'BG', color: '#2c3e50' },
+  },
+});
+
+// 将设置中的控制台显示配置应用到代理
+async function applyConsoleSettingsFromStorage() {
+  try {
+    const settings = await getSettings();
+    const logging = settings.logging || {} as any;
+    const ctrl: any = (globalThis as any).__JDB_CONSOLE__;
+    if (!ctrl) return;
+    if (logging.consoleLevel) ctrl.setLevel(logging.consoleLevel);
+    if (logging.consoleFormat) {
+      ctrl.setFormat({
+        showTimestamp: logging.consoleFormat.showTimestamp ?? true,
+        showSource: logging.consoleFormat.showSource ?? true,
+        color: logging.consoleFormat.color ?? true,
+        timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
+      });
+    }
+    if (logging.consoleCategories) {
+      const cfg = ctrl.getConfig();
+      const allKeys = Object.keys(cfg?.categories || {});
+      for (const key of allKeys) {
+        const flag = logging.consoleCategories[key];
+        if (flag === false) ctrl.disable(key);
+        else if (flag === true) ctrl.enable(key);
+      }
+    }
+  } catch (e) {
+    console.warn('[ConsoleProxy] Failed to apply settings in BG:', e);
+  }
+}
+
+applyConsoleSettingsFromStorage();
+
+try {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[STORAGE_KEYS.SETTINGS]) {
+      applyConsoleSettingsFromStorage();
+    }
+  });
+} catch {}
+
 const consoleMap: Record<LogLevel, (message?: any, ...optionalParams: any[]) => void> = {
-    INFO: console.info,
-    WARN: console.warn,
-    ERROR: console.error,
-    DEBUG: console.debug,
+  INFO: console.info,
+  WARN: console.warn,
+  ERROR: console.error,
+  DEBUG: console.debug,
 };
 
 async function log(level: LogLevel, message: string, data?: any) {
-    const logFunction = consoleMap[level] || console.log;
-    // 只在有数据时才输出数据，避免输出 undefined
-    if (data !== undefined) {
-        logFunction(`[${level}] ${message}`, data);
-    } else {
-        logFunction(`[${level}] ${message}`);
-    }
+  const logFunction = consoleMap[level] || console.log;
+  // 只在有数据时才输出数据，避免输出 undefined
+  if (data !== undefined) {
+    logFunction(message, data);
+  } else {
+    logFunction(message);
+  }
 
-    try {
+  try {
         const [logs, settings] = await Promise.all([
             getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []),
             getSettings()
@@ -145,8 +195,8 @@ async function log(level: LogLevel, message: string, data?: any) {
 
         logs.push(newLogEntry);
 
-        // Use the maxLogEntries from settings
-        const maxEntries = settings.logging?.maxLogEntries || 1500;
+        // Use the max entries from settings (configured in LoggingSettings)
+        const maxEntries = (settings.logging as any)?.maxEntries ?? settings.logging?.maxLogEntries ?? 1500;
         if (logs.length > maxEntries) {
             logs.splice(0, logs.length - maxEntries);
         }
@@ -454,12 +504,15 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
         });
 
         await logger.info(`WebDAV response status: ${response.status} ${response.statusText}`);
-        await logger.debug(`WebDAV response headers:`, Object.fromEntries(response.headers.entries()));
+        const __headersObj: Record<string, string> = {};
+        try {
+            response.headers.forEach((value, key) => { __headersObj[key] = value; });
+        } catch {}
+        await logger.debug(`WebDAV response headers:`, __headersObj);
 
         if (!response.ok) {
             // 提供更详细的错误信息
             let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
-
             if (response.status === 401) {
                 errorDetail += ' - 认证失败，请检查用户名和密码';
             } else if (response.status === 403) {
