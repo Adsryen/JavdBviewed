@@ -5,7 +5,6 @@
 
 import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import { onSettingsChanged, log } from '../../../../utils/logController';
 import type { ExtensionSettings } from '../../../../types';
@@ -21,6 +20,20 @@ export class LoggingSettings extends BaseSettingsPanel {
     private verboseMode!: HTMLInputElement;
     private showPrivacyLogs!: HTMLInputElement;
     private showStorageLogs!: HTMLInputElement;
+    // 统一控制台代理 - 控件
+    private consoleLevel!: HTMLSelectElement;
+    private consoleShowTimestamp!: HTMLInputElement;
+    private consoleShowSource!: HTMLInputElement;
+    private consoleColor!: HTMLInputElement;
+    private consoleTimeZone!: HTMLInputElement;
+    private consoleCategoryCore!: HTMLInputElement;
+    private consoleCategoryOrchestrator!: HTMLInputElement;
+    private consoleCategoryDrive115!: HTMLInputElement;
+    private consoleCategoryPrivacy!: HTMLInputElement;
+    private consoleCategoryMagnet!: HTMLInputElement;
+    private consoleCategoryActor!: HTMLInputElement;
+    private consoleCategoryStorage!: HTMLInputElement;
+    private consoleCategoryGeneral!: HTMLInputElement;
 
     constructor() {
         super({
@@ -41,6 +54,20 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.verboseMode = document.getElementById('verboseMode') as HTMLInputElement;
         this.showPrivacyLogs = document.getElementById('showPrivacyLogs') as HTMLInputElement;
         this.showStorageLogs = document.getElementById('showStorageLogs') as HTMLInputElement;
+        // 控制台代理
+        this.consoleLevel = document.getElementById('consoleLevel') as HTMLSelectElement;
+        this.consoleShowTimestamp = document.getElementById('consoleShowTimestamp') as HTMLInputElement;
+        this.consoleShowSource = document.getElementById('consoleShowSource') as HTMLInputElement;
+        this.consoleColor = document.getElementById('consoleColor') as HTMLInputElement;
+        this.consoleTimeZone = document.getElementById('consoleTimeZone') as HTMLInputElement;
+        this.consoleCategoryCore = document.getElementById('consoleCategoryCore') as HTMLInputElement;
+        this.consoleCategoryOrchestrator = document.getElementById('consoleCategoryOrchestrator') as HTMLInputElement;
+        this.consoleCategoryDrive115 = document.getElementById('consoleCategoryDrive115') as HTMLInputElement;
+        this.consoleCategoryPrivacy = document.getElementById('consoleCategoryPrivacy') as HTMLInputElement;
+        this.consoleCategoryMagnet = document.getElementById('consoleCategoryMagnet') as HTMLInputElement;
+        this.consoleCategoryActor = document.getElementById('consoleCategoryActor') as HTMLInputElement;
+        this.consoleCategoryStorage = document.getElementById('consoleCategoryStorage') as HTMLInputElement;
+        this.consoleCategoryGeneral = document.getElementById('consoleCategoryGeneral') as HTMLInputElement;
 
         // 验证元素是否存在
         if (!this.maxLogEntries) {
@@ -60,6 +87,21 @@ export class LoggingSettings extends BaseSettingsPanel {
             return;
         }
 
+        // 控制台代理 - 基础校验（允许某些元素在旧模板中缺失，不中断）
+        if (!this.consoleLevel) console.warn('[LoggingSettings] 找不到 consoleLevel 元素');
+        if (!this.consoleShowTimestamp) console.warn('[LoggingSettings] 找不到 consoleShowTimestamp 元素');
+        if (!this.consoleShowSource) console.warn('[LoggingSettings] 找不到 consoleShowSource 元素');
+        if (!this.consoleColor) console.warn('[LoggingSettings] 找不到 consoleColor 元素');
+        if (!this.consoleTimeZone) console.warn('[LoggingSettings] 找不到 consoleTimeZone 元素');
+        if (!this.consoleCategoryCore) console.warn('[LoggingSettings] 找不到 consoleCategoryCore 元素');
+        if (!this.consoleCategoryOrchestrator) console.warn('[LoggingSettings] 找不到 consoleCategoryOrchestrator 元素');
+        if (!this.consoleCategoryDrive115) console.warn('[LoggingSettings] 找不到 consoleCategoryDrive115 元素');
+        if (!this.consoleCategoryPrivacy) console.warn('[LoggingSettings] 找不到 consoleCategoryPrivacy 元素');
+        if (!this.consoleCategoryMagnet) console.warn('[LoggingSettings] 找不到 consoleCategoryMagnet 元素');
+        if (!this.consoleCategoryActor) console.warn('[LoggingSettings] 找不到 consoleCategoryActor 元素');
+        if (!this.consoleCategoryStorage) console.warn('[LoggingSettings] 找不到 consoleCategoryStorage 元素');
+        if (!this.consoleCategoryGeneral) console.warn('[LoggingSettings] 找不到 consoleCategoryGeneral 元素');
+
         log.verbose('[LoggingSettings] DOM元素初始化完成');
     }
 
@@ -72,6 +114,20 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.verboseMode?.addEventListener('change', this.handleVerboseModeToggle.bind(this));
         this.showPrivacyLogs?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showStorageLogs?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 控制台代理设置事件
+        this.consoleLevel?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleShowTimestamp?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleShowSource?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleColor?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleTimeZone?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryCore?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryOrchestrator?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryPrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryMagnet?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryActor?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryStorage?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleCategoryGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -90,10 +146,27 @@ export class LoggingSettings extends BaseSettingsPanel {
         const logging = settings?.logging || {};
 
         // 日志配置设置
-        this.maxLogEntries.value = String(logging.maxEntries || 1000);
+        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 1000);
         this.verboseMode.checked = logging.verboseMode || false;
         this.showPrivacyLogs.checked = logging.showPrivacyLogs || false;
         this.showStorageLogs.checked = logging.showStorageLogs || false;
+
+        // 控制台代理设置
+        if (this.consoleLevel) this.consoleLevel.value = (logging as any).consoleLevel || 'DEBUG';
+        const fmt = (logging as any).consoleFormat || {};
+        if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = fmt.showTimestamp ?? true;
+        if (this.consoleShowSource) this.consoleShowSource.checked = fmt.showSource ?? true;
+        if (this.consoleColor) this.consoleColor.checked = fmt.color ?? true;
+        if (this.consoleTimeZone) this.consoleTimeZone.value = fmt.timeZone || 'Asia/Shanghai';
+        const cats = (logging as any).consoleCategories || {};
+        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = cats.core ?? true;
+        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = cats.orchestrator ?? true;
+        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = cats.drive115 ?? true;
+        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = cats.privacy ?? true;
+        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = cats.magnet ?? true;
+        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = cats.actor ?? true;
+        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = cats.storage ?? true;
+        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = cats.general ?? true;
     }
 
     /**
@@ -105,10 +178,28 @@ export class LoggingSettings extends BaseSettingsPanel {
                 ...STATE.settings,
                 logging: {
                     ...STATE.settings?.logging,
-                    maxEntries: parseInt(this.maxLogEntries.value, 10),
+                    maxLogEntries: parseInt(this.maxLogEntries.value, 10),
                     verboseMode: this.verboseMode.checked,
                     showPrivacyLogs: this.showPrivacyLogs.checked,
-                    showStorageLogs: this.showStorageLogs.checked
+                    showStorageLogs: this.showStorageLogs.checked,
+                    // 控制台代理设置
+                    consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
+                    consoleFormat: {
+                        showTimestamp: this.consoleShowTimestamp?.checked ?? true,
+                        showSource: this.consoleShowSource?.checked ?? true,
+                        color: this.consoleColor?.checked ?? true,
+                        timeZone: this.consoleTimeZone?.value || 'Asia/Shanghai',
+                    },
+                    consoleCategories: {
+                        core: this.consoleCategoryCore?.checked ?? true,
+                        orchestrator: this.consoleCategoryOrchestrator?.checked ?? true,
+                        drive115: this.consoleCategoryDrive115?.checked ?? true,
+                        privacy: this.consoleCategoryPrivacy?.checked ?? true,
+                        magnet: this.consoleCategoryMagnet?.checked ?? true,
+                        actor: this.consoleCategoryActor?.checked ?? true,
+                        storage: this.consoleCategoryStorage?.checked ?? true,
+                        general: this.consoleCategoryGeneral?.checked ?? true,
+                    },
                 }
             };
 
@@ -116,7 +207,7 @@ export class LoggingSettings extends BaseSettingsPanel {
             STATE.settings = newSettings;
 
             // 通知日志控制器设置已更改
-            onSettingsChanged(newSettings);
+            onSettingsChanged();
 
             return {
                 success: true,
@@ -154,10 +245,27 @@ export class LoggingSettings extends BaseSettingsPanel {
     protected doGetSettings(): Partial<ExtensionSettings> {
         return {
             logging: {
-                maxEntries: parseInt(this.maxLogEntries.value, 10),
+                maxLogEntries: parseInt(this.maxLogEntries.value, 10),
                 verboseMode: this.verboseMode.checked,
                 showPrivacyLogs: this.showPrivacyLogs.checked,
-                showStorageLogs: this.showStorageLogs.checked
+                showStorageLogs: this.showStorageLogs.checked,
+                consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
+                consoleFormat: {
+                    showTimestamp: this.consoleShowTimestamp?.checked ?? true,
+                    showSource: this.consoleShowSource?.checked ?? true,
+                    color: this.consoleColor?.checked ?? true,
+                    timeZone: this.consoleTimeZone?.value || 'Asia/Shanghai',
+                },
+                consoleCategories: {
+                    core: this.consoleCategoryCore?.checked ?? true,
+                    orchestrator: this.consoleCategoryOrchestrator?.checked ?? true,
+                    drive115: this.consoleCategoryDrive115?.checked ?? true,
+                    privacy: this.consoleCategoryPrivacy?.checked ?? true,
+                    magnet: this.consoleCategoryMagnet?.checked ?? true,
+                    actor: this.consoleCategoryActor?.checked ?? true,
+                    storage: this.consoleCategoryStorage?.checked ?? true,
+                    general: this.consoleCategoryGeneral?.checked ?? true,
+                },
             }
         };
     }
@@ -168,8 +276,8 @@ export class LoggingSettings extends BaseSettingsPanel {
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
         const logging = settings.logging;
         if (logging) {
-            if (logging.maxEntries !== undefined) {
-                this.maxLogEntries.value = String(logging.maxEntries);
+            if ((logging as any).maxLogEntries !== undefined || (logging as any).maxEntries !== undefined) {
+                this.maxLogEntries.value = String((logging as any).maxLogEntries ?? (logging as any).maxEntries);
             }
             if (logging.verboseMode !== undefined) {
                 this.verboseMode.checked = logging.verboseMode;
@@ -180,6 +288,22 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (logging.showStorageLogs !== undefined) {
                 this.showStorageLogs.checked = logging.showStorageLogs;
             }
+
+            if ((logging as any).consoleLevel !== undefined && this.consoleLevel) this.consoleLevel.value = (logging as any).consoleLevel as any;
+            const fmt = (logging as any).consoleFormat || {};
+            if (this.consoleShowTimestamp && fmt.showTimestamp !== undefined) this.consoleShowTimestamp.checked = !!fmt.showTimestamp;
+            if (this.consoleShowSource && fmt.showSource !== undefined) this.consoleShowSource.checked = !!fmt.showSource;
+            if (this.consoleColor && fmt.color !== undefined) this.consoleColor.checked = !!fmt.color;
+            if (this.consoleTimeZone && fmt.timeZone !== undefined) this.consoleTimeZone.value = fmt.timeZone;
+            const cats = (logging as any).consoleCategories || {};
+            if (this.consoleCategoryCore && cats.core !== undefined) this.consoleCategoryCore.checked = !!cats.core;
+            if (this.consoleCategoryOrchestrator && cats.orchestrator !== undefined) this.consoleCategoryOrchestrator.checked = !!cats.orchestrator;
+            if (this.consoleCategoryDrive115 && cats.drive115 !== undefined) this.consoleCategoryDrive115.checked = !!cats.drive115;
+            if (this.consoleCategoryPrivacy && cats.privacy !== undefined) this.consoleCategoryPrivacy.checked = !!cats.privacy;
+            if (this.consoleCategoryMagnet && cats.magnet !== undefined) this.consoleCategoryMagnet.checked = !!cats.magnet;
+            if (this.consoleCategoryActor && cats.actor !== undefined) this.consoleCategoryActor.checked = !!cats.actor;
+            if (this.consoleCategoryStorage && cats.storage !== undefined) this.consoleCategoryStorage.checked = !!cats.storage;
+            if (this.consoleCategoryGeneral && cats.general !== undefined) this.consoleCategoryGeneral.checked = !!cats.general;
         }
     }
 

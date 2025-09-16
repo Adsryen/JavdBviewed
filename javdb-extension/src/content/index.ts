@@ -23,6 +23,57 @@ import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { embyEnhancementManager } from './embyEnhancement';
 import { initOrchestrator } from './initOrchestrator';
+import { installConsoleProxy } from '../utils/consoleProxy';
+
+// 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
+installConsoleProxy({
+    level: 'DEBUG',
+    format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
+    categories: {
+        general: { enabled: true, match: () => true, label: 'CS', color: '#27ae60' },
+    },
+});
+
+// 从设置应用控制台显示配置到代理
+async function applyConsoleSettingsFromStorage_CS() {
+    try {
+        const { getSettings } = await import('../utils/storage');
+        const settings = await getSettings();
+        const logging: any = settings.logging || {};
+        const ctrl: any = (window as any).__JDB_CONSOLE__;
+        if (!ctrl) return;
+        if (logging.consoleLevel) ctrl.setLevel(logging.consoleLevel);
+        if (logging.consoleFormat) {
+            ctrl.setFormat({
+                showTimestamp: logging.consoleFormat.showTimestamp ?? true,
+                showSource: logging.consoleFormat.showSource ?? true,
+                color: logging.consoleFormat.color ?? true,
+                timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
+            });
+        }
+        if (logging.consoleCategories) {
+            const cfg = ctrl.getConfig();
+            const allKeys = Object.keys(cfg?.categories || {});
+            for (const key of allKeys) {
+                const flag = logging.consoleCategories[key];
+                if (flag === false) ctrl.disable(key);
+                else if (flag === true) ctrl.enable(key);
+            }
+        }
+    } catch (e) {
+        console.warn('[ConsoleProxy] Failed to apply settings in CS:', e);
+    }
+}
+
+applyConsoleSettingsFromStorage_CS();
+
+try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes['settings']) {
+            applyConsoleSettingsFromStorage_CS();
+        }
+    });
+} catch {}
 
 // --- Utility Functions ---
 
@@ -453,7 +504,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         try {
             const status = actorEnhancementManager.getStatus();
             sendResponse(status);
-        } catch (error) {
+        } catch (error: any) {
             console.error('获取演员页状态失败:', error);
             sendResponse({ error: error.message });
         }
