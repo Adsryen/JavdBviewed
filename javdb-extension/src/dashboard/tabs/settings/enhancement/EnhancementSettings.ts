@@ -35,6 +35,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableRating!: HTMLInputElement;
     private veEnableActorInfo!: HTMLInputElement;
     private veShowLoadingIndicator!: HTMLInputElement;
+    private veEnableReviewBreaker!: HTMLInputElement;
+    private veEnableFC2Breaker!: HTMLInputElement;
 
     // 磁力搜索源配置
     private magnetSourceSukebei!: HTMLInputElement;
@@ -266,6 +268,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
         this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
         this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
+        this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
+        this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
 
         // 内容过滤相关元素
         this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
@@ -317,6 +321,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableRating?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableActorInfo?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1058,13 +1064,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         // 影片页增强配置
-        const videoEnhancement = settings?.videoEnhancement || { enabled: false, enableCoverImage: true, enableTranslation: true, enableRating: true, enableActorInfo: true, showLoadingIndicator: true };
+        const videoEnhancement = settings?.videoEnhancement || { 
+            enabled: false, 
+            enableCoverImage: true, 
+            enableTranslation: true, 
+            enableRating: true, 
+            enableActorInfo: true, 
+            showLoadingIndicator: true,
+            enableReviewBreaker: false,
+            enableFC2Breaker: false
+        };
         if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
         if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
         if (this.veEnableTranslation) this.veEnableTranslation.checked = videoEnhancement.enableTranslation !== false;
         if (this.veEnableRating) this.veEnableRating.checked = videoEnhancement.enableRating !== false;
         if (this.veEnableActorInfo) this.veEnableActorInfo.checked = videoEnhancement.enableActorInfo !== false;
         if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
+        if (this.veEnableReviewBreaker) this.veEnableReviewBreaker.checked = videoEnhancement.enableReviewBreaker === true;
+        if (this.veEnableFC2Breaker) this.veEnableFC2Breaker.checked = videoEnhancement.enableFC2Breaker === true;
 
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
@@ -1138,23 +1155,26 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorInfo: false, // 开发中，暂不启用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
                 },
-                // 影片页增强配置保存（启用状态由任一子项或“标题翻译”开启决定）
+                // 影片页增强配置保存（启用状态由任一子项或"标题翻译"开启决定）
                 videoEnhancement: {
                     enabled: (
                         this.veEnableCoverImage?.checked === true ||
                         this.enableTranslation?.checked === true ||
                         this.veEnableRating?.checked === true ||
                         this.veEnableActorInfo?.checked === true ||
-                        this.veShowLoadingIndicator?.checked === true
+                        this.veShowLoadingIndicator?.checked === true ||
+                        this.veEnableReviewBreaker?.checked === true ||
+                        this.veEnableFC2Breaker?.checked === true
                     ),
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
-                    // 与“翻译”总开关保持一致，避免两处状态不一致
+                    // 与"翻译"总开关保持一致，避免两处状态不一致
                     enableTranslation: this.enableTranslation?.checked === true,
                     enableRating: this.veEnableRating?.checked !== false,
                     enableActorInfo: this.veEnableActorInfo?.checked !== false,
                     showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
+                    enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
+                    enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
                 },
-                // 翻译配置保存
                 translation: {
                     provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',
                     traditional: {
@@ -1266,6 +1286,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableRating: this.veEnableRating?.checked !== false,
                 enableActorInfo: this.veEnableActorInfo?.checked !== false,
                 showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
+                enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
+                enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,
