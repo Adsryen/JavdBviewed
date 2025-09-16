@@ -228,10 +228,18 @@ async function markActorsOnPage(): Promise<void> {
                     await videoDetailEnhancer.runActors();
                 }, { label: 'videoEnhancement:runActors', idle: true, idleTimeout: 5000, delayMs: 1400 });
 
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runReviewBreaker();
+                }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 1600 });
+
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runFC2Breaker();
+                }, { label: 'videoEnhancement:runFC2Breaker', idle: true, idleTimeout: 5000, delayMs: 1800 });
+
                 // 在所有增强任务之后隐藏加载指示器
                 initOrchestrator.add('deferred', () => {
                     videoDetailEnhancer.finish();
-                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 1800 });
+                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2000 });
             } catch (enhancementError) {
                 log('Enhancement scheduling failed, but continuing:', enhancementError);
                 // 调度失败不影响主要功能

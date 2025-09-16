@@ -111,6 +111,8 @@ export interface ExtensionSettings {
         enableRating: boolean; // 启用评分信息
         enableActorInfo: boolean; // 启用演员信息
         showLoadingIndicator: boolean; // 显示加载指示器
+        enableReviewBreaker: boolean; // 启用破解评论区
+        enableFC2Breaker: boolean; // 启用破解FC2拦截
     };
 
     // 新增：内容过滤配置
