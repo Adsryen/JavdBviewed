@@ -274,6 +274,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableRating: true,
         enableActorInfo: true,
         showLoadingIndicator: true,
+        enableReviewBreaker: false,
+        enableFC2Breaker: false,
     },
 
     // 新增：内容过滤默认配置

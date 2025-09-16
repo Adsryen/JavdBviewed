@@ -1442,6 +1442,8 @@
                                     <input type="checkbox" id="veEnableRating">
                                     <input type="checkbox" id="veEnableActorInfo">
                                     <input type="checkbox" id="veShowLoadingIndicator">
+                                    <input type="checkbox" id="veEnableReviewBreaker">
+                                    <input type="checkbox" id="veEnableFC2Breaker">
                                 </div>
 
                                 <!-- 数据增强 -->
@@ -1851,8 +1853,48 @@
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>在数据加载过程中显示进度或提示，完成后自动隐藏。<br>
-                                            <strong>说明：</strong>用于减轻长时间加载的空白等待感。
+                                            <strong>效果：</strong>在影片页增强功能加载时显示进度指示器<br>
+                                            <strong>使用：</strong>让您清楚了解增强功能的加载状态，提升用户体验
+                                        </p>
+                                    </div>
+
+                                    <!-- 新：🔓 破解评论区功能（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🔓 破解评论区</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableReviewBreaker"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>集成JAV-JHS的API，破解影片评论区限制，显示完整评论内容<br>
+                                            <strong>使用：</strong>在影片详情页自动显示破解后的评论，支持分页浏览和关键词过滤<br>
+                                            <strong>数据源：</strong>使用JAV-JHS的代理API服务器获取评论数据
+                                        </p>
+                                    </div>
+
+                                    <!-- 新：🚫 破解FC2拦截功能（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🚫 破解FC2拦截</h6>
+                                                    <span class="enhancement-feature-status available">详情页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableFC2Breaker"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>整合123av和fc2ppvdb数据源，绕过FC2视频访问限制<br>
+                                            <strong>使用：</strong>在FC2影片页显示增强信息，包括视频预览、演员信息和销售者详情<br>
+                                            <strong>数据源：</strong>从123av.com和fc2ppvdb.com获取FC2视频的详细信息
                                         </p>
                                     </div>
 
