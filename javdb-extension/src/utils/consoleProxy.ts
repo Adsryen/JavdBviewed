@@ -277,6 +277,22 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
       } else {
         native(text, ...args);
       }
+
+      // 将控制台输出广播给页面（例如 Dashboard 日志页）用于“控制台日志”视图
+      try {
+        const g: any = (typeof window !== 'undefined') ? window : (globalThis as any);
+        if (g && typeof g.dispatchEvent === 'function') {
+          const serialized = args.map((a) => safeToString(a)).join(' ');
+          g.dispatchEvent(new CustomEvent('jdb:console-output', {
+            detail: {
+              level,
+              category: catKey,
+              timestamp: Date.now(),
+              message: `${text} ${serialized}`,
+            }
+          }));
+        }
+      } catch {}
     } catch (e) {
       // Fallback to native if anything goes wrong to avoid breaking logs
       native('[ConsoleProxy:FALLBACK]', ...args);
