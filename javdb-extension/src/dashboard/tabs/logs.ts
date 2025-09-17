@@ -43,6 +43,7 @@ export class LogsTab {
     private pageSize: number = 20;
     private logsPaginationEl!: HTMLElement;
     private logsPerPageSelect!: HTMLSelectElement;
+    private logsCountInfoEl!: HTMLSpanElement;
 
     // DOM 元素
     private logLevelFilter!: HTMLSelectElement;
@@ -111,6 +112,7 @@ export class LogsTab {
         this.consoleLogBody = document.getElementById('console-log-body') as HTMLDivElement;
         this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
         this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
+        this.logsCountInfoEl = document.getElementById('logsCountInfo') as HTMLSpanElement;
         this.logViewExtBtn = document.getElementById('log-view-ext') as HTMLButtonElement;
         this.logViewConsoleBtn = document.getElementById('log-view-console') as HTMLButtonElement;
         this.applySettingsFilterBtn = document.getElementById('apply-settings-filter') as HTMLButtonElement;
@@ -516,7 +518,30 @@ export class LogsTab {
             return;
         }
 
-        // 过滤日志（扩展日志）
+        // 扩展日志视图：若无任何过滤条件，走快速路径，仅按页截取最近的数据，避免全量过滤/反转
+        if (this.isNoFilterActive()) {
+            const total = this.logs.length;
+            if (total === 0) {
+                this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
+                this.renderPagination(0, 0);
+                this.updateCountText('扩展日志：已筛选 0 条（总计 0 条）');
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            const endIndex = total - (this.currentPage - 1) * this.pageSize;
+            const startIndex = Math.max(0, endIndex - this.pageSize);
+            const pageItemsAsc = this.logs.slice(startIndex, endIndex);
+            const pageItems = pageItemsAsc.reverse(); // 最新在前
+
+            const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
+            this.logBody.innerHTML = logHtml;
+            this.renderPagination(this.currentPage, totalPages);
+            this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
+            return;
+        }
+
+        // 过滤日志（扩展日志，带条件）
         const filteredLogs = this.filterLogs();
 
         if (filteredLogs.length === 0) {
@@ -538,6 +563,9 @@ export class LogsTab {
 
         // 渲染分页
         this.renderPagination(this.currentPage, totalPages);
+
+        // 更新计数显示
+        this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
     }
 
     /**
@@ -579,6 +607,7 @@ export class LogsTab {
         if (list.length === 0) {
             this.consoleLogBody.innerHTML = '<div class="no-logs">暂无控制台输出</div>';
             if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
+            this.updateCountText(`控制台日志：已筛选 0 条（内存 ${this.consoleLogs.length} 条，上限 ${this.MAX_CONSOLE_LOGS}）`);
             return;
         }
 
@@ -586,6 +615,9 @@ export class LogsTab {
         this.consoleLogBody.innerHTML = html;
         // 控制台视图不使用分页
         if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
+
+        // 更新计数显示（控制台视图）
+        this.updateCountText(`控制台日志：已筛选 ${list.length} 条（内存 ${this.consoleLogs.length} 条，上限 ${this.MAX_CONSOLE_LOGS}）`);
     }
 
     /**
@@ -766,7 +798,9 @@ export class LogsTab {
      * 创建日志条目HTML
      */
     private createLogEntryHtml(log: LogEntry): string {
-        const timestamp = new Date(log.timestamp).toLocaleString();
+        // 使用与控制台一致的可选毫秒显示
+        const fmt = this.getConsoleFormat();
+        const timestamp = this.formatConsoleTimestamp(new Date(log.timestamp).getTime(), { showMilliseconds: fmt.showMilliseconds, timeZone: fmt.timeZone });
         const level = log.level.toUpperCase();
         const levelClass = this.getLevelClass(level);
 
@@ -952,6 +986,26 @@ export class LogsTab {
                 this.logViewExtBtn.classList.remove('active');
             }
         }
+    }
+
+    /**
+     * 更新日志条数显示
+     */
+    private updateCountText(text: string): void {
+        if (!this.logsCountInfoEl) return;
+        this.logsCountInfoEl.textContent = text;
+    }
+
+    /**
+     * 判断是否为“无过滤条件”状态（可走快速分页路径）
+     */
+    private isNoFilterActive(): boolean {
+        const noLevel = this.currentLevelFilter === 'ALL' && !this.settingsFilterApplied;
+        const noSource = this.currentSourceFilter === 'ALL' && (!this.settingsFilterApplied || !this.settingsAllowedSources);
+        const noSearch = !this.currentSearchQuery;
+        const noDate = !this.currentStartDate && !this.currentEndDate;
+        const noHasDataOnly = !this.currentHasDataOnly;
+        return noLevel && noSource && noSearch && noDate && noHasDataOnly;
     }
 }
 
