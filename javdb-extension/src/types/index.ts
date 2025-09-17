@@ -62,6 +62,7 @@ export interface ExtensionSettings {
         consoleFormat?: {
             showTimestamp?: boolean;
             showSource?: boolean;
+            showMilliseconds?: boolean;
             color?: boolean;
             timeZone?: string;
         };
