@@ -1132,6 +1132,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.log('[Background] Processing FETCH_JAVDB_PREVIEW request.');
                 handleFetchJavDBPreview(message, sendResponse);
                 return true;
+            case 'drive115.refresh_token_v2':
+                // 兜底处理：避免部分环境未注册 v2 代理监听器时出现未知消息类型
+                try {
+                    const rt = String(message?.payload?.refreshToken || '').trim();
+                    const refreshBase = 'https://passportapi.115.com';
+                    if (!rt) {
+                        sendResponse({ success: false, message: '缺少 refresh_token' });
+                        return true;
+                    }
+                    const fd = new URLSearchParams();
+                    fd.set('refresh_token', rt);
+                    fetch(`${refreshBase}/open/refreshToken`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+                        body: fd.toString(),
+                    })
+                        .then(async (res) => {
+                            const raw = await res.json().catch(() => ({} as any));
+                            const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
+                            sendResponse({ success: ok, raw });
+                        })
+                        .catch((err) => {
+                            sendResponse({ success: false, message: err?.message || '后台刷新请求失败' });
+                        });
+                    return true; // 异步响应
+                } catch (e: any) {
+                    sendResponse({ success: false, message: e?.message || '后台刷新异常' });
+                    return true;
+                }
             default:
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
@@ -1141,6 +1170,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: 'Internal error in background script' });
         return true;
     }
+// ... (其他代码保持不变)
 });
 
 async function handleOpenTabBackground(message: any, sendResponse: (response: any) => void): Promise<void> {

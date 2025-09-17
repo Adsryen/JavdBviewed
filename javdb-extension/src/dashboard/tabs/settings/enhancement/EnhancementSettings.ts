@@ -93,6 +93,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private listEnhancementConfig!: HTMLDivElement;
     private videoEnhancementConfig!: HTMLDivElement;
 
+    // 合并翻译开关：高级选项（默认关闭，联动两个开关）
+    private translationAdvancedModeChk?: HTMLInputElement;
+    private translationAdvancedTip?: HTMLDivElement;
+
     // 内容过滤相关元素
     private addFilterRuleBtn!: HTMLButtonElement;
     private filterRulesList!: HTMLElement;
@@ -315,6 +319,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 影片页增强子项事件监听
         this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableTranslation?.addEventListener('change', () => {
+            // 若未启用高级模式，则联动主开关
+            if (!this.isTranslationAdvancedMode() && this.enableTranslation) {
+                this.enableTranslation.checked = !!this.veEnableTranslation?.checked;
+                // 同步滑块视觉
+                try { this.updateAllToggleStates(); } catch {}
+            }
             this.handleSettingChange();
             this.updateTranslationConfigVisibility();
         });
@@ -958,7 +968,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const anchorOptimization = settings?.anchorOptimization || {};
         const listEnhancement = settings?.listEnhancement || {};
 
-        // 数据增强设置
+        // 数据增强设置（翻译主开关）
         this.enableTranslation.checked = dataEnhancement?.enableTranslation || false;
         this.cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
 
@@ -1077,6 +1087,18 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
         if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
         if (this.veEnableTranslation) this.veEnableTranslation.checked = videoEnhancement.enableTranslation !== false;
+
+    // 安装/更新“高级选项”并应用联动策略
+    this.installTranslationAdvancedControls();
+    const advanced = this.isTranslationAdvancedMode();
+    if (!advanced) {
+        // 默认联动：两个开关保持一致（以主开关为准）
+        if (this.veEnableTranslation && this.enableTranslation) {
+            this.veEnableTranslation.checked = this.enableTranslation.checked;
+        }
+    }
+    try { this.updateAllToggleStates(); } catch {}
+    this.updateTranslationConfigVisibility();
         if (this.veEnableRating) this.veEnableRating.checked = videoEnhancement.enableRating !== false;
         if (this.veEnableActorInfo) this.veEnableActorInfo.checked = videoEnhancement.enableActorInfo !== false;
         if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
@@ -1649,6 +1671,86 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const enabled = (this.veEnableTranslation?.checked === true) || (this.enableTranslation?.checked === true);
         this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
         this.translationConfig.style.display = 'none';
+    }
+
+    /**
+     * 是否启用“高级选项”（允许分别控制两个翻译开关）
+     */
+    private isTranslationAdvancedMode(): boolean {
+        try {
+            return localStorage.getItem('translationAdvancedMode') === '1';
+        } catch { return false; }
+    }
+
+    /**
+     * 设置“高级选项”模式并持久化
+     */
+    private setTranslationAdvancedMode(on: boolean): void {
+        try { localStorage.setItem('translationAdvancedMode', on ? '1' : '0'); } catch {}
+        // 切换时立即应用联动策略
+        if (!on && this.enableTranslation && this.veEnableTranslation) {
+            this.veEnableTranslation.checked = this.enableTranslation.checked;
+            try { this.updateAllToggleStates(); } catch {}
+        }
+        this.updateTranslationConfigVisibility();
+    }
+
+    /**
+     * 在翻译配置区域动态注入“高级选项”与说明，并绑定联动逻辑
+     */
+    private installTranslationAdvancedControls(): void {
+        try {
+            if (!this.translationConfig) return;
+            // 若尚未创建，则动态插入
+            if (!this.translationAdvancedTip) {
+                const wrap = document.createElement('div');
+                wrap.style.margin = '6px 0 10px 0';
+                wrap.style.fontSize = '12px';
+                wrap.style.color = '#666';
+
+                const chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.id = 'translationAdvancedMode';
+                chk.style.marginRight = '6px';
+                this.translationAdvancedModeChk = chk;
+
+                const label = document.createElement('label');
+                label.htmlFor = 'translationAdvancedMode';
+                label.textContent = '启用高级选项（分别控制“全局翻译”和“影片页翻译”）';
+                label.style.cursor = 'pointer';
+
+                wrap.appendChild(chk);
+                wrap.appendChild(label);
+
+                const hint = document.createElement('div');
+                hint.textContent = '默认仅需一个主开关：关闭高级选项时，两个翻译开关将自动联动（主开关=全局翻译）。';
+                hint.style.marginTop = '4px';
+                this.translationAdvancedTip = hint;
+                wrap.appendChild(hint);
+
+                // 插入到翻译配置容器顶部
+                this.translationConfig.insertBefore(wrap, this.translationConfig.firstChild);
+
+                // 绑定事件
+                chk.addEventListener('change', () => {
+                    this.setTranslationAdvancedMode(!!chk.checked);
+                    this.handleSettingChange();
+                });
+            }
+
+            // 回填勾选状态
+            if (this.translationAdvancedModeChk) {
+                this.translationAdvancedModeChk.checked = this.isTranslationAdvancedMode();
+            }
+
+            // 绑定主开关的联动逻辑（在 bindEvents 中也做了兜底）
+            this.enableTranslation?.addEventListener('change', () => {
+                if (!this.isTranslationAdvancedMode() && this.veEnableTranslation) {
+                    this.veEnableTranslation.checked = this.enableTranslation.checked;
+                    try { this.updateAllToggleStates(); } catch {}
+                }
+            });
+        } catch {}
     }
 
     /**
