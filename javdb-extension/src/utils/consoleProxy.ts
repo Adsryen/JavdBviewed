@@ -288,7 +288,9 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
               level,
               category: catKey,
               timestamp: Date.now(),
-              message: `${text} ${serialized}`,
+              // 仅传递纯消息内容，避免将带有 %c 的彩色前缀注入到 UI
+              // UI 会基于 level/category/timestamp 自行渲染头部信息
+              message: serialized,
             }
           }));
         }
