@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="./styles/settings/drive115.css">
   <link rel="stylesheet" href="./styles/drive115Tasks.css">
   <link rel="stylesheet" href="./styles/logs.css">
+  <link rel="stylesheet" href="./styles/settings/logs.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -2270,42 +2271,48 @@
                                 <p class="settings-description">配置扩展程序的日志记录行为。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <div class="form-group">
-                                    <label for="maxLogEntries">最大日志记录数:</label>
-                                    <input type="number" id="maxLogEntries" class="number-input" min="100" max="10000">
-                                    <p class="input-description">设置保留在存储中的最大日志条数，以防止占用过多空间。有效范围 100 - 10000。</p>
+                                <!-- 扩展日志（持久化）设置 -->
+                                <div class="logging-section log-config">
+                                    <h4><i class="fas fa-file-alt"></i> 扩展日志（持久化）</h4>
+                                    <p class="section-description">配置扩展自身的持久化日志记录行为，这些日志会保存在本地以便事后审查与排查问题。</p>
+
+                                    <div class="form-group">
+                                        <label for="maxLogEntries">最大日志记录数:</label>
+                                        <input type="number" id="maxLogEntries" class="number-input" min="100" max="10000">
+                                        <p class="input-description">设置保留在存储中的最大日志条数，以防止占用过多空间。有效范围 100 - 10000。</p>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="verboseMode">
+                                        <label for="verboseMode">
+                                            <i class="fas fa-bug"></i>
+                                            详细日志模式
+                                        </label>
+                                        <p class="input-description">启用后会显示更多调试信息，可能会产生大量日志输出。</p>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="showPrivacyLogs">
+                                        <label for="showPrivacyLogs">
+                                            <i class="fas fa-shield-alt"></i>
+                                            显示隐私相关日志
+                                        </label>
+                                        <p class="input-description">显示隐私保护功能的详细日志信息。</p>
+                                    </div>
+
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="showStorageLogs">
+                                        <label for="showStorageLogs">
+                                            <i class="fas fa-database"></i>
+                                            显示存储相关日志
+                                        </label>
+                                        <p class="input-description">显示数据存储和读取的详细日志信息。</p>
+                                    </div>
                                 </div>
 
-                                <div class="form-group-checkbox">
-                                    <input type="checkbox" id="verboseMode">
-                                    <label for="verboseMode">
-                                        <i class="fas fa-bug"></i>
-                                        详细日志模式
-                                    </label>
-                                    <p class="input-description">启用后会显示更多调试信息，可能会产生大量日志输出。</p>
-                                </div>
-
-                                <div class="form-group-checkbox">
-                                    <input type="checkbox" id="showPrivacyLogs">
-                                    <label for="showPrivacyLogs">
-                                        <i class="fas fa-shield-alt"></i>
-                                        显示隐私相关日志
-                                    </label>
-                                    <p class="input-description">显示隐私保护功能的详细日志信息。</p>
-                                </div>
-
-                                <div class="form-group-checkbox">
-                                    <input type="checkbox" id="showStorageLogs">
-                                    <label for="showStorageLogs">
-                                        <i class="fas fa-database"></i>
-                                        显示存储相关日志
-                                    </label>
-                                    <p class="input-description">显示数据存储和读取的详细日志信息。</p>
-                                </div>
-
-                                <!-- 统一控制台输出设置 -->
-                                <div class="settings-section">
-                                    <h4><i class="fas fa-terminal"></i> 控制台输出</h4>
+                                <!-- 控制台输出（即时）设置 -->
+                                <div class="logging-section log-display">
+                                    <h4><i class="fas fa-terminal"></i> 控制台输出（即时）</h4>
 
                                     <div class="form-group">
                                         <label for="consoleLevel">日志级别（显示阈值）</label>
@@ -2793,6 +2800,11 @@
                     <div class="settings-section">
                         <h4>日志记录</h4>
                         <p class="settings-description">在此查看扩展运行日志，可按等级、来源、关键词与时间范围进行筛选，并支持仅显示包含详细数据的日志。</p>
+                        <div class="log-view-switch">
+                            <button id="log-view-ext" class="switch-btn active" title="显示扩展持久化日志">扩展日志</button>
+                            <button id="log-view-console" class="switch-btn" title="显示控制台即时输出（不持久化）">控制台日志</button>
+                        </div>
+
                         <div class="log-filters">
                             <div class="filter-group" style="flex: 1; min-width: 240px;">
                                 <label for="log-search-input">关键词搜索</label>
@@ -2837,7 +2849,11 @@
                             <div id="log-body">
                                 <!-- Log entries will be inserted here -->
                             </div>
+                            <div id="console-log-body" class="console-log-container" style="display:none;">
+                                <!-- Console log entries will be inserted here -->
+                            </div>
                         </div>
+
                         <div class="pagination-controls">
                             <div class="pagination" id="logsPagination">
                                 <!-- 分页控件将由 JS 动态填充 -->

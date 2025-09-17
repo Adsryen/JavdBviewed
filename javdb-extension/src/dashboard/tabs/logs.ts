@@ -12,6 +12,14 @@ interface LogEntry extends CoreLogEntry {
     source?: string;
 }
 
+/** 控制台日志条目（仅内存，非持久化） */
+interface ConsoleLogEntry {
+    timestamp: number;
+    level: Exclude<LogLevel, 'OFF'> | 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
+    category: string;
+    message: string;
+}
+
 /**
  * 日志标签页类
  */
@@ -24,6 +32,11 @@ export class LogsTab {
     private currentEndDate?: Date;
     private currentHasDataOnly: boolean = false;
     private logs: LogEntry[] = [];
+
+    // 视图模式：扩展日志（EXT）/ 控制台日志（CONSOLE）
+    private viewMode: 'EXT' | 'CONSOLE' = 'EXT';
+    private consoleLogs: ConsoleLogEntry[] = [];
+    private MAX_CONSOLE_LOGS = 500;
 
     // 分页状态
     private currentPage: number = 1;
@@ -41,6 +54,9 @@ export class LogsTab {
     private refreshButton!: HTMLButtonElement;
     private clearButton!: HTMLButtonElement;
     private logBody!: HTMLDivElement;
+    private consoleLogBody!: HTMLDivElement;
+    private logViewExtBtn!: HTMLButtonElement;
+    private logViewConsoleBtn!: HTMLButtonElement;
 
     /**
      * 初始化日志标签页
@@ -84,8 +100,11 @@ export class LogsTab {
         this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
         this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
         this.logBody = document.getElementById('log-body') as HTMLDivElement;
+        this.consoleLogBody = document.getElementById('console-log-body') as HTMLDivElement;
         this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
         this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
+        this.logViewExtBtn = document.getElementById('log-view-ext') as HTMLButtonElement;
+        this.logViewConsoleBtn = document.getElementById('log-view-console') as HTMLButtonElement;
 
         // 验证元素是否存在
         if (!this.logLevelFilter) {
@@ -140,6 +159,25 @@ export class LogsTab {
      * 绑定事件监听器
      */
     private bindEvents(): void {
+        // 视图切换
+        this.logViewExtBtn?.addEventListener('click', () => {
+            if (this.viewMode !== 'EXT') {
+                this.viewMode = 'EXT';
+                this.updateViewVisibility();
+                this.currentPage = 1;
+                this.renderLogs();
+                this.updateSwitchBtnActive();
+            }
+        });
+        this.logViewConsoleBtn?.addEventListener('click', () => {
+            if (this.viewMode !== 'CONSOLE') {
+                this.viewMode = 'CONSOLE';
+                this.updateViewVisibility();
+                this.renderLogs();
+                this.updateSwitchBtnActive();
+            }
+        });
+
         // 过滤器事件
         this.logLevelFilter?.addEventListener('change', () => {
             const raw = (this.logLevelFilter.value || 'ALL').toUpperCase();
@@ -207,6 +245,27 @@ export class LogsTab {
         this.clearButton?.addEventListener('click', () => {
             this.clearLogs();
         });
+
+        // 监听控制台输出事件（来自 consoleProxy）
+        try {
+            window.addEventListener('jdb:console-output' as any, (ev: Event) => {
+                const e = ev as CustomEvent;
+                const d = e.detail || {};
+                const entry: ConsoleLogEntry = {
+                    timestamp: typeof d.timestamp === 'number' ? d.timestamp : Date.now(),
+                    level: (String(d.level || 'INFO').toUpperCase()) as any,
+                    category: String(d.category || 'general'),
+                    message: String(d.message || ''),
+                };
+                this.consoleLogs.push(entry);
+                if (this.consoleLogs.length > this.MAX_CONSOLE_LOGS) {
+                    this.consoleLogs.splice(0, this.consoleLogs.length - this.MAX_CONSOLE_LOGS);
+                }
+                if (this.viewMode === 'CONSOLE') {
+                    this.renderLogs();
+                }
+            });
+        } catch {}
     }
 
     /**
@@ -372,13 +431,17 @@ export class LogsTab {
             this.refreshButton.disabled = true;
             this.refreshButton.textContent = '刷新中...';
 
-            // 重新加载日志数据
-            await this.loadLogs();
-
-            // 重新渲染
-            this.renderLogs();
-
-            showMessage(`已刷新，共 ${this.logs.length} 条日志`, 'success');
+            if (this.viewMode === 'EXT') {
+                // 重新加载日志数据
+                await this.loadLogs();
+                // 重新渲染
+                this.renderLogs();
+                showMessage(`已刷新，共 ${this.logs.length} 条日志`, 'success');
+            } else {
+                // 控制台视图：仅重新渲染
+                this.renderLogs();
+                showMessage(`控制台日志（内存） 共 ${this.consoleLogs.length} 条`, 'info');
+            }
         } catch (error) {
             console.error('刷新日志失败:', error);
             showMessage('刷新日志失败', 'error');
@@ -393,21 +456,22 @@ export class LogsTab {
      */
     private async clearLogs(): Promise<void> {
         try {
-            if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) {
-                return;
+            if (this.viewMode === 'CONSOLE') {
+                if (!confirm('确定要清空控制台日志（仅内存）吗？')) return;
+                this.consoleLogs = [];
+                this.renderLogs();
+                showMessage('控制台日志已清空', 'success');
+            } else {
+                if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
+                // 清空存储中的日志
+                await setValue(STORAGE_KEYS.LOGS, []);
+                // 清空内存中的日志
+                this.logs = [];
+                STATE.logs = [];
+                // 重新渲染
+                this.renderLogs();
+                showMessage('日志已清空', 'success');
             }
-
-            // 清空存储中的日志
-            await setValue(STORAGE_KEYS.LOGS, []);
-            
-            // 清空内存中的日志
-            this.logs = [];
-            STATE.logs = [];
-
-            // 重新渲染
-            this.renderLogs();
-
-            showMessage('日志已清空', 'success');
         } catch (error) {
             console.error('清空日志失败:', error);
             showMessage('清空日志失败', 'error');
@@ -420,7 +484,15 @@ export class LogsTab {
     private renderLogs(): void {
         if (!this.logBody) return;
 
-        // 过滤日志
+        // 视图切换下的可见性
+        this.updateViewVisibility();
+
+        if (this.viewMode === 'CONSOLE') {
+            this.renderConsoleLogs();
+            return;
+        }
+
+        // 过滤日志（扩展日志）
         const filteredLogs = this.filterLogs();
 
         if (filteredLogs.length === 0) {
@@ -442,6 +514,43 @@ export class LogsTab {
 
         // 渲染分页
         this.renderPagination(this.currentPage, totalPages);
+    }
+
+    /**
+     * 渲染控制台日志
+     */
+    private renderConsoleLogs(): void {
+        if (!this.consoleLogBody) return;
+
+        const q = (this.currentSearchQuery || '').trim().toLowerCase();
+        const levelFilter = this.currentLevelFilter;
+        const start = this.currentStartDate ? this.currentStartDate.getTime() : undefined;
+        const end = this.currentEndDate ? this.currentEndDate.getTime() : undefined;
+
+        const list = [...this.consoleLogs]
+            .filter(e => {
+                if (levelFilter !== 'ALL' && String(e.level).toUpperCase() !== String(levelFilter).toUpperCase()) return false;
+                if (start && e.timestamp < start) return false;
+                if (end && e.timestamp > end) return false;
+                if (q) {
+                    const msg = e.message.toLowerCase();
+                    if (!msg.includes(q)) return false;
+                }
+                return true;
+            })
+            .slice(-this.MAX_CONSOLE_LOGS)
+            .reverse(); // 最新在前
+
+        if (list.length === 0) {
+            this.consoleLogBody.innerHTML = '<div class="no-logs">暂无控制台输出</div>';
+            if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
+            return;
+        }
+
+        const html = list.map(e => this.createConsoleLogHtml(e)).join('');
+        this.consoleLogBody.innerHTML = html;
+        // 控制台视图不使用分页
+        if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
     }
 
     /**
@@ -615,6 +724,35 @@ export class LogsTab {
     }
 
     /**
+     * 控制台日志项 HTML
+     */
+    private createConsoleLogHtml(e: ConsoleLogEntry): string {
+        const ts = new Date(e.timestamp).toLocaleString();
+        const levelClass = this.getLevelClass(String(e.level));
+        const highlight = (text: string) => {
+            const q = (this.currentSearchQuery || '').trim();
+            if (!q) return this.escapeHtml(text);
+            try {
+                const escaped = this.escapeHtml(text);
+                const re = new RegExp(this.escapeRegExp(q), 'ig');
+                return escaped.replace(re, (m) => `<mark class="log-highlight">${this.escapeHtml(m)}</mark>`);
+            } catch {
+                return this.escapeHtml(text);
+            }
+        };
+        return `
+            <div class="console-log-entry console-level-${levelClass}">
+                <div class="console-log-header">
+                    <span class="console-level-badge">${String(e.level).toUpperCase()}</span>
+                    <span class="console-category">${this.escapeHtml(e.category.toUpperCase())}</span>
+                    <span class="console-timestamp">${ts}</span>
+                </div>
+                <div class="console-log-message">${highlight(e.message)}</div>
+            </div>
+        `;
+    }
+
+    /**
      * HTML转义
      */
     private escapeHtml(text: string): string {
@@ -647,6 +785,32 @@ export class LogsTab {
             if (timer) window.clearTimeout(timer);
             timer = window.setTimeout(() => fn(...args), delay);
         }) as T;
+    }
+
+    /**
+     * 根据视图切换显示容器
+     */
+    private updateViewVisibility(): void {
+        if (!this.logBody || !this.consoleLogBody) return;
+        if (this.viewMode === 'EXT') {
+            this.logBody.style.display = '';
+            this.consoleLogBody.style.display = 'none';
+        } else {
+            this.logBody.style.display = 'none';
+            this.consoleLogBody.style.display = '';
+        }
+    }
+
+    private updateSwitchBtnActive(): void {
+        if (this.logViewExtBtn && this.logViewConsoleBtn) {
+            if (this.viewMode === 'EXT') {
+                this.logViewExtBtn.classList.add('active');
+                this.logViewConsoleBtn.classList.remove('active');
+            } else {
+                this.logViewConsoleBtn.classList.add('active');
+                this.logViewExtBtn.classList.remove('active');
+            }
+        }
     }
 }
 
