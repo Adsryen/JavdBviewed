@@ -58,6 +58,14 @@ export class LogsTab {
     private logViewExtBtn!: HTMLButtonElement;
     private logViewConsoleBtn!: HTMLButtonElement;
 
+    // 设置联动过滤（阈值/类别）
+    private applySettingsFilterBtn!: HTMLButtonElement;
+    private clearSettingsFilterBtn!: HTMLButtonElement;
+    private settingsFilterApplied: boolean = false;
+    private settingsLevelThreshold: 'OFF' | LogLevel = 'DEBUG';
+    private settingsAllowedConsoleCategories: Record<string, boolean> | null = null;
+    private settingsAllowedSources: Set<string> | null = null;
+
     /**
      * 初始化日志标签页
      */
@@ -105,6 +113,8 @@ export class LogsTab {
         this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
         this.logViewExtBtn = document.getElementById('log-view-ext') as HTMLButtonElement;
         this.logViewConsoleBtn = document.getElementById('log-view-console') as HTMLButtonElement;
+        this.applySettingsFilterBtn = document.getElementById('apply-settings-filter') as HTMLButtonElement;
+        this.clearSettingsFilterBtn = document.getElementById('clear-settings-filter') as HTMLButtonElement;
 
         // 验证元素是否存在
         if (!this.logLevelFilter) {
@@ -244,6 +254,20 @@ export class LogsTab {
 
         this.clearButton?.addEventListener('click', () => {
             this.clearLogs();
+        });
+
+        // 设置联动过滤按钮
+        this.applySettingsFilterBtn?.addEventListener('click', () => {
+            this.applySettingsFilterFromState();
+            this.currentPage = 1;
+            this.renderLogs();
+            showMessage('已按“日志设置”应用过滤（阈值/类别）', 'success');
+        });
+        this.clearSettingsFilterBtn?.addEventListener('click', () => {
+            this.clearSettingsFilter();
+            this.currentPage = 1;
+            this.renderLogs();
+            showMessage('已清除“日志设置”过滤', 'info');
         });
 
         // 监听控制台输出事件（来自 consoleProxy）
@@ -529,7 +553,18 @@ export class LogsTab {
 
         const list = [...this.consoleLogs]
             .filter(e => {
-                if (levelFilter !== 'ALL' && String(e.level).toUpperCase() !== String(levelFilter).toUpperCase()) return false;
+                // 当未启用设置过滤时，使用原有“精确等级”过滤；
+                // 启用设置过滤时，使用“阈值等级”过滤
+                if (this.settingsFilterApplied) {
+                    if (!this.levelPass(String(e.level).toUpperCase() as LogLevel, this.settingsLevelThreshold)) return false;
+                    if (this.settingsAllowedConsoleCategories) {
+                        const key = String(e.category || '').toLowerCase();
+                        const allowed = !!this.settingsAllowedConsoleCategories[key];
+                        if (!allowed) return false;
+                    }
+                } else {
+                    if (levelFilter !== 'ALL' && String(e.level).toUpperCase() !== String(levelFilter).toUpperCase()) return false;
+                }
                 if (start && e.timestamp < start) return false;
                 if (end && e.timestamp > end) return false;
                 if (q) {
@@ -617,16 +652,21 @@ export class LogsTab {
     private filterLogs(): LogEntry[] {
         const query = this.currentSearchQuery.toLowerCase();
         return this.logs.filter(log => {
-            // 等级过滤
-            if (this.currentLevelFilter !== 'ALL' && log.level !== this.currentLevelFilter) {
-                return false;
+            // 等级过滤（支持设置阈值模式）
+            if (this.settingsFilterApplied) {
+                if (!this.levelPass(log.level, this.settingsLevelThreshold)) return false;
+            } else {
+                if (this.currentLevelFilter !== 'ALL' && log.level !== this.currentLevelFilter) return false;
             }
 
-            // 来源过滤
-            if (this.currentSourceFilter !== 'ALL') {
-                const logSource = this.getLogSource(log);
-                if (logSource !== this.currentSourceFilter) {
-                    return false;
+            // 来源过滤（支持设置类别映射）
+            if (this.settingsFilterApplied && this.settingsAllowedSources) {
+                const src = this.getLogSource(log);
+                if (!this.settingsAllowedSources.has(src)) return false;
+            } else {
+                if (this.currentSourceFilter !== 'ALL') {
+                    const logSource = this.getLogSource(log);
+                    if (logSource !== this.currentSourceFilter) return false;
                 }
             }
 
@@ -651,6 +691,59 @@ export class LogsTab {
 
             return true;
         }).reverse(); // 最新的日志在前面
+    }
+
+    /**
+     * 等级阈值判断：threshold为最小显示等级，显示 >= threshold 的日志
+     */
+    private levelPass(level: LogLevel, threshold: 'OFF' | LogLevel): boolean {
+        if (threshold === 'OFF') return false;
+        const rank = (lv: LogLevel) => {
+            switch (lv) {
+                case 'DEBUG': return 0;
+                case 'INFO': return 1;
+                case 'WARN': return 2;
+                case 'ERROR': return 3;
+            }
+        };
+        return rank(level) >= rank(threshold as LogLevel);
+    }
+
+    /**
+     * 从全局设置应用过滤：consoleLevel + consoleCategories
+     */
+    private applySettingsFilterFromState(): void {
+        const logging = STATE.settings?.logging || {} as any;
+        const level = (logging.consoleLevel || 'DEBUG') as 'OFF' | LogLevel;
+        const cats: Record<string, boolean> = (logging.consoleCategories || {}) as any;
+
+        this.settingsLevelThreshold = level;
+        this.settingsAllowedConsoleCategories = cats && Object.keys(cats).length ? cats : null;
+
+        // 将 consoleCategories 映射为扩展日志来源集合（仅已知来源）
+        const allowedSources = new Set<string>();
+        if (!cats || Object.keys(cats).length === 0) {
+            // 未配置类别时，不限制来源
+            this.settingsAllowedSources = null;
+        } else {
+            if (cats.drive115) allowedSources.add('DRIVE115');
+            // 其余类别均归入 GENERAL（目前扩展日志来源仅 GENERAL/DRIVE115）
+            const otherKeys = ['core','orchestrator','privacy','magnet','actor','storage','general'];
+            if (otherKeys.some(k => !!cats[k])) allowedSources.add('GENERAL');
+            this.settingsAllowedSources = allowedSources;
+        }
+
+        this.settingsFilterApplied = true;
+    }
+
+    /**
+     * 清除设置联动过滤
+     */
+    private clearSettingsFilter(): void {
+        this.settingsFilterApplied = false;
+        this.settingsLevelThreshold = 'DEBUG';
+        this.settingsAllowedConsoleCategories = null;
+        this.settingsAllowedSources = null;
     }
 
     /**
@@ -724,10 +817,52 @@ export class LogsTab {
     }
 
     /**
+     * 获取控制台格式设置
+     */
+    private getConsoleFormat(): { showTimestamp: boolean; showSource: boolean; showMilliseconds: boolean; timeZone?: string } {
+        const fmt = (STATE.settings?.logging as any)?.consoleFormat || {};
+        return {
+            showTimestamp: fmt.showTimestamp !== false,
+            showSource: fmt.showSource !== false,
+            showMilliseconds: !!fmt.showMilliseconds,
+            timeZone: fmt.timeZone || undefined,
+        };
+    }
+
+    /**
+     * 格式化控制台时间戳，支持时区与毫秒
+     */
+    private formatConsoleTimestamp(ts: number, fmt: { showMilliseconds: boolean; timeZone?: string }): string {
+        try {
+            const options: Intl.DateTimeFormatOptions = {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false,
+            };
+            const dtf = new Intl.DateTimeFormat(undefined, { ...options, timeZone: fmt.timeZone });
+            const parts = dtf.formatToParts(new Date(ts));
+            const map: Record<string, string> = {};
+            for (const p of parts) { if (p.type !== 'literal') map[p.type] = p.value; }
+            let base = `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+            if (fmt.showMilliseconds) {
+                const ms = new Date(ts).getMilliseconds().toString().padStart(3, '0');
+                base += `.${ms}`;
+            }
+            return base;
+        } catch {
+            const d = new Date(ts);
+            let base = d.toLocaleString();
+            if (fmt.showMilliseconds) base += `.${d.getMilliseconds().toString().padStart(3, '0')}`;
+            return base;
+        }
+    }
+
+    /**
      * 控制台日志项 HTML
      */
     private createConsoleLogHtml(e: ConsoleLogEntry): string {
-        const ts = new Date(e.timestamp).toLocaleString();
+        const fmt = this.getConsoleFormat();
+        const tsStr = this.formatConsoleTimestamp(e.timestamp, fmt);
         const levelClass = this.getLevelClass(String(e.level));
         const highlight = (text: string) => {
             const q = (this.currentSearchQuery || '').trim();
@@ -740,13 +875,19 @@ export class LogsTab {
                 return this.escapeHtml(text);
             }
         };
+
+        const headerParts: string[] = [];
+        headerParts.push(`<span class="console-level-badge">${this.escapeHtml(String(e.level).toUpperCase())}</span>`);
+        if (fmt.showSource !== false) {
+            headerParts.push(`<span class="console-category">${this.escapeHtml(String(e.category || '').toUpperCase())}</span>`);
+        }
+        if (fmt.showTimestamp !== false) {
+            headerParts.push(`<span class="console-timestamp">${this.escapeHtml(tsStr)}</span>`);
+        }
+
         return `
             <div class="console-log-entry console-level-${levelClass}">
-                <div class="console-log-header">
-                    <span class="console-level-badge">${String(e.level).toUpperCase()}</span>
-                    <span class="console-category">${this.escapeHtml(e.category.toUpperCase())}</span>
-                    <span class="console-timestamp">${ts}</span>
-                </div>
+                <div class="console-log-header">${headerParts.join('')}</div>
                 <div class="console-log-message">${highlight(e.message)}</div>
             </div>
         `;

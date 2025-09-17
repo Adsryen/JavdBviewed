@@ -2313,6 +2313,14 @@
                                 <!-- 控制台输出（即时）设置 -->
                                 <div class="logging-section log-display">
                                     <h4><i class="fas fa-terminal"></i> 控制台输出（即时）</h4>
+                                    <div class="log-controls">
+                                        <button type="button" id="consoleMuteAll" class="btn btn-secondary">
+                                            <i class="fas fa-bell-slash"></i> 一键静默
+                                        </button>
+                                        <button type="button" id="consoleEnableAll" class="btn btn-primary">
+                                            <i class="fas fa-bell"></i> 一键全开
+                                        </button>
+                                    </div>
 
                                     <div class="form-group">
                                         <label for="consoleLevel">日志级别（显示阈值）</label>
@@ -2329,6 +2337,10 @@
                                     <div class="form-group-checkbox">
                                         <input type="checkbox" id="consoleShowTimestamp" checked>
                                         <label for="consoleShowTimestamp"><i class="fas fa-clock"></i> 显示时间戳 (HH:mm:ss)</label>
+                                    </div>
+                                    <div class="form-group-checkbox">
+                                        <input type="checkbox" id="consoleShowMilliseconds">
+                                        <label for="consoleShowMilliseconds"><i class="fas fa-stopwatch"></i> 显示毫秒 (ms)</label>
                                     </div>
                                     <div class="form-group-checkbox">
                                         <input type="checkbox" id="consoleShowSource" checked>
@@ -2844,6 +2856,8 @@
                         <div class="log-actions">
                             <button id="refresh-logs-button" class="primary">刷新</button>
                             <button id="clear-logs-button" class="danger">清空日志</button>
+                            <button id="apply-settings-filter" class="primary">按日志设置过滤</button>
+                            <button id="clear-settings-filter" class="button-like">清除过滤</button>
                         </div>
                         <div class="log-container">
                             <div id="log-body">
