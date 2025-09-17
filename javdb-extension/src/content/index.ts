@@ -172,46 +172,45 @@ async function initialize(): Promise<void> {
         globalCache.cleanup().catch(err => log('Cache cleanup error:', err));
     }
 
-    // 初始化数据聚合器
-    if (settings.dataEnhancement.enableMultiSource) {
-        log('Data aggregator initialized');
-        defaultDataAggregator.updateConfig({
-            enableCache: settings.dataEnhancement.enableImageCache,
-            cacheExpiration: settings.dataEnhancement.cacheExpiration,
-        });
-        console.log('[JavDB Extension] Initializing traditional translator with settings:', {
-            enableTranslation: settings.dataEnhancement.enableTranslation,
-            provider: settings.translation?.provider,
-            service: settings.translation?.traditional?.service,
-            hasApiKey: !!settings.translation?.traditional?.apiKey
-        });
-
-        defaultDataAggregator.updateConfig({
-            sources: {
-                blogJav: {
-                    enabled: settings.dataEnhancement.enableMultiSource,
-                    baseUrl: 'https://blogjav.net',
-                    timeout: 10000,
-                },
-                translator: {
-                    enabled: settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'traditional',
-                    service: settings.translation?.traditional?.service || 'google',
-                    apiKey: settings.translation?.traditional?.apiKey,
-                    timeout: 5000,
-                },
-                javLibrary: {
-                    enabled: settings.dataEnhancement.enableRatingAggregation || settings.dataEnhancement.enableActorInfo,
-                    baseUrl: 'https://www.javlibrary.com',
-                    timeout: 15000,
-                },
-                javStore: { enabled: false, baseUrl: '', timeout: 10000 },
-                javSpyl: { enabled: false, baseUrl: '', timeout: 10000 },
-                dmm: { enabled: false, baseUrl: '', timeout: 10000 },
-                fc2: { enabled: false, baseUrl: '', timeout: 10000 },
+    // 初始化/更新数据聚合器（无论是否启用多源，都严格按设置开启/关闭各来源，避免默认配置引发不必要的网络请求）
+    log('Data aggregator configured according to settings');
+    defaultDataAggregator.updateConfig({
+        enableCache: settings.dataEnhancement.enableImageCache,
+        cacheExpiration: settings.dataEnhancement.cacheExpiration,
+        sources: {
+            // 仅当启用了多源增强时才启用 BlogJav，且降低超时与重试，避免长时间阻塞
+            blogJav: {
+                enabled: settings.dataEnhancement.enableMultiSource === true,
+                baseUrl: 'https://blogjav.net',
+                timeout: 8000,
+                maxRetries: 1,
             },
-        });
-
-    }
+            // 仅当需要评分/演员信息时启用 JavLibrary，设置更保守的超时与重试
+            javLibrary: {
+                enabled: (settings.dataEnhancement.enableRatingAggregation === true) || (settings.dataEnhancement.enableActorInfo === true),
+                baseUrl: 'https://www.javlibrary.com',
+                timeout: 12000,
+                maxRetries: 1,
+                language: 'en',
+            },
+            // 传统翻译：当 provider=traditional 且（全局增强或详情页增强任一开启翻译）时启用
+            translator: {
+                enabled: (settings.translation?.provider === 'traditional') &&
+                         ((settings.dataEnhancement.enableTranslation === true) || (settings.videoEnhancement?.enableTranslation === true)),
+                service: settings.translation?.traditional?.service || 'google',
+                apiKey: settings.translation?.traditional?.apiKey,
+                timeout: 5000,
+                maxRetries: 1,
+                sourceLanguage: settings.translation?.traditional?.sourceLanguage || 'ja',
+                targetLanguage: settings.translation?.traditional?.targetLanguage || 'zh-CN',
+            },
+            // 其余数据源保持关闭
+            javStore: { enabled: false, baseUrl: '', timeout: 10000 },
+            javSpyl: { enabled: false, baseUrl: '', timeout: 10000 },
+            dmm: { enabled: false, baseUrl: '', timeout: 10000 },
+            fc2: { enabled: false, baseUrl: '', timeout: 10000 },
+        },
+    });
 
     // 无论是否启用多源，都根据翻译设置初始化 AI 翻译配置，确保定点翻译可用
     if (settings.dataEnhancement.enableTranslation && settings.translation?.provider === 'ai') {

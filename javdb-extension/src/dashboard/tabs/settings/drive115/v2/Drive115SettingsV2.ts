@@ -39,6 +39,8 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
   private isAutoSaving = false;
   private v2Pane: Drive115V2Pane | null = null;
   private expiryTimer: number | undefined = undefined;
+  // 监听 storage 变化以便在外部刷新 token 后同步 UI
+  private storageChangedHandler?: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void;
 
   constructor() {
     super({
@@ -477,6 +479,13 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       this.autoSaveTimeout = undefined;
     }
     this.stopExpiryCountdown();
+    // 卸载 storage 监听，避免内存泄漏
+    try {
+      if (this.storageChangedHandler) {
+        chrome.storage.onChanged.removeListener(this.storageChangedHandler);
+        this.storageChangedHandler = undefined;
+      }
+    } catch {}
   }
 
   // 立刻保存设置（关键项：避免在自动保存延迟期间刷新导致丢失）
@@ -517,8 +526,53 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         this.v2Pane.mount();
         this.v2Pane.show();
       }
+      // 安装 storage 同步：当左侧面板或后台刷新了 token 时，设置页自动跟随更新
+      this.setupStorageSync();
     }, 50);
     this.updateAutoSaveStatus('idle');
+  }
+
+  /**
+   * 监听 chrome.storage 中 settings 的变化，自动回填 v2 token 到 UI
+   */
+  private setupStorageSync(): void {
+    try {
+      if (this.storageChangedHandler) return; // 避免重复注册
+      if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return;
+      this.storageChangedHandler = (changes, area) => {
+        if (area !== 'local' || !changes['settings']) return;
+        const newVal = changes['settings'].newValue || {};
+        const drv: any = (newVal as any)?.drive115 || {};
+        let changed = false;
+        const prev = this.settings as any;
+        // 同步关键字段
+        if (typeof drv.v2AccessToken !== 'undefined' && prev.v2AccessToken !== drv.v2AccessToken) {
+          prev.v2AccessToken = drv.v2AccessToken || '';
+          changed = true;
+        }
+        if (typeof drv.v2RefreshToken !== 'undefined' && prev.v2RefreshToken !== drv.v2RefreshToken) {
+          prev.v2RefreshToken = drv.v2RefreshToken || '';
+          changed = true;
+        }
+        if (typeof drv.v2TokenExpiresAt !== 'undefined' && prev.v2TokenExpiresAt !== drv.v2TokenExpiresAt) {
+          prev.v2TokenExpiresAt = (typeof drv.v2TokenExpiresAt === 'number' ? drv.v2TokenExpiresAt : null);
+          changed = true;
+        }
+        // 同步启用状态，避免 UI 与开关不一致
+        if (typeof drv.enabled === 'boolean' && this.settings.enabled !== !!drv.enabled) {
+          this.settings.enabled = !!drv.enabled;
+          changed = true;
+        }
+        if (typeof drv.enableV2 === 'boolean' && this.settings.enableV2 !== !!drv.enableV2) {
+          this.settings.enableV2 = !!drv.enableV2;
+          changed = true;
+        }
+        if (changed) {
+          this.updateUI();
+        }
+      };
+      chrome.storage.onChanged.addListener(this.storageChangedHandler);
+    } catch {}
   }
 
   // 启动倒计时，每秒更新剩余时间与颜色
