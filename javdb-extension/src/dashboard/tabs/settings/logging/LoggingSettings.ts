@@ -23,6 +23,7 @@ export class LoggingSettings extends BaseSettingsPanel {
     // 统一控制台代理 - 控件
     private consoleLevel!: HTMLSelectElement;
     private consoleShowTimestamp!: HTMLInputElement;
+    private consoleShowMilliseconds!: HTMLInputElement;
     private consoleShowSource!: HTMLInputElement;
     private consoleColor!: HTMLInputElement;
     private consoleTimeZone!: HTMLInputElement;
@@ -34,6 +35,10 @@ export class LoggingSettings extends BaseSettingsPanel {
     private consoleCategoryActor!: HTMLInputElement;
     private consoleCategoryStorage!: HTMLInputElement;
     private consoleCategoryGeneral!: HTMLInputElement;
+
+    // 快捷按钮
+    private consoleMuteAllBtn!: HTMLButtonElement;
+    private consoleEnableAllBtn!: HTMLButtonElement;
 
     constructor() {
         super({
@@ -57,6 +62,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         // 控制台代理
         this.consoleLevel = document.getElementById('consoleLevel') as HTMLSelectElement;
         this.consoleShowTimestamp = document.getElementById('consoleShowTimestamp') as HTMLInputElement;
+        this.consoleShowMilliseconds = document.getElementById('consoleShowMilliseconds') as HTMLInputElement;
         this.consoleShowSource = document.getElementById('consoleShowSource') as HTMLInputElement;
         this.consoleColor = document.getElementById('consoleColor') as HTMLInputElement;
         this.consoleTimeZone = document.getElementById('consoleTimeZone') as HTMLInputElement;
@@ -68,6 +74,10 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleCategoryActor = document.getElementById('consoleCategoryActor') as HTMLInputElement;
         this.consoleCategoryStorage = document.getElementById('consoleCategoryStorage') as HTMLInputElement;
         this.consoleCategoryGeneral = document.getElementById('consoleCategoryGeneral') as HTMLInputElement;
+
+        // 快捷按钮
+        this.consoleMuteAllBtn = document.getElementById('consoleMuteAll') as HTMLButtonElement;
+        this.consoleEnableAllBtn = document.getElementById('consoleEnableAll') as HTMLButtonElement;
 
         // 验证元素是否存在
         if (!this.maxLogEntries) {
@@ -91,6 +101,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (!this.consoleLevel) console.warn('[LoggingSettings] 找不到 consoleLevel 元素');
         if (!this.consoleShowTimestamp) console.warn('[LoggingSettings] 找不到 consoleShowTimestamp 元素');
         if (!this.consoleShowSource) console.warn('[LoggingSettings] 找不到 consoleShowSource 元素');
+        if (!this.consoleShowMilliseconds) console.warn('[LoggingSettings] 找不到 consoleShowMilliseconds 元素');
         if (!this.consoleColor) console.warn('[LoggingSettings] 找不到 consoleColor 元素');
         if (!this.consoleTimeZone) console.warn('[LoggingSettings] 找不到 consoleTimeZone 元素');
         if (!this.consoleCategoryCore) console.warn('[LoggingSettings] 找不到 consoleCategoryCore 元素');
@@ -118,6 +129,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleLevel?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleShowTimestamp?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleShowSource?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleShowMilliseconds?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleColor?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleTimeZone?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleCategoryCore?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -128,6 +140,10 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleCategoryActor?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleCategoryStorage?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleCategoryGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
+
+        // 控制台快捷按钮
+        this.consoleMuteAllBtn?.addEventListener('click', this.handleConsoleMuteAll.bind(this));
+        this.consoleEnableAllBtn?.addEventListener('click', this.handleConsoleEnableAll.bind(this));
     }
 
     /**
@@ -156,6 +172,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         const fmt = (logging as any).consoleFormat || {};
         if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = fmt.showTimestamp ?? true;
         if (this.consoleShowSource) this.consoleShowSource.checked = fmt.showSource ?? true;
+        if (this.consoleShowMilliseconds) this.consoleShowMilliseconds.checked = fmt.showMilliseconds ?? false;
         if (this.consoleColor) this.consoleColor.checked = fmt.color ?? true;
         if (this.consoleTimeZone) this.consoleTimeZone.value = fmt.timeZone || 'Asia/Shanghai';
         const cats = (logging as any).consoleCategories || {};
@@ -187,6 +204,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                     consoleFormat: {
                         showTimestamp: this.consoleShowTimestamp?.checked ?? true,
                         showSource: this.consoleShowSource?.checked ?? true,
+                        showMilliseconds: this.consoleShowMilliseconds?.checked ?? false,
                         color: this.consoleColor?.checked ?? true,
                         timeZone: this.consoleTimeZone?.value || 'Asia/Shanghai',
                     },
@@ -293,6 +311,7 @@ export class LoggingSettings extends BaseSettingsPanel {
             const fmt = (logging as any).consoleFormat || {};
             if (this.consoleShowTimestamp && fmt.showTimestamp !== undefined) this.consoleShowTimestamp.checked = !!fmt.showTimestamp;
             if (this.consoleShowSource && fmt.showSource !== undefined) this.consoleShowSource.checked = !!fmt.showSource;
+            if (this.consoleShowMilliseconds && fmt.showMilliseconds !== undefined) this.consoleShowMilliseconds.checked = !!fmt.showMilliseconds;
             if (this.consoleColor && fmt.color !== undefined) this.consoleColor.checked = !!fmt.color;
             if (this.consoleTimeZone && fmt.timeZone !== undefined) this.consoleTimeZone.value = fmt.timeZone;
             const cats = (logging as any).consoleCategories || {};
@@ -326,6 +345,48 @@ export class LoggingSettings extends BaseSettingsPanel {
     private handleSettingChange(): void {
         this.emit('change');
         this.scheduleAutoSave();
+    }
+
+    /**
+     * 一键静默：
+     * - 将控制台级别设为 OFF
+     * - 关闭所有类别开关
+     */
+    private handleConsoleMuteAll(): void {
+        if (this.consoleLevel) this.consoleLevel.value = 'OFF' as any;
+        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = false;
+        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = false;
+        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = false;
+        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = false;
+        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = false;
+        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = false;
+        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = false;
+        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = false;
+        showMessage('控制台输出已静默（OFF）', 'info');
+        this.handleSettingChange();
+    }
+
+    /**
+     * 一键全开：
+     * - 将控制台级别设为 DEBUG（最详细）
+     * - 打开所有类别开关
+     * - 打开时间戳/来源/彩色输出
+     */
+    private handleConsoleEnableAll(): void {
+        if (this.consoleLevel) this.consoleLevel.value = 'DEBUG' as any;
+        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = true;
+        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = true;
+        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = true;
+        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = true;
+        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = true;
+        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = true;
+        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = true;
+        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = true;
+        if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = true;
+        if (this.consoleShowSource) this.consoleShowSource.checked = true;
+        if (this.consoleColor) this.consoleColor.checked = true;
+        showMessage('控制台输出已全开（DEBUG，所有类别）', 'success');
+        this.handleSettingChange();
     }
 
 }
