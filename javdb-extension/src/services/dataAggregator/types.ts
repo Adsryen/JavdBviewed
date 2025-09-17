@@ -140,6 +140,7 @@ export interface DataSourceConfig {
     enabled: boolean;
     baseUrl: string;
     timeout: number;
+    maxRetries: number;
   };
   javStore: {
     enabled: boolean;
@@ -155,6 +156,8 @@ export interface DataSourceConfig {
     enabled: boolean;
     baseUrl: string;
     timeout: number;
+    maxRetries: number;
+    language: 'en' | 'ja' | 'cn';
   };
   dmm: {
     enabled: boolean;
@@ -171,6 +174,9 @@ export interface DataSourceConfig {
     service: 'google' | 'baidu' | 'youdao';
     apiKey?: string;
     timeout: number;
+    maxRetries: number;
+    sourceLanguage: string;
+    targetLanguage: string;
   };
 }
 

@@ -63,9 +63,15 @@ export class VideoDetailEnhancer {
   private async translateCurrentTitleIfNeeded(): Promise<void> {
     try {
       const settings = STATE.settings;
-      if (!settings || !settings.dataEnhancement?.enableTranslation) return;
+      const enabledByGlobal = !!settings?.dataEnhancement?.enableTranslation;
+      const enabledByVE = !!settings?.videoEnhancement?.enableTranslation;
+      if (!enabledByGlobal && !enabledByVE) return;
+      console.log('[Translation] Enable check:', { enabledByGlobal, enabledByVE });
 
-      const targetEnabled = settings.translation?.targets?.currentTitle === true;
+      // 当 targets 未配置时，默认启用 currentTitle 翻译；只有明确为 false 才禁用
+      const targetEnabled = settings.translation?.targets
+        ? (settings.translation.targets.currentTitle !== false)
+        : true;
       if (!targetEnabled) {
         log('[Translation] current-title target is disabled by settings. Skipping.');
         return;
