@@ -470,6 +470,36 @@ button:disabled {
     font-weight: 700;
 }
 
+/* GitHub 项目链接（位于版本信息上方） */
+.github-link-container {
+    display: flex;
+    justify-content: center;
+    margin: 6px 0 2px;
+}
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #6c757d;
+    background: #f1f3f5;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid #e8e8e8;
+}
+.github-link i {
+    font-size: 16px;
+    line-height: 1;
+}
+.github-link:hover {
+    color: #333;
+    background: #e9ecef;
+    border-color: #007bff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
 /* Version State Colors */
 .version-state-clean {
     color: #2c3e50; /* 深灰近黑 */
