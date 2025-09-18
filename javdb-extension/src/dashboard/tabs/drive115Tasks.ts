@@ -1,6 +1,8 @@
 import { getSettings } from '../../utils/storage';
 import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
 
+const DISPLAY_PAGE_SIZE_STORAGE_KEY = 'drive115TasksDisplayPageSize';
+
 /**
  * 115网盘下载任务管理
  */
@@ -15,12 +17,40 @@ export class Drive115TasksManager {
   private tasks: Drive115V2Task[] = [];
   private totalCount = 0;
   private pageCount = 0;
+  private statusFilter: 'all' | 'running' | 'completed' | 'failed' = 'all';
+  private displayPageSize: number = 20;
 
   constructor() {
     this.initializeElements();
+    this.displayPageSize = this.loadDisplayPageSize();
     this.bindEvents();
   }
 
+  /** 读取/保存“每页显示”配置 */
+  private loadDisplayPageSize(): number {
+    try {
+      const raw = localStorage.getItem(DISPLAY_PAGE_SIZE_STORAGE_KEY);
+      const n = parseInt(raw || '0', 10);
+      return [10, 20, 30, 50].includes(n) ? n : 20;
+    } catch {
+      return 20;
+    }
+  }
+
+  private saveDisplayPageSize(val: number): void {
+    try { localStorage.setItem(DISPLAY_PAGE_SIZE_STORAGE_KEY, String(val)); } catch {}
+  }
+
+  /**
+   * 初始化任务列表页面
+   */
+  async initialize(): Promise<void> {
+    this.showStats();
+    this.bindStatsEvents();
+    await this.loadTasks();
+  }
+
+  /** 初始化元素引用 */
   private initializeElements(): void {
     this.container = document.getElementById('drive115TasksContainer');
     this.loadingIndicator = document.getElementById('drive115TasksLoading');
@@ -28,6 +58,7 @@ export class Drive115TasksManager {
     this.paginationContainer = document.getElementById('drive115TasksPaginationContainer');
   }
 
+  /** 绑定顶部按钮与输入事件 */
   private bindEvents(): void {
     // 添加任务按钮
     const addTaskBtn = document.getElementById('drive115AddTaskBtn');
@@ -51,42 +82,34 @@ export class Drive115TasksManager {
   }
 
   /**
-   * 初始化任务列表页面
-   */
-  async initialize(): Promise<void> {
-    this.showStats();
-    await this.loadTasks();
-  }
-
-  /**
    * 显示统计信息
    */
   private showStats(): void {
     if (!this.statsContainer) return;
 
     const statsHtml = `
-      <div class="stat-item">
+      <div class="stat-item" id="stat-total" data-filter="all" title="点击查看全部任务（提示：除“总任务数”为全量外，其余均为本页统计）">
         <div class="stat-value" id="totalTasksCount">-</div>
         <div class="stat-label">总任务数</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" id="stat-running" data-filter="running" title="点击过滤当前页：下载中">
         <div class="stat-value" id="runningTasksCount">-</div>
-        <div class="stat-label">下载中</div>
+        <div class="stat-label">本页下载中</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" id="stat-completed" data-filter="completed" title="点击过滤当前页：已完成">
         <div class="stat-value" id="completedTasksCount">-</div>
-        <div class="stat-label">已完成</div>
+        <div class="stat-label">本页已完成</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" id="stat-failed" data-filter="failed" title="点击过滤当前页：失败">
         <div class="stat-value" id="failedTasksCount">-</div>
-        <div class="stat-label">失败</div>
+        <div class="stat-label">本页失败</div>
       </div>
     `;
     this.statsContainer.innerHTML = statsHtml;
   }
 
   /**
-   * 更新统计信息
+   * 更新统计信息（含当前过滤高亮）
    */
   private updateStats(): void {
     const totalElement = document.getElementById('totalTasksCount');
@@ -103,6 +126,49 @@ export class Drive115TasksManager {
     if (runningElement) runningElement.textContent = runningCount.toString();
     if (completedElement) completedElement.textContent = completedCount.toString();
     if (failedElement) failedElement.textContent = failedCount.toString();
+
+    const container = this.statsContainer;
+    if (container) {
+      container.querySelectorAll('.stat-item').forEach(el => el.classList.remove('active'));
+      const activeId = this.statusFilter === 'running'
+        ? 'stat-running'
+        : this.statusFilter === 'completed'
+          ? 'stat-completed'
+          : this.statusFilter === 'failed'
+            ? 'stat-failed'
+            : 'stat-total';
+      document.getElementById(activeId)?.classList.add('active');
+    }
+  }
+
+  /** 绑定统计卡片点击进行过滤 */
+  private bindStatsEvents(): void {
+    if (!this.statsContainer) return;
+    const items = this.statsContainer.querySelectorAll('.stat-item');
+    items.forEach((el) => {
+      el.addEventListener('click', () => {
+        const f = (el as HTMLElement).dataset.filter as ('all'|'running'|'completed'|'failed') | undefined;
+        if (!f) return;
+        this.setFilter(f);
+      });
+    });
+  }
+
+  private setFilter(filter: 'all'|'running'|'completed'|'failed'): void {
+    if (filter === 'all') this.statusFilter = 'all';
+    else this.statusFilter = (this.statusFilter === filter) ? 'all' : filter;
+    this.renderTasks();
+    this.updateStats();
+  }
+
+  private applyFilter(tasks: Drive115V2Task[]): Drive115V2Task[] {
+    switch (this.statusFilter) {
+      case 'running': return tasks.filter(t => t.status === 1);
+      case 'completed': return tasks.filter(t => t.status === 2);
+      case 'failed': return tasks.filter(t => t.status === -1);
+      case 'all':
+      default: return tasks;
+    }
   }
 
   /**
@@ -134,7 +200,7 @@ export class Drive115TasksManager {
         return;
       }
 
-      const data = result.data || {};
+      const data = result.data || {} as any;
       this.tasks = data.tasks || [];
       this.totalCount = data.count || 0;
       this.pageCount = data.page_count || 1;
@@ -153,33 +219,7 @@ export class Drive115TasksManager {
     }
   }
 
-  /**
-   * 渲染任务列表
-   */
-  private renderTasks(): void {
-    if (!this.container) return;
-
-    if (this.tasks.length === 0) {
-      this.container.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-cloud-download-alt"></i>
-          <h3>暂无下载任务</h3>
-          <p>在上方输入框中添加下载链接开始使用</p>
-        </div>
-      `;
-      return;
-    }
-
-    const tasksHtml = this.tasks.map(task => this.renderTaskItem(task)).join('');
-    this.container.innerHTML = `<div class="tasks-list">${tasksHtml}</div>`;
-
-    // 绑定任务项事件
-    this.bindTaskEvents();
-  }
-
-  /**
-   * 渲染单个任务项
-   */
+  /** 渲染单个任务项 */
   private renderTaskItem(task: Drive115V2Task): string {
     const statusText = this.getStatusText(task.status);
     const statusClass = this.getStatusClass(task.status);
@@ -219,9 +259,7 @@ export class Drive115TasksManager {
     `;
   }
 
-  /**
-   * 绑定任务项事件
-   */
+  /** 绑定任务项事件 */
   private bindTaskEvents(): void {
     const deleteButtons = this.container?.querySelectorAll('.delete-btn');
     deleteButtons?.forEach(btn => {
@@ -235,20 +273,53 @@ export class Drive115TasksManager {
   }
 
   /**
-   * 渲染分页控件
+   * 渲染任务列表
    */
-  private renderPagination(): void {
-    if (!this.paginationContainer || this.pageCount <= 1) {
-      if (this.paginationContainer) {
-        this.paginationContainer.innerHTML = '';
-      }
+  private renderTasks(): void {
+    if (!this.container) return;
+
+    const filteredTasks = this.applyFilter(this.tasks);
+
+    if (this.tasks.length === 0) {
+      this.container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-cloud-download-alt"></i>
+          <h3>暂无下载任务</h3>
+          <p>在上方输入框中添加下载链接开始使用</p>
+        </div>
+      `;
       return;
     }
 
+    if (filteredTasks.length === 0) {
+      this.container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-filter"></i>
+          <h3>当前页暂无符合条件的任务</h3>
+          <p>点击上方统计卡片切换过滤或重置为“全部”（统计过滤仅作用于当前页）</p>
+        </div>
+      `;
+      return;
+    }
+
+    const tasksToShow = filteredTasks.slice(0, this.displayPageSize);
+    const tasksHtml = tasksToShow.map(task => this.renderTaskItem(task)).join('');
+    this.container.innerHTML = `<div class="tasks-list">${tasksHtml}</div>`;
+
+    // 绑定任务项事件
+    this.bindTaskEvents();
+  }
+
+  /**
+   * 渲染分页控件
+   */
+  private renderPagination(): void {
+    if (!this.paginationContainer) return;
+
     let paginationHtml = '';
-    
+
     // 上一页
-    if (this.currentPage > 1) {
+    if (this.pageCount > 1 && this.currentPage > 1) {
       paginationHtml += `<button class="page-btn" data-page="${this.currentPage - 1}">上一页</button>`;
     }
 
@@ -256,19 +327,21 @@ export class Drive115TasksManager {
     const startPage = Math.max(1, this.currentPage - 2);
     const endPage = Math.min(this.pageCount, this.currentPage + 2);
 
-    if (startPage > 1) {
+    if (this.pageCount > 1 && startPage > 1) {
       paginationHtml += `<button class="page-btn" data-page="1">1</button>`;
       if (startPage > 2) {
         paginationHtml += `<span class="page-ellipsis">...</span>`;
       }
     }
 
-    for (let i = startPage; i <= endPage; i++) {
-      const activeClass = i === this.currentPage ? 'active' : '';
-      paginationHtml += `<button class="page-btn ${activeClass}" data-page="${i}">${i}</button>`;
+    if (this.pageCount > 1) {
+      for (let i = startPage; i <= endPage; i++) {
+        const activeClass = i === this.currentPage ? 'active' : '';
+        paginationHtml += `<button class="page-btn ${activeClass}" data-page="${i}">${i}</button>`;
+      }
     }
 
-    if (endPage < this.pageCount) {
+    if (this.pageCount > 1 && endPage < this.pageCount) {
       if (endPage < this.pageCount - 1) {
         paginationHtml += `<span class="page-ellipsis">...</span>`;
       }
@@ -276,20 +349,43 @@ export class Drive115TasksManager {
     }
 
     // 下一页
-    if (this.currentPage < this.pageCount) {
+    if (this.pageCount > 1 && this.currentPage < this.pageCount) {
       paginationHtml += `<button class="page-btn" data-page="${this.currentPage + 1}">下一页</button>`;
     }
 
-    this.paginationContainer.innerHTML = paginationHtml;
+    // 追加“每页显示”选择器
+    const options = [10, 20, 30, 50];
+    const selectHtml = `
+      <label class="page-size-control" for="drive115PageSizeSelect" style="display:inline-flex; align-items:center; gap:6px; margin-left:8px;">
+        <span style="font-size:12px;color:#6b7280;">每页显示</span>
+        <select id="drive115PageSizeSelect" class="page-size-select" style="padding:4px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:12px;">
+          ${options.map(n => `<option value="${n}" ${this.displayPageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+      </label>`;
+
+    this.paginationContainer.innerHTML = paginationHtml + selectHtml;
 
     // 绑定分页事件
-    const pageButtons = this.paginationContainer.querySelectorAll('.page-btn');
-    pageButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const page = parseInt((e.currentTarget as HTMLElement).dataset.page || '1');
-        this.loadTasks(page);
+    if (this.pageCount > 1) {
+      const pageButtons = this.paginationContainer.querySelectorAll('.page-btn');
+      pageButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const page = parseInt((e.currentTarget as HTMLElement).dataset.page || '1');
+          this.loadTasks(page);
+        });
       });
-    });
+    }
+
+    // 绑定尺⼨选择事件
+    const sizeSelect = this.paginationContainer.querySelector('#drive115PageSizeSelect') as HTMLSelectElement | null;
+    if (sizeSelect) {
+      sizeSelect.addEventListener('change', () => {
+        const val = parseInt(sizeSelect.value || '20', 10);
+        this.displayPageSize = [10, 20, 30, 50].includes(val) ? val : 20;
+        this.saveDisplayPageSize(this.displayPageSize);
+        this.renderTasks();
+      });
+    }
   }
 
   /**
