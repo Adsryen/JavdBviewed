@@ -64,9 +64,8 @@ export class VideoDetailEnhancer {
     try {
       const settings = STATE.settings;
       const enabledByGlobal = !!settings?.dataEnhancement?.enableTranslation;
-      const enabledByVE = !!settings?.videoEnhancement?.enableTranslation;
-      if (!enabledByGlobal && !enabledByVE) return;
-      console.log('[Translation] Enable check:', { enabledByGlobal, enabledByVE });
+      if (!enabledByGlobal) return;
+      console.log('[Translation] Enable check (global only):', { enabledByGlobal });
 
       // 当 targets 未配置时，默认启用 currentTitle 翻译；只有明确为 false 才禁用
       const targetEnabled = settings.translation?.targets

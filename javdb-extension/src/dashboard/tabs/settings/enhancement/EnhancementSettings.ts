@@ -31,7 +31,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 影片页增强子项
     private veEnableCoverImage!: HTMLInputElement;
-    private veEnableTranslation!: HTMLInputElement;
     private veEnableRating!: HTMLInputElement;
     private veEnableActorInfo!: HTMLInputElement;
     private veShowLoadingIndicator!: HTMLInputElement;
@@ -93,9 +92,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private listEnhancementConfig!: HTMLDivElement;
     private videoEnhancementConfig!: HTMLDivElement;
 
-    // 合并翻译开关：高级选项（默认关闭，联动两个开关）
-    private translationAdvancedModeChk?: HTMLInputElement;
-    private translationAdvancedTip?: HTMLDivElement;
+    // 合并翻译开关：高级选项已移除（仅保留单一全局开关）
 
     // 内容过滤相关元素
     private addFilterRuleBtn!: HTMLButtonElement;
@@ -268,7 +265,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 影片页增强子项
         this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
-        this.veEnableTranslation = document.getElementById('veEnableTranslation') as HTMLInputElement;
         this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
         this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
         this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
@@ -316,18 +312,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 影片页增强事件监听
         this.enableVideoEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
 
-        // 影片页增强子项事件监听
+        // 影片页增强子项事件监听（已移除“影片页翻译”独立开关，统一由全局翻译控制）
         this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableTranslation?.addEventListener('change', () => {
-            // 若未启用高级模式，则联动主开关
-            if (!this.isTranslationAdvancedMode() && this.enableTranslation) {
-                this.enableTranslation.checked = !!this.veEnableTranslation?.checked;
-                // 同步滑块视觉
-                try { this.updateAllToggleStates(); } catch {}
-            }
-            this.handleSettingChange();
-            this.updateTranslationConfigVisibility();
-        });
         this.veEnableRating?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableActorInfo?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1086,19 +1072,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         };
         if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
         if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
-        if (this.veEnableTranslation) this.veEnableTranslation.checked = videoEnhancement.enableTranslation !== false;
+        // 不再设置 veEnableTranslation（已移除），翻译开关仅由全局开关控制
 
-    // 安装/更新“高级选项”并应用联动策略
-    this.installTranslationAdvancedControls();
-    const advanced = this.isTranslationAdvancedMode();
-    if (!advanced) {
-        // 默认联动：两个开关保持一致（以主开关为准）
-        if (this.veEnableTranslation && this.enableTranslation) {
-            this.veEnableTranslation.checked = this.enableTranslation.checked;
-        }
-    }
-    try { this.updateAllToggleStates(); } catch {}
-    this.updateTranslationConfigVisibility();
+        // 同步滑块状态与翻译配置可见性
+        try { this.updateAllToggleStates(); } catch {}
+        this.updateTranslationConfigVisibility();
         if (this.veEnableRating) this.veEnableRating.checked = videoEnhancement.enableRating !== false;
         if (this.veEnableActorInfo) this.veEnableActorInfo.checked = videoEnhancement.enableActorInfo !== false;
         if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
@@ -1304,7 +1282,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             videoEnhancement: {
                 enabled: this.enableVideoEnhancement?.checked === true,
                 enableCoverImage: this.veEnableCoverImage?.checked !== false,
-                enableTranslation: this.veEnableTranslation?.checked !== false,
+                // 影片页翻译已合并到全局翻译：镜像全局开关，确保旧逻辑兼容
+                enableTranslation: this.enableTranslation?.checked === true,
                 enableRating: this.veEnableRating?.checked !== false,
                 enableActorInfo: this.veEnableActorInfo?.checked !== false,
                 showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
@@ -1419,7 +1398,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 确保翻译配置的显示状态正确
         if (this.translationConfig) {
-            this.translationConfig.style.display = this.enableTranslation.checked ? 'block' : 'none';
+            // 由 updateTranslationConfigVisibility + 悬浮逻辑统一控制显隐
         }
 
         // 翻译配置 UI 回填
@@ -1647,7 +1626,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 仅记录可用状态，不直接控制显示（显示由 hover 行为接管）
         const map: Record<string, string> = {
             'enableTranslation': 'translationConfig',
-            'veEnableTranslation': 'translationConfig',
             'enableAutoApplyTags': 'actorEnhancementConfig',
             'enableContentFilter': 'contentFilterConfig',
             'enableAnchorOptimization': 'anchorOptimizationConfig',
@@ -1668,91 +1646,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     private updateTranslationConfigVisibility(): void {
         if (!this.translationConfig) return;
-        const enabled = (this.veEnableTranslation?.checked === true) || (this.enableTranslation?.checked === true);
+        const enabled = (this.enableTranslation?.checked === true);
         this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
-        // 不再强制隐藏：显隐交由统一的悬浮展开逻辑（setupSubSettingsHoverBehavior）控制
-        // 保持现有 display 值，避免子设置面板（含“启用高级选项”“翻译服务类型”等）完全不可见
+        // 不强制 display，显隐交由统一的悬浮展开逻辑（setupSubSettingsHoverBehavior）控制
     }
 
     /**
      * 是否启用“高级选项”（允许分别控制两个翻译开关）
      */
-    private isTranslationAdvancedMode(): boolean {
-        try {
-            return localStorage.getItem('translationAdvancedMode') === '1';
-        } catch { return false; }
-    }
-
-    /**
-     * 设置“高级选项”模式并持久化
-     */
-    private setTranslationAdvancedMode(on: boolean): void {
-        try { localStorage.setItem('translationAdvancedMode', on ? '1' : '0'); } catch {}
-        // 切换时立即应用联动策略
-        if (!on && this.enableTranslation && this.veEnableTranslation) {
-            this.veEnableTranslation.checked = this.enableTranslation.checked;
-            try { this.updateAllToggleStates(); } catch {}
-        }
-        this.updateTranslationConfigVisibility();
-    }
-
-    /**
-     * 在翻译配置区域动态注入“高级选项”与说明，并绑定联动逻辑
-     */
-    private installTranslationAdvancedControls(): void {
-        try {
-            if (!this.translationConfig) return;
-            // 若尚未创建，则动态插入
-            if (!this.translationAdvancedTip) {
-                const wrap = document.createElement('div');
-                wrap.style.margin = '6px 0 10px 0';
-                wrap.style.fontSize = '12px';
-                wrap.style.color = '#666';
-
-                const chk = document.createElement('input');
-                chk.type = 'checkbox';
-                chk.id = 'translationAdvancedMode';
-                chk.style.marginRight = '6px';
-                this.translationAdvancedModeChk = chk;
-
-                const label = document.createElement('label');
-                label.htmlFor = 'translationAdvancedMode';
-                label.textContent = '启用高级选项（分别控制“全局翻译”和“影片页翻译”）';
-                label.style.cursor = 'pointer';
-
-                wrap.appendChild(chk);
-                wrap.appendChild(label);
-
-                const hint = document.createElement('div');
-                hint.textContent = '默认仅需一个主开关：关闭高级选项时，两个翻译开关将自动联动（主开关=全局翻译）。';
-                hint.style.marginTop = '4px';
-                this.translationAdvancedTip = hint;
-                wrap.appendChild(hint);
-
-                // 插入到翻译配置容器顶部
-                this.translationConfig.insertBefore(wrap, this.translationConfig.firstChild);
-
-                // 绑定事件
-                chk.addEventListener('change', () => {
-                    this.setTranslationAdvancedMode(!!chk.checked);
-                    this.handleSettingChange();
-                });
-            }
-
-            // 回填勾选状态
-            if (this.translationAdvancedModeChk) {
-                this.translationAdvancedModeChk.checked = this.isTranslationAdvancedMode();
-            }
-
-            // 绑定主开关的联动逻辑（在 bindEvents 中也做了兜底）
-            this.enableTranslation?.addEventListener('change', () => {
-                if (!this.isTranslationAdvancedMode() && this.veEnableTranslation) {
-                    this.veEnableTranslation.checked = this.enableTranslation.checked;
-                    try { this.updateAllToggleStates(); } catch {}
-                }
-            });
-        } catch {}
-    }
+    // 高级选项（分别控制全局与影片页）已移除：保留单开关逻辑，简化用户心智
 
     /**
      * 处理翻译服务切换
@@ -2231,43 +2133,26 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     private updateAllToggleStates(): void {
         console.log('[Enhancement] 强制更新所有滑块状态');
+        const toggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle');
+        toggles.forEach((toggleEl) => {
+            const targetId = toggleEl.getAttribute('data-target');
+            if (!targetId) return;
+            const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement | null;
+            if (!hiddenCheckbox) return;
 
-        const toggleMappings = [
-            { toggleSelector: '[data-target="enableTranslation"]', checkbox: this.enableTranslation },
-            { toggleSelector: '[data-target="enableContentFilter"]', checkbox: this.enableContentFilter },
-            { toggleSelector: '[data-target="enableMagnetSearch"]', checkbox: this.enableMagnetSearch },
-            { toggleSelector: '[data-target="enableAnchorOptimization"]', checkbox: this.enableAnchorOptimization },
-            { toggleSelector: '[data-target="enableListEnhancement"]', checkbox: this.enableListEnhancement },
-            // 列表页增强子项
-            { toggleSelector: '[data-target="enableClickEnhancement"]', checkbox: this.enableClickEnhancement },
-            { toggleSelector: '[data-target="enableVideoPreview"]', checkbox: this.enableListVideoPreview },
-            { toggleSelector: '[data-target="enableScrollPaging"]', checkbox: this.enableScrollPaging },
-            { toggleSelector: '[data-target="enableAutoApplyTags"]', checkbox: this.enableAutoApplyTags },
-            // 影片页增强子项（右侧通用开关）
-            { toggleSelector: '[data-target="veEnableCoverImage"]', checkbox: this.veEnableCoverImage },
-            { toggleSelector: '[data-target="veEnableTranslation"]', checkbox: this.veEnableTranslation },
-            { toggleSelector: '[data-target="veEnableRating"]', checkbox: this.veEnableRating },
-            { toggleSelector: '[data-target="veEnableActorInfo"]', checkbox: this.veEnableActorInfo },
-            { toggleSelector: '[data-target="veShowLoadingIndicator"]', checkbox: this.veShowLoadingIndicator }
-        ];
-
-        toggleMappings.forEach(({ toggleSelector, checkbox }) => {
-            const toggle = document.querySelector(toggleSelector) as HTMLElement;
-            if (toggle && checkbox) {
-                console.log(`[Enhancement] 更新滑块 ${toggleSelector}: ${checkbox.checked}`);
-                if (checkbox.checked) {
-                    toggle.classList.add('active');
-                } else {
-                    toggle.classList.remove('active');
-                }
-
-                // 同时更新子设置的显示状态
-                const targetId = toggle.getAttribute('data-target');
-                if (targetId) {
-                    this.handleSubSettingsToggle(targetId, checkbox.checked);
-                }
+            // 同步外观
+            if (hiddenCheckbox.checked) {
+                toggleEl.classList.add('active');
             } else {
-                console.warn(`[Enhancement] 未找到滑块或checkbox: ${toggleSelector}`);
+                toggleEl.classList.remove('active');
+            }
+
+            // 同步子设置可用状态标记
+            this.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
+
+            // 特殊：翻译子设置可见性
+            if (targetId === 'enableTranslation') {
+                this.updateTranslationConfigVisibility();
             }
         });
     }

@@ -193,10 +193,10 @@ async function initialize(): Promise<void> {
                 maxRetries: 1,
                 language: 'en',
             },
-            // 传统翻译：当 provider=traditional 且（全局增强或详情页增强任一开启翻译）时启用
+            // 传统翻译：当 provider=traditional 且全局翻译开启时启用（方案B：单一开关）
             translator: {
                 enabled: (settings.translation?.provider === 'traditional') &&
-                         ((settings.dataEnhancement.enableTranslation === true) || (settings.videoEnhancement?.enableTranslation === true)),
+                         (settings.dataEnhancement.enableTranslation === true),
                 service: settings.translation?.traditional?.service || 'google',
                 apiKey: settings.translation?.traditional?.apiKey,
                 timeout: 5000,
