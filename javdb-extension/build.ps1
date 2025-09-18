@@ -1,4 +1,4 @@
-# JavDB Extension - Interactive Build Assistant (PowerShell Version)
+﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
 # 设置控制台编码为UTF-8
@@ -58,7 +58,7 @@ function Show-Success {
 # 主循环
 while ($true) {
     Show-Menu
-    $choice = Get-UserChoice "Enter your choice (1-5)" "3"
+    $choice = Get-UserChoice "Enter your choice (1-5)" "4"
 
     switch ($choice) {
         "1" {
@@ -132,28 +132,16 @@ try {
     Write-Host ""
     Write-Host "Build and packaging finished successfully!" -ForegroundColor Green
     Write-Host ""
+
 } catch {
     Show-Error
     exit 1
 }
 
-# 询问是否创建GitHub Release
-Write-Host ""
-Write-Host "Do you want to create a GitHub Release now?" -ForegroundColor Yellow
-Write-Host "  [Y] Yes, create release" -ForegroundColor White
-Write-Host "  [N] No, skip release (default)" -ForegroundColor White
-Write-Host ""
-
-$releaseConfirm = Get-UserChoice "Enter your choice (Y,N)" "N"
-
-if ($releaseConfirm.ToLower() -ne "y") {
-    Write-Host "OK. Skipping GitHub Release." -ForegroundColor Yellow
-    Show-Success
-    exit 0
-}
-
+# 自动创建 GitHub Release（当选择 1/2/3 时），Just Build（选项4）跳过
 if (-not $versionType) {
-    Write-Host "A release can only be created after a version update (options 1-3)." -ForegroundColor Yellow
+    Write-Host "" 
+    Write-Host "Just Build selected. Skipping GitHub Release." -ForegroundColor Yellow
     Show-Success
     exit 0
 }
@@ -236,41 +224,18 @@ try {
     exit 1
 }
 
-# 获取提交信息（从上次release到当前）
-Write-Host "Getting commit information since last release..." -ForegroundColor Gray
+# 获取最新提交信息作为 Release Notes
+Write-Host "Getting latest commit information for release notes..." -ForegroundColor Gray
 try {
-    # 读取release历史
-    $releaseHistoryPath = "release-history.json"
-    $releaseHistory = @{
-        "releases" = @()
-        "lastReleaseCommit" = $null
-    }
+    # 获取最新提交的信息
+    $latestCommitSubject = & git log -1 --pretty=format:"%s"
+    $latestCommitBody = & git log -1 --pretty=format:"%b"
+    $latestCommitAuthor = & git log -1 --pretty=format:"%an"
+    $latestCommitDate = & git log -1 --pretty=format:"%ad" --date=short
+    $latestCommitHash = & git log -1 --pretty=format:"%h"
     
-    if (Test-Path $releaseHistoryPath) {
-        $releaseHistory = Get-Content $releaseHistoryPath | ConvertFrom-Json
-    }
-    
-    $currentCommitHash = & git log -1 --pretty=format:"%H"
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to get current commit hash"
-    }
-    
-    # 确定提交范围
-    $commitRange = ""
-    if ($releaseHistory.lastReleaseCommit) {
-        # 获取从上次release到当前的提交（不包括上次release的提交）
-        $commitRange = "$($releaseHistory.lastReleaseCommit)..HEAD"
-        Write-Host "Getting commits from $($releaseHistory.lastReleaseCommit) to HEAD" -ForegroundColor Gray
-    } else {
-        # 首次release，获取所有提交
-        $commitRange = "HEAD"
-        Write-Host "This is the first release, getting all commits" -ForegroundColor Gray
-    }
-    
-    # 获取提交列表（按时间倒序，最新的在前）
-    $commitMessages = & git log $commitRange --pretty=format:"%h|%s|%b|%an|%ad" --date=short
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to get commit information"
+        throw "Failed to get latest commit information"
     }
     
     # 构建 Release 描述
@@ -278,57 +243,31 @@ try {
     $releaseNotes += "**Build Type:** $versionType release`n"
     $releaseNotes += "**Version:** $versionStr`n"
     $releaseNotes += "**Release Date:** $(Get-Date -Format 'yyyy-MM-dd')`n`n"
+    $releaseNotes += "### 最新更新`n`n"
+    $releaseNotes += "- **$latestCommitSubject** (``$latestCommitHash``)"
     
-    if ($commitMessages) {
-        $releaseNotes += "### 更新内容`n`n"
-        
-        # 处理提交信息（按时间正序显示，从早到晚）
-        $commits = $commitMessages -split "`n"
-        [Array]::Reverse($commits)
-        
-        foreach ($commit in $commits) {
-            if (![string]::IsNullOrWhiteSpace($commit)) {
-                $parts = $commit -split "\|", 5
-                if ($parts.Length -ge 2) {
-                    $hash = $parts[0]
-                    $subject = $parts[1]
-                    $body = if ($parts.Length -gt 2) { $parts[2] } else { "" }
-                    $author = if ($parts.Length -gt 3) { $parts[3] } else { "" }
-                    $date = if ($parts.Length -gt 4) { $parts[4] } else { "" }
-                    
-                    $releaseNotes += "- **$subject** (`$hash`)"
-                    if (![string]::IsNullOrWhiteSpace($author)) {
-                        $releaseNotes += " - $author"
-                    }
-                    if (![string]::IsNullOrWhiteSpace($date)) {
-                        $releaseNotes += " ($date)"
-                    }
-                    $releaseNotes += "`n"
-                    
-                    if (![string]::IsNullOrWhiteSpace($body)) {
-                        $releaseNotes += "  $body`n"
-                    }
-                }
-            }
-        }
-    } else {
-        $releaseNotes += "No new commits since last release.`n"
+    if (![string]::IsNullOrWhiteSpace($latestCommitAuthor)) {
+        $releaseNotes += " - $latestCommitAuthor"
+    }
+    if (![string]::IsNullOrWhiteSpace($latestCommitDate)) {
+        $releaseNotes += " ($latestCommitDate)"
+    }
+    $releaseNotes += "`n"
+    
+    if (![string]::IsNullOrWhiteSpace($latestCommitBody)) {
+        $releaseNotes += "`n$latestCommitBody`n"
     }
     
     Write-Host "Release notes preview:" -ForegroundColor Yellow
     Write-Host $releaseNotes -ForegroundColor Gray
     
 } catch {
-    Write-Host "Warning: Could not get commit information, using default notes" -ForegroundColor Yellow
-    $currentCommitHash = & git log -1 --pretty=format:"%H"
-    $releaseNotes = "New $versionType release - $versionStr"
+    Write-Host "Warning: Could not get latest commit information, using default notes" -ForegroundColor Yellow
+    $releaseNotes = "Release $versionStr ($versionType) - $(Get-Date -Format 'yyyy-MM-dd')"
 }
 
 # 创建release
 Write-Host "Creating release and uploading $zipName..." -ForegroundColor Gray
-Write-Host "Debug: tag_name=$tagName" -ForegroundColor DarkGray
-Write-Host "Debug: zip_path=$zipPath" -ForegroundColor DarkGray
-Write-Host "Debug: version_type=$versionType" -ForegroundColor DarkGray
 
 # 检查变量
 if ([string]::IsNullOrWhiteSpace($tagName)) {
@@ -347,8 +286,6 @@ if ([string]::IsNullOrWhiteSpace($versionType)) {
     exit 1
 }
 
-Write-Host "Executing: gh release create `"$tagName`" `"$zipPath`" --title `"Release $tagName`" --notes `"$releaseNotes`"" -ForegroundColor Gray
-
 try {
     & gh release create $tagName $zipPath --title "Release $tagName" --notes $releaseNotes
     if ($LASTEXITCODE -ne 0) {
@@ -356,52 +293,6 @@ try {
     }
 
     Write-Host "GitHub Release created successfully!" -ForegroundColor Green
-    
-    # 更新release历史记录
-    Write-Host "Updating release history..." -ForegroundColor Gray
-    try {
-        # 读取当前历史
-        $releaseHistoryPath = "release-history.json"
-        $releaseHistory = @{
-            "releases" = @()
-            "lastReleaseCommit" = $null
-        }
-        
-        if (Test-Path $releaseHistoryPath) {
-            $releaseHistory = Get-Content $releaseHistoryPath | ConvertFrom-Json
-        }
-        
-        # 添加新的release记录
-        $newRelease = @{
-            "version" = $versionStr
-            "tag" = $tagName
-            "commit" = $currentCommitHash
-            "type" = $versionType
-            "date" = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-            "notes" = $releaseNotes
-        }
-        
-        # 确保releases是数组
-        if (-not $releaseHistory.releases) {
-            $releaseHistory.releases = @()
-        }
-        
-        # 转换为ArrayList以便添加元素
-        $releasesList = [System.Collections.ArrayList]$releaseHistory.releases
-        $releasesList.Add($newRelease) | Out-Null
-        
-        # 更新历史对象
-        $releaseHistory.releases = $releasesList.ToArray()
-        $releaseHistory.lastReleaseCommit = $currentCommitHash
-        
-        # 保存到文件
-        $releaseHistory | ConvertTo-Json -Depth 10 | Set-Content $releaseHistoryPath -Encoding UTF8
-        
-        Write-Host "Release history updated successfully!" -ForegroundColor Green
-    } catch {
-        Write-Host "Warning: Could not update release history: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-    
 } catch {
     Show-Error
     exit 1
