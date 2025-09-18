@@ -213,14 +213,14 @@
     margin-bottom: 1rem;
 }
 
-#enhancement-settings .form-group label {
+#enhancement-settings .form-group label:not(.checkbox-label) {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
     color: var(--text-primary);
 }
 
-#enhancement-settings .form-group input,
+#enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 #enhancement-settings .form-group select {
     width: 100%;
     padding: 0.75rem;
@@ -231,7 +231,7 @@
     font-size: 0.9rem;
 }
 
-#enhancement-settings .form-group input:focus,
+#enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
 #enhancement-settings .form-group select:focus {
     outline: none;
     border-color: var(--primary-color);

@@ -1044,7 +1044,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 回填目标与显示方式
         if (this.translateCurrentTitleChk) {
-            this.translateCurrentTitleChk.checked = !!translation.targets?.currentTitle;
+            // 当未显式配置时，默认启用 current-title 定点翻译（与内容脚本逻辑一致）
+            this.translateCurrentTitleChk.checked = translation.targets?.currentTitle !== false;
         }
         if (this.translationDisplayModeSel) {
             this.translationDisplayModeSel.value = translation.displayMode || 'append';
@@ -1473,22 +1474,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             ai: { useGlobalModel: true as boolean, customModel: '' as string | undefined }
         };
         const translation = (settings as any).translation || defaultTranslation;
-        if (this.translationProviderSel) this.translationProviderSel.value = translation.provider || 'traditional';
-        if (this.traditionalServiceSel) this.traditionalServiceSel.value = 'google';
-        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
-        // 固定使用 AI 设置中的模型，无需本地切换
-
-        if (this.translateCurrentTitleChk) {
-            this.translateCurrentTitleChk.checked = !!translation.targets?.currentTitle;
-        }
-        if (this.translationDisplayModeSel) {
-            this.translationDisplayModeSel.value = translation.displayMode || 'append';
-        }
-
-        this.applyTranslationProviderUI();
-        this.updateAiCurrentModelUI();
-
-        // 初始化功能增强开关
         this.initEnhancementToggles();
 
         // 强制更新所有滑块状态以确保与存储同步
