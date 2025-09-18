@@ -724,10 +724,18 @@
     font-size: 14px;
     line-height: 1.4;
 }
-.form-group label, .form-group-checkbox label {
+.form-group label:not(.checkbox-label), .form-group-checkbox label {
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
+}
+
+/* Ensure checkbox-style labels render inline and don't occupy full width */
+.form-group .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
 }
 .form-group input[type="text"],
 .form-group input[type="password"],
