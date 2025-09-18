@@ -135,7 +135,7 @@
 .task-item {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 12px; /* 压缩行内边距，提升信息密度 */
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.2s ease;
 }
@@ -152,19 +152,19 @@
 .task-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px; /* 压缩间距 */
+  margin-bottom: 8px; /* 压缩间距 */
 }
 
 .task-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 32px; /* 缩小图标容器 */
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #e0f2fe;
-  border-radius: 8px;
+  border-radius: 6px; /* 稍减圆角 */
   color: #0284c7;
 }
 
@@ -174,10 +174,10 @@
 }
 
 .task-name {
-  font-size: 14px;
+  font-size: 13px; /* 略微缩小字体 */
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 4px;
+  margin-bottom: 2px; /* 压缩间距 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -185,8 +185,8 @@
 
 .task-meta {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
+  gap: 12px; /* 压缩间距 */
+  font-size: 11px; /* 略微缩小字体 */
   color: #6b7280;
 }
 
@@ -230,13 +230,13 @@
 .task-progress {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px; /* 压缩间距 */
+  margin-bottom: 8px; /* 压缩间距 */
 }
 
 .progress-bar {
   flex: 1;
-  height: 6px;
+  height: 5px; /* 略微降低高度 */
   background: #f1f5f9;
   border-radius: 3px;
   overflow: hidden;
@@ -268,13 +268,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px; /* 缩小按钮 */
+  height: 28px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .task-action-btn.delete-btn {
@@ -322,6 +322,32 @@
   background: #3b82f6;
   border-color: #3b82f6;
   color: white;
+}
+
+/* 分页条数选择器（与 TS 中追加的控件类名一致） */
+.page-size-control .page-size-select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* 统计卡片：点击和高亮效果 */
+.stats-grid .stat-item {
+  cursor: pointer;
+  user-select: none;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+
+.stats-grid .stat-item:hover {
+  background: #f8fafc;
+}
+
+.stats-grid .stat-item.active {
+  outline: 2px solid #3b82f6;
+  background: #eff6ff;
 }
 
 .page-btn.active:hover {
