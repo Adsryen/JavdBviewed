@@ -823,50 +823,115 @@ export class EnhancementSettings extends BaseSettingsPanel {
         document.head.appendChild(style);
     }
 
+    // 统一的剪贴板写入（带回退）
+    private async writeClipboard(text: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch {}
+            document.body.removeChild(ta);
+        }
+    }
+
     // 复制“已注册任务”文本
     private async copyPhasesText(): Promise<void> {
         try {
-            const el = this.orchestratorPhases as HTMLElement | null;
-            if (!el) return;
-            const text = el.innerText || '';
-            await navigator.clipboard.writeText(text);
+            // 优先使用当前视图模式下的数据：realtime -> 请求活动标签页的 state；design -> 使用设计规格
+            const mode = this.orchViewModeSel?.value || 'design';
+            let phases: Record<'critical'|'high'|'deferred'|'idle', string[]> | null = null;
+            if (mode === 'realtime') {
+                const state = await this.requestOrchestratorStateFromActiveTab();
+                if (state && state.phases) {
+                    phases = state.phases as Record<'critical'|'high'|'deferred'|'idle', string[]>;
+                }
+            }
+            if (!phases) {
+                phases = this.buildDesignSpec();
+            }
+
+            const order: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
+            const phaseTitle: Record<'critical'|'high'|'deferred'|'idle', string> = {
+                critical: '关键（critical）',
+                high: '优先（high）',
+                deferred: '延迟（deferred）',
+                idle: '空闲（idle）',
+            };
+
+            const lines: string[] = [];
+            lines.push('已注册任务（按阶段）');
+            order.forEach((p) => {
+                lines.push(`[${phaseTitle[p]}]`);
+                const items = phases![p] || [];
+                if (items.length === 0) {
+                    lines.push('- （无任务）');
+                } else {
+                    items.forEach((label) => {
+                        const desc = this.getTaskDescription(label);
+                        // 使用制表符分隔，便于粘贴到表格或文档中对齐
+                        lines.push(`- ${label}\t${desc || ''}`.trimEnd());
+                    });
+                }
+                // 空行分隔不同阶段
+                lines.push('');
+            });
+
+            const text = lines.join('\n');
+            await this.writeClipboard(text);
             showMessage('任务清单已复制到剪贴板', 'success');
         } catch {
-            // 兼容回退
-            try {
-                const el = this.orchestratorPhases as HTMLElement | null;
-                if (!el) return;
-                const ta = document.createElement('textarea');
-                ta.value = el.innerText || '';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showMessage('任务清单已复制到剪贴板', 'success');
-            } catch {}
+            showMessage('复制任务清单失败', 'error');
         }
     }
 
     // 复制“事件时间线”文本
     private async copyTimelineText(): Promise<void> {
         try {
-            const el = this.orchestratorTimeline as HTMLElement | null;
-            if (!el) return;
-            const text = el.innerText || '';
-            await navigator.clipboard.writeText(text);
+            const mode = this.orchViewModeSel?.value || 'design';
+            const filters = this.getTimelineFilters();
+            const raw = (this.orchestratorTimelineData || []) as Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>;
+            const list = raw.filter(item => {
+                if (filters.status !== 'all' && item.status !== filters.status) return false;
+                if (filters.phase !== 'all' && item.phase !== filters.phase) return false;
+                if (filters.keyword && !(`${item.label}`.toLowerCase().includes(filters.keyword))) return false;
+                return true;
+            });
+
+            const header = mode === 'design'
+                ? '时间(相对)\t状态\t阶段\t任务'
+                : '时间(ms)\t状态\t阶段\t任务\t耗时';
+
+            const lines: string[] = [];
+            lines.push('事件时间线');
+            lines.push(header);
+
+            list.forEach(item => {
+                const timeStr = item.ts !== undefined
+                    ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`)
+                    : '';
+                const statusStr = (item.status || '').toUpperCase();
+                const phaseStr = item.phase || '';
+                const labelStr = item.label || '';
+                if (mode === 'design') {
+                    lines.push(`${timeStr}\t${statusStr}\t${phaseStr}\t${labelStr}`);
+                } else {
+                    const durStr = typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-';
+                    lines.push(`${timeStr}\t${statusStr}\t${phaseStr}\t${labelStr}\t${durStr}`);
+                }
+                // 如果存在错误详情，追加一行描述
+                if (item.detail) {
+                    lines.push(`  详情: ${String(item.detail)}`);
+                }
+            });
+
+            const text = lines.join('\n');
+            await this.writeClipboard(text);
             showMessage('时间线已复制到剪贴板', 'success');
         } catch {
-            try {
-                const el = this.orchestratorTimeline as HTMLElement | null;
-                if (!el) return;
-                const ta = document.createElement('textarea');
-                ta.value = el.innerText || '';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showMessage('时间线已复制到剪贴板', 'success');
-            } catch {}
+            showMessage('复制时间线失败', 'error');
         }
     }
 
