@@ -1670,7 +1670,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (!this.translationConfig) return;
         const enabled = (this.veEnableTranslation?.checked === true) || (this.enableTranslation?.checked === true);
         this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
-        this.translationConfig.style.display = 'none';
+        // 不再强制隐藏：显隐交由统一的悬浮展开逻辑（setupSubSettingsHoverBehavior）控制
+        // 保持现有 display 值，避免子设置面板（含“启用高级选项”“翻译服务类型”等）完全不可见
     }
 
     /**
