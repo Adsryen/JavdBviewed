@@ -1629,24 +1629,25 @@
                                                         未检测到当前模型，请点击“前往 AI 设置”进行配置
                                                     </div>
                                                 </div>
+                                                <!-- 翻译目标与显示方式配置已移动到通用区域（适用于所有提供商） -->
+                                            </div>
+                                        
+                                            <!-- 翻译目标与显示方式配置（适用于所有提供商） -->
+                                            <div class="form-group" style="margin-top: 12px;">
+                                                <label style="display:block; margin-bottom:6px; font-weight:600;">翻译目标位置</label>
+                                                <label class="checkbox-label" style="display:flex; align-items:center; gap:8px;">
+                                                    <input type="checkbox" id="translateCurrentTitle">
+                                                    <span class="checkmark"></span>
+                                                    影片页标题（current-title）
+                                                </label>
+                                            </div>
 
-                                                <!-- 翻译目标与显示方式配置（AI 翻译） -->
-                                                <div class="form-group" style="margin-top: 12px;">
-                                                    <label style="display:block; margin-bottom:6px; font-weight:600;">翻译目标位置</label>
-                                                    <label class="checkbox-label" style="display:flex; align-items:center; gap:8px;">
-                                                        <input type="checkbox" id="translateCurrentTitle">
-                                                        <span class="checkmark"></span>
-                                                        影片页标题（current-title）
-                                                    </label>
-                                                </div>
-
-                                                <div class="form-group" style="margin-top: 8px;">
-                                                    <label for="translationDisplayMode" style="display:block; margin-bottom:6px; font-weight:600;">显示方式</label>
-                                                    <select id="translationDisplayMode" class="select-input" style="width: 100%;">
-                                                        <option value="append">保留原始（追加显示）</option>
-                                                        <option value="replace">替换原始标题</option>
-                                                    </select>
-                                                </div>
+                                            <div class="form-group" style="margin-top: 8px;">
+                                                <label for="translationDisplayMode" style="display:block; margin-bottom:6px; font-weight:600;">显示方式</label>
+                                                <select id="translationDisplayMode" class="select-input" style="width: 100%;">
+                                                    <option value="append">保留原始（追加显示）</option>
+                                                    <option value="replace">替换原始标题</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
