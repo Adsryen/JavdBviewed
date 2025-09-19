@@ -24,6 +24,7 @@ import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { embyEnhancementManager } from './embyEnhancement';
 import { initOrchestrator } from './initOrchestrator';
 import { installConsoleProxy } from '../utils/consoleProxy';
+import { performanceOptimizer } from './performanceOptimizer';
 
 // 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
 installConsoleProxy({
@@ -113,6 +114,9 @@ function removeUnwantedButtons(): void {
 
 async function initialize(): Promise<void> {
     log('Extension initializing...');
+
+    // 首先初始化性能优化器
+    performanceOptimizer.initialize();
 
     const [settings, records] = await Promise.all([
         getSettings(),
@@ -296,13 +300,14 @@ async function initialize(): Promise<void> {
                         torrentz2: sources.torrentz2 || false,
                         custom: [],
                     },
-                    maxResults: 20,
+                    maxResults: 15, // 减少最大结果数
+                    timeout: 6000, // 减少超时时间
                 });
                 magnetSearchManager.initialize();
             } catch (e) {
                 log('Deferred magnet search initialization failed:', e);
             }
-        }, { label: 'ux:magnet:autoSearch', idle: true, idleTimeout: 10000, delayMs: 6000 });
+        }, { label: 'ux:magnet:autoSearch', idle: true, idleTimeout: 15000, delayMs: 8000 }); // 增加延迟时间
     }
 
     if (settings.userExperience.enableAnchorOptimization) {
@@ -313,7 +318,7 @@ async function initialize(): Promise<void> {
             customButtons: [],
         });
         // 列表/演员页优先，影片页影响较小，归为 deferred
-        initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'ux:anchorOptimization:init', idle: true, delayMs: 1000 });
+        initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'ux:anchorOptimization:init', idle: true, delayMs: 2000 });
     }
 
     // 初始化列表增强功能（列表/演员页常用）
@@ -352,7 +357,7 @@ async function initialize(): Promise<void> {
             } catch (error) {
                 log('Failed to initialize Emby enhancement:', error as any);
             }
-        }, { label: 'embyEnhancement:init', idle: true, delayMs: 1500 });
+        }, { label: 'embyEnhancement:init', idle: true, delayMs: 3000 });
     }
 
     // 隐私保护功能已通过编排器在 high 阶段初始化
@@ -382,7 +387,7 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('deferred', () => {
             contentFilterManager.initialize();
             log('Content filter initialized after default hide processing');
-        }, { label: 'contentFilter:initialize', delayMs: 100 });
+        }, { label: 'contentFilter:initialize', delayMs: 500 });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
@@ -510,25 +515,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // 保持消息通道开放
     }
 });
-
-// 立即执行初始化
-onExecute();
-
-// 在开发环境中暴露测试和监控功能到全局
-if (typeof window !== 'undefined') {
-    // 直接使用已导入的模块，避免动态导入的404错误
-    (window as any).concurrencyMonitor = concurrencyMonitor;
-    (window as any).storageManager = storageManager;
-    (window as any).testConcurrency = {
-        basic: testConcurrentOperations,
-        high: testHighConcurrency
-    };
-
-    log('Successfully exposed concurrency tools to window object');
-}
-
-// === 音量控制功能 - 基于验证成功的调试脚本 ===
-let currentVolume = 0.75; // 默认75%
 
 async function initVolumeControl() {
     try {
@@ -706,6 +692,11 @@ if (typeof window !== 'undefined') {
 // 页面卸载时清理资源
 window.addEventListener('beforeunload', () => {
     try {
+        // 清理性能优化器
+        if (performanceOptimizer) {
+            performanceOptimizer.cleanup();
+        }
+
         // 清理内容过滤器
         if (contentFilterManager) {
             contentFilterManager.destroy();
@@ -726,8 +717,46 @@ window.addEventListener('beforeunload', () => {
             embyEnhancementManager.destroy();
         }
 
+        // 清理磁力搜索管理器
+        if (magnetSearchManager) {
+            magnetSearchManager.destroy?.();
+        }
+
         log('Resources cleaned up on page unload');
     } catch (error) {
         log('Error during cleanup:', error);
+    }
+});
+
+// 监听扩展上下文失效
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    // 监听runtime错误
+    chrome.runtime.onConnect.addListener((port) => {
+        port.onDisconnect.addListener(() => {
+            if (chrome.runtime.lastError) {
+                log('[Context] Extension context may be invalidated:', chrome.runtime.lastError.message);
+                // 执行清理操作
+                performanceOptimizer?.cleanup();
+            }
+        });
+    });
+}
+
+// 监听页面可见性变化，在页面隐藏时减少资源消耗
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // 页面隐藏时，暂停一些非关键任务
+        log('[Performance] Page hidden, reducing resource usage');
+        performanceOptimizer?.updateConfig({
+            maxConcurrentTasks: 1,
+            maxConcurrentRequests: 1,
+        });
+    } else {
+        // 页面显示时，恢复正常配置
+        log('[Performance] Page visible, restoring normal resource usage');
+        performanceOptimizer?.updateConfig({
+            maxConcurrentTasks: 3,
+            maxConcurrentRequests: 2,
+        });
     }
 });

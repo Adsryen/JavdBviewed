@@ -6,6 +6,7 @@ import { showToast } from './toast';
 import { extractVideoIdFromPage } from './videoId';
 import { defaultHttpClient } from '../services/dataAggregator/httpClient';
 import { handlePushToDrive115 } from './drive115';
+import { performanceOptimizer } from './performanceOptimizer';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
@@ -212,15 +213,16 @@ export class MagnetSearchManager {
         return;
       }
 
-      // 5. 并行搜索所有外部源，使用Promise.all等待全部完成
+      // 5. 使用性能优化器限制并发搜索，避免同时发起过多网络请求
       const searchPromises = searchSources.map(source => {
         // 设置搜索中状态
         this.updateSourceTagStatus(source.key, 'searching');
 
-        // 为每个搜索添加10秒超时
-        const timeoutPromise = createTimeoutPromise(source.fn(), 10000, source.name);
-
-        return timeoutPromise.then(sourceResults => {
+        // 使用性能优化器调度网络请求，自动限制并发数量
+        return performanceOptimizer.scheduleRequest(async () => {
+          return source.fn();
+        }, 8000) // 8秒超时
+        .then(sourceResults => {
           log(`${source.name} search completed: ${sourceResults.length} results`);
           this.updateSourceTagStatus(source.key, 'success', sourceResults.length);
           return sourceResults;
@@ -787,18 +789,20 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 清空磁力列表
+   * 清空磁力列表 - 使用性能优化器调度DOM操作
    */
   private clearMagnetList(): void {
-    const magnetContent = document.querySelector('#magnets-content');
-    if (magnetContent) {
-      magnetContent.innerHTML = '';
-      log('Cleared existing magnet list');
-    }
+    performanceOptimizer.scheduleDOMOperation(() => {
+      const magnetContent = document.querySelector('#magnets-content');
+      if (magnetContent) {
+        magnetContent.innerHTML = '';
+        log('Cleared existing magnet list');
+      }
+    });
   }
 
   /**
-   * 显示所有磁力数据（统一样式）
+   * 显示所有磁力数据（统一样式）- 使用性能优化器批量处理DOM操作
    */
   private displayAllMagnets(results: MagnetResult[]): void {
     const magnetContent = document.querySelector('#magnets-content');
@@ -807,17 +811,24 @@ export class MagnetSearchManager {
       return;
     }
 
+    // 使用DocumentFragment批量创建DOM元素，减少重排重绘
+    const fragment = document.createDocumentFragment();
+    
     results.forEach((result, index) => {
       try {
         const magnetItem = this.createUnifiedMagnetItem(result, index);
-        magnetContent.appendChild(magnetItem);
+        fragment.appendChild(magnetItem);
         log(`Added unified magnet item ${index + 1}: ${result.name.substring(0, 50)}...`);
       } catch (error) {
         log(`Error creating unified magnet item ${index + 1}:`, error);
       }
     });
 
-    log(`Successfully displayed ${results.length} unified magnet items`);
+    // 使用性能优化器调度DOM操作
+    performanceOptimizer.scheduleDOMOperation(() => {
+      magnetContent.appendChild(fragment);
+      log(`Successfully displayed ${results.length} unified magnet items`);
+    });
   }
 
   /**
