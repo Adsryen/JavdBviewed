@@ -1,5 +1,7 @@
 // src/content/initOrchestrator.ts
 
+import { performanceOptimizer } from './performanceOptimizer';
+
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';
 export type InitTask = () => Promise<void> | void;
 
@@ -23,6 +25,10 @@ class InitOrchestrator {
   private t0: number | null = null; // run() 开始时刻，用于相对时间
   private verbose = true; // 统一开关，控制是否打印详细日志
   private listeners: Record<string, Array<(payload: any) => void>> = {};
+  
+  // 并发控制
+  private runningHighTasks = 0;
+  private maxConcurrentHighTasks = 3; // 限制high阶段并发数
 
   private relTs(now?: number): number {
     const base = this.t0 ?? performance.now();
@@ -62,7 +68,8 @@ class InitOrchestrator {
     this.timeline.push({ phase, label, status: 'running', ts: startAbs });
     this.emit('task:running', { phase, label, ts: startAbs, relativeTs: this.relTs(startAbs) });
     this.log('running', { phase, label, ts: Math.round(startAbs), relative: Math.round(this.relTs(startAbs)) });
-    return Promise.resolve()
+    
+    const taskPromise = Promise.resolve()
       .then(() => st.task())
       .then(() => {
         try {
@@ -94,7 +101,20 @@ class InitOrchestrator {
         console.warn(`[InitOrchestrator] task failed: phase=${phase} label=${label}`, e);
         this.emit('task:error', { phase, label, ts: errAbs, relativeTs: this.relTs(errAbs), error: String(e), durationMs });
         this.log('error', { phase, label, ts: Math.round(errAbs), relative: Math.round(this.relTs(errAbs)), error: String(e), durationMs: durationMs && Math.round(durationMs) });
+      })
+      .finally(() => {
+        // 释放并发计数
+        if (phase === 'high') {
+          this.runningHighTasks--;
+        }
       });
+
+    // 对high阶段任务进行并发控制
+    if (phase === 'high') {
+      this.runningHighTasks++;
+    }
+
+    return taskPromise;
   }
 
   private scheduleTask(phase: InitPhase, st: ScheduledTask): void {
@@ -147,8 +167,8 @@ class InitOrchestrator {
       await this.runTask('critical', st);
     }
 
-    // high: 并发（必要的 await 由任务内部负责）
-    await Promise.all(this.phases.high.map((st) => this.runTask('high', st)));
+    // high: 受控并发，避免同时执行过多任务
+    await this.runHighTasksWithConcurrencyControl();
 
     // deferred: 根据选项调度
     this.phases.deferred.forEach((st) => this.scheduleTask('deferred', st));
@@ -169,6 +189,36 @@ class InitOrchestrator {
   off(event: string, listener: (payload: any) => void): void {
     if (!this.listeners[event]) return;
     this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+  }
+
+  /**
+   * 受控并发执行high阶段任务
+   */
+  private async runHighTasksWithConcurrencyControl(): Promise<void> {
+    const tasks = [...this.phases.high]; // 复制数组
+    const runningTasks: Promise<void>[] = [];
+    
+    while (tasks.length > 0 || runningTasks.length > 0) {
+      // 启动新任务直到达到并发限制
+      while (tasks.length > 0 && runningTasks.length < this.maxConcurrentHighTasks) {
+        const task = tasks.shift()!;
+        const taskPromise = this.runTask('high', task);
+        runningTasks.push(taskPromise);
+        
+        // 任务完成后从运行列表中移除
+        taskPromise.finally(() => {
+          const index = runningTasks.indexOf(taskPromise);
+          if (index > -1) {
+            runningTasks.splice(index, 1);
+          }
+        });
+      }
+      
+      // 等待至少一个任务完成
+      if (runningTasks.length > 0) {
+        await Promise.race(runningTasks);
+      }
+    }
   }
 
   private emit(event: string, payload: any): void {
