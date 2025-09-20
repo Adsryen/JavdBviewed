@@ -5,7 +5,6 @@
 import { 
     IPrivacyManager, 
     PrivacyState, 
-    PrivacyConfig,
     PasswordVerificationResult,
     RestrictedFeature,
     PrivacyEvent,
@@ -15,7 +14,6 @@ import { getSettings, saveSettings } from '../../utils/storage';
 import { getPasswordService } from './PasswordService';
 import { getSessionManager } from './SessionManager';
 import { getBlurController } from './BlurController';
-import { getRecoveryService } from './RecoveryService';
 import { log } from '../../utils/logController';
 import { getPrivacyStorage } from '../../utils/privacy/storage';
 
@@ -24,7 +22,6 @@ export class PrivacyManager implements IPrivacyManager {
     private passwordService = getPasswordService();
     private sessionManager = getSessionManager();
     private blurController = getBlurController();
-    private recoveryService = getRecoveryService();
     private storage = getPrivacyStorage();
     
     private currentState: PrivacyState = {
@@ -39,6 +36,9 @@ export class PrivacyManager implements IPrivacyManager {
 
     private eventListeners: Map<PrivacyEventType, ((event: PrivacyEvent) => void)[]> = new Map();
     private isInitialized = false;
+    private idleCheckIntervalId: number | null = null;
+    private lastUserActivity: number = Date.now();
+    private idleThresholdMs: number = 2 * 60 * 1000; // 默认2分钟
 
     private constructor() {}
 
@@ -48,6 +48,8 @@ export class PrivacyManager implements IPrivacyManager {
         }
         return PrivacyManager.instance;
     }
+
+    
 
     /**
      * 初始化隐私管理器
@@ -81,6 +83,30 @@ export class PrivacyManager implements IPrivacyManager {
         } catch (error) {
             console.error('Failed to initialize Privacy Manager:', error);
             throw new Error('隐私管理器初始化失败');
+        }
+    }
+
+    /**
+     * 测试模糊效果：确保启用截图模式后，临时取消模糊再自动恢复
+     */
+    async testBlurEffect(): Promise<void> {
+        try {
+            const settings = await getSettings();
+            // 如果当前未处于模糊状态，先启用截图模式
+            if (!this.currentState.isBlurred) {
+                await this.enableScreenshotMode();
+            }
+
+            const duration = settings.privacy.screenshotMode.temporaryViewDuration || 10;
+            await this.blurController.showTemporaryView(duration);
+
+            // 结束后状态仍保持为截图模式生效
+            this.currentState.isBlurred = true;
+            await this.savePrivacyState();
+            this.emitEvent('blur-applied', { mode: 'screenshot-test' });
+        } catch (error) {
+            console.error('Failed to test blur effect:', error);
+            throw new Error('测试模糊效果失败');
         }
     }
 
@@ -270,6 +296,7 @@ export class PrivacyManager implements IPrivacyManager {
         sessionTimeout: number;
         lockOnTabLeave: boolean;
         lockOnExtensionClose: boolean;
+        requirePassword: boolean;
     }>): Promise<void> {
         try {
             const settings = await getSettings();
@@ -289,6 +316,10 @@ export class PrivacyManager implements IPrivacyManager {
 
             if (updates.lockOnExtensionClose !== undefined) {
                 settings.privacy.privateMode.lockOnExtensionClose = updates.lockOnExtensionClose;
+            }
+
+            if (updates.requirePassword !== undefined) {
+                settings.privacy.privateMode.requirePassword = updates.requirePassword;
             }
 
             // 保存设置
@@ -388,9 +419,10 @@ export class PrivacyManager implements IPrivacyManager {
     /**
      * 检查功能是否受限
      */
-    isFeatureRestricted(feature: RestrictedFeature): boolean {
+    async isFeatureRestricted(feature: RestrictedFeature): Promise<boolean> {
         // 如果未启用私密模式，不限制任何功能
-        if (!this.isPrivateModeEnabled()) {
+        const privateEnabled = await this.isPrivateModeEnabled();
+        if (!privateEnabled) {
             return false;
         }
 
@@ -400,7 +432,8 @@ export class PrivacyManager implements IPrivacyManager {
         }
 
         // 检查功能是否在受限列表中
-        return this.getRestrictedFeatures().includes(feature);
+        const restricted = await this.getRestrictedFeatures();
+        return restricted.includes(feature);
     }
 
     /**
@@ -509,6 +542,21 @@ export class PrivacyManager implements IPrivacyManager {
         window.addEventListener('focus', () => {
             this.handleWindowFocus();
         });
+
+        // 监听关闭/刷新事件（尽力锁定）
+        window.addEventListener('beforeunload', () => {
+            this.handleBeforeUnload();
+        });
+
+        // 监听用户活动，用于 idle-timeout
+        const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        const activityHandler = () => {
+            this.lastUserActivity = Date.now();
+        };
+        activityEvents.forEach(evt => document.addEventListener(evt, activityHandler, true));
+
+        // 启动空闲检查器
+        this.startIdleChecker();
     }
 
     /**
@@ -547,6 +595,10 @@ export class PrivacyManager implements IPrivacyManager {
             // 初始截图模式应用完成
         } else {
             // 未启用隐私模式
+            // 若配置为“扩展重启自动启用截图模式”，则在启动时启用
+            if (settings.privacy.screenshotMode.autoBlurTrigger === 'extension-reopen') {
+                await this.enableScreenshotMode();
+            }
         }
     }
 
@@ -581,6 +633,48 @@ export class PrivacyManager implements IPrivacyManager {
     private async handleWindowFocus(): Promise<void> {
         // 可以在这里添加获得焦点时的处理逻辑
     }
+
+    /**
+     * 处理窗口关闭/刷新
+     */
+    private handleBeforeUnload(): void {
+        // 尽力而为：无法等待异步完成
+        getSettings()
+            .then(settings => {
+                if (settings.privacy.privateMode.enabled && settings.privacy.privateMode.lockOnExtensionClose) {
+                    // 触发锁定（不等待）
+                    this.lock();
+                }
+            })
+            .catch(() => {});
+    }
+
+    /**
+     * 启动空闲检测（用于 autoBlurTrigger = 'idle-timeout'）
+     */
+    private startIdleChecker(): void {
+        if (this.idleCheckIntervalId) {
+            clearInterval(this.idleCheckIntervalId);
+            this.idleCheckIntervalId = null;
+        }
+
+        this.idleCheckIntervalId = window.setInterval(async () => {
+            try {
+                const settings = await getSettings();
+                if (settings.privacy.screenshotMode.autoBlurTrigger !== 'idle-timeout') {
+                    return;
+                }
+
+                const idleMs = Date.now() - this.lastUserActivity;
+                if (idleMs >= this.idleThresholdMs) {
+                    await this.enableScreenshotMode();
+                }
+            } catch {
+                // 忽略错误，继续下一轮
+            }
+        }, 30 * 1000); // 每30秒检查一次
+    }
+
 
     /**
      * 检查是否启用私密模式

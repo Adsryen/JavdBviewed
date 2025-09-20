@@ -141,7 +141,7 @@ export interface IPrivacyManager {
   
   // 状态查询
   getState(): PrivacyState;
-  isFeatureRestricted(feature: RestrictedFeature): boolean;
+  isFeatureRestricted(feature: RestrictedFeature): Promise<boolean>;
   
   // 事件监听
   addEventListener(type: PrivacyEventType, listener: (event: PrivacyEvent) => void): void;
@@ -155,6 +155,9 @@ export interface IPasswordService {
   generateSalt(): string;
   generateBackupCode(): string;
   validatePasswordStrength(password: string): PasswordStrengthResult;
+  // UI交互：设置/修改密码
+  showSetPasswordDialog(): Promise<boolean>;
+  showChangePasswordDialog(): Promise<boolean>;
 }
 
 // 密码强度结果

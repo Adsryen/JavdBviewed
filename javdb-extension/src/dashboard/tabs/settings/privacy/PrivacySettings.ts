@@ -3,11 +3,9 @@
  * 截图模式和私密模式配置，保护用户隐私
  */
 
-import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
-import { getSettings, saveSettings } from '../../../../utils/storage';
+import { getSettings } from '../../../../utils/storage';
 import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../../services/privacy';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
@@ -171,19 +169,19 @@ export class PrivacySettings extends BaseSettingsPanel {
         const errors: string[] = [];
         const warnings: string[] = [];
 
-        // 验证模糊强度
+        // 验证模糊强度（1-10）
         if (this.blurIntensity) {
             const blurValue = parseInt(this.blurIntensity.value, 10);
-            if (isNaN(blurValue) || blurValue < 1 || blurValue > 20) {
-                errors.push('模糊强度必须在1-20之间');
+            if (isNaN(blurValue) || blurValue < 1 || blurValue > 10) {
+                errors.push('模糊强度必须在1-10之间');
             }
         }
 
-        // 验证临时查看时长
+        // 验证临时查看时长（5-60秒）
         if (this.temporaryViewDuration) {
             const duration = parseInt(this.temporaryViewDuration.value, 10);
-            if (isNaN(duration) || duration < 1 || duration > 60) {
-                errors.push('临时查看时长必须在1-60秒之间');
+            if (isNaN(duration) || duration < 5 || duration > 60) {
+                errors.push('临时查看时长必须在5-60秒之间');
             }
         }
 
@@ -219,7 +217,7 @@ export class PrivacySettings extends BaseSettingsPanel {
     /**
      * 设置数据到UI
      */
-    protected doSetSettings(settings: Partial<ExtensionSettings>): void {
+    protected doSetSettings(_settings: Partial<ExtensionSettings>): void {
         // 隐私设置通过loadSettings方法处理
         this.loadSettings();
     }
@@ -428,8 +426,18 @@ export class PrivacySettings extends BaseSettingsPanel {
             const backupCode = await recoveryService.generateBackupCode();
             
             if (backupCode) {
-                showMessage('备份码生成成功，请妥善保存', 'success');
-                // 这里可以显示备份码对话框
+                // 一次性展示备份码，并尝试复制到剪贴板
+                try {
+                    await navigator.clipboard.writeText(backupCode);
+                    showMessage('备份码已复制到剪贴板，请妥善保存', 'success');
+                } catch {
+                    // 复制失败则仅提示
+                    showMessage('备份码生成成功，请妥善保存', 'success');
+                }
+                alert(`您的备份恢复码（仅显示一次）：\n\n${backupCode}\n\n请将其保存在安全的地方！`);
+
+                // 刷新状态显示
+                await this.updateRecoveryOptionsStatus();
             }
         } catch (error) {
             console.error('Failed to generate backup code:', error);

@@ -11,7 +11,8 @@ import type { SyncType } from './types';
 import type { SyncMode } from '../config/syncConfig';
 import { SyncCancelledError } from './types';
 import { userService } from '../services/userService';
-import { on, emit } from '../services/eventBus';
+import { on } from '../services/eventBus';
+import { requireAuthIfRestricted } from '../../services/privacy';
 
 // 全局初始化标志
 let isDataSyncInitialized = false;
@@ -95,7 +96,7 @@ function bindEventBusListeners(): void {
     });
 
     // 监听用户登录状态变化
-    on('user-login-status-changed', ({ isLoggedIn }) => {
+    on('user-login-status-changed', () => {
         // logAsync('DEBUG', '用户登录状态变化', { isLoggedIn });
         const ui = SyncUI.getInstance();
         ui.checkUserLoginStatus();
@@ -123,31 +124,62 @@ async function handleSyncRequest(event: Event): Promise<void> {
     }
 
     const ui = SyncUI.getInstance();
+    // 受限拦截：actors → 'actor-sync'；其他 → 'data-sync'
+    const feature: any = (type === 'actors') ? 'actor-sync' : 'data-sync';
+    await requireAuthIfRestricted(feature, async () => {
+        try {
+            // 检查是否已在同步中
+            if (SyncManagerFactory.isSyncing(type)) {
+                showMessage(`${SyncManagerFactory.getSyncTypeDisplayName(type)}同步正在进行中，请稍候...`, 'warn');
+                return;
+            }
 
-    try {
-        // 检查是否已在同步中
-        if (SyncManagerFactory.isSyncing(type)) {
-            showMessage(`${SyncManagerFactory.getSyncTypeDisplayName(type)}同步正在进行中，请稍候...`, 'warn');
-            return;
-        }
+            // 设置UI状态
+            ui.setSyncMode(mode || 'full'); // 先设置同步模式
+            ui.setButtonLoadingState(type, true);
+            ui.setAllButtonsDisabled(true);
+            ui.showSyncProgress(true);
 
-        // 设置UI状态
-        ui.setSyncMode(mode || 'full'); // 先设置同步模式
-        ui.setButtonLoadingState(type, true);
-        ui.setAllButtonsDisabled(true);
-        ui.showSyncProgress(true);
+            // 特殊处理演员强制更新
+            const modeStr = String(mode || '');
+            if (type === 'actors' && modeStr === 'force') {
+                // 演员强制更新，使用专门的强制更新方法
+                const actorManager = SyncManagerFactory.getSyncManager('actors') as any;
+                await actorManager.forceUpdate({
+                    // 进度回调
+                    onProgress: (progress: any) => {
+                        ui.updateProgress(progress);
+                    },
+                    // 完成回调
+                    onComplete: (result: any) => {
+                        ui.showSyncProgress(false);
+                        if (result.success) {
+                            ui.showSuccess(result.message, result.details);
+                            showMessage(result.message, 'success');
+                        } else {
+                            ui.showError(result.message);
+                            showMessage(result.message, 'error');
+                        }
+                    },
+                    // 错误回调
+                    onError: (error: Error) => {
+                        ui.showSyncProgress(false);
+                        ui.showError(error.message);
+                        showMessage(error.message, 'error');
+                    }
+                });
+                return;
+            }
 
-        // 特殊处理演员强制更新
-        if (type === 'actors' && mode === 'force') {
-            // 演员强制更新，使用专门的强制更新方法
-            const actorManager = SyncManagerFactory.getSyncManager('actors') as any;
-            const result = await actorManager.forceUpdate({
+            // 执行标准同步
+            await SyncManagerFactory.executeSync(type, {
+                mode,
                 // 进度回调
-                onProgress: (progress: any) => {
+                onProgress: (progress) => {
                     ui.updateProgress(progress);
                 },
                 // 完成回调
-                onComplete: (result: any) => {
+                onComplete: (result) => {
                     ui.showSyncProgress(false);
                     if (result.success) {
                         ui.showSuccess(result.message, result.details);
@@ -158,61 +190,32 @@ async function handleSyncRequest(event: Event): Promise<void> {
                     }
                 },
                 // 错误回调
-                onError: (error: Error) => {
+                onError: (error) => {
                     ui.showSyncProgress(false);
                     ui.showError(error.message);
                     showMessage(error.message, 'error');
                 }
             });
-            return;
-        }
 
-        // 演员同步现在包含性别信息，使用标准的同步流程
-
-        // 执行标准同步
-        const result = await SyncManagerFactory.executeSync(type, {
-            mode,
-            // 进度回调
-            onProgress: (progress) => {
-                ui.updateProgress(progress);
-            },
-            // 完成回调
-            onComplete: (result) => {
+        } catch (error: any) {
+            if (error instanceof SyncCancelledError) {
+                // 用户取消同步，显示信息而不是错误
+                logAsync('INFO', '同步被用户取消', { type, reason: error.message });
                 ui.showSyncProgress(false);
-                if (result.success) {
-                    ui.showSuccess(result.message, result.details);
-                    showMessage(result.message, 'success');
-                } else {
-                    ui.showError(result.message);
-                    showMessage(result.message, 'error');
-                }
-            },
-            // 错误回调
-            onError: (error) => {
+                showMessage('同步已取消', 'info');
+            } else {
+                // 真正的错误
+                logAsync('ERROR', '同步请求处理失败', { type, error: error.message });
                 ui.showSyncProgress(false);
                 ui.showError(error.message);
                 showMessage(error.message, 'error');
             }
-        });
-
-    } catch (error: any) {
-        if (error instanceof SyncCancelledError) {
-            // 用户取消同步，显示信息而不是错误
-            logAsync('INFO', '同步被用户取消', { type, reason: error.message });
-            ui.showSyncProgress(false);
-            showMessage('同步已取消', 'info');
-        } else {
-            // 真正的错误
-            logAsync('ERROR', '同步请求处理失败', { type, error: error.message });
-            ui.showSyncProgress(false);
-            ui.showError(error.message);
-            showMessage(error.message, 'error');
+        } finally {
+            // 恢复UI状态
+            ui.setButtonLoadingState(type, false);
+            ui.setAllButtonsDisabled(false);
         }
-    } finally {
-        // 恢复UI状态
-        ui.setButtonLoadingState(type, false);
-        ui.setAllButtonsDisabled(false);
-    }
+    }, { title: '需要密码验证', message: '执行数据同步前需要完成密码验证。' });
 }
 
 /**

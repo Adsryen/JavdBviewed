@@ -12,8 +12,7 @@ import { getPasswordService } from './PasswordService';
 import { getPrivacyStorage } from '../../utils/privacy/storage';
 import { 
     generateBackupCode, 
-    generateSecureId, 
-    hashPassword 
+    generateSecureId 
 } from '../../utils/privacy/crypto';
 import { 
     getPasswordValidator, 
@@ -157,7 +156,7 @@ export class RecoveryService implements IRecoveryService {
 
             // 这里可以实现发送恢复邮件的逻辑
             // 目前只是记录恢复尝试
-            const config = await this.storage.loadSensitiveConfig<PasswordRecoveryConfig>('recovery_config') || {};
+            const config: Partial<PasswordRecoveryConfig> = await this.storage.loadSensitiveConfig<PasswordRecoveryConfig>('recovery_config') || {};
             config.recoveryEmail = email;
             config.lastRecoveryAttempt = Date.now();
             config.recoveryAttemptCount = (config.recoveryAttemptCount || 0) + 1;
@@ -318,14 +317,50 @@ export class RecoveryService implements IRecoveryService {
     }
 
     /**
+     * 获取已设置的安全问题（仅返回 id 与 question，不暴露答案）
+     */
+    async getSecurityQuestions(): Promise<Array<Pick<SecurityQuestion, 'id' | 'question'>>> {
+        try {
+            const questions = await this.storage.loadSensitiveConfig<SecurityQuestion[]>('security_questions');
+            if (!questions || questions.length === 0) return [];
+            return questions.map(q => ({ id: q.id, question: q.question }));
+        } catch (error) {
+            console.error('Failed to get security questions:', error);
+            return [];
+        }
+    }
+
+    /**
      * 显示安全问题设置对话框
      */
     async showSecurityQuestionsDialog(): Promise<boolean> {
         try {
-            // 这里应该显示一个对话框让用户设置安全问题
-            // 目前返回false表示功能未实现
-            console.log('Security questions dialog not implemented yet');
-            return false;
+            // 最小可用版：使用 prompt 采集2-3个问题和答案
+            const countInput = prompt('设置安全问题数量（建议2或3）：', '2');
+            const count = Math.min(3, Math.max(2, parseInt(countInput || '2', 10)));
+
+            const questions: SecurityQuestion[] = [];
+
+            for (let i = 1; i <= count; i++) {
+                const q = prompt(`请输入第 ${i} 个安全问题（10-200字符）：`, '我最喜欢的电影是什么？') || '';
+                if (!q || !InputValidator.isValidSecurityQuestion(q)) {
+                    alert('安全问题格式无效，请重试');
+                    return false;
+                }
+
+                const a = prompt(`请输入第 ${i} 个问题的答案（2-100字符）：`, '') || '';
+                if (!a || !InputValidator.isValidSecurityAnswer(a)) {
+                    alert('答案格式无效，请重试');
+                    return false;
+                }
+
+                const sq = await this.createSecurityQuestion(q, a);
+                questions.push(sq);
+            }
+
+            await this.setupSecurityQuestions(questions);
+            alert('安全问题设置成功，请牢记答案。');
+            return true;
         } catch (error) {
             console.error('Failed to show security questions dialog:', error);
             return false;

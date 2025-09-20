@@ -7,6 +7,7 @@ import { analyzeDataDifferences, type DataDiffResult, type MergeOptions } from '
 import { mergeData, type MergeResult } from '../utils/dataMerge';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
+import { requireAuthIfRestricted } from '../services/privacy';
 
 interface WebDAVFile {
     name: string;
@@ -724,6 +725,16 @@ function startWizardRestore(): void {
  */
 async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
     try {
+        // 敏感操作：执行恢复前进行密码验证
+        const ok = await requireAuthIfRestricted('webdav-sync', async () => {}, {
+            title: '需要密码验证',
+            message: '恢复云端备份将修改本地数据，请先完成密码验证。'
+        });
+        if (!ok) {
+            showMessage('已取消：未通过密码验证', 'warn');
+            return;
+        }
+
         logAsync('INFO', '开始执行恢复操作', { mergeOptions });
 
         // 显示进度

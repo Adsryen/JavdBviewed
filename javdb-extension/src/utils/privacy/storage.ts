@@ -12,9 +12,10 @@ import { encryptData, decryptData, generateSecureId } from './crypto';
 export class PrivacyStorage {
     private static instance: PrivacyStorage;
     private encryptionKey: string = '';
+    private ready: Promise<void> | null = null;
 
     private constructor() {
-        this.initializeEncryptionKey();
+        this.ready = this.initializeEncryptionKey();
     }
 
     public static getInstance(): PrivacyStorage {
@@ -43,10 +44,24 @@ export class PrivacyStorage {
     }
 
     /**
+     * 确保密钥已就绪
+     */
+    private async ensureReady(): Promise<void> {
+        if (!this.encryptionKey) {
+            try {
+                await (this.ready || Promise.resolve());
+            } catch {
+                // 忽略错误，后续方法有容错
+            }
+        }
+    }
+
+    /**
      * 存储隐私状态
      */
     async savePrivacyState(state: PrivacyState): Promise<void> {
         try {
+            await this.ensureReady();
             const encrypted = encryptData(JSON.stringify(state), this.encryptionKey);
             await this.setToStorage(STORAGE_KEYS.PRIVACY_STATE, encrypted);
         } catch (error) {
@@ -60,6 +75,7 @@ export class PrivacyStorage {
      */
     async loadPrivacyState(): Promise<PrivacyState | null> {
         try {
+            await this.ensureReady();
             const encrypted = await this.getFromStorage(STORAGE_KEYS.PRIVACY_STATE);
             if (!encrypted) {
                 return null;
@@ -82,6 +98,7 @@ export class PrivacyStorage {
      */
     async saveSessionInfo(session: SessionInfo): Promise<void> {
         try {
+            await this.ensureReady();
             const encrypted = encryptData(JSON.stringify(session), this.encryptionKey);
             await this.setToStorage(STORAGE_KEYS.PRIVACY_SESSION, encrypted);
         } catch (error) {
@@ -95,6 +112,7 @@ export class PrivacyStorage {
      */
     async loadSessionInfo(): Promise<SessionInfo | null> {
         try {
+            await this.ensureReady();
             const encrypted = await this.getFromStorage(STORAGE_KEYS.PRIVACY_SESSION);
             if (!encrypted) {
                 return null;
@@ -132,6 +150,7 @@ export class PrivacyStorage {
      */
     async saveSensitiveConfig(key: string, data: any): Promise<void> {
         try {
+            await this.ensureReady();
             const encrypted = encryptData(JSON.stringify(data), this.encryptionKey);
             await this.setToStorage(`privacy_config_${key}`, encrypted);
         } catch (error) {
@@ -145,6 +164,7 @@ export class PrivacyStorage {
      */
     async loadSensitiveConfig<T>(key: string): Promise<T | null> {
         try {
+            await this.ensureReady();
             const encrypted = await this.getFromStorage(`privacy_config_${key}`);
             if (!encrypted) {
                 return null;
@@ -167,6 +187,7 @@ export class PrivacyStorage {
      */
     async verifyDataIntegrity(): Promise<boolean> {
         try {
+            await this.ensureReady();
             const state = await this.loadPrivacyState();
             const session = await this.loadSessionInfo();
             
@@ -191,6 +212,7 @@ export class PrivacyStorage {
      */
     async backupPrivacyData(): Promise<string> {
         try {
+            await this.ensureReady();
             const state = await this.loadPrivacyState();
             const session = await this.loadSessionInfo();
             
@@ -213,6 +235,7 @@ export class PrivacyStorage {
      */
     async restorePrivacyData(backupData: string): Promise<void> {
         try {
+            await this.ensureReady();
             const decrypted = decryptData(backupData, this.encryptionKey);
             if (!decrypted) {
                 throw new Error('无法解密备份数据');

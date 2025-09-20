@@ -1,6 +1,7 @@
 // src/content/export.ts
 
 import { SELECTORS } from './state';
+import { requireAuthIfRestricted } from './privacy';
 
 // --- Export Feature ---
 
@@ -21,6 +22,12 @@ export function initExportFeature(): void {
     }
 }
 
+async function handleExportClick(): Promise<void> {
+    await requireAuthIfRestricted('data-export', async () => {
+        await startExport();
+    }, { title: '需要密码验证', message: '导出页面数据受私密模式保护，请先完成密码验证。' });
+}
+
 function createExportUI(): void {
     const maxPageInput = document.createElement('input');
     maxPageInput.type = 'number';
@@ -33,7 +40,7 @@ function createExportUI(): void {
     exportButton = document.createElement('button');
     exportButton.textContent = '导出页面数据';
     exportButton.className = 'button is-small is-primary';
-    exportButton.addEventListener('click', startExport);
+    exportButton.addEventListener('click', handleExportClick);
 
     stopButton = document.createElement('button');
     stopButton.textContent = '停止';
