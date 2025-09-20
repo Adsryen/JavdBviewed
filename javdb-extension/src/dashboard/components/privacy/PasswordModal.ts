@@ -2,8 +2,8 @@
  * 密码验证弹窗组件
  */
 
-import { getPrivacyManager } from '../../../services/privacy';
-import { showToast } from '../toast';
+import { getPrivacyManager, getRecoveryService } from '../../../services/privacy';
+import { showMessage } from '../../ui/toast';
 
 export class PasswordModal {
     private modal: HTMLElement | null = null;
@@ -138,6 +138,24 @@ export class PasswordModal {
                     margin-bottom: 15px;
                     min-height: 16px;
                 "></div>
+
+                <div class="recovery-section" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                ">
+                    <a href="#" class="forgot-link" style="
+                        font-size: 12px;
+                        color: #007bff;
+                        text-decoration: none;
+                    ">忘记密码？</a>
+                    <div class="recovery-options" style="display: none; gap: 8px;">
+                        <a href="#" class="recover-backup-link" style="font-size: 12px; color: #007bff; text-decoration: none;">使用备份码</a>
+                        <span style="font-size: 12px; color: #999;">|</span>
+                        <a href="#" class="recover-questions-link" style="font-size: 12px; color: #007bff; text-decoration: none;">回答安全问题</a>
+                    </div>
+                </div>
                 
                 <div class="modal-buttons" style="
                     display: flex;
@@ -186,6 +204,9 @@ export class PasswordModal {
         const cancelBtn = this.modal.querySelector('.cancel-btn') as HTMLButtonElement;
         const confirmBtn = this.modal.querySelector('.confirm-btn') as HTMLButtonElement;
         const overlay = this.modal;
+        const forgotLink = this.modal.querySelector('.forgot-link') as HTMLAnchorElement;
+        const recoverBackupLink = this.modal.querySelector('.recover-backup-link') as HTMLAnchorElement;
+        const recoverQuestionsLink = this.modal.querySelector('.recover-questions-link') as HTMLAnchorElement;
 
         // 密码输入框事件
         passwordInput.addEventListener('keydown', (e) => {
@@ -208,6 +229,26 @@ export class PasswordModal {
         confirmBtn.addEventListener('click', () => {
             this.handleConfirm();
         });
+
+        // 恢复相关
+        if (forgotLink) {
+            forgotLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleRecoveryOptions();
+            });
+        }
+        if (recoverBackupLink) {
+            recoverBackupLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.handleRecoverWithBackupCode();
+            });
+        }
+        if (recoverQuestionsLink) {
+            recoverQuestionsLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.handleRecoverWithSecurityQuestions();
+            });
+        }
 
         // 点击遮罩关闭
         overlay.addEventListener('click', (e) => {
@@ -256,7 +297,7 @@ export class PasswordModal {
             if (result.success) {
                 this.hide();
                 this.onSuccess?.();
-                showToast('验证成功', 'success');
+                showMessage('验证成功', 'success');
             } else {
                 this.showError(result.error || '密码错误');
                 
@@ -314,6 +355,109 @@ export class PasswordModal {
 
         if (passwordInput) {
             passwordInput.disabled = loading;
+        }
+    }
+
+    /**
+     * 切换恢复选项显隐
+     */
+    private toggleRecoveryOptions(): void {
+        const options = this.modal?.querySelector('.recovery-options') as HTMLElement;
+        if (options) {
+            options.style.display = options.style.display === 'none' ? 'flex' : 'none';
+        }
+    }
+
+    /**
+     * 使用备份码恢复
+     */
+    private async handleRecoverWithBackupCode(): Promise<void> {
+        try {
+            const code = prompt('请输入备份恢复码：') || '';
+            if (!code) return;
+            const recovery = getRecoveryService();
+            const result = await recovery.performPasswordRecovery('backup-code', { code });
+            if (!result.success) {
+                this.showError(result.error || '备份码验证失败');
+                return;
+            }
+
+            // 恢复成功后，引导重设密码
+            await this.setNewPasswordFlow();
+        } catch (e) {
+            console.error('Recover with backup code failed:', e);
+            this.showError('恢复失败，请重试');
+        }
+    }
+
+    /**
+     * 通过安全问题恢复
+     */
+    private async handleRecoverWithSecurityQuestions(): Promise<void> {
+        try {
+            const recovery = getRecoveryService();
+            const questions = await recovery.getSecurityQuestions();
+            if (!questions || questions.length === 0) {
+                this.showError('未设置安全问题，请使用备份码');
+                return;
+            }
+
+            const answers = [] as { id: string; answer: string }[];
+            for (const q of questions) {
+                const ans = prompt(`安全问题：${q.question}`) || '';
+                if (!ans) {
+                    this.showError('答案不能为空');
+                    return;
+                }
+                answers.push({ id: q.id, answer: ans });
+            }
+
+            const result = await recovery.performPasswordRecovery('security-questions', { answers });
+            if (!result.success) {
+                this.showError(result.error || '安全问题验证失败');
+                return;
+            }
+
+            // 恢复成功后，引导重设密码
+            await this.setNewPasswordFlow();
+        } catch (e) {
+            console.error('Recover with security questions failed:', e);
+            this.showError('恢复失败，请重试');
+        }
+    }
+
+    /**
+     * 恢复成功后重设密码并自动登录
+     */
+    private async setNewPasswordFlow(): Promise<void> {
+        const newPwd = prompt('请输入新密码（至少6位）：') || '';
+        if (!newPwd) return;
+        const confirmPwd = prompt('请再次输入新密码以确认：') || '';
+        if (newPwd !== confirmPwd) {
+            this.showError('两次输入不一致');
+            return;
+        }
+
+        try {
+            const pm = getPrivacyManager();
+            const ret = await pm.setPassword(newPwd);
+            if (!ret.success) {
+                this.showError(ret.error || '设置新密码失败');
+                return;
+            }
+
+            // 自动使用新密码登录
+            const auth = await pm.authenticate(newPwd);
+            if (auth.success) {
+                this.hide();
+                this.onSuccess?.();
+                showMessage('密码已重置并登录成功', 'success');
+            } else {
+                showMessage('密码已重置，请使用新密码登录', 'info');
+            }
+        } catch (e) {
+            console.error('Set new password failed:', e);
+            this.showError('设置新密码失败');
         }
     }
 
