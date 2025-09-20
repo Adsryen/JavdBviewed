@@ -3,12 +3,12 @@
  * 数据管理、导入导出、清理等全局操作功能
  */
 
-import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
+import { requireAuthIfRestricted } from '../../../../services/privacy';
 
 /**
  * 全局操作设置面板类
@@ -257,60 +257,64 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
      * 处理清除所有数据
      */
     private async handleClearAllData(): Promise<void> {
-        if (!confirm('确定要清除所有扩展数据吗？此操作不可撤销！\n\n这将清除：\n- 所有已观看影片\n- 所有想看影片\n- 所有收藏演员\n- 所有设置配置')) {
-            return;
-        }
+        await requireAuthIfRestricted('advanced-settings', async () => {
+            if (!confirm('确定要清除所有扩展数据吗？此操作不可撤销！\n\n这将清除：\n- 所有已观看影片\n- 所有想看影片\n- 所有收藏演员\n- 所有设置配置')) {
+                return;
+            }
 
-        try {
-            await chrome.storage.local.clear();
-            showMessage('所有数据已清除，页面将刷新', 'success');
-            logAsync('INFO', '用户清除了所有扩展数据');
-            
-            // 延迟刷新页面
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } catch (error) {
-            showMessage('清除所有数据失败', 'error');
-            logAsync('ERROR', `清除所有数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
-        }
+            try {
+                await chrome.storage.local.clear();
+                showMessage('所有数据已清除，页面将刷新', 'success');
+                logAsync('INFO', '用户清除了所有扩展数据');
+                
+                // 延迟刷新页面
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } catch (error) {
+                showMessage('清除所有数据失败', 'error');
+                logAsync('ERROR', `清除所有数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            }
+        }, { title: '需要密码验证', message: '清除所有数据为敏感操作，请先完成密码验证。' });
     }
 
     /**
      * 处理导出数据
      */
     private async handleExportData(): Promise<void> {
-        try {
-            this.exportDataBtn.disabled = true;
-            this.exportDataBtn.textContent = '导出中...';
+        await requireAuthIfRestricted('data-export', async () => {
+            try {
+                this.exportDataBtn.disabled = true;
+                this.exportDataBtn.textContent = '导出中...';
 
-            const allData = await chrome.storage.local.get(null);
-            const exportData = {
-                version: '1.0',
-                timestamp: new Date().toISOString(),
-                data: allData
-            };
+                const allData = await chrome.storage.local.get(null);
+                const exportData = {
+                    version: '1.0',
+                    timestamp: new Date().toISOString(),
+                    data: allData
+                };
 
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
 
-            showMessage('数据导出成功', 'success');
-            logAsync('INFO', '用户导出了扩展数据');
-        } catch (error) {
-            showMessage('导出数据失败', 'error');
-            logAsync('ERROR', `导出数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
-        } finally {
-            this.exportDataBtn.disabled = false;
-            this.exportDataBtn.textContent = '导出数据';
-        }
+                showMessage('数据导出成功', 'success');
+                logAsync('INFO', '用户导出了扩展数据');
+            } catch (error) {
+                showMessage('导出数据失败', 'error');
+                logAsync('ERROR', `导出数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            } finally {
+                this.exportDataBtn.disabled = false;
+                this.exportDataBtn.textContent = '导出数据';
+            }
+        }, { title: '需要密码验证', message: '导出数据受私密模式保护，请先完成密码验证。' });
     }
 
     /**
@@ -327,32 +331,34 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
         const file = (event.target as HTMLInputElement).files?.[0];
         if (!file) return;
 
-        try {
-            const text = await file.text();
-            const importData = JSON.parse(text);
+        await requireAuthIfRestricted('data-import', async () => {
+            try {
+                const text = await file.text();
+                const importData = JSON.parse(text);
 
-            if (!importData.data) {
-                throw new Error('无效的备份文件格式');
+                if (!importData.data) {
+                    throw new Error('无效的备份文件格式');
+                }
+
+                if (!confirm('确定要导入数据吗？这将覆盖当前的所有数据！')) {
+                    return;
+                }
+
+                await chrome.storage.local.clear();
+                await chrome.storage.local.set(importData.data);
+
+                showMessage('数据导入成功，页面将刷新', 'success');
+                logAsync('INFO', '用户导入了扩展数据');
+
+                // 延迟刷新页面
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } catch (error) {
+                showMessage('导入数据失败：文件格式错误', 'error');
+                logAsync('ERROR', `导入数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
             }
-
-            if (!confirm('确定要导入数据吗？这将覆盖当前的所有数据！')) {
-                return;
-            }
-
-            await chrome.storage.local.clear();
-            await chrome.storage.local.set(importData.data);
-
-            showMessage('数据导入成功，页面将刷新', 'success');
-            logAsync('INFO', '用户导入了扩展数据');
-
-            // 延迟刷新页面
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } catch (error) {
-            showMessage('导入数据失败：文件格式错误', 'error');
-            logAsync('ERROR', `导入数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
-        }
+        }, { title: '需要密码验证', message: '导入数据受私密模式保护，请先完成密码验证。' });
     }
 
     /**
@@ -397,11 +403,10 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
 
         try {
             // 获取默认设置
-            const { getDefaultSettings } = await import('../../../../utils/storage');
-            const defaultSettings = getDefaultSettings();
+            const { DEFAULT_SETTINGS } = await import('../../../../utils/config');
 
             // 保存默认设置
-            await chrome.storage.local.set({ settings: defaultSettings });
+            await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
 
             showMessage('所有设置已重置为默认值', 'success');
             logAsync('INFO', '用户重置了所有设置');
