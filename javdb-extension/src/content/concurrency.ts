@@ -3,6 +3,7 @@
 import { STATE, log } from './state';
 import { getValue, setValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
+import { dbViewedPut } from './dbClient';
 
 // 操作队列管理
 interface VideoOperation {
@@ -67,6 +68,9 @@ class StorageManager {
                     // 5. 更新内存状态
                     STATE.records = verifyRecords;
                     log(`[StorageManager] Successfully updated ${videoId} (operation ${operationId})`);
+
+                    // 6. 异步双写到 IndexedDB（不阻塞主流程）
+                    try { dbViewedPut(updatedRecord).catch(() => {}); } catch {}
 
                     // 记录成功操作（将在后面定义concurrencyMonitor）
                     const duration = Date.now() - startTime;
@@ -147,6 +151,9 @@ class StorageManager {
                     // 5. 更新内存状态
                     STATE.records = verifyRecords;
                     log(`[StorageManager] Successfully added ${videoId} (operation ${operationId})`);
+
+                    // 6. 异步双写到 IndexedDB（不阻塞主流程）
+                    try { dbViewedPut(newRecord).catch(() => {}); } catch {}
 
                     // 记录成功操作
                     const duration = Date.now() - startTime;

@@ -112,6 +112,7 @@ import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic'
 import { newWorksScheduler } from '../services/newWorks';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import JSZip from 'jszip';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount } from './db';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -160,6 +161,61 @@ try {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[STORAGE_KEYS.SETTINGS]) {
       applyConsoleSettingsFromStorage();
+    }
+  });
+} catch {}
+
+// ---------------- IndexedDB Migration & DB message routing ----------------
+
+async function ensureIDBMigrated(): Promise<void> {
+  try {
+    await initDB();
+    const migrated = await getValue<boolean>(STORAGE_KEYS.IDB_MIGRATED, false);
+    if (migrated) return;
+
+    const viewedObj = await getValue<Record<string, any>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+    const all = Object.values(viewedObj || {});
+    console.info('[DB] Starting initial migration to IndexedDB...', { count: all.length });
+
+    const BATCH = 500;
+    for (let i = 0; i < all.length; i += BATCH) {
+      const slice = all.slice(i, i + BATCH);
+      await idbViewedBulkPut(slice);
+      console.info('[DB] Migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
+    }
+
+    await setValue(STORAGE_KEYS.IDB_MIGRATED, true);
+    const cnt = await idbViewedCount().catch(() => -1);
+    console.info('[DB] Migration finished', { total: all.length, idbCount: cnt });
+  } catch (e) {
+    console.warn('[DB] Migration failed (will not block extension)', (e as any)?.message);
+  }
+}
+
+// fire-and-forget on startup/wakeup
+ensureIDBMigrated();
+
+try {
+  chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
+    if (!message || typeof message !== 'object') return;
+    // DB message routing
+    if (message.type === 'DB:VIEWED_PUT') {
+      const record = message?.payload?.record;
+      idbViewedPut(record).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb put failed' }));
+      return true; // async
+    }
+    if (message.type === 'DB:VIEWED_BULK_PUT') {
+      const records = message?.payload?.records || [];
+      idbViewedBulkPut(records).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb bulkPut failed' }));
+      return true; // async
+    }
+    if (message.type === 'DB:VIEWED_GET_ALL') {
+      import('./db').then(m => m.viewedGetAll()).then((records) => {
+        sendResponse({ success: true, records });
+      }).catch((e) => sendResponse({ success: false, error: e?.message || 'idb getAll failed' }));
+      return true; // async
     }
   });
 } catch {}
