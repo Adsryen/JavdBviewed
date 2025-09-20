@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "fs-extra": "^10.1.0",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "idb": "^7.1.1"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.23",

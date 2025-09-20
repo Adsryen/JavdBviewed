@@ -36,7 +36,10 @@ export const STORAGE_KEYS = {
     NEW_WORKS_CONFIG: 'new_works_config',
     
     // 高级搜索方案存储键
-    ADV_SEARCH_PRESETS: 'adv_search_presets'
+    ADV_SEARCH_PRESETS: 'adv_search_presets',
+
+    // IndexedDB 迁移状态标记
+    IDB_MIGRATED: 'idb_migrated'
 } as const;
 
 export const VIDEO_STATUS = {

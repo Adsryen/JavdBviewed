@@ -38,6 +38,34 @@ async function getAllKeys(): Promise<string[]> {
   });
 }
 
+// 简易消息发送封装：用于在任何上下文（CS/BG/Options）向 BG 路由 DB 请求
+function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let timer: any;
+    try {
+      timer = setTimeout(() => reject(new Error(`message timeout: ${type}`)), timeoutMs);
+    } catch {}
+    try {
+      chrome.runtime.sendMessage({ type, payload }, (resp) => {
+        if (timer) clearTimeout(timer);
+        const lastErr = chrome.runtime.lastError;
+        if (lastErr) {
+          reject(new Error(lastErr.message || 'runtime error'));
+          return;
+        }
+        if (!resp || resp.success !== true) {
+          reject(new Error(resp?.error || 'db error'));
+          return;
+        }
+        resolve(resp as T);
+      });
+    } catch (e: any) {
+      if (timer) clearTimeout(timer);
+      reject(e);
+    }
+  });
+}
+
 async function setLargeObject(key: string, value: Record<string, any>): Promise<void> {
   const prefix = chunkPrefixFor(key);
   const metaKey = chunkMetaFor(key);
@@ -141,7 +169,31 @@ export async function setValue<T>(key: string, value: T): Promise<void> {
 
 export function getValue<T>(key: string, defaultValue: T): Promise<T> {
   if (LARGE_KEYS.has(key)) {
-    return getLargeObject<T>(key, defaultValue);
+    // 优先尝试从 IndexedDB 读取（若已迁移），失败则回退至分片结构
+    return new Promise<T>(async (resolve) => {
+      try {
+        const migrated = await new Promise<boolean>((res) => {
+          chrome.storage.local.get([STORAGE_KEYS.IDB_MIGRATED], (r) => res(!!r[STORAGE_KEYS.IDB_MIGRATED]));
+        });
+        if (migrated) {
+          try {
+            const resp = await sendMessage<{ success: true; records: any[] }>('DB:VIEWED_GET_ALL');
+            const obj: Record<string, any> = Object.create(null);
+            const list = (resp as any).records as any[];
+            if (Array.isArray(list)) {
+              for (const r of list) {
+                if (r && r.id) obj[r.id] = r;
+              }
+            }
+            resolve(obj as unknown as T);
+            return;
+          } catch {}
+        }
+      } catch {}
+      // 回退：从分片结构读取
+      const v = await getLargeObject<T>(key, defaultValue);
+      resolve(v);
+    });
   }
   return new Promise(resolve => {
     chrome.storage.local.get([key], result => {
