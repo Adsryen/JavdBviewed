@@ -5,11 +5,144 @@ import { STORAGE_KEYS, DEFAULT_SETTINGS } from './config';
 import type { ExtensionSettings } from '../types';
 import { log } from './logController';
 
-export function setValue<T>(key: string, value: T): Promise<void> {
+// --- Large object chunked storage helpers ---
+// 说明：当单个键（如 'viewed'）对象过大时，写入 chrome.storage.local 可能触发
+// Resource::kQuotaBytes quota exceeded。这里为特定键启用分片存储：
+// - 写入时将大对象拆分为多个 chunk 键：__chunk__:<key>::<index>
+// - 记录一个元信息键：__chunks_meta__:<key> => { chunks, totalEntries, updatedAt, version }
+// - 读取时优先按 meta 组装；若 meta 不存在则回退至旧的单键结构
+
+const LARGE_KEYS = new Set<string>(['viewed']);
+const chunkPrefixFor = (key: string) => `__chunk__:${key}::`;
+const chunkMetaFor = (key: string) => `__chunks_meta__:${key}`;
+
+function encodeSize(obj: any): number {
+  try {
+    const s = typeof obj === 'string' ? obj : JSON.stringify(obj);
+    return new TextEncoder().encode(s).length;
+  } catch {
+    return 0;
+  }
+}
+
+async function removeKeys(keys: string[]): Promise<void> {
+  if (!keys || keys.length === 0) return;
+  await new Promise<void>((resolve) => {
+    chrome.storage.local.remove(keys, () => resolve());
+  });
+}
+
+async function getAllKeys(): Promise<string[]> {
+  return new Promise<string[]>((resolve) => {
+    chrome.storage.local.get(null, (all) => resolve(Object.keys(all || {})));
+  });
+}
+
+async function setLargeObject(key: string, value: Record<string, any>): Promise<void> {
+  const prefix = chunkPrefixFor(key);
+  const metaKey = chunkMetaFor(key);
+
+  // 空对象：只写 meta，后续清理旧数据
+  const entries = Object.entries(value || {});
+
+  // 采用保守上限，尽量避免触发配额（按 JSON 字节估算）
+  const MAX_BYTES_PER_CHUNK = 400 * 1024; // 约 400KB
+  let current: Record<string, any> = {};
+  let currentSize = encodeSize({});
+  const chunks: Array<Record<string, any>> = [];
+
+  for (const [k, v] of entries) {
+    const pair = { [k]: v } as Record<string, any>;
+    const pairSize = encodeSize(pair);
+    if (currentSize + pairSize > MAX_BYTES_PER_CHUNK && Object.keys(current).length > 0) {
+      chunks.push(current);
+      current = {};
+      currentSize = encodeSize({});
+    }
+    Object.assign(current, pair);
+    currentSize += pairSize;
+  }
+  if (Object.keys(current).length > 0) chunks.push(current);
+
+  // 第一阶段：写入新分片与 meta（不删除旧数据，避免失败时丢失）
+  if (chunks.length === 0) {
+    await chrome.storage.local.set({ [metaKey]: { chunks: 0, totalEntries: 0, updatedAt: Date.now(), version: 1 } });
+  } else {
+    let i = 0;
+    for (const chunk of chunks) {
+      i++;
+      await chrome.storage.local.set({ [`${prefix}${i}`]: chunk });
+    }
+    await chrome.storage.local.set({ [metaKey]: { chunks: chunks.length, totalEntries: entries.length, updatedAt: Date.now(), version: 1 } });
+  }
+
+  // 第二阶段：清理旧结构与多余分片（在新数据可用后进行）
+  try {
+    const keys = await getAllKeys();
+    const stray = keys.filter(k => k === key || (k.startsWith(prefix) && !/__chunk__:[^:]+::\d+$/.test(k)));
+    // 还需清理比新 chunks 数量更多的旧分片
+    const extraChunkKeys = keys
+      .filter(k => k.startsWith(prefix))
+      .filter(k => {
+        const num = Number(k.substring(prefix.length));
+        return Number.isFinite(num) && num > chunks.length;
+      });
+    const toRemove = Array.from(new Set([...stray, ...extraChunkKeys]));
+    if (toRemove.length) await removeKeys(toRemove);
+  } catch {}
+}
+
+async function getLargeObject<T>(key: string, defaultValue: T): Promise<T> {
+  const prefix = chunkPrefixFor(key);
+  const metaKey = chunkMetaFor(key);
+
+  // 先读 meta
+  const meta = await new Promise<any>((resolve) => {
+    chrome.storage.local.get([metaKey], (res) => resolve(res?.[metaKey]));
+  });
+
+  if (meta && typeof meta.chunks === 'number') {
+    const n = meta.chunks as number;
+    if (n <= 0) return {} as unknown as T;
+
+    const chunkKeys = Array.from({ length: n }, (_v, idx) => `${prefix}${idx + 1}`);
+    const data = await new Promise<Record<string, any>>((resolve) => {
+      chrome.storage.local.get(chunkKeys, (res) => resolve(res || {}));
+    });
+    const assembled: Record<string, any> = {};
+    for (const ck of chunkKeys) {
+      const part = data[ck];
+      if (part && typeof part === 'object') Object.assign(assembled, part);
+    }
+    return assembled as unknown as T;
+  }
+
+  // 没有 meta，尝试读取旧的单键结构
+  return new Promise<T>((resolve) => {
+    chrome.storage.local.get([key], (result) => {
+      resolve(result[key] !== undefined ? (result[key] as T) : defaultValue);
+    });
+  });
+}
+
+export async function setValue<T>(key: string, value: T): Promise<void> {
+  if (LARGE_KEYS.has(key) && value && typeof value === 'object') {
+    // 对大对象键启用分片写入
+    try {
+      await setLargeObject(key, value as any);
+      return;
+    } catch (e) {
+      // 兜底：失败则退回到普通写入（可能再次触发配额错误）
+      log.storage?.('Chunked set failed, fallback to direct set', { key, error: (e as any)?.message });
+    }
+  }
   return chrome.storage.local.set({ [key]: value });
 }
 
 export function getValue<T>(key: string, defaultValue: T): Promise<T> {
+  if (LARGE_KEYS.has(key)) {
+    return getLargeObject<T>(key, defaultValue);
+  }
   return new Promise(resolve => {
     chrome.storage.local.get([key], result => {
       resolve(result[key] !== undefined ? result[key] : defaultValue);
@@ -18,13 +151,13 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
 }
 
 export async function getSettings(): Promise<ExtensionSettings> {
-    const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
+  const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
 
-    log.storage('Loading settings from storage', {
-        key: STORAGE_KEYS.SETTINGS,
-        hasStoredSettings: !!storedSettings,
-        hasPrivacy: !!storedSettings.privacy
-    });
+  log.storage('Loading settings from storage', {
+    key: STORAGE_KEYS.SETTINGS,
+    hasStoredSettings: !!storedSettings,
+    hasPrivacy: !!storedSettings.privacy
+  });
 
     // Deep merge to ensure all nested properties from default are present
     const mergedSettings: ExtensionSettings = {

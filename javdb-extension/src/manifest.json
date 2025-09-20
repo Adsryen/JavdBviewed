@@ -8,7 +8,8 @@
         "tabs",
         "alarms",
         "scripting",
-        "notifications"
+        "notifications",
+        "unlimitedStorage"
     ],
     "host_permissions": [
         "*://*.javdb.com/*",
@@ -89,6 +90,7 @@
     "web_accessible_resources": [
         {
             "resources": [
+                "assets/*",
                 "assets/switch-viewed.png",
                 "assets/switch-want.png",
                 "assets/switch-browsed.png",

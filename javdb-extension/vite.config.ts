@@ -27,6 +27,8 @@ function getUpdatedManifest() {
 export default defineConfig({
   root: 'src',
   envDir: '..',
+  // 重要：使用相对资源路径，避免内容脚本动态分包以 /assets/ 前缀从网站域拉取
+  base: '',
   plugins: [
     crx({ manifest: getUpdatedManifest() }),
   ],
