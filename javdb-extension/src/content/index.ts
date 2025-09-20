@@ -26,6 +26,9 @@ import { initOrchestrator } from './initOrchestrator';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
 
+// 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
+let currentVolume: number = 0.2;
+
 // 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
 installConsoleProxy({
     level: 'DEBUG',
@@ -38,7 +41,6 @@ installConsoleProxy({
 // 从设置应用控制台显示配置到代理
 async function applyConsoleSettingsFromStorage_CS() {
     try {
-        const { getSettings } = await import('../utils/storage');
         const settings = await getSettings();
         const logging: any = settings.logging || {};
         const ctrl: any = (window as any).__JDB_CONSOLE__;
@@ -748,15 +750,19 @@ document.addEventListener('visibilitychange', () => {
         // 页面隐藏时，暂停一些非关键任务
         log('[Performance] Page hidden, reducing resource usage');
         performanceOptimizer?.updateConfig({
-            maxConcurrentTasks: 1,
             maxConcurrentRequests: 1,
+            domBatchSize: 2,
+            domThrottleDelay: 200,
+            enableMemoryCleanup: true,
+            memoryCleanupInterval: 20000,
         });
     } else {
         // 页面显示时，恢复正常配置
         log('[Performance] Page visible, restoring normal resource usage');
         performanceOptimizer?.updateConfig({
-            maxConcurrentTasks: 3,
             maxConcurrentRequests: 2,
+            domBatchSize: 5,
+            domThrottleDelay: 100,
         });
     }
 });
