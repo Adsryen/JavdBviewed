@@ -2,6 +2,8 @@
  * 全局操作设置模块入口
  */
 
+import type { GlobalActionsSettings } from './GlobalActionsSettings';
+
 // 注意：GlobalActionsSettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建全局操作设置实例，避免循环依赖

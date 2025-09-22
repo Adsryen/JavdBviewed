@@ -1,4 +1,4 @@
-import type { DEFAULT_SETTINGS, VIDEO_STATUS } from "../utils/config";
+// 移除未使用的导入
 import type { Drive115Settings } from "../services/drive115/types";
 import type { PrivacyConfig } from "./privacy";
 import type { AISettings } from "./ai";
@@ -180,6 +180,10 @@ export interface ExtensionSettings {
 
     version: string;
     recordsPerPage?: number;
+    // 更新检查相关设置（用于 Dashboard 设置面板）
+    autoUpdateCheck?: boolean; // 是否自动检查更新
+    updateCheckInterval?: string; // 检查间隔（小时，字符串形式以匹配下拉值）
+    includePrerelease?: boolean; // 是否包含预发布版本
 }
 
 // 新增：关键字过滤规则接口

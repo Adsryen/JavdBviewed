@@ -270,7 +270,7 @@ export async function handlePushToDrive115(
 /**
  * 处理批量下载（通过统一路由逐个推送）
  */
-async function handleBatchDownload(
+export async function handleBatchDownload(
     button: HTMLButtonElement,
     videoId: string,
     magnetLinks: Array<{ name: string; url: string }>

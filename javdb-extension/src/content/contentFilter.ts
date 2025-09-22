@@ -35,7 +35,6 @@ export class ContentFilterManager {
   private filteredElements: Map<HTMLElement, KeywordFilterRule> = new Map();
   private observer: MutationObserver | null = null;
   private isInitialized = false;
-  private filterPanel: HTMLElement | null = null;
   private filterStats = {
     hidden: 0,
     highlighted: 0,
@@ -758,18 +757,6 @@ export class ContentFilterManager {
     }
 
     this.config.keywordRules.push(rule);
-  }
-
-
-
-  /**
-   * 更新规则启用状态
-   */
-  private updateRuleEnabled(ruleId: string, enabled: boolean): void {
-    const rule = this.config.keywordRules.find(r => r.id === ruleId);
-    if (rule) {
-      rule.enabled = enabled;
-    }
   }
 
   /**

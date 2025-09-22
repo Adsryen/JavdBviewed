@@ -164,6 +164,14 @@ function normalizeCn(s?: string | null): { country?: string; region?: string; ci
   }
 }
 
+// 选择数组中第一个非空元素
+function pickFirst<T>(arr: Array<T | null | undefined>): T | undefined {
+  for (const v of arr) {
+    if (v !== null && v !== undefined) return v;
+  }
+  return undefined;
+}
+
 function inferIsp(text?: string): string | undefined {
   if (!text) return undefined;
   const t = text.toLowerCase();

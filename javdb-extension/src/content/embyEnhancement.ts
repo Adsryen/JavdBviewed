@@ -5,7 +5,6 @@
 
 import { STATE, log } from './state';
 import { extractVideoId } from './videoId';
-import { showToast } from './toast';
 
 interface EmbyConfig {
     enabled: boolean;
@@ -264,7 +263,7 @@ class EmbyEnhancementManager {
 
         if (this.config.linkBehavior === 'javdb-direct') {
             // 尝试从本地记录中查找直接链接
-            const record = STATE.records?.find(r => r.id === videoId);
+            const record = STATE.records?.[videoId];
             if (record?.javdbUrl && record.javdbUrl !== '#') {
                 return record.javdbUrl;
             }

@@ -2,6 +2,9 @@
  * 115网盘API接口封装
  */
 
+// Greasemonkey/Tampermonkey 环境变量声明，避免 TS 找不到符号
+declare const GM_xmlhttpRequest: any;
+
 import type {
   Drive115SignResponse,
   Drive115AddTaskResponse,
@@ -23,12 +26,10 @@ import {
 
 import {
   isValidMagnetUrl,
-  parseDynamicDirectory,
   filterVideoFiles,
   matchVideoByCode,
   generateTaskId,
   delay,
-  retry,
   parseErrorMessage
 } from './utils';
 
@@ -43,6 +44,17 @@ export class Drive115ApiClient {
   }
 
   /**
+   * 过滤 headers 中的 undefined 值，保持类型为 Record<string, string>
+   */
+  private sanitizeHeaders(h: Record<string, string | undefined>): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(h || {})) {
+      if (typeof v === 'string') out[k] = v;
+    }
+    return out;
+  }
+
+  /**
    * 发送HTTP请求
    */
   private async request<T = any>(
@@ -50,7 +62,7 @@ export class Drive115ApiClient {
     options: {
       method?: 'GET' | 'POST';
       data?: Record<string, any>;
-      headers?: Record<string, string>;
+      headers?: Record<string, string | undefined>;
       responseType?: 'json' | 'text' | 'document';
     } = {}
   ): Promise<T> {
@@ -67,13 +79,13 @@ export class Drive115ApiClient {
         const requestOptions: any = {
           method,
           url,
-          headers: {
+          headers: this.sanitizeHeaders({
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7,zh-HK;q=0.6',
             'X-Requested-With': 'XMLHttpRequest',
             ...headers
-          },
+          }),
           timeout: 30000,
           withCredentials: true, // 确保发送Cookie
           onload: (response: any) => {
@@ -131,7 +143,7 @@ export class Drive115ApiClient {
     options: {
       method?: 'GET' | 'POST';
       data?: Record<string, any>;
-      headers?: Record<string, string>;
+      headers?: Record<string, string | undefined>;
       responseType?: 'json' | 'text' | 'document';
     }
   ): Promise<T> {
@@ -139,13 +151,13 @@ export class Drive115ApiClient {
 
     const fetchOptions: RequestInit = {
       method,
-      headers: {
+      headers: this.sanitizeHeaders({
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-US;q=0.7,zh-HK;q=0.6',
         'X-Requested-With': 'XMLHttpRequest',
         ...headers
-      },
+      }),
       credentials: 'include' // 确保发送Cookie
     };
 
@@ -419,7 +431,7 @@ export class Drive115ApiClient {
    * 单个离线下载
    */
   async downloadOffline(options: OfflineDownloadOptions): Promise<OfflineDownloadResult> {
-    const { videoId, magnetUrl, downloadDir, autoVerify = true, notify = true } = options;
+    const { videoId, magnetUrl, downloadDir, autoVerify = true } = options;
     const taskId = generateTaskId();
 
     console.log('开始离线下载:', { taskId, videoId, magnetUrl });
@@ -486,7 +498,7 @@ export class Drive115ApiClient {
    * 批量离线下载
    */
   async downloadBatch(options: BatchOfflineOptions): Promise<BatchOfflineResult> {
-    const { tasks, downloadDir, maxFailures = 5, autoVerify = true, notify = true } = options;
+    const { tasks, downloadDir, maxFailures = 5, autoVerify = true } = options;
 
     console.log('开始批量离线下载:', {
       taskCount: tasks.length,

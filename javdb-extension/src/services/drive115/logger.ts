@@ -200,7 +200,7 @@ export class Drive115Logger {
    */
   async getLogs(): Promise<Drive115LogEntry[]> {
     try {
-      const logs = await getValue(DRIVE115_STORAGE_KEYS.LOGS);
+      const logs = await getValue<Drive115LogEntry[]>(DRIVE115_STORAGE_KEYS.LOGS, []);
       return Array.isArray(logs) ? logs : [];
     } catch (error) {
       console.error('获取115日志失败:', error);

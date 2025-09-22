@@ -7,10 +7,14 @@ import { extractVideoIdFromPage } from './videoId';
 import { defaultHttpClient } from '../services/dataAggregator/httpClient';
 import { handlePushToDrive115 } from './drive115';
 import { performanceOptimizer } from './performanceOptimizer';
+import { dbMagnetsQuery, dbMagnetsUpsert } from './dbClient';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
 const FC2_REGEX = /^FC2-/i;
+
+// 磁链缓存 TTL（默认 7 天）
+const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * 解析视频代码，生成匹配正则表达式
@@ -168,6 +172,17 @@ export class MagnetSearchManager {
       // 收集所有磁力数据（包括JavDB原生 + 搜索结果）
       const allMagnetResults: MagnetResult[] = [];
 
+      // 优先尝试从缓存加载并快速展示
+      try {
+        const cached = await this.loadCachedMagnets(videoId);
+        if (cached.length > 0) {
+          log(`Loaded ${cached.length} magnets from cache for ${videoId}`);
+          this.processAndDisplayAllMagnets(cached);
+        }
+      } catch (e) {
+        log('Load cached magnets failed:', e);
+      }
+
       // 1. 首先收集JavDB原生磁力数据
       const javdbMagnets = this.collectJavdbMagnets();
       allMagnetResults.push(...javdbMagnets);
@@ -244,10 +259,14 @@ export class MagnetSearchManager {
 
         // 统一去重、排序和显示
         this.processAndDisplayAllMagnets(allMagnetResults);
+
+        // 异步写入缓存（带 TTL）
+        this.upsertMagnetsToCache(videoId, allMagnetResults).catch(err => log('Upsert magnets cache failed:', err));
       }).catch(error => {
         // 这个catch理论上不会被触发，因为我们已经在每个promise中处理了错误
         log('Unexpected error in Promise.all:', error);
         this.processAndDisplayAllMagnets(allMagnetResults);
+        this.upsertMagnetsToCache(videoId, allMagnetResults).catch(err => log('Upsert magnets cache failed:', err));
       });
     } catch (error) {
       log('Error searching magnets:', error);
@@ -1611,6 +1630,59 @@ export class MagnetSearchManager {
   private extractHashFromMagnet(magnet: string): string {
     const match = magnet.match(/xt=urn:btih:([a-fA-F0-9]{40})/);
     return match ? match[1].toLowerCase() : magnet;
+  }
+
+  /**
+   * 从 IndexedDB 磁链缓存加载
+   */
+  private async loadCachedMagnets(videoId: string): Promise<MagnetResult[]> {
+    if (!videoId) return [];
+    try {
+      const { items } = await dbMagnetsQuery({ videoId, orderBy: 'sizeBytes', order: 'desc' });
+      return (items || []).map((m) => ({
+        name: m.name,
+        magnet: m.magnet,
+        size: m.size || '',
+        sizeBytes: m.sizeBytes || 0,
+        date: m.date || '',
+        seeders: m.seeders,
+        leechers: m.leechers,
+        source: String(m.source || 'cache'),
+        quality: m.quality,
+        hasSubtitle: !!m.hasSubtitle,
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * 将搜索结果写入磁链缓存（批量 upsert）
+   */
+  private async upsertMagnetsToCache(videoId: string, results: MagnetResult[]): Promise<void> {
+    if (!videoId || !Array.isArray(results) || results.length === 0) return;
+    const now = Date.now();
+    const expireAt = now + MAGNET_CACHE_TTL_MS;
+    const recs = results.map((r) => {
+      const hash = this.extractHashFromMagnet(r.magnet);
+      return {
+        key: `${videoId}|${r.source}|${hash}`,
+        videoId,
+        source: r.source,
+        name: r.name,
+        magnet: r.magnet,
+        size: r.size,
+        sizeBytes: r.sizeBytes,
+        date: r.date,
+        seeders: r.seeders,
+        leechers: r.leechers,
+        hasSubtitle: r.hasSubtitle,
+        quality: r.quality,
+        createdAt: now,
+        expireAt,
+      } as any;
+    });
+    await dbMagnetsUpsert(recs);
   }
 
   private detectSubtitle(name: string): boolean {

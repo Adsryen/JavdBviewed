@@ -47,3 +47,53 @@ export async function dbViewedGetAll(): Promise<VideoRecord[]> {
   // @ts-ignore
   return resp.records || [];
 }
+
+// ----- Magnets APIs -----
+
+export interface MagnetsQueryParams {
+  videoId: string;
+  sources?: string[];
+  hasSubtitle?: boolean;
+  minSizeBytes?: number;
+  offset?: number;
+  limit?: number;
+  orderBy?: 'createdAt' | 'sizeBytes' | 'date';
+  order?: 'asc' | 'desc';
+}
+
+export interface MagnetCacheRecord {
+  key: string;
+  videoId: string;
+  source: string;
+  name: string;
+  magnet: string;
+  size?: string;
+  sizeBytes?: number;
+  date?: string;
+  seeders?: number;
+  leechers?: number;
+  hasSubtitle?: boolean;
+  quality?: string;
+  createdAt: number;
+  expireAt?: number;
+}
+
+export async function dbMagnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number }>{
+  const resp = await sendMessage<{ success: true; items: MagnetCacheRecord[]; total: number }>('DB:MAGNETS_QUERY', params);
+  // @ts-ignore
+  return { items: resp.items || [], total: resp.total || 0 };
+}
+
+export async function dbMagnetsUpsert(records: MagnetCacheRecord[]): Promise<void> {
+  await sendMessage('DB:MAGNETS_UPSERT', { records });
+}
+
+export async function dbMagnetsClear(): Promise<void> {
+  await sendMessage('DB:MAGNETS_CLEAR');
+}
+
+export async function dbMagnetsClearExpired(beforeMs?: number): Promise<number> {
+  const resp = await sendMessage<{ success: true; removed: number }>('DB:MAGNETS_CLEAR_EXPIRED', { beforeMs });
+  // @ts-ignore
+  return Number(resp.removed || 0);
+}

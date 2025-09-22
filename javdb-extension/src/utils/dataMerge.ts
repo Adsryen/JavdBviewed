@@ -1,15 +1,10 @@
 // src/utils/dataMerge.ts
 // 数据智能合并模块
 
-import type { VideoRecord, ActorRecord, ExtensionSettings } from '../types';
+import type { VideoRecord, ActorRecord, ExtensionSettings, VideoStatus } from '../types';
 import { mergeKeyedMap } from './mergeKeyedMap';
 import type { ActorSubscription, NewWorkRecord } from '../services/newWorks/types';
-import type {
-    DataDiffResult,
-    MergeOptions,
-    VideoRecordConflict,
-    ActorRecordConflict
-} from './dataDiff';
+import type { DataDiffResult, MergeOptions } from './dataDiff';
 
 // 合并结果
 export interface MergeResult {
@@ -192,6 +187,11 @@ export function mergeData(
             summary: {
                 videoRecords: { added: 0, updated: 0, kept: 0, total: 0 },
                 actorRecords: { added: 0, updated: 0, kept: 0, total: 0 },
+                newWorks: {
+                    subscriptions: { added: 0, updated: 0, kept: 0, total: 0 },
+                    records: { added: 0, updated: 0, kept: 0, total: 0 },
+                    config: { updated: false }
+                },
                 settings: { updated: false },
                 userProfile: { updated: false },
                 logs: { added: 0 },
@@ -335,10 +335,10 @@ function smartMergeVideoRecord(local: VideoRecord, cloud: VideoRecord): VideoRec
 /**
  * 获取更高优先级的状态
  */
-function getHigherPriorityStatus(status1: string, status2: string): string {
-    const priority = { 'browsed': 1, 'want': 2, 'viewed': 3 };
-    const p1 = priority[status1 as keyof typeof priority] || 0;
-    const p2 = priority[status2 as keyof typeof priority] || 0;
+function getHigherPriorityStatus(status1: VideoStatus, status2: VideoStatus): VideoStatus {
+    const priority: Record<VideoStatus, number> = { browsed: 1, want: 2, viewed: 3 };
+    const p1 = priority[status1] || 0;
+    const p2 = priority[status2] || 0;
     return p1 >= p2 ? status1 : status2;
 }
 
