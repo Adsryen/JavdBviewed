@@ -2,6 +2,8 @@
  * 隐私保护设置模块入口
  */
 
+import type { PrivacySettings } from './PrivacySettings';
+
 // 注意：PrivacySettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建隐私保护设置实例，避免循环依赖

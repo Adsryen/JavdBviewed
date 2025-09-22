@@ -5,6 +5,7 @@ import { globalCache } from '../../utils/cache';
 import { BlogJavSource, DEFAULT_BLOGJAV_CONFIG } from './sources/blogJav';
 import { TranslatorService, DEFAULT_TRANSLATOR_CONFIG } from './sources/translator';
 import { AITranslatorService, DEFAULT_AI_TRANSLATOR_CONFIG } from './sources/aiTranslator';
+import type { AITranslatorConfig } from './sources/aiTranslator';
 import { JavLibrarySource, DEFAULT_JAVLIBRARY_CONFIG } from './sources/javLibrary';
 import {
   VideoMetadata,
@@ -26,10 +27,10 @@ export interface DataAggregatorConfig {
 }
 
 export class DataAggregator {
-  private blogJav: BlogJavSource;
-  private translator: TranslatorService;
-  private aiTranslator: AITranslatorService;
-  private javLibrary: JavLibrarySource;
+  private blogJav!: BlogJavSource;
+  private translator!: TranslatorService;
+  private aiTranslator!: AITranslatorService;
+  private javLibrary!: JavLibrarySource;
   private config: DataAggregatorConfig;
 
   constructor(config: Partial<DataAggregatorConfig> = {}) {

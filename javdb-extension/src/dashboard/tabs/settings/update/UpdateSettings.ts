@@ -203,14 +203,15 @@ export class UpdateSettings extends BaseSettingsPanel {
      * 设置数据
      */
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
-        if (settings.autoUpdateCheck !== undefined) {
-            this.settings.autoUpdateCheck = settings.autoUpdateCheck;
+        const s = settings as any;
+        if (s.autoUpdateCheck !== undefined) {
+            this.settings.autoUpdateCheck = s.autoUpdateCheck;
         }
-        if (settings.updateCheckInterval !== undefined) {
-            this.settings.updateCheckInterval = settings.updateCheckInterval;
+        if (s.updateCheckInterval !== undefined) {
+            this.settings.updateCheckInterval = s.updateCheckInterval;
         }
-        if (settings.includePrerelease !== undefined) {
-            this.settings.includePrerelease = settings.includePrerelease;
+        if (s.includePrerelease !== undefined) {
+            this.settings.includePrerelease = s.includePrerelease;
         }
     }
 

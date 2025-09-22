@@ -1,7 +1,7 @@
 // 通用键值 map 合并（遵循策略，默认智能）
 import type { MergeOptions } from './dataDiff';
 
-export function mergeKeyedMap<T extends { id?: string }>(
+export function mergeKeyedMap<T>(
   localMap: Record<string, T>,
   cloudMap: Record<string, T>,
   diff: any,

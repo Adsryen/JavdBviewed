@@ -4,6 +4,7 @@
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import type { ActorRecord, ActorSearchResult } from '../types';
+import { dbActorsQuery, dbActorsGet, dbActorsPut, dbActorsDelete, dbActorsBulkPut, dbActorsStats, type ActorsQueryParams } from '../dashboard/dbClient';
 
 export class ActorManager {
     private cache: Map<string, ActorRecord> = new Map();
@@ -37,6 +38,12 @@ export class ActorManager {
      */
     async getAllActors(): Promise<ActorRecord[]> {
         await this.initialize();
+        // 优先尝试从 IDB 读取（分页大页）
+        try {
+            const { items } = await dbActorsQuery({ offset: 0, limit: 100000 } as ActorsQueryParams);
+            if (Array.isArray(items) && items.length > 0) return items;
+        } catch {}
+        // 回退：内存缓存
         return Array.from(this.cache.values());
     }
 
@@ -45,6 +52,10 @@ export class ActorManager {
      */
     async getActorById(id: string): Promise<ActorRecord | null> {
         await this.initialize();
+        try {
+            const r = await dbActorsGet(id);
+            if (r) return r;
+        } catch {}
         return this.cache.get(id) || null;
     }
 
@@ -82,77 +93,52 @@ export class ActorManager {
         blacklistFilter: 'all' | 'exclude' | 'only' = 'all'
     ): Promise<ActorSearchResult> {
         await this.initialize();
-
-        let actors = Array.from(this.cache.values());
-
-        // 搜索过滤
-        if (query.trim()) {
-            const lowerQuery = query.toLowerCase();
-            actors = actors.filter(actor => {
-                return actor.name.toLowerCase().includes(lowerQuery) ||
-                       actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery));
+        // 优先使用 IDB 查询
+        try {
+            const { items, total } = await dbActorsQuery({
+                query,
+                gender: genderFilter as any,
+                category: categoryFilter as any,
+                blacklist: blacklistFilter,
+                sortBy,
+                order: sortOrder,
+                offset: (page - 1) * pageSize,
+                limit: pageSize,
             });
-        }
-
-        // 性别筛选
-        if (genderFilter) {
-            actors = actors.filter(actor => actor.gender === genderFilter);
-        }
-
-        // 分类筛选
-        if (categoryFilter) {
-            actors = actors.filter(actor => actor.category === categoryFilter);
-        }
-
-        // 黑名单筛选
-        if (blacklistFilter === 'exclude') {
-            actors = actors.filter(actor => !actor.blacklisted);
-        } else if (blacklistFilter === 'only') {
-            actors = actors.filter(actor => !!actor.blacklisted);
-        }
-        
-        // 排序
-        actors.sort((a, b) => {
-            let aValue: any, bValue: any;
-            
-            switch (sortBy) {
-                case 'name':
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
-                    break;
-                case 'updatedAt':
-                    aValue = a.updatedAt;
-                    bValue = b.updatedAt;
-                    break;
-                case 'worksCount':
-                    aValue = a.details?.worksCount || 0;
-                    bValue = b.details?.worksCount || 0;
-                    break;
-                default:
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
+            return {
+                actors: items,
+                total,
+                page,
+                pageSize,
+                hasMore: page * pageSize < total,
+            };
+        } catch (e) {
+            // 回退：使用内存缓存进行过滤
+            let actors = Array.from(this.cache.values());
+            if (query.trim()) {
+                const lowerQuery = query.toLowerCase();
+                actors = actors.filter(actor => actor.name.toLowerCase().includes(lowerQuery) || actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery)));
             }
-            
-            if (sortOrder === 'desc') {
-                return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-            } else {
+            if (genderFilter) actors = actors.filter(actor => actor.gender === genderFilter);
+            if (categoryFilter) actors = actors.filter(actor => actor.category === categoryFilter);
+            if (blacklistFilter === 'exclude') actors = actors.filter(actor => !actor.blacklisted);
+            else if (blacklistFilter === 'only') actors = actors.filter(actor => !!actor.blacklisted);
+            actors.sort((a, b) => {
+                let aValue: any, bValue: any;
+                switch (sortBy) {
+                    case 'name': aValue = a.name.toLowerCase(); bValue = b.name.toLowerCase(); break;
+                    case 'updatedAt': aValue = a.updatedAt; bValue = b.updatedAt; break;
+                    case 'worksCount': aValue = a.details?.worksCount || 0; bValue = b.details?.worksCount || 0; break;
+                    default: aValue = a.name.toLowerCase(); bValue = b.name.toLowerCase();
+                }
+                if (sortOrder === 'desc') return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
                 return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-            }
-        });
-        
-        // 分页
-        const total = actors.length;
-        const startIndex = (page - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const pageActors = actors.slice(startIndex, endIndex);
-        
-        return {
-            actors: pageActors,
-            total,
-            page,
-            pageSize,
-            hasMore: endIndex < total
-        };
+            });
+            const total = actors.length;
+            const startIndex = (page - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            return { actors: actors.slice(startIndex, endIndex), total, page, pageSize, hasMore: endIndex < total };
+        }
     }
 
     /**
@@ -171,6 +157,7 @@ export class ActorManager {
         };
         this.cache.set(id, updated);
         await this.saveToStorage();
+        try { await dbActorsPut(updated); } catch {}
     }
 
     /**
@@ -196,6 +183,7 @@ export class ActorManager {
         
         // 保存到存储
         await this.saveToStorage();
+        try { await dbActorsPut(actor); } catch {}
     }
 
     /**
@@ -219,8 +207,8 @@ export class ActorManager {
             
             this.cache.set(actor.id, actor);
         });
-        
         await this.saveToStorage();
+        try { await dbActorsBulkPut(actors); } catch {}
     }
 
     /**
@@ -228,13 +216,12 @@ export class ActorManager {
      */
     async deleteActor(id: string): Promise<boolean> {
         await this.initialize();
-        
         if (this.cache.has(id)) {
             this.cache.delete(id);
             await this.saveToStorage();
+            try { await dbActorsDelete(id); } catch {}
             return true;
         }
-        
         return false;
     }
 
@@ -258,48 +245,41 @@ export class ActorManager {
         blacklisted: number; // 被拉黑的演员数量（本地）
     }> {
         await this.initialize();
-
-        const actors = Array.from(this.cache.values());
-        const now = Date.now();
-        const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-        const byGender: Record<string, number> = {};
-        const byCategory: Record<string, number> = {};
-        let recentlyAdded = 0;
-        let recentlyUpdated = 0;
-        let blacklisted = 0;
-
-        actors.forEach(actor => {
-            // 按性别统计
-            byGender[actor.gender] = (byGender[actor.gender] || 0) + 1;
-
-            // 按分类统计
-            byCategory[actor.category] = (byCategory[actor.category] || 0) + 1;
-
-            // 最近添加
-            if (actor.createdAt > weekAgo) {
-                recentlyAdded++;
-            }
-
-            // 最近更新
-            if (actor.updatedAt > weekAgo) {
-                recentlyUpdated++;
-            }
-
-            // 本地黑名单统计（仅本地字段）
-            if (actor.blacklisted) {
-                blacklisted++;
-            }
-        });
-
-        return {
-            total: actors.length,
-            byGender,
-            byCategory,
-            recentlyAdded,
-            recentlyUpdated,
-            blacklisted
-        };
+        try {
+            const s = await dbActorsStats();
+            return {
+                total: s.total,
+                byGender: s.byGender,
+                byCategory: s.byCategory,
+                recentlyAdded: s.recentlyAdded,
+                recentlyUpdated: s.recentlyUpdated,
+                blacklisted: s.blacklisted,
+            };
+        } catch {
+            const actors = Array.from(this.cache.values());
+            const now = Date.now();
+            const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+            const byGender: Record<string, number> = {};
+            const byCategory: Record<string, number> = {};
+            let recentlyAdded = 0;
+            let recentlyUpdated = 0;
+            let blacklisted = 0;
+            actors.forEach(actor => {
+                byGender[actor.gender] = (byGender[actor.gender] || 0) + 1;
+                byCategory[actor.category] = (byCategory[actor.category] || 0) + 1;
+                if (actor.createdAt > weekAgo) recentlyAdded++;
+                if (actor.updatedAt > weekAgo) recentlyUpdated++;
+                if (actor.blacklisted) blacklisted++;
+            });
+            return {
+                total: actors.length,
+                byGender,
+                byCategory,
+                recentlyAdded,
+                recentlyUpdated,
+                blacklisted
+            };
+        }
     }
 
     /**

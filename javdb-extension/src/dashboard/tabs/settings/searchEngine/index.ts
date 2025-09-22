@@ -2,6 +2,8 @@
  * 搜索引擎设置模块入口
  */
 
+import type { SearchEngineSettings } from './SearchEngineSettings';
+
 // 注意：SearchEngineSettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建搜索引擎设置实例，避免循环依赖

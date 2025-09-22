@@ -1,9 +1,9 @@
 // src/content/quickCopy.ts
 // 快捷复制功能
 
-import { STATE, log } from './state';
+import { log } from './state';
 import { showToast } from './toast';
-import { extractVideoId } from './videoId';
+import { extractVideoIdFromPage } from './videoId';
 
 export interface CopyableItem {
   type: 'video-id' | 'title' | 'url' | 'magnet' | 'actor' | 'custom';
@@ -82,7 +82,7 @@ export class QuickCopyManager {
     try {
       // 视频ID
       if (this.config.items.includes('video-id')) {
-        const videoId = extractVideoId();
+        const videoId = extractVideoIdFromPage();
         if (videoId) {
           items.push({
             type: 'video-id',
@@ -286,7 +286,7 @@ export class QuickCopyManager {
    * 为视频ID添加复制按钮
    */
   private addVideoIdCopyButton(): void {
-    const videoId = extractVideoId();
+    const videoId = extractVideoIdFromPage();
     if (!videoId) return;
 
     // 查找视频ID显示位置
@@ -391,7 +391,7 @@ export class QuickCopyManager {
       // Ctrl+Shift+V: 复制视频ID
       if (e.ctrlKey && e.shiftKey && e.code === 'KeyV') {
         e.preventDefault();
-        const videoId = extractVideoId();
+        const videoId = extractVideoIdFromPage();
         if (videoId) {
           this.copyToClipboard(videoId, 'video-id');
         }

@@ -29,7 +29,7 @@ export class Drive115VerificationManager {
    * 获取当前验证状态
    */
   async getVerificationStatus(): Promise<Drive115Verification> {
-    const stored = await getValue(DRIVE115_STORAGE_KEYS.VERIFY_STATUS);
+    const stored = await getValue<Drive115Verification | null>(DRIVE115_STORAGE_KEYS.VERIFY_STATUS, null);
     
     if (stored && typeof stored === 'object') {
       return stored as Drive115Verification;
@@ -58,14 +58,13 @@ export class Drive115VerificationManager {
    */
   async needsVerification(): Promise<boolean> {
     const verification = await this.getVerificationStatus();
-    
-    // 如果状态是已验证且时间在5分钟内，则不需要验证
-    if (verification.status === 'verified') {
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      return verification.timestamp < fiveMinutesAgo;
+    // 未验证或失败/进行中：需要验证
+    if (verification.status !== 'verified') {
+      return true;
     }
-    
-    return verification.status !== 'verified';
+    // 已验证：若超过5分钟则需要重新验证
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    return verification.timestamp < fiveMinutesAgo;
   }
 
   /**

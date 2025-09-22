@@ -194,7 +194,7 @@ class Drive115ContentHandler {
    * 处理验证请求
    */
   private async handleVerifyRequest(
-    request: Drive115VerifyRequest,
+    _request: Drive115VerifyRequest,
     sendResponse: (response: any) => void
   ): Promise<void> {
     try {

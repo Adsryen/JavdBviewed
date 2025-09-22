@@ -127,7 +127,6 @@ export class EventBus {
     public off(eventName: EventName): void {
         const handlers = this.listeners.get(eventName);
         if (handlers) {
-            const count = handlers.size;
             this.listeners.delete(eventName);
             // logAsync('DEBUG', `已移除事件的所有监听器: ${eventName}`, {
             //     removedCount: count

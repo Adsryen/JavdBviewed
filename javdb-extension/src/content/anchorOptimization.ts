@@ -1,7 +1,7 @@
 // src/content/anchorOptimization.ts
 // 锚点优化功能 - 优化页面快捷按钮位置和添加预览图快捷方式
 
-import { STATE, log } from './state';
+import { log } from './state';
 import { showToast } from './toast';
 
 export interface AnchorOptimizationConfig {
