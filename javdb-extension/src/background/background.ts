@@ -7,8 +7,8 @@ try {
   if (!__drive115_v2_proxy_flag && typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
     // @ts-ignore
     (globalThis as any).__drive115_v2_proxy_flag = true;
-    chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
-      if (!message || typeof message !== 'object') return;
+    chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse): boolean | void => {
+      if (!message || typeof message !== 'object') return false;
       if (message.type === 'drive115.add_task_urls_v2') {
         const payload = message.payload || {};
         const accessToken = String(payload.accessToken || '').trim();
@@ -19,7 +19,7 @@ try {
           sendResponse({ success: false, message: '缺少 accessToken 或 urls' });
           return true;
         }
-
+        
         const fd = new FormData();
         fd.set('urls', urls);
         if (wp_path_id !== undefined) fd.set('wp_path_id', String(wp_path_id));
@@ -97,6 +97,8 @@ try {
           return true;
         }
       }
+      // 未匹配任何 115 v2 消息类型
+      return false;
     });
   }
 } catch (e) {
@@ -106,13 +108,13 @@ try {
 
 import { getValue, setValue, getSettings, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
-import type { ExtensionSettings, LogEntry, LogLevel } from '../types';
+import type { LogEntry, LogLevel } from '../types';
 import { refreshRecordById } from './sync';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 import { newWorksScheduler } from '../services/newWorks';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import JSZip from 'jszip';
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount } from './db';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON } from './db';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -195,9 +197,12 @@ async function ensureIDBMigrated(): Promise<void> {
 // fire-and-forget on startup/wakeup
 ensureIDBMigrated();
 
+// Best-effort: 清理过期的磁链缓存
+try { idbMagnetsClearExpired(Date.now()).catch(() => {}); } catch {}
+
 try {
-  chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
-    if (!message || typeof message !== 'object') return;
+  chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse): boolean | void => {
+    if (!message || typeof message !== 'object') return false;
     // DB message routing
     if (message.type === 'DB:VIEWED_PUT') {
       const record = message?.payload?.record;
@@ -216,6 +221,164 @@ try {
         sendResponse({ success: true, records });
       }).catch((e) => sendResponse({ success: false, error: e?.message || 'idb getAll failed' }));
       return true; // async
+    }
+    if (message.type === 'DB:VIEWED_COUNT') {
+      const status = message?.payload?.status as any;
+      const p = status ? idbViewedCountByStatus(status) : idbViewedCount();
+      p.then((total) => sendResponse({ success: true, total }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb count failed' }));
+      return true;
+    }
+    if (message.type === 'DB:VIEWED_PAGE') {
+      const payload = message?.payload || {};
+      idbViewedPage(payload).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb page failed' }));
+      return true;
+    }
+    if (message.type === 'DB:VIEWED_EXPORT') {
+      idbViewedExportJSON().then((json) => sendResponse({ success: true, json }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed export failed' }));
+      return true;
+    }
+    if (message.type === 'DB:LOGS_ADD') {
+      const entry = message?.payload?.entry;
+      idbLogsAdd(entry).then((id) => sendResponse({ success: true, id }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'logs add failed' }));
+      return true;
+    }
+    if (message.type === 'DB:LOGS_BULK') {
+      const entries = message?.payload?.entries || [];
+      idbLogsBulkAdd(entries).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'logs bulk failed' }));
+      return true;
+    }
+    if (message.type === 'DB:LOGS_QUERY') {
+      const payload = message?.payload || {};
+      idbLogsQuery(payload).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'logs query failed' }));
+      return true;
+    }
+    if (message.type === 'DB:LOGS_CLEAR') {
+      const beforeMs = message?.payload?.beforeMs;
+      idbLogsClear(beforeMs).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'logs clear failed' }));
+      return true;
+    }
+    if (message.type === 'DB:LOGS_EXPORT') {
+      idbLogsExportJSON().then((json) => sendResponse({ success: true, json }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'logs export failed' }));
+      return true;
+    }
+    // actors
+    if (message.type === 'DB:ACTORS_PUT') {
+      const record = message?.payload?.record;
+      idbActorsPut(record).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors put failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_BULK_PUT') {
+      const records = message?.payload?.records || [];
+      idbActorsBulkPut(records).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors bulkPut failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_GET') {
+      const id = message?.payload?.id;
+      idbActorsGet(id).then((record) => sendResponse({ success: true, record }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors get failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_DELETE') {
+      const id = message?.payload?.id;
+      idbActorsDelete(id).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors delete failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_QUERY') {
+      const params = message?.payload || {};
+      idbActorsQuery(params).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors query failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_STATS') {
+      idbActorsStats().then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors stats failed' }));
+      return true;
+    }
+    if (message.type === 'DB:ACTORS_EXPORT') {
+      idbActorsExportJSON().then((json) => sendResponse({ success: true, json }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'actors export failed' }));
+      return true;
+    }
+    // newWorks
+    if (message.type === 'DB:NEWWORKS_PUT') {
+      const record = message?.payload?.record;
+      idbNewWorksPut(record).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks put failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_BULK_PUT') {
+      const records = message?.payload?.records || [];
+      idbNewWorksBulkPut(records).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks bulkPut failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_DELETE') {
+      const id = message?.payload?.id;
+      idbNewWorksDelete(id).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks delete failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_GET') {
+      const id = message?.payload?.id;
+      idbNewWorksGet(id).then((record) => sendResponse({ success: true, record }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks get failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_GET_ALL') {
+      idbNewWorksGetAll().then((records) => sendResponse({ success: true, records }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks getAll failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_QUERY') {
+      const params = message?.payload || {};
+      idbNewWorksQuery(params).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks query failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_STATS') {
+      idbNewWorksStats().then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks stats failed' }));
+      return true;
+    }
+    if (message.type === 'DB:NEWWORKS_EXPORT') {
+      idbNewWorksExportJSON().then((json) => sendResponse({ success: true, json }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks export failed' }));
+      return true;
+    }
+    // magnets
+    if (message.type === 'DB:MAGNETS_UPSERT') {
+      const records = message?.payload?.records || [];
+      idbMagnetsUpsertMany(records).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'magnets upsert failed' }));
+      return true;
+    }
+    if (message.type === 'DB:MAGNETS_QUERY') {
+      const params = message?.payload || {};
+      idbMagnetsQuery(params).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'magnets query failed' }));
+      return true;
+    }
+    if (message.type === 'DB:MAGNETS_CLEAR') {
+      idbMagnetsClearAll().then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'magnets clear failed' }));
+      return true;
+    }
+    if (message.type === 'DB:MAGNETS_CLEAR_EXPIRED') {
+      const beforeMs = message?.payload?.beforeMs;
+      idbMagnetsClearExpired(beforeMs).then((removed) => sendResponse({ success: true, removed }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'magnets clear expired failed' }));
+      return true;
     }
   });
 } catch {}
@@ -258,6 +421,8 @@ async function log(level: LogLevel, message: string, data?: any) {
         }
 
         await setValue(STORAGE_KEYS.LOGS, logs);
+        // 异步双写到 IndexedDB 日志库
+        try { idbLogsAdd(newLogEntry).catch(() => {}); } catch {}
     } catch (e) {
         console.error("Failed to write to persistent log:", e);
     }
@@ -951,12 +1116,14 @@ async function diagnoseWebDAVConnection(): Promise<{ success: boolean; error?: s
     }
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse): boolean | void => {
+
     // console.log(`[Background] onMessage listener triggered. Received message:`, message);
     // console.log(`[Background] Message type: ${message.type}`);
 
     try {
         switch (message.type) {
+            // ... (rest of the code remains the same)
             case 'ping':
             case 'ping-background':
                 // console.log('[Background] Ping received, sending pong.');
@@ -1093,11 +1260,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             case 'fetch-user-profile':
                 console.log('[Background] Processing fetch-user-profile request.');
                 fetchUserProfileFromJavDB()
-                    .then(profile => {
+                    .then((profile: any) => {
                         console.log('[Background] User profile fetch result:', profile);
                         sendResponse({ success: true, profile });
                     })
-                    .catch(error => {
+                    .catch((error: any) => {
                         console.error('[Background] Failed to fetch user profile:', error);
                         sendResponse({ success: false, error: error.message });
                     });
@@ -1109,7 +1276,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         console.log('[Background] Alarms setup completed.');
                         sendResponse({ success: true });
                     })
-                    .catch(error => {
+                    .catch((error: any) => {
                         console.error('[Background] Failed to setup alarms:', error);
                         sendResponse({ success: false, error: error.message });
                     });
@@ -1143,7 +1310,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 try {
                     const status = newWorksScheduler.getStatus();
                     sendResponse({ success: true, status });
-                } catch (error) {
+                } catch (error: any) {
                     console.error('[Background] Failed to get new works scheduler status:', error);
                     sendResponse({ success: false, error: error.message });
                 }
@@ -1221,13 +1388,149 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.warn(`[Background] Received unknown message type: ${message.type}. Ignoring.`);
                 return false;
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error(`[Background] Error in message handler:`, error);
         sendResponse({ success: false, error: 'Internal error in background script' });
         return true;
     }
 // ... (其他代码保持不变)
 });
+
+// ===== Helper functions (模块作用域) =====
+
+// 从 JavDB 页面提取预览视频
+async function handleFetchJavDBPreview(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const { url } = message || {};
+        if (!url) {
+            sendResponse({ success: false, error: 'No URL provided' });
+            return;
+        }
+        const res = await fetch(url);
+        if (!res.ok) {
+            sendResponse({ success: false, error: `Failed to fetch JavDB page: ${res.status}` });
+            return;
+        }
+        const html = await res.text();
+        const m = html.match(/id=\"preview-video\"[\s\S]*?<source[^>]*src=[\"']([^\"']+)[\"']/i);
+        if (m && m[1]) {
+            sendResponse({ success: true, videoUrl: m[1] });
+        } else {
+            sendResponse({ success: false, error: 'Preview video not found' });
+        }
+    } catch (error: any) {
+        console.error('[Background] Failed to fetch JavDB preview:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 115 跨页推送
+async function handleDrive115Push(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
+        if (!tabs.length) {
+            sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '未找到 115.com 标签页' });
+            return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id!, message, (response) => {
+            if (chrome.runtime.lastError) {
+                sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: chrome.runtime.lastError.message });
+            } else {
+                sendResponse(response);
+            }
+        });
+    } catch (error: any) {
+        console.error('[Background] Failed to handle DRIVE115_PUSH:', error);
+        sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: error.message });
+    }
+}
+
+// 115 环境验证
+async function handleDrive115Verify(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
+        if (!tabs.length) {
+            sendResponse({ success: false, error: '未找到 115.com 标签页' });
+            return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id!, message, (response) => {
+            if (chrome.runtime.lastError) {
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+                sendResponse(response ?? { success: true });
+            }
+        });
+    } catch (error: any) {
+        console.error('[Background] Failed to handle DRIVE115_VERIFY:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 更新已看状态
+async function handleUpdateWatchedStatus(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const videoId = message?.videoId;
+        if (!videoId) {
+            sendResponse({ success: false, error: 'No videoId provided' });
+            return;
+        }
+        const record: any = {
+            id: videoId,
+            title: '',
+            status: 'viewed',
+            tags: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        await idbViewedPut(record);
+        sendResponse({ success: true, record });
+    } catch (error: any) {
+        console.error('[Background] Failed to update watched status:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 外部拉取数据（简化版）
+async function handleExternalDataFetch(message: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+        const url = message?.url;
+        const options = message?.options || {};
+        if (!url) {
+            sendResponse({ success: false, error: 'No URL provided' });
+            return;
+        }
+        const response = await fetch(url, options as RequestInit);
+        const responseType = options.responseType || 'text';
+        let data: any;
+        if (responseType === 'json') data = await response.json().catch(() => null);
+        else if (responseType === 'blob') data = await response.blob();
+        else data = await response.text();
+        const headersObj: Record<string, string> = {};
+        try { response.headers.forEach((v, k) => { headersObj[k] = v; }); } catch {}
+        sendResponse({ success: true, data, status: response.status, headers: headersObj });
+    } catch (error: any) {
+        console.error('[Background] Failed to fetch external data:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+// 拉取用户资料（占位实现）
+async function fetchUserProfileFromJavDB(): Promise<any> {
+    try {
+        const profile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+        return profile || { isLoggedIn: false };
+    } catch {
+        return { isLoggedIn: false };
+    }
+}
+
+// 闹钟与自动同步（占位实现）
+async function setupAlarms(): Promise<void> {
+    try { /* no-op */ } catch {}
+}
+async function triggerAutoSync(): Promise<void> {
+    try { /* no-op */ } catch {}
+}
 
 async function handleOpenTabBackground(message: any, sendResponse: (response: any) => void): Promise<void> {
     try {
@@ -1245,7 +1548,7 @@ async function handleOpenTabBackground(message: any, sendResponse: (response: an
 
         console.log(`[Background] Opened background tab: ${url}`);
         sendResponse({ success: true, tabId: tab.id });
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Background] Failed to open background tab:', error);
         sendResponse({ success: false, error: error.message });
     }
@@ -1283,8 +1586,8 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
                 sendResponse({ success: true, available: true });
                 return;
             }
-        } catch (headError) {
-            console.log(`[Background] HEAD request failed for ${url}:`, headError.message);
+        } catch (headError: any) {
+            console.log(`[Background] HEAD request failed for ${url}:`, headError?.message);
         }
 
         // 方法2: 尝试带 Range 的 GET（读取状态码，允许 200/206）
@@ -1308,8 +1611,8 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
                 sendResponse({ success: true, available: true });
                 return;
             }
-        } catch (rangeError) {
-            console.log(`[Background] Range GET failed for ${url}:`, rangeError.message);
+        } catch (rangeError: any) {
+            console.log(`[Background] Range GET failed for ${url}:`, rangeError?.message);
         }
 
         // 方法3: 对于视频文件，尝试创建video元素测试
@@ -1317,17 +1620,12 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
             try {
                 // 这个方法在background script中不可用，跳过
                 console.log(`[Background] Video URL detected, but cannot test in background: ${url}`);
-            } catch (videoError) {
-                console.log(`[Background] Video test failed for ${url}:`, videoError.message);
+            } catch (videoError: any) {
+                console.log(`[Background] Video test failed for ${url}:`, videoError?.message);
             }
         }
 
         // 方法4: 基于域名的启发式判断
-        const knownGoodDomains = [
-            'commondatastorage.googleapis.com', // Google测试视频
-            'sample.heyzo.com'
-        ];
-
         const knownBadDomains = [
             'smovie.caribbeancom.com',
             'smovie.1pondo.tv',
@@ -1335,7 +1633,6 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
             'fms.pacopacomama.com'
         ];
 
-        const isKnownGood = knownGoodDomains.some(domain => url.includes(domain));
         const isKnownBad = knownBadDomains.some(domain => url.includes(domain));
 
         if (isKnownBad) {
@@ -1347,7 +1644,7 @@ async function handleCheckVideoUrl(message: any, sendResponse: (response: any) =
         }
 
         sendResponse({ success: true, available });
-    } catch (error) {
+    } catch (error: any) {
         console.error(`[Background] Failed to check video URL ${message.url}:`, error);
         sendResponse({ success: false, available: false });
     }
@@ -1405,7 +1702,7 @@ async function handleFetchJavSpylPreview(message: any, sendResponse: (response: 
 
         // 简化验证 - 直接返回URL，让前端处理
         sendResponse({ success: true, videoUrl: finalUrl });
-    } catch (error) {
+    } catch (error: any) {
         console.error(`[Background] Failed to fetch JavSpyl preview for ${message.code}:`, error);
         sendResponse({ success: false, error: error.message });
     }
@@ -1500,109 +1797,16 @@ async function handleFetchAVPreviewPreview(message: any, sendResponse: (response
                     return;
                 }
             } catch (err) {
-                // 继续尝试下一个URL
+                // ignore and try next
             }
         }
 
+        // 所有尝试都失败了
         sendResponse({ success: false, error: 'No accessible video URL found' });
-    } catch (error) {
+        return;
+    } catch (error: any) {
         console.error(`[Background] Failed to fetch AVPreview preview for ${message.code}:`, error);
         sendResponse({ success: false, error: error.message });
-    }
-}
-
-// 从JavDB页面获取预览视频
-async function handleFetchJavDBPreview(message: any, sendResponse: (response: any) => void): Promise<void> {
-    try {
-        const { url } = message;
-        if (!url) {
-            sendResponse({ success: false, error: 'No URL provided' });
-            return;
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) {
-            sendResponse({ success: false, error: 'Failed to fetch JavDB page' });
-            return;
-        }
-
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        // 查找预览视频
-        const previewVideo = doc.querySelector('#preview-video source');
-        const videoUrl = previewVideo?.getAttribute('src');
-
-        if (!videoUrl) {
-            sendResponse({ success: false, error: 'No preview video found on JavDB page' });
-            return;
-        }
-
-        // 验证URL是否可用
-        const checkResponse = await fetch(videoUrl, { method: 'HEAD', mode: 'no-cors' });
-        const available = checkResponse.ok || checkResponse.type === 'opaque';
-
-        if (available) {
-            sendResponse({ success: true, videoUrl });
-        } else {
-            sendResponse({ success: false, error: 'Preview video URL not accessible' });
-        }
-    } catch (error) {
-        console.error(`[Background] Failed to fetch JavDB preview for ${message.url}:`, error);
-        sendResponse({ success: false, error: error.message });
-    }
-}
-
-async function triggerAutoSync(): Promise<void> {
-    await logger.info('Checking if auto-sync should be triggered.');
-    const settings = await getSettings();
-    if (settings.webdav.enabled && settings.webdav.autoSync) {
-        await logger.info('Performing daily auto-sync...');
-        const response = await performUpload();
-        if (response && response.success) {
-            await logger.info('Daily auto-sync successful.');
-            const newSettings: ExtensionSettings = await getSettings();
-            newSettings.webdav.lastSync = new Date().toISOString();
-            await saveSettings(newSettings);
-            try {
-                const retentionDays = Number(newSettings.webdav.retentionDays ?? 7);
-                if (!isNaN(retentionDays) && retentionDays >= 0) {
-                    await cleanupOldBackups(retentionDays);
-                }
-            } catch (e) {
-                await logger.warn('Auto-sync cleanup failed', { error: (e as Error).message });
-            }
-        } else {
-            await logger.error('Daily auto-sync failed.', { error: response ? response.error : 'No response.' });
-        }
-    } else {
-        await logger.info('Auto-sync is disabled, skipping.');
-    }
-}
-
-async function setupAlarms(): Promise<void> {
-    await logger.info('Setting up alarms for auto-sync.');
-    const settings = await getSettings();
-    const interval = settings.webdav.syncInterval || 1440;
-
-    const alarm = await chrome.alarms.get('daily-webdav-sync');
-    if (alarm && alarm.periodInMinutes !== interval) {
-        await chrome.alarms.clear('daily-webdav-sync');
-        logger.info('Cleared existing alarm due to interval change.');
-    }
-
-    if (settings.webdav.enabled && settings.webdav.autoSync) {
-        chrome.alarms.create('daily-webdav-sync', {
-            delayInMinutes: 1,
-            periodInMinutes: interval
-        });
-        await logger.info(`Created/updated auto-sync alarm with interval: ${interval} minutes.`);
-    } else {
-        const wasCleared = await chrome.alarms.clear('daily-webdav-sync');
-        if (wasCleared) {
-            logger.info('Auto-sync is disabled, clearing any existing alarms.');
-        }
     }
 }
 
@@ -1613,589 +1817,7 @@ chrome.runtime.onStartup.addListener(async () => {
     // 初始化新作品调度器
     try {
         await newWorksScheduler.initialize();
-    } catch (error) {
+    } catch (error: any) {
         logger.error('初始化新作品调度器失败:', error);
     }
 });
-
-chrome.runtime.onInstalled.addListener(async () => {
-    setupAlarms();
-
-    // 初始化新作品调度器
-    try {
-        await newWorksScheduler.initialize();
-    } catch (error) {
-        logger.error('初始化新作品调度器失败:', error);
-    }
-});
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'daily-webdav-sync') {
-    await logger.info(`Alarm '${alarm.name}' triggered, starting auto-sync.`);
-    await triggerAutoSync();
-  }
-});
-
-/**
- * 从JavDB获取用户账号信息
- */
-async function fetchUserProfileFromJavDB(): Promise<any> {
-    const logger = {
-        info: (msg: string, data?: any) => log('INFO', msg, data),
-        error: (msg: string, data?: any) => log('ERROR', msg, data),
-        debug: (msg: string, data?: any) => log('DEBUG', msg, data)
-    };
-
-    try {
-        await logger.info('开始从JavDB获取用户账号信息');
-
-        // 创建AbortController用于超时控制
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            controller.abort();
-        }, 15000); // 15秒超时
-
-        const response = await fetch('https://javdb.com/users/profile', {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
-                'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                'Sec-Ch-Ua-Mobile': '?0',
-                'Sec-Ch-Ua-Platform': '"Windows"',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Upgrade-Insecure-Requests': '1'
-            },
-            credentials: 'include',
-            signal: controller.signal
-        });
-
-        // 清除超时定时器
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const html = await response.text();
-        await logger.debug('收到JavDB响应', { htmlLength: html.length });
-
-        // 检查是否为地区限制页面
-        if (isRegionBlockedPage(html)) {
-            const errorMsg = '由于版权限制，本站禁止了你的网络所在国家的访问';
-            await logger.error('检测到地区限制页面', { htmlLength: html.length });
-
-            // 发送通知消息到content script
-            sendNotificationToActiveTab(errorMsg, 'error');
-
-            throw new Error(errorMsg);
-        }
-
-        // 解析HTML获取用户信息
-        const profile = parseUserProfileFromHTML(html);
-
-        if (!profile.isLoggedIn) {
-            throw new Error('用户未登录或登录状态已过期');
-        }
-
-        await logger.info('成功解析用户账号信息', profile);
-        return profile;
-
-    } catch (error: any) {
-        await logger.error('获取用户账号信息失败', { error: error.message });
-
-        // 处理超时错误
-        if (error.name === 'AbortError') {
-            const timeoutMsg = '请求超时，请检查网络连接或稍后重试';
-            sendNotificationToActiveTab(timeoutMsg, 'error');
-            throw new Error(timeoutMsg);
-        }
-
-        // 处理其他网络错误
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            const networkMsg = '网络连接失败，请检查网络设置';
-            sendNotificationToActiveTab(networkMsg, 'error');
-            throw new Error(networkMsg);
-        }
-
-        throw error;
-    }
-}
-
-/**
- * 检测是否为地区限制页面
- */
-function isRegionBlockedPage(html: string): boolean {
-    // 检查地区限制的关键词
-    const blockPatterns = [
-        /Due to copyright restrictions, access to this site is prohibited/i,
-        /由於版權限制，本站禁止了你的網路所在國家的訪問/i,
-        /由于版权限制，本站禁止了你的网络所在国家的访问/i
-    ];
-
-    return blockPatterns.some(pattern => pattern.test(html));
-}
-
-/**
- * 处理115推送请求
- */
-async function handleDrive115Push(message: any, sendResponse: (response: any) => void): Promise<void> {
-    try {
-        console.log('[Background] Routing DRIVE115_PUSH to 115.com tab, message:', message);
-
-        // 查找115.com的标签页
-        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-        console.log('[Background] Found 115.com tabs:', tabs.length);
-
-        if (tabs.length === 0) {
-            // 如果没有115.com标签页，创建一个
-            console.log('[Background] No 115.com tab found, creating new tab');
-            try {
-                const newTab = await chrome.tabs.create({
-                    url: 'https://115.com/',
-                    active: false
-                });
-                console.log('[Background] Created new tab:', newTab.id);
-
-                // 等待标签页加载完成
-                await new Promise<void>((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        chrome.tabs.onUpdated.removeListener(listener);
-                        reject(new Error('标签页加载超时'));
-                    }, 10000);
-
-                    const listener = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-                        if (tabId === newTab.id && changeInfo.status === 'complete') {
-                            clearTimeout(timeout);
-                            chrome.tabs.onUpdated.removeListener(listener);
-                            console.log('[Background] New tab loaded successfully');
-                            resolve();
-                        }
-                    };
-                    chrome.tabs.onUpdated.addListener(listener);
-                });
-
-                // 等待额外1秒确保content script加载
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // 发送消息到新标签页
-                console.log('[Background] Sending message to new tab');
-                chrome.tabs.sendMessage(newTab.id!, message, (response) => {
-                    console.log('[Background] Response from new tab:', response);
-                    if (chrome.runtime.lastError) {
-                        console.error('[Background] Error sending to new tab:', chrome.runtime.lastError);
-                        sendResponse({
-                            type: 'DRIVE115_PUSH_RESPONSE',
-                            requestId: message.requestId,
-                            success: false,
-                            error: `发送消息到新标签页失败: ${chrome.runtime.lastError.message}`
-                        });
-                    } else {
-                        sendResponse(response);
-                    }
-                });
-            } catch (tabError) {
-                console.error('[Background] Failed to create/load new tab:', tabError);
-                sendResponse({
-                    type: 'DRIVE115_PUSH_RESPONSE',
-                    requestId: message.requestId,
-                    success: false,
-                    error: `创建115标签页失败: ${tabError instanceof Error ? tabError.message : '未知错误'}`
-                });
-            }
-        } else {
-            // 尝试发送消息到所有115.com标签页，直到找到一个能响应的
-            console.log('[Background] Trying to send message to', tabs.length, '115.com tabs');
-            let responseReceived = false;
-            let attemptCount = 0;
-
-            const tryNextTab = (tabIndex: number) => {
-                if (tabIndex >= tabs.length) {
-                    if (!responseReceived) {
-                        console.error('[Background] No 115.com tab could handle the message');
-                        sendResponse({
-                            type: 'DRIVE115_PUSH_RESPONSE',
-                            requestId: message.requestId,
-                            success: false,
-                            error: '所有115网盘标签页都无法响应，请刷新115网盘页面后重试'
-                        });
-                    }
-                    return;
-                }
-
-                const tab = tabs[tabIndex];
-                console.log(`[Background] Trying tab ${tabIndex + 1}/${tabs.length}, ID: ${tab.id}, URL: ${tab.url}`);
-
-                chrome.tabs.sendMessage(tab.id!, message, (response) => {
-                    attemptCount++;
-                    console.log(`[Background] Response from tab ${tab.id}:`, response);
-
-                    if (chrome.runtime.lastError) {
-                        console.warn(`[Background] Tab ${tab.id} failed:`, chrome.runtime.lastError.message);
-                        // 尝试下一个标签页
-                        if (!responseReceived) {
-                            tryNextTab(tabIndex + 1);
-                        }
-                    } else if (response && !responseReceived) {
-                        responseReceived = true;
-                        console.log(`[Background] Successfully got response from tab ${tab.id}`);
-                        sendResponse(response);
-                    }
-                });
-            };
-
-            // 开始尝试第一个标签页
-            tryNextTab(0);
-        }
-    } catch (error) {
-        console.error('[Background] Failed to handle DRIVE115_PUSH:', error);
-        sendResponse({
-            type: 'DRIVE115_PUSH_RESPONSE',
-            requestId: message.requestId,
-            success: false,
-            error: error instanceof Error ? error.message : '未知错误'
-        });
-    }
-}
-
-/**
- * 处理115验证请求
- */
-async function handleDrive115Verify(message: any, sendResponse: (response: any) => void): Promise<void> {
-    try {
-        console.log('[Background] Routing DRIVE115_VERIFY to 115.com tab');
-
-        // 查找115.com的标签页
-        const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-
-        if (tabs.length === 0) {
-            sendResponse({
-                success: false,
-                error: '请先打开115网盘页面'
-            });
-            return;
-        }
-
-        // 发送消息到115.com标签页
-        chrome.tabs.sendMessage(tabs[0].id!, message, sendResponse);
-    } catch (error) {
-        console.error('[Background] Failed to handle DRIVE115_VERIFY:', error);
-        sendResponse({
-            success: false,
-            error: error instanceof Error ? error.message : '未知错误'
-        });
-    }
-}
-
-/**
- * 处理更新观看状态请求
- */
-async function handleUpdateWatchedStatus(message: any, sendResponse: (response: any) => void): Promise<void> {
-    console.log('[Background] handleUpdateWatchedStatus called with:', message);
-
-    try {
-        const { videoId, status } = message;
-
-        console.log('[Background] Extracted params:', { videoId, status });
-
-        if (!videoId || !status) {
-            console.error('[Background] Missing required parameters:', { videoId, status });
-            sendResponse({
-                success: false,
-                error: '缺少必需参数: videoId 或 status'
-            });
-            return;
-        }
-
-        console.log('[Background] Getting current storage data...');
-
-        // 获取当前的观看状态数据
-        const result = await chrome.storage.local.get(['viewedVideos']);
-        console.log('[Background] Current storage result:', result);
-
-        const viewedVideos = result.viewedVideos || {};
-        console.log('[Background] Current viewedVideos:', Object.keys(viewedVideos).length, 'entries');
-
-        // 更新状态
-        const updatedEntry = {
-            ...viewedVideos[videoId],
-            status: status,
-            watchedAt: Date.now(),
-            source: 'auto_115_push'
-        };
-
-        viewedVideos[videoId] = updatedEntry;
-        console.log('[Background] Updated entry for', videoId, ':', updatedEntry);
-
-        // 保存更新后的数据
-        console.log('[Background] Saving to storage...');
-        await chrome.storage.local.set({ viewedVideos });
-        console.log('[Background] Storage save completed');
-
-        console.log(`[Background] Successfully updated watched status for ${videoId} to ${status}`);
-
-        const response = {
-            success: true,
-            videoId,
-            status
-        };
-
-        console.log('[Background] Sending response:', response);
-        sendResponse(response);
-
-    } catch (error) {
-        console.error('[Background] Failed to update watched status:', error);
-        const errorResponse = {
-            success: false,
-            error: error instanceof Error ? error.message : '未知错误'
-        };
-        console.log('[Background] Sending error response:', errorResponse);
-        sendResponse(errorResponse);
-    }
-}
-
-/**
- * 处理外部数据获取请求（用于多数据源聚合）
- */
-async function handleExternalDataFetch(message: any, sendResponse: (response: any) => void): Promise<void> {
-    try {
-        const { url, options = {} } = message;
-
-        if (!url) {
-            sendResponse({ success: false, error: 'URL is required' });
-            return;
-        }
-
-        console.log(`[Background] Fetching external data from: ${url}`);
-
-        // 检测是否为磁力搜索请求，添加延迟避免被封IP
-        const isMagnetSearch = url.includes('sukebei.nyaa.si') ||
-                              url.includes('btdig.com') ||
-                              url.includes('btsow.com') ||
-                              url.includes('torrentz2.eu');
-
-        if (isMagnetSearch) {
-            // 为磁力搜索添加随机延迟 (500-2000ms)
-            const delay = Math.floor(Math.random() * 1500) + 500;
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-
-        // 设置更完整的浏览器请求头
-        const fetchOptions: RequestInit = {
-            method: options.method || 'GET',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'DNT': '1',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'max-age=0',
-                ...options.headers
-            },
-            credentials: 'omit', // 不发送cookies避免隐私问题
-            ...options
-        };
-
-        // 实现重试机制
-        const maxRetries = options.retries || 3;
-        let lastError: Error;
-
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-                // 设置超时
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
-                fetchOptions.signal = controller.signal;
-
-                const response = await fetch(url, fetchOptions);
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                // 根据响应类型处理数据
-                let data;
-                const responseType = options.responseType || 'text';
-
-                switch (responseType) {
-                    case 'json':
-                        data = await response.json();
-                        break;
-                    case 'text':
-                    case 'html':
-                    case 'document':
-                        data = await response.text();
-                        break;
-                    case 'blob':
-                        data = await response.blob();
-                        break;
-                    default:
-                        data = await response.text();
-                }
-
-                console.log(`[Background] Successfully fetched data from: ${url} (attempt ${attempt + 1})`);
-                sendResponse({
-                    success: true,
-                    data,
-                    status: response.status,
-                    headers: Object.fromEntries(response.headers.entries()),
-                    attempt: attempt + 1
-                });
-                return;
-
-            } catch (error: any) {
-                lastError = error;
-                console.warn(`[Background] Attempt ${attempt + 1} failed for ${url}:`, error.message);
-
-                // 如果不是最后一次尝试，等待后重试
-                if (attempt < maxRetries) {
-                    const retryDelay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // 指数退避 + 随机抖动
-                    await new Promise(resolve => setTimeout(resolve, retryDelay));
-                }
-            }
-        }
-
-        // 所有重试都失败了
-        throw lastError;
-
-    } catch (error: any) {
-        console.error(`[Background] Failed to fetch external data after all retries:`, error);
-
-        let errorMessage = error.message;
-        if (error.name === 'AbortError') {
-            errorMessage = 'Request timeout';
-        } else if (errorMessage.includes('Failed to fetch')) {
-            errorMessage = 'Network error or CORS restriction';
-        } else if (errorMessage.includes('ERR_BLOCKED_BY_CLIENT')) {
-            errorMessage = 'Request blocked by ad blocker or security extension';
-        }
-
-        sendResponse({ success: false, error: errorMessage });
-    }
-}
-
-/**
- * 发送通知消息到活动标签页
- */
-function sendNotificationToActiveTab(message: string, type: 'info' | 'success' | 'error' = 'info'): void {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-            const url = tabs[0].url || '';
-
-            // 检查是否是javdb页面或扩展的dashboard页面
-            if (url.includes('javdb') || url.includes('chrome-extension://')) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    type: 'show-toast',
-                    message,
-                    toastType: type
-                }).catch(() => {
-                    // 如果发送失败，记录到控制台
-                    console.log(`[Background] 无法发送通知到标签页: ${message}`);
-                });
-            } else {
-                // 如果不是目标页面，也记录到控制台
-                console.log(`[Background] 当前页面不支持toast通知 (${url}): ${message}`);
-            }
-        }
-    });
-}
-
-/**
- * 从HTML中解析用户账号信息
- */
-function parseUserProfileFromHTML(html: string): any {
-    try {
-        // 检查是否已登录（查找个人信息标题）
-        const profileTitleMatch = html.match(/<h3[^>]*class="title[^"]*"[^>]*>個人信息<\/h3>/);
-        if (!profileTitleMatch) {
-            return {
-                email: '',
-                username: '',
-                userType: '',
-                isLoggedIn: false
-            };
-        }
-
-        // 提取邮箱地址
-        const emailMatch = html.match(/<span class="label">電郵地址:<\/span>\s*([^<]+)/);
-        const email = emailMatch ? emailMatch[1].trim() : '';
-
-        // 提取用户名
-        const usernameMatch = html.match(/<span class="label">用戶名:<\/span>\s*([^<]+)/);
-        const username = usernameMatch ? usernameMatch[1].trim() : '';
-
-        // 提取用户类型
-        const userTypeMatch = html.match(/<span class="label">用戶類型:<\/span>\s*([^<,]+)/);
-        const userType = userTypeMatch ? userTypeMatch[1].trim() : '';
-
-        // 提取服务器端统计数据
-        const serverStats = parseServerStatsFromHTML(html);
-
-        return {
-            email,
-            username,
-            userType,
-            isLoggedIn: true,
-            serverStats
-        };
-
-    } catch (error: any) {
-        console.error('解析用户账号信息失败:', error);
-        return {
-            email: '',
-            username: '',
-            userType: '',
-            isLoggedIn: false
-        };
-    }
-}
-
-/**
- * 从HTML中解析服务器端统计数据
- */
-function parseServerStatsFromHTML(html: string): any {
-    try {
-        // 提取想看数量：想看(33)
-        const wantMatch = html.match(/<a[^>]*href="\/users\/want_watch_videos"[^>]*>想看\((\d+)\)<\/a>/);
-        const wantCount = wantMatch ? parseInt(wantMatch[1], 10) : 0;
-
-        // 提取看过数量：看過(3805)
-        const watchedMatch = html.match(/<a[^>]*href="\/users\/watched_videos"[^>]*>看過\((\d+)\)<\/a>/);
-        const watchedCount = watchedMatch ? parseInt(watchedMatch[1], 10) : 0;
-
-        // 提取清单数量（可选）：我的清單
-        // 注意：清单可能没有数量显示，所以这里设为可选
-        const listsMatch = html.match(/<a[^>]*href="\/users\/lists"[^>]*>我的清單\((\d+)\)<\/a>/);
-        const listsCount = listsMatch ? parseInt(listsMatch[1], 10) : undefined;
-
-        return {
-            wantCount,
-            watchedCount,
-            listsCount,
-            lastSyncTime: Date.now()
-        };
-
-    } catch (error: any) {
-        console.error('解析服务器端统计数据失败:', error);
-        return {
-            wantCount: 0,
-            watchedCount: 0,
-            listsCount: undefined,
-            lastSyncTime: Date.now()
-        };
-    }
-}

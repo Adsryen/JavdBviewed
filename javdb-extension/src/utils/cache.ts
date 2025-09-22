@@ -67,6 +67,8 @@ const CACHE_KEYS = {
   RESOURCES: 'cache_resources',
   TRANSLATIONS: 'cache_translations',
   CONFIG: 'cache_config',
+  // 通用缓存命名空间：用于不属于以上类别的简单键值缓存
+  MISC: 'cache_misc',
 } as const;
 
 export class CacheManager {
@@ -147,6 +149,27 @@ export class CacheManager {
   async setTranslation(text: string, translation: string, ttl?: number): Promise<void> {
     const key = this.hashString(text);
     await this.setCache(CACHE_KEYS.TRANSLATIONS, key, translation, ttl);
+  }
+
+  /**
+   * 通用：获取任意 key 的缓存（存放于 MISC 命名空间）
+   */
+  async get<T>(key: string): Promise<T | null> {
+    const cache = await this.getCache<T>(CACHE_KEYS.MISC);
+    const entry = cache[key];
+    if (!entry) return null;
+    if (this.isExpired(entry)) {
+      await this.removeFromCache(CACHE_KEYS.MISC, key);
+      return null;
+    }
+    return entry.data;
+  }
+
+  /**
+   * 通用：设置任意 key 的缓存（存放于 MISC 命名空间）
+   */
+  async set<T>(key: string, data: T, ttl?: number): Promise<void> {
+    await this.setCache<T>(CACHE_KEYS.MISC, key, data, ttl);
   }
 
   /**

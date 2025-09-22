@@ -275,7 +275,7 @@ export class BlurController implements IBlurController {
                         processedElements.add(el);
 
                         // 静默添加元素，避免日志过多
-                    } else if (this.blurredElements.has(el)) {
+                    } else if (el instanceof HTMLElement && this.blurredElements.has(el)) {
                         // 静默跳过已模糊的元素，避免日志刷屏
                     }
                 });

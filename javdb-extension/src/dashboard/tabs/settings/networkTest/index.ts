@@ -2,6 +2,8 @@
  * 网络测试设置模块入口
  */
 
+import type { NetworkTestSettings } from './NetworkTestSettings';
+
 // 注意：NetworkTestSettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建网络测试设置实例，避免循环依赖

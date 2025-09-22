@@ -1,6 +1,7 @@
 /**
  * 高级配置设置模块入口
  */
+import type { AdvancedSettings } from './AdvancedSettings';
 
 // 注意：AdvancedSettings 类通过动态导入加载，避免循环依赖
 

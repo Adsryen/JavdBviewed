@@ -5,7 +5,7 @@ import { showMessage } from '../ui/toast';
 import { logAsync } from '../logger';
 import { userService } from '../services/userService';
 import { initDataSyncSection } from '../dataSync';
-import { on, emit } from '../services/eventBus';
+import { on } from '../services/eventBus';
 import type { SyncType } from '../dataSync/types';
 import { SyncUI } from '../dataSync/ui';
 
@@ -135,40 +135,10 @@ export class SyncTab {
         });
 
         // 监听数据同步状态变化
-        on('data-sync-status-changed', ({ status, type }) => {
-            // logAsync('DEBUG', '数据同步状态变化', { status, type });
+        on('data-sync-status-changed', (_payload) => {
+            // logAsync('DEBUG', '数据同步状态变化', _payload);
         });
     }
-
-    /**
-     * 处理同步按钮点击
-     */
-    private async handleSyncClick(type: SyncType): Promise<void> {
-        try {
-            // 检查用户登录状态
-            const isLoggedIn = await userService.isUserLoggedIn();
-            if (!isLoggedIn) {
-                showMessage('请先登录 JavDB 账号', 'warning');
-                return;
-            }
-
-            // 触发同步事件
-            const event = new CustomEvent('sync-requested', {
-                detail: { type }
-            });
-            document.dispatchEvent(event);
-
-        } catch (error) {
-            logAsync('ERROR', '处理同步点击失败', { error: error.message, type });
-            showMessage('同步失败，请重试', 'error');
-        }
-    }
-
-    // 演员同步现在由统一的同步管理器处理，不需要单独的处理方法
-
-    // 本地数据统计功能已移除，因为已经有专门的数据概览页面
-
-
 
     /**
      * 刷新标签页

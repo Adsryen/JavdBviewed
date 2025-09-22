@@ -203,26 +203,7 @@ export class NewWorksCollector {
         }
     }
 
-    /**
-     * 从URL中提取视频ID
-     */
-    private extractVideoIdFromUrl(url: string): string | null {
-        const match = url.match(/\/v\/([^\/\?]+)/);
-        return match ? match[1] : null;
-    }
-
-    /**
-     * 从文本中提取日期
-     */
-    private extractDateFromText(text: string): string | undefined {
-        // 匹配常见的日期格式：YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
-        const dateMatch = text.match(/(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
-        if (dateMatch) {
-            const [, year, month, day] = dateMatch;
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-        return undefined;
-    }
+    
 
     /**
      * 分页解析演员作品，遇到超出时间范围的作品时停止
@@ -310,7 +291,7 @@ export class NewWorksCollector {
                 }, 30000); // 30秒超时
 
                 // 监听标签页加载完成
-                const onUpdated = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                const onUpdated = (updatedTabId: number, changeInfo: any) => {
                     if (updatedTabId === tabId && changeInfo.status === 'complete') {
                         chrome.tabs.onUpdated.removeListener(onUpdated);
 
@@ -401,62 +382,7 @@ export class NewWorksCollector {
         });
     }
 
-    /**
-     * 通过标签页获取页面内容
-     */
-    private async fetchPageContentViaTab(url: string): Promise<string> {
-        return new Promise((resolve, reject) => {
-            // 创建一个隐藏的标签页
-            chrome.tabs.create({
-                url: url,
-                active: false
-            }, (tab) => {
-                if (!tab || !tab.id) {
-                    reject(new Error('无法创建标签页'));
-                    return;
-                }
-
-                const tabId = tab.id;
-                let isResolved = false;
-
-                // 设置超时
-                const timeout = setTimeout(() => {
-                    if (!isResolved) {
-                        isResolved = true;
-                        chrome.tabs.remove(tabId);
-                        reject(new Error('获取页面内容超时'));
-                    }
-                }, 30000); // 30秒超时
-
-                // 监听标签页加载完成
-                const onUpdated = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
-                    if (updatedTabId === tabId && changeInfo.status === 'complete') {
-                        chrome.tabs.onUpdated.removeListener(onUpdated);
-
-                        // 注入脚本获取页面内容
-                        chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            func: () => document.documentElement.outerHTML
-                        }, (results) => {
-                            clearTimeout(timeout);
-                            chrome.tabs.remove(tabId);
-
-                            if (!isResolved) {
-                                isResolved = true;
-                                if (results && results[0] && results[0].result) {
-                                    resolve(results[0].result as string);
-                                } else {
-                                    reject(new Error('无法获取页面内容'));
-                                }
-                            }
-                        });
-                    }
-                };
-
-                chrome.tabs.onUpdated.addListener(onUpdated);
-            });
-        });
-    }
+    
 
     /**
      * 计算日期阈值

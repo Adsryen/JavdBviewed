@@ -43,7 +43,7 @@ function createToastContainer(): HTMLElement {
 // 以 message+type 为 key 的活动 toast 映射，用于合并与续命
 const activeToasts = new Map<string, { el: HTMLElement; count: number; timeoutId: number | null }>();
 
-export function showToast(message: string, type: 'info' | 'success' | 'error' = 'info'): void {
+export function showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info'): void {
     // 确保Font Awesome已加载
     loadFontAwesome();
 
@@ -98,6 +98,10 @@ export function showToast(message: string, type: 'info' | 'success' | 'error' = 
         case 'error':
             backgroundGradient = 'linear-gradient(to right, #e76f51, #d90429)';
             iconClass = 'fas fa-exclamation-circle';
+            break;
+        case 'warning':
+            backgroundGradient = 'linear-gradient(to right, #f4a261, #e9c46a)';
+            iconClass = 'fas fa-exclamation-triangle';
             break;
         case 'info':
         default:

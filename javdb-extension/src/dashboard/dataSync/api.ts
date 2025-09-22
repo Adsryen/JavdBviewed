@@ -37,21 +37,18 @@ interface SyncTypeConfig {
  * API客户端类
  */
 export class ApiClient {
-    private baseUrl: string;
     private timeout: number;
     private retryCount: number;
     private retryDelay: number;
 
     constructor(config: {
-        baseUrl?: string;
         timeout?: number;
         retryCount?: number;
         retryDelay?: number;
     } = {}) {
-        this.baseUrl = config.baseUrl || 'https://api.javdb.com';
-        this.timeout = config.timeout || 30000;
-        this.retryCount = config.retryCount || 3;
-        this.retryDelay = config.retryDelay || 1000;
+        this.timeout = config.timeout ?? 30000;
+        this.retryCount = config.retryCount ?? 3;
+        this.retryDelay = config.retryDelay ?? 1000;
     }
 
     /**
@@ -108,7 +105,7 @@ export class ApiClient {
      */
     private async performSync(
         type: SyncType,
-        localData: VideoRecord[],
+        _localData: VideoRecord[],
         userProfile: UserProfile,
         config: SyncConfig,
         onProgress?: (progress: any) => void,
@@ -427,6 +424,33 @@ export class ApiClient {
     }
 
     /**
+     * 带重试与超时的请求封装
+     */
+    private async fetchWithRetry(url: string, init: RequestInit = {}): Promise<Response> {
+        const maxAttempts = Math.max(1, this.retryCount);
+        let lastError: any = null;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const signal = init.signal ?? AbortSignal.timeout(this.timeout);
+                const res = await fetch(url, { ...init, signal });
+                // 对 5xx/429 进行重试，其余错误直接返回
+                if (!res.ok && (res.status >= 500 || res.status === 429)) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res;
+            } catch (err) {
+                lastError = err;
+                if (attempt < maxAttempts - 1) {
+                    await this.delay(this.retryDelay);
+                    continue;
+                }
+                throw err;
+            }
+        }
+        throw lastError;
+    }
+
+    /**
      * 检查网络状态
      */
     private async checkNetworkStatus(): Promise<boolean> {
@@ -590,15 +614,7 @@ export class ApiClient {
                             logAsync('INFO', `增量同步：已遇到${existingRecordsCount}个已存在记录，达到容忍度${incrementalTolerance}，停止获取更多页面`);
 
                             // 发送容忍中断的进度消息
-                            if (progressCallback) {
-                                progressCallback({
-                                    stage: 'pages',
-                                    current: page,
-                                    total: totalPages,
-                                    percentage: Math.round((page / totalPages) * 100),
-                                    message: `已遇到${existingRecordsCount}个已存在记录，达到容忍度${incrementalTolerance}，停止获取更多页面`
-                                });
-                            }
+                            onProgress?.(page, totalPages, 'pages');
                         }
                     }
                 } else if (!isIncrementalMode) {
@@ -665,7 +681,7 @@ export class ApiClient {
         logAsync('INFO', `请求${syncConfig.displayName}视频页面`, { page, url, baseUrl: syncConfig.url });
 
         try {
-            const response = await fetch(url, {
+            const response = await this.fetchWithRetry(url, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -727,7 +743,7 @@ export class ApiClient {
         logAsync('INFO', `请求${syncConfig.displayName}视频页面`, { page, url, baseUrl: syncConfig.url });
 
         try {
-            const response = await fetch(url, {
+            const response = await this.fetchWithRetry(url, {
                 method: 'GET',
                 headers: {
                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -863,7 +879,7 @@ export class ApiClient {
         logAsync('INFO', `获取视频详情: ${urlVideoId}`, { detailUrl });
 
         try {
-            const response = await fetch(detailUrl, {
+            const response = await this.fetchWithRetry(detailUrl, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

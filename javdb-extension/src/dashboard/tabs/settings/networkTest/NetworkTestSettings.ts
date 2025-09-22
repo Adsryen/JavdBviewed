@@ -3,13 +3,10 @@
  * 测试网络连通性和性能，帮助诊断连接问题
  */
 
-import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
-import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
-import { saveSettings } from '../../../../utils/storage';
 
 /**
  * 网络测试设置面板类
@@ -130,7 +127,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     /**
      * 设置数据到UI
      */
-    protected doSetSettings(settings: Partial<ExtensionSettings>): void {
+    protected doSetSettings(_settings: Partial<ExtensionSettings>): void {
         // 网络测试面板不需要设置数据到UI
     }
 
@@ -210,9 +207,10 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             const latencies = await this.ping(url, onProgress, 4);
 
             // Remove the "Pinging..." message for this specific test
-            const pingingMessage = Array.from(this.manualResultsDiv.children).find(child =>
-                child.textContent?.includes(`正在 Ping ${url}`)
-            );
+            const pingingMessage = Array.from(this.manualResultsDiv.children).find(child => {
+                const txt = (child as HTMLElement).textContent || '';
+                return txt.includes(`正在 Ping ${url}`);
+            });
             if (pingingMessage) {
                 this.manualResultsDiv.removeChild(pingingMessage);
             }
@@ -306,7 +304,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             showMessage('开始测试所有域名...', 'info');
             // TODO: 实现批量域名测试逻辑
             console.log('测试所有域名功能待实现');
-            showMessage('测试所有域名功能正在开发中', 'warning');
+            showMessage('测试所有域名功能正在开发中', 'warn');
         } catch (error) {
             console.error('测试所有域名失败:', error);
             showMessage('测试所有域名失败', 'error');
@@ -321,7 +319,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             showMessage('开始测试核心域名...', 'info');
             // TODO: 实现核心域名测试逻辑
             console.log('测试核心域名功能待实现');
-            showMessage('测试核心域名功能正在开发中', 'warning');
+            showMessage('测试核心域名功能正在开发中', 'warn');
         } catch (error) {
             console.error('测试核心域名失败:', error);
             showMessage('测试核心域名失败', 'error');
@@ -387,7 +385,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     private handleResetDefaultDomains(): void {
         // TODO: 实现恢复默认域名配置逻辑
         console.log('恢复默认域名配置功能待实现');
-        showMessage('恢复默认域名配置功能正在开发中', 'warning');
+        showMessage('恢复默认域名配置功能正在开发中', 'warn');
     }
 
 }

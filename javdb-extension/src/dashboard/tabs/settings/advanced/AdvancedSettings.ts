@@ -7,9 +7,10 @@ import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
-import { STORAGE_KEYS } from '../../../../utils/config';
+import { STORAGE_KEYS, VIDEO_STATUS } from '../../../../utils/config';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
+import { dbViewedCount, dbViewedPage, dbViewedExport, type ViewedPageParams } from '../../../dbClient';
 
 /**
  * 高级配置设置面板类
@@ -34,6 +35,209 @@ export class AdvancedSettings extends BaseSettingsPanel {
             autoSave: false, // 高级配置需要手动保存
             requireValidation: true
         });
+    }
+
+    // ===== IndexedDB 分页查看器（源数据） =====
+    private idbViewerOverlay: HTMLDivElement | null = null;
+    private idbViewerTextarea: HTMLTextAreaElement | null = null;
+    private idbViewerInfo: HTMLDivElement | null = null;
+    private idbViewerCloseBtn: HTMLButtonElement | null = null;
+    private idbViewerPrevBtn: HTMLButtonElement | null = null;
+    private idbViewerNextBtn: HTMLButtonElement | null = null;
+    private idbViewerExportBtn: HTMLButtonElement | null = null;
+    private idbViewerStatusSel: HTMLSelectElement | null = null;
+    private idbViewerOrderBySel: HTMLSelectElement | null = null;
+    private idbViewerOrderSel: HTMLSelectElement | null = null;
+    private idbViewerPageSizeSel: HTMLSelectElement | null = null;
+    private idbCurrentPage = 1;
+    private idbTotal = 0;
+    private idbPageSize = 50;
+
+    private async showViewedRecordsPager(): Promise<void> {
+        if (!this.idbViewerOverlay) this.createIdbViewer();
+        if (!this.idbViewerOverlay) return;
+        this.idbCurrentPage = 1;
+        await this.loadAndRenderIdbPage();
+        this.idbViewerOverlay.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    private createIdbViewer(): void {
+        const overlay = document.createElement('div');
+        overlay.id = 'idb-viewer-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.45)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'none';
+
+        const panel = document.createElement('div');
+        panel.style.position = 'absolute';
+        panel.style.top = '5%';
+        panel.style.left = '50%';
+        panel.style.transform = 'translateX(-50%)';
+        panel.style.width = '90%';
+        panel.style.maxWidth = '1100px';
+        panel.style.maxHeight = '90%';
+        panel.style.background = '#fff';
+        panel.style.borderRadius = '8px';
+        panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'space-between';
+        header.style.padding = '12px 16px';
+        header.style.borderBottom = '1px solid #eee';
+        const title = document.createElement('h3');
+        title.textContent = '番号源数据（IndexedDB 分页）';
+        title.style.margin = '0';
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '关闭';
+        closeBtn.className = 'btn btn-secondary';
+        closeBtn.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+        });
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+
+        const toolbar = document.createElement('div');
+        toolbar.style.display = 'flex';
+        toolbar.style.gap = '8px';
+        toolbar.style.alignItems = 'center';
+        toolbar.style.padding = '8px 16px';
+        toolbar.style.borderBottom = '1px solid #f0f0f0';
+
+        const statusSel = document.createElement('select');
+        statusSel.innerHTML = `
+            <option value="ALL">全部状态</option>
+            <option value="${VIDEO_STATUS.VIEWED}">已观看</option>
+            <option value="${VIDEO_STATUS.WANT}">想看</option>
+            <option value="${VIDEO_STATUS.BROWSED}">已浏览</option>
+        `;
+        statusSel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
+
+        const orderBySel = document.createElement('select');
+        orderBySel.innerHTML = `<option value="updatedAt">按更新时间</option><option value="createdAt">按创建时间</option>`;
+        orderBySel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
+
+        const orderSel = document.createElement('select');
+        orderSel.innerHTML = `<option value="desc">倒序</option><option value="asc">正序</option>`;
+        orderSel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
+
+        const pageSizeSel = document.createElement('select');
+        pageSizeSel.innerHTML = `<option>20</option><option selected>50</option><option>100</option><option>200</option>`;
+        pageSizeSel.addEventListener('change', () => {
+            const v = parseInt(pageSizeSel.value, 10);
+            this.idbPageSize = Number.isFinite(v) && v > 0 ? v : 50;
+            this.idbCurrentPage = 1;
+            this.loadAndRenderIdbPage();
+        });
+
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = '导出JSON';
+        exportBtn.className = 'btn btn-outline';
+        exportBtn.addEventListener('click', async () => {
+            try {
+                const json = await dbViewedExport();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `javdb-records-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('导出失败', e);
+                showMessage('导出失败', 'error');
+            }
+        });
+
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '上一页';
+        prevBtn.className = 'btn';
+        prevBtn.addEventListener('click', () => {
+            if (this.idbCurrentPage > 1) { this.idbCurrentPage--; this.loadAndRenderIdbPage(); }
+        });
+
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = '下一页';
+        nextBtn.className = 'btn';
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.max(1, Math.ceil(this.idbTotal / this.idbPageSize));
+            if (this.idbCurrentPage < totalPages) { this.idbCurrentPage++; this.loadAndRenderIdbPage(); }
+        });
+
+        const info = document.createElement('div');
+        info.style.marginLeft = 'auto';
+        info.style.color = '#666';
+
+        toolbar.appendChild(statusSel);
+        toolbar.appendChild(orderBySel);
+        toolbar.appendChild(orderSel);
+        toolbar.appendChild(pageSizeSel);
+        toolbar.appendChild(prevBtn);
+        toolbar.appendChild(nextBtn);
+        toolbar.appendChild(exportBtn);
+        toolbar.appendChild(info);
+
+        const content = document.createElement('div');
+        content.style.flex = '1';
+        content.style.padding = '12px 16px';
+        const textarea = document.createElement('textarea');
+        textarea.style.width = '100%';
+        textarea.style.height = '100%';
+        textarea.style.minHeight = '360px';
+        textarea.readOnly = true;
+        content.appendChild(textarea);
+
+        panel.appendChild(header);
+        panel.appendChild(toolbar);
+        panel.appendChild(content);
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        this.idbViewerOverlay = overlay;
+        this.idbViewerTextarea = textarea;
+        this.idbViewerInfo = info;
+        this.idbViewerCloseBtn = closeBtn;
+        this.idbViewerPrevBtn = prevBtn;
+        this.idbViewerNextBtn = nextBtn;
+        this.idbViewerExportBtn = exportBtn;
+        this.idbViewerStatusSel = statusSel;
+        this.idbViewerOrderBySel = orderBySel;
+        this.idbViewerOrderSel = orderSel;
+        this.idbViewerPageSizeSel = pageSizeSel;
+    }
+
+    private async loadAndRenderIdbPage(): Promise<void> {
+        if (!this.idbViewerTextarea || !this.idbViewerInfo) return;
+        const statusRaw = this.idbViewerStatusSel?.value || 'ALL';
+        const status = statusRaw === 'ALL' ? undefined : (statusRaw as any);
+        const orderBy = (this.idbViewerOrderBySel?.value || 'updatedAt') as 'updatedAt' | 'createdAt';
+        const order = (this.idbViewerOrderSel?.value || 'desc') as 'asc' | 'desc';
+        const offset = (this.idbCurrentPage - 1) * this.idbPageSize;
+        const limit = this.idbPageSize;
+
+        try {
+            // total
+            const total = await dbViewedCount(status as any);
+            this.idbTotal = total || 0;
+            // page
+            const { items } = await dbViewedPage({ offset, limit, status: status as any, orderBy, order } as ViewedPageParams);
+            this.idbViewerTextarea.value = JSON.stringify(items, null, 2);
+            const totalPages = Math.max(1, Math.ceil(this.idbTotal / this.idbPageSize));
+            this.idbViewerInfo.textContent = `第 ${this.idbCurrentPage}/${totalPages} 页 · 共 ${this.idbTotal} 条 · 每页 ${this.idbPageSize}`;
+        } catch (e) {
+            console.error('加载 IDB 源数据失败', e);
+            this.idbViewerTextarea.value = '// 加载失败，请检查后台脚本是否运行';
+            this.idbViewerInfo.textContent = '加载失败';
+        }
     }
 
     /**
@@ -219,17 +423,9 @@ export class AdvancedSettings extends BaseSettingsPanel {
      * 查看原始记录数据
      */
     private async handleViewRawRecords(): Promise<void> {
+        // 新实现：使用 IndexedDB 分页查看，避免一次性加载巨大数据
         try {
-            const { dataViewModal } = await import('../../../ui/dataViewModal');
-            const records = STATE.records || [];
-            dataViewModal.show({
-                title: '原始番号库数据 (Raw Records)',
-                data: records,
-                dataType: 'json',
-                editable: false,
-                filename: `javdb-records-${new Date().toISOString().split('T')[0]}.json`,
-                info: `共 ${Object.keys(records).length} 条番号记录`
-            });
+            await this.showViewedRecordsPager();
         } catch (error) {
             console.error('查看原始记录数据失败:', error);
             showMessage('查看原始记录数据失败', 'error');

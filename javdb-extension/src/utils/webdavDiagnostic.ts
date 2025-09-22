@@ -126,7 +126,7 @@ export class WebDAVDiagnostic {
      * 测试不同的PROPFIND方法
      */
     private async testPropfindMethods(): Promise<{ success: boolean; format?: string; error?: string; rawResponse?: string }> {
-        const testCases = [
+        const testCases: Array<{ name: string; body: string | null; headers: Record<string, string> }> = [
             {
                 name: 'Standard PROPFIND with allprop',
                 body: `<?xml version="1.0" encoding="utf-8"?>

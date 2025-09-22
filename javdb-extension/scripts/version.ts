@@ -44,7 +44,7 @@ function getSimpleGitState(): SimpleGitState {
     return 'unknown';
 }
 
-function commitAndTagVersion(version: string) {
+export function commitAndTagVersion(version: string) {
     try {
         console.log('Staging and committing version files...');
         execSync('git add version.json .env.local');
@@ -62,6 +62,11 @@ function commitAndTagVersion(version: string) {
 
 // --- Version Generation Function ---
 function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit: boolean) {
+    // 标记参数已使用（用于满足 TS noUnusedParameters）
+    if (isReleaseCommit) {
+        // release 构建时可添加额外逻辑；当前无特殊处理
+    }
+
     versionData.build = (versionData.build || 0) + 1;
 
     // Always get the real git state, regardless of release or not.

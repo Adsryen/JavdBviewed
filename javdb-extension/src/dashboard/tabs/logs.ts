@@ -4,6 +4,7 @@ import { getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { log } from '../../utils/logController';
 import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
+import { dbLogsQuery, dbLogsClear, type LogsQueryParams } from '../dbClient';
 
 /**
  * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
@@ -32,6 +33,7 @@ export class LogsTab {
     private currentEndDate?: Date;
     private currentHasDataOnly: boolean = false;
     private logs: LogEntry[] = [];
+    private totalLogsCount: number = 0; // IDB 端总数（EXT 视图无过滤时使用）
 
     // 视图模式：扩展日志（EXT）/ 控制台日志（CONSOLE）
     private viewMode: 'EXT' | 'CONSOLE' = 'EXT';
@@ -302,7 +304,7 @@ export class LogsTab {
             // 从STATE获取日志数据
             this.logs = STATE.logs || [];
 
-            // 如果STATE中没有数据，尝试从存储中加载
+            // 如果STATE中没有数据，尝试从存储中加载（兼容老数据；后续会逐步改为直接分页读取 IDB）
             if (this.logs.length === 0) {
                 const storedLogs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
                 this.logs = Array.isArray(storedLogs) ? storedLogs : [];
@@ -489,7 +491,9 @@ export class LogsTab {
                 showMessage('控制台日志已清空', 'success');
             } else {
                 if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
-                // 清空存储中的日志
+                // 优先清空 IndexedDB 中的日志
+                try { await dbLogsClear(); } catch (e) { console.warn('[LogsTab] 清空 IDB 日志失败，将清空本地存储', e); }
+                // 兼容：清空老的存储
                 await setValue(STORAGE_KEYS.LOGS, []);
                 // 清空内存中的日志
                 this.logs = [];
@@ -518,30 +522,76 @@ export class LogsTab {
             return;
         }
 
-        // 扩展日志视图：若无任何过滤条件，走快速路径，仅按页截取最近的数据，避免全量过滤/反转
+        // 扩展日志视图：若无任何过滤条件，改为通过 IDB 分页读取，避免加载全量日志
         if (this.isNoFilterActive()) {
-            const total = this.logs.length;
-            if (total === 0) {
-                this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
-                this.renderPagination(0, 0);
-                this.updateCountText('扩展日志：已筛选 0 条（总计 0 条）');
-                return;
-            }
-            const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
-            if (this.currentPage > totalPages) this.currentPage = totalPages;
-            const endIndex = total - (this.currentPage - 1) * this.pageSize;
-            const startIndex = Math.max(0, endIndex - this.pageSize);
-            const pageItemsAsc = this.logs.slice(startIndex, endIndex);
-            const pageItems = pageItemsAsc.reverse(); // 最新在前
-
-            const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
-            this.logBody.innerHTML = logHtml;
-            this.renderPagination(this.currentPage, totalPages);
-            this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
+            // 异步渲染：先显示加载中占位
+            this.logBody.innerHTML = '<div class="loading">加载中...</div>';
+            // 发起查询
+            const offset = (this.currentPage - 1) * this.pageSize;
+            const limit = this.pageSize;
+            dbLogsQuery({ offset, limit, order: 'desc' } as LogsQueryParams)
+              .then(({ items, total }) => {
+                this.logs = Array.isArray(items) ? items : [];
+                this.totalLogsCount = Number.isFinite(total) ? total : 0;
+                const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
+                if (this.currentPage > totalPages) this.currentPage = totalPages;
+                const pageItems = this.logs; // 直接使用分页结果
+                const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
+                this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
+                this.renderPagination(this.currentPage, totalPages);
+                this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+              })
+              .catch((e) => {
+                console.error('[LogsTab] 读取 IDB 日志失败，回退到本地存储：', e);
+                // 回退：按原逻辑处理（基于 STATE/logs）
+                const total = this.logs.length;
+                if (total === 0) {
+                    this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
+                    this.renderPagination(0, 0);
+                    this.updateCountText('扩展日志：已筛选 0 条（总计 0 条）');
+                    return;
+                }
+                const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+                if (this.currentPage > totalPages) this.currentPage = totalPages;
+                const endIndex = total - (this.currentPage - 1) * this.pageSize;
+                const startIndex = Math.max(0, endIndex - this.pageSize);
+                const pageItemsAsc = this.logs.slice(startIndex, endIndex);
+                const pageItems = pageItemsAsc.reverse();
+                const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
+                this.logBody.innerHTML = logHtml;
+                this.renderPagination(this.currentPage, totalPages);
+                this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
+              });
             return;
         }
 
-        // 过滤日志（扩展日志，带条件）
+        // 若仅启用“日期/等级”过滤（无搜索/来源/hasData/设置联动），使用 IDB 查询
+        if (this.isOnlyDateAndLevelFilterActive()) {
+            this.logBody.innerHTML = '<div class="loading">加载中...</div>';
+            const offset = (this.currentPage - 1) * this.pageSize;
+            const limit = this.pageSize;
+            const params: LogsQueryParams = { offset, limit, order: 'desc' } as any;
+            if (this.currentLevelFilter !== 'ALL') params.level = this.currentLevelFilter as any;
+            if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
+            if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
+            dbLogsQuery(params).then(({ items, total }) => {
+                this.logs = Array.isArray(items) ? items : [];
+                this.totalLogsCount = Number.isFinite(total) ? total : 0;
+                const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
+                if (this.currentPage > totalPages) this.currentPage = totalPages;
+                const logHtml = this.logs.map(l => this.createLogEntryHtml(l)).join('');
+                this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
+                this.renderPagination(this.currentPage, totalPages);
+                this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+            }).catch((e) => {
+                console.warn('[LogsTab] IDB 按日期/等级查询失败，回退到内存过滤', e);
+                const filteredLogs = this.filterLogs();
+                this.renderFilteredLogs(filteredLogs);
+            });
+            return;
+        }
+
+        // 过滤日志（扩展日志，带条件，回退到内存过滤）
         const filteredLogs = this.filterLogs();
 
         if (filteredLogs.length === 0) {
@@ -550,22 +600,7 @@ export class LogsTab {
             return;
         }
 
-        // 分页切片
-        const total = filteredLogs.length;
-        const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
-        if (this.currentPage > totalPages) this.currentPage = totalPages;
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const pageItems = filteredLogs.slice(startIndex, startIndex + this.pageSize);
-
-        // 生成日志HTML
-        const logHtml = pageItems.map(log => this.createLogEntryHtml(log)).join('');
-        this.logBody.innerHTML = logHtml;
-
-        // 渲染分页
-        this.renderPagination(this.currentPage, totalPages);
-
-        // 更新计数显示
-        this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
+        this.renderFilteredLogs(filteredLogs);
     }
 
     /**
@@ -1006,6 +1041,43 @@ export class LogsTab {
         const noDate = !this.currentStartDate && !this.currentEndDate;
         const noHasDataOnly = !this.currentHasDataOnly;
         return noLevel && noSource && noSearch && noDate && noHasDataOnly;
+    }
+
+    /**
+     * 仅启用“日期/等级”过滤（且未启用设置阈值/来源类别映射），其他过滤条件均未生效
+     * 用于走 IDB 分页查询路径
+     */
+    private isOnlyDateAndLevelFilterActive(): boolean {
+        // 首先必须不是“完全无过滤”状态，否则已由 isNoFilterActive 分支处理
+        if (this.isNoFilterActive()) return false;
+        const noSearch = !this.currentSearchQuery;
+        const noSource = this.currentSourceFilter === 'ALL';
+        const noHasDataOnly = !this.currentHasDataOnly;
+        const noSettingsLink = !this.settingsFilterApplied;
+        // 允许：等级（可为 ALL 或具体级别）+ 日期（可无或有）
+        return noSearch && noSource && noHasDataOnly && noSettingsLink;
+    }
+
+    /**
+     * 将已过滤好的日志（内存）渲染 + 分页
+     */
+    private renderFilteredLogs(filteredLogs: LogEntry[]): void {
+        // 分页切片
+        const total = filteredLogs.length;
+        const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const pageItems = filteredLogs.slice(startIndex, startIndex + this.pageSize);
+
+        // 生成日志HTML
+        const logHtml = pageItems.map(log => this.createLogEntryHtml(log)).join('');
+        this.logBody.innerHTML = logHtml;
+
+        // 渲染分页
+        this.renderPagination(this.currentPage, totalPages);
+
+        // 更新计数显示
+        this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
     }
 }
 

@@ -2,6 +2,8 @@
  * WebDAV设置模块入口
  */
 
+import type { WebDAVSettings } from './WebDAVSettings';
+
 // 注意：WebDAVSettings 类通过动态导入加载，避免循环依赖
 
 // 延迟创建WebDAV设置实例，避免循环依赖

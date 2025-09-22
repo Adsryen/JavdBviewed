@@ -28,7 +28,7 @@ class StorageManager {
         operationId: string
     ): Promise<{ success: boolean; error?: string }> {
         return this.operationQueue = this.operationQueue.then(async () => {
-            const startTime = Date.now();
+            // 已移除耗时统计，避免未使用变量
             let lastError: any;
 
             for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -73,7 +73,6 @@ class StorageManager {
                     try { dbViewedPut(updatedRecord).catch(() => {}); } catch {}
 
                     // 记录成功操作（将在后面定义concurrencyMonitor）
-                    const duration = Date.now() - startTime;
                     // concurrencyMonitor.recordOperation(operationId, videoId, 'update', attempt, true, duration);
 
                     return { success: true };
@@ -89,7 +88,6 @@ class StorageManager {
             }
 
             // 记录失败操作（将在后面定义concurrencyMonitor）
-            const duration = Date.now() - startTime;
             // concurrencyMonitor.recordOperation(operationId, videoId, 'update', this.maxRetries, false, duration);
 
             log(`[StorageManager] All attempts failed for ${videoId} (operation ${operationId}):`, lastError);
@@ -104,7 +102,6 @@ class StorageManager {
         operationId: string
     ): Promise<{ success: boolean; error?: string; alreadyExists?: boolean }> {
         return this.operationQueue = this.operationQueue.then(async () => {
-            const startTime = Date.now();
             let lastError: any;
 
             for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -120,7 +117,6 @@ class StorageManager {
                         STATE.records = currentRecords; // 更新内存状态
 
                         // 记录为成功操作（虽然是重复）
-                        const duration = Date.now() - startTime;
                         // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);
 
                         return { success: true, alreadyExists: true };
@@ -156,7 +152,6 @@ class StorageManager {
                     try { dbViewedPut(newRecord).catch(() => {}); } catch {}
 
                     // 记录成功操作
-                    const duration = Date.now() - startTime;
                     // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);
 
                     return { success: true, alreadyExists: false };
@@ -172,7 +167,6 @@ class StorageManager {
             }
 
             // 记录失败操作
-            const duration = Date.now() - startTime;
             // concurrencyMonitor.recordOperation(operationId, videoId, 'add', this.maxRetries, false, duration);
 
             log(`[StorageManager] All attempts failed for ${videoId} (operation ${operationId}):`, lastError);

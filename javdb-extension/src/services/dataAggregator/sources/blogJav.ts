@@ -25,8 +25,6 @@ export class BlogJavSource {
    * 获取视频封面图片
    */
   async getCoverImage(videoId: string): Promise<ApiResponse<ImageData[]>> {
-    const startTime = Date.now();
-    
     try {
       if (!this.config.enabled) {
         throw new DataSourceError('BlogJav source is disabled', 'BlogJav');

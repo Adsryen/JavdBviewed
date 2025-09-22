@@ -11,8 +11,10 @@ import type {
     NewWorksStats,
     NewWorksSearchResult
 } from './types';
-import type { ActorRecord, VideoRecord } from '../../types';
+import type { VideoRecord } from '../../types';
 import { actorManager } from '../actorManager';
+import { dbNewWorksQuery, dbNewWorksStats, dbNewWorksGet, dbNewWorksPut, dbNewWorksBulkPut, dbNewWorksDelete, dbNewWorksGetAll } from '../../dashboard/dbClient';
+import { dbViewedPage } from '../../dashboard/dbClient';
 
 export class NewWorksManager {
     private subscriptions: Map<string, ActorSubscription> = new Map();
@@ -49,15 +51,10 @@ export class NewWorksManager {
                 this.subscriptions.set(sub.actorId, sub);
             });
 
-            // 加载新作品数据
-            const newWorksData = await getValue<Record<string, NewWorkRecord>>(
-                STORAGE_KEYS.NEW_WORKS_RECORDS,
-                {}
-            );
+            // 加载新作品数据（用于兼容与回退）
+            const newWorksData = await getValue<Record<string, NewWorkRecord>>(STORAGE_KEYS.NEW_WORKS_RECORDS, {});
             this.newWorks.clear();
-            Object.values(newWorksData).forEach(work => {
-                this.newWorks.set(work.id, work);
-            });
+            Object.values(newWorksData).forEach(work => { this.newWorks.set(work.id, work); });
 
             this.isLoaded = true;
             log.verbose(`NewWorksManager: Loaded ${this.subscriptions.size} subscriptions, ${this.newWorks.size} works`);
@@ -83,6 +80,19 @@ export class NewWorksManager {
 
         this.globalConfig = { ...this.globalConfig, ...config };
         await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, this.globalConfig);
+    }
+
+    /**
+     * 删除作品
+     */
+    async deleteWorks(workIds: string[]): Promise<void> {
+        await this.initialize();
+        let changed = false;
+        for (const id of workIds) {
+            if (this.newWorks.has(id)) { this.newWorks.delete(id); changed = true; }
+            try { await dbNewWorksDelete(id); } catch {}
+        }
+        if (changed) await this.saveNewWorks();
     }
 
     /**
@@ -169,90 +179,73 @@ export class NewWorksManager {
     }): Promise<NewWorksSearchResult> {
         await this.initialize();
 
-        const {
-            search = '',
-            filter = 'all',
-            sort = 'discoveredAt_desc',
-            page = 1,
-            pageSize = 20
-        } = filters || {};
+        const { search = '', filter = 'all', sort = 'discoveredAt_desc', page = 1, pageSize = 20 } = filters || {};
 
-        let works = Array.from(this.newWorks.values());
+        // 优先使用 IDB 查询
+        try {
+            const sortField = (sort.split('_')[0] as 'discoveredAt' | 'releaseDate' | 'actorName');
+            const sortOrder = (sort.split('_')[1] === 'asc' ? 'asc' : 'desc');
+            const { items, total } = await dbNewWorksQuery({
+                search,
+                filter,
+                sort: sortField,
+                order: sortOrder,
+                offset: (page - 1) * pageSize,
+                limit: pageSize,
+            });
+            const statsLite = await dbNewWorksStats();
+            const stats = {
+                totalSubscriptions: (await this.getSubscriptions()).length,
+                activeSubscriptions: (await this.getSubscriptions()).filter(s => s.enabled).length,
+                totalNewWorks: statsLite.total,
+                unreadWorks: statsLite.unread,
+                todayDiscovered: statsLite.today,
+                lastCheckTime: this.globalConfig.lastGlobalCheck,
+            } as NewWorksStats;
 
-        // 搜索过滤
-        if (search.trim()) {
-            const lowerSearch = search.toLowerCase();
-            works = works.filter(work =>
-                work.title.toLowerCase().includes(lowerSearch) ||
-                work.actorName.toLowerCase().includes(lowerSearch) ||
-                work.id.toLowerCase().includes(lowerSearch)
-            );
+            return {
+                works: items,
+                total,
+                page,
+                pageSize,
+                hasMore: page * pageSize < total,
+                stats,
+            };
+        } catch (e) {
+            log.warn('NewWorksManager: 使用 IDB 查询失败，回退到本地缓存', e);
         }
 
-        // 状态过滤
+        // 回退：使用缓存
+        let works = Array.from(this.newWorks.values());
+        const lowerSearch = search.trim().toLowerCase();
+        if (lowerSearch) {
+            works = works.filter(w => w.title.toLowerCase().includes(lowerSearch) || w.actorName.toLowerCase().includes(lowerSearch) || w.id.toLowerCase().includes(lowerSearch));
+        }
         const now = Date.now();
         const todayStart = new Date().setHours(0, 0, 0, 0);
         const weekStart = now - 7 * 24 * 60 * 60 * 1000;
-
-        switch (filter) {
-            case 'unread':
-                works = works.filter(work => !work.isRead);
-                break;
-            case 'today':
-                works = works.filter(work => work.discoveredAt >= todayStart);
-                break;
-            case 'week':
-                works = works.filter(work => work.discoveredAt >= weekStart);
-                break;
-        }
-
-        // 排序
+        if (filter === 'unread') works = works.filter(w => !w.isRead);
+        else if (filter === 'today') works = works.filter(w => w.discoveredAt >= todayStart);
+        else if (filter === 'week') works = works.filter(w => w.discoveredAt >= weekStart);
+        const [field, order] = sort.split('_');
         works.sort((a, b) => {
-            const [field, order] = sort.split('_');
-            let aValue: any, bValue: any;
-
+            let av: any; let bv: any;
             switch (field) {
+                case 'releaseDate': av = a.releaseDate || ''; bv = b.releaseDate || ''; break;
+                case 'actorName': av = a.actorName.toLowerCase(); bv = b.actorName.toLowerCase(); break;
                 case 'discoveredAt':
-                    aValue = a.discoveredAt;
-                    bValue = b.discoveredAt;
-                    break;
-                case 'releaseDate':
-                    aValue = a.releaseDate || '';
-                    bValue = b.releaseDate || '';
-                    break;
-                case 'actorName':
-                    aValue = a.actorName.toLowerCase();
-                    bValue = b.actorName.toLowerCase();
-                    break;
-                default:
-                    aValue = a.discoveredAt;
-                    bValue = b.discoveredAt;
+                default: av = a.discoveredAt; bv = b.discoveredAt;
             }
-
-            if (order === 'desc') {
-                return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-            } else {
-                return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+            if (typeof av === 'string' && typeof bv === 'string') {
+                const cmp = av.localeCompare(bv);
+                return order === 'asc' ? cmp : -cmp;
             }
+            return order === 'asc' ? (av - bv) : (bv - av);
         });
-
-        // 分页
         const total = works.length;
-        const startIndex = (page - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const pageWorks = works.slice(startIndex, endIndex);
-
-        // 获取统计信息
+        const pageWorks = works.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
         const stats = await this.getStats();
-
-        return {
-            works: pageWorks,
-            total,
-            page,
-            pageSize,
-            hasMore: endIndex < total,
-            stats
-        };
+        return { works: pageWorks, total, page, pageSize, hasMore: page * pageSize < total, stats };
     }
 
     /**
@@ -260,40 +253,38 @@ export class NewWorksManager {
      */
     async markAsRead(workIds: string[]): Promise<void> {
         await this.initialize();
-
-        let hasChanges = false;
-        workIds.forEach(id => {
-            const work = this.newWorks.get(id);
-            if (work && !work.isRead) {
-                work.isRead = true;
-                this.newWorks.set(id, work);
-                hasChanges = true;
+        let pending: NewWorkRecord[] = [];
+        for (const id of workIds) {
+            try {
+                const cur = await dbNewWorksGet(id);
+                if (cur && !cur.isRead) {
+                    cur.isRead = true;
+                    pending.push(cur);
+                    this.newWorks.set(id, cur);
+                } else if (!cur) {
+                    const backup = this.newWorks.get(id);
+                    if (backup && !backup.isRead) {
+                        backup.isRead = true;
+                        pending.push(backup);
+                        this.newWorks.set(id, backup);
+                    }
+                }
+            } catch (e) {
+                // 回退：只更新缓存
+                const backup = this.newWorks.get(id);
+                if (backup && !backup.isRead) {
+                    backup.isRead = true;
+                    this.newWorks.set(id, backup);
+                    pending.push(backup);
+                }
             }
-        });
-
-        if (hasChanges) {
+        }
+        if (pending.length > 0) {
+            try { await dbNewWorksBulkPut(pending); } catch {}
             await this.saveNewWorks();
         }
     }
 
-    /**
-     * 删除作品
-     */
-    async deleteWorks(workIds: string[]): Promise<void> {
-        await this.initialize();
-
-        let hasChanges = false;
-        workIds.forEach(id => {
-            if (this.newWorks.has(id)) {
-                this.newWorks.delete(id);
-                hasChanges = true;
-            }
-        });
-
-        if (hasChanges) {
-            await this.saveNewWorks();
-        }
-    }
 
     /**
      * 清理所有已读作品
@@ -301,19 +292,17 @@ export class NewWorksManager {
      */
     async cleanupReadWorks(): Promise<number> {
         await this.initialize();
-
-        const worksToDelete: string[] = [];
-        this.newWorks.forEach((work, id) => {
-            if (work.isRead) {
-                worksToDelete.push(id);
-            }
-        });
-
-        if (worksToDelete.length > 0) {
-            await this.deleteWorks(worksToDelete);
+        try {
+            const all = await dbNewWorksGetAll();
+            const toDelete = all.filter(w => w.isRead).map(w => w.id);
+            await this.deleteWorks(toDelete);
+            return toDelete.length;
+        } catch {
+            const worksToDelete: string[] = [];
+            this.newWorks.forEach((work, id) => { if (work.isRead) worksToDelete.push(id); });
+            if (worksToDelete.length > 0) await this.deleteWorks(worksToDelete);
+            return worksToDelete.length;
         }
-
-        return worksToDelete.length;
     }
 
     /**
@@ -321,25 +310,19 @@ export class NewWorksManager {
      */
     async cleanupOldWorks(): Promise<number> {
         await this.initialize();
-
-        if (!this.globalConfig.autoCleanup) {
-            return 0;
-        }
-
+        if (!this.globalConfig.autoCleanup) return 0;
         const cutoffTime = Date.now() - this.globalConfig.cleanupDays * 24 * 60 * 60 * 1000;
-        const worksToDelete: string[] = [];
-
-        this.newWorks.forEach((work, id) => {
-            if (work.discoveredAt < cutoffTime && work.isRead) {
-                worksToDelete.push(id);
-            }
-        });
-
-        if (worksToDelete.length > 0) {
-            await this.deleteWorks(worksToDelete);
+        try {
+            const all = await dbNewWorksGetAll();
+            const toDelete = all.filter(w => (w.discoveredAt || 0) < cutoffTime && w.isRead).map(w => w.id);
+            await this.deleteWorks(toDelete);
+            return toDelete.length;
+        } catch {
+            const worksToDelete: string[] = [];
+            this.newWorks.forEach((work, id) => { if ((work.discoveredAt || 0) < cutoffTime && work.isRead) worksToDelete.push(id); });
+            if (worksToDelete.length > 0) await this.deleteWorks(worksToDelete);
+            return worksToDelete.length;
         }
-
-        return worksToDelete.length;
     }
 
     /**
@@ -349,55 +332,60 @@ export class NewWorksManager {
     async syncWithVideoRecords(): Promise<{ updated: number; details: Array<{ id: string; oldStatus: string; newStatus: string }> }> {
         await this.initialize();
 
-        // 获取番号库记录
-        const videoRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+        // 优先从 IDB 分页获取所有 viewed 记录，构建 Map
+        const viewedMap: Record<string, VideoRecord> = {} as any;
+        try {
+            let offset = 0;
+            const limit = 1000;
+            // 先获取总数
+            let page = await dbViewedPage({ offset, limit, orderBy: 'updatedAt', order: 'desc' });
+            let total = page.total;
+            while (true) {
+                page.items.forEach(v => { if (v?.id) viewedMap[v.id] = v; });
+                offset += limit;
+                if (offset >= total) break;
+                page = await dbViewedPage({ offset, limit, orderBy: 'updatedAt', order: 'desc' });
+            }
+        } catch (e) {
+            const fallback = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+            Object.assign(viewedMap, fallback);
+        }
+
+        // 从 IDB 获取全部新作品
+        let works = [] as NewWorkRecord[];
+        try {
+            works = await dbNewWorksGetAll();
+        } catch {
+            works = Array.from(this.newWorks.values());
+        }
 
         let updatedCount = 0;
         const updateDetails: Array<{ id: string; oldStatus: string; newStatus: string }> = [];
-        let hasChanges = false;
+        const toUpdate: NewWorkRecord[] = [];
 
-        this.newWorks.forEach((work, id) => {
-            const videoRecord = videoRecords[id];
-            if (videoRecord) {
-                const oldStatus = work.isRead ? 'read' : 'unread';
-                let newIsRead = false;
-                let newStatus = 'new';
-
-                // 根据番号库记录的状态更新新作品状态
-                switch (videoRecord.status) {
-                    case 'viewed':
-                        newIsRead = true;
-                        newStatus = 'viewed';
-                        break;
-                    case 'browsed':
-                        newIsRead = true;
-                        newStatus = 'browsed';
-                        break;
-                    case 'want':
-                        newIsRead = false; // 想看状态不算已读
-                        newStatus = 'want';
-                        break;
-                }
-
-                // 如果状态有变化，更新记录
-                if (work.isRead !== newIsRead || work.status !== newStatus) {
-                    work.isRead = newIsRead;
-                    work.status = newStatus as any;
-                    this.newWorks.set(id, work);
-                    hasChanges = true;
-                    updatedCount++;
-
-                    updateDetails.push({
-                        id,
-                        oldStatus,
-                        newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})`
-                    });
-                }
+        for (const work of works) {
+            const id = work.id;
+            const videoRecord = viewedMap[id];
+            if (!videoRecord) continue;
+            const oldStatus = work.isRead ? 'read' : 'unread';
+            let newIsRead = false;
+            let newStatus: NewWorkRecord['status'] = 'new';
+            switch (videoRecord.status) {
+                case 'viewed': newIsRead = true; newStatus = 'viewed'; break;
+                case 'browsed': newIsRead = true; newStatus = 'browsed'; break;
+                case 'want': newIsRead = false; newStatus = 'want'; break;
             }
-        });
+            if (work.isRead !== newIsRead || work.status !== newStatus) {
+                const updated = { ...work, isRead: newIsRead, status: newStatus } as NewWorkRecord;
+                toUpdate.push(updated);
+                this.newWorks.set(id, updated);
+                updatedCount++;
+                updateDetails.push({ id, oldStatus, newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})` });
+            }
+        }
 
-        // 保存更改
-        if (hasChanges) {
+        if (toUpdate.length > 0) {
+            try { await dbNewWorksBulkPut(toUpdate); } catch {}
             await this.saveNewWorks();
         }
 
@@ -415,7 +403,6 @@ export class NewWorksManager {
 
         log.verbose(`NewWorksManager: 统计信息 - 订阅数: ${subscriptions.length}, 新作品数: ${works.length}`);
 
-        const now = Date.now();
         const todayStart = new Date().setHours(0, 0, 0, 0);
 
         const stats = {
@@ -448,11 +435,11 @@ export class NewWorksManager {
      */
     private async saveNewWorks(): Promise<void> {
         const newWorksObject: Record<string, NewWorkRecord> = {};
-        this.newWorks.forEach((work, id) => {
-            newWorksObject[id] = work;
-        });
-
+        this.newWorks.forEach((work, id) => { newWorksObject[id] = work; });
+        // 先保存到本地存储，保持兼容
         await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, newWorksObject);
+        // 再尝试批量写入 IDB
+        try { await dbNewWorksBulkPut(Object.values(newWorksObject)); } catch {}
     }
 
     /**
@@ -460,12 +447,11 @@ export class NewWorksManager {
      */
     async addNewWork(work: NewWorkRecord): Promise<void> {
         await this.initialize();
-
-        // 检查是否已存在
         if (!this.newWorks.has(work.id)) {
             this.newWorks.set(work.id, work);
             await this.saveNewWorks();
         }
+        try { await dbNewWorksPut(work); } catch {}
     }
 
     /**
@@ -473,17 +459,11 @@ export class NewWorksManager {
      */
     async addNewWorks(works: NewWorkRecord[]): Promise<void> {
         await this.initialize();
-
         let hasChanges = false;
-        works.forEach(work => {
-            if (!this.newWorks.has(work.id)) {
-                this.newWorks.set(work.id, work);
-                hasChanges = true;
-            }
-        });
-
+        works.forEach(work => { if (!this.newWorks.has(work.id)) { this.newWorks.set(work.id, work); hasChanges = true; } });
         if (hasChanges) {
             await this.saveNewWorks();
+            try { await dbNewWorksBulkPut(works); } catch {}
         }
     }
 }

@@ -25,6 +25,9 @@ let currentConflicts: any[] = [];
 let currentConflictIndex = 0;
 let conflictResolutions: Record<string, 'local' | 'cloud' | 'merge'> = {};
 
+// 当前冲突类型（用于渲染与显示文案）
+let currentConflictType: 'video' | 'actor' | 'newWorksSub' | 'newWorksRec' = 'video';
+
 // 向导状态管理
 interface WizardState {
     currentMode: 'quick' | 'wizard' | 'expert';
@@ -741,7 +744,7 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
         showRestoreProgress();
 
         // 执行数据合并
-        const mergeResult = await mergeData(currentLocalData, currentCloudData, currentDiffResult, mergeOptions);
+        const mergeResult = await mergeData(currentLocalData, currentCloudData, currentDiffResult!, mergeOptions);
 
         if (mergeResult.success) {
             // 保存合并后的数据
@@ -757,7 +760,7 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
         }
     } catch (error) {
         logAsync('ERROR', '恢复操作失败', { error: error.message });
-        showMessage(`恢复失败：${error.message}`, 'error');
+        showMessage(`恢复失败: ${error.message}`, 'error');
     }
 }
 
@@ -775,19 +778,16 @@ function showRestoreProgress(): void {
  */
 async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
     // 保存合并后的数据到本地存储
-    if (mergeResult.data) {
-        // 修复：使用正确的键名
-        await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.data.videoRecords || {});
-        // 直接写回演员库（包含 blacklisted）
-        await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.data.actorRecords || {});
+    if (mergeResult.mergedData) {
+        await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords || {});
+        await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.mergedData.actorRecords || {});
 
-        if (mergeResult.data.settings) {
-            // 统一：整包写回设置对象
-            await setValue(STORAGE_KEYS.SETTINGS, mergeResult.data.settings as any);
+        if (mergeResult.mergedData.settings) {
+            await setValue(STORAGE_KEYS.SETTINGS, mergeResult.mergedData.settings as any);
         }
 
-        if (mergeResult.data.userProfile) {
-            await setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.data.userProfile);
+        if (mergeResult.mergedData.userProfile) {
+            await setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.mergedData.userProfile);
         }
     }
 }
@@ -850,7 +850,7 @@ function bindModalEvents(): void {
     // 关闭按钮
     const closeBtn = document.getElementById('webdavRestoreModalClose');
     const cancelBtn = document.getElementById('webdavRestoreCancel');
-    const confirmBtn = document.getElementById('webdavRestoreConfirm');
+    const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement | null;
     const retryBtn = document.getElementById('webdavRestoreRetry');
     const analyzeBtn = document.getElementById('webdavRestoreAnalyze');
     const backBtn = document.getElementById('webdavRestoreBack');
@@ -888,7 +888,7 @@ function bindModalEvents(): void {
 
             // 更新按钮状态
             analyzeBtn?.classList.remove('hidden');
-            confirmBtn!.disabled = true;
+            if (confirmBtn) confirmBtn.disabled = true;
             backBtn.classList.add('hidden');
         };
     }
@@ -1249,15 +1249,15 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
                 </div>
                 <div class="diff-stats">
                     <div class="stat-item">
-                        <span class="stat-label">云端新增:</span>
+                        <span class="stat-label">云端新增：</span>
                         <span class="stat-value">${diffResult.videoRecords.summary.cloudOnlyCount}</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">本地保留:</span>
+                        <span class="stat-label">本地保留：</span>
                         <span class="stat-value">${diffResult.videoRecords.summary.totalLocal}</span>
                     </div>
                     <div class="stat-item conflict">
-                        <span class="stat-label">发现冲突:</span>
+                        <span class="stat-label">发现冲突：</span>
                         <span class="stat-value">${diffResult.videoRecords.summary.conflictCount}</span>
                         ${diffResult.videoRecords.summary.conflictCount > 0 ?
                             '<button class="btn-link" id="viewVideoConflicts">查看详情</button>' :
@@ -1265,7 +1265,7 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
                         }
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">本地独有:</span>
+                        <span class="stat-label">本地独有：</span>
                         <span class="stat-value">${diffResult.videoRecords.summary.localOnlyCount}</span>
                         <small>(云端没有)</small>
                     </div>
@@ -1279,15 +1279,15 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
                 </div>
                 <div class="diff-stats">
                     <div class="stat-item">
-                        <span class="stat-label">云端新增:</span>
+                        <span class="stat-label">云端新增：</span>
                         <span class="stat-value">${diffResult.actorRecords.summary.cloudOnlyCount}</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">本地保留:</span>
+                        <span class="stat-label">本地保留：</span>
                         <span class="stat-value">${diffResult.actorRecords.summary.totalLocal}</span>
                     </div>
                     <div class="stat-item conflict">
-                        <span class="stat-label">发现冲突:</span>
+                        <span class="stat-label">发现冲突：</span>
                         <span class="stat-value">${diffResult.actorRecords.summary.conflictCount}</span>
                         ${diffResult.actorRecords.summary.conflictCount > 0 ?
                             '<button class="btn-link" id="viewActorConflicts">查看详情</button>' :
@@ -1304,27 +1304,27 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
                 </div>
                 <div class="diff-stats">
                     <div class="stat-item">
-                        <span class="stat-label">订阅 云端新增:</span>
+                        <span class="stat-label">订阅 云端新增：</span>
                         <span class="stat-value">${diffResult.newWorks.subscriptions.summary.cloudOnlyCount}</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">订阅 本地保留:</span>
+                        <span class="stat-label">订阅 本地保留：</span>
                         <span class="stat-value">${diffResult.newWorks.subscriptions.summary.totalLocal}</span>
                     </div>
                     <div class="stat-item conflict">
-                        <span class="stat-label">订阅 冲突:</span>
+                        <span class="stat-label">订阅 冲突：</span>
                         <span class="stat-value">${diffResult.newWorks.subscriptions.summary.conflictCount}</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">记录 云端新增:</span>
+                        <span class="stat-label">记录 云端新增：</span>
                         <span class="stat-value">${diffResult.newWorks.records.summary.cloudOnlyCount}</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">记录 本地保留:</span>
+                        <span class="stat-label">记录 本地保留：</span>
                         <span class="stat-value">${diffResult.newWorks.records.summary.totalLocal}</span>
                     </div>
                     <div class="stat-item conflict">
-                        <span class="stat-label">记录 冲突:</span>
+                        <span class="stat-label">记录 冲突：</span>
                         <span class="stat-value">${diffResult.newWorks.records.summary.conflictCount}</span>
                     </div>
                 </div>
@@ -1337,7 +1337,7 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
                 </div>
                 <div class="diff-stats">
                     <div class="stat-item" id="settingsDiffStatus">
-                        <span class="stat-label">状态:</span>
+                        <span class="stat-label">状态：</span>
                         <span class="stat-value">${diffResult.settings.hasConflict ? '检测到差异' : '无差异'}</span>
                         ${diffResult.settings.hasConflict ?
                             '<button class="btn-link" id="viewSettingsDiff">查看详情</button>' : ''
@@ -1559,29 +1559,6 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
             if (data && data.lastImportTime) {
                 const date = new Date(data.lastImportTime);
                 statsText = `最后导入: ${date.toLocaleDateString()}`;
-    // 新作品订阅冲突
-    const newWorksSubsConflicts = diffResult.newWorks.subscriptions.conflicts;
-    if (newWorksSubsConflicts && newWorksSubsConflicts.length > 0) {
-        const btn = document.createElement('button');
-        btn.className = 'btn-link';
-        btn.id = 'viewNewWorksSubsConflicts';
-        btn.textContent = '查看新作品订阅冲突';
-        btn.onclick = () => showConflictResolution('newWorksSub', newWorksSubsConflicts);
-        const header = document.querySelector('.diff-summary');
-        header?.appendChild(btn);
-    }
-
-    // 新作品记录冲突
-    const newWorksRecConflicts = diffResult.newWorks.records.conflicts;
-    if (newWorksRecConflicts && newWorksRecConflicts.length > 0) {
-        const btn = document.createElement('button');
-        btn.className = 'btn-link';
-        btn.id = 'viewNewWorksRecConflicts';
-        btn.textContent = '查看新作品记录冲突';
-        btn.onclick = () => showConflictResolution('newWorksRec', newWorksRecConflicts);
-        const header = document.querySelector('.diff-summary');
-        header?.appendChild(btn);
-    }
             }
             break;
     }
@@ -1653,129 +1630,11 @@ function bindConflictDetailEvents(diffResult: DataDiffResult): void {
     }
 }
 
-/**
- * 更新影响预览
- */
-function updateImpactPreview(diffResult: DataDiffResult): void {
-    const impactSummary = document.getElementById('impactSummary');
-    if (!impactSummary) return;
+ 
 
-    const strategy = getSelectedStrategy();
-    let impactText = '';
+ 
 
-    switch (strategy) {
-        case 'smart':
-            impactText = generateSmartMergeImpact(diffResult);
-            break;
-        case 'cloud-priority':
-            impactText = generateCloudPriorityImpact(diffResult);
-            break;
-        case 'local-priority':
-            impactText = generateLocalPriorityImpact(diffResult);
-            break;
-        case 'custom':
-            impactText = '请先解决所有冲突项，然后查看具体影响。';
-            break;
-    }
-
-    impactSummary.innerHTML = `<ul>${impactText}</ul>`;
-}
-
-/**
- * 生成智能合并影响描述
- */
-function generateSmartMergeImpact(diffResult: DataDiffResult): string {
-    const impacts = [];
-
-    if (diffResult.videoRecords.summary.cloudOnlyCount > 0) {
-        impacts.push(`<li>将添加 ${diffResult.videoRecords.summary.cloudOnlyCount} 条新的视频记录</li>`);
-    }
-
-    if (diffResult.videoRecords.summary.conflictCount > 0) {
-        impacts.push(`<li>将智能合并 ${diffResult.videoRecords.summary.conflictCount} 条冲突的视频记录</li>`);
-    }
-
-    if (diffResult.actorRecords.summary.cloudOnlyCount > 0) {
-        impacts.push(`<li>将添加 ${diffResult.actorRecords.summary.cloudOnlyCount} 个新的演员收藏</li>`);
-    }
-
-    if (diffResult.videoRecords.summary.localOnlyCount > 0) {
-        impacts.push(`<li>将保留 ${diffResult.videoRecords.summary.localOnlyCount} 条本地独有的视频记录</li>`);
-    }
-
-    if (impacts.length === 0) {
-        impacts.push('<li>本地数据与云端数据完全一致，无需更改</li>');
-    }
-
-    return impacts.join('');
-}
-
-/**
- * 生成云端优先影响描述
- */
-function generateCloudPriorityImpact(diffResult: DataDiffResult): string {
-    const impacts = [];
-
-    impacts.push(`<li>将用云端的 ${diffResult.videoRecords.summary.totalCloud} 条视频记录替换本地数据</li>`);
-
-    if (diffResult.videoRecords.summary.localOnlyCount > 0) {
-        impacts.push(`<li><strong>警告：将丢失 ${diffResult.videoRecords.summary.localOnlyCount} 条本地独有的视频记录</strong></li>`);
-    }
-
-    if (diffResult.actorRecords.summary.totalCloud > 0) {
-        impacts.push(`<li>将用云端的 ${diffResult.actorRecords.summary.totalCloud} 个演员收藏替换本地数据</li>`);
-    }
-
-    return impacts.join('');
-}
-
-/**
- * 生成本地优先影响描述
- */
-function generateLocalPriorityImpact(diffResult: DataDiffResult): string {
-    const impacts = [];
-
-    if (diffResult.videoRecords.summary.cloudOnlyCount > 0) {
-        impacts.push(`<li>将添加 ${diffResult.videoRecords.summary.cloudOnlyCount} 条云端独有的视频记录</li>`);
-    }
-
-    if (diffResult.actorRecords.summary.cloudOnlyCount > 0) {
-        impacts.push(`<li>将添加 ${diffResult.actorRecords.summary.cloudOnlyCount} 个云端独有的演员收藏</li>`);
-    }
-
-    impacts.push(`<li>将保持所有本地数据不变</li>`);
-
-    if (diffResult.videoRecords.summary.conflictCount > 0) {
-        impacts.push(`<li>将忽略 ${diffResult.videoRecords.summary.conflictCount} 条云端的更新记录</li>`);
-    }
-
-    if (impacts.length === 1) {
-        impacts.push('<li>本地数据已是最新，无需添加新内容</li>');
-    }
-
-    return impacts.join('');
-}
-
-/**
- * 更新复选框的可用性和状态
- */
-function updateCheckboxAvailability(checkboxId: string, hasData: boolean): void {
-    const checkbox = document.getElementById(checkboxId) as HTMLInputElement;
-    const label = document.querySelector(`label[for="${checkboxId}"]`) as HTMLLabelElement;
-
-    if (checkbox && label) {
-        checkbox.disabled = !hasData;
-        checkbox.checked = hasData; // 只有有数据时才默认选中
-
-        if (hasData) {
-            label.classList.remove('disabled');
-            label.title = '';
-        } else {
-            label.classList.add('disabled');
-            label.title = '此备份文件中不包含该类型的数据';
-        }
-    }
-}
+ 
 
 async function handleConfirmRestore(): Promise<void> {
     if (!selectedFile) return;
@@ -1841,7 +1700,7 @@ async function handleConfirmRestore(): Promise<void> {
         await createRestoreBackup();
 
         // 执行智能合并
-        const mergeResult = mergeData(currentLocalData, currentCloudData, currentDiffResult, mergeOptions);
+        const mergeResult = mergeData(currentLocalData, currentCloudData, currentDiffResult!, mergeOptions);
 
         if (!mergeResult.success) {
             throw new Error(mergeResult.error || '合并失败');
@@ -1901,7 +1760,7 @@ async function createRestoreBackup(): Promise<void> {
 async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions): Promise<void> {
     const promises = [];
 
-    if (options.restoreRecords && mergeResult.mergedData.videoRecords) {
+    if (options.restoreRecords && mergeResult.mergedData) {
         // 数据校验
     // 新增：新作品
     if (mergeResult.mergedData.newWorks) {
@@ -1917,38 +1776,42 @@ async function applyMergeResult(mergeResult: MergeResult, options: MergeOptions)
         }
     }
 
-        validateVideoRecords(mergeResult.mergedData.videoRecords);
-        promises.push(setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords));
+        if (mergeResult.mergedData.videoRecords) {
+            validateVideoRecords(mergeResult.mergedData.videoRecords);
+            promises.push(setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords));
+        }
     }
 
-    if (options.restoreActorRecords && mergeResult.mergedData.actorRecords) {
+    if (options.restoreActorRecords && mergeResult.mergedData) {
         // 数据校验
-        validateActorRecords(mergeResult.mergedData.actorRecords);
-        // 写回前剔除 blacklisted
-        const sanitized = Object.fromEntries(
-            Object.entries(mergeResult.mergedData.actorRecords || {}).map(([id, a]: any) => {
-                const { blacklisted, ...rest } = a || {};
-                return [id, rest];
-            })
-        );
-        promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
+        if (mergeResult.mergedData.actorRecords) {
+            validateActorRecords(mergeResult.mergedData.actorRecords);
+            // 写回前剔除 blacklisted
+            const sanitized = Object.fromEntries(
+                Object.entries(mergeResult.mergedData.actorRecords || {}).map(([id, a]: any) => {
+                    const { blacklisted, ...rest } = a || {};
+                    return [id, rest];
+                })
+            );
+            promises.push(setValue(STORAGE_KEYS.ACTOR_RECORDS, sanitized));
+        }
     }
 
-    if (options.restoreSettings && mergeResult.mergedData.settings) {
+    if (options.restoreSettings && mergeResult.mergedData) {
         // 数据校验
         validateSettings(mergeResult.mergedData.settings);
         promises.push(setValue(STORAGE_KEYS.SETTINGS, mergeResult.mergedData.settings));
     }
 
-    if (options.restoreUserProfile && mergeResult.mergedData.userProfile) {
+    if (options.restoreUserProfile && mergeResult.mergedData) {
         promises.push(setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.mergedData.userProfile));
     }
 
-    if (options.restoreLogs && mergeResult.mergedData.logs) {
+    if (options.restoreLogs && mergeResult.mergedData) {
         promises.push(setValue(STORAGE_KEYS.LOGS, mergeResult.mergedData.logs));
     }
 
-    if (options.restoreImportStats && mergeResult.mergedData.importStats) {
+    if (options.restoreImportStats && mergeResult.mergedData) {
         promises.push(setValue(STORAGE_KEYS.LAST_IMPORT_STATS, mergeResult.mergedData.importStats));
     }
 
@@ -2347,7 +2210,7 @@ function updateElement(id: string, text: string): void {
  */
 function getSelectedStrategy(): string {
     const strategyInputs = document.querySelectorAll('input[name="mergeStrategy"]') as NodeListOf<HTMLInputElement>;
-    for (const input of strategyInputs) {
+    for (const input of Array.from(strategyInputs)) {
         if (input.checked) {
             return input.value;
         }
@@ -2355,19 +2218,7 @@ function getSelectedStrategy(): string {
     return 'smart'; // 默认策略
 }
 
-/**
- * 绑定策略选择变化事件
- */
-function bindStrategyChangeEvents(): void {
-    const strategyInputs = document.querySelectorAll('input[name="mergeStrategy"]') as NodeListOf<HTMLInputElement>;
-    strategyInputs.forEach(input => {
-        input.addEventListener('change', () => {
-            if (currentDiffResult) {
-                updateImpactPreview(currentDiffResult);
-            }
-        });
-    });
-}
+ 
 
 /**
  * 显示设置差异详情
@@ -2688,6 +2539,7 @@ function showConflictResolution(type: 'video' | 'actor' | 'newWorksSub' | 'newWo
     currentConflicts = conflicts;
     currentConflictIndex = 0;
     conflictResolutions = {};
+    currentConflictType = type;
 
     // 显示冲突解决弹窗
     const modal = document.getElementById('conflictResolutionModal');
@@ -2723,7 +2575,7 @@ function displayCurrentConflict(): void {
 
     // 更新冲突标题和类型
     updateElement('conflictItemTitle', conflict.id);
-    const typeText = type === 'video' ? '视频记录' : (type === 'actor' ? '演员记录' : (type === 'newWorksSub' ? '新作品订阅' : '新作品记录'));
+    const typeText = currentConflictType === 'video' ? '视频记录' : (currentConflictType === 'actor' ? '演员记录' : (currentConflictType === 'newWorksSub' ? '新作品订阅' : '新作品记录'));
     updateElement('conflictItemType', typeText);
 
     // 更新时间戳（若数据包含时间）
@@ -2731,8 +2583,8 @@ function displayCurrentConflict(): void {
     if (conflict.cloud?.updatedAt) updateElement('cloudVersionTime', formatTimestamp(conflict.cloud.updatedAt));
 
     // 更新版本内容（视频/演员/新作品订阅/新作品记录）
-    displayVersionContent('localVersionContent', conflict.local, type);
-    displayVersionContent('cloudVersionContent', conflict.cloud, type);
+    displayVersionContent('localVersionContent', conflict.local, currentConflictType);
+    displayVersionContent('cloudVersionContent', conflict.cloud, currentConflictType);
 
     // 设置默认选择
     const currentResolution = conflictResolutions[conflict.id] || conflict.recommendation || 'merge';
@@ -2970,31 +2822,6 @@ function getStatusText(status: string): string {
         'browsed': '已浏览'
     };
     return statusMap[status] || status;
-}
-
-/**
- * 获取性别文本
- */
-function getGenderText(gender: string): string {
-    const genderMap: Record<string, string> = {
-        'female': '女性',
-        'male': '男性',
-        'unknown': '未知'
-    };
-    return genderMap[gender] || gender;
-}
-
-/**
- * 获取分类文本
- */
-function getCategoryText(category: string): string {
-    const categoryMap: Record<string, string> = {
-        'censored': '有码',
-        'uncensored': '无码',
-        'western': '欧美',
-        'unknown': '未知'
-    };
-    return categoryMap[category] || category;
 }
 
 /**

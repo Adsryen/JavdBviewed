@@ -3,8 +3,7 @@
  */
 
 import { PasswordVerificationResult, SecurityQuestion } from '../../types/privacy';
-import { hashPassword, verifyPassword, validatePasswordStrength } from './crypto';
-import { getPrivacyStorage } from './storage';
+import { verifyPassword, validatePasswordStrength } from './crypto';
 
 /**
  * 密码验证管理器
