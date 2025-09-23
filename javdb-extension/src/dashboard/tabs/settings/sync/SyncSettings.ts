@@ -331,9 +331,10 @@ export class SyncSettings extends BaseSettingsPanel {
             if (actorSync.maxRetries !== undefined && this.actorMaxRetriesInput) {
                 this.actorMaxRetriesInput.value = actorSync.maxRetries.toString();
             }
-
-            this.toggleActorSyncControls();
         }
+
+        this.toggleActorSyncControls();
+        this.emit('change');
     }
 
     /**
@@ -341,12 +342,7 @@ export class SyncSettings extends BaseSettingsPanel {
      */
     private async handleSaveSettings(): Promise<void> {
         try {
-            const result = await this.saveSettings();
-            if (result.success) {
-                showMessage('同步设置已保存', 'success');
-            } else {
-                showMessage(`保存失败: ${result.error}`, 'error');
-            }
+            await this.saveSettings();
         } catch (error) {
             console.error('保存同步设置失败:', error);
             showMessage('保存失败，请重试', 'error');
@@ -401,7 +397,7 @@ export class SyncSettings extends BaseSettingsPanel {
 
             const url = this.collectionUrlInput?.value || 'https://javdb.com/users/collection_actors';
 
-            const response = await fetch(url + '?page=1', {
+            await fetch(url + '?page=1', {
                 method: 'HEAD',
                 mode: 'no-cors'
             });

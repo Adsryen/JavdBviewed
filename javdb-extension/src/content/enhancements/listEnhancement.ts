@@ -32,7 +32,6 @@ class ListEnhancementManager {
     enableRightClickBackground: true,
   };
 
-  private currentPreviewElement: HTMLElement | null = null;
   private previewTimer: number | null = null;
   private isScrolling = false;
   private scrollTimer: number | null = null;
@@ -218,10 +217,9 @@ class ListEnhancementManager {
     coverElement.classList.add('x-cover');
 
     // 鼠标悬浮事件
-    coverElement.addEventListener('mouseenter', (e) => {
+    coverElement.addEventListener('mouseenter', () => {
       if (this.isScrolling) return;
       
-      this.currentPreviewElement = coverElement;
       this.showPreview(coverElement, videoInfo);
     });
 
@@ -233,7 +231,6 @@ class ListEnhancementManager {
       }
 
       this.hidePreview(coverElement);
-      this.currentPreviewElement = null;
     });
   }
 

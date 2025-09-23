@@ -6,7 +6,6 @@ import { logAsync } from '../logger';
 import { userService } from '../services/userService';
 import { initDataSyncSection } from '../dataSync';
 import { on } from '../services/eventBus';
-import type { SyncType } from '../dataSync/types';
 import { SyncUI } from '../dataSync/ui';
 
 export class SyncTab {

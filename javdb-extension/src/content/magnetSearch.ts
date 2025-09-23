@@ -11,23 +11,9 @@ import { dbMagnetsQuery, dbMagnetsUpsert } from './dbClient';
 
 // 正则表达式常量
 const ZH_REGEX = /中文|字幕|中字|(-|_)c(?!d)/i;
-const FC2_REGEX = /^FC2-/i;
 
 // 磁链缓存 TTL（默认 7 天）
 const MAGNET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * 解析视频代码，生成匹配正则表达式
- */
-function codeParse(code: string): { prefix: string; regex: RegExp } {
-  const _ = FC2_REGEX.test(code) ? "|_" : "";
-  const parts = code.split("-").map((item, index) => (index ? item.replace(/^0/, "") : item));
-
-  return {
-    prefix: parts[0],
-    regex: new RegExp(`(?<![a-z])${parts.join(`\\s?(0|-${_}){0,4}\\s?`)}(?!\\d)`, "i"),
-  };
-}
 
 export interface MagnetResult {
   name: string;
@@ -62,7 +48,6 @@ export class MagnetSearchManager {
   private config: MagnetSearchConfig;
   private isInitialized = false;
   private currentVideoId: string | null = null;
-  private lastPathname: string = '';
 
   constructor(config: Partial<MagnetSearchConfig> = {}) {
     this.config = {
@@ -129,40 +114,6 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 在磁力区域添加搜索按钮
-   */
-  private addSearchButtonToMagnetArea(): void {
-    const topMeta = document.querySelector('.top-meta');
-    if (!topMeta) return;
-
-    // 检查是否已经添加过按钮
-    if (topMeta.querySelector('.magnet-search-btn')) return;
-
-    // 创建搜索按钮
-    const searchButton = document.createElement('button');
-    searchButton.className = 'button is-info is-outlined is-small magnet-search-btn mb-2';
-    searchButton.style.marginLeft = '8px';
-    searchButton.innerHTML = '🔍 搜索磁力资源';
-
-    searchButton.addEventListener('click', () => {
-      if (this.currentVideoId) {
-        searchButton.disabled = true;
-        searchButton.innerHTML = '🔍 搜索中...';
-
-        this.searchMagnets(this.currentVideoId).finally(() => {
-          searchButton.disabled = false;
-          searchButton.innerHTML = '🔍 搜索磁力资源';
-        });
-      }
-    });
-
-    // 添加到top-meta区域
-    topMeta.appendChild(searchButton);
-  }
-
-
-
-  /**
    * 搜索磁力链接
    */
   async searchMagnets(videoId: string): Promise<void> {
@@ -208,18 +159,6 @@ export class MagnetSearchManager {
       }
 
       log(`Starting search on ${searchSources.length} sources: ${searchSources.map(s => s.name).join(', ')}`);
-
-      // 3. 为每个搜索源添加超时包装
-      const createTimeoutPromise = <T>(promise: Promise<T>, timeoutMs: number, sourceName: string): Promise<T> => {
-        return Promise.race([
-          promise,
-          new Promise<T>((_, reject) => {
-            setTimeout(() => {
-              reject(new Error(`${sourceName} search timeout after ${timeoutMs}ms`));
-            }, timeoutMs);
-          })
-        ]);
-      };
 
       // 4. 如果没有外部搜索源，直接显示JavDB结果
       if (searchSources.length === 0) {
@@ -799,6 +738,9 @@ export class MagnetSearchManager {
       // 重新显示所有磁力数据
       this.displayAllMagnets(limitedResults);
 
+      // 更新总数显示
+      this.updateTotalCount();
+
       showToast(`共找到 ${limitedResults.length} 个磁力链接`, 'success');
       log(`Successfully displayed ${limitedResults.length} total magnet results`);
     } catch (error) {
@@ -853,81 +795,7 @@ export class MagnetSearchManager {
   /**
    * 显示单个搜索源的结果
    */
-  private displaySourceResults(results: MagnetResult[], sourceName: string): void {
-    try {
-      const magnetContent = document.querySelector('#magnets-content');
-      if (!magnetContent) {
-        log('Magnet content area not found');
-        return;
-      }
 
-      log(`Displaying ${results.length} results from ${sourceName}`);
-
-      // 将搜索结果添加到现有磁力列表中
-      results.forEach((result, index) => {
-        try {
-          const magnetItem = this.createMagnetItem(result);
-          magnetContent.appendChild(magnetItem);
-          log(`Added magnet item from ${sourceName} ${index + 1}: ${result.name.substring(0, 50)}...`);
-        } catch (error) {
-          log(`Error creating magnet item from ${sourceName} ${index + 1}:`, error);
-        }
-      });
-
-      // 更新总数显示
-      this.updateTotalCount();
-
-      showToast(`从 ${sourceName} 找到 ${results.length} 个磁力链接`, 'success');
-      log(`Successfully displayed ${results.length} results from ${sourceName}`);
-    } catch (error) {
-      log(`Error displaying results from ${sourceName}:`, error);
-    }
-  }
-
-  /**
-   * 显示结果到磁力列表区域
-   */
-  private displayResults(results: MagnetResult[]): void {
-    try {
-      const magnetContent = document.querySelector('#magnets-content');
-      if (!magnetContent) {
-        log('Magnet content area not found');
-        showToast('磁力链接区域未找到', 'error');
-        return;
-      }
-
-      if (results.length === 0) {
-        log('No magnet results to display');
-        showToast('未找到磁力链接', 'info');
-        return;
-      }
-
-      log(`Displaying ${results.length} magnet results`);
-
-      // 添加搜索结果标识
-      this.addSearchResultsHeader(results.length);
-
-      // 将搜索结果添加到现有磁力列表中
-      results.forEach((result, index) => {
-        try {
-          const magnetItem = this.createMagnetItem(result);
-          magnetContent.appendChild(magnetItem);
-          log(`Added magnet item ${index + 1}: ${result.name.substring(0, 50)}...`);
-        } catch (error) {
-          log(`Error creating magnet item ${index + 1}:`, error);
-        }
-      });
-
-      // 更新总数显示
-      this.updateTotalCount();
-
-      showToast(`找到 ${results.length} 个磁力链接`, 'success');
-      log(`Successfully displayed ${results.length} magnet results`);
-    } catch (error) {
-      log('Error displaying magnet results:', error);
-      showToast('显示磁力链接时发生错误', 'error');
-    }
-  }
 
   /**
    * 创建统一样式的磁力项目元素
@@ -1062,103 +930,6 @@ export class MagnetSearchManager {
     dateColumn.appendChild(timeSpan);
 
     // 组装完整项目
-    item.appendChild(nameColumn);
-    item.appendChild(buttonsColumn);
-    item.appendChild(dateColumn);
-
-    return item;
-  }
-
-  /**
-   * 创建磁力项目（与JavDB格式一致）
-   */
-  private createMagnetItem(result: MagnetResult): HTMLElement {
-    const item = document.createElement('div');
-    item.className = 'item columns is-desktop';
-    item.style.backgroundColor = '#f8f9fa'; // 区分搜索结果
-    item.style.borderLeft = '4px solid #007bff'; // 添加蓝色边框标识
-
-    // 创建磁力名称列
-    const nameColumn = document.createElement('div');
-    nameColumn.className = 'magnet-name column is-four-fifths';
-
-    const magnetLink = document.createElement('a');
-    magnetLink.href = result.magnet;
-    magnetLink.title = '右键点击并选择「复制链接地址」';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'name';
-    nameSpan.textContent = result.name;
-
-    const metaSpan = document.createElement('span');
-    metaSpan.className = 'meta';
-    metaSpan.innerHTML = `<br>${result.size}, 来源: ${result.source}`;
-
-    // 添加标签
-    const tagsDiv = document.createElement('div');
-    tagsDiv.className = 'tags';
-    tagsDiv.innerHTML = '<br>';
-
-    if (result.quality) {
-      const qualityTag = document.createElement('span');
-      qualityTag.className = 'tag is-primary is-small is-light';
-      qualityTag.textContent = result.quality;
-      qualityTag.style.marginRight = '4px';
-      tagsDiv.appendChild(qualityTag);
-    }
-
-    if (result.hasSubtitle) {
-      const subtitleTag = document.createElement('span');
-      subtitleTag.className = 'tag is-info is-small is-light';
-      subtitleTag.textContent = '字幕';
-      tagsDiv.appendChild(subtitleTag);
-    }
-
-    magnetLink.appendChild(nameSpan);
-    magnetLink.appendChild(metaSpan);
-    magnetLink.appendChild(tagsDiv);
-    nameColumn.appendChild(magnetLink);
-
-    // 创建按钮列
-    const buttonsColumn = document.createElement('div');
-    buttonsColumn.className = 'column';
-
-    // 创建按钮容器
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.alignItems = 'center';
-    buttonContainer.style.gap = '8px';
-
-    // 来源标签（红色）
-    const sourceTag = document.createElement('span');
-    sourceTag.className = 'tag is-danger is-small';
-    sourceTag.textContent = result.source;
-
-    // 复制按钮
-    const copyButton = document.createElement('button');
-    copyButton.className = 'button is-info is-small';
-    copyButton.textContent = '复制';
-    copyButton.addEventListener('click', () => this.copyMagnet(result.magnet));
-
-    // 115推送按钮
-    const push115Button = document.createElement('button');
-    push115Button.className = 'button is-success is-small';
-    push115Button.textContent = '推送115';
-    push115Button.addEventListener('click', () => this.push115(result.magnet, result.name));
-
-    buttonContainer.appendChild(sourceTag);
-    buttonContainer.appendChild(copyButton);
-    buttonContainer.appendChild(push115Button);
-    buttonsColumn.appendChild(buttonContainer);
-
-    // 创建日期列
-    const dateColumn = document.createElement('div');
-    dateColumn.className = 'date column';
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'time';
-    timeSpan.textContent = result.date;
-    dateColumn.appendChild(timeSpan);
-
     item.appendChild(nameColumn);
     item.appendChild(buttonsColumn);
     item.appendChild(dateColumn);
@@ -1308,74 +1079,6 @@ export class MagnetSearchManager {
         padding-right: 8px !important;
       }
 
-      /*
-       * 关键修复：父级 Bulma 栅格导致的超宽
-       * 仅当 .columns 包含 #magnets 时才生效，避免影响站点其它区域
-       */
-      .columns:has(#magnets) {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
-      }
-      .columns:has(#magnets) > .column {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-
-      /* 磁力页签相关容器的兜底约束 */
-      #tabs-container,
-      #magnets,
-      #magnets > article.message,
-      #magnets > article.message .message-body {
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
-        overflow-y: visible !important; /* 避免在磁力区域内出现内层纵向滚动条 */
-      }
-
-      /* 显式限制视频详情页的 columns 负边距（不依赖 :has）*/
-      body > section.section > div.container > div.video-detail .columns {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-      body > section.section > div.container > div.video-detail .columns > .column {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-
-      #magnets-content .item.columns.is-desktop {
-        display: flex !important;
-        align-items: center;
-        gap: 8px;
-        width: 100% !important;             /* 强制与容器等宽 */
-        max-width: 100% !important;
-        box-sizing: border-box !important;   /* 将内边距计算入宽度 */
-      }
-
-      /* 列的通用设置：允许内容收缩并正确截断 */
-      #magnets-content .item .column {
-        min-width: 0 !important;
-        padding-left: 0 !important;   /* 取消列内边距，避免在移除负边距后出现总宽度增加 */
-        padding-right: 0 !important;
-        box-sizing: border-box !important;
-        max-width: 100% !important;
-        flex-basis: auto !important;  /* 避免基础宽度为0导致布局异常 */
-      }
-
-      #magnets-content .item .magnet-name.column {
-        min-width: 0 !important; /* 允许内部文本正确截断 */
-        flex: 1 1 auto !important;
-      }
-
       /* 名称链接与文本本身的宽度约束与省略号 */
       #magnets-content .item .magnet-name a {
         display: block !important;
@@ -1417,38 +1120,22 @@ export class MagnetSearchManager {
     document.head.appendChild(style);
   }
 
-
-
-
-
   /**
-   * 添加搜索结果标题
+   * 解析文件大小
    */
-  private addSearchResultsHeader(count: number): void {
-    const magnetContent = document.querySelector('#magnets-content');
-    if (!magnetContent) return;
-
-    // 检查是否已经有搜索结果标题
-    const existingHeader = magnetContent.querySelector('.search-results-header');
-    if (existingHeader) {
-      existingHeader.remove();
-    }
-
-    // 创建搜索结果标题
-    const header = document.createElement('div');
-    header.className = 'search-results-header item columns is-desktop';
-    header.style.backgroundColor = '#e3f2fd';
-    header.style.borderLeft = '4px solid #2196f3';
-    header.style.fontWeight = 'bold';
-    header.style.color = '#1976d2';
-
-    header.innerHTML = `
-      <div class="column">
-        🔍 搜索到 ${count} 个磁力链接 (来自外部搜索源)
-      </div>
-    `;
-
-    magnetContent.appendChild(header);
+  private parseSizeToBytes(sizeStr: string): number {
+    const match = sizeStr.match(/([0-9.]+)\s*(TB|GB|MB|KB|B)/i);
+    if (!match) return 0;
+    const size = parseFloat(match[1]);
+    const unit = (match[2] || 'B').toUpperCase() as 'TB' | 'GB' | 'MB' | 'KB' | 'B';
+    const multipliers: Record<string, number> = {
+      TB: 1024 * 1024 * 1024 * 1024,
+      GB: 1024 * 1024 * 1024,
+      MB: 1024 * 1024,
+      KB: 1024,
+      B: 1,
+    };
+    return size * (multipliers[unit] || 0);
   }
 
 
@@ -1519,67 +1206,6 @@ export class MagnetSearchManager {
 
 
 
-  /**
-   * 记录日志到扩展日志系统
-   */
-  private logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
-    return new Promise((resolve) => {
-      console.log(`[115] 开始记录日志: ${message}`);
-
-      // 设置超时，避免阻塞主要流程
-      const timeout = setTimeout(() => {
-        console.warn(`[115] 日志记录超时: ${message}`);
-        resolve();
-      }, 5000); // 5秒超时
-
-      try {
-        const messagePayload = {
-          type: 'log-message',
-          payload: { level, message: `[115] ${message}`, data }
-        };
-
-        console.log(`[115] 发送日志消息:`, messagePayload);
-
-        chrome.runtime.sendMessage(messagePayload, (response) => {
-          clearTimeout(timeout);
-          console.log(`[115] 收到日志响应:`, response);
-
-          if (chrome.runtime.lastError) {
-            console.error(`[115] 日志记录失败: ${chrome.runtime.lastError.message}`);
-          } else if (response && response.success) {
-            console.log(`[115] 日志记录成功: ${message}`);
-          } else {
-            console.warn(`[115] 日志记录响应异常:`, response);
-          }
-          resolve();
-        });
-      } catch (error) {
-        clearTimeout(timeout);
-        console.error(`[115] 发送日志消息失败:`, error);
-        resolve();
-      }
-    });
-  }
-
-  // 辅助方法
-
-  private parseSizeToBytes(sizeStr: string): number {
-    const match = sizeStr.match(/([0-9.]+)\s*(B|KB|MB|GB|TB)/i);
-    if (!match) return 0;
-
-    const size = parseFloat(match[1]);
-    const unit = match[2].toUpperCase();
-
-    const multipliers: Record<string, number> = {
-      'B': 1,
-      'KB': 1024,
-      'MB': 1024 * 1024,
-      'GB': 1024 * 1024 * 1024,
-      'TB': 1024 * 1024 * 1024 * 1024,
-    };
-
-    return size * (multipliers[unit] || 0);
-  }
 
   private detectQuality(name: string): string | undefined {
     const qualityPatterns = [

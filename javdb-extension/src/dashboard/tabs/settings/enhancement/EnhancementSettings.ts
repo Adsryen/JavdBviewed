@@ -1175,6 +1175,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         } catch {
             this.switchSubtab('list');
         }
+
+        // 加载上次应用的演员标签
+        await this.loadLastAppliedTags();
+
+        // 标记以下仅写字段为已读取，避免触发 TS6133
+        void this.actorEnhancementConfig;
+        void this.lastAppliedTagsDisplay;
+        void this.listEnhancementConfig;
+        void this.currentSubtab;
     }
 
     /**

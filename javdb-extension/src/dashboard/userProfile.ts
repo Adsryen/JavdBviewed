@@ -422,7 +422,6 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     }
     isLoadingDrive115 = true;
     const block = document.getElementById('drive115-user-info') as HTMLDivElement | null;
-    const statusEl = document.getElementById('drive115-user-status') as HTMLSpanElement | null;
     const box = document.getElementById('drive115-user-box') as HTMLDivElement | null;
     if (!block || !box) return;
 
@@ -438,7 +437,6 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         };
         ensureAreas();
         const basic = box.querySelector('#drive115-user-basic') as HTMLDivElement | null;
-        const quota = box.querySelector('#drive115-quota-box') as HTMLDivElement | null;
 
         // 读取设置（仅判断开关）
         const settings = await getSettings();
@@ -701,15 +699,7 @@ function render115Quota(info: Drive115V2QuotaInfo) {
     `;
 }
 
-function render115QuotaHint(msg: string) {
-    const container = document.getElementById('drive115-quota-box') as HTMLDivElement | null;
-    if (!container) return;
-    container.innerHTML = `
-      <div style="font-size:12px; color:#ef6c00;">
-        <i class="fas fa-exclamation-triangle"></i> ${msg}
-      </div>
-    `;
-}
+// 注意：如需展示配额提示，请通过 render115Quota 渲染或在调用位置内联提示，避免未使用函数
 
 function formatBytes(n?: number | string): string {
     const toNum = (x: any): number | undefined => {

@@ -4,7 +4,6 @@
 
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
-import { showMessage } from '../../ui/toast';
 import { actorSyncService } from '../../../services/actorSync';
 import { log } from '../../../utils/logController';
 import type { SyncProgress, SyncResult } from '../types';
@@ -241,6 +240,8 @@ export class ActorSyncManager {
             options.onError?.(error instanceof Error ? error : new Error(errorMessage));
 
         } finally {
+            const duration = Date.now() - startTime;
+            result.duration = duration;
             this.isRunning = false;
         }
 
