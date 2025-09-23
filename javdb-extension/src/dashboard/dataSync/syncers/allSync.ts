@@ -4,7 +4,6 @@
 
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
-import { showMessage } from '../../ui/toast';
 import { log } from '../../../utils/logController';
 import { viewedSyncManager } from './viewedSync';
 import { wantSyncManager } from './wantSync';
@@ -75,7 +74,7 @@ export class AllSyncManager {
             options.onProgress?.({
                 percentage: 0,
                 message: '开始同步已观看视频...',
-                stage: 'viewed-preparing',
+                stage: 'preparing',
                 phaseInfo: {
                     currentPhase: 1,
                     totalPhases: 2,
@@ -104,9 +103,9 @@ export class AllSyncManager {
             });
 
             if (viewedResult.success) {
-                totalSynced += viewedResult.syncedCount;
-                totalSkipped += viewedResult.skippedCount;
-                totalErrors += viewedResult.errorCount;
+                totalSynced += viewedResult.syncedCount ?? 0;
+                totalSkipped += viewedResult.skippedCount ?? 0;
+                totalErrors += viewedResult.errorCount ?? 0;
                 details.push(`已观看: ${viewedResult.syncedCount}个`);
             } else {
                 throw new Error(`已观看同步失败: ${viewedResult.message}`);
@@ -121,7 +120,7 @@ export class AllSyncManager {
             options.onProgress?.({
                 percentage: 0,
                 message: '开始同步想看视频...',
-                stage: 'want-preparing',
+                stage: 'preparing',
                 phaseInfo: {
                     currentPhase: 2,
                     totalPhases: 2,
@@ -150,9 +149,9 @@ export class AllSyncManager {
             });
 
             if (wantResult.success) {
-                totalSynced += wantResult.syncedCount;
-                totalSkipped += wantResult.skippedCount;
-                totalErrors += wantResult.errorCount;
+                totalSynced += wantResult.syncedCount ?? 0;
+                totalSkipped += wantResult.skippedCount ?? 0;
+                totalErrors += wantResult.errorCount ?? 0;
                 details.push(`想看: ${wantResult.syncedCount}个`);
             } else {
                 throw new Error(`想看同步失败: ${wantResult.message}`);

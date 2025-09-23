@@ -6,9 +6,7 @@ import { logAsync } from '../logger';
 import type { VideoRecord, UserProfile } from '../../types';
 import type {
     SyncType,
-    SyncRequestData,
     SyncResponseData,
-    ApiResponse,
     SyncConfig
 } from './types';
 import { SyncCancelledError } from './types';
@@ -398,6 +396,12 @@ export class ApiClient {
                 displayName: '演员',
                 countField: 'watchedCount'
             },
+            'actors-gender': {
+                url: dataSyncUrls.collectionActors || 'https://javdb.com/users/collection_actors',
+                status: 'viewed',
+                displayName: '演员性别',
+                countField: 'watchedCount'
+            },
             all: {
                 url: dataSyncUrls.wantWatch || 'https://javdb.com/users/want_watch_videos',
                 status: 'viewed',
@@ -450,34 +454,7 @@ export class ApiClient {
         throw lastError;
     }
 
-    /**
-     * 检查网络状态
-     */
-    private async checkNetworkStatus(): Promise<boolean> {
-        try {
-            // 使用更可靠的网络检查方式
-            const response = await fetch('https://javdb.com/favicon.ico', {
-                method: 'HEAD',
-                mode: 'no-cors',
-                cache: 'no-cache',
-                signal: AbortSignal.timeout(5000) // 5秒超时
-            });
-            return true;
-        } catch {
-            // 如果主站不可用，尝试其他方式
-            try {
-                const response = await fetch('https://www.cloudflare.com/favicon.ico', {
-                    method: 'HEAD',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    signal: AbortSignal.timeout(3000)
-                });
-                return true;
-            } catch {
-                return false;
-            }
-        }
-    }
+    // 已移除未使用的网络连通性检查方法（checkNetworkStatus），避免 TS6133 未使用告警
 
     /**
      * 刷新用户账号信息
@@ -514,162 +491,7 @@ export class ApiClient {
             return null;
         }
     }
-
-    /**
-     * 获取所有视频的ID列表
-     */
-    private async fetchAllVideoIds(
-        type: 'want' | 'viewed',
-        totalPages: number,
-        config: SyncConfig,
-        onProgress?: (current: number, total: number, stage?: 'pages' | 'details') => void,
-        abortSignal?: AbortSignal
-    ): Promise<string[]> {
-        const allVideoIds: string[] = [];
-        const syncConfig = await this.getSyncTypeConfig(type);
-        logAsync('INFO', `开始获取${syncConfig.displayName}视频ID，总共${totalPages}页`);
-
-        // 增量同步相关变量
-        const isIncrementalMode = config.mode === 'incremental';
-        let existingRecordsCount = 0;
-        let shouldStopIncremental = false;
-        const incrementalTolerance = config.incrementalTolerance || 20;
-
-        // 如果是增量同步，先获取本地已存在的记录
-        let localRecords: Record<string, any> = {};
-        if (isIncrementalMode) {
-            try {
-                localRecords = await getValue<Record<string, any>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                logAsync('INFO', `增量同步模式：本地已有${Object.keys(localRecords).length}条记录`);
-            } catch (error: any) {
-                logAsync('WARN', '获取本地记录失败，将使用全量同步模式', { error: error.message });
-            }
-        }
-
-        for (let page = 1; page <= totalPages; page++) {
-            try {
-                // 检查是否已取消
-                if (abortSignal?.aborted) {
-                    logAsync('INFO', `同步在第${page}页被取消`);
-                    throw new SyncCancelledError('用户取消了同步操作');
-                }
-
-                logAsync('INFO', `正在获取第${page}页${syncConfig.displayName}视频...`);
-                const videoData = await this.fetchVideoDataFromPage(type, page);
-                const videoIds = videoData.map(v => v.urlId);
-
-                // 增量同步逻辑：检查当前页面的视频是否已存在
-                if (isIncrementalMode && !shouldStopIncremental) {
-                    const existingInCurrentPage: string[] = [];
-
-                    for (const video of videoData) {
-                        let isExisting = false;
-
-                        // 优先使用真实番号进行比对
-                        if (video.realId) {
-                            isExisting = !!localRecords[video.realId];
-                            if (isExisting) {
-                                logAsync('INFO', `通过真实番号找到已存在记录: ${video.realId} (${video.urlId})`);
-                            }
-                        }
-
-                        // 如果没有真实番号或通过真实番号没找到，回退到javdbUrl比对
-                        if (!isExisting) {
-                            const existingRecord = Object.values(localRecords).find((record: any) => {
-                                if (record.javdbUrl) {
-                                    const urlParts = record.javdbUrl.split('/');
-                                    const lastPart = urlParts[urlParts.length - 1];
-                                    return lastPart === video.urlId;
-                                }
-                                return false;
-                            });
-                            isExisting = !!existingRecord;
-                            if (isExisting) {
-                                logAsync('INFO', `通过javdbUrl找到已存在记录: ${video.urlId}`);
-                            }
-                        }
-
-                        if (isExisting) {
-                            existingInCurrentPage.push(video.urlId);
-                        }
-                    }
-
-                    existingRecordsCount += existingInCurrentPage.length;
-
-                    logAsync('INFO', `第${page}页中有${existingInCurrentPage.length}个已存在的视频`, {
-                        page,
-                        existingInCurrentPage: existingInCurrentPage.slice(0, 5),
-                        totalExistingCount: existingRecordsCount,
-                        checkedData: videoData.slice(0, 5).map(v => ({ urlId: v.urlId, realId: v.realId }))
-                    });
-
-                    // 添加当前页面的所有视频URL ID（用于后续详情获取）
-                    allVideoIds.push(...videoIds);
-
-                    // 如果当前页面有已存在的记录，检查是否应该停止
-                    if (existingInCurrentPage.length > 0) {
-                        // 检查是否达到容忍度
-                        if (existingRecordsCount >= incrementalTolerance) {
-                            shouldStopIncremental = true;
-                            logAsync('INFO', `增量同步：已遇到${existingRecordsCount}个已存在记录，达到容忍度${incrementalTolerance}，停止获取更多页面`);
-
-                            // 发送容忍中断的进度消息
-                            onProgress?.(page, totalPages, 'pages');
-                        }
-                    }
-                } else if (!isIncrementalMode) {
-                    // 全量同步
-                    allVideoIds.push(...videoIds);
-                }
-                // 如果是增量同步且已决定停止，则不添加视频ID
-
-                // 更新进度（页面获取进度）
-                onProgress?.(page, totalPages, 'pages');
-
-                logAsync('INFO', `获取第${page}页${syncConfig.displayName}视频完成`, {
-                    page,
-                    totalPages,
-                    currentPageCount: videoIds.length,
-                    totalCount: allVideoIds.length,
-                    videoIds: videoIds.slice(0, 5) // 显示前5个ID作为示例
-                });
-
-                // 如果是增量同步且应该停止，则跳出循环
-                if (isIncrementalMode && shouldStopIncremental) {
-                    logAsync('INFO', `增量同步提前结束，已获取${page}页，共${allVideoIds.length}个视频ID`);
-                    break;
-                }
-
-                // 页面间隔
-                if (page < totalPages) {
-                    logAsync('INFO', `等待1秒后获取下一页...`);
-                    await this.delay(1000); // 页面间隔1秒
-                }
-            } catch (error: any) {
-                logAsync('ERROR', `获取第${page}页${syncConfig.displayName}视频失败`, {
-                    page,
-                    totalPages,
-                    error: error.message
-                });
-
-                // 如果是增量同步且应该停止，则跳出循环
-                if (isIncrementalMode && shouldStopIncremental) {
-                    logAsync('INFO', `增量同步在错误后提前结束，已获取${page}页，共${allVideoIds.length}个视频ID`);
-                    break;
-                }
-                // 继续处理下一页
-            }
-        }
-
-        logAsync('INFO', `${syncConfig.displayName}视频ID获取完成`, {
-            totalPages,
-            totalVideoIds: allVideoIds.length,
-            isIncrementalMode,
-            stoppedEarly: isIncrementalMode && shouldStopIncremental
-        });
-
-        return allVideoIds;
-    }
+    
 
     /**
      * 从指定页面获取视频数据列表（包含URL ID和真实番号）
@@ -732,75 +554,7 @@ export class ApiClient {
             throw error;
         }
     }
-
-    /**
-     * 从指定页面获取视频URL ID列表（保持兼容性）
-     */
-    private async fetchVideoIdsFromPage(type: 'want' | 'viewed', page: number): Promise<string[]> {
-        // 获取同步类型配置
-        const syncConfig = await this.getSyncTypeConfig(type);
-        const url = `${syncConfig.url}?page=${page}`;
-        logAsync('INFO', `请求${syncConfig.displayName}视频页面`, { page, url, baseUrl: syncConfig.url });
-
-        try {
-            const response = await this.fetchWithRetry(url, {
-                method: 'GET',
-                headers: {
-                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-                    'cache-control': 'no-cache',
-                    'pragma': 'no-cache',
-                    'priority': 'u=0, i',
-                    'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Microsoft Edge";v="138"',
-                    'sec-ch-ua-mobile': '?0',
-                    'sec-ch-ua-platform': '"Windows"',
-                    'sec-fetch-dest': 'document',
-                    'sec-fetch-mode': 'navigate',
-                    'sec-fetch-site': 'none',
-                    'sec-fetch-user': '?1',
-                    'upgrade-insecure-requests': '1'
-                },
-                mode: 'cors',
-                credentials: 'include'
-            });
-
-            logAsync('INFO', `${syncConfig.displayName}视频页面响应`, {
-                page,
-                status: response.status,
-                statusText: response.statusText,
-                ok: response.ok
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const html = await response.text();
-            logAsync('INFO', `${syncConfig.displayName}视频页面HTML获取成功`, {
-                page,
-                htmlLength: html.length,
-                hasVideoContent: html.includes('/v/'),
-                hasMovieList: html.includes('movie-list')
-            });
-
-            const videoData = this.parseVideoDataFromHTML(html);
-            logAsync('INFO', `${syncConfig.displayName}视频页面解析完成`, {
-                page,
-                videoCount: videoData.length,
-                withRealId: videoData.filter(v => v.realId).length,
-                videoData: videoData.slice(0, 3) // 显示前3个作为示例
-            });
-
-            return videoData.map(v => v.urlId);
-
-        } catch (error: any) {
-            logAsync('ERROR', `获取${syncConfig.displayName}视频页面失败`, { page, url, error: error.message });
-            throw error;
-        }
-    }
-
-
-
+    
     /**
      * 从页面HTML中解析视频数据（URL ID和真实番号）
      */
@@ -860,17 +614,7 @@ export class ApiClient {
             return [];
         }
     }
-
-    /**
-     * 从页面HTML中解析视频URL ID列表（保持兼容性）
-     */
-    private parseVideoIdsFromHTML(html: string): string[] {
-        const videoData = this.parseVideoDataFromHTML(html);
-        return videoData.map(v => v.urlId);
-    }
-
-
-
+    
     /**
      * 获取视频详情
      */

@@ -140,6 +140,7 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
      * 设置数据到UI
      */
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
+        void settings;
         // 全局操作面板不需要设置数据到UI
     }
 

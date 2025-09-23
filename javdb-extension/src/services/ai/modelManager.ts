@@ -1,6 +1,6 @@
 // AI模型管理器
 
-import type { AIModel, ModelsResponse, AISettings } from '../../types/ai';
+import type { AIModel, AISettings } from '../../types/ai';
 import { NewApiClient } from './newApiClient';
 
 /**

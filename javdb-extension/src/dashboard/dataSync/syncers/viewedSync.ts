@@ -4,9 +4,9 @@
 
 import { logAsync } from '../../logger';
 import { userService } from '../../services/userService';
-import { showMessage } from '../../ui/toast';
 import { log } from '../../../utils/logController';
 import { getApiClient } from '../api';
+import { getSyncConfig } from '../../config/syncConfig';
 import type { SyncProgress, SyncResult } from '../types';
 import type { SyncMode } from '../../config/syncConfig';
 
@@ -71,7 +71,7 @@ export class ViewedSyncManager {
                 'viewed',
                 [], // 已观看同步不需要本地数据
                 userProfile,
-                { mode: options.mode || 'full' },
+                getSyncConfig({ mode: options.mode || 'full' }),
                 (progress) => {
                     const { current, total, stage, percentage, message } = progress;
                     
