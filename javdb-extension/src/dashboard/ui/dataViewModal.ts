@@ -17,18 +17,18 @@ export interface DataViewOptions {
 }
 
 export class DataViewModal {
-    private modal: HTMLElement;
+    private modal!: HTMLElement;
     private overlay: HTMLElement | null = null;
-    private titleElement: HTMLElement;
-    private textarea: HTMLTextAreaElement;
-    private editBtn: HTMLButtonElement;
-    private saveBtn: HTMLButtonElement;
-    private cancelBtn: HTMLButtonElement;
-    private copyBtn: HTMLButtonElement;
-    private downloadBtn: HTMLButtonElement;
-    private closeBtn: HTMLButtonElement;
-    private modalCloseBtn: HTMLButtonElement;
-    private infoElement: HTMLElement;
+    private titleElement!: HTMLElement;
+    private textarea!: HTMLTextAreaElement;
+    private editBtn!: HTMLButtonElement;
+    private saveBtn!: HTMLButtonElement;
+    private cancelBtn!: HTMLButtonElement;
+    private copyBtn!: HTMLButtonElement;
+    private downloadBtn!: HTMLButtonElement;
+    private closeBtn!: HTMLButtonElement;
+    private modalCloseBtn!: HTMLButtonElement;
+    private infoElement!: HTMLElement;
 
     private currentOptions: DataViewOptions | null = null;
     private originalData: string = '';

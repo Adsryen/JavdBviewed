@@ -28,7 +28,7 @@ export interface SyncProgress {
     message: string;
     current?: number;
     total?: number;
-    stage?: 'pages' | 'details';
+    stage?: 'preparing' | 'pages' | 'details' | 'complete' | 'error';
     phaseInfo?: PhaseInfo;   // 阶段信息（用于多阶段同步）
     stats?: {
         currentPage?: number;
@@ -50,6 +50,7 @@ export interface SyncResult {
     skippedCount?: number;
     errorCount?: number;
     details?: string;
+    duration?: number;
 }
 
 // 同步统计信息
@@ -94,9 +95,13 @@ export interface SyncRequestData {
 
 // 同步响应数据
 export interface SyncResponseData {
+    success?: boolean;
     syncedCount: number;
     skippedCount: number;
     errorCount: number;
+    newRecords?: number;
+    updatedRecords?: number;
+    message?: string;
     errors?: Array<{
         recordId: string;
         error: string;
