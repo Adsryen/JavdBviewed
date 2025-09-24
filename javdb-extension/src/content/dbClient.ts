@@ -97,3 +97,16 @@ export async function dbMagnetsClearExpired(beforeMs?: number): Promise<number> 
   // @ts-ignore
   return Number(resp.removed || 0);
 }
+
+// ----- Logs APIs -----
+
+export interface LogEntry {
+  timestamp: string;
+  level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
+  message: string;
+  data?: any;
+}
+
+export async function dbLogsAdd(entry: LogEntry): Promise<void> {
+  await sendMessage('DB:LOGS_ADD', { entry });
+}

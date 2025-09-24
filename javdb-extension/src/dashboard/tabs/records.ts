@@ -45,6 +45,9 @@ export function initRecordsTab(): void {
     const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
     const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
 
+    // 快捷查询元素
+    const quickQueryBtn = document.getElementById('quickQueryBtn') as HTMLButtonElement;
+
     let imageTooltipElement: HTMLDivElement | null = null;
 
     // 选择状态
@@ -1040,6 +1043,73 @@ export function initRecordsTab(): void {
     searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
     sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
+
+    // 快捷查询事件监听器
+    quickQueryBtn.addEventListener('click', async () => {
+        const videoId = prompt('请输入要查询的番号 ID:');
+        if (!videoId || !videoId.trim()) {
+            return;
+        }
+
+        const trimmedId = videoId.trim();
+        
+        try {
+            // 显示加载状态
+            quickQueryBtn.disabled = true;
+            quickQueryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 查询中...';
+            
+            // 直接从 IndexedDB 查询
+            const result = await dbViewedQuery({
+                search: trimmedId,
+                adv: [{ field: 'id', op: 'equals', value: trimmedId }],
+                limit: 1,
+                offset: 0
+            });
+            
+            if (result.items && result.items.length > 0) {
+                const record = result.items[0];
+                
+                // 清空当前搜索条件，显示查询结果
+                searchInput.value = '';
+                filterSelect.value = 'all';
+                selectedTags.clear();
+                advConditions = [];
+                advConditionsEl.innerHTML = '';
+                updateSelectedTagsDisplay();
+                
+                // 设置过滤条件为精确匹配这个记录
+                filteredRecords = [record];
+                currentPage = 1;
+                
+                render();
+                
+                showMessage(`找到记录: ${record.id} - ${record.title}`, 'success');
+                
+                // 高亮显示查询到的记录
+                setTimeout(() => {
+                    const recordElement = document.querySelector(`[data-video-id="${record.id}"]`);
+                    if (recordElement) {
+                        recordElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        recordElement.classList.add('highlight-result');
+                        setTimeout(() => {
+                            recordElement.classList.remove('highlight-result');
+                        }, 3000);
+                    }
+                }, 100);
+                
+            } else {
+                showMessage(`未找到番号 "${trimmedId}" 的记录`, 'warn');
+            }
+            
+        } catch (error) {
+            console.error('快捷查询失败:', error);
+            showMessage(`查询失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
+        } finally {
+            // 恢复按钮状态
+            quickQueryBtn.disabled = false;
+            quickQueryBtn.innerHTML = '<i class="fas fa-search-plus"></i> 精确查询';
+        }
+    });
 
     // Advanced search event listeners
     if (advToggleBtn && advPanel) {
