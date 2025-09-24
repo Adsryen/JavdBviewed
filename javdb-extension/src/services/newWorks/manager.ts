@@ -399,23 +399,35 @@ export class NewWorksManager {
         await this.initialize();
 
         const subscriptions = Array.from(this.subscriptions.values());
-        const works = Array.from(this.newWorks.values());
-
-        log.verbose(`NewWorksManager: 统计信息 - 订阅数: ${subscriptions.length}, 新作品数: ${works.length}`);
-
         const todayStart = new Date().setHours(0, 0, 0, 0);
 
-        const stats = {
-            totalSubscriptions: subscriptions.length,
-            activeSubscriptions: subscriptions.filter(sub => sub.enabled).length,
-            totalNewWorks: works.length,
-            unreadWorks: works.filter(work => !work.isRead).length,
-            todayDiscovered: works.filter(work => work.discoveredAt >= todayStart).length,
-            lastCheckTime: this.globalConfig.lastGlobalCheck
-        };
-
-        log.verbose('NewWorksManager: 返回统计信息:', stats);
-        return stats;
+        try {
+            // 优先使用 IndexedDB 统计，更快更准确
+            const lite = await dbNewWorksStats();
+            const stats = {
+                totalSubscriptions: subscriptions.length,
+                activeSubscriptions: subscriptions.filter(sub => sub.enabled).length,
+                totalNewWorks: lite.total,
+                unreadWorks: lite.unread,
+                todayDiscovered: lite.today,
+                lastCheckTime: this.globalConfig.lastGlobalCheck,
+            } as NewWorksStats;
+            log.verbose('NewWorksManager: 返回统计信息(IDB):', stats);
+            return stats;
+        } catch (e) {
+            // 回退：使用内存缓存统计
+            const works = Array.from(this.newWorks.values());
+            const stats = {
+                totalSubscriptions: subscriptions.length,
+                activeSubscriptions: subscriptions.filter(sub => sub.enabled).length,
+                totalNewWorks: works.length,
+                unreadWorks: works.filter(work => !work.isRead).length,
+                todayDiscovered: works.filter(work => (work.discoveredAt || 0) >= todayStart).length,
+                lastCheckTime: this.globalConfig.lastGlobalCheck
+            } as NewWorksStats;
+            log.verbose('NewWorksManager: 返回统计信息(内存回退):', stats);
+            return stats;
+        }
     }
 
     /**

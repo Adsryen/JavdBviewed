@@ -3,6 +3,7 @@ import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
 import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
+import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
 
 export function initRecordsTab(): void {
     const searchInput = document.getElementById('searchInput') as HTMLInputElement;
@@ -44,7 +45,6 @@ export function initRecordsTab(): void {
     const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
     const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
 
-    let tooltipElement: HTMLPreElement | null = null;
     let imageTooltipElement: HTMLDivElement | null = null;
 
     // 选择状态
@@ -310,8 +310,89 @@ export function initRecordsTab(): void {
     let currentPage = 1;
     let recordsPerPage = STATE.settings.recordsPerPage || 10;
     let filteredRecords: VideoRecord[] = [];
+    // IDB 分页模式
+    let serverModeActive = false;
+    let serverPageItems: VideoRecord[] = [];
+    let serverTotal = 0;
 
     recordsPerPageSelect.value = String(recordsPerPage);
+
+    // 一律优先使用 IDB（复杂条件用查询，简单条件用分页），失败再回退到内存
+    function shouldUseIDB(): boolean {
+        return true;
+    }
+
+    function parseSort(): { orderBy: 'updatedAt' | 'createdAt' | 'id' | 'title'; order: 'asc' | 'desc' } | null {
+        const sortVal = (sortSelect?.value || 'updatedAt_desc');
+        if (sortVal.startsWith('updatedAt_')) {
+            return { orderBy: 'updatedAt', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
+        }
+        if (sortVal.startsWith('createdAt_')) {
+            return { orderBy: 'createdAt', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
+        }
+        if (sortVal.startsWith('id_')) {
+            return { orderBy: 'id', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
+        }
+        if (sortVal.startsWith('title_')) {
+            return { orderBy: 'title', order: sortVal.endsWith('_asc') ? 'asc' : 'desc' };
+        }
+        return null;
+    }
+
+    async function renderServerPage(): Promise<void> {
+        try {
+            serverModeActive = true;
+            const sort = parseSort();
+            const searchTerm = (searchInput?.value || '').trim();
+            const hasTags = selectedTags.size > 0;
+            const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
+            const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
+
+            try { videoList.innerHTML = '<li class="empty-list">加载中...</li>'; } catch {}
+
+            let items: VideoRecord[] = [];
+            let total = 0;
+
+            // 复杂条件或按 id/title 排序 -> 后台查询
+            if (searchTerm || hasTags || adv.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
+                const queryParams: ViewedQueryParams = {
+                    search: searchTerm || undefined,
+                    status: statusVal,
+                    tags: Array.from(selectedTags),
+                    orderBy: sort ? sort.orderBy : 'updatedAt',
+                    order: sort ? sort.order : 'desc',
+                    offset: (currentPage - 1) * recordsPerPage,
+                    limit: recordsPerPage,
+                    adv,
+                };
+                const resp = await dbViewedQuery(queryParams);
+                items = resp.items || [];
+                total = resp.total || 0;
+            } else {
+                // 简单条件 -> 高效分页
+                const params: ViewedPageParams = {
+                    offset: (currentPage - 1) * recordsPerPage,
+                    limit: recordsPerPage,
+                    orderBy: sort.orderBy,
+                    order: sort.order,
+                } as ViewedPageParams;
+                if (statusVal !== 'all') (params as any).status = statusVal;
+                const resp = await dbViewedPage(params);
+                items = resp.items || [];
+                total = resp.total || 0;
+            }
+
+            serverPageItems = Array.isArray(items) ? items : [];
+            serverTotal = Number.isFinite(total) ? total : 0;
+            renderVideoList();
+            renderPagination();
+        } catch (e) {
+            console.warn('[RecordsTab] IDB 查询/分页失败', e);
+            // 不回退本地模式，仅提示错误，保留当前 UI 状态
+            try { videoList.innerHTML = '<li class="empty-list">加载失败：IndexedDB 查询异常，请稍后重试</li>'; } catch {}
+            showMessage('IDB 查询失败，请稍后重试', 'error');
+        }
+    }
 
     function updateFilteredRecords() {
         try {
@@ -379,19 +460,15 @@ export function initRecordsTab(): void {
         try {
             videoList.innerHTML = '';
 
-            // 确保 filteredRecords 是数组
-            if (!Array.isArray(filteredRecords)) {
-                console.warn('filteredRecords 不是数组:', filteredRecords);
-                filteredRecords = [];
-            }
+            const sourceRecords = serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []);
 
-            if (filteredRecords.length === 0) {
+            if (sourceRecords.length === 0) {
                 videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
                 return;
             }
 
-            const startIndex = (currentPage - 1) * recordsPerPage;
-            const recordsToRender = filteredRecords.slice(startIndex, startIndex + recordsPerPage);
+            const startIndex = serverModeActive ? 0 : (currentPage - 1) * recordsPerPage;
+            const recordsToRender = serverModeActive ? sourceRecords : sourceRecords.slice(startIndex, startIndex + recordsPerPage);
 
             // 确保 recordsToRender 是数组
             if (!Array.isArray(recordsToRender)) {
@@ -537,25 +614,14 @@ export function initRecordsTab(): void {
                             message: `确定要删除记录 "${record.id}" 吗？\n\n标题: ${record.title}\n状态: ${record.status}\n\n此操作不可撤销！`,
                             onConfirm: async () => {
                                 try {
-                                    // 从STATE中删除记录
+                                    await dbViewedDelete(record.id);
+                                    // 从内存中移除并更新选择集
                                     const recordIndex = STATE.records.findIndex(r => r.id === record.id);
-                                    if (recordIndex !== -1) {
-                                        STATE.records.splice(recordIndex, 1);
-
-                                        // 保存到存储
-                                        const recordsData = STATE.records.reduce((acc, record) => {
-                                            acc[record.id] = record;
-                                            return acc;
-                                        }, {} as Record<string, VideoRecord>);
-
-                                        await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: recordsData });
-
-                                        // 更新显示
-                                        updateFilteredRecords();
-                                        render();
-
-                                        showMessage(`记录 "${record.id}" 已删除`, 'success');
-                                    }
+                                    if (recordIndex !== -1) STATE.records.splice(recordIndex, 1);
+                                    selectedRecords.delete(record.id);
+                                    // 重新渲染（服务端分页/查询会刷新）
+                                    render();
+                                    showMessage(`记录 "${record.id}" 已删除`, 'success');
                                 } catch (error: any) {
                                     console.error('删除记录时出错:', error);
                                     showMessage(`删除记录失败: ${error.message}`, 'error');
@@ -639,7 +705,7 @@ export function initRecordsTab(): void {
                             tooltipContent.className = 'image-tooltip-content';
 
                             const img = document.createElement('img');
-                            img.src = record.javdbImage;
+                            img.src = record.javdbImage ?? chrome.runtime.getURL('assets/alternate-search.png');
                             img.alt = String(record.title || '');
                             img.style.opacity = '0';
 
@@ -750,7 +816,8 @@ export function initRecordsTab(): void {
 
     function renderPagination() {
         paginationContainer.innerHTML = '';
-        const pageCount = Math.ceil(filteredRecords.length / recordsPerPage);
+        const totalCount = serverModeActive ? serverTotal : filteredRecords.length;
+        const pageCount = Math.ceil(totalCount / recordsPerPage);
         if (pageCount <= 1) return;
         const goToPage = (page: number) => {
             if (page < 1 || page > pageCount) return;
@@ -818,27 +885,63 @@ export function initRecordsTab(): void {
     }
 
     function render() {
+        const useIDB = shouldUseIDB();
+        serverModeActive = useIDB;
+        if (useIDB) {
+            try { videoList.innerHTML = '<li class="empty-list">加载中...</li>'; } catch {}
+            renderServerPage().finally(() => updateStats());
+            return;
+        }
+        updateFilteredRecords();
         renderVideoList();
         renderPagination();
         updateStats();
     }
 
-    function updateStats() {
+    async function updateStats() {
         const statsContainer = document.getElementById('recordsStatsContainer');
         if (!statsContainer) return;
 
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-        const stats = {
-            total: STATE.records.length,
-            viewed: STATE.records.filter(r => r.status === 'viewed').length,
-            browsed: STATE.records.filter(r => r.status === 'browsed').length,
-            want: STATE.records.filter(r => r.status === 'want').length,
-            thisWeek: STATE.records.filter(r => new Date(r.createdAt) >= oneWeekAgo).length,
-            thisMonth: STATE.records.filter(r => new Date(r.createdAt) >= oneMonthAgo).length
-        };
+        // 在 IDB 模式优先使用后端统计，更准确更快；否则回退到内存
+        let stats: { total: number; viewed: number; browsed: number; want: number; thisWeek: number; thisMonth: number };
+        if (serverModeActive) {
+            try {
+                const s: ViewedStats = await dbViewedStats();
+                stats = {
+                    total: s.total || 0,
+                    viewed: (s.byStatus?.viewed as any) ?? 0,
+                    browsed: (s.byStatus?.browsed as any) ?? 0,
+                    want: (s.byStatus?.want as any) ?? 0,
+                    thisWeek: s.last7Days || 0,
+                    thisMonth: s.last30Days || 0,
+                };
+            } catch {
+                // 回退：内存统计
+                const now = new Date();
+                const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                stats = {
+                    total: STATE.records.length,
+                    viewed: STATE.records.filter(r => r.status === 'viewed').length,
+                    browsed: STATE.records.filter(r => r.status === 'browsed').length,
+                    want: STATE.records.filter(r => r.status === 'want').length,
+                    thisWeek: STATE.records.filter(r => r.createdAt && r.createdAt >= oneWeekAgo.getTime()).length,
+                    thisMonth: STATE.records.filter(r => r.createdAt && r.createdAt >= oneMonthAgo.getTime()).length
+                };
+            }
+        } else {
+            const now = new Date();
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            stats = {
+                total: STATE.records.length,
+                viewed: STATE.records.filter(r => r.status === 'viewed').length,
+                browsed: STATE.records.filter(r => r.status === 'browsed').length,
+                want: STATE.records.filter(r => r.status === 'want').length,
+                thisWeek: STATE.records.filter(r => r.createdAt && r.createdAt >= oneWeekAgo.getTime()).length,
+                thisMonth: STATE.records.filter(r => r.createdAt && r.createdAt >= oneMonthAgo.getTime()).length
+            };
+        }
 
         statsContainer.innerHTML = `
             <div class="stat-card new-works-stat">
@@ -1263,49 +1366,39 @@ export function initRecordsTab(): void {
                 const originalId = record.id;
                 const newId = updatedRecord.id.trim();
 
-                // 检查ID是否发生变化
+                // 如果 ID 发生变化，先删除旧记录
                 if (originalId !== newId) {
-                    // ID发生变化，需要删除原记录并创建新记录
-
                     // 检查新ID是否已存在
                     const existingRecord = STATE.records.find(r => r.id === newId);
                     if (existingRecord) {
                         showMessage(`ID "${newId}" 已存在，请使用其他ID`, 'error');
                         return;
                     }
+                    try { await dbViewedDelete(originalId); } catch {}
+                }
 
-                    // 删除原记录
-                    const originalIndex = STATE.records.findIndex(r => r.id === originalId);
-                    if (originalIndex !== -1) {
-                        STATE.records.splice(originalIndex, 1);
-                    }
+                // 写入（或更新）新记录
+                await dbViewedPut(updatedRecord);
 
-                    // 添加新记录
+                // 同步内存
+                const idx = STATE.records.findIndex(r => r.id === originalId);
+                if (idx !== -1) {
+                    STATE.records.splice(idx, 1, updatedRecord);
+                } else {
                     STATE.records.push(updatedRecord);
-
+                }
+                if (originalId !== newId) {
+                    // 确保移除旧 id 的残留
+                    for (let i = STATE.records.length - 1; i >= 0; i--) {
+                        if (STATE.records[i].id === originalId) STATE.records.splice(i, 1);
+                    }
                     showMessage(`记录ID从 "${originalId}" 更改为 "${newId}"`, 'success');
                 } else {
-                    // ID没有变化，直接更新记录
-                    const recordIndex = STATE.records.findIndex(r => r.id === originalId);
-                    if (recordIndex !== -1) {
-                        STATE.records[recordIndex] = updatedRecord;
-                    }
-
                     showMessage(`记录 "${updatedRecord.id}" 已更新`, 'success');
                 }
 
-                // 保存到存储
-                const recordsData = STATE.records.reduce((acc, record) => {
-                    acc[record.id] = record;
-                    return acc;
-                }, {} as Record<string, VideoRecord>);
-
-                await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: recordsData });
-
-                // 更新显示
-                updateFilteredRecords();
+                // 刷新视图
                 render();
-
                 closeModal();
             } catch (error: any) {
                 console.error('保存记录时出错:', error);
@@ -1336,18 +1429,16 @@ export function initRecordsTab(): void {
         const isChecked = selectAllCheckbox.checked;
 
         if (isChecked) {
-            // 选择当前页面的所有记录
-            const currentRecords = filteredRecords.slice(
-                (currentPage - 1) * recordsPerPage,
-                currentPage * recordsPerPage
-            );
+            // 选择当前页面的所有记录（IDB 分页或内存分页）
+            const currentRecords = serverModeActive
+                ? serverPageItems
+                : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
             currentRecords.forEach(record => selectedRecords.add(record.id));
         } else {
-            // 取消选择当前页面的所有记录
-            const currentRecords = filteredRecords.slice(
-                (currentPage - 1) * recordsPerPage,
-                currentPage * recordsPerPage
-            );
+            // 取消选择当前页面的所有记录（IDB 分页或内存分页）
+            const currentRecords = serverModeActive
+                ? serverPageItems
+                : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
             currentRecords.forEach(record => selectedRecords.delete(record.id));
         }
 
@@ -1392,11 +1483,10 @@ export function initRecordsTab(): void {
         batchRefreshBtn.disabled = count === 0;
         batchDeleteBtn.disabled = count === 0;
 
-        // 更新全选复选框状态
-        const currentRecords = filteredRecords.slice(
-            (currentPage - 1) * recordsPerPage,
-            currentPage * recordsPerPage
-        );
+        // 更新全选复选框状态（IDB 分页或内存分页）
+        const currentRecords = serverModeActive
+            ? serverPageItems
+            : filteredRecords.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
         const currentSelectedCount = currentRecords.filter(record => selectedRecords.has(record.id)).length;
 
         if (currentSelectedCount === 0) {
@@ -1427,6 +1517,27 @@ export function initRecordsTab(): void {
                 performBatchRefresh(selectedIds);
             }
         );
+    }
+
+    // 辅助函数
+    async function refreshSingleRecord(recordId: string): Promise<void> {
+        // 发送消息到 background script 刷新单个记录
+        return new Promise((resolve, reject) => {
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'refresh-record',
+                    videoId: recordId,
+                }, (response) => {
+                    if (response?.success) {
+                        resolve();
+                    } else {
+                        reject(new Error(response?.error || '刷新失败'));
+                    }
+                });
+            } catch (e: any) {
+                reject(new Error(e?.message || '刷新失败'));
+            }
+        });
     }
 
     async function performBatchRefresh(selectedIds: string[]) {
@@ -1496,36 +1607,26 @@ export function initRecordsTab(): void {
     }
 
     async function performBatchDelete(selectedIds: string[]) {
-
         try {
-            const recordsData = await chrome.storage.local.get(STORAGE_KEYS.VIEWED_RECORDS);
-            const records = recordsData[STORAGE_KEYS.VIEWED_RECORDS] || {};
+            await dbViewedBulkDelete(selectedIds);
 
-            // 删除选中的记录
-            selectedIds.forEach(id => {
-                delete records[id];
-            });
+            // 更新内存中的 STATE.records
+            const idSet = new Set(selectedIds);
+            if (Array.isArray(STATE.records)) {
+                STATE.records = STATE.records.filter(r => !idSet.has(r.id));
+            } else {
+                STATE.records = [];
+            }
 
-            await chrome.storage.local.set({ [STORAGE_KEYS.VIEWED_RECORDS]: records });
-
-            // 清空选择
+            // 清空选择并刷新
             selectedRecords.clear();
-
-            // 重新加载数据并刷新显示
-            await reloadRecordsData();
-            updateFilteredRecords();
             render();
             updateBatchUI();
-
             showMessage(`成功删除了 ${selectedIds.length} 个视频记录！`, 'success');
-
         } catch (error: any) {
             console.error('批量删除失败:', error);
             showMessage(`批量删除失败: ${error.message}`, 'error');
-
-            // 即使失败也要重新加载数据并刷新列表
-            await reloadRecordsData();
-            updateFilteredRecords();
+            // 尝试刷新视图以保持同步
             render();
             updateBatchUI();
         }
@@ -1587,48 +1688,6 @@ export function initRecordsTab(): void {
             }
         };
         document.addEventListener('keydown', handleKeydown);
-    }
-
-    // 重新加载数据
-    async function reloadRecordsData() {
-        try {
-            const recordsData = await chrome.storage.local.get(STORAGE_KEYS.VIEWED_RECORDS);
-            const records = recordsData[STORAGE_KEYS.VIEWED_RECORDS] || {};
-
-            // 更新STATE.records
-            if (records && typeof records === 'object') {
-                STATE.records = Object.values(records);
-            } else {
-                STATE.records = [];
-            }
-
-            // 确保 STATE.records 是数组
-            if (!Array.isArray(STATE.records)) {
-                STATE.records = [];
-            }
-
-            console.log(`重新加载了 ${STATE.records.length} 条记录`);
-        } catch (error) {
-            console.error('重新加载记录数据失败:', error);
-            showMessage('重新加载数据失败', 'error');
-        }
-    }
-
-    // 辅助函数
-    async function refreshSingleRecord(recordId: string): Promise<void> {
-        // 发送消息到background script刷新单个记录
-        return new Promise((resolve, reject) => {
-            chrome.runtime.sendMessage({
-                type: 'refresh-record',
-                videoId: recordId
-            }, (response) => {
-                if (response?.success) {
-                    resolve();
-                } else {
-                    reject(new Error(response?.error || '刷新失败'));
-                }
-            });
-        });
     }
 
     function showBatchProgress(title: string, total: number): HTMLElement {

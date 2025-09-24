@@ -114,7 +114,7 @@ import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic'
 import { newWorksScheduler } from '../services/newWorks';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import JSZip from 'jszip';
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON } from './db';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON } from './db';
 
 // console.log('[Background] Service Worker starting up or waking up.');
 
@@ -200,6 +200,19 @@ ensureIDBMigrated();
 // Best-effort: 清理过期的磁链缓存
 try { idbMagnetsClearExpired(Date.now()).catch(() => {}); } catch {}
 
+// 定时清理过期的磁链缓存（chrome.alarms）
+try {
+  if (typeof chrome !== 'undefined' && chrome.alarms) {
+    // 每 12 小时触发一次，名称固定，重复创建会覆盖
+    chrome.alarms.create('MAGNETS_CLEAN_EXPIRED', { periodInMinutes: 720 });
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm?.name === 'MAGNETS_CLEAN_EXPIRED') {
+        try { idbMagnetsClearExpired(Date.now()).catch(() => {}); } catch {}
+      }
+    });
+  }
+} catch {}
+
 try {
   chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse): boolean | void => {
     if (!message || typeof message !== 'object') return false;
@@ -234,9 +247,32 @@ try {
         .catch((e) => sendResponse({ success: false, error: e?.message || 'idb page failed' }));
       return true;
     }
+    if (message.type === 'DB:VIEWED_QUERY') {
+      const payload = message?.payload || {};
+      idbViewedQuery(payload).then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb query failed' }));
+      return true;
+    }
     if (message.type === 'DB:VIEWED_EXPORT') {
       idbViewedExportJSON().then((json) => sendResponse({ success: true, json }))
         .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed export failed' }));
+      return true;
+    }
+    if (message.type === 'DB:VIEWED_STATS') {
+      idbViewedStats().then((data) => sendResponse({ success: true, ...data }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed stats failed' }));
+      return true;
+    }
+    if (message.type === 'DB:VIEWED_DELETE') {
+      const id = message?.payload?.id;
+      idbViewedDelete(id).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed delete failed' }));
+      return true;
+    }
+    if (message.type === 'DB:VIEWED_BULK_DELETE') {
+      const ids = message?.payload?.ids || [];
+      idbViewedBulkDelete(ids).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e?.message || 'idb viewed bulk delete failed' }));
       return true;
     }
     if (message.type === 'DB:LOGS_ADD') {
