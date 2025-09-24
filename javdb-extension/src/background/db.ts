@@ -12,6 +12,129 @@ export interface PersistedLogEntry extends LogEntry {
   timestampISO?: string;  // 兼容保留
 }
 
+export interface ViewedQueryParams {
+  search?: string;
+  status?: VideoRecord['status'] | 'all';
+  tags?: string[];
+  orderBy?: 'updatedAt' | 'createdAt' | 'id' | 'title';
+  order?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
+  adv?: Array<{ field: string; op: string; value?: string }>;
+}
+
+export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }> {
+  const { search = '', status = 'all', tags = [], orderBy = 'updatedAt', order = 'desc', offset = 0, limit = 50 } = params || {} as any;
+  const db = await initDB();
+  const tx = db.transaction('viewedRecords');
+  const store = tx.store;
+
+  // 选用较优的游标来源
+  let source: any = store;
+  let range: IDBKeyRange | undefined = undefined;
+  const dir = order === 'asc' ? 'next' : 'prev';
+  if (orderBy === 'updatedAt' || orderBy === 'createdAt') {
+    if (status && status !== 'all') {
+      const idxName = orderBy === 'createdAt' ? 'by_status_createdAt' : 'by_status_updatedAt';
+      source = store.index(idxName as any);
+      // @ts-ignore
+      range = IDBKeyRange.bound([status, 0], [status, Number.MAX_SAFE_INTEGER]);
+    } else {
+      const idxName = orderBy === 'createdAt' ? 'by_createdAt' : 'by_updatedAt';
+      source = store.index(idxName as any);
+    }
+  } else if (status && status !== 'all') {
+    source = store.index('by_status');
+    // @ts-ignore
+    range = IDBKeyRange.only(status);
+  }
+
+  const lower = String(search || '').trim().toLowerCase();
+  const needTags = Array.isArray(tags) && tags.length > 0;
+  const adv = Array.isArray(params?.adv) ? params!.adv! : [];
+
+  const list: VideoRecord[] = [];
+  for (let cursor = await source.openCursor(range as any, dir); cursor; cursor = await cursor.continue()) {
+    const r = cursor.value as VideoRecord;
+    if (!r) continue;
+    if (status && status !== 'all' && r.status !== status) continue;
+    if (lower) {
+      const idS = (r.id || '').toLowerCase();
+      const titleS = (r.title || '').toLowerCase();
+      if (!idS.includes(lower) && !titleS.includes(lower)) continue;
+    }
+    if (needTags) {
+      const arr = Array.isArray(r.tags) ? r.tags : [];
+      if (!tags.every(t => arr.includes(t))) continue;
+    }
+    if (adv.length > 0 && !matchAdvBasic(r, adv)) continue;
+    list.push(r);
+  }
+
+  // 需要时进行二次排序
+  if (orderBy === 'id' || orderBy === 'title') {
+    list.sort((a, b) => {
+      const av = String((orderBy === 'id' ? a.id : a.title) || '');
+      const bv = String((orderBy === 'id' ? b.id : b.title) || '');
+      return order === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
+
+  const total = list.length;
+  const items = list.slice(offset, offset + limit);
+  return { items, total };
+}
+
+function matchAdvBasic(r: VideoRecord, adv: Array<{ field: string; op: string; value?: string }>): boolean {
+  const get = (k: string): any => {
+    switch (k) {
+      case 'id': return r.id || '';
+      case 'title': return r.title || '';
+      case 'status': return r.status || '';
+      case 'tags': return Array.isArray(r.tags) ? r.tags : [];
+      case 'releaseDate': return r.releaseDate || '';
+      case 'createdAt': return r.createdAt;
+      case 'updatedAt': return r.updatedAt;
+      case 'javdbUrl': return r.javdbUrl || '';
+      case 'javdbImage': return r.javdbImage || '';
+      default: return undefined;
+    }
+  };
+  for (const c of adv) {
+    const v = get(c.field);
+    const op = c.op;
+    const val = c.value;
+    if (op === 'empty') { if (!(v == null || (Array.isArray(v) ? v.length === 0 : String(v) === ''))) return false; continue; }
+    if (op === 'not_empty') { if (v == null || (Array.isArray(v) ? v.length === 0 : String(v) === '')) return false; continue; }
+    if (op === 'contains') { if (!String(v ?? '').includes(String(val ?? ''))) return false; continue; }
+    if (op === 'equals') { if (!(String(v ?? '') === String(val ?? ''))) return false; continue; }
+    if (op === 'starts_with') { if (!String(v ?? '').startsWith(String(val ?? ''))) return false; continue; }
+    if (op === 'ends_with') { if (!String(v ?? '').endsWith(String(val ?? ''))) return false; continue; }
+    if (op === 'includes') { const arr = Array.isArray(v) ? v : []; if (!arr.includes(String(val ?? ''))) return false; continue; }
+    // 数组长度比较（如 tags 长度）
+    if (op === 'length_eq' || op === 'length_gt' || op === 'length_gte' || op === 'length_lt') {
+      const arr = Array.isArray(v) ? v : [];
+      const cmp = Number(val);
+      if (Number.isNaN(cmp)) return false;
+      if (op === 'length_eq' && !(arr.length === cmp)) return false;
+      if (op === 'length_gt' && !(arr.length > cmp)) return false;
+      if (op === 'length_gte' && !(arr.length >= cmp)) return false;
+      if (op === 'length_lt' && !(arr.length < cmp)) return false;
+      continue;
+    }
+    // 数值比较
+    const num = Number(v);
+    const cmp = Number(val);
+    if (!Number.isNaN(num) && !Number.isNaN(cmp)) {
+      if (op === 'gt' && !(num > cmp)) return false;
+      if (op === 'gte' && !(num >= cmp)) return false;
+      if (op === 'lt' && !(num < cmp)) return false;
+      if (op === 'lte' && !(num <= cmp)) return false;
+      if (op === 'eq' && !(num === cmp)) return false;
+    }
+  }
+  return true;
+}
 // 磁链缓存记录
 export interface MagnetCacheRecord {
   key: string;           // 复合键：videoId|source|hash
@@ -38,6 +161,8 @@ interface JavdbDB extends DBSchema {
       by_status: string;
       by_updatedAt: number;
       by_createdAt: number;
+      by_status_updatedAt: [string, number];
+      by_status_createdAt: [string, number];
     };
   };
   logs: {
@@ -78,14 +203,14 @@ interface JavdbDB extends DBSchema {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
 export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
   if (!dbPromise) {
     dbPromise = openDB<JavdbDB>(DB_NAME, DB_VERSION, {
-      upgrade(db: IDBPDatabase<JavdbDB>, oldVersion: number) {
+      upgrade(db: IDBPDatabase<JavdbDB>, oldVersion: number, _newVersion: number, tx: any) {
         // v1 -> 初始化 viewedRecords
         if (oldVersion < 1) {
           const store = db.createObjectStore('viewedRecords', { keyPath: 'id' });
@@ -117,6 +242,14 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
           mg.createIndex('by_source', 'source');
           mg.createIndex('by_createdAt', 'createdAt');
           mg.createIndex('by_expireAt', 'expireAt');
+        }
+        // v3 -> 为 viewedRecords 增加复合索引：status+updatedAt / status+createdAt
+        if (oldVersion < 3) {
+          try {
+            const store = tx.objectStore('viewedRecords');
+            try { store.createIndex('by_status_updatedAt', ['status', 'updatedAt']); } catch {}
+            try { store.createIndex('by_status_createdAt', ['status', 'createdAt']); } catch {}
+          } catch {}
         }
       }
     });
@@ -151,6 +284,26 @@ export async function viewedGet(videoId: string): Promise<VideoRecord | undefine
   return db.get('viewedRecords', videoId);
 }
 
+export async function viewedDelete(videoId: string): Promise<void> {
+  const db = await initDB();
+  await db.delete('viewedRecords', videoId);
+}
+
+export async function viewedBulkDelete(videoIds: string[]): Promise<void> {
+  if (!videoIds || videoIds.length === 0) return;
+  const db = await initDB();
+  const tx = db.transaction('viewedRecords', 'readwrite');
+  try {
+    for (const id of videoIds) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
 export async function viewedCount(): Promise<number> {
   const db = await initDB();
   return db.count('viewedRecords');
@@ -183,13 +336,31 @@ export async function viewedPage(params: ViewedPageParams): Promise<{ items: Vid
   let items: VideoRecord[] = [];
   let total = 0;
   if (status) {
-    // 先按状态取全量，再内存排序与分页（简单可用，后续可加复合索引优化）
-    const idx = db.transaction('viewedRecords').store.index('by_status');
+    // 使用复合索引高效分页
+    const indexName = orderBy === 'createdAt' ? 'by_status_createdAt' : 'by_status_updatedAt';
+    const dir = order === 'asc' ? 'next' : 'prev';
+    const tx = db.transaction('viewedRecords');
+    const idx = tx.store.index(indexName as any);
+    const lower: [string, number] = [status as any, 0];
+    const upper: [string, number] = [status as any, Number.MAX_SAFE_INTEGER];
     // @ts-ignore
-    const all = await idx.getAll(IDBKeyRange.only(status));
-    total = all.length;
-    all.sort((a, b) => order === 'asc' ? (a[orderBy] - b[orderBy]) : (b[orderBy] - a[orderBy]));
-    items = all.slice(offset, offset + limit);
+    const range = IDBKeyRange.bound(lower as any, upper as any);
+    // total（按范围计数）
+    try {
+      // @ts-ignore
+      total = await idx.count(range as any);
+    } catch { total = 0; }
+
+    let skipped = 0;
+    let collected = 0;
+    items = [];
+    // @ts-ignore
+    for (let cursor = await idx.openCursor(range as any, dir); cursor; cursor = await cursor.continue()) {
+      if (skipped < offset) { skipped++; continue; }
+      items.push(cursor.value as VideoRecord);
+      collected++;
+      if (collected >= limit) break;
+    }
   } else {
     // 直接用时间索引分页
     const indexName = orderBy === 'createdAt' ? 'by_createdAt' : 'by_updatedAt';
@@ -208,6 +379,44 @@ export async function viewedPage(params: ViewedPageParams): Promise<{ items: Vid
     total = await tx.store.count();
   }
   return { items, total };
+}
+
+// ----- viewed stats -----
+export interface ViewedStats {
+  total: number;
+  byStatus: Record<string, number>;
+  last7Days: number;
+  last30Days: number;
+}
+
+export async function viewedStats(): Promise<ViewedStats> {
+  const db = await initDB();
+  const tx = db.transaction('viewedRecords');
+  const store = tx.store;
+  const idxStatus = store.index('by_status');
+  const idxCreated = store.index('by_createdAt');
+
+  const total = await store.count();
+
+  let viewed = 0, browsed = 0, want = 0;
+  try { /* @ts-ignore */ viewed = await idxStatus.count(IDBKeyRange.only('viewed')); } catch {}
+  try { /* @ts-ignore */ browsed = await idxStatus.count(IDBKeyRange.only('browsed')); } catch {}
+  try { /* @ts-ignore */ want = await idxStatus.count(IDBKeyRange.only('want')); } catch {}
+
+  const now = Date.now();
+  const last7 = now - 7 * 24 * 60 * 60 * 1000;
+  const last30 = now - 30 * 24 * 60 * 60 * 1000;
+  let last7Days = 0;
+  let last30Days = 0;
+  try { /* @ts-ignore */ last7Days = await idxCreated.count(IDBKeyRange.lowerBound(last7)); } catch {}
+  try { /* @ts-ignore */ last30Days = await idxCreated.count(IDBKeyRange.lowerBound(last30)); } catch {}
+
+  return {
+    total,
+    byStatus: { viewed, browsed, want },
+    last7Days,
+    last30Days,
+  };
 }
 
 // ----- logs API -----
@@ -249,15 +458,19 @@ export async function logsBulkAdd(entries: LogEntry[]): Promise<void> {
 
 export interface LogsQueryParams {
   level?: LogEntry['level'];
+  minLevel?: LogEntry['level'] | 'OFF';
   fromMs?: number;
   toMs?: number;
   offset?: number;
   limit?: number;
   order?: 'asc' | 'desc';
+  query?: string;
+  hasDataOnly?: boolean;
+  source?: 'ALL' | 'GENERAL' | 'DRIVE115';
 }
 
 export async function logsQuery(params: LogsQueryParams): Promise<{ items: PersistedLogEntry[]; total: number; }> {
-  const { level, fromMs, toMs, offset = 0, limit = 100, order = 'desc' } = params || {} as any;
+  const { level, minLevel, fromMs, toMs, offset = 0, limit = 100, order = 'desc', query = '', hasDataOnly = false, source = 'ALL' } = params || {} as any;
   const db = await initDB();
   const idx = db.transaction('logs').store.index('by_timestamp');
   let range: IDBKeyRange | undefined = undefined;
@@ -266,25 +479,54 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
   else if (toMs != null) range = IDBKeyRange.upperBound(toMs);
   const dir = order === 'asc' ? 'next' : 'prev';
 
-  // total（按范围计数）
-  let total = 0;
-  try {
-    // @ts-ignore
-    total = await idx.count(range as any);
-  } catch {
-    total = 0;
-  }
-
   const items: PersistedLogEntry[] = [];
   let skipped = 0;
   let collected = 0;
+  const q = String(query || '').trim().toLowerCase();
+  const deriveSource = (msg: string): 'DRIVE115' | 'GENERAL' => {
+    const m = String(msg || '');
+    if (/\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+    return 'GENERAL';
+  };
+  const rank = (lv: LogEntry['level']) => {
+    switch (lv) {
+      case 'DEBUG': return 0;
+      case 'INFO': return 1;
+      case 'WARN': return 2;
+      case 'ERROR': return 3;
+      default: return 0;
+    }
+  };
+  const minRank = ((): number | null => {
+    if (!minLevel) return null;
+    if (minLevel === 'OFF') return Infinity; // OFF: 不显示任何
+    return rank(minLevel as LogEntry['level']);
+  })();
+
+  let total = 0; // 过滤后的总数
   for (let cursor = await idx.openCursor(range as any, dir); cursor; cursor = await cursor.continue()) {
     const v = cursor.value as PersistedLogEntry;
     if (level && v.level !== level) continue;
+    if (minRank != null && minRank !== Infinity && rank(v.level as any) < minRank) continue;
+    if (minRank === Infinity) continue; // OFF
+    if (hasDataOnly && !v.data) continue;
+    if (q) {
+      const inMsg = String(v.message || '').toLowerCase().includes(q);
+      let inData = false;
+      try { inData = v.data ? JSON.stringify(v.data).toLowerCase().includes(q) : false; } catch { inData = false; }
+      if (!inMsg && !inData) continue;
+    }
+    if (source && source !== 'ALL') {
+      const s = deriveSource(String(v.message || ''));
+      if (s !== source) continue;
+    }
+    // 通过过滤
+    total++;
     if (skipped < offset) { skipped++; continue; }
-    items.push(v);
-    collected++;
-    if (collected >= limit) break;
+    if (collected < limit) {
+      items.push(v);
+      collected++;
+    }
   }
   return { items, total };
 }

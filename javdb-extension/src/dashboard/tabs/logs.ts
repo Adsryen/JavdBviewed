@@ -1,10 +1,8 @@
 import { STATE } from '../state';
 import { showMessage } from '../ui/toast';
-import { getValue, setValue } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../utils/config';
 import { log } from '../../utils/logController';
 import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
-import { dbLogsQuery, dbLogsClear, type LogsQueryParams } from '../dbClient';
+import { dbLogsQuery, dbLogsClear, dbLogsExport, type LogsQueryParams } from '../dbClient';
 
 /**
  * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
@@ -56,6 +54,7 @@ export class LogsTab {
     private logHasDataOnlyCheckbox!: HTMLInputElement;
     private refreshButton!: HTMLButtonElement;
     private clearButton!: HTMLButtonElement;
+    private exportButton!: HTMLButtonElement;
     private logBody!: HTMLDivElement;
     private consoleLogBody!: HTMLDivElement;
     private logViewExtBtn!: HTMLButtonElement;
@@ -110,6 +109,24 @@ export class LogsTab {
         this.logHasDataOnlyCheckbox = document.getElementById('log-has-data-only') as HTMLInputElement;
         this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
         this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
+        // 尝试获取已存在的“导出”按钮；如无则动态创建并插入到“清空”按钮旁
+        this.exportButton = document.getElementById('export-logs-button') as HTMLButtonElement;
+        if (!this.exportButton) {
+            try {
+                const btn = document.createElement('button');
+                btn.id = 'export-logs-button';
+                btn.className = 'button is-light';
+                btn.textContent = '导出';
+                if (this.clearButton && this.clearButton.parentElement) {
+                    this.clearButton.parentElement.insertBefore(btn, this.clearButton.nextSibling);
+                } else if (this.refreshButton && this.refreshButton.parentElement) {
+                    this.refreshButton.parentElement.appendChild(btn);
+                } else if (this.logsPaginationEl) {
+                    this.logsPaginationEl.appendChild(btn);
+                }
+                this.exportButton = btn as HTMLButtonElement;
+            } catch {}
+        }
         this.logBody = document.getElementById('log-body') as HTMLDivElement;
         this.consoleLogBody = document.getElementById('console-log-body') as HTMLDivElement;
         this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
@@ -260,6 +277,31 @@ export class LogsTab {
             this.clearLogs();
         });
 
+        // 导出日志
+        this.exportButton?.addEventListener('click', async () => {
+            try {
+                this.exportButton.disabled = true;
+                this.exportButton.textContent = '导出中...';
+                const json = await dbLogsExport();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `javdb-logs-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showMessage('日志已导出', 'success');
+            } catch (e) {
+                console.error('[LogsTab] 导出日志失败', e);
+                showMessage('导出日志失败', 'error');
+            } finally {
+                this.exportButton.disabled = false;
+                this.exportButton.textContent = '导出';
+            }
+        });
+
         // 设置联动过滤按钮
         this.applySettingsFilterBtn?.addEventListener('click', () => {
             this.applySettingsFilterFromState();
@@ -300,155 +342,9 @@ export class LogsTab {
      * 加载日志数据
      */
     private async loadLogs(): Promise<void> {
-        try {
-            // 从STATE获取日志数据
-            this.logs = STATE.logs || [];
-
-            // 如果STATE中没有数据，尝试从存储中加载（兼容老数据；后续会逐步改为直接分页读取 IDB）
-            if (this.logs.length === 0) {
-                const storedLogs = await getValue<LogEntry[]>(STORAGE_KEYS.LOGS, []);
-                this.logs = Array.isArray(storedLogs) ? storedLogs : [];
-
-                // 如果还是没有数据，创建一些示例日志
-                if (this.logs.length === 0) {
-                    this.logs = this.createSampleLogs();
-                    // 保存示例日志到存储
-                    await setValue(STORAGE_KEYS.LOGS, this.logs);
-                }
-
-                // 更新STATE
-                STATE.logs = this.logs;
-            }
-
-            console.log(`[LogsTab] 加载了 ${this.logs.length} 条日志`);
-        } catch (error) {
-            console.error('加载日志数据失败:', error);
-            this.logs = [];
-        }
-    }
-
-    /**
-     * 创建示例日志数据
-     */
-    private createSampleLogs(): LogEntry[] {
-        const now = new Date();
-        return [
-            {
-                timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
-                level: 'INFO',
-                message: '扩展初始化完成',
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 9 * 60 * 1000).toISOString(),
-                level: 'DEBUG',
-                message: '开始加载用户设置',
-                data: {
-                    settingsVersion: '1.13.356',
-                    loadTime: '45ms',
-                    cacheHit: true
-                },
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 8 * 60 * 1000).toISOString(),
-                level: 'INFO',
-                message: '[115] 网盘服务连接成功',
-                data: {
-                    endpoint: 'https://115.com/api',
-                    responseTime: '120ms',
-                    userAgent: 'JavHelper/1.13.356'
-                },
-                source: 'DRIVE115'
-            },
-            {
-                timestamp: new Date(now.getTime() - 7 * 60 * 1000).toISOString(),
-                level: 'WARN',
-                message: '检测到重复的视频记录，已自动合并',
-                data: {
-                    duplicateCount: 3,
-                    mergedRecords: ['ABC-123', 'DEF-456', 'GHI-789'],
-                    action: 'auto_merge'
-                },
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 6 * 60 * 1000).toISOString(),
-                level: 'ERROR',
-                message: '网络请求失败，正在重试',
-                data: {
-                    url: 'https://api.example.com/data',
-                    error: 'timeout',
-                    retryCount: 2,
-                    maxRetries: 3,
-                    nextRetryIn: '5s'
-                },
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
-                level: 'DEBUG',
-                message: '[115] 开始同步文件列表',
-                data: {
-                    totalFiles: 1250,
-                    syncedFiles: 0,
-                    estimatedTime: '2m 30s'
-                },
-                source: 'DRIVE115'
-            },
-            {
-                timestamp: new Date(now.getTime() - 4 * 60 * 1000).toISOString(),
-                level: 'INFO',
-                message: '用户配置已更新',
-                data: {
-                    changedSettings: ['autoSync', 'displayMode'],
-                    previousValues: { autoSync: false, displayMode: 'list' },
-                    newValues: { autoSync: true, displayMode: 'grid' }
-                },
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 3 * 60 * 1000).toISOString(),
-                level: 'WARN',
-                message: '[115] 部分文件同步失败',
-                data: {
-                    failedFiles: ['movie1.mp4', 'movie2.mkv'],
-                    reason: 'insufficient_permissions',
-                    suggestion: 'check_115_login_status'
-                },
-                source: 'DRIVE115'
-            },
-            {
-                timestamp: new Date(now.getTime() - 2 * 60 * 1000).toISOString(),
-                level: 'INFO',
-                message: '数据库优化完成',
-                data: {
-                    recordsProcessed: 5420,
-                    duplicatesRemoved: 12,
-                    optimizationTime: '1.2s',
-                    spaceSaved: '2.3MB'
-                },
-                source: 'GENERAL'
-            },
-            {
-                timestamp: new Date(now.getTime() - 1 * 60 * 1000).toISOString(),
-                level: 'ERROR',
-                message: '[115] 认证令牌已过期',
-                data: {
-                    tokenType: 'access_token',
-                    expiredAt: new Date(now.getTime() - 30 * 1000).toISOString(),
-                    autoRefresh: true,
-                    refreshStatus: 'in_progress'
-                },
-                source: 'DRIVE115'
-            },
-            {
-                timestamp: now.toISOString(),
-                level: 'INFO',
-                message: '日志系统初始化完成',
-                source: 'GENERAL'
-            }
-        ];
+        // 纯 IndexedDB 模式：不做预加载，延迟到 renderLogs 中查询
+        this.logs = [];
+        this.totalLogsCount = 0;
     }
 
     /**
@@ -491,14 +387,10 @@ export class LogsTab {
                 showMessage('控制台日志已清空', 'success');
             } else {
                 if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
-                // 优先清空 IndexedDB 中的日志
-                try { await dbLogsClear(); } catch (e) { console.warn('[LogsTab] 清空 IDB 日志失败，将清空本地存储', e); }
-                // 兼容：清空老的存储
-                await setValue(STORAGE_KEYS.LOGS, []);
-                // 清空内存中的日志
+                await dbLogsClear();
                 this.logs = [];
-                STATE.logs = [];
-                // 重新渲染
+                this.totalLogsCount = 0;
+                this.currentPage = 1;
                 this.renderLogs();
                 showMessage('日志已清空', 'success');
             }
@@ -542,25 +434,8 @@ export class LogsTab {
                 this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
               })
               .catch((e) => {
-                console.error('[LogsTab] 读取 IDB 日志失败，回退到本地存储：', e);
-                // 回退：按原逻辑处理（基于 STATE/logs）
-                const total = this.logs.length;
-                if (total === 0) {
-                    this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
-                    this.renderPagination(0, 0);
-                    this.updateCountText('扩展日志：已筛选 0 条（总计 0 条）');
-                    return;
-                }
-                const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
-                if (this.currentPage > totalPages) this.currentPage = totalPages;
-                const endIndex = total - (this.currentPage - 1) * this.pageSize;
-                const startIndex = Math.max(0, endIndex - this.pageSize);
-                const pageItemsAsc = this.logs.slice(startIndex, endIndex);
-                const pageItems = pageItemsAsc.reverse();
-                const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
-                this.logBody.innerHTML = logHtml;
-                this.renderPagination(this.currentPage, totalPages);
-                this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
+                console.error('[LogsTab] 读取 IDB 日志失败', e);
+                this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
               });
             return;
         }
@@ -584,23 +459,55 @@ export class LogsTab {
                 this.renderPagination(this.currentPage, totalPages);
                 this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
             }).catch((e) => {
-                console.warn('[LogsTab] IDB 按日期/等级查询失败，回退到内存过滤', e);
-                const filteredLogs = this.filterLogs();
-                this.renderFilteredLogs(filteredLogs);
+                console.warn('[LogsTab] IDB 按日期/等级查询失败', e);
+                this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
             });
             return;
         }
 
-        // 过滤日志（扩展日志，带条件，回退到内存过滤）
-        const filteredLogs = this.filterLogs();
-
-        if (filteredLogs.length === 0) {
-            this.logBody.innerHTML = '<div class="no-logs">暂无日志记录</div>';
-            this.renderPagination(0, 0);
-            return;
+        // 带条件查询：统一走 IDB 查询
+        this.logBody.innerHTML = '<div class="loading">加载中...</div>';
+        const offset = (this.currentPage - 1) * this.pageSize;
+        const limit = this.pageSize;
+        const params: LogsQueryParams = { offset, limit, order: 'desc' } as any;
+        // 搜索关键字
+        if ((this.currentSearchQuery || '').trim()) params.query = this.currentSearchQuery.trim();
+        // 日期范围
+        if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
+        if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
+        // 是否仅含详细数据
+        if (this.currentHasDataOnly) params.hasDataOnly = true;
+        // 等级过滤：设置联动 -> minLevel；否则精确等级
+        if (this.settingsFilterApplied) {
+            params.minLevel = this.settingsLevelThreshold as any;
+        } else if (this.currentLevelFilter !== 'ALL') {
+            params.level = this.currentLevelFilter as any;
         }
+        // 来源过滤
+        let src: 'ALL' | 'GENERAL' | 'DRIVE115' = 'ALL';
+        if (this.settingsFilterApplied && this.settingsAllowedSources) {
+            const has115 = this.settingsAllowedSources.has('DRIVE115');
+            const hasGen = this.settingsAllowedSources.has('GENERAL');
+            src = has115 && hasGen ? 'ALL' : (has115 ? 'DRIVE115' : (hasGen ? 'GENERAL' : 'ALL'));
+        } else {
+            const cur = String(this.currentSourceFilter || 'ALL').toUpperCase();
+            if (cur === 'DRIVE115' || cur === 'GENERAL') src = cur as any;
+        }
+        params.source = src;
 
-        this.renderFilteredLogs(filteredLogs);
+        dbLogsQuery(params).then(({ items, total }) => {
+            this.logs = Array.isArray(items) ? items : [];
+            this.totalLogsCount = Number.isFinite(total) ? total : 0;
+            const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            const logHtml = this.logs.map(l => this.createLogEntryHtml(l)).join('');
+            this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
+            this.renderPagination(this.currentPage, totalPages);
+            this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+        }).catch((e) => {
+            console.error('[LogsTab] IDB 查询失败', e);
+            this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
+        });
     }
 
     /**
@@ -714,53 +621,6 @@ export class LogsTab {
     }
 
     /**
-     * 过滤日志
-     */
-    private filterLogs(): LogEntry[] {
-        const query = this.currentSearchQuery.toLowerCase();
-        return this.logs.filter(log => {
-            // 等级过滤（支持设置阈值模式）
-            if (this.settingsFilterApplied) {
-                if (!this.levelPass(log.level, this.settingsLevelThreshold)) return false;
-            } else {
-                if (this.currentLevelFilter !== 'ALL' && log.level !== this.currentLevelFilter) return false;
-            }
-
-            // 来源过滤（支持设置类别映射）
-            if (this.settingsFilterApplied && this.settingsAllowedSources) {
-                const src = this.getLogSource(log);
-                if (!this.settingsAllowedSources.has(src)) return false;
-            } else {
-                if (this.currentSourceFilter !== 'ALL') {
-                    const logSource = this.getLogSource(log);
-                    if (logSource !== this.currentSourceFilter) return false;
-                }
-            }
-
-            // 是否仅含 data
-            if (this.currentHasDataOnly && !log.data) {
-                return false;
-            }
-
-            // 日期范围
-            if (this.currentStartDate || this.currentEndDate) {
-                const t = new Date(log.timestamp).getTime();
-                if (this.currentStartDate && t < this.currentStartDate.getTime()) return false;
-                if (this.currentEndDate && t > this.currentEndDate.getTime()) return false;
-            }
-
-            // 关键字搜索（消息与数据JSON）
-            if (query) {
-                const inMessage = (log.message || '').toLowerCase().includes(query);
-                const inData = log.data ? JSON.stringify(log.data).toLowerCase().includes(query) : false;
-                if (!inMessage && !inData) return false;
-            }
-
-            return true;
-        }).reverse(); // 最新的日志在前面
-    }
-
-    /**
      * 等级阈值判断：threshold为最小显示等级，显示 >= threshold 的日志
      */
     private levelPass(level: LogLevel, threshold: 'OFF' | LogLevel): boolean {
@@ -811,22 +671,6 @@ export class LogsTab {
         this.settingsLevelThreshold = 'DEBUG';
         this.settingsAllowedConsoleCategories = null;
         this.settingsAllowedSources = null;
-    }
-
-    /**
-     * 获取日志来源
-     */
-    private getLogSource(log: LogEntry): string {
-        // 根据日志内容判断来源
-        if (log.source) {
-            return log.source;
-        }
-        
-        if (log.message.includes('115') || log.message.includes('Drive115')) {
-            return 'DRIVE115';
-        }
-        
-        return 'GENERAL';
     }
 
     /**
@@ -1056,28 +900,6 @@ export class LogsTab {
         const noSettingsLink = !this.settingsFilterApplied;
         // 允许：等级（可为 ALL 或具体级别）+ 日期（可无或有）
         return noSearch && noSource && noHasDataOnly && noSettingsLink;
-    }
-
-    /**
-     * 将已过滤好的日志（内存）渲染 + 分页
-     */
-    private renderFilteredLogs(filteredLogs: LogEntry[]): void {
-        // 分页切片
-        const total = filteredLogs.length;
-        const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
-        if (this.currentPage > totalPages) this.currentPage = totalPages;
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const pageItems = filteredLogs.slice(startIndex, startIndex + this.pageSize);
-
-        // 生成日志HTML
-        const logHtml = pageItems.map(log => this.createLogEntryHtml(log)).join('');
-        this.logBody.innerHTML = logHtml;
-
-        // 渲染分页
-        this.renderPagination(this.currentPage, totalPages);
-
-        // 更新计数显示
-        this.updateCountText(`扩展日志：已筛选 ${total} 条（第 ${this.currentPage}/${totalPages} 页），总计 ${this.logs.length} 条`);
     }
 }
 
