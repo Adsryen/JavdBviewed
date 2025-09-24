@@ -2,8 +2,8 @@
 
 import { STATE, log } from './state';
 import { getValue, setValue } from '../utils/storage';
+import { dbViewedPut, dbLogsAdd } from './dbClient';
 import type { VideoRecord } from '../types';
-import { dbViewedPut } from './dbClient';
 
 // 操作队列管理
 interface VideoOperation {
@@ -43,11 +43,15 @@ class StorageManager {
                     const updatedRecord = updateFn(currentRecords);
                     const recordsToSave = { ...currentRecords, [videoId]: updatedRecord };
 
-                    // 3. 保存到存储
-                    await setValue('viewed', recordsToSave);
-                    log(`[StorageManager] Saved records to storage`);
+                    // 3. 先写入 IndexedDB，确保主库成功
+                    await dbViewedPut(updatedRecord);
+                    log(`[StorageManager] Saved record to IDB: ${videoId}`);
 
-                    // 4. 验证保存是否成功
+                    // 4. 同步写入 chrome.storage（备份/兼容），不作为主验证依据
+                    await setValue('viewed', recordsToSave);
+                    log(`[StorageManager] Saved records to storage (backup)`);
+
+                    // 5. 验证保存是否成功（getValue 在迁移后会从 IDB 读取）
                     await new Promise(resolve => setTimeout(resolve, 100)); // 短暂等待确保存储完成
                     const verifyRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
                     const savedRecord = verifyRecords[videoId];
@@ -65,12 +69,19 @@ class StorageManager {
                         throw new Error(`Record verification failed for ${videoId}`);
                     }
 
-                    // 5. 更新内存状态
+                    // 6. 更新内存状态
                     STATE.records = verifyRecords;
                     log(`[StorageManager] Successfully updated ${videoId} (operation ${operationId})`);
 
-                    // 6. 异步双写到 IndexedDB（不阻塞主流程）
-                    try { dbViewedPut(updatedRecord).catch(() => {}); } catch {}
+                    // 7. 记录成功的 DB 操作日志
+                    try {
+                        await dbLogsAdd({
+                            timestamp: new Date().toISOString(),
+                            level: 'INFO',
+                            message: `[DB] viewed put ok: updated record ${videoId}`,
+                            data: { videoId, operationId, attempt, action: 'update' }
+                        });
+                    } catch {} // 日志失败不影响主流程
 
                     // 记录成功操作（将在后面定义concurrencyMonitor）
                     // concurrencyMonitor.recordOperation(operationId, videoId, 'update', attempt, true, duration);
@@ -122,11 +133,15 @@ class StorageManager {
                         return { success: true, alreadyExists: true };
                     }
 
-                    // 3. 添加新记录
+                    // 3. 先写入 IndexedDB，确保主库成功
+                    await dbViewedPut(newRecord);
+                    log(`[StorageManager] Saved new record to IDB: ${videoId}`);
+
+                    // 4. 添加新记录到 chrome.storage（备份/兼容）
                     const recordsToSave = { ...currentRecords, [videoId]: newRecord };
                     await setValue('viewed', recordsToSave);
 
-                    // 4. 验证保存是否成功
+                    // 5. 验证保存是否成功（迁移后从 IDB 读取）
                     await new Promise(resolve => setTimeout(resolve, 100));
                     const verifyRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
                     const savedRecord = verifyRecords[videoId];
@@ -144,12 +159,19 @@ class StorageManager {
                         throw new Error(`Record verification failed for ${videoId}`);
                     }
 
-                    // 5. 更新内存状态
+                    // 6. 更新内存状态
                     STATE.records = verifyRecords;
                     log(`[StorageManager] Successfully added ${videoId} (operation ${operationId})`);
 
-                    // 6. 异步双写到 IndexedDB（不阻塞主流程）
-                    try { dbViewedPut(newRecord).catch(() => {}); } catch {}
+                    // 7. 记录成功的 DB 操作日志
+                    try {
+                        await dbLogsAdd({
+                            timestamp: new Date().toISOString(),
+                            level: 'INFO',
+                            message: `[DB] viewed put ok: added new record ${videoId}`,
+                            data: { videoId, operationId, attempt, action: 'add' }
+                        });
+                    } catch {} // 日志失败不影响主流程
 
                     // 记录成功操作
                     // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);

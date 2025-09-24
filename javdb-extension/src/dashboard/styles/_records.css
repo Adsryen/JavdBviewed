@@ -1,9 +1,31 @@
 
+/* 快捷查询高亮效果 */
+.highlight-result {
+    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700) !important;
+    animation: highlightPulse 3s ease-in-out;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+@keyframes highlightPulse {
+    0% { 
+        background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
+        transform: scale(1);
+    }
+    50% { 
+        background: linear-gradient(90deg, #ffed4e, #ffd700, #ffed4e);
+        transform: scale(1.02);
+    }
+    100% { 
+        background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
+        transform: scale(1);
+    }
+}
 
 /* Search and Filter */
 .search-and-filter {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 2fr;
+    grid-template-columns: 2fr 1fr 1fr auto auto 2fr;
     gap: 15px;
     margin-bottom: 20px;
     align-items: start;
