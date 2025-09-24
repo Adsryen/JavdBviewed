@@ -44,6 +44,24 @@ export interface ViewedPageParams {
   order?: 'asc' | 'desc';
 }
 
+export interface ViewedStats {
+  total: number;
+  byStatus: Record<string, number>;
+  last7Days: number;
+  last30Days: number;
+}
+
+export interface ViewedQueryParams {
+  search?: string;
+  status?: VideoRecord['status'] | 'all';
+  tags?: string[];
+  orderBy?: 'updatedAt' | 'createdAt' | 'id' | 'title';
+  order?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
+  adv?: Array<{ field: string; op: string; value?: string }>;
+}
+
 export async function dbViewedCount(status?: VideoRecord['status']): Promise<number> {
   const resp = await sendMessage<{ success: true; total: number }>('DB:VIEWED_COUNT', { status });
   // @ts-ignore
@@ -56,6 +74,30 @@ export async function dbViewedPage(params: ViewedPageParams): Promise<{ items: V
   return { items: resp.items || [], total: resp.total || 0 };
 }
 
+export async function dbViewedStats(): Promise<ViewedStats> {
+  const resp = await sendMessage<{ success: true } & ViewedStats>('DB:VIEWED_STATS');
+  // @ts-ignore
+  return resp as ViewedStats;
+}
+
+export async function dbViewedDelete(id: string): Promise<void> {
+  await sendMessage('DB:VIEWED_DELETE', { id });
+}
+
+export async function dbViewedBulkDelete(ids: string[]): Promise<void> {
+  await sendMessage('DB:VIEWED_BULK_DELETE', { ids });
+}
+
+export async function dbViewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }>{
+  const resp = await sendMessage<{ success: true; items: VideoRecord[]; total: number }>('DB:VIEWED_QUERY', params);
+  // @ts-ignore
+  return { items: resp.items || [], total: resp.total || 0 };
+}
+
+export async function dbViewedPut(record: VideoRecord): Promise<void> {
+  await sendMessage('DB:VIEWED_PUT', { record });
+}
+
 export async function dbViewedExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:VIEWED_EXPORT');
   // @ts-ignore
@@ -65,11 +107,15 @@ export async function dbViewedExport(): Promise<string> {
 // ----- Logs APIs -----
 export interface LogsQueryParams {
   level?: LogEntry['level'];
+  minLevel?: LogEntry['level'] | 'OFF';
   fromMs?: number;
   toMs?: number;
   offset?: number;
   limit?: number;
   order?: 'asc' | 'desc';
+  query?: string;
+  hasDataOnly?: boolean;
+  source?: 'ALL' | 'GENERAL' | 'DRIVE115';
 }
 
 export async function dbLogsQuery(params: LogsQueryParams): Promise<{ items: LogEntry[]; total: number }>{
