@@ -51,123 +51,53 @@
 
 # AI待做：
 
-下面给你一个可执行的实施顺序（从高收益/低风险到低收益/中风险），并说明每一步的目的、改动点与退出条件。整体策略继续保持“阶段性双写 + 渐进切换 + 可一键回滚”。
 
-推荐实施顺序
+好的，给你一份精简但覆盖面的「明天待办」清单。按优先级从高到低排列，且每项都可独立完成与提交。
 
-1) 升级 DB 架构到 v2（统一把表先建好）
-- 目的：一次性把后续要迁的表建齐，后续每次迁移只动“写/读/路由”，避免反复 bump 版本。
-- 动作
-  - [src/background/db.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/db.ts:0:0-0:0)：
-    - DB_VERSION 从 1 → 2。
-    - 新增 stores + 索引：
-      - `logs`：key 自增或 `timestamp`，idx: `by_timestamp`, `by_level`.
-      - `magnets`：key `key`（source+hash），idx: `by_videoId`, `by_source`, `by_createdAt`,（可选）`by_sizeBytes`, `by_hasSubtitle`.
-      - `actors`：key `id`，idx: `by_blacklisted`, `by_updatedAt`,（可选）`by_name`。
-      - `newWorks`：key `id`（或 `videoId+date` 复合），idx: `by_createdAt`, `by_date`,（可选）`by_status`。
-  - [src/background/background.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/background.ts:0:0-0:0)：预留 DB 消息路由空壳（先不实现功能，只 return success），确保版本升级后不报错。
-- 退出条件：扩展能正常加载，无异常日志，原有 viewed 读/写不受影响。
+高优先级
+- 编译与类型检查
+  - 运行构建并修复 TS 报错（重点检查：[src/background/webdav.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/webdav.ts:0:0-0:0)、[src/background/migrations.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/migrations.ts:0:0-0:0)、[src/background/miscHandlers.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/miscHandlers.ts:0:0-0:0)、[src/utils/config.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/utils/config.ts:0:0-0:0)）。
+  - 确认新增的 `STORAGE_KEYS.NEW_WORKS_RECORDS` 无遗漏使用面。
+- 冒烟测试（消息路由）
+  - 验证 `ping`、`get-logs`、`OPEN_TAB_BACKGROUND`、`fetch-external-data`。
+  - 预览相关：`FETCH_JAVDB_PREVIEW`、`FETCH_JAVSPYL_PREVIEW`、`FETCH_AVPREVIEW_PREVIEW`。
+  - 115：`DRIVE115_PUSH`、`DRIVE115_VERIFY`、`DRIVE115_HEARTBEAT`。
+  - WebDAV：`webdav-list-files`、`webdav-test`、`webdav-upload`、`webdav-restore`。
+  - DB 路由：`DB:VIEWED_*`、`DB:LOGS_*`、`DB:ACTORS_*`、`DB:NEWWORKS_*`、`DB:MAGNETS_*`。
+- 磁链路由调用方对齐
+  - 搜索调用端（如 `src/content/dbClient.ts`）是否仍用 `DB:MAGNETS_CLEAR_ALL`。
+  - 如有，改为 `DB:MAGNETS_CLEAR`；需要过期清理的用 `DB:MAGNETS_CLEAR_EXPIRED`（可带 `beforeMs`）。
 
-2) 迁移 persistent_logs（高收益，写入频繁）
-- 目的：日志是高频写，先迁移能立刻降低 storage.local 压力。
-- 动作
-  - 后台消息 API：
-    - `DB:LOGS_ADD`, `DB:LOGS_BULK`, `DB:LOGS_QUERY({level?, from?, to?, offset, limit})`, `DB:LOGS_CLEAR`, `DB:LOGS_EXPORT`.
-  - [src/background/background.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/background.ts:0:0-0:0) 的 `logger`：
-    - 改为双写（storage.local + IDB）→ 观察稳定 → 切只写 IDB。
-  - Dashboard 日志页：
-    - 从 `STORAGE_KEYS.LOGS` 改为分页读取 `DB:LOGS_QUERY`。
-    - 提供“清空/导出”按钮，调用 `DB:LOGS_CLEAR/EXPORT`。
-- 退出条件：日志页可分页查看，新增日志稳定并能限制/滚动清理（按时间/条数）。
+中高优先级（日志与 IDB 优化第1步）
+- logger 改为只写 IDB
+  - 将后台 [log()](cci:1://file:///e:/JavdBviewed/javdb-extension/src/background/miscHandlers.ts:16:0-32:1) 从 storage.local 双写改为仅写入 IDB（保留一次性迁移 [ensureIDBLogsMigrated()](cci:1://file:///e:/JavdBviewed/javdb-extension/src/background/migrations.ts:32:0-48:1)）。
+  - 保持现有 `get-logs` 暂时不动，下一步再切 IDB。
+- 迁移函数校验
+  - 确认 [ensureMigrationsStart()](cci:1://file:///e:/JavdBviewed/javdb-extension/src/background/migrations.ts:50:0-70:1) 在入口 [background/background.ts](cci:7://file:///e:/JavdBviewed/javdb-extension/src/background/background.ts:0:0-0:0) 正常调用。
+  - 检查 `chrome.alarms` 的磁链过期清理是否按计划触发。
 
-3) 为 viewed 补完分页/统计/导出（支撑“高级配置-查看源数据”）
-- 目的：当前“查看源数据”已走 IDB 读取合并为对象；但 9k+ 条一次渲染会卡。先提供 API 做分页/导出，UI 再跟进。
-- 动作
-  - 后台消息 API：`DB:VIEWED_COUNT`, `DB:VIEWED_PAGE({offset,limit,status?,orderBy?=updatedAt desc})`, `DB:VIEWED_EXPORT`.
-  - “高级配置-查看源数据”：
-    - 改为分页/搜索 UI（按状态/时间排序），支持导出。
-- 退出条件：大库列表查看流畅，无需一次读取全部；导出可直接从 IDB 拉取。
+中优先级（日志与 IDB 优化第2步/第3步）
+- WebDAV 对接 IDB 日志
+  - 备份导出/恢复改为从 IDB 导出/导入日志（现阶段可先保留 storage 兼容分支）。
+  - `get-logs` 路由切到 IDB 查询，或在 UI 不再使用时移除该分支。
+- Dashboard 日志页
+  - 切换到 `DB:LOGS_QUERY` 分页加载。
+  - 绑定“清空/导出”按钮：`DB:LOGS_CLEAR/DB:LOGS_EXPORT`。
+  - 可选：增加“日志保留天数”输入框（`logRetentionDays`）。
 
-4) 迁移磁链缓存到 IDB（聚合性能与 TTL 清理）
-- 目的：磁链缓存适合按 `videoId/source/createdAt` 查询与 TTL 过期清理，放 IDB 更合适。
-- 动作
-  - Store：`magnets`（定义 TTL 字段 `expireAt`/`createdAt`）。
-  - 后台消息 API：`DB:MAGNET_GET({videoId})`, `DB:MAGNET_PUT/BULK_PUT`, `DB:MAGNET_CLEAN_EXPIRED`,（可选）`DB:MAGNET_SEARCH({text})`。
-  - `src/services/dataAggregator/`：
-    - 改用 IDB 缓存（先查 IDB → 过期再抓取 → 更新 IDB）。
-  - Service Worker 定时清理：用 `chrome.alarms` 定期跑 `MAGNET_CLEAN_EXPIRED`。
-- 退出条件：聚合流程命中缓存；过期清理生效；抓取次数明显减少。
+中优先级（回归）
+- 115 回归
+  - 验证 `drive115.add_task_urls_v2 / refresh_token_v2 / get_quota_info_v2` 流程与容错。
+  - 兜底的 `drive115.refresh_token_v2` 消息也要测试。
+- 新作品回归
+  - `new-works-manual-check / new-works-scheduler-restart / new-works-scheduler-status`。
+  - 验证 `onStartup` 的 `newWorksScheduler.initialize()` 是否触发。
 
-5) 迁移 actor_records 到 IDB（黑名单/索引查询）
-- 目的：演员库体量可能增大，支持 `blacklisted` 索引与更新时间筛选，IDB 更友好。
-- 动作
-  - 后台消息 API：`DB:ACTOR_GET/PUT/BULK_PUT/QUERY({blacklisted?, offset,limit})/EXPORT`。
-  - 演员增强/过滤处：读取切到 IDB（保留 storage.local 回退一段时间）。
-- 退出条件：演员相关查询/过滤稳定，黑名单查询走索引。
+低优先级
+- 文档补充
+  - 在 README/开发文档说明新的 `background/` 模块结构与装配流程。
+- 清理遗留
+  - 移除不再使用的旧代码段与注释。
+  - 统一消息常量命名与返回格式。
 
-6) 迁移 new_works_records 到 IDB（分页/过滤）
-- 目的：新作品列表天然适合按日期/状态分页。
-- 动作
-  - 后台消息 API：`DB:NEWWORKS_GET/PUT/BULK_PUT/QUERY/EXPORT`。
-  - Dashboard 新作品页改为分页/筛选/清理（过期策略可复用 TTL）。
-- 退出条件：列表页流畅可分页；旧数据清理有策略。
-
-7) 停用 storage.local 写入（分批关闭）
-- 目的：减少冗余持久化。
-- 动作
-  - 依次关闭 viewed/logs/magnets/actors/newWorks 的 storage.local 写入（在代码里用开关/环境变量控制便于回滚）。
-  - 保留 `settings` 与少量标志位在 storage.local。
-- 退出条件：关闭后运行 1-2 个小版本无异常，错误率与回退事件为 0。
-
-8) Dashboard 清理与总导出
-- 目的：释放旧空间、增强可维护性。
-- 动作
-  - “数据工具”页：
-    - 一键清理旧分片键（viewed）与旧键。
-    - 各 store 统计（count/size/最近更新）。
-    - 全量导出 ZIP（按 store 分 JSON），全量导入。
-  - WebDAV 备份：
-    - 扩展 [performUpload()](cci:1://file:///e:/JavdBviewed/javdb-extension/src/background/background.ts:280:0-366:1)，支持从 IDB 导出（替换 storage-only 备份），保证回放/迁移一致性。
-- 退出条件：清理后 storage.local 空间明显下降；备份/恢复全链路通过。
-
-关键理由与收益排序
-- 优先迁移日志：高频写，最能立刻减少压力。
-- 紧跟 viewed 的分页/导出：用户感知强，解决“查看源数据”卡顿。
-- 磁链缓存：缓存命中收益直接，且 TTL 清理在 IDB 更易做。
-- 演员库/新作品：体量较大但写入相对不如日志频繁，收益次之。
-- 最后收口：停写 storage + Dashboard 清理/导出一站式。
-
-跨步骤注意事项
-- 双写 → 只写：均建议经历至少一个观察期（几天或 1-2 个版本）。
-- 消息路由统一：以 `DB:*` 为前缀，参数对象化，全部返回标准 `{ success, ... }` 格式。
-- 导出/导入：统一 ZIP（多 JSON），便于 WebDAV 与本地导入导出。
-- 监控与日志：为每个 store 的迁移/查询接口添加 `[DB]` 类别日志，便于 Dashboard 的“控制台日志”页快速筛选调试。
-- 回滚策略：每次切换都保留“回退开关”（例如仍保留旧 storage 读路径一段时间，或用 feature flag 控制）。
-
-如果你同意，我先从“方案 1（DB 架构升级到 v2）+ 方案 2（日志迁移与 API）+ 方案 3（viewed 分页/导出 API）”这三步开始动手，完成后再推进 magnets/actors/newWorks 的迁移。你也可以指定更偏好的优先级，我按你的偏好调整。
-
-
-
-202509230136
-[高] 修复未使用变量 TS6133（集中清理）
-src/content/enhancedVideoDetail.ts
-: 移除或接入 pendingParts 计数（目前未使用）
-src/dashboard/dataSync/syncers/actorSync.ts: 移除 startTime 等未使用变量
-复查 
-src/content/concurrency.ts
- 的 
-updateRecord
- 是否仍残留 startTime 声明，统一移除或恢复耗时统计
-[高] 运行一次全量编译，收集剩余报错清单
-重点关注 dashboard/* 和 services/* 中的 TS6133 未使用项
-[中] 自测 115 推送/验证流程（drive115 改动后）
-src/content/drive115-content.ts
- 与 
-src/content/drive115.ts
- 改动后，验证跨域推送、验证窗口、重试逻辑
-[中] Dashboard 模块逐文件清理 TS6133
-src/dashboard/tabs/settings/sync/SyncSettings.ts
-src/dashboard/tabs/sync.ts
-src/dashboard/ui/dataViewModal.ts
-src/dashboard/userProfile.ts
-[低] 提交并推送改动，触发 CI（如有）
+如果你希望，我可以把这份 ToDo 同步为项目内的 todo.md 模板，或拆成更细的子任务清单（每项附带检查命令/接口示例）。你明天从“编译与冒烟测试”开始最稳，确保拆分后功能面无回归，然后再按计划推进日志与 IDB 的优化。
