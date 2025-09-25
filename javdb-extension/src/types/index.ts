@@ -57,6 +57,8 @@ export interface ExtensionSettings {
         verboseMode?: boolean; // 详细日志模式
         showPrivacyLogs?: boolean; // 显示隐私相关日志
         showStorageLogs?: boolean; // 显示存储相关日志
+        // 日志保留策略
+        retentionDays?: number; // 按天数保留（0 或未设置表示关闭按天清理）
         // 统一控制台代理设置
         consoleLevel?: 'OFF' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
         consoleFormat?: {
