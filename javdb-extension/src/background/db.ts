@@ -4,6 +4,7 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
+import { getSettings } from '../utils/storage';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）
 export interface PersistedLogEntry extends LogEntry {
@@ -437,6 +438,7 @@ export async function logsAdd(entry: LogEntry): Promise<number> {
   const v = normalizeLog(entry);
   // @ts-ignore id will be auto generated
   const id = await db.add('logs', v as any);
+  try { await logsEnforceRetention(); } catch {}
   return id as number;
 }
 
@@ -450,6 +452,7 @@ export async function logsBulkAdd(entries: LogEntry[]): Promise<void> {
       await tx.store.add(v as any);
     }
     await tx.done;
+    try { await logsEnforceRetention(); } catch {}
   } catch (e) {
     try { await tx.done; } catch {}
     throw e;
@@ -548,6 +551,48 @@ export async function logsClear(beforeMs?: number): Promise<void> {
 export async function logsGetAll(): Promise<PersistedLogEntry[]> {
   const db = await initDB();
   return db.getAll('logs');
+}
+
+// 保留策略：按天数与按数量
+async function logsEnforceRetention(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const logging: any = (settings as any)?.logging || {};
+    let maxEntries = Number(logging.maxLogEntries ?? logging.maxEntries ?? 1500);
+    if (!Number.isFinite(maxEntries) || maxEntries <= 0) maxEntries = 1500;
+    const retentionDaysRaw = (logging as any).retentionDays;
+    const retentionDays = Number(retentionDaysRaw);
+    const hasRetentionDays = Number.isFinite(retentionDays) && retentionDays > 0;
+
+    const db = await initDB();
+
+    // 先按时间清理（如果配置了天数）
+    if (hasRetentionDays) {
+      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+      const tx = db.transaction('logs', 'readwrite');
+      const idx = tx.store.index('by_timestamp');
+      for (let cursor = await idx.openCursor(IDBKeyRange.upperBound(cutoff)); cursor; cursor = await cursor.continue()) {
+        await cursor.delete();
+      }
+      await tx.done;
+    }
+
+    // 再按数量限制
+    const total = await db.count('logs');
+    if (total > maxEntries) {
+      const toRemove = total - maxEntries;
+      const tx2 = db.transaction('logs', 'readwrite');
+      const idx2 = tx2.store.index('by_timestamp');
+      let removed = 0;
+      for (let cursor = await idx2.openCursor(undefined, 'next'); cursor && removed < toRemove; cursor = await cursor.continue()) {
+        await cursor.delete();
+        removed++;
+      }
+      await tx2.done;
+    }
+  } catch {
+    // 忽略保留清理错误，避免阻断日志写入
+  }
 }
 
 // ----- export helpers -----

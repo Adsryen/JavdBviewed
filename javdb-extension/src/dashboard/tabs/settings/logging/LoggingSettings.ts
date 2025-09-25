@@ -20,6 +20,7 @@ export class LoggingSettings extends BaseSettingsPanel {
     private verboseMode!: HTMLInputElement;
     private showPrivacyLogs!: HTMLInputElement;
     private showStorageLogs!: HTMLInputElement;
+    private retentionDays!: HTMLInputElement; // 可选：日志按天数保留
     // 统一控制台代理 - 控件
     private consoleLevel!: HTMLSelectElement;
     private consoleShowTimestamp!: HTMLInputElement;
@@ -59,6 +60,8 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.verboseMode = document.getElementById('verboseMode') as HTMLInputElement;
         this.showPrivacyLogs = document.getElementById('showPrivacyLogs') as HTMLInputElement;
         this.showStorageLogs = document.getElementById('showStorageLogs') as HTMLInputElement;
+        // 可选：ID 为 logRetentionDays 的输入框（未在旧模板中时不报错）
+        this.retentionDays = document.getElementById('logRetentionDays') as HTMLInputElement;
         // 控制台代理
         this.consoleLevel = document.getElementById('consoleLevel') as HTMLSelectElement;
         this.consoleShowTimestamp = document.getElementById('consoleShowTimestamp') as HTMLInputElement;
@@ -96,6 +99,7 @@ export class LoggingSettings extends BaseSettingsPanel {
             console.error('[LoggingSettings] 找不到showStorageLogs元素');
             return;
         }
+        if (!this.retentionDays) console.warn('[LoggingSettings] 找不到 logRetentionDays 元素（可选）');
 
         // 控制台代理 - 基础校验（允许某些元素在旧模板中缺失，不中断）
         if (!this.consoleLevel) console.warn('[LoggingSettings] 找不到 consoleLevel 元素');
@@ -144,6 +148,8 @@ export class LoggingSettings extends BaseSettingsPanel {
         // 控制台快捷按钮
         this.consoleMuteAllBtn?.addEventListener('click', this.handleConsoleMuteAll.bind(this));
         this.consoleEnableAllBtn?.addEventListener('click', this.handleConsoleEnableAll.bind(this));
+        // 可选：保留天数
+        this.retentionDays?.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -166,6 +172,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.verboseMode.checked = logging.verboseMode || false;
         this.showPrivacyLogs.checked = logging.showPrivacyLogs || false;
         this.showStorageLogs.checked = logging.showStorageLogs || false;
+        if (this.retentionDays) this.retentionDays.value = String((logging as any).retentionDays ?? 0);
 
         // 控制台代理设置
         if (this.consoleLevel) this.consoleLevel.value = (logging as any).consoleLevel || 'DEBUG';
@@ -199,6 +206,8 @@ export class LoggingSettings extends BaseSettingsPanel {
                     verboseMode: this.verboseMode.checked,
                     showPrivacyLogs: this.showPrivacyLogs.checked,
                     showStorageLogs: this.showStorageLogs.checked,
+                    // 日志保留策略（可选）
+                    retentionDays: this.retentionDays ? parseInt(this.retentionDays.value || '0', 10) : (STATE.settings?.logging as any)?.retentionDays,
                     // 控制台代理设置
                     consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
                     consoleFormat: {
@@ -251,6 +260,14 @@ export class LoggingSettings extends BaseSettingsPanel {
             errors.push('最大日志条目数必须在100-10000之间');
         }
 
+        // 验证保留天数（可选，0 表示关闭按天清理）
+        if (this.retentionDays && this.retentionDays.value !== '') {
+            const days = parseInt(this.retentionDays.value, 10);
+            if (isNaN(days) || days < 0 || days > 3650) {
+                errors.push('日志保留天数必须在0-3650之间');
+            }
+        }
+
         return {
             isValid: errors.length === 0,
             errors: errors.length > 0 ? errors : undefined
@@ -267,6 +284,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                 verboseMode: this.verboseMode.checked,
                 showPrivacyLogs: this.showPrivacyLogs.checked,
                 showStorageLogs: this.showStorageLogs.checked,
+                ...(this.retentionDays ? { retentionDays: parseInt(this.retentionDays.value || '0', 10) } : {}),
                 consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
                 consoleFormat: {
                     showTimestamp: this.consoleShowTimestamp?.checked ?? true,
@@ -305,6 +323,9 @@ export class LoggingSettings extends BaseSettingsPanel {
             }
             if (logging.showStorageLogs !== undefined) {
                 this.showStorageLogs.checked = logging.showStorageLogs;
+            }
+            if (this.retentionDays && (logging as any).retentionDays !== undefined) {
+                this.retentionDays.value = String((logging as any).retentionDays ?? 0);
             }
 
             if ((logging as any).consoleLevel !== undefined && this.consoleLevel) this.consoleLevel.value = (logging as any).consoleLevel as any;

@@ -39,7 +39,9 @@ export const STORAGE_KEYS = {
     ADV_SEARCH_PRESETS: 'adv_search_presets',
 
     // IndexedDB 迁移状态标记
-    IDB_MIGRATED: 'idb_migrated'
+    IDB_MIGRATED: 'idb_migrated',
+    // IndexedDB 日志迁移状态标记（将旧的 STORAGE_KEYS.LOGS 迁移到 IDB logs 表）
+    IDB_LOGS_MIGRATED: 'idb_logs_migrated'
 } as const;
 
 export const VIDEO_STATUS = {
