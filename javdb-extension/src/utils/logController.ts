@@ -129,6 +129,19 @@ class LogController {
      */
     info(message: string, ...args: any[]): void {
         console.log(`[INFO] ${message}`, ...args);
+        // 持久化到后台 IDB
+        try {
+            // 仅在扩展环境下发送
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                const entry: any = {
+                    timestamp: new Date().toISOString(),
+                    level: 'INFO',
+                    message: message,
+                };
+                if (args && args.length > 0) entry.data = args.length === 1 ? args[0] : args;
+                chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
+            }
+        } catch {}
     }
 
     /**
@@ -136,6 +149,17 @@ class LogController {
      */
     warn(message: string, ...args: any[]): void {
         console.warn(`[WARN] ${message}`, ...args);
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                const entry: any = {
+                    timestamp: new Date().toISOString(),
+                    level: 'WARN',
+                    message: message,
+                };
+                if (args && args.length > 0) entry.data = args.length === 1 ? args[0] : args;
+                chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
+            }
+        } catch {}
     }
 
     /**
@@ -143,6 +167,17 @@ class LogController {
      */
     error(message: string, ...args: any[]): void {
         console.error(`[ERROR] ${message}`, ...args);
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                const entry: any = {
+                    timestamp: new Date().toISOString(),
+                    level: 'ERROR',
+                    message: message,
+                };
+                if (args && args.length > 0) entry.data = args.length === 1 ? args[0] : args;
+                chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
+            }
+        } catch {}
     }
 
     /**

@@ -69,6 +69,7 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:LOGS_ADD') {
         const entry = message?.payload?.entry;
+        try { console.info('[DB][logs] ADD', { hasEntry: !!entry, level: entry?.level, msgLen: String(entry?.message||'').length }); } catch {}
         idbLogsAdd(entry).then((id) => sendResponse({ success: true, id }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'logs add failed' }));
         return true;
@@ -81,7 +82,11 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:LOGS_QUERY') {
         const payload = message?.payload || {};
-        idbLogsQuery(payload).then((data) => sendResponse({ success: true, ...data }))
+        try { console.info('[DB][logs] QUERY', { offset: payload?.offset, limit: payload?.limit, level: payload?.level, minLevel: payload?.minLevel, hasDataOnly: payload?.hasDataOnly, source: payload?.source, hasQuery: !!payload?.query }); } catch {}
+        idbLogsQuery(payload).then((data) => {
+          try { console.info('[DB][logs] QUERY:RESULT', { items: Array.isArray(data?.items) ? data.items.length : -1, total: (data as any)?.total }); } catch {}
+          sendResponse({ success: true, ...data });
+        })
           .catch((e) => sendResponse({ success: false, error: e?.message || 'logs query failed' }));
         return true;
       }
