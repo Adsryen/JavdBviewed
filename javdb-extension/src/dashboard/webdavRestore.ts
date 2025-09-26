@@ -8,6 +8,7 @@ import { mergeData, type MergeResult } from '../utils/dataMerge';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../services/privacy';
+import { dbActorsBulkPut } from './dbClient';
 
 interface WebDAVFile {
     name: string;
@@ -781,6 +782,18 @@ async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
     if (mergeResult.mergedData) {
         await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords || {});
         await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.mergedData.actorRecords || {});
+
+        // 同步写入 IndexedDB（演员库）
+        try {
+            const actorsObj = mergeResult.mergedData.actorRecords || {};
+            const actorsArr = Object.values(actorsObj || {});
+            if (actorsArr.length > 0) {
+                await dbActorsBulkPut(actorsArr as any);
+            }
+        } catch (e) {
+            // 不阻断流程，仅记录日志
+            console.warn('[WebDAVRestore] Failed to write actors into IDB, fallback to localStorage only:', (e as any)?.message || e);
+        }
 
         if (mergeResult.mergedData.settings) {
             await setValue(STORAGE_KEYS.SETTINGS, mergeResult.mergedData.settings as any);
