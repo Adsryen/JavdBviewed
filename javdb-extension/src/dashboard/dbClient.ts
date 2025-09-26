@@ -6,7 +6,7 @@ import type { ActorRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 
 function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+  const tryOnce = (): Promise<T> => new Promise<T>((resolve, reject) => {
     let timer: number | undefined;
     try {
       timer = window.setTimeout(() => {
@@ -32,6 +32,19 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
       if (timer) window.clearTimeout(timer);
       reject(e);
     }
+  });
+
+  // 针对 Service Worker 冷启动偶发的“Receiving end does not exist”做一次轻量重试
+  return tryOnce().catch((err: any) => {
+    const msg = String(err?.message || '').toLowerCase();
+    if (msg.includes('receiving end does not exist')) {
+      return new Promise<T>((resolve, reject) => {
+        setTimeout(() => {
+          tryOnce().then(resolve).catch(reject);
+        }, 200);
+      });
+    }
+    throw err;
   });
 }
 

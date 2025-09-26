@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import { getSettings, setValue, getValue, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
+import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd } from './db';
 
 // 背景日志封装：转发到 background 的 log-message 处理
 function bgLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): void {
@@ -31,7 +32,8 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     const recordsToSync = await getValue(STORAGE_KEYS.VIEWED_RECORDS, {});
     const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
     const actorRecords = await getValue(STORAGE_KEYS.ACTOR_RECORDS, {});
-    const logs = await getValue(STORAGE_KEYS.LOGS, []);
+    // 日志改为从 IDB 导出
+    const logs = await idbLogsGetAll().catch(async () => await getValue(STORAGE_KEYS.LOGS, []));
     const importStats = await getValue(STORAGE_KEYS.LAST_IMPORT_STATS, null);
 
     const dataToExport = {
@@ -200,8 +202,14 @@ async function performRestore(filename: string, options = {
       bgLog('INFO', 'Restored actor records', { actorCount: Object.keys(importData.actorRecords).length });
     }
     if (importData.logs && options.restoreLogs) {
-      await setValue(STORAGE_KEYS.LOGS, importData.logs);
-      bgLog('INFO', 'Restored logs', { logCount: Array.isArray(importData.logs) ? importData.logs.length : 0 });
+      try {
+        await idbLogsBulkAdd(importData.logs);
+        bgLog('INFO', 'Restored logs to IDB', { logCount: Array.isArray(importData.logs) ? importData.logs.length : 0 });
+      } catch (e: any) {
+        // 回退到 storage（极端情况下）
+        await setValue(STORAGE_KEYS.LOGS, importData.logs);
+        bgLog('WARN', 'IDB logs restore failed, fallback to storage', { error: e?.message });
+      }
     }
     if (importData.importStats && options.restoreImportStats) {
       await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, importData.importStats);
