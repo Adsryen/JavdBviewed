@@ -1,10 +1,10 @@
 // src/background/miscHandlers.ts
 // 抽离杂项 handlers 与消息路由
 
-import { getValue, setValue, getSettings } from '../utils/storage';
+import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { refreshRecordById } from './sync';
-import { viewedPut as idbViewedPut } from './db';
+import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
 import { newWorksScheduler } from '../services/newWorks';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
@@ -18,17 +18,10 @@ async function log(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, 
   const logFunction = consoleMap[level] || console.log;
   if (data !== undefined) logFunction(message, data); else logFunction(message);
   try {
-    const [logs, settings] = await Promise.all([
-      getValue<any[]>(STORAGE_KEYS.LOGS, []),
-      getSettings(),
-    ]);
-    const newLogEntry = { timestamp: new Date().toISOString(), level, message, data };
-    logs.push(newLogEntry);
-    const maxEntries: number = (settings as any)?.logging?.maxEntries ?? (settings as any)?.logging?.maxLogEntries ?? 1500;
-    if (logs.length > maxEntries) logs.splice(0, logs.length - maxEntries);
-    await setValue(STORAGE_KEYS.LOGS, logs);
+    const entry = { timestamp: new Date().toISOString(), level, message, data } as any;
+    await idbLogsAdd(entry);
   } catch (e) {
-    console.error('Failed to write to persistent log:', e);
+    console.error('Failed to write log to IDB:', e);
   }
 }
 
@@ -41,11 +34,25 @@ export function registerMiscRouter(): void {
         case 'ping-background':
           sendResponse({ success: true, message: 'pong' });
           return true;
-        case 'get-logs':
-          getValue(STORAGE_KEYS.LOGS, [])
-            .then((logs) => sendResponse({ success: true, logs }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
+        case 'get-logs': {
+          const payload = message?.payload || {};
+          idbLogsQuery({
+            level: payload.level,
+            minLevel: payload.minLevel,
+            fromMs: payload.fromMs,
+            toMs: payload.toMs,
+            offset: payload.offset ?? 0,
+            limit: payload.limit ?? 100,
+            order: payload.order ?? 'desc',
+            query: payload.query ?? '',
+            hasDataOnly: payload.hasDataOnly ?? false,
+            source: payload.source ?? 'ALL',
+          }).then(({ items, total }) => {
+            // 兼容旧调用：返回 logs 字段
+            sendResponse({ success: true, items, total, logs: items });
+          }).catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
+        }
         case 'log-message': {
           const { payload } = message;
           if (payload && payload.level && payload.message) {

@@ -356,11 +356,12 @@ export class LogsTab {
             this.refreshButton.textContent = '刷新中...';
 
             if (this.viewMode === 'EXT') {
-                // 重新加载日志数据
+                // 重新加载并显式等待渲染完成，以便获得准确数量
                 await this.loadLogs();
-                // 重新渲染
-                this.renderLogs();
-                showMessage(`已刷新，共 ${this.logs.length} 条日志`, 'success');
+                const res = await this.fetchAndRenderExtLogs();
+                const pageCount = (res?.items?.length ?? 0);
+                const total = (res?.total ?? pageCount);
+                showMessage(`已刷新（本页 ${pageCount} / 总 ${total}）`, 'success');
             } else {
                 // 控制台视图：仅重新渲染
                 this.renderLogs();
@@ -416,49 +417,19 @@ export class LogsTab {
 
         // 扩展日志视图：若无任何过滤条件，改为通过 IDB 分页读取，避免加载全量日志
         if (this.isNoFilterActive()) {
-            // 异步渲染：先显示加载中占位
+            // 异步渲染：先显示加载中占位，再走统一的获取+渲染逻辑
             this.logBody.innerHTML = '<div class="loading">加载中...</div>';
-            // 发起查询
-            const offset = (this.currentPage - 1) * this.pageSize;
-            const limit = this.pageSize;
-            dbLogsQuery({ offset, limit, order: 'desc' } as LogsQueryParams)
-              .then(({ items, total }) => {
-                this.logs = Array.isArray(items) ? items : [];
-                this.totalLogsCount = Number.isFinite(total) ? total : 0;
-                const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
-                if (this.currentPage > totalPages) this.currentPage = totalPages;
-                const pageItems = this.logs; // 直接使用分页结果
-                const logHtml = pageItems.map(l => this.createLogEntryHtml(l)).join('');
-                this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
-                this.renderPagination(this.currentPage, totalPages);
-                this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
-              })
-              .catch((e) => {
+            this.fetchAndRenderExtLogs().catch((e) => {
                 console.error('[LogsTab] 读取 IDB 日志失败', e);
                 this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
-              });
+            });
             return;
         }
 
         // 若仅启用“日期/等级”过滤（无搜索/来源/hasData/设置联动），使用 IDB 查询
         if (this.isOnlyDateAndLevelFilterActive()) {
             this.logBody.innerHTML = '<div class="loading">加载中...</div>';
-            const offset = (this.currentPage - 1) * this.pageSize;
-            const limit = this.pageSize;
-            const params: LogsQueryParams = { offset, limit, order: 'desc' } as any;
-            if (this.currentLevelFilter !== 'ALL') params.level = this.currentLevelFilter as any;
-            if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
-            if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
-            dbLogsQuery(params).then(({ items, total }) => {
-                this.logs = Array.isArray(items) ? items : [];
-                this.totalLogsCount = Number.isFinite(total) ? total : 0;
-                const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
-                if (this.currentPage > totalPages) this.currentPage = totalPages;
-                const logHtml = this.logs.map(l => this.createLogEntryHtml(l)).join('');
-                this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
-                this.renderPagination(this.currentPage, totalPages);
-                this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
-            }).catch((e) => {
+            this.fetchAndRenderExtLogs().catch((e) => {
                 console.warn('[LogsTab] IDB 按日期/等级查询失败', e);
                 this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
             });
@@ -467,47 +438,57 @@ export class LogsTab {
 
         // 带条件查询：统一走 IDB 查询
         this.logBody.innerHTML = '<div class="loading">加载中...</div>';
-        const offset = (this.currentPage - 1) * this.pageSize;
-        const limit = this.pageSize;
-        const params: LogsQueryParams = { offset, limit, order: 'desc' } as any;
-        // 搜索关键字
-        if ((this.currentSearchQuery || '').trim()) params.query = this.currentSearchQuery.trim();
-        // 日期范围
-        if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
-        if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
-        // 是否仅含详细数据
-        if (this.currentHasDataOnly) params.hasDataOnly = true;
-        // 等级过滤：设置联动 -> minLevel；否则精确等级
-        if (this.settingsFilterApplied) {
-            params.minLevel = this.settingsLevelThreshold as any;
-        } else if (this.currentLevelFilter !== 'ALL') {
-            params.level = this.currentLevelFilter as any;
-        }
-        // 来源过滤
-        let src: 'ALL' | 'GENERAL' | 'DRIVE115' = 'ALL';
-        if (this.settingsFilterApplied && this.settingsAllowedSources) {
-            const has115 = this.settingsAllowedSources.has('DRIVE115');
-            const hasGen = this.settingsAllowedSources.has('GENERAL');
-            src = has115 && hasGen ? 'ALL' : (has115 ? 'DRIVE115' : (hasGen ? 'GENERAL' : 'ALL'));
-        } else {
-            const cur = String(this.currentSourceFilter || 'ALL').toUpperCase();
-            if (cur === 'DRIVE115' || cur === 'GENERAL') src = cur as any;
-        }
-        params.source = src;
-
-        dbLogsQuery(params).then(({ items, total }) => {
-            this.logs = Array.isArray(items) ? items : [];
-            this.totalLogsCount = Number.isFinite(total) ? total : 0;
-            const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
-            if (this.currentPage > totalPages) this.currentPage = totalPages;
-            const logHtml = this.logs.map(l => this.createLogEntryHtml(l)).join('');
-            this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
-            this.renderPagination(this.currentPage, totalPages);
-            this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
-        }).catch((e) => {
+        this.fetchAndRenderExtLogs().catch((e) => {
             console.error('[LogsTab] IDB 查询失败', e);
             this.logBody.innerHTML = '<div class="no-logs">日志加载失败，请稍后重试</div>';
         });
+    }
+
+    /**
+     * 统一的“扩展日志”获取+渲染逻辑（返回当页 items 与总数），便于 refresh 显式等待
+     */
+    private async fetchAndRenderExtLogs(): Promise<{ items: LogEntry[]; total: number; totalPages: number }>{
+        const offset = (this.currentPage - 1) * this.pageSize;
+        const limit = this.pageSize;
+
+        // 构造查询参数（保持与 renderLogs 分支逻辑一致）
+        const params: LogsQueryParams = { offset, limit, order: 'desc' } as any;
+        if (!this.isNoFilterActive()) {
+            // 日期范围
+            if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
+            if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
+            // 搜索关键字
+            if ((this.currentSearchQuery || '').trim()) params.query = this.currentSearchQuery.trim();
+            // 是否仅含详细数据
+            if (this.currentHasDataOnly) params.hasDataOnly = true;
+            // 等级：设置联动 -> minLevel；否则精确等级（或 ALL 不加）
+            if (this.settingsFilterApplied) params.minLevel = this.settingsLevelThreshold as any;
+            else if (this.currentLevelFilter !== 'ALL') params.level = this.currentLevelFilter as any;
+            // 来源过滤
+            let src: 'ALL' | 'GENERAL' | 'DRIVE115' = 'ALL';
+            if (this.settingsFilterApplied && this.settingsAllowedSources) {
+                const has115 = this.settingsAllowedSources.has('DRIVE115');
+                const hasGen = this.settingsAllowedSources.has('GENERAL');
+                src = has115 && hasGen ? 'ALL' : (has115 ? 'DRIVE115' : (hasGen ? 'GENERAL' : 'ALL'));
+            } else {
+                const cur = String(this.currentSourceFilter || 'ALL').toUpperCase();
+                if (cur === 'DRIVE115' || cur === 'GENERAL') src = cur as any;
+            }
+            params.source = src;
+        }
+
+        const { items, total } = await dbLogsQuery(params);
+        this.logs = Array.isArray(items) ? items : [];
+        this.totalLogsCount = Number.isFinite(total) ? total : 0;
+        const totalPages = Math.max(1, Math.ceil(this.totalLogsCount / this.pageSize));
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+
+        const logHtml = this.logs.map(l => this.createLogEntryHtml(l)).join('');
+        this.logBody.innerHTML = logHtml || '<div class="no-logs">暂无日志记录</div>';
+        this.renderPagination(this.currentPage, totalPages);
+        this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+
+        return { items: this.logs, total: this.totalLogsCount, totalPages };
     }
 
     /**
@@ -905,3 +886,24 @@ export class LogsTab {
 
 // 导出单例实例
 export const logsTab = new LogsTab();
+
+// 自启动：若页面在加载时位于日志页或通过 hash 切换到日志页，自动初始化
+try {
+    const initIfLogsTab = () => {
+        try {
+            const hash = window.location.hash.substring(1) || '';
+            const mainTab = hash.split('/')[0];
+            if (mainTab === 'tab-logs' && !logsTab.isInitialized) {
+                logsTab.initialize().catch((e) => console.error('[LogsTab] 初始化失败:', e));
+            }
+        } catch {}
+    };
+    // 初次 DOM 就绪后判断一次（延迟一个微任务，等待 dashboard 完成初始切换）
+    window.addEventListener('DOMContentLoaded', () => {
+        try { setTimeout(initIfLogsTab, 0); } catch {}
+    });
+    // hash 切换时也判断
+    window.addEventListener('hashchange', () => {
+        try { initIfLogsTab(); } catch {}
+    });
+} catch {}

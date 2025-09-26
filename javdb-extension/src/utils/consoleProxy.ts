@@ -293,6 +293,18 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
               message: serialized,
             }
           }));
+
+          // 将 INFO/WARN/ERROR 控制台输出持久化至后台 IDB 日志（避免 DEBUG 造成高写入量）
+          try {
+            if (level !== 'DEBUG' && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+              const entry: any = {
+                timestamp: new Date().toISOString(),
+                level,
+                message: serialized,
+              };
+              chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
+            }
+          } catch {}
         }
       } catch {}
     } catch (e) {

@@ -62,6 +62,31 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.showStorageLogs = document.getElementById('showStorageLogs') as HTMLInputElement;
         // 可选：ID 为 logRetentionDays 的输入框（未在旧模板中时不报错）
         this.retentionDays = document.getElementById('logRetentionDays') as HTMLInputElement;
+        if (!this.retentionDays) {
+            // 旧模板不存在时，动态插入一个字段，避免修改大型 HTML 文件
+            try {
+                const panel = document.getElementById('log-settings');
+                const anchorField = this.maxLogEntries ? this.maxLogEntries.closest('.field') : null;
+                const container = (anchorField && anchorField.parentElement) || panel || document.body;
+                const field = document.createElement('div');
+                field.className = 'field';
+                field.innerHTML = `
+                    <label class="label" for="logRetentionDays">日志保留天数（0 = 关闭）</label>
+                    <div class="control">
+                        <input id="logRetentionDays" class="input" type="number" min="0" max="3650" placeholder="0" />
+                    </div>
+                    <p class="help">按天数自动清理旧日志；0 表示不按天清理（仍受最大条数上限限制）。</p>
+                `;
+                if (anchorField && container) {
+                    container.insertBefore(field, anchorField.nextSibling);
+                } else if (container) {
+                    container.appendChild(field);
+                }
+                this.retentionDays = field.querySelector('#logRetentionDays') as HTMLInputElement;
+            } catch (e) {
+                console.warn('[LoggingSettings] 动态插入 logRetentionDays 失败：', e);
+            }
+        }
         // 控制台代理
         this.consoleLevel = document.getElementById('consoleLevel') as HTMLSelectElement;
         this.consoleShowTimestamp = document.getElementById('consoleShowTimestamp') as HTMLInputElement;
