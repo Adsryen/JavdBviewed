@@ -1,7 +1,7 @@
 // src/background/migrations.ts
 // 迁移与周期任务（如磁链清理）
 
-import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd } from './db';
+import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from './db';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 
@@ -21,6 +21,7 @@ async function ensureIDBMigrated(): Promise<void> {
       await idbViewedBulkPut(slice);
       console.info('[DB] Migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
     }
+
 
     await setValue(STORAGE_KEYS.IDB_MIGRATED, true);
     const cnt = await idbViewedCount().catch(() => -1);
@@ -52,6 +53,7 @@ export function ensureMigrationsStart(): void {
   // fire-and-forget on startup/wakeup
   try { ensureIDBMigrated(); } catch {}
   try { ensureIDBLogsMigrated(); } catch {}
+  try { ensureIDBActorsMigrated(); } catch {}
 
   // Best-effort: 清理过期的磁链缓存
   try { idbMagnetsClearExpired(Date.now()).catch(() => {}); } catch {}
@@ -68,4 +70,29 @@ export function ensureMigrationsStart(): void {
       });
     }
   } catch {}
+}
+
+// 迁移：将旧版 local storage 中的演员库迁移至 IndexedDB
+async function ensureIDBActorsMigrated(): Promise<void> {
+  try {
+    await initDB();
+    const migrated = await getValue<boolean>(STORAGE_KEYS.IDB_ACTORS_MIGRATED, false);
+    if (migrated) return;
+
+    const actorObj = await getValue<Record<string, any>>(STORAGE_KEYS.ACTOR_RECORDS, {});
+    const all = Object.values(actorObj || {});
+    console.info('[DB] Starting actors migration to IndexedDB...', { count: all.length });
+
+    const BATCH = 500;
+    for (let i = 0; i < all.length; i += BATCH) {
+      const slice = all.slice(i, i + BATCH);
+      await idbActorsBulkPut(slice);
+      console.info('[DB] Actors migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
+    }
+
+    await setValue(STORAGE_KEYS.IDB_ACTORS_MIGRATED, true);
+    console.info('[DB] Actors migration finished', { total: all.length });
+  } catch (e) {
+    console.warn('[DB] Actors migration to IDB failed (will not block extension)', (e as any)?.message);
+  }
 }
