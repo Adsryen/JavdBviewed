@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 
 import { initializeGlobalState, STATE, cleanupSearchEngines } from './state';
 import { initRecordsTab } from './tabs/records';
@@ -7,11 +7,11 @@ import { newWorksTab } from './tabs/newWorks';
 import { syncTab } from './tabs/sync';
 import { logsTab } from './tabs/logs';
 import { initSettingsTab } from './tabs/settings';
-// initAdvancedSettingsTab 已迁移到模块化设置系统中
-// initLogsTab 已迁移到模块化设置系统中
-// initAISettingsTab 已迁移到模块化设置系统中
-// initializeNetworkTestTab 已迁移到模块化设置系统中
-// drive115 功能已迁移到模块化设置系统中
+// initAdvancedSettingsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
+// initLogsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
+// initAISettingsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
+// initializeNetworkTestTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
+// drive115 鍔熻兘宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
@@ -23,12 +23,10 @@ import { STORAGE_KEYS } from '../utils/config';
 import { initUserProfileSection } from './userProfile';
 import { initDataSyncSection } from './dataSync';
 import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
-import './ui/dataViewModal'; // 确保dataViewModal被初始化
+import './ui/dataViewModal'; // 纭繚dataViewModal琚垵濮嬪寲
 import { getDrive115V2Service } from '../services/drive115v2';
 import { Drive115TasksManager } from './tabs/drive115Tasks';
 import { installConsoleProxy } from '../utils/consoleProxy';
-
-// 安装统一控制台代理（仅影响扩展自身，默认DEBUG，上海时区，显示来源+颜色）
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -36,8 +34,6 @@ installConsoleProxy({
         general: { enabled: true, match: () => true, label: 'DB', color: '#8e44ad' },
     },
 });
-
-// 从设置应用控制台显示配置到代理（Dashboard）
 async function applyConsoleSettingsFromStorage_DB() {
     try {
         const { getSettings } = await import('../utils/storage');
@@ -78,293 +74,150 @@ try {
     });
 } catch {}
 
-// 根据设置显隐左侧 115 网盘侧边栏容器（规则：V1 或 V2 任一开启即显示）
 function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
     const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
     if (!section) return;
     const enabled = typeof enabledParam === 'boolean' ? enabledParam : !!STATE.settings?.drive115?.enabled;
     const enableV2 = typeof enableV2Param === 'boolean' ? enableV2Param : !!STATE.settings?.drive115?.enableV2;
-    // 只要任一开启就显示
+    // 鍙浠讳竴寮€鍚氨鏄剧ず
     section.style.display = (enabled || enableV2) ? '' : 'none';
 }
 
-// 预置一个全局占位，避免其他模块在真实函数绑定前调用导致 ReferenceError
+// 棰勭疆涓€涓叏灞€鍗犱綅锛岄伩鍏嶅叾浠栨ā鍧楀湪鐪熷疄鍑芥暟缁戝畾鍓嶈皟鐢ㄥ鑷?ReferenceError
 (window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
-// 暴露给全局，避免作用域问题导致引用错误（在真实函数声明后会被覆盖为实现）
-(window as any).initDrive115QuotaSidebar = initDrive115QuotaSidebar;
+// 鏆撮湶缁欏叏灞€锛岄伩鍏嶄綔鐢ㄥ煙闂瀵艰嚧寮曠敤閿欒锛堝湪鐪熷疄鍑芥暟澹版槑鍚庝細琚鐩栦负瀹炵幇锛?(window as any).initDrive115QuotaSidebar = initDrive115QuotaSidebar;
 
 /**
- * 设置Dashboard隐私保护监听 - 简化版，只监听标签切换
+ * 璁剧疆Dashboard闅愮淇濇姢鐩戝惉 - 绠€鍖栫増锛屽彧鐩戝惉鏍囩鍒囨崲
  */
 async function setupDashboardPrivacyMonitoring() {
     try {
-        log.privacy('Setting up simplified Dashboard privacy monitoring...');
-
-        const reapplyPrivacy = async () => {
-            try {
-                if (window.privacyManager) {
-                    const state = window.privacyManager.getState();
-                    if (state.isBlurred) {
-                        log.privacy('Reapplying privacy protection after tab change...');
-                        await window.privacyManager.forceReapplyScreenshotMode();
-                    }
-
-async function initDrive115QuotaSidebar(): Promise<void> {
-    try {
-        // 侧边栏显示规则：V1 或 V2 任一开启
-        const enabled = !!STATE.settings?.drive115?.enabled;
-        const enableV2 = !!STATE.settings?.drive115?.enableV2;
-        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
-        if (!(enabled || enableV2)) {
-            if (section) section.style.display = 'none';
-            return;
-        }
-
-        // 若启用但不是V2（即V1模式），显示容器但不加载配额
-        if (enabled && !enableV2) {
-            if (section) section.style.display = '';
-            const box = document.getElementById('drive115QuotaSidebar');
-            if (box) box.innerHTML = '';
-            return;
-        }
-
-        // V2 启用：确保容器显示并加载配额
-        if (section) section.style.display = '';
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (!box) return;
-
-        const svc = getDrive115V2Service();
-        // 获取可用 accessToken（自动刷新）
-        const tokenRet = await svc.getValidAccessToken();
-        if (!('success' in tokenRet) || !tokenRet.success) {
-            box.innerHTML = `
-                <div style="font-size:12px; color:#999;">
-                    无法获取配额：${(tokenRet as any)?.message || '未启用或缺少凭据'}
-                    <div style="margin-top:6px;">
-                        <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
-
-/**
- * 顶层定义：初始化左侧 115 配额侧边栏（V2）。
- * 注意：与上方局部作用域中的同名函数不同，此处为模块级，确保在 DOMContentLoaded 中可用。
- */
-async function initDrive115QuotaSidebar(): Promise<void> {
-    try {
-        // 侧边栏显示规则：V1 或 V2 任一开启
-        const enabled = !!STATE.settings?.drive115?.enabled;
-        const enableV2 = !!STATE.settings?.drive115?.enableV2;
-        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
-        if (!(enabled || enableV2)) {
-            if (section) section.style.display = 'none';
-            return;
-        }
-
-        // 若启用但不是V2（即V1模式），显示容器但不加载配额
-        if (enabled && !enableV2) {
-            if (section) section.style.display = '';
-            const box = document.getElementById('drive115QuotaSidebar');
-            if (box) box.innerHTML = '';
-            return;
-        }
-
-        // V2 启用：确保容器显示并加载配额
-        if (section) section.style.display = '';
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (!box) return;
-
-        const svc = getDrive115V2Service();
-        // 获取可用 accessToken（自动刷新）
-        const tokenRet = await svc.getValidAccessToken();
-        if (!('success' in tokenRet) || !tokenRet.success) {
-            box.innerHTML = `
-                <div style="font-size:12px; color:#999;">
-                    无法获取配额：${(tokenRet as any)?.message || '未启用或缺少凭据'}
-                    <div style="margin-top:6px;">
-                        <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
-        if (!quotaRet.success) {
-            box.innerHTML = `
-                <div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>
-            `;
-            return;
-        }
-
-        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
-    } catch (e) {
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
-        console.error('initDrive115QuotaSidebar error:', e);
-    }
-}
-
-function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
-    const box = document.getElementById('drive115QuotaSidebar');
-    if (!box) return;
-
-    const total = typeof info.total === 'number' ? info.total : undefined;
-    const used = typeof info.used === 'number' ? info.used : undefined;
-    const surplus = typeof info.surplus === 'number' ? info.surplus : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
-
-    const percent = (() => {
-        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
-        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
-        return undefined;
-    })();
-
-    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
-
-    const barHtml = (percent !== undefined)
-        ? `
-        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
-            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
-        </div>
-        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
-        `
-        : '<div style="font-size:12px; color:#999;">暂无总额信息</div>';
-
-    box.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>总额</span>
-                <span>${fmt(total)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>已用</span>
-                <span>${fmt(used)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>剩余</span>
-                <span>${fmt(surplus)}</span>
-            </div>
-            ${barHtml}
-            <div style="margin-top:2px;">
-                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
-            </div>
-        </div>
-    `;
-}
-        if (!quotaRet.success) {
-            box.innerHTML = `
-                <div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>
-            `;
-            return;
-        }
-
-        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
-    } catch (e) {
-        const box = document.getElementById('drive115QuotaSidebar');
-        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
-        console.error('initDrive115QuotaSidebar error:', e);
-    }
-}
-
-function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
-    const box = document.getElementById('drive115QuotaSidebar');
-    if (!box) return;
-
-    const total = typeof info.total === 'number' ? info.total : undefined;
-    const used = typeof info.used === 'number' ? info.used : undefined;
-    const surplus = typeof info.surplus === 'number' ? info.surplus : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
-
-    // 进度百分比（如果能算出来）
-    const percent = (() => {
-        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
-        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
-        return undefined;
-    })();
-
-    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
-
-    const barHtml = (percent !== undefined)
-        ? `
-        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
-            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
-        </div>
-        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
-        `
-        : '<div style="font-size:12px; color:#999;">暂无总额信息</div>';
-
-    box.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>总额</span>
-                <span>${fmt(total)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>已用</span>
-                <span>${fmt(used)}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
-                <span>剩余</span>
-                <span>${fmt(surplus)}</span>
-            </div>
-            ${barHtml}
-            <div style="margin-top:2px;">
-                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
-            </div>
-        </div>
-    `;
-}
-                }
-            } catch (error) {
-                console.error('Failed to reapply privacy:', error);
-            }
-        };
-
-        // 只监听hash变化（标签页切换）- 最简单可靠的方式
-        let lastHash = window.location.hash;
-        const checkHashChange = () => {
-            const currentHash = window.location.hash;
-            if (currentHash !== lastHash) {
-                log.privacy(`Tab changed from ${lastHash} to ${currentHash}`);
-                lastHash = currentHash;
-                setTimeout(reapplyPrivacy, 300); // 减少延迟时间
-            }
-        };
-
-        // 定期检查hash变化（避免事件监听器的复杂性）
-        setInterval(checkHashChange, 1000);
-
-        log.privacy('Simplified Dashboard privacy monitoring setup complete');
+        // simplified stub; can be extended if needed
     } catch (error) {
-        console.error('Failed to setup Dashboard privacy monitoring:', error);
+        console.warn('Failed to setup Dashboard privacy monitoring (stub):', error);
     }
 }
 
+// Ensure global hook exists to avoid early reference errors
+(window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
+
+async function initDrive115QuotaSidebar(): Promise<void> {
+    try {
+        const enabled = !!STATE.settings?.drive115?.enabled;
+        const enableV2 = !!STATE.settings?.drive115?.enableV2;
+        const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
+        if (!(enabled || enableV2)) {
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        if (enabled && !enableV2) {
+            if (section) section.style.display = '';
+            const box = document.getElementById('drive115QuotaSidebar');
+            if (box) box.innerHTML = '';
+            return;
+        }
+
+        if (section) section.style.display = '';
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (!box) return;
+
+        const svc = getDrive115V2Service();
+        const tokenRet = await svc.getValidAccessToken();
+        if (!('success' in tokenRet) || !tokenRet.success) {
+    box.innerHTML = '<div style="font-size:12px; color:#999;">'
+        + '无法获取配额：' + ((tokenRet as any)?.message || '未启用或缺少凭据')
+        + '<div style="margin-top:6px;">'
+        + '<a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none;">前往设置 115</a>'
+        + '</div>'
+        + '</div>';
+    return;
+}
+
+        const quotaRet = await svc.getQuotaInfo({ accessToken: tokenRet.accessToken });
+        if (!quotaRet.success) {
+            box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额失败：${quotaRet.message || '未知错误'}</div>`;
+            return;
+        }
+
+        renderDrive115QuotaSidebar(quotaRet.data || {} as any);
+    } catch (e) {
+        const box = document.getElementById('drive115QuotaSidebar');
+        if (box) box.innerHTML = `<div style="font-size:12px; color:#d9534f;">获取配额异常</div>`;
+        console.error('initDrive115QuotaSidebar error:', e);
+    }
+}
+
+function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surplus?: number; list?: any[] }): void {
+    const box = document.getElementById('drive115QuotaSidebar');
+    if (!box) return;
+
+    const total = typeof info.total === 'number' ? info.total : undefined;
+    const used = typeof info.used === 'number' ? info.used : undefined;
+    const surplus = typeof info.surplus === 'number'
+        ? info.surplus
+        : (typeof used === 'number' && typeof total === 'number' ? Math.max(0, total - used) : undefined);
+
+    const percent = (() => {
+        if (typeof used === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
+        if (typeof surplus === 'number' && typeof total === 'number' && total > 0) return Math.max(0, Math.min(100, Math.round(((total - surplus) / total) * 100)));
+        return undefined;
+    })();
+
+    const fmt = (n?: number) => (typeof n === 'number' ? String(n) : '-');
+
+    const barHtml = (percent !== undefined)
+        ? `
+        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
+            <div style="height:100%; width:${percent}%; background:linear-gradient(90deg,#4a90e2,#50c9c3);"></div>
+        </div>
+        <div style="font-size:11px; color:#777; margin-top:4px;">已用 ${percent}%</div>
+        `
+        : '<div style="font-size:12px; color:#999;">暂无总量信息</div>';
+
+    box.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>总量</span>
+                <span>${fmt(total)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>已用</span>
+                <span>${fmt(used)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#555;">
+                <span>剩余</span>
+                <span>${fmt(surplus)}</span>
+            </div>
+            ${barHtml}
+            <div style="margin-top:2px;">
+                <a href="#tab-settings/drive115-settings" style="color:#4a90e2; text-decoration:none; font-size:12px;">查看详情与刷新</a>
+            </div>
+        </div>
+    `;
+}
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
 
-    // 日志控制器已在模块加载时自动初始化，这里不需要重复初始化
+    // 鏃ュ織鎺у埗鍣ㄥ凡鍦ㄦā鍧楀姞杞芥椂鑷姩鍒濆鍖栵紝杩欓噷涓嶉渶瑕侀噸澶嶅垵濮嬪寲
 
-    // 清理搜索引擎配置中的测试数据
+    // 娓呯悊鎼滅储寮曟搸閰嶇疆涓殑娴嬭瘯鏁版嵁
     await cleanupSearchEngines();
 
-    // 初始化隐私保护系统
+    // 鍒濆鍖栭殣绉佷繚鎶ょ郴缁?
     try {
         log.privacy('Initializing privacy system for Dashboard...');
         const { initializePrivacySystem } = await import('../services/privacy');
         await initializePrivacySystem();
         log.privacy('Privacy system initialized successfully for Dashboard');
 
-        // 设置Dashboard特定的隐私监听
+        // 璁剧疆Dashboard鐗瑰畾鐨勯殣绉佺洃鍚?
         setupDashboardPrivacyMonitoring();
     } catch (error) {
         console.error('Failed to initialize privacy system for Dashboard:', error);
     }
 
-    // 设置标题图标URL
+    // 璁剧疆鏍囬鍥炬爣URL
     const titleIcon = document.getElementById('title-icon') as HTMLImageElement;
     if (titleIcon) {
         titleIcon.src = chrome.runtime.getURL('assets/favicon-32x32.png');
@@ -372,82 +225,82 @@ document.addEventListener('DOMContentLoaded', async () => {
             titleIcon.style.display = 'block';
         };
         titleIcon.onerror = () => {
-            // 如果图片加载失败，隐藏图片元素
+            // 濡傛灉鍥剧墖鍔犺浇澶辫触锛岄殣钘忓浘鐗囧厓绱?
             titleIcon.style.display = 'none';
         };
     }
 
-    // 115 服务通过统一路由按需初始化，无需在此显式初始化
+    // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖栵紝鏃犻渶鍦ㄦ鏄惧紡鍒濆鍖?
 
     await initTabs();
     initRecordsTab();
-    // initActorsTab(); // 延迟初始化，只在用户点击演员库标签页时才加载
-    // initNewWorksTab(); // 延迟初始化，只在用户点击新作品标签页时才加载
+    // initActorsTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮婕斿憳搴撴爣绛鹃〉鏃舵墠鍔犺浇
+    // initNewWorksTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮鏂颁綔鍝佹爣绛鹃〉鏃舵墠鍔犺浇
     initSyncTab();
     initSettingsTab();
-    // initAdvancedSettingsTab(); // 已迁移到模块化设置系统
-    // initAISettingsTab(); // 已迁移到模块化设置系统
-    // initDrive115Tab(); // 已迁移到模块化设置系统
-    // initLogsTab(); // 已迁移到模块化设置系统
+    // initAdvancedSettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
+    // initAISettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
+    // initDrive115Tab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
+    // initLogsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
     initSidebarActions();
     initUserProfileSection();
-    // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
+    // initDataSyncSection(); // 绉婚櫎閲嶅璋冪敤锛岀敱 initSyncTab 澶勭悊
     initStatsOverview();
     initInfoContainer();
     initHelpSystem();
     initModal();
-    // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
+    // 鏍规嵁璁剧疆鎺у埗 115 渚ц竟鏍忔樉绀猴紝骞跺湪鍚敤鏃讹紙V2锛夊姞杞介厤棰?
     updateDrive115SidebarVisibility();
     if (STATE.settings?.drive115?.enableV2) {
         (window as any).initDrive115QuotaSidebar?.();
     }
     updateSyncStatus();
-    // 监听来自设置页的配额刷新事件
+    // 鐩戝惉鏉ヨ嚜璁剧疆椤电殑閰嶉鍒锋柊浜嬩欢
     window.addEventListener('drive115:refreshQuota' as any, () => {
         (window as any).initDrive115QuotaSidebar?.();
     });
-    // 监听 115 启用状态变更，动态显隐侧边栏并在启用（V2）时加载配额
+    // 鐩戝惉 115 鍚敤鐘舵€佸彉鏇达紝鍔ㄦ€佹樉闅愪晶杈规爮骞跺湪鍚敤锛圴2锛夋椂鍔犺浇閰嶉
     window.addEventListener('drive115:enabled-changed' as any, (e: any) => {
         const enabled = !!(e?.detail?.enabled);
         const enableV2 = !!(e?.detail?.enableV2);
         updateDrive115SidebarVisibility(enabled, enableV2);
         if (enableV2 || enabled) {
-            // V1 或 V2 任一开启先更新容器；仅当 V2 时加载配额
+            // V1 鎴?V2 浠讳竴寮€鍚厛鏇存柊瀹瑰櫒锛涗粎褰?V2 鏃跺姞杞介厤棰?
             if (enableV2) (window as any).initDrive115QuotaSidebar?.();
         }
     });
 });
 
 /**
- * 初始化演员库标签页
+ * 鍒濆鍖栨紨鍛樺簱鏍囩椤?
  */
 async function initActorsTab(): Promise<void> {
     try {
         await actorsTab.initActorsTab();
     } catch (error) {
-        console.error('初始化演员库标签页失败:', error);
+        console.error('鍒濆鍖栨紨鍛樺簱鏍囩椤靛け璐?', error);
     }
 }
 
 /**
- * 初始化新作品标签页
+ * 鍒濆鍖栨柊浣滃搧鏍囩椤?
  */
 async function initNewWorksTab(): Promise<void> {
     try {
         await newWorksTab.initialize();
     } catch (error) {
-        console.error('初始化新作品标签页失败:', error);
+        console.error('鍒濆鍖栨柊浣滃搧鏍囩椤靛け璐?', error);
     }
 }
 
 /**
- * 初始化数据同步标签页
+ * 鍒濆鍖栨暟鎹悓姝ユ爣绛鹃〉
  */
 async function initSyncTab(): Promise<void> {
     try {
         await syncTab.initSyncTab();
     } catch (error) {
-        console.error('初始化数据同步标签页失败:', error);
+        console.error('鍒濆鍖栨暟鎹悓姝ユ爣绛鹃〉澶辫触:', error);
     }
 }
 
@@ -456,14 +309,14 @@ async function initTabs(): Promise<void> {
         const tabs = document.querySelectorAll('.tab-link');
         const contents = document.querySelectorAll('.tab-content');
 
-        // 确保 NodeList 存在且不为空
+        // 纭繚 NodeList 瀛樺湪涓斾笉涓虹┖
         if (!tabs || tabs.length === 0) {
-            console.warn('未找到标签页链接元素');
+            console.warn('鏈壘鍒版爣绛鹃〉閾炬帴鍏冪礌');
             return;
         }
 
         if (!contents || contents.length === 0) {
-            console.warn('未找到标签页内容元素');
+            console.warn('鏈壘鍒版爣绛鹃〉鍐呭鍏冪礌');
             return;
         }
 
@@ -473,7 +326,7 @@ async function initTabs(): Promise<void> {
             if (!tabId) return;
 
             try {
-                // 安全地遍历 NodeList
+                // 瀹夊叏鍦伴亶鍘?NodeList
                 if (tabs && tabs.forEach) {
                     tabs.forEach(t => t.classList.remove('active'));
                 }
@@ -490,11 +343,11 @@ async function initTabs(): Promise<void> {
                     location.hash = `#${tabId}`;
                 }
             } catch (error) {
-                console.error('切换标签页时出错:', error);
+                console.error('鍒囨崲鏍囩椤垫椂鍑洪敊:', error);
             }
         };
 
-        // 安全地为每个标签页添加事件监听器
+        // 瀹夊叏鍦颁负姣忎釜鏍囩椤垫坊鍔犱簨浠剁洃鍚櫒
         if (tabs && tabs.forEach) {
             tabs.forEach(tab => {
                 try {
@@ -502,34 +355,34 @@ async function initTabs(): Promise<void> {
                         switchTab(tab);
                         const tabId = tab.getAttribute('data-tab');
 
-                        // 延迟初始化演员库标签页
+                        // 寤惰繜鍒濆鍖栨紨鍛樺簱鏍囩椤?
                         if (tabId === 'tab-actors' && !actorsTab.isInitialized) {
                             try {
                                 await initActorsTab();
                             } catch (error) {
-                                console.error('延迟初始化演员库标签页失败:', error);
+                                console.error('寤惰繜鍒濆鍖栨紨鍛樺簱鏍囩椤靛け璐?', error);
                             }
                         }
 
-                        // 延迟初始化新作品标签页
+                        // 寤惰繜鍒濆鍖栨柊浣滃搧鏍囩椤?
                         if (tabId === 'tab-new-works' && !newWorksTab.isInitialized) {
                             try {
                                 await initNewWorksTab();
                             } catch (error) {
-                                console.error('延迟初始化新作品标签页失败:', error);
+                                console.error('寤惰繜鍒濆鍖栨柊浣滃搧鏍囩椤靛け璐?', error);
                             }
                         }
 
-                        // 延迟初始化日志标签页
+                        // 寤惰繜鍒濆鍖栨棩蹇楁爣绛鹃〉
                         if (tabId === 'tab-logs' && !logsTab.isInitialized) {
                             try {
                                 await logsTab.initialize();
                             } catch (error) {
-                                console.error('延迟初始化日志标签页失败:', error);
+                                console.error('寤惰繜鍒濆鍖栨棩蹇楁爣绛鹃〉澶辫触:', error);
                             }
                         }
 
-                        // 延迟初始化115任务标签页
+                        // 寤惰繜鍒濆鍖?15浠诲姟鏍囩椤?
                         if (tabId === 'tab-drive115-tasks') {
                             try {
                                 if (!window.drive115TasksManager) {
@@ -537,47 +390,47 @@ async function initTabs(): Promise<void> {
                                     await window.drive115TasksManager.initialize();
                                 }
                             } catch (error) {
-                                console.error('延迟初始化115任务标签页失败:', error);
+                                console.error('寤惰繜鍒濆鍖?15浠诲姟鏍囩椤靛け璐?', error);
                             }
                         }
                     });
                 } catch (error) {
-                    console.error('为标签页添加事件监听器时出错:', error);
+                    console.error('涓烘爣绛鹃〉娣诲姞浜嬩欢鐩戝惉鍣ㄦ椂鍑洪敊:', error);
                 }
             });
         }
 
-        // 解析当前hash，支持二级路径
+        // 瑙ｆ瀽褰撳墠hash锛屾敮鎸佷簩绾ц矾寰?
         const fullHash = window.location.hash.substring(1) || 'tab-records';
         const [mainTab, subSection] = fullHash.split('/');
         const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
         switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
 
-        // 如果是设置页面且有子页面，存储子页面信息供设置页面使用
+        // 濡傛灉鏄缃〉闈笖鏈夊瓙椤甸潰锛屽瓨鍌ㄥ瓙椤甸潰淇℃伅渚涜缃〉闈娇鐢?
         if (mainTab === 'tab-settings' && subSection) {
-            // 将子页面信息存储到全局状态中，供设置页面初始化时使用
+            // 灏嗗瓙椤甸潰淇℃伅瀛樺偍鍒板叏灞€鐘舵€佷腑锛屼緵璁剧疆椤甸潰鍒濆鍖栨椂浣跨敤
             (window as any).initialSettingsSection = subSection;
         }
 
-        // 页面加载时根据当前 hash 初始化对应的标签页
+        // 椤甸潰鍔犺浇鏃舵牴鎹綋鍓?hash 鍒濆鍖栧搴旂殑鏍囩椤?
         if (mainTab === 'tab-actors' && !actorsTab.isInitialized) {
             initActorsTab().catch(error => {
-                console.error('页面加载时初始化演员库标签页失败:', error);
+                console.error('椤甸潰鍔犺浇鏃跺垵濮嬪寲婕斿憳搴撴爣绛鹃〉澶辫触:', error);
             });
         }
 
         if (mainTab === 'tab-new-works' && !newWorksTab.isInitialized) {
             initNewWorksTab().catch(error => {
-                console.error('页面加载时初始化新作品标签页失败:', error);
+                console.error('椤甸潰鍔犺浇鏃跺垵濮嬪寲鏂颁綔鍝佹爣绛鹃〉澶辫触:', error);
             });
         }
 
-        // 添加hashchange事件监听器，处理URL变化
+        // 娣诲姞hashchange浜嬩欢鐩戝惉鍣紝澶勭悊URL鍙樺寲
         window.addEventListener('hashchange', () => {
             const newHash = window.location.hash.substring(1) || 'tab-records';
             const [newMainTab, newSubSection] = newHash.split('/');
 
-            // 如果主标签页发生变化，切换主标签页
+            // 濡傛灉涓绘爣绛鹃〉鍙戠敓鍙樺寲锛屽垏鎹富鏍囩椤?
             const currentActiveTab = document.querySelector('.tab-link.active');
             const currentTabId = currentActiveTab?.getAttribute('data-tab');
 
@@ -586,31 +439,31 @@ async function initTabs(): Promise<void> {
                 if (newTargetTab) {
                     switchTab(newTargetTab);
 
-                    // 延迟初始化相关标签页
+                    // 寤惰繜鍒濆鍖栫浉鍏虫爣绛鹃〉
                     if (newMainTab === 'tab-actors' && !actorsTab.isInitialized) {
                         initActorsTab().catch(error => {
-                            console.error('延迟初始化演员库标签页失败:', error);
+                            console.error('寤惰繜鍒濆鍖栨紨鍛樺簱鏍囩椤靛け璐?', error);
                         });
                     }
 
                     if (newMainTab === 'tab-new-works' && !newWorksTab.isInitialized) {
                         initNewWorksTab().catch(error => {
-                            console.error('延迟初始化新作品标签页失败:', error);
+                            console.error('寤惰繜鍒濆鍖栨柊浣滃搧鏍囩椤靛け璐?', error);
                         });
                     }
                 }
             }
 
-            // 如果是设置页面且有子页面，通知设置页面切换
+            // 濡傛灉鏄缃〉闈笖鏈夊瓙椤甸潰锛岄€氱煡璁剧疆椤甸潰鍒囨崲
             if (newMainTab === 'tab-settings' && newSubSection) {
-                // 触发自定义事件，通知设置页面切换子页面
+                // 瑙﹀彂鑷畾涔変簨浠讹紝閫氱煡璁剧疆椤甸潰鍒囨崲瀛愰〉闈?
                 window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
                     detail: { section: newSubSection }
                 }));
             }
         });
     } catch (error) {
-        console.error('初始化标签页时出错:', error);
+        console.error('鍒濆鍖栨爣绛鹃〉鏃跺嚭閿?', error);
     }
 }
 
@@ -619,7 +472,7 @@ function initStatsOverview(): void {
     if (!container) return;
 
     try {
-        // 确保 STATE.records 是数组
+        // 纭繚 STATE.records 鏄暟缁?
         const records = Array.isArray(STATE.records) ? STATE.records : [];
 
         const totalRecords = records.length;
@@ -630,39 +483,39 @@ function initStatsOverview(): void {
         container.innerHTML = `
             <div data-stat="total">
                 <span class="stat-value">${totalRecords}</span>
-                <span class="stat-label">总记录</span>
+                <span class="stat-label">鎬昏褰?/span>
             </div>
             <div data-stat="viewed">
                 <span class="stat-value">${viewedCount}</span>
-                <span class="stat-label">已观看</span>
+                <span class="stat-label">宸茶鐪?/span>
             </div>
             <div data-stat="browsed">
                 <span class="stat-value">${browsedCount}</span>
-                <span class="stat-label">已浏览</span>
+                <span class="stat-label">宸叉祻瑙?/span>
             </div>
             <div data-stat="want">
                 <span class="stat-value">${wantCount}</span>
-                <span class="stat-label">想看</span>
+                <span class="stat-label">鎯崇湅</span>
             </div>
         `;
     } catch (error) {
-        console.error('初始化统计概览时出错:', error);
+        console.error('鍒濆鍖栫粺璁℃瑙堟椂鍑洪敊:', error);
         container.innerHTML = `
             <div data-stat="total">
                 <span class="stat-value">0</span>
-                <span class="stat-label">总记录</span>
+                <span class="stat-label">鎬昏褰?/span>
             </div>
             <div data-stat="viewed">
                 <span class="stat-value">0</span>
-                <span class="stat-label">已观看</span>
+                <span class="stat-label">宸茶鐪?/span>
             </div>
             <div data-stat="browsed">
                 <span class="stat-value">0</span>
-                <span class="stat-label">已浏览</span>
+                <span class="stat-label">宸叉祻瑙?/span>
             </div>
             <div data-stat="want">
                 <span class="stat-value">0</span>
-                <span class="stat-label">想看</span>
+                <span class="stat-label">鎯崇湅</span>
             </div>
         `;
     }
@@ -676,17 +529,17 @@ function initInfoContainer(): void {
     const versionState = import.meta.env.VITE_APP_VERSION_STATE || 'unknown';
 
     const getStateTitle = (state: string): string => {
-        switch (state) {
-            case 'clean':
-                return '此版本基于一个干净的、已完全提交的 Git 工作区构建。';
-            case 'dev':
-                return '此版本包含已暂存但尚未提交的更改 (dev/staged)。';
-            case 'dirty':
-                return '警告：此版本包含未跟踪或未暂存的本地修改 (dirty)！';
-            default:
-                return '无法确定此版本的构建状态。';
-        }
-    };
+    switch (state) {
+        case 'clean':
+            return '此版本基于干净且完全提交的 Git 工作区构建。';
+        case 'dev':
+            return '此版本包含暂存或未提交的更改（dev/staged）。';
+        case 'dirty':
+            return '警告：此版本包含未提交或未暂存的本地修改（dirty）。';
+        default:
+            return '无法确定此版本的构建状态。';
+    }
+};
 
     infoContainer.innerHTML = `
         <div class="info-item">
@@ -704,126 +557,126 @@ function initHelpSystem(): void {
 
     if (!helpBtn || !helpPanel || !closeHelpBtn || !helpBody) return;
 
-    // 帮助内容
+    // 甯姪鍐呭
     const helpContent = `
-        <h3><i class="fas fa-rocket"></i> 快速开始</h3>
+        <h3><i class="fas fa-rocket"></i> 蹇€熷紑濮?/h3>
         <ul>
-            <li><strong>打开仪表盘：</strong>点击扩展图标 → 进入“管理面板”。</li>
-            <li><strong>首次配置：</strong>在“设置 → WebDAV同步/功能增强/115网盘/隐私保护”等处完成开关与参数配置。</li>
-            <li><strong>立即体验：</strong>在“番号库/演员库/新作品”中浏览、筛选、批量管理你的记录。</li>
+            <li><strong>鎵撳紑浠〃鐩橈細</strong>鐐瑰嚮鎵╁睍鍥炬爣 鈫?杩涘叆鈥滅鐞嗛潰鏉库€濄€?/li>
+            <li><strong>棣栨閰嶇疆锛?/strong>鍦ㄢ€滆缃?鈫?WebDAV鍚屾/鍔熻兘澧炲己/115缃戠洏/闅愮淇濇姢鈥濈瓑澶勫畬鎴愬紑鍏充笌鍙傛暟閰嶇疆銆?/li>
+            <li><strong>绔嬪嵆浣撻獙锛?/strong>鍦ㄢ€滅暘鍙峰簱/婕斿憳搴?鏂颁綔鍝佲€濅腑娴忚銆佺瓫閫夈€佹壒閲忕鐞嗕綘鐨勮褰曘€?/li>
         </ul>
 
-        <h3><i class="fas fa-database"></i> 数据管理</h3>
+        <h3><i class="fas fa-database"></i> 鏁版嵁绠＄悊</h3>
         <ul>
-            <li><strong>番号库：</strong>全面的本地记录库，支持搜索、标签筛选、排序、分页、批量刷新/删除等。</li>
-            <li><strong>演员库：</strong>同步 JavDB 收藏演员，支持性别/分类/拉黑筛选与排序，支持页大小调节。</li>
-            <li><strong>新作品：</strong>订阅演员并自动发现其新作，提供过滤配置、状态同步、清理已读与分页浏览。</li>
-            <li><strong>数据导入/导出：</strong>本地 JSON 备份与恢复；支持 WebDAV 云端跨设备备份与恢复。</li>
-            <li><strong>统计概览：</strong>实时统计“已观看/已浏览/想看”等数量，便于总览与清理。</li>
+            <li><strong>鐣彿搴擄細</strong>鍏ㄩ潰鐨勬湰鍦拌褰曞簱锛屾敮鎸佹悳绱€佹爣绛剧瓫閫夈€佹帓搴忋€佸垎椤点€佹壒閲忓埛鏂?鍒犻櫎绛夈€?/li>
+            <li><strong>婕斿憳搴擄細</strong>鍚屾 JavDB 鏀惰棌婕斿憳锛屾敮鎸佹€у埆/鍒嗙被/鎷夐粦绛涢€変笌鎺掑簭锛屾敮鎸侀〉澶у皬璋冭妭銆?/li>
+            <li><strong>鏂颁綔鍝侊細</strong>璁㈤槄婕斿憳骞惰嚜鍔ㄥ彂鐜板叾鏂颁綔锛屾彁渚涜繃婊ら厤缃€佺姸鎬佸悓姝ャ€佹竻鐞嗗凡璇讳笌鍒嗛〉娴忚銆?/li>
+            <li><strong>鏁版嵁瀵煎叆/瀵煎嚭锛?/strong>鏈湴 JSON 澶囦唤涓庢仮澶嶏紱鏀寔 WebDAV 浜戠璺ㄨ澶囧浠戒笌鎭㈠銆?/li>
+            <li><strong>缁熻姒傝锛?/strong>瀹炴椂缁熻鈥滃凡瑙傜湅/宸叉祻瑙?鎯崇湅鈥濈瓑鏁伴噺锛屼究浜庢€昏涓庢竻鐞嗐€?/li>
         </ul>
 
-        <h3><i class="fas fa-user-circle"></i> 账号信息</h3>
+        <h3><i class="fas fa-user-circle"></i> 璐﹀彿淇℃伅</h3>
         <ul>
-            <li><strong>账号登录：</strong>显示并管理你的 JavDB 账号信息（邮箱、用户名、用户类型等）。</li>
-            <li><strong>仅用于同步：</strong>账号凭据只在本地用于与 JavDB 的数据同步，安全存储。</li>
+            <li><strong>璐﹀彿鐧诲綍锛?/strong>鏄剧ず骞剁鐞嗕綘鐨?JavDB 璐﹀彿淇℃伅锛堥偖绠便€佺敤鎴峰悕銆佺敤鎴风被鍨嬬瓑锛夈€?/li>
+            <li><strong>浠呯敤浜庡悓姝ワ細</strong>璐﹀彿鍑嵁鍙湪鏈湴鐢ㄤ簬涓?JavDB 鐨勬暟鎹悓姝ワ紝瀹夊叏瀛樺偍銆?/li>
         </ul>
 
-        <h3><i class="fas fa-sync-alt"></i> 数据同步（JavDB ⇨ 本地）</h3>
+        <h3><i class="fas fa-sync-alt"></i> 鏁版嵁鍚屾锛圝avDB 鈬?鏈湴锛?/h3>
         <ul>
-            <li><strong>同步全部：</strong>从 JavDB 拉取“已观看 + 想看”的所有记录到本地。</li>
-            <li><strong>分类同步：</strong>可单独拉取“想看”或“已看”记录，按需更新。</li>
-            <li><strong>收藏演员：</strong>支持同步收藏演员，并可单独补全/更新演员性别信息。</li>
-            <li><strong>进度与取消：</strong>展示“获取列表/拉取详情”两阶段进度，可随时取消。</li>
+            <li><strong>鍚屾鍏ㄩ儴锛?/strong>浠?JavDB 鎷夊彇鈥滃凡瑙傜湅 + 鎯崇湅鈥濈殑鎵€鏈夎褰曞埌鏈湴銆?/li>
+            <li><strong>鍒嗙被鍚屾锛?/strong>鍙崟鐙媺鍙栤€滄兂鐪嬧€濇垨鈥滃凡鐪嬧€濊褰曪紝鎸夐渶鏇存柊銆?/li>
+            <li><strong>鏀惰棌婕斿憳锛?/strong>鏀寔鍚屾鏀惰棌婕斿憳锛屽苟鍙崟鐙ˉ鍏?鏇存柊婕斿憳鎬у埆淇℃伅銆?/li>
+            <li><strong>杩涘害涓庡彇娑堬細</strong>灞曠ず鈥滆幏鍙栧垪琛?鎷夊彇璇︽儏鈥濅袱闃舵杩涘害锛屽彲闅忔椂鍙栨秷銆?/li>
         </ul>
 
-        <h3><i class="fas fa-cloud"></i> WebDAV 备份与恢复</h3>
+        <h3><i class="fas fa-cloud"></i> WebDAV 澶囦唤涓庢仮澶?/h3>
         <ul>
-            <li><strong>自动/手动：</strong>支持手动上传/下载；可按需开启自动备份，保持多设备一致。</li>
-            <li><strong>服务兼容：</strong>适配坚果云、Nextcloud、TeraCloud、Yandex 等主流 WebDAV 服务。</li>
-            <li><strong>恢复向导：</strong>提供“快捷/向导/专家”三种模式，支持智能合并、策略选择与差异分析。</li>
-            <li><strong>可选内容：</strong>可分别恢复“扩展设置/观看记录/账号信息/演员库/日志/新作品”等数据类别。</li>
+            <li><strong>鑷姩/鎵嬪姩锛?/strong>鏀寔鎵嬪姩涓婁紶/涓嬭浇锛涘彲鎸夐渶寮€鍚嚜鍔ㄥ浠斤紝淇濇寔澶氳澶囦竴鑷淬€?/li>
+            <li><strong>鏈嶅姟鍏煎锛?/strong>閫傞厤鍧氭灉浜戙€丯extcloud銆乀eraCloud銆乊andex 绛変富娴?WebDAV 鏈嶅姟銆?/li>
+            <li><strong>鎭㈠鍚戝锛?/strong>鎻愪緵鈥滃揩鎹?鍚戝/涓撳鈥濅笁绉嶆ā寮忥紝鏀寔鏅鸿兘鍚堝苟銆佺瓥鐣ラ€夋嫨涓庡樊寮傚垎鏋愩€?/li>
+            <li><strong>鍙€夊唴瀹癸細</strong>鍙垎鍒仮澶嶁€滄墿灞曡缃?瑙傜湅璁板綍/璐﹀彿淇℃伅/婕斿憳搴?鏃ュ織/鏂颁綔鍝佲€濈瓑鏁版嵁绫诲埆銆?/li>
         </ul>
 
-        <h3><i class="fas fa-cloud-download-alt"></i> 115 网盘集成</h3>
+        <h3><i class="fas fa-cloud-download-alt"></i> 115 缃戠洏闆嗘垚</h3>
         <ul>
-            <li><strong>推送下载：</strong>在详情页可一键将磁力链接推送至 115 离线下载。</li>
-            <li><strong>验证码处理：</strong>自动处理验证流程，失败可重试；成功可自动联动标记状态。</li>
-            <li><strong>配额侧栏：</strong>若开启 115-V2，将在侧边栏显示网盘配额（总额/已用/剩余）。</li>
+            <li><strong>鎺ㄩ€佷笅杞斤細</strong>鍦ㄨ鎯呴〉鍙竴閿皢纾佸姏閾炬帴鎺ㄩ€佽嚦 115 绂荤嚎涓嬭浇銆?/li>
+            <li><strong>楠岃瘉鐮佸鐞嗭細</strong>鑷姩澶勭悊楠岃瘉娴佺▼锛屽け璐ュ彲閲嶈瘯锛涙垚鍔熷彲鑷姩鑱斿姩鏍囪鐘舵€併€?/li>
+            <li><strong>閰嶉渚ф爮锛?/strong>鑻ュ紑鍚?115-V2锛屽皢鍦ㄤ晶杈规爮鏄剧ず缃戠洏閰嶉锛堟€婚/宸茬敤/鍓╀綑锛夈€?/li>
         </ul>
 
-        <h3><i class="fas fa-tv"></i> Emby 增强</h3>
+        <h3><i class="fas fa-tv"></i> Emby 澧炲己</h3>
         <ul>
-            <li><strong>信息联动：</strong>在 Emby 页面增强展示与跳转体验（如与番号、演员信息联动）。</li>
+            <li><strong>淇℃伅鑱斿姩锛?/strong>鍦?Emby 椤甸潰澧炲己灞曠ず涓庤烦杞綋楠岋紙濡備笌鐣彿銆佹紨鍛樹俊鎭仈鍔級銆?/li>
         </ul>
 
-        <h3><i class="fas fa-eye"></i> 显示与内容过滤</h3>
+        <h3><i class="fas fa-eye"></i> 鏄剧ず涓庡唴瀹硅繃婊?/h3>
         <ul>
-            <li><strong>列表隐藏：</strong>可在访问 JavDB 时自动隐藏“已看/已浏览/VR”影片，净化列表。</li>
-            <li><strong>样式自定义：</strong>可调整标记颜色、显示位置与样式，兼顾可读性与密度。</li>
+            <li><strong>鍒楄〃闅愯棌锛?/strong>鍙湪璁块棶 JavDB 鏃惰嚜鍔ㄩ殣钘忊€滃凡鐪?宸叉祻瑙?VR鈥濆奖鐗囷紝鍑€鍖栧垪琛ㄣ€?/li>
+            <li><strong>鏍峰紡鑷畾涔夛細</strong>鍙皟鏁存爣璁伴鑹层€佹樉绀轰綅缃笌鏍峰紡锛屽吋椤惧彲璇绘€т笌瀵嗗害銆?/li>
         </ul>
 
-        <h3><i class="fas fa-search"></i> 搜索引擎跳转</h3>
+        <h3><i class="fas fa-search"></i> 鎼滅储寮曟搸璺宠浆</h3>
         <ul>
-            <li><strong>自定义引擎：</strong>为番号点击配置多个外部搜索站点，使用 <code>{{ID}}</code> 作为占位符。</li>
-            <li><strong>图标与顺序：</strong>可设置展示图标与顺序，便于快速分流检索。</li>
+            <li><strong>鑷畾涔夊紩鎿庯細</strong>涓虹暘鍙风偣鍑婚厤缃涓閮ㄦ悳绱㈢珯鐐癸紝浣跨敤 <code>{{ID}}</code> 浣滀负鍗犱綅绗︺€?/li>
+            <li><strong>鍥炬爣涓庨『搴忥細</strong>鍙缃睍绀哄浘鏍囦笌椤哄簭锛屼究浜庡揩閫熷垎娴佹绱€?/li>
         </ul>
 
-        <h3><i class="fas fa-magic"></i> 功能增强</h3>
+        <h3><i class="fas fa-magic"></i> 鍔熻兘澧炲己</h3>
         <ul>
-            <li><strong>磁链聚合：</strong>自动聚合站内外磁力资源并高亮（参见“功能增强/磁力聚合”）。</li>
-            <li><strong>快速复制：</strong>一键复制番号/标题/磁链等信息，提升整理效率。</li>
-            <li><strong>锚点优化：</strong>改良链接交互：左键前台、右键后台打开；支持悬浮预览（若有源）。</li>
-            <li><strong>详情增强：</strong>在视频详情页提供快捷标记、跳转与辅助信息展示。</li>
+            <li><strong>纾侀摼鑱氬悎锛?/strong>鑷姩鑱氬悎绔欏唴澶栫鍔涜祫婧愬苟楂樹寒锛堝弬瑙佲€滃姛鑳藉寮?纾佸姏鑱氬悎鈥濓級銆?/li>
+            <li><strong>蹇€熷鍒讹細</strong>涓€閿鍒剁暘鍙?鏍囬/纾侀摼绛変俊鎭紝鎻愬崌鏁寸悊鏁堢巼銆?/li>
+            <li><strong>閿氱偣浼樺寲锛?/strong>鏀硅壇閾炬帴浜や簰锛氬乏閿墠鍙般€佸彸閿悗鍙版墦寮€锛涙敮鎸佹偓娴瑙堬紙鑻ユ湁婧愶級銆?/li>
+            <li><strong>璇︽儏澧炲己锛?/strong>鍦ㄨ棰戣鎯呴〉鎻愪緵蹇嵎鏍囪銆佽烦杞笌杈呭姪淇℃伅灞曠ず銆?/li>
         </ul>
 
-        <h3><i class="fas fa-shield-alt"></i> 隐私保护</h3>
+        <h3><i class="fas fa-shield-alt"></i> 闅愮淇濇姢</h3>
         <ul>
-            <li><strong>截图模式：</strong>一键模糊敏感区域；切换标签后自动恢复隐私效果。</li>
-            <li><strong>隐私设置：</strong>可在“设置 → 隐私保护”中自定义策略与强度。</li>
+            <li><strong>鎴浘妯″紡锛?/strong>涓€閿ā绯婃晱鎰熷尯鍩燂紱鍒囨崲鏍囩鍚庤嚜鍔ㄦ仮澶嶉殣绉佹晥鏋溿€?/li>
+            <li><strong>闅愮璁剧疆锛?/strong>鍙湪鈥滆缃?鈫?闅愮淇濇姢鈥濅腑鑷畾涔夌瓥鐣ヤ笌寮哄害銆?/li>
         </ul>
 
-        <h3><i class="fas fa-keyboard"></i> 快捷键</h3>
+        <h3><i class="fas fa-keyboard"></i> 蹇嵎閿?/h3>
         <ul>
-            <li><code>Ctrl + Shift + M</code>：快速标记当前视频为“已观看”。</li>
-            <li><code>Ctrl + Shift + W</code>：快速标记当前视频为“想看”。</li>
-            <li><strong>多选操作：</strong>支持 Ctrl/Shift 组合多选；点击状态标签可快速筛选。</li>
+            <li><code>Ctrl + Shift + M</code>锛氬揩閫熸爣璁板綋鍓嶈棰戜负鈥滃凡瑙傜湅鈥濄€?/li>
+            <li><code>Ctrl + Shift + W</code>锛氬揩閫熸爣璁板綋鍓嶈棰戜负鈥滄兂鐪嬧€濄€?/li>
+            <li><strong>澶氶€夋搷浣滐細</strong>鏀寔 Ctrl/Shift 缁勫悎澶氶€夛紱鐐瑰嚮鐘舵€佹爣绛惧彲蹇€熺瓫閫夈€?/li>
         </ul>
 
-        <h3><i class="fas fa-list-alt"></i> 日志与诊断</h3>
+        <h3><i class="fas fa-list-alt"></i> 鏃ュ織涓庤瘖鏂?/h3>
         <ul>
-            <li><strong>运行日志：</strong>记录操作、告警与错误，支持按级别筛选、清空、导出。</li>
-            <li><strong>网络测试：</strong>测试 WebDAV 连通性、响应时间与同步性能，便于诊断。</li>
+            <li><strong>杩愯鏃ュ織锛?/strong>璁板綍鎿嶄綔銆佸憡璀︿笌閿欒锛屾敮鎸佹寜绾у埆绛涢€夈€佹竻绌恒€佸鍑恒€?/li>
+            <li><strong>缃戠粶娴嬭瘯锛?/strong>娴嬭瘯 WebDAV 杩為€氭€с€佸搷搴旀椂闂翠笌鍚屾鎬ц兘锛屼究浜庤瘖鏂€?/li>
         </ul>
 
-        <h3><i class="fas fa-tools"></i> 高级工具</h3>
+        <h3><i class="fas fa-tools"></i> 楂樼骇宸ュ叿</h3>
         <ul>
-            <li><strong>数据结构检查：</strong>自动检测并修复历史数据格式问题，保持一致性。</li>
-            <li><strong>数据迁移：</strong>从旧版本升级后自动迁移数据结构，附进度显示。</li>
-            <li><strong>JSON 编辑：</strong>为进阶用户提供原始 JSON 查看与编辑能力（请谨慎操作）。</li>
+            <li><strong>鏁版嵁缁撴瀯妫€鏌ワ細</strong>鑷姩妫€娴嬪苟淇鍘嗗彶鏁版嵁鏍煎紡闂锛屼繚鎸佷竴鑷存€с€?/li>
+            <li><strong>鏁版嵁杩佺Щ锛?/strong>浠庢棫鐗堟湰鍗囩骇鍚庤嚜鍔ㄨ縼绉绘暟鎹粨鏋勶紝闄勮繘搴︽樉绀恒€?/li>
+            <li><strong>JSON 缂栬緫锛?/strong>涓鸿繘闃剁敤鎴锋彁渚涘師濮?JSON 鏌ョ湅涓庣紪杈戣兘鍔涳紙璇疯皑鎱庢搷浣滐級銆?/li>
         </ul>
 
-        <h3><i class="fas fa-question-circle"></i> 常见问题</h3>
+        <h3><i class="fas fa-question-circle"></i> 甯歌闂</h3>
         <ul>
-            <li><strong>数据丢失：</strong>可通过 WebDAV 恢复；或导入你先前导出的本地 JSON 备份。</li>
-            <li><strong>同步异常：</strong>检查网络与登录状态，查看“日志”获取详细错误并定位。</li>
-            <li><strong>性能建议：</strong>大量记录时建议定期清理无用数据，合理设置并发以提升体验。</li>
+            <li><strong>鏁版嵁涓㈠け锛?/strong>鍙€氳繃 WebDAV 鎭㈠锛涙垨瀵煎叆浣犲厛鍓嶅鍑虹殑鏈湴 JSON 澶囦唤銆?/li>
+            <li><strong>鍚屾寮傚父锛?/strong>妫€鏌ョ綉缁滀笌鐧诲綍鐘舵€侊紝鏌ョ湅鈥滄棩蹇椻€濊幏鍙栬缁嗛敊璇苟瀹氫綅銆?/li>
+            <li><strong>鎬ц兘寤鸿锛?/strong>澶ч噺璁板綍鏃跺缓璁畾鏈熸竻鐞嗘棤鐢ㄦ暟鎹紝鍚堢悊璁剧疆骞跺彂浠ユ彁鍗囦綋楠屻€?/li>
         </ul>
 
         <div class="help-footer">
-            <p><i class="fas fa-info-circle"></i> <strong>提示：</strong>所有数据默认存储在本地浏览器中，建议开启 WebDAV 自动备份以避免丢失。</p>
-            <p><i class="fas fa-github"></i> 欢迎在 GitHub 提交 Issue/Discussion 反馈问题或提出建议。</p>
+            <p><i class="fas fa-info-circle"></i> <strong>鎻愮ず锛?/strong>鎵€鏈夋暟鎹粯璁ゅ瓨鍌ㄥ湪鏈湴娴忚鍣ㄤ腑锛屽缓璁紑鍚?WebDAV 鑷姩澶囦唤浠ラ伩鍏嶄涪澶便€?/p>
+            <p><i class="fas fa-github"></i> 娆㈣繋鍦?GitHub 鎻愪氦 Issue/Discussion 鍙嶉闂鎴栨彁鍑哄缓璁€?/p>
         </div>
     `;
 
     helpBody.innerHTML = helpContent;
 
-    // 显示帮助面板
+    // 鏄剧ず甯姪闈㈡澘
     helpBtn.addEventListener('click', () => {
         helpPanel.classList.remove('hidden');
         helpPanel.classList.add('visible');
     });
 
-    // 关闭帮助面板
+    // 鍏抽棴甯姪闈㈡澘
     const closeHelp = () => {
         helpPanel.classList.remove('visible');
         helpPanel.classList.add('hidden');
@@ -831,14 +684,14 @@ function initHelpSystem(): void {
 
     closeHelpBtn.addEventListener('click', closeHelp);
 
-    // 点击背景关闭
+    // 鐐瑰嚮鑳屾櫙鍏抽棴
     helpPanel.addEventListener('click', (e) => {
         if (e.target === helpPanel) {
             closeHelp();
         }
     });
 
-    // ESC键关闭
+    // ESC閿叧闂?
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && helpPanel.classList.contains('visible')) {
             closeHelp();
@@ -852,7 +705,7 @@ function updateSyncStatus(): void {
         const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
         const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
 
-        // 安全地获取 lastSync 时间
+        // 瀹夊叏鍦拌幏鍙?lastSync 鏃堕棿
         const webdavSettings = STATE.settings?.webdav || {};
         const lastSync = webdavSettings.lastSync || '';
 
@@ -863,20 +716,20 @@ function updateSyncStatus(): void {
 
         // Update settings page sync time
         if (lastSyncTimeSettings) {
-            lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '从未';
+            lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '浠庢湭';
         }
     } catch (error) {
-        console.error('更新同步状态时出错:', error);
-        // 在出错时设置默认状态
+        console.error('鏇存柊鍚屾鐘舵€佹椂鍑洪敊:', error);
+        // 鍦ㄥ嚭閿欐椂璁剧疆榛樿鐘舵€?
         const lastSyncTimeElement = document.getElementById('lastSyncTime') as HTMLSpanElement;
         const lastSyncTimeSettings = document.getElementById('last-sync-time') as HTMLSpanElement;
         const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
 
         if (lastSyncTimeElement) {
-            lastSyncTimeElement.textContent = '从未';
+            lastSyncTimeElement.textContent = '浠庢湭';
         }
         if (lastSyncTimeSettings) {
-            lastSyncTimeSettings.textContent = '从未';
+            lastSyncTimeSettings.textContent = '浠庢湭';
         }
         if (syncIndicator) {
             syncIndicator.className = 'sync-indicator';
@@ -887,7 +740,6 @@ function updateSyncStatus(): void {
         }
     }
 }
-
 function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: HTMLDivElement, lastSync: string): void {
     if (lastSync) {
         const syncDate = new Date(lastSync);
@@ -903,11 +755,7 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
             timeText = `${diffHours}小时前`;
         } else {
             const diffMinutes = Math.floor(diffMs / (1000 * 60));
-            if (diffMinutes > 0) {
-                timeText = `${diffMinutes}分钟前`;
-            } else {
-                timeText = '刚刚';
-            }
+            timeText = diffMinutes > 0 ? `${diffMinutes}分钟前` : '刚刚';
         }
 
         lastSyncTimeElement.textContent = timeText;
@@ -929,23 +777,22 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
         lastSyncTimeElement.textContent = '从未';
         lastSyncTimeElement.title = '尚未进行过同步';
         syncIndicator.className = 'sync-indicator';
-        syncIndicator.querySelector('.sync-status-text')!.textContent = '未同步';
+        const text = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
+        if (text) text.textContent = '未同步';
     }
 }
-
 function setSyncingStatus(isUploading: boolean = false): void {
     const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
     if (!syncIndicator) return;
 
     syncIndicator.className = 'sync-indicator syncing';
-    const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement;
+    const statusText = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
     if (statusText) {
         statusText.textContent = isUploading ? '上传中...' : '同步中...';
     }
 }
-
 function initSidebarActions(): void {
-    // 初始化侧边栏收缩功能
+    // 初始化侧边栏折叠功能
     initSidebarToggle();
 
     const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
@@ -953,24 +800,24 @@ function initSidebarActions(): void {
     const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
     const fileListContainer = document.getElementById('fileListContainer') as HTMLDivElement;
     const fileList = document.getElementById('fileList') as HTMLUListElement;
-    // clearAllBtn has been moved to settings tab - global actions section
-
-    // clearAllBtn functionality has been moved to settings tab - global actions section
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
-            logAsync('INFO', '用户点击了“导出到本地”按钮。');
-            // 获取用户账号信息
+            logAsync('INFO', '用户点击了“导出到本地”按钮');
+
             const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
+            const actorRecords = await getValue(STORAGE_KEYS.ACTOR_RECORDS, {});
 
             const dataToExport = {
                 settings: STATE.settings,
                 data: STATE.records.reduce((acc, record) => {
-                    acc[record.id] = record;
+                    acc[record.id] = record as any;
                     return acc;
                 }, {} as Record<string, VideoRecord>),
-                userProfile: userProfile
+                userProfile,
+                actorRecords
             };
+
             const dataStr = JSON.stringify(dataToExport, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
@@ -979,19 +826,18 @@ function initSidebarActions(): void {
             anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
             anchor.click();
             URL.revokeObjectURL(url);
-            showMessage('数据导出成功（包含账号信息）', 'success');
-            logAsync('INFO', '本地数据导出成功，包含用户账号信息。');
+            showMessage('数据导出成功（包含账号信息与演员库）', 'success');
+            logAsync('INFO', '本地数据导出成功（包含账号信息与演员库）');
         });
     }
 
     const importFileInput = document.getElementById('importFile') as HTMLInputElement;
-
     if (importFileInput) {
         importFileInput.addEventListener('change', (event) => {
-            logAsync('INFO', '用户选择了本地文件进行导入。');
+            logAsync('INFO', '用户选择了本地文件进行导入');
             const file = (event.target as HTMLInputElement).files?.[0];
             if (!file) {
-                logAsync('WARN', '用户取消了文件选择。');
+                logAsync('WARN', '用户取消了文件选择');
                 return;
             }
 
@@ -1002,12 +848,12 @@ function initSidebarActions(): void {
                     showImportModal(text);
                 } else {
                     showMessage('Failed to read file content.', 'error');
-                    logAsync('ERROR', '无法读取文件内容，内容非字符串。');
+                    logAsync('ERROR', '无法读取文件内容，内容非字符串');
                 }
             };
             reader.onerror = () => {
                 showMessage(`Error reading file: ${reader.error}`, 'error');
-                logAsync('ERROR', '读取导入文件时发生错误。', { error: reader.error });
+                logAsync('ERROR', '读取导入文件时发生错误', { error: reader.error as any });
             };
             reader.readAsText(file);
 
@@ -1020,26 +866,20 @@ function initSidebarActions(): void {
             syncNowBtn.textContent = '正在上传...';
             syncNowBtn.disabled = true;
             setSyncingStatus(true);
-            logAsync('INFO', '用户点击"立即上传至云端"，开始上传数据。');
+            logAsync('INFO', '用户点击“立即上传至云端”，开始上传数据');
 
-            chrome.runtime.sendMessage({ type: 'webdav-upload' }, response => {
+            chrome.runtime.sendMessage({ type: 'webdav-upload' }, (response) => {
                 syncNowBtn.textContent = '立即上传至云端';
                 syncNowBtn.disabled = false;
 
                 if (response?.success) {
-                    showMessage('数据已成功上传至云端！', 'success');
-                    logAsync('INFO', '数据成功上传至云端。');
-                    // Update sync status after successful upload
-                    setTimeout(() => {
-                        updateSyncStatus();
-                    }, 500);
+                    showMessage('数据已成功上传至云端', 'success');
+                    logAsync('INFO', '数据成功上传至云端');
+                    setTimeout(() => updateSyncStatus(), 500);
                 } else {
-                    showMessage(`上传失败: ${response.error}`, 'error');
-                    logAsync('ERROR', '数据上传至云端失败。', { error: response.error });
-                    // Reset sync status on error
-                    setTimeout(() => {
-                        updateSyncStatus();
-                    }, 500);
+                    showMessage(`上传失败: ${response?.error}`, 'error');
+                    logAsync('ERROR', '数据上传至云端失败', { error: response?.error });
+                    setTimeout(() => updateSyncStatus(), 500);
                 }
             });
         });
@@ -1047,22 +887,21 @@ function initSidebarActions(): void {
 
     if (syncDownBtn) {
         syncDownBtn.addEventListener('click', () => {
-            logAsync('INFO', '用户点击"从云端恢复"，打开恢复弹窗。');
+            logAsync('INFO', '用户点击“从云端恢复”，打开恢复弹窗');
             showWebDAVRestoreModal();
         });
     }
 }
 
-// 监听来自background script的消息
 chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
     if (message.type === 'show-toast') {
-        // 在dashboard页面显示toast通知
+        // 鍦╠ashboard椤甸潰鏄剧ずtoast閫氱煡
         showMessage(message.message, message.toastType || 'info');
     }
 });
 
 /**
- * 初始化侧边栏收缩功能
+ * 鍒濆鍖栦晶杈规爮鏀剁缉鍔熻兘
  */
 function initSidebarToggle(): void {
     const SIDEBAR_STATE_KEY = 'sidebar-collapsed';
@@ -1074,36 +913,29 @@ function initSidebarToggle(): void {
         return;
     }
 
-    // 从存储中恢复侧边栏状态
     const restoreSidebarState = async () => {
         try {
             const isCollapsed = await getValue(SIDEBAR_STATE_KEY, false);
             if (isCollapsed) {
                 sidebar.classList.add('collapsed');
-                // 更新按钮图标
                 const icon = toggleBtn.querySelector('i');
-                if (icon) {
-                    icon.style.transform = 'rotate(180deg)';
-                }
+                if (icon) icon.style.transform = 'rotate(180deg)';
             }
         } catch (error) {
-            console.error('恢复侧边栏状态失败:', error);
+            console.error('恢复侧边栏状态失败', error);
         }
     };
 
-    // 保存侧边栏状态
     const saveSidebarState = async (isCollapsed: boolean) => {
         try {
             await setValue(SIDEBAR_STATE_KEY, isCollapsed);
         } catch (error) {
-            console.error('保存侧边栏状态失败:', error);
+            console.error('保存侧边栏状态失败', error);
         }
     };
 
-    // 切换侧边栏状态
     const toggleSidebar = () => {
         const isCollapsed = sidebar.classList.contains('collapsed');
-
         if (isCollapsed) {
             sidebar.classList.remove('collapsed');
             saveSidebarState(false);
@@ -1111,22 +943,13 @@ function initSidebarToggle(): void {
             sidebar.classList.add('collapsed');
             saveSidebarState(true);
         }
-
-        // 更新按钮图标方向
         const icon = toggleBtn.querySelector('i');
         if (icon) {
-            if (sidebar.classList.contains('collapsed')) {
-                icon.style.transform = 'rotate(180deg)';
-            } else {
-                icon.style.transform = 'rotate(0deg)';
-            }
+            icon.style.transform = sidebar.classList.contains('collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
     };
 
-    // 绑定点击事件
     toggleBtn.addEventListener('click', toggleSidebar);
-
-    // 恢复状态
     restoreSidebarState();
 }
 
@@ -1135,3 +958,21 @@ export { updateSyncStatus };
 
 // Make updateSyncStatus available globally
 (window as any).updateSyncStatus = updateSyncStatus;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -200,8 +200,8 @@ export class PerformanceOptimizer {
   private setupContextInvalidationHandler(): void {
     // 监听chrome.runtime错误
     if (typeof chrome !== 'undefined' && chrome.runtime) {
-      const originalSendMessage = chrome.runtime.sendMessage;
-      chrome.runtime.sendMessage = function(...args: any[]) {
+      const originalSendMessage = (chrome.runtime as any).sendMessage;
+      (chrome.runtime as any).sendMessage = function(...args: any[]) {
         try {
           return originalSendMessage.apply(this, args);
         } catch (error) {
@@ -216,8 +216,8 @@ export class PerformanceOptimizer {
 
     // 监听storage错误
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      const originalGet = chrome.storage.local.get;
-      chrome.storage.local.get = function(...args: any[]) {
+      const originalGet = (chrome.storage.local as any).get;
+      (chrome.storage.local as any).get = function(...args: any[]) {
         try {
           return originalGet.apply(this, args);
         } catch (error) {
