@@ -1,5 +1,5 @@
-import { getSettings } from '../../utils/storage';
 import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
+import { getSettings } from '../../utils/storage';
 
 const DISPLAY_PAGE_SIZE_STORAGE_KEY = 'drive115TasksDisplayPageSize';
 
@@ -56,6 +56,40 @@ export class Drive115TasksManager {
     this.loadingIndicator = document.getElementById('drive115TasksLoading');
     this.statsContainer = document.getElementById('drive115TasksStatsContainer');
     this.paginationContainer = document.getElementById('drive115TasksPaginationContainer');
+  }
+
+  /**
+   * 预检：获取有效 access_token。
+   * mode:
+   *  - 'pageError'：以整页错误块提示（适合列表加载场景）
+   *  - 'toast'：以轻量提示，不打断页面布局（适合添加/删除/清空等操作）
+   */
+  private async resolveAccessTokenOrExplain(mode: 'pageError' | 'toast' = 'pageError'): Promise<string | null> {
+    try {
+      const svc = getDrive115V2Service();
+      const ret = await svc.getValidAccessToken();
+      if (('success' in ret) && ret.success && ret.accessToken) {
+        return ret.accessToken;
+      }
+
+      // 兜底：直接读取设置中已填写的 access_token（即使没有 expiresAt/refresh_token）
+      try {
+        const settings = await getSettings();
+        const fallback = (settings as any)?.drive115?.v2AccessToken;
+        const token = (fallback || '').toString().trim();
+        if (token) {
+          return token;
+        }
+      } catch {}
+
+      const msg = (ret as any)?.message || '请先在设置中配置115网盘授权信息';
+      if (mode === 'toast') this.showMessage(msg, 'error'); else this.showError(msg);
+      return null;
+    } catch (e: any) {
+      const msg = e?.message || '获取授权信息失败';
+      if (mode === 'toast') this.showMessage(msg, 'error'); else this.showError(msg);
+      return null;
+    }
   }
 
   /** 绑定顶部按钮与输入事件 */
@@ -181,19 +215,12 @@ export class Drive115TasksManager {
       this.isLoading = true;
       this.showLoading(true);
 
-      const settings = await getSettings();
-      const accessToken = settings?.drive115?.v2AccessToken;
-      
-      if (!accessToken) {
-        this.showError('请先在设置中配置115网盘授权信息');
-        return;
-      }
+      // 先校验并获取有效 access_token，避免无效凭据下盲目请求
+      const accessToken = await this.resolveAccessTokenOrExplain('pageError');
+      if (!accessToken) return;
 
       const drive115Service = getDrive115V2Service();
-      const result = await drive115Service.getTaskList({
-        accessToken: accessToken,
-        page
-      });
+      const result = await drive115Service.getTaskList({ accessToken, page });
 
       if (!result.success) {
         this.showError(result.message || '获取任务列表失败');
@@ -401,19 +428,11 @@ export class Drive115TasksManager {
     }
 
     try {
-      const settings = await getSettings();
-      const accessToken = settings?.drive115?.v2AccessToken;
-      
-      if (!accessToken) {
-        this.showMessage('请先在设置中配置115网盘授权信息', 'error');
-        return;
-      }
+      const accessToken = await this.resolveAccessTokenOrExplain();
+      if (!accessToken) return;
 
       const drive115Service = getDrive115V2Service();
-      const result = await drive115Service.addTaskUrls({
-        accessToken: accessToken,
-        urls
-      });
+      const result = await drive115Service.addTaskUrls({ accessToken, urls });
 
       if (!result.success) {
         this.showMessage(result.message || '添加任务失败', 'error');
@@ -441,19 +460,11 @@ export class Drive115TasksManager {
     }
 
     try {
-      const settings = await getSettings();
-      const accessToken = settings?.drive115?.v2AccessToken;
-      
-      if (!accessToken) {
-        this.showMessage('请先在设置中配置115网盘授权信息', 'error');
-        return;
-      }
+      const accessToken = await this.resolveAccessTokenOrExplain();
+      if (!accessToken) return;
 
       const drive115Service = getDrive115V2Service();
-      const result = await drive115Service.deleteTask({
-        accessToken: accessToken,
-        info_hash: infoHash
-      });
+      const result = await drive115Service.deleteTask({ accessToken, info_hash: infoHash });
 
       if (!result.success) {
         this.showMessage(result.message || '删除任务失败', 'error');
@@ -480,19 +491,11 @@ export class Drive115TasksManager {
     }
 
     try {
-      const settings = await getSettings();
-      const accessToken = settings?.drive115?.v2AccessToken;
-      
-      if (!accessToken) {
-        this.showMessage('请先在设置中配置115网盘授权信息', 'error');
-        return;
-      }
+      const accessToken = await this.resolveAccessTokenOrExplain();
+      if (!accessToken) return;
 
       const drive115Service = getDrive115V2Service();
-      const result = await drive115Service.clearTasks({
-        accessToken: accessToken,
-        flag: 1 // 清空全部任务
-      });
+      const result = await drive115Service.clearTasks({ accessToken, flag: 1 }); // 清空全部任务
 
       if (!result.success) {
         this.showMessage(result.message || '清空任务失败', 'error');
@@ -606,3 +609,29 @@ declare global {
     drive115TasksManager?: Drive115TasksManager;
   }
 }
+
+// 自动初始化：当页面初次加载且 hash 指向 115 任务页，或 hash 变更到该页时，确保实例存在
+(function() {
+  try {
+    const ensureInit = async () => {
+      try {
+        const hash = (window.location.hash || '').replace(/^#/, '');
+        const main = (hash.split('/')[0] || '').trim();
+        if (main === 'tab-drive115-tasks' && !window.drive115TasksManager) {
+          window.drive115TasksManager = new Drive115TasksManager();
+          await window.drive115TasksManager.initialize();
+        }
+      } catch (e) {
+        console.error('ensureInit 115 tasks failed:', e);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => { void ensureInit(); });
+    } else {
+      void ensureInit();
+    }
+
+    window.addEventListener('hashchange', () => { void ensureInit(); });
+  } catch {}
+})();
