@@ -1,9 +1,8 @@
-/**
+﻿/**
  * 隐私状态监听器
  */
 
 import { getPrivacyManager } from '../../services/privacy';
-import { getElementProtector } from './elementProtector';
 import { PrivacyEvent, PrivacyEventType } from '../../types/privacy';
 
 export class PrivacyStateListener {
@@ -425,3 +424,4 @@ export class PrivacyStateListener {
 export function getPrivacyStateListener(): PrivacyStateListener {
     return PrivacyStateListener.getInstance();
 }
+

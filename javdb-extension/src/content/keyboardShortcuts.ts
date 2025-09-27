@@ -1,7 +1,7 @@
 // src/content/keyboardShortcuts.ts
 // 键盘快捷键系统
 
-import { STATE, log } from './state';
+import { log } from './state';
 import { showToast } from './toast';
 import { quickCopyManager } from './quickCopy';
 import { contentFilterManager } from './contentFilter';
@@ -311,7 +311,7 @@ export class KeyboardShortcutsManager {
    * 检查快捷键匹配
    */
   private checkShortcuts(e: KeyboardEvent): void {
-    for (const [key, shortcut] of this.shortcuts) {
+    for (const [, shortcut] of this.shortcuts) {
       if (!shortcut.enabled) continue;
 
       if (this.isShortcutMatch(shortcut.keys)) {
@@ -718,3 +718,4 @@ export class KeyboardShortcutsManager {
 
 // 导出默认实例
 export const keyboardShortcutsManager = new KeyboardShortcutsManager();
+

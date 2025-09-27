@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 功能增强设置面板
  * 解锁强大的增强功能，让JavDB体验更加丰富和高效
  */
@@ -353,6 +353,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 设置样式支持（在DOM元素都初始化完成后）
         this.setupVolumeControlStyles();
+        this.setupAnchorConfigStyles();
+        this.setupCheckboxGroupStyles();
 
         // 子标签切换
         if (this.subtabLinks && this.subtabLinks.length > 0) {
@@ -556,7 +558,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 this.orchestratorTimelineData = timeline as any;
                 // 直接渲染（兜底），避免时间线区域空白
                 try {
-                    const mode: 'design'|'realtime' = 'design';
                     const container = this.orchestratorTimeline as HTMLElement | null;
                     if (container) {
                         container.classList.add('timeline-design');
@@ -1477,12 +1478,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         // 翻译配置 UI 回填
-        const defaultTranslation = {
-            provider: 'traditional' as 'traditional' | 'ai',
-            traditional: { service: 'google' as 'google', sourceLanguage: 'ja', targetLanguage: 'zh-CN' },
-            ai: { useGlobalModel: true as boolean, customModel: '' as string | undefined }
-        };
-        const translation = (settings as any).translation || defaultTranslation;
         this.initEnhancementToggles();
 
         // 强制更新所有滑块状态以确保与存储同步
@@ -2610,3 +2605,4 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
     }
 }
+

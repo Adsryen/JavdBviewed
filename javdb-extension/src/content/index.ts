@@ -7,8 +7,6 @@ import { processVisibleItems, setupObserver } from './itemProcessor';
 import { handleVideoDetailPage } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
-import { concurrencyMonitor, storageManager } from './concurrency';
-import { testConcurrentOperations, testHighConcurrency } from './concurrencyTest';
 import { initDrive115Features } from './drive115';
 import { globalCache } from '../utils/cache';
 import { defaultDataAggregator } from '../services/dataAggregator';
@@ -446,7 +444,7 @@ export function onExecute() {
 }
 
 // 监听来自popup或dashboard的设置更新// 消息监听器
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'settings-updated') {
         log('Settings updated, reloading settings and reprocessing items');
         // 重新加载设置并重新处理页面项目
@@ -516,6 +514,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         return true; // 保持消息通道开放
     }
+    return false; // 确保所有分支都有返回值（同步处理）
 });
 
 async function initVolumeControl() {
@@ -526,7 +525,7 @@ async function initVolumeControl() {
         log(`🎵 Volume control init: ${Math.round(currentVolume * 100)}%`);
 
         // 监听popup消息
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             if (message.type === 'volume-changed') {
                 currentVolume = message.volume;
                 log(`🎚️ Volume updated: ${Math.round(currentVolume * 100)}%`);

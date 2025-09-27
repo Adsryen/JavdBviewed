@@ -1,6 +1,6 @@
 // src/content/initOrchestrator.ts
 
-import { performanceOptimizer } from './performanceOptimizer';
+// removed unused import: performanceOptimizer
 
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';
 export type InitTask = () => Promise<void> | void;
