@@ -18,6 +18,34 @@ export const getUserProfile = () => userService.getUserProfile();
 export const clearUserProfile = () => userService.clearUserProfile();
 
 
+// 本地“刚刚同步”覆盖：用于在刷新后1分钟内仍显示“刚刚同步”
+const LOCAL_SYNC_OVERRIDE_UNTIL = 'userProfile:serverSyncLocalOverrideUntil';
+let _syncOverrideTimer: number | null = null;
+
+function scheduleSyncOverrideExpiry(): void {
+    try {
+        const until = Number(localStorage.getItem(LOCAL_SYNC_OVERRIDE_UNTIL) || '0') || 0;
+        if (!until) return;
+        const now = Date.now();
+        const msLeft = until - now;
+        if (msLeft <= 0) {
+            // 已过期，立即清理并刷新文案
+            localStorage.removeItem(LOCAL_SYNC_OVERRIDE_UNTIL);
+            getUserProfile().then(latest => updateServerStats(latest?.serverStats)).catch(() => {});
+            return;
+        }
+        if (_syncOverrideTimer) {
+            clearTimeout(_syncOverrideTimer);
+            _syncOverrideTimer = null;
+        }
+        _syncOverrideTimer = window.setTimeout(() => {
+            try { localStorage.removeItem(LOCAL_SYNC_OVERRIDE_UNTIL); } catch {}
+            getUserProfile().then(latest => updateServerStats(latest?.serverStats)).catch(() => {});
+            _syncOverrideTimer = null;
+        }, msLeft);
+    } catch {}
+}
+
 
 /**
  * 初始化用户账号信息区域
@@ -123,6 +151,8 @@ export function initUserProfileSection(): void {
     loadUserProfile();
     // 加载 115 用户信息（仅渲染缓存，不触发网络刷新）
     loadDrive115UserInfo({ allowNetwork: false });
+    // 页面初始化时，如果存在“刚刚同步”的本地覆盖，则安排在到期时自动恢复相对时间
+    scheduleSyncOverrideExpiry();
 }
 
 /**
@@ -201,6 +231,24 @@ async function handleRefresh(): Promise<void> {
             await saveUserProfile(profile);
             displayUserProfile(profile);
             showMessage('账号信息已更新', 'success');
+
+            // 刷新完成后，立即更新左侧“服务器数据”的刷新时间显示，避免仍显示旧的“X天前”
+            try {
+                // 设置1分钟的本地覆盖，页面刷新也生效
+                localStorage.setItem(LOCAL_SYNC_OVERRIDE_UNTIL, String(Date.now() + 60_000));
+                const syncTimeElement = document.getElementById('stats-sync-time-text');
+                if (syncTimeElement) {
+                    syncTimeElement.textContent = '刚刚同步';
+                }
+                // 1分钟后恢复相对时间显示
+                setTimeout(async () => {
+                    try { localStorage.removeItem(LOCAL_SYNC_OVERRIDE_UNTIL); } catch {}
+                    try {
+                        const latest = await getUserProfile();
+                        updateServerStats(latest?.serverStats);
+                    } catch {}
+                }, 60_000);
+            } catch {}
         } else {
             showMessage('刷新账号信息失败', 'error');
         }
@@ -323,9 +371,20 @@ function updateServerStats(serverStats?: any): void {
         wantCountElement.textContent = formatCount(serverStats.wantCount || 0);
         watchedCountElement.textContent = formatCount(serverStats.watchedCount || 0);
 
-        // 更新同步时间
-        const syncTimeText = serverStats.lastSyncTime ?
-            formatSyncTime(serverStats.lastSyncTime) : '未同步';
+        // 更新同步时间（支持本地“刚刚同步”覆盖，跨刷新保留1分钟）
+        let syncTimeText: string;
+        try {
+            const until = Number(localStorage.getItem(LOCAL_SYNC_OVERRIDE_UNTIL) || '0') || 0;
+            const now = Date.now();
+            if (until > now) {
+                syncTimeText = '刚刚同步';
+            } else {
+                syncTimeText = serverStats.lastSyncTime ? formatSyncTime(serverStats.lastSyncTime) : '未同步';
+                if (until) { try { localStorage.removeItem(LOCAL_SYNC_OVERRIDE_UNTIL); } catch {} }
+            }
+        } catch {
+            syncTimeText = serverStats.lastSyncTime ? formatSyncTime(serverStats.lastSyncTime) : '未同步';
+        }
         syncTimeElement.textContent = syncTimeText;
 
         // 强制移除背景色 - 通过内联样式覆盖

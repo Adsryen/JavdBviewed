@@ -531,6 +531,19 @@
 
 .filter-rules-list {
     min-height: 100px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.filter-rules-list .filter-rule-item {
+    margin-bottom: 0; /* 使用网格间距，避免重复外边距 */
+}
+
+@media (max-width: 900px) {
+    .filter-rules-list {
+        grid-template-columns: 1fr; /* 小屏回退为单列 */
+    }
 }
 
 /* 添加规则按钮样式 */

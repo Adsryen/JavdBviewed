@@ -11,6 +11,53 @@ import { showToast } from './toast';
 import { log } from './state';
 import { getSettings } from '../utils/storage';
 
+// 统一的网络请求超时与重试封装（用于对抗临时的网络抖动/连接重置）
+async function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeoutRetry(
+    url: string,
+    options: RequestInit,
+    opts: { retries?: number; timeoutMs?: number; backoffBaseMs?: number; retryOnHttpStatuses?: number[] } = {}
+): Promise<Response> {
+    const {
+        retries = 2,
+        timeoutMs = 8000,
+        backoffBaseMs = 600,
+        retryOnHttpStatuses = [408, 429, 500, 502, 503, 504, 520, 522, 524]
+    } = opts;
+
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const resp = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!resp.ok && retryOnHttpStatuses.includes(resp.status) && attempt < retries) {
+                const sleepMs = backoffBaseMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+                log(`[Network] HTTP ${resp.status}，准备重试 ${attempt + 1}/${retries}: ${url}`);
+                await delay(sleepMs);
+                continue;
+            }
+            return resp;
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+            lastError = err;
+            if (attempt < retries) {
+                const isAbort = err?.name === 'AbortError';
+                const sleepMs = backoffBaseMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+                log(`[Network] 请求异常（${isAbort ? '超时' : '网络错误'}），准备重试 ${attempt + 1}/${retries}: ${url}`);
+                await delay(sleepMs);
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw lastError ?? new Error('网络请求失败');
+}
+
 /**
  * 记录日志到扩展日志系统
  */
@@ -222,6 +269,10 @@ export async function handlePushToDrive115(
             } catch (error) {
                 console.warn('自动标记已看失败:', error);
                 console.error('[JavDB Ext] 自动标记已看失败:', error);
+                try {
+                    const errMsg = error instanceof Error ? error.message : String(error);
+                    showToast(`自动标记已看失败：${errMsg}。已完成推送，可稍后在 JavDB 页面手动标记`, 'warning');
+                } catch {}
 
                 // 标记已看失败时，仍然恢复按钮状态
                 setTimeout(() => {
@@ -367,6 +418,11 @@ async function markJavDBAsWatched(): Promise<void> {
         const currentUrl = window.location.href;
         const videoPath = window.location.pathname; // 例如: /v/bKwmOv
 
+        // 网络联机性预检查
+        if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+            throw new Error('当前网络离线，无法连接 JavDB');
+        }
+
         // 优先判断页面状态标签
         const pageStatus = detectPageUserStatusFor115();
         if (pageStatus === 'VIEWED') {
@@ -397,7 +453,7 @@ async function markJavDBAsWatched(): Promise<void> {
             });
 
             log(`发送编辑评论（设为已看）请求到: ${actionPath}`);
-            const resp = await fetch(actionPath, {
+            const resp = await fetchWithTimeoutRetry(actionPath, {
                 method: 'POST',
                 headers: {
                     'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
@@ -411,7 +467,7 @@ async function markJavDBAsWatched(): Promise<void> {
                 },
                 body: formData,
                 credentials: 'include'
-            });
+            }, { retries: 2, timeoutMs: 8000 });
 
             if (!resp.ok) {
                 throw new Error(`JavDB编辑评论失败: HTTP ${resp.status}`);
@@ -437,7 +493,7 @@ async function markJavDBAsWatched(): Promise<void> {
             'commit': '保存'
         });
         log(`发送标记已看请求到: ${reviewsUrl}`);
-        const response = await fetch(reviewsUrl, {
+        const response = await fetchWithTimeoutRetry(reviewsUrl, {
             method: 'POST',
             headers: {
                 'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
@@ -451,7 +507,7 @@ async function markJavDBAsWatched(): Promise<void> {
             },
             body: formData,
             credentials: 'include'
-        });
+        }, { retries: 2, timeoutMs: 8000 });
 
         if (!response.ok) {
             throw new Error(`JavDB标记已看失败: HTTP ${response.status}`);
