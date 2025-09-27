@@ -102,6 +102,76 @@
       </div>
     </div>
   </div>
+
+  <!-- Filter Rule Modal -->
+  <div id="filterRuleModal" class="modal-overlay hidden">
+    <div class="modal-content modal-dialog" style="max-width: 720px; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25);">
+      <div class="modal-header">
+        <h3 id="filterRuleModalTitle">添加过滤规则</h3>
+        <button class="modal-close" id="filterRuleModalClose" title="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="modalInlineRuleName" class="form-label">规则名称</label>
+          <input id="modalInlineRuleName" type="text" class="form-control" placeholder="给规则起个名字，便于识别">
+          <div class="form-text">例如：隐藏含广告词条</div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalInlineRuleKeyword" class="form-label">关键词 / 正则</label>
+          <input id="modalInlineRuleKeyword" type="text" class="form-control" placeholder="支持普通文本或正则表达式">
+          <div class="form-text">正则需勾选下方“正则表达式”，如：^(FC2|HEYZO)-\d+</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modalInlineRuleAction" class="form-label">动作</label>
+            <select id="modalInlineRuleAction" class="form-select">
+              <option value="hide">隐藏</option>
+              <option value="highlight">高亮</option>
+              <option value="blur">模糊</option>
+              <option value="mark">标记</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="modalInlineRuleFields" class="form-label">作用字段</label>
+            <select id="modalInlineRuleFields" class="form-select" multiple>
+              <option value="title">标题</option>
+              <option value="actor">演员</option>
+              <option value="studio">厂牌/片商</option>
+              <option value="genre">类型</option>
+              <option value="tag">标签</option>
+              <option value="video-id">番号</option>
+            </select>
+            <div class="form-text">按住 Ctrl/Shift 可多选</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-check-label"><input id="modalInlineRuleIsRegex" type="checkbox" class="form-check-input"> 正则表达式</label>
+          </div>
+          <div class="form-group">
+            <label class="form-check-label"><input id="modalInlineRuleCaseSensitive" type="checkbox" class="form-check-input"> 区分大小写</label>
+          </div>
+          <div class="form-group">
+            <label class="form-check-label"><input id="modalInlineRuleEnabled" type="checkbox" class="form-check-input" checked> 启用</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalInlineRuleMessage" class="form-label">提示信息（可选）</label>
+          <textarea id="modalInlineRuleMessage" rows="3" class="form-control" placeholder="为匹配项添加备注或提示文本"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+        <button id="cancelFilterRuleBtn" class="btn btn-secondary">取消</button>
+        <button id="saveFilterRuleBtn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
                 <span id="helpBtn" title="功能说明">❓</span>
             </h1>
 
