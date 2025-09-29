@@ -3030,7 +3030,7 @@
             </div>
             <div class="preview-item">
               <i class="fas fa-code-branch"></i>
-              <span>自动处理冲突：<strong id="conflictsCount">0</strong>个（保留最新数据）</span>
+             &#x6062;&#x590D;&#x65B9;&#x5F0F;&#x9009;&#x62E9;&#xFF08;&#x8986;&#x76D6;&#x5F0F;&#xFF09;<span>自动处理冲突：<strong id="conflictsCount">0</strong>个（保留最新数据）</span>
             </div>
           </div>
         </div>
@@ -3486,7 +3486,7 @@
                       <div class="merge-strategy-section">
                           <h5>
                               <i class="fas fa-code-branch"></i>
-                              处理方式选择
+                              &#x6062;&#x590D;&#x65B9;&#x5F0F;&#x9009;&#x62E9;&#xFF08;&#x8986;&#x76D6;&#x5F0F;&#xFF09;
                           </h5>
                           <div class="strategy-options">
                               <div class="strategy-option">
@@ -3494,10 +3494,10 @@
                                   <label for="strategySmartMerge">
                                       <div class="strategy-title">
                                           <i class="fas fa-magic"></i>
-                                          智能合并 (推荐)
+                                          
                                       </div>
                                       <div class="strategy-description">
-                                          保留本地数据，添加云端新数据，冲突项按时间戳保留最新
+                                          
                                       </div>
                                   </label>
                               </div>
@@ -3590,6 +3590,14 @@
                                   <small>扩展运行日志，用于故障排查（可选）</small>
                               </div>
                               <div class="form-group-checkbox available">
+    <input type="checkbox" id="webdavRestoreMagnets">
+    <label for="webdavRestoreMagnets">
+        <i class="fas fa-magnet"></i>
+        &#30913;&#38142;&#32531;&#23384;
+    </label>
+    <small>&#x78C1;&#x94FE;&#x89E3;&#x6790;&#x4E0E;&#x7F13;&#x5B58;&#x6570;&#x636E;&#xFF08;&#x53EF;&#x9009;&#xFF09;</small>
+</div>
+<div class="form-group-checkbox available">
                                   <input type="checkbox" id="webdavRestoreNewWorks" checked>
                                   <label for="webdavRestoreNewWorks">
                                       <i class="fas fa-bell"></i>
@@ -3598,7 +3606,7 @@
                                   <small>演员订阅、新作品采集记录以及新作品全局配置</small>
                               </div>
                               <div class="form-group-checkbox">
-                                  <input type="checkbox" id="webdavRestoreImportStats">
+                                  <input type="checkbox" id="webdavRestoreImportStats" checked>
                                   <label for="webdavRestoreImportStats">
                                       <i class="fas fa-chart-bar"></i>
                                       导入统计
@@ -3669,7 +3677,15 @@
                               <small>扩展运行日志，用于故障排查（可选）</small>
                           </div>
                           <div class="form-group-checkbox">
-                              <input type="checkbox" id="webdavRestoreImportStatsSimple">
+    <input type="checkbox" id="webdavRestoreMagnetsSimple">
+    <label for="webdavRestoreMagnetsSimple">
+        <i class="fas fa-magnet"></i>
+        &#30913;&#38142;&#32531;&#23384;
+    </label>
+    <small>&#x78C1;&#x94FE;&#x89E3;&#x6790;&#x4E0E;&#x7F13;&#x5B58;&#x6570;&#x636E;&#xFF08;&#x53EF;&#x9009;&#xFF09;</small>
+</div>
+<div class="form-group-checkbox">
+                              <input type="checkbox" id="webdavRestoreImportStatsSimple" checked>
                               <label for="webdavRestoreImportStatsSimple">
                                   <i class="fas fa-chart-bar"></i>
                                   导入统计
@@ -3781,7 +3797,7 @@
                               <input type="radio" name="currentResolution" value="merge" checked>
                               <span class="resolution-label">
                                   <i class="fas fa-code-branch"></i>
-                                  智能合并
+                                  &#x6062;&#x590D;&#x65B9;&#x5F0F;&#x9009;&#x62E9;&#xFF08;&#x8986;&#x76D6;&#x5F0F;&#xFF09;
                               </span>
                           </label>
                       </div>
@@ -3800,7 +3816,7 @@
                           </button>
                           <button id="batchSelectMerge" class="btn btn-sm btn-outline">
                               <i class="fas fa-code-branch"></i>
-                              全选合并
+                              &#x6062;&#x590D;&#x65B9;&#x5F0F;&#x9009;&#x62E9;&#xFF08;&#x8986;&#x76D6;&#x5F0F;&#xFF09;
                           </button>
                       </div>
                   </div>
