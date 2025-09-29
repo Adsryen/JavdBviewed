@@ -753,7 +753,7 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             newWorks: !!mergeOptions.restoreNewWorks,
             logs: !!mergeOptions.restoreLogs,
             importStats: !!mergeOptions.restoreImportStats,
-            magnets: (((document.getElementById('webdavRestoreMagnets') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetsSimple') as HTMLInputElement)?.checked) ?? false), // 暂无前端开关，默认不恢复
+            magnets: false, // 暂无前端开关，默认不恢复
         };
 
         const resp = await new Promise<any>((resolve) => {
@@ -892,7 +892,7 @@ function bindModalEvents(): void {
     }
 
     if (confirmBtn) {
-        confirmBtn.onclick = startWizardRestore;
+        confirmBtn.onclick = handleConfirmRestore;
     }
 
     if (retryBtn) {
