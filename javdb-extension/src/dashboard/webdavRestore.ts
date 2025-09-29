@@ -38,10 +38,14 @@ interface WizardState {
     isAnalysisComplete: boolean;
 }
 
+// 简化状态管理：覆盖式恢复不需要复杂的向导状态
+let isAnalysisComplete = false;
+
+// 保留向导状态以兼容现有代码，但简化使用
 let wizardState: WizardState = {
-    currentMode: RESTORE_CONFIG.ui.defaultMode,
+    currentMode: 'quick',
     currentStep: 1,
-    strategy: RESTORE_CONFIG.defaults.strategy,
+    strategy: 'overwrite',
     selectedContent: [],
     isAnalysisComplete: false
 };
@@ -150,53 +154,59 @@ function updateBackupSummary(files: WebDAVFile[]): void {
             }
         }
     } catch (e) {
-        // 安静失败，不阻断恢复流程
-        console.warn('[WebDAVRestore] Failed to update backup summary:', e);
+        logAsync('WARN', '日期范围计算失败', { error: e });
     }
 }
 
 /**
- * 初始化向导界面
+ * 初始化覆盖式恢复界面
  */
-function initializeWizardInterface(diffResult: DataDiffResult): void {
-    logAsync('INFO', '初始化向导界面', { mode: wizardState.currentMode });
+function initializeRestoreInterface(diffResult: DataDiffResult): void {
+    logAsync('INFO', '初始化覆盖式恢复界面');
 
     // 标记分析完成
-    wizardState.isAnalysisComplete = true;
+    isAnalysisComplete = true;
 
-    // 初始化模式切换
-    initializeModeSelector();
+    // 初始化统一的恢复模式
+    initializeRestoreMode(diffResult);
 
-    // 根据当前模式初始化界面
-    switch (wizardState.currentMode) {
-        case 'quick':
-            initializeQuickMode(diffResult);
-            break;
-        case 'wizard':
-            initializeWizardMode(diffResult);
-            break;
-        case 'expert':
-            displayDiffAnalysis(diffResult);
-            break;
-    }
+    // 自动检测并配置恢复内容选项
+    configureRestoreOptions(currentCloudData);
+
+    // 显示数据预览
+    showElement('webdavDataPreview');
 }
 
 /**
- * 初始化模式选择器
+ * 初始化统一的恢复模式
  */
+function initializeRestoreMode(diffResult: DataDiffResult): void {
+    logAsync('INFO', '初始化统一恢复模式');
+
+    // 更新统计数据
+    updateElement('quickVideoCount', diffResult.videoRecords.summary.totalLocal.toString());
+    updateElement('quickActorCount', diffResult.actorRecords.summary.totalLocal.toString());
+    updateElement('quickNewWorksSubsCount', diffResult.newWorks.subscriptions.summary.totalLocal.toString());
+    updateElement('quickNewWorksRecsCount', diffResult.newWorks.records.summary.totalLocal.toString());
+
+    const totalConflicts = diffResult.videoRecords.summary.conflictCount +
+                          diffResult.actorRecords.summary.conflictCount +
+                          diffResult.newWorks.subscriptions.summary.conflictCount +
+                          diffResult.newWorks.records.summary.conflictCount;
+    updateElement('quickConflictCount', totalConflicts.toString());
+
+    // 绑定恢复按钮
+    const restoreBtn = document.getElementById('quickRestoreBtn');
+    if (restoreBtn) {
+        restoreBtn.onclick = () => {
+            startQuickRestore();
+        };
+    }
+}
+
+// 移除复杂的模式切换逻辑
 function initializeModeSelector(): void {
-    const modeTabs = document.querySelectorAll('.mode-tab');
-
-    modeTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            const target = e.currentTarget as HTMLElement;
-            const mode = target.dataset.mode as 'quick' | 'wizard' | 'expert';
-
-            if (mode && mode !== wizardState.currentMode) {
-                switchMode(mode);
-            }
-        });
-    });
+    // 覆盖式恢复不需要模式切换，保留空函数以避免调用错误
 }
 
 /**
@@ -297,9 +307,15 @@ function initializeWizardMode(diffResult: DataDiffResult): void {
 function startQuickRestore(): void {
     logAsync('INFO', '开始快捷恢复');
 
-    // 显示确认对话框
-    if (!currentDiffResult) {
-        showMessage('数据分析未完成，请稍后再试', 'error');
+    // 强制要求预览为必经步骤
+    if (!currentDiffResult || !currentCloudData || !currentLocalData) {
+        showMessage('请先完成数据分析和预览，这是必经步骤', 'warn');
+        return;
+    }
+
+    // 二次检查预览数据的完整性
+    if (!currentDiffResult.videoRecords || !currentDiffResult.actorRecords) {
+        showMessage('预览数据不完整，请重新分析', 'error');
         return;
     }
 
@@ -739,11 +755,6 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             return;
         }
 
-        logAsync('INFO', '开始执行统一恢复（替换语义）', { mergeOptions });
-
-        // 显示进度
-        showRestoreProgress();
-
         // 构造统一恢复类别映射
         const categories = {
             settings: !!mergeOptions.restoreSettings,
@@ -756,22 +767,61 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             magnets: (((document.getElementById('webdavRestoreMagnets') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetsSimple') as HTMLInputElement)?.checked) ?? false), // 暂无前端开关，默认不恢复
         };
 
+        // 读取自动备份开关状态
+        const autoBackupBeforeRestore = (document.getElementById('webdavAutoBackupBeforeRestore') as HTMLInputElement)?.checked ?? true;
+
+        // 二次确认提示
+        const selectedCategories = Object.entries(categories).filter(([_, enabled]) => enabled).map(([key, _]) => key);
+        const categoryNames: { [key: string]: string } = {
+            settings: '扩展设置',
+            userProfile: '账号信息',
+            viewed: '观看记录',
+            actors: '演员库',
+            newWorks: '新作品',
+            logs: '日志记录',
+            importStats: '导入统计',
+            magnets: '磁链缓存'
+        };
+        const confirmMessage = `⚠️ 警告：替换式恢复将清空现有数据！\n\n将要恢复的类别：\n${selectedCategories.map(cat => `• ${categoryNames[cat] || cat}`).join('\n')}\n\n${autoBackupBeforeRestore ? '✓ 恢复前将自动备份当前数据' : '✗ 未启用自动备份'}\n\n此操作不可撤销，确定要继续吗？`;
+        
+        if (!confirm(confirmMessage)) {
+            showMessage('已取消恢复操作', 'info');
+            return;
+        }
+
+        logAsync('INFO', '开始执行统一恢复（替换语义）', { mergeOptions });
+
+        // 显示进度
+        showRestoreProgress();
+
         const resp = await new Promise<any>((resolve) => {
             chrome.runtime.sendMessage({
                 type: 'WEB_DAV:RESTORE_UNIFIED',
                 filename: selectedFile!.path,
                 options: {
                     categories,
-                    autoBackupBeforeRestore: true,
+                    autoBackupBeforeRestore,
                 },
             }, resolve);
         });
 
         if (resp?.success) {
             logAsync('INFO', '统一恢复完成', { summary: resp.summary });
-            showMessage('恢复完成！数据已成功覆盖。', 'success');
-            closeWebDAVRestoreModal();
+            
+            // 清理计时器
+            if ((window as any).restoreTimer) {
+                clearInterval((window as any).restoreTimer);
+                delete (window as any).restoreTimer;
+            }
+            
+            // 显示结果摘要
+            showRestoreResults(resp.summary);
         } else {
+            // 清理计时器
+            if ((window as any).restoreTimer) {
+                clearInterval((window as any).restoreTimer);
+                delete (window as any).restoreTimer;
+            }
             throw new Error(resp?.error || '恢复失败');
         }
     } catch (error) {
@@ -784,9 +834,131 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
  * 显示恢复进度
  */
 function showRestoreProgress(): void {
-    // 这里可以显示进度条或加载状态
-    // 暂时使用简单的消息提示
-    showMessage('正在恢复数据，请稍候...', 'info');
+    // 创建详细的进度显示界面
+    const modal = document.getElementById('webdavRestoreModal');
+    if (!modal) return;
+
+    const modalBody = modal.querySelector('.modal-body');
+    if (!modalBody) return;
+
+    // 隐藏其他内容，显示进度界面
+    const existingContent = modalBody.querySelectorAll('> div');
+    existingContent.forEach(el => (el as HTMLElement).style.display = 'none');
+
+    // 创建进度界面
+    const progressContainer = document.createElement('div');
+    progressContainer.id = 'restoreProgressContainer';
+    progressContainer.className = 'restore-progress-container';
+    progressContainer.innerHTML = `
+        <div class="progress-header">
+            <h4><i class="fas fa-sync fa-spin"></i> 正在执行覆盖式恢复</h4>
+            <p>请耐心等待，恢复过程中请勿关闭页面</p>
+        </div>
+        <div class="progress-categories" id="progressCategories">
+            <!-- 类别进度将动态添加 -->
+        </div>
+        <div class="progress-summary" id="progressSummary">
+            <div class="summary-item">
+                <span class="label">总进度:</span>
+                <span class="value" id="overallProgress">准备中...</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">已用时间:</span>
+                <span class="value" id="elapsedTime">00:00</span>
+            </div>
+        </div>
+    `;
+
+    modalBody.appendChild(progressContainer);
+
+    // 开始计时
+    const startTime = Date.now();
+    const updateTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        const timerEl = document.getElementById('elapsedTime');
+        if (timerEl) {
+            timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+
+    // 存储计时器ID以便后续清理
+    (window as any).restoreTimer = updateTimer;
+}
+
+/**
+ * 显示恢复结果摘要
+ */
+function showRestoreResults(summary: any): void {
+    const modal = document.getElementById('webdavRestoreModal');
+    if (!modal) return;
+
+    const modalBody = modal.querySelector('.modal-body');
+    if (!modalBody) return;
+
+    // 清理进度界面
+    const progressContainer = document.getElementById('restoreProgressContainer');
+    if (progressContainer) {
+        progressContainer.remove();
+    }
+
+    // 创建结果界面
+    const resultsContainer = document.createElement('div');
+    resultsContainer.id = 'restoreResultsContainer';
+    resultsContainer.className = 'restore-results-container';
+    
+    const categoryNames: { [key: string]: string } = {
+        settings: '扩展设置',
+        userProfile: '账号信息',
+        viewed: '观看记录',
+        actors: '演员库',
+        newWorks: '新作品',
+        logs: '日志记录',
+        importStats: '导入统计',
+        magnets: '磁链缓存'
+    };
+
+    let resultsHtml = `
+        <div class="results-header">
+            <h4><i class="fas fa-check-circle text-success"></i> 恢复完成</h4>
+            <p>数据已成功覆盖，以下是详细结果：</p>
+        </div>
+        <div class="results-categories">
+    `;
+
+    if (summary?.categories) {
+        Object.entries(summary.categories).forEach(([category, result]: [string, any]) => {
+            const categoryName = categoryNames[category] || category;
+            const icon = result.replaced ? 'fas fa-check text-success' : 'fas fa-times text-muted';
+            const status = result.replaced ? '已覆盖' : '跳过';
+            const details = result.written ? `${result.written} 条记录` : (result.reason || '');
+            
+            resultsHtml += `
+                <div class="result-item">
+                    <div class="result-icon"><i class="${icon}"></i></div>
+                    <div class="result-content">
+                        <div class="result-title">${categoryName}</div>
+                        <div class="result-status">${status}</div>
+                        ${details ? `<div class="result-details">${details}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    resultsHtml += `
+        </div>
+        <div class="results-footer">
+            <button class="btn btn-primary" onclick="closeWebDAVRestoreModal()">
+                <i class="fas fa-check"></i>
+                完成
+            </button>
+        </div>
+    `;
+
+    resultsContainer.innerHTML = resultsHtml;
+    modalBody.appendChild(resultsContainer);
 }
 
 /**
@@ -1052,6 +1224,8 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
 
     if (confirmBtn) {
         confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-ban"></i> 请先分析';
+        confirmBtn.title = '请先点击"分析"按钮预览恢复内容';
     }
 
     logAsync('INFO', '用户选择了文件', { filename: file.name });
@@ -1140,8 +1314,8 @@ async function performDataAnalysis(): Promise<void> {
             offsetWidth: previewElementAfterShow?.offsetWidth
         });
 
-        // 初始化向导界面
-        initializeWizardInterface(currentDiffResult);
+        // 初始化覆盖式恢复界面
+        initializeRestoreInterface(currentDiffResult);
 
         // 更新按钮状态
         const analyzeBtn = document.getElementById('webdavRestoreAnalyze') as HTMLButtonElement;
@@ -1149,7 +1323,11 @@ async function performDataAnalysis(): Promise<void> {
         const backBtn = document.getElementById('webdavRestoreBack') as HTMLButtonElement;
 
         if (analyzeBtn) analyzeBtn.classList.add('hidden');
-        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
+            confirmBtn.title = '开始执行覆盖式恢复';
+        }
         if (backBtn) backBtn.classList.remove('hidden');
 
         logAsync('INFO', '数据差异分析完成', {
@@ -1487,6 +1665,12 @@ function configureRestoreOptions(cloudData: any): void {
             dataKey: 'importStats',
             required: false, // 导入统计是可选的
             name: '导入统计'
+        },
+        {
+            id: 'webdavRestoreMagnets',
+            dataKey: 'magnets',
+            required: false, // 磁链缓存是可选的
+            name: '磁链缓存'
         }
     ];
 
@@ -1589,6 +1773,14 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
                 statsText = `最后导入: ${date.toLocaleDateString()}`;
             }
             break;
+        case 'magnets':
+            if (Array.isArray(data)) {
+                statsText = `包含 ${data.length} 条磁链缓存`;
+            } else if (data && typeof data === 'object') {
+                const magnetCount = Object.keys(data).length;
+                statsText = `包含 ${magnetCount} 条磁链缓存`;
+            }
+            break;
     }
 
     if (statsText) {
@@ -1668,13 +1860,16 @@ async function handleConfirmRestore(): Promise<void> {
     if (!selectedFile) return;
 
     try {
-        // 如果还没有分析数据，先进行分析
+        // 强制要求预览为必经步骤
         if (!currentDiffResult || !currentCloudData || !currentLocalData) {
-            await performDataAnalysis();
-            if (!currentDiffResult) {
-                showMessage('数据分析失败，无法继续恢复', 'error');
-                return;
-            }
+            showMessage('请先点击"分析"按钮预览恢复内容，预览是必经步骤', 'warn');
+            return;
+        }
+
+        // 二次检查预览数据的完整性
+        if (!currentDiffResult.videoRecords || !currentDiffResult.actorRecords) {
+            showMessage('预览数据不完整，请重新分析', 'error');
+            return;
         }
 
         // 获取恢复选项
@@ -2234,16 +2429,11 @@ function updateElement(id: string, text: string): void {
 }
 
 /**
- * 获取选中的合并策略
+ * 获取恢复策略（覆盖式恢复固定为统一策略）
  */
 function getSelectedStrategy(): string {
-    const strategyInputs = document.querySelectorAll('input[name="mergeStrategy"]') as NodeListOf<HTMLInputElement>;
-    for (const input of Array.from(strategyInputs)) {
-        if (input.checked) {
-            return input.value;
-        }
-    }
-    return 'smart'; // 默认策略
+    // 覆盖式恢复只有一种策略：完全替换
+    return 'overwrite';
 }
 
  

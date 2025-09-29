@@ -104,13 +104,16 @@
   - 预览：返回每类条数与体积（来自 `backup.json.stats`；如缺失，则扫描备份数据现场统计）
   - 执行：对每类输出“清空耗时/写入条数/耗时/失败数”；最终输出总耗时与结果摘要
 
-二、前端/UI 方案
-- 改造文件：[src/dashboard/tabs/settings/webdav/WebDAVSettings.ts](cci:7://file:///d:/JavdBviewed/javdb-extension/src/dashboard/tabs/settings/webdav/WebDAVSettings.ts:0:0-0:0)
-- 交互流程（预览为必经步骤）
+二、前端/UI 方案（✅ 已简化）
+- 改造文件：[src/dashboard/dashboard.html](cci:7://file:///d:/JavdBviewed/javdb-extension/src/dashboard/dashboard.html:0:0-0:0)、[src/dashboard/webdavRestore.ts](cci:7://file:///d:/JavdBviewed/javdb-extension/src/dashboard/webdavRestore.ts:0:0-0:0)
+- **✅ 已移除复杂的三种模式**：快捷恢复、向导模式、专家模式
+- **✅ 已移除复杂的策略选择**：云端优先、本地优先、自定义处理等
+- **简化后的交互流程**（预览为必经步骤）
   1) 用户选择备份文件 → 请求 `WEB_DAV:RESTORE_PREVIEW` → 展示摘要（每类条数/体积）
   2) 类别勾选面板（默认值：ON 设置/用户/观看/演员/新作品/导入统计；OFF 日志/磁链）
-  3) “恢复前自动备份”开关（默认 ON）
-  4) 二次确认提示（替换式恢复将清空现有数据）
+  3) "恢复前自动备份"开关（默认 ON）
+  4) 二次确认提示（覆盖式恢复将完全替换现有数据）
+  5) 执行 `WEB_DAV:RESTORE_UNIFIED` → 展示进度（按类）与结果摘要
   5) 执行 `WEB_DAV:RESTORE_UNIFIED` → 展示进度（按类）与结果摘要
 
 三、安全与回滚
