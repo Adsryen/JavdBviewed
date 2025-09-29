@@ -641,6 +641,8 @@
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    position: relative !important;
+    z-index: 1001 !important;
 }
 
 .webdav-restore-modal .modal-header {
@@ -719,6 +721,8 @@
     justify-content: flex-end;
     gap: 16px;
     background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 /* 加载状态 - 优化版 */
@@ -1133,6 +1137,25 @@
     font-size: 16px;
     font-weight: 500;
     line-height: 1.5;
+}
+
+/* 强制按钮留在弹窗内 */
+#webdavRestoreModal {
+    contain: layout style paint !important;
+}
+
+#webdavRestoreModal .modal-footer {
+    contain: layout style !important;
+}
+
+#webdavRestoreBack,
+#webdavRestoreCancel,
+#webdavRestoreAnalyze,
+#webdavRestoreConfirm {
+    position: static !important;
+    float: none !important;
+    transform: none !important;
+    contain: layout style !important;
 }
 
 /* 按钮样式 - 优化版 */

@@ -11,14 +11,56 @@ import { requireAuthIfRestricted } from '../services/privacy';
 import { dbActorsBulkPut } from './dbClient';
 
 interface WebDAVFile {
-    name: string;
     path: string;
+    name: string;
     lastModified: string;
     size?: number;
 }
 
-// 全局状态
+// 全局变量
 let selectedFile: WebDAVFile | null = null;
+
+/**
+ * 创建正确的按钮
+ */
+function createCorrectButtons(): void {
+    const modal = document.getElementById('webdavRestoreModal');
+    if (!modal) return;
+    
+    const modalFooter = modal.querySelector('.modal-footer');
+    if (!modalFooter) return;
+    
+    // 清空现有内容
+    modalFooter.innerHTML = '';
+    
+    // 创建按钮
+    const backBtn = document.createElement('button');
+    backBtn.id = 'webdavRestoreBack';
+    backBtn.className = 'btn btn-secondary hidden';
+    backBtn.innerHTML = '<i class="fas fa-arrow-left"></i> 返回';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'webdavRestoreCancel';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = '取消';
+    
+    const analyzeBtn = document.createElement('button');
+    analyzeBtn.id = 'webdavRestoreAnalyze';
+    analyzeBtn.className = 'btn btn-primary hidden';
+    analyzeBtn.innerHTML = '<i class="fas fa-search"></i> 分析数据';
+    
+    const confirmBtn = document.createElement('button');
+    confirmBtn.id = 'webdavRestoreConfirm';
+    confirmBtn.className = 'btn btn-primary';
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
+    
+    // 添加到footer
+    modalFooter.appendChild(backBtn);
+    modalFooter.appendChild(cancelBtn);
+    modalFooter.appendChild(analyzeBtn);
+    modalFooter.appendChild(confirmBtn);
+}
 let currentCloudData: any = null;
 let currentLocalData: any = null;
 let currentDiffResult: DataDiffResult | null = null;
@@ -965,8 +1007,9 @@ function showRestoreResults(summary: any): void {
  * 保存恢复的数据
  */
 async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
-    // 保存合并后的数据到本地存储
-    if (mergeResult.mergedData) {
+    try {
+        // 保存合并后的数据到本地存储
+        if (mergeResult.mergedData) {
         await setValue(STORAGE_KEYS.VIEWED_RECORDS, mergeResult.mergedData.videoRecords || {});
         await setValue(STORAGE_KEYS.ACTOR_RECORDS, mergeResult.mergedData.actorRecords || {});
 
@@ -989,6 +1032,10 @@ async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
         if (mergeResult.mergedData.userProfile) {
             await setValue(STORAGE_KEYS.USER_PROFILE, mergeResult.mergedData.userProfile);
         }
+        }
+    } catch (error) {
+        console.error('保存恢复数据失败:', error);
+        throw error;
     }
 }
 
@@ -1008,6 +1055,9 @@ function closeWebDAVRestoreModal(): void {
 export function showWebDAVRestoreModal(): void {
     const modal = document.getElementById('webdavRestoreModal');
     if (!modal) return;
+    
+    // 创建正确的按钮
+    createCorrectButtons();
 
     // 重置状态
     selectedFile = null;
@@ -3188,5 +3238,4 @@ function updateExpertImpactPreview(strategy: string, diffResult: DataDiffResult)
     previewContainer.innerHTML = previewHtml;
 }
 
-// 导出函数供其他模块使用
-export { showWebDAVRestoreModal as default };
+// 函数已在定义时导出
