@@ -72,22 +72,54 @@ function toArrayFromObjMap<T = any>(maybeMap: any): T[] {
 }
 
 async function clearStore(db: any, storeName: string): Promise<void> {
-  try { await db.clear(storeName as any); } catch {}
+  try { 
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    await store.clear();
+    await tx.complete;
+    bgLog('DEBUG', `Store cleared successfully: ${storeName}`);
+  } catch (error: any) {
+    bgLog('ERROR', `Failed to clear store: ${storeName}`, { error: error.message });
+    throw error;
+  }
 }
 
 async function putRecordsInBatches(db: any, storeName: string, records: any[], batchSize = RESTORE_BATCH_SIZE): Promise<number> {
   if (!Array.isArray(records) || records.length === 0) return 0;
   let written = 0;
+  
+  // 按批次处理，每批次开启独立的事务
   for (const part of chunk(records, batchSize)) {
-    const tx = db.transaction(storeName as any, 'readwrite');
     try {
-      for (const r of part) { await tx.store.put(r as any); written++; }
-      await tx.done;
-    } catch (e) {
-      try { await tx.done; } catch {}
-      throw e;
+      // 为每个批次开启新的 readwrite 事务
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      
+      // 批量写入当前批次的记录
+      const putPromises = part.map(record => store.put(record));
+      await Promise.all(putPromises);
+      
+      // 等待事务完成
+      await tx.complete;
+      written += part.length;
+      
+      bgLog('DEBUG', `Batch write completed for ${storeName}`, { 
+        batchSize: part.length, 
+        totalWritten: written,
+        remaining: records.length - written
+      });
+      
+    } catch (error: any) {
+      bgLog('ERROR', `Batch write failed for ${storeName}`, { 
+        error: error.message, 
+        batchSize: part.length,
+        written 
+      });
+      // 继续处理下一批次，不中断整个恢复流程
+      continue;
     }
   }
+  
   return written;
 }
 
@@ -381,37 +413,52 @@ async function performRestoreUnified(filename: string, options?: {
     // 1) 设置
     if (opts.categories.settings) {
       const c0 = Date.now();
-      if (importData?.settings) {
-        await saveSettings(importData.settings);
-        mark('settings', { replaced: true, durationMs: Date.now() - c0 });
-      } else {
-        mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+      try {
+        if (importData?.settings) {
+          await saveSettings(importData.settings);
+          mark('settings', { replaced: true, durationMs: Date.now() - c0 });
+        } else {
+          mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        }
+      } catch (e: any) {
+        bgLog('ERROR', 'Settings restore failed', { error: e?.message });
+        mark('settings', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
     // 2) 用户资料
     if (opts.categories.userProfile) {
       const c0 = Date.now();
-      const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
-      if (val != null) {
-        await setValue(STORAGE_KEYS.USER_PROFILE, val);
-        mark('userProfile', { replaced: true, durationMs: Date.now() - c0 });
-      } else {
-        mark('userProfile', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+      try {
+        const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
+        if (val != null) {
+          await setValue(STORAGE_KEYS.USER_PROFILE, val);
+          mark('userProfile', { replaced: true, durationMs: Date.now() - c0 });
+        } else {
+          mark('userProfile', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        }
+      } catch (e: any) {
+        bgLog('ERROR', 'UserProfile restore failed', { error: e?.message });
+        mark('userProfile', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
       }
     }
 
     // 3) 观看记录（IDB viewedRecords）
     if (opts.categories.viewed) {
       const c0 = Date.now();
-      let items: any[] = [];
-      if (Array.isArray(importData?.idb?.viewedRecords)) items = importData.idb.viewedRecords;
-      else if (importData?.data) items = toArrayFromObjMap(importData.data);
-      else if (importData?.viewed) items = toArrayFromObjMap(importData.viewed);
-      else if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
-      await clearStore(db, 'viewedRecords');
-      const written = await putRecordsInBatches(db, 'viewedRecords', items);
-      mark('viewed', { cleared: true, written, durationMs: Date.now() - c0 });
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.viewedRecords)) items = importData.idb.viewedRecords;
+        else if (importData?.data) items = toArrayFromObjMap(importData.data);
+        else if (importData?.viewed) items = toArrayFromObjMap(importData.viewed);
+        else if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
+        await clearStore(db, 'viewedRecords');
+        const written = await putRecordsInBatches(db, 'viewedRecords', items);
+        mark('viewed', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        bgLog('ERROR', 'Viewed records restore failed', { error: e?.message });
+        mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
     }
 
     // 4) 演员（IDB actors）
