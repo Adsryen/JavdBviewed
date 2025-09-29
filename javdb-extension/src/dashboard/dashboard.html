@@ -3045,7 +3045,7 @@
         </div>
       </div>
 
-      <div class="modal-footer">
+      <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
         <button id="smartRestoreCancel" class="btn btn-secondary">
           <i class="fas fa-times"></i>
           取消
@@ -3336,6 +3336,7 @@
 
                   </div> <!-- 关闭 webdavDataPreview -->
 
+
                   <!-- 原有的简单恢复选项（向后兼容，隐藏） -->
                   <div id="webdavRestoreOptions" class="restore-options hidden" style="display: none;">
                       <h4>
@@ -3403,6 +3404,8 @@
                   </div>
               </div>
 
+              </div> <!-- 关闭 webdavRestoreContent -->
+
               <div id="webdavRestoreError" class="restore-error hidden">
                   <div class="error-icon">
                       <i class="fas fa-exclamation-triangle"></i>
@@ -3416,17 +3419,17 @@
               </div>
           </div>
 
-          <div class="modal-footer">
-              <button id="webdavRestoreBack" class="btn btn-secondary hidden">
+          <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
+              <button id="webdavRestoreBack" class="btn btn-secondary hidden" style="display: none !important;">
                   <i class="fas fa-arrow-left"></i>
                   返回
               </button>
-              <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
-              <button id="webdavRestoreAnalyze" class="btn btn-primary hidden">
+              <button id="webdavRestoreCancel" class="btn btn-secondary" style="display: none !important;">取消</button>
+              <button id="webdavRestoreAnalyze" class="btn btn-primary hidden" style="display: none !important;">
                   <i class="fas fa-search"></i>
                   分析数据
               </button>
-              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
+              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled style="display: none !important;">
                   <i class="fas fa-download"></i>
                   开始恢复
               </button>
@@ -3615,7 +3618,7 @@
               </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
               <button id="restoreResultViewDetails" class="btn btn-secondary">查看详情</button>
               <button id="restoreResultConfirm" class="btn btn-primary">
                   <i class="fas fa-check"></i>
@@ -3650,7 +3653,7 @@
                       <textarea id="dataViewTextarea" readonly></textarea>
                   </div>
               </div>
-              <div class="modal-footer">
+              <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
                   <button id="dataViewCloseBtn" class="btn btn-secondary">关闭</button>
               </div>
           </div>
