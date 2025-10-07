@@ -1,0 +1,79 @@
+<div class="dashboard-container">
+  <div class="sidebar">
+    <h1 class="panel-title">
+      <div class="title-content">
+        <img id="title-icon" alt="Jav 助手" class="title-icon" style="display: none;">
+        <span class="title-text">Jav 助手</span>
+      </div>
+      <span id="helpBtn" title="功能说明">❓</span>
+    </h1>
+
+    <div class="sidebar-section">
+      <h4>账号信息</h4>
+      <div id="user-profile-section"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>本地备份</h4>
+      <div class="button-group-vertical">
+        <label for="importFile" class="button-like">导入本地备份 (JSON)</label>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+        <button id="exportBtn">导出本地备份 (JSON)</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>WebDAV 备份</h4>
+      <div class="webdav-sync-container">
+        <div class="button-group-vertical">
+          <button id="syncNow">立即上传至云端</button>
+          <button id="syncDown">从云端恢复</button>
+        </div>
+        <div class="sync-status">
+          <div class="sync-time-info">
+            <i class="fas fa-clock"></i>
+            <span class="sync-label">上次同步:</span>
+            <span id="lastSyncTime" class="sync-time">从未</span>
+          </div>
+          <div class="sync-indicator" id="syncIndicator">
+            <span class="sync-dot"></span>
+            <span class="sync-status-text">未同步</span>
+          </div>
+        </div>
+        <div class="sidebar-section-sep"></div>
+        <div class="github-link-container">
+          <a class="github-link" href="https://github.com/Adsryen/JavdBviewed" target="_blank" rel="noopener noreferrer" title="打开 GitHub 项目">
+            <i class="fab fa-github"></i>
+          </a>
+        </div>
+        <div id="versionInfoSidebar"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-divider">
+    <button id="sidebarToggleBtn" class="sidebar-toggle-btn" title="收缩/展开侧边栏">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+  </div>
+
+  <div class="main-content">
+    <div class="tabs">
+      <button class="tab-link active" data-tab="tab-records">番号库</button>
+      <button class="tab-link" data-tab="tab-actors">演员库</button>
+      <button class="tab-link" data-tab="tab-new-works">新作品</button>
+      <button class="tab-link" data-tab="tab-sync">数据同步</button>
+      <button class="tab-link" data-tab="tab-drive115-tasks">115任务</button>
+      <button class="tab-link" data-tab="tab-settings">设置</button>
+      <button class="tab-link" data-tab="tab-logs">日志</button>
+    </div>
+
+    <div id="tab-records" class="tab-content active"></div>
+    <div id="tab-actors" class="tab-content"></div>
+    <div id="tab-new-works" class="tab-content"></div>
+    <div id="tab-sync" class="tab-content"></div>
+    <div id="tab-drive115-tasks" class="tab-content"></div>
+    <div id="tab-settings" class="tab-content"></div>
+    <div id="tab-logs" class="tab-content"></div>
+  </div>
+</div>

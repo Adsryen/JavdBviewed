@@ -1,0 +1,47 @@
+<div class="card">
+  <div class="stats-section">
+    <h4>115网盘下载任务</h4>
+    <div id="drive115TasksStatsContainer" class="stats-grid">
+      <!-- 统计信息将由 JS 动态填充 -->
+    </div>
+  </div>
+
+  <!-- 任务操作控制栏 -->
+  <div class="drive115-tasks-controls">
+    <div class="task-input-group">
+      <input type="text" id="drive115TaskUrlInput" placeholder="输入下载链接（支持HTTP(S)、FTP、磁力链、电驴链接）" class="task-url-input">
+      <button id="drive115AddTaskBtn" class="button-like">
+        <i class="fas fa-plus"></i>
+        添加任务
+      </button>
+    </div>
+    <div class="task-action-group">
+      <button id="drive115RefreshTasksBtn" class="button-like">
+        <i class="fas fa-sync-alt"></i>
+        刷新列表
+      </button>
+      <button id="drive115ClearTasksBtn" class="button-like danger">
+        <i class="fas fa-trash"></i>
+        清空所有
+      </button>
+    </div>
+  </div>
+
+  <!-- 任务列表容器 -->
+  <div class="drive115-tasks-wrapper">
+    <div id="drive115TasksLoading" class="loading-indicator" style="display: none;">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>加载中...</span>
+    </div>
+    <div id="drive115TasksContainer" class="drive115-tasks-container">
+      <!-- 任务列表将由 JS 动态填充 -->
+    </div>
+  </div>
+
+  <!-- 分页控件 -->
+  <div class="pagination-controls">
+    <div id="drive115TasksPaginationContainer" class="pagination">
+      <!-- 分页控件将由 JS 动态填充 -->
+    </div>
+  </div>
+</div>
