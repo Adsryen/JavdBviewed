@@ -1,0 +1,64 @@
+<div class="card">
+    <!-- 演员库统计信息 -->
+    <div class="stats-section">
+        <h4>演员库概览</h4>
+        <div id="actorStatsContainer" class="stats-grid">
+            <!-- 统计信息将由 JS 动态填充 -->
+        </div>
+    </div>
+
+    <!-- 搜索和过滤 -->
+    <div class="search-and-filter">
+        <input type="text" id="actorSearchInput" placeholder="搜索演员姓名或别名...">
+        <select id="actorGenderFilter">
+            <option value="">所有性别</option>
+            <option value="female">女性</option>
+            <option value="male">男性</option>
+            <option value="unknown">未知</option>
+        </select>
+        <select id="actorCategoryFilter">
+            <option value="">所有分类</option>
+            <option value="censored">有码</option>
+            <option value="uncensored">无码</option>
+            <option value="western">欧美</option>
+            <option value="unknown">未知</option>
+        </select>
+        <select id="actorBlacklistFilter">
+            <option value="all">全部</option>
+            <option value="exclude">排除拉黑</option>
+            <option value="only">仅拉黑</option>
+        </select>
+        <select id="actorSortSelect">
+            <option value="name_asc">按姓名排序 (A-Z)</option>
+            <option value="name_desc">按姓名排序 (Z-A)</option>
+            <option value="updatedAt_desc">按更新时间排序 (最新)</option>
+            <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
+            <option value="worksCount_desc">按作品数量排序 (多到少)</option>
+            <option value="worksCount_asc">按作品数量排序 (少到多)</option>
+        </select>
+        <select id="actorPageSizeSelect">
+            <option value="20">每页 20 个</option>
+            <option value="40">每页 40 个</option>
+            <option value="60">每页 60 个</option>
+            <option value="100">每页 100 个</option>
+        </select>
+    </div>
+
+    <!-- 演员列表容器 -->
+    <div class="actor-list-wrapper">
+        <div id="actorListLoading" class="loading-indicator" style="display: none;">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>加载中...</span>
+        </div>
+        <div id="actorListContainer" class="actor-list-container">
+            <!-- 演员列表将由 JS 动态填充 -->
+        </div>
+    </div>
+
+    <!-- 分页控件 -->
+    <div class="pagination-controls">
+        <div id="actorPaginationContainer" class="pagination">
+            <!-- 分页控件将由 JS 动态填充 -->
+        </div>
+    </div>
+</div>
