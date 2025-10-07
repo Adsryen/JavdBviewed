@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 
 import { initializeGlobalState, STATE, cleanupSearchEngines } from './state';
 import { initRecordsTab } from './tabs/records';
@@ -27,6 +27,8 @@ import './ui/dataViewModal'; // 纭繚dataViewModal琚垵濮嬪寲
 import { getDrive115V2Service } from '../services/drive115v2';
 import { Drive115TasksManager } from './tabs/drive115Tasks';
 import { installConsoleProxy } from '../utils/consoleProxy';
+import { ensureMounted, loadPartial, injectPartial } from './loaders/partialsLoader';
+import { ensureStylesLoaded } from './loaders/stylesLoader';
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -196,6 +198,88 @@ function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surpl
         </div>
     `;
 }
+const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> = {
+    // 号码库（首屏）
+    'tab-records': {
+        name: 'tabs/records.html',
+        styles: [
+            './styles/_records.css', // 记录页样式（若已在<head>中引入，将自动去重）
+        ],
+    },
+    // 演员库
+    'tab-actors': {
+        name: 'tabs/actors.html',
+        styles: [
+            './actors.css',
+        ],
+    },
+    // 新作品
+    'tab-new-works': {
+        name: 'tabs/new-works.html',
+        styles: [
+            './styles/_newWorks.css',
+        ],
+    },
+    // 数据同步
+    'tab-sync': {
+        name: 'tabs/sync.html',
+        styles: [
+            './sync.css',
+            './styles/_dataSync.css',
+        ],
+    },
+    // 115 任务
+    'tab-drive115-tasks': {
+        name: 'tabs/drive115-tasks.html',
+        styles: [
+            './styles/drive115Tasks.css',
+        ],
+    },
+    // 设置（基础样式，其余细分样式由各子面板自行导入或保留全局）
+    'tab-settings': {
+        name: 'tabs/settings.html',
+        styles: [
+            './styles/settings/index.css',
+            './styles/settings/settings.css',
+        ],
+    },
+    // 日志
+    'tab-logs': {
+        name: 'tabs/logs.html',
+        styles: [
+            './styles/logs.css',
+            './styles/settings/logs.css',
+        ],
+    },
+};
+
+async function mountTabIfNeeded(tabId: string): Promise<void> {
+    try {
+        const cfg = (TAB_PARTIALS as any)[tabId];
+        if (!cfg) return;
+
+        const selector = `#${tabId}`;
+        const el = document.querySelector(selector) as HTMLElement | null;
+
+        // 先尝试仅在空容器时挂载，兼容已迁移完成的占位容器
+        await ensureMounted(selector, cfg.name);
+
+        // 如果仍然是旧的内联DOM（未标记partialLoaded），执行一次性替换为partial
+        if (el && (el as any).dataset?.partialLoaded !== 'true') {
+            const html = await loadPartial(cfg.name);
+            if (html) {
+                await injectPartial(selector, html, { mode: 'replace' });
+            }
+        }
+
+        if (cfg.styles && cfg.styles.length) {
+            await ensureStylesLoaded(cfg.styles);
+        }
+    } catch (e) {
+        console.warn('[Dashboard] mountTabIfNeeded failed for', tabId, e);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
 
@@ -233,11 +317,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖栵紝鏃犻渶鍦ㄦ鏄惧紡鍒濆鍖?
 
     await initTabs();
+    await mountTabIfNeeded('tab-records');
     initRecordsTab();
     // initActorsTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮婕斿憳搴撴爣绛鹃〉鏃舵墠鍔犺浇
     // initNewWorksTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮鏂颁綔鍝佹爣绛鹃〉鏃舵墠鍔犺浇
-    initSyncTab();
-    initSettingsTab();
+    // initSyncTab(); // lazy: moved to tab click and hash init
+    // initSettingsTab(); // lazy: moved to tab click and hash init
     // initAdvancedSettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
     // initAISettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
     // initDrive115Tab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
@@ -354,6 +439,7 @@ async function initTabs(): Promise<void> {
                     tab.addEventListener('click', async () => {
                         switchTab(tab);
                         const tabId = tab.getAttribute('data-tab');
+                        await mountTabIfNeeded(tabId || '');
 
                         // 寤惰繜鍒濆鍖栨紨鍛樺簱鏍囩椤?
                         if (tabId === 'tab-actors' && !actorsTab.isInitialized) {
@@ -393,6 +479,23 @@ async function initTabs(): Promise<void> {
                                 console.error('寤惰繜鍒濆鍖?15浠诲姟鏍囩椤靛け璐?', error);
                             }
                         }
+
+                        // 懒加载初始化：数据同步与设置
+                        if (tabId === 'tab-sync') {
+                            try {
+                                await initSyncTab();
+                            } catch (error) {
+                                console.error('懒加载初始化 数据同步 标签页失败:', error);
+                            }
+                        }
+
+                        if (tabId === 'tab-settings') {
+                            try {
+                                await initSettingsTab();
+                            } catch (error) {
+                                console.error('懒加载初始化 设置 标签页失败:', error);
+                            }
+                        }
                     });
                 } catch (error) {
                     console.error('涓烘爣绛鹃〉娣诲姞浜嬩欢鐩戝惉鍣ㄦ椂鍑洪敊:', error);
@@ -405,6 +508,7 @@ async function initTabs(): Promise<void> {
         const [mainTab, subSection] = fullHash.split('/');
         const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
         switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
+        await mountTabIfNeeded(mainTab);
 
         // 濡傛灉鏄缃〉闈笖鏈夊瓙椤甸潰锛屽瓨鍌ㄥ瓙椤甸潰淇℃伅渚涜缃〉闈娇鐢?
         if (mainTab === 'tab-settings' && subSection) {
@@ -425,8 +529,39 @@ async function initTabs(): Promise<void> {
             });
         }
 
+        // 懒加载初始化：数据同步与设置（页面直达）
+        if (mainTab === 'tab-sync') {
+            initSyncTab().catch(error => {
+                console.error('页面直达初始化 数据同步 标签页失败:', error);
+            });
+        }
+
+        if (mainTab === 'tab-settings') {
+            initSettingsTab().catch(error => {
+                console.error('页面直达初始化 设置 标签页失败:', error);
+            });
+        }
+
+        // 页面直达：日志与 115 任务
+        if (mainTab === 'tab-logs' && !logsTab.isInitialized) {
+            logsTab.initialize().catch(error => {
+                console.error('页面直达初始化 日志 标签页失败:', error);
+            });
+        }
+
+        if (mainTab === 'tab-drive115-tasks') {
+            try {
+                if (!window.drive115TasksManager) {
+                    window.drive115TasksManager = new Drive115TasksManager();
+                    await window.drive115TasksManager.initialize();
+                }
+            } catch (error) {
+                console.error('页面直达初始化 115 任务 标签页失败:', error);
+            }
+        }
+
         // 娣诲姞hashchange浜嬩欢鐩戝惉鍣紝澶勭悊URL鍙樺寲
-        window.addEventListener('hashchange', () => {
+        window.addEventListener('hashchange', async () => {
             const newHash = window.location.hash.substring(1) || 'tab-records';
             const [newMainTab, newSubSection] = newHash.split('/');
 
@@ -438,6 +573,7 @@ async function initTabs(): Promise<void> {
                 const newTargetTab = document.querySelector(`.tab-link[data-tab="${newMainTab}"]`);
                 if (newTargetTab) {
                     switchTab(newTargetTab);
+                    await mountTabIfNeeded(newMainTab);
 
                     // 寤惰繜鍒濆鍖栫浉鍏虫爣绛鹃〉
                     if (newMainTab === 'tab-actors' && !actorsTab.isInitialized) {
@@ -451,6 +587,23 @@ async function initTabs(): Promise<void> {
                             console.error('寤惰繜鍒濆鍖栨柊浣滃搧鏍囩椤靛け璐?', error);
                         });
                     }
+                }
+            }
+
+            // 懒加载：日志与 115 任务（hash 变更直达）
+            if (newMainTab === 'tab-logs' && !logsTab.isInitialized) {
+                logsTab.initialize().catch(error => {
+                    console.error('懒加载初始化 日志 标签页失败:', error);
+                });
+            }
+            if (newMainTab === 'tab-drive115-tasks') {
+                try {
+                    if (!window.drive115TasksManager) {
+                        window.drive115TasksManager = new Drive115TasksManager();
+                        await window.drive115TasksManager.initialize();
+                    }
+                } catch (error) {
+                    console.error('懒加载初始化 115 任务 标签页失败:', error);
                 }
             }
 
