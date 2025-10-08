@@ -88,3 +88,32 @@
 ## 下一步（M1）
 - 搭建 `partials/`、`loaders/`，实现加载器。
 - 抽出 `records.html` 并接入按需样式，联调 `initRecordsTab()`。
+
+---
+
+## 当前实施状态（时间戳）
+- A（sync、settings 懒加载）：已完成
+- B（Modals 常驻挂载）：已完成（模态统一迁移至 `src/dashboard/partials/modals/dashboard-modals.html`，并在 `dashboard.ts` 启动时 `ensureMounted`）
+- C（全局基础样式清单常驻 `<head>`）：已完成（精简为 `dashboard.css` + `styles/main.css` + `_tabs.css` + `_modal.css` + `_toast.css` + `_stats.css` + `_userProfile.css` + `components/toggle.css` + Font Awesome CDN）
+
+## 已完成事项（增量）
+- 将 `dashboard.html` 中各大 Tab 改为占位容器，依赖 `TAB_PARTIALS` 懒加载对应 partial + 样式。
+- 抽离并去重所有通用弹窗至 `dashboard-modals.html`，含：`orchestratorModal`、`filterRuleModal`、`webdavRestoreModal`、`migration-modal`（仅保留一份）等。
+- `dashboard.ts` 中在 `DOMContentLoaded` 阶段统一挂载 Modals（带“若已有内联则跳过”的保护），避免重复 ID。
+- `<head>` 仅保留全局基础样式，Tab 专属样式由 `TAB_PARTIALS.styles` 按需加载。
+
+## 下一步（M2）
+- 文档更新：用本节“实施状态/已完成/下一步/测试清单”替换掉阶段性占位内容（本次已追加）。
+- 回归测试：覆盖各标签页懒加载与 settings 子面板（见下）。
+- 细化样式治理：按需补齐/合并 settings 子样式，必要时分模块按需加载以进一步减小首屏。
+- 代码清理：移除历史遗留注释、备份文件；统一命名与目录约定。
+
+## 回归测试清单
+- 标签页切换：首次访问 `actors/new-works/sync/drive115-tasks/settings/logs` 时应即时注入 DOM + 样式；控制台无错误。
+- 深链路直达：访问 `#tab-settings/webdav-settings`、`#tab-settings/drive115-settings`、`#tab-logs` 直接到位。
+- Settings 行为：
+  - 侧边栏切换正常、二级锚点同步更新。
+  - `SettingsPanelManager` 管理的各子面板可初始化/销毁。
+  - `settingsSubSectionChange` 自定义事件可触发并被监听。
+- 115 相关：切到“115 网盘”时 UI 刷新逻辑正确；侧边栏配额展示按设置生效。
+- Modals：`orchestratorModal`、`filterRuleModal`、`webdavRestoreModal`、`confirmation`、`smartRestore`、`dataView`、`restoreResult`、`data-check`、`import` 正常打开/交互/关闭。

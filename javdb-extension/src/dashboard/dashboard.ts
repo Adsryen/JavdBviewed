@@ -282,11 +282,30 @@ async function mountTabIfNeeded(tabId: string): Promise<void> {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await initializeGlobalState();
+    // Modals 常驻挂载：若页面已存在内联模态，则跳过挂载以避免重复 ID
+    try {
+        const haveInlineModals = !!document.getElementById('confirmationModal')
+            || !!document.getElementById('smartRestoreModal')
+            || !!document.getElementById('webdavRestoreModal')
+            || !!document.getElementById('conflictResolutionModal')
+            || !!document.getElementById('restoreResultModal')
+            || !!document.getElementById('dataViewModal')
+            || !!document.getElementById('import-modal')
+            || !!document.getElementById('migration-modal')
+            || !!document.getElementById('data-check-modal')
+            || !!document.getElementById('helpPanel');
+        if (!haveInlineModals) {
+            await ensureMounted('#dashboard-modals-root', 'modals/dashboard-modals.html');
+        }
+    } catch {}
 
     // 鏃ュ織鎺у埗鍣ㄥ凡鍦ㄦā鍧楀姞杞芥椂鑷姩鍒濆鍖栵紝杩欓噷涓嶉渶瑕侀噸澶嶅垵濮嬪寲
 
     // 娓呯悊鎼滅储寮曟搸閰嶇疆涓殑娴嬭瘯鏁版嵁
     await cleanupSearchEngines();
+
+    // QA 自检（开发期）：检查基础样式与模态框唯一性/挂载状态
+    try { runQASelfCheck(); } catch {}
 
     // 鍒濆鍖栭殣绉佷繚鎶ょ郴缁?
     try {
@@ -1109,14 +1128,55 @@ function initSidebarToggle(): void {
 // Export functions for use in other modules
 export { updateSyncStatus };
 
-// Make updateSyncStatus available globally
-(window as any).updateSyncStatus = updateSyncStatus;
+  // Make updateSyncStatus available globally
+  (window as any).updateSyncStatus = updateSyncStatus;
 
+function runQASelfCheck(): void {
+    try {
+        const requiredLinks = [
+            './styles/main.css',
+            './styles/_tabs.css',
+            './styles/_modal.css',
+            './styles/_toast.css',
+            './styles/_stats.css',
+            './styles/_userProfile.css',
+            './styles/components/toggle.css',
+        ];
+        const missingHeadCss = requiredLinks.filter(href => !document.querySelector(`link[href$="${href}"]`));
 
+        const modalsRoot = document.getElementById('dashboard-modals-root');
+        const modalIds = [
+            'confirmationModal', 'smartRestoreModal', 'import-modal', 'migration-modal',
+            'data-check-modal', 'helpPanel', 'webdavRestoreModal', 'conflictResolutionModal',
+            'restoreResultModal', 'dataViewModal', 'filterRuleModal', 'orchestratorModal',
+        ];
+        const missingModals: string[] = [];
+        const duplicateModals: string[] = [];
+        for (const id of modalIds) {
+            const nodes = document.querySelectorAll(`[id="${id}"]`);
+            if (nodes.length === 0) missingModals.push(id);
+            if (nodes.length > 1) duplicateModals.push(id);
+        }
 
-
-
-
+        if (!modalsRoot) {
+            console.warn('[QA] 未找到 #dashboard-modals-root');
+        }
+        if (missingHeadCss.length) {
+            console.warn('[QA] 缺少基础样式（<head> 未加载）：', missingHeadCss);
+        }
+        if (missingModals.length) {
+            console.warn('[QA] 缺少以下模态框 ID：', missingModals);
+        }
+        if (duplicateModals.length) {
+            console.warn('[QA] 发现重复的模态框 ID：', duplicateModals);
+        }
+        if (modalsRoot && missingHeadCss.length === 0 && missingModals.length === 0 && duplicateModals.length === 0) {
+            console.info('[QA] 基础自检通过：样式与模态框挂载正常');
+        }
+    } catch (e) {
+        console.warn('[QA] 自检异常：', e);
+    }
+}
 
 
 
