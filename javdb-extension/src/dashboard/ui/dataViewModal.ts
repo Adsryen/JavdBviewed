@@ -33,14 +33,42 @@ export class DataViewModal {
     private currentOptions: DataViewOptions | null = null;
     private originalData: string = '';
     private isEditing: boolean = false;
+    private initialized: boolean = false;
+    private modalsMounted: boolean = false;
+    private domObserver: MutationObserver | null = null;
 
     constructor() {
-        // 等待DOM加载完成
+        // 先监听 partial 挂载事件，确保即便很早发出事件也能接收
+        try {
+            window.addEventListener('modals:mounted', () => {
+                this.modalsMounted = true;
+                if (!this.initialized) {
+                    this.init();
+                }
+            });
+        } catch {}
+
+        // 再尝试进行一次初始化；若此时模态尚未挂载，init 会静默返回并等待事件重试
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
             this.init();
         }
+
+        // 兜底：监听 DOM 变化，一旦 #dataViewModal 出现则尝试初始化并断开观察
+        try {
+            if (!document.getElementById('dataViewModal')) {
+                this.domObserver = new MutationObserver(() => {
+                    const el = document.getElementById('dataViewModal');
+                    if (el && !this.initialized) {
+                        this.init();
+                        try { this.domObserver?.disconnect(); } catch {}
+                        this.domObserver = null;
+                    }
+                });
+                this.domObserver.observe(document.body, { childList: true, subtree: true });
+            }
+        } catch {}
     }
 
     private init(): void {
@@ -60,11 +88,15 @@ export class DataViewModal {
             this.infoElement = document.getElementById('dataViewInfo')!;
 
             if (!this.modal || !this.titleElement || !this.textarea) {
-                console.error('DataViewModal: 关键元素未找到，弹窗功能将不可用');
+                // 初次（DOM 仍在挂载 modals partial）时不打印错误，等 modals:mounted 后仍失败再报错
+                if (this.modalsMounted) {
+                    console.error('DataViewModal: 关键元素未找到，弹窗功能将不可用');
+                }
                 return;
             }
 
             this.initEventListeners();
+            this.initialized = true;
             log.verbose('DataViewModal: 初始化成功');
         } catch (error) {
             console.error('DataViewModal: 初始化失败', error);
