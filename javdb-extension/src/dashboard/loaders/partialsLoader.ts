@@ -1,8 +1,8 @@
 // src/dashboard/loaders/partialsLoader.ts
 // 通过 import.meta.glob 在构建时内联 HTML 片段，同时在运行时提供 fetch 回退
 
-// Vite 会将匹配到的文件以 raw 文本形式打包进来
-const rawPartials = import.meta.glob('../partials/**/*.html', { as: 'raw', eager: true }) as Record<string, string>;
+// Vite 会将匹配到的文件以 raw 文本形式打包进来（使用 ?raw 以兼容新版本）
+const rawPartials = import.meta.glob('../partials/**/*.html', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 function normalizeName(name: string): string {
   return name
