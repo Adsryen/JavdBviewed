@@ -1,0 +1,30 @@
+/* 基础布局：侧边栏 */
+.sidebar {
+  width: var(--sidebar-width, 320px);
+  min-width: 240px;
+  padding: 12px;
+  border-right: 1px solid var(--border-color, #e5e7eb);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px 0;
+}
+.title-content { display:flex; align-items:center; gap:8px; }
+.title-icon { width:20px; height:20px; }
+.title-text { font-weight: 600; }
+
+.sidebar-section { margin: 12px 0; }
+.sidebar-section-sep { height: 1px; background: var(--border-color, #e5e7eb); margin: 10px 0; }
+.button-group-vertical { display:flex; flex-direction:column; gap:8px; }
+.webdav-sync-container { display:flex; flex-direction:column; gap:10px; }
+.sync-status { display:flex; align-items:center; justify-content:space-between; }
+.sync-time-info { display:flex; align-items:center; gap:6px; color:#64748b; }
+.sync-indicator { display:flex; align-items:center; gap:6px; color:#64748b; }
+.sync-dot { width:6px; height:6px; border-radius:50%; background:#cbd5e1; display:inline-block; }
+
+.github-link-container { display:flex; }
+.github-link { color:inherit; text-decoration:none; font-size:18px; }

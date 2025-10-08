@@ -1,0 +1,23 @@
+/* 顶部标签导航基础样式 */
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.tab-link {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+}
+.tab-link:hover {
+  background: #f8fafc;
+}
+.tab-link.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
