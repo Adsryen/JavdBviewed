@@ -334,7 +334,7 @@ async function initialize(): Promise<void> {
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
             enableActorWatermark: settings.listEnhancement?.enableActorWatermark === true,
             actorWatermarkPosition: (settings.listEnhancement as any)?.actorWatermarkPosition || 'top-right',
-            actorWatermarkOpacity: (typeof (settings.listEnhancement as any)?.actorWatermarkOpacity === 'number') ? (settings.listEnhancement as any).actorWatermarkOpacity : 0.4,
+            actorWatermarkOpacity: (typeof (settings.listEnhancement as any)?.actorWatermarkOpacity === 'number') ? (settings.listEnhancement as any).actorWatermarkOpacity : 0.8,
             // 新增：演员过滤
             hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
             hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,

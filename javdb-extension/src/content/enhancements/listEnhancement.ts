@@ -42,7 +42,7 @@ class ListEnhancementManager {
     enableRightClickBackground: true,
     enableActorWatermark: false,
     actorWatermarkPosition: 'top-right',
-    actorWatermarkOpacity: 0.4,
+    actorWatermarkOpacity: 0.8,
     // 默认：不开启演员过滤；将订阅视为收藏
     hideBlacklistedActorsInList: false,
     hideNonFavoritedActorsInList: false,
@@ -62,6 +62,8 @@ class ListEnhancementManager {
   private subscribedActorIds: Set<string> | null = null;
   private loadingActorIndex = false;
   private loadingSubscriptions = false;
+  // 演员水印样式注入标记
+  private watermarkStylesInjected = false;
 
   updateConfig(newConfig: Partial<ListEnhancementConfig>): void {
     const oldConfig = { ...this.config };
@@ -90,6 +92,30 @@ class ListEnhancementManager {
     }
   }
   // ====== 演员水印相关 ======
+  private ensureWatermarkStyles(): void {
+    if (this.watermarkStylesInjected) return;
+    try {
+      const style = document.createElement('style');
+      style.id = 'x-actor-watermark-styles';
+      style.textContent = `
+        .x-actor-wm { position: absolute; display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 8px; z-index: 4; pointer-events: auto; }
+        .x-actor-wm.pos-top-left { top: 6px; left: 6px; }
+        .x-actor-wm.pos-top-right { top: 6px; right: 6px; }
+        .x-actor-wm.pos-bottom-left { bottom: 6px; left: 6px; }
+        .x-actor-wm.pos-bottom-right { bottom: 6px; right: 6px; }
+        .x-actor-wm .x-actor-badge { height: 16px; line-height: 16px; padding: 0 6px; border-radius: 9999px; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; box-shadow: 0 0 0 2px rgba(255,255,255,0.85), 0 1px 2px rgba(0,0,0,0.25); }
+        .x-actor-wm .badge-red { background: #ef4444; }
+        .x-actor-wm .badge-green { background: #22c55e; }
+        .x-actor-wm .badge-amber { background: #f59e0b; }
+        .x-actor-wm .x-actor-more { background: rgba(31,41,55,0.9); }
+      `;
+      document.head.appendChild(style);
+      this.watermarkStylesInjected = true;
+      log('Actor watermark styles injected');
+    } catch (e) {
+      log('Failed to inject actor watermark styles:', e);
+    }
+  }
   private async ensureActorIndex(): Promise<void> {
     if (this.actorIndex || this.loadingActorIndex === true) return;
     this.loadingActorIndex = true;
@@ -136,10 +162,20 @@ class ListEnhancementManager {
   }
 
   private extractActorsFromTitle(title: string): import('../../types').ActorRecord[] {
-    if (!this.actorIndex) return [];
+    if (!this.actorIndex) {
+      log('[ActorWM] extractActorsFromTitle: actor index not ready');
+      return [];
+    }
+    const raw = title || '';
     const norm = this.normalizeText(title).toLowerCase();
-    if (!norm) return [];
+    if (!norm) {
+      log(`[ActorWM] extractActorsFromTitle: empty/invalid title -> "${raw}"`);
+      return [];
+    }
     const tokens = norm.split(' ').filter(Boolean);
+    const peek = tokens.slice(Math.max(0, tokens.length - 6)).join(' | ');
+    log(`[ActorWM] Title tokens (last6): ${peek}`);
+
     const results: import('../../types').ActorRecord[] = [];
     const seen = new Set<string>();
     // 只在标题末尾尝试匹配，最多回溯 6 个词，名称长度 1..3 词
@@ -152,17 +188,107 @@ class ListEnhancementManager {
         const phrase = tokens.slice(start, end).join(' ');
         const rec = this.actorIndex.get(phrase);
         if (rec && !seen.has(rec.id)) {
+          log(`[ActorWM] Matched phrase: "${phrase}" -> ${rec.name}(${rec.id})`);
           results.push(rec);
           seen.add(rec.id);
           break; // 命中后不再尝试更短的片段
         }
       }
     }
+
+    if (results.length === 0) {
+      // 加权混合（方案D）：全局滑窗 + 位置与括注加权
+      log('[ActorWM] No actors matched from title end. Start weighted scan...');
+      const scores: Map<string, number> = new Map(); // actorId -> score
+      const bestPhrase: Map<string, string> = new Map();
+
+      // 括注段提取（提高命中）
+      const bracketContents: string[] = [];
+      const bracketRegex = /[\(（【\[「『]([^\)）】\]」』]{1,50})[\)）】\]」』]/g;
+      let m: RegExpExecArray | null;
+      while ((m = bracketRegex.exec(norm)) !== null) {
+        if (m[1]) bracketContents.push(m[1]);
+      }
+      const bracketJoined = bracketContents.join(' ');
+
+      const maxCandidates = Math.min(tokens.length * 3, 120); // 限制候选数量
+      let generated = 0;
+      for (let start = 0; start < tokens.length; start++) {
+        for (let len = 3; len >= 1; len--) {
+          const end = start + len;
+          if (end > tokens.length) continue;
+          const phrase = tokens.slice(start, end).join(' ');
+          const rec = this.actorIndex.get(phrase);
+          generated++;
+          if (generated > maxCandidates) break;
+          if (!rec) continue;
+
+          // 基础分 + 位置权重
+          let s = 1;
+          if (start >= Math.max(0, tokens.length - 6)) s += 3; // 末段
+          if (start <= 5) s += 2; // 首段
+          if (bracketJoined.includes(phrase)) s += 2; // 括注
+
+          const prev = scores.get(rec.id) || 0;
+          if (s > prev) {
+            scores.set(rec.id, s);
+            bestPhrase.set(rec.id, phrase);
+          }
+        }
+        if (generated > maxCandidates) break;
+      }
+
+      const ranked = Array.from(scores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([actorId, score]) => ({ actorId, score }));
+
+      if (ranked.length === 0) {
+        log('[ActorWM] Weighted scan found no actors');
+      } else {
+        for (const r of ranked) {
+          // 通过短语反查记录（actorIndex仅按名称/别名建索引，已命中代表可取）
+          const phrase = bestPhrase.get(r.actorId) || '';
+          const rec = this.actorIndex.get(phrase);
+          if (rec && !seen.has(rec.id)) {
+            results.push(rec);
+            seen.add(rec.id);
+            log(`[ActorWM] Weighted matched: ${rec.name}(${rec.id}) score=${r.score} by "${phrase}"`);
+          }
+        }
+      }
+    } else {
+      log(`[ActorWM] Matched actors (end-only): ${results.map(a => `${a.name}(${a.id})`).join(', ')}`);
+    }
     return results;
+  }
+
+  // 先从DOM提取演员（列表/主页优先可用），再回退标题解析
+  private async extractActorsFromDOM(item: HTMLElement): Promise<import('../../types').ActorRecord[]> {
+    const anchors = Array.from(item.querySelectorAll('a[href*="/actors/"]')) as HTMLAnchorElement[];
+    const ids = new Set<string>();
+    for (const a of anchors) {
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/\/actors\/([^\/?#]+)/);
+      if (m && m[1]) ids.add(m[1]);
+    }
+    if (ids.size === 0) {
+      log('[ActorWM] DOM actors: none');
+      return [];
+    }
+    try {
+      const list = await Promise.all(Array.from(ids).slice(0, 8).map(id => actorManager.getActorById(id).catch(() => null)));
+      const actors = list.filter(Boolean) as import('../../types').ActorRecord[];
+      log(`[ActorWM] DOM actors found: ${actors.map(a => a.name + '(' + a.id + ')').join(', ')}`);
+      return actors;
+    } catch {
+      return [];
+    }
   }
 
   private async applyActorWatermark(item: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
     try {
+      // 确保样式已注入
+      this.ensureWatermarkStyles();
       await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
       const coverElement = item.querySelector('.cover') as HTMLElement | null;
       if (!coverElement) return;
@@ -171,15 +297,41 @@ class ListEnhancementManager {
       const existing = coverElement.querySelector('.x-actor-wm');
       if (existing) existing.remove();
 
-      const actors = this.extractActorsFromTitle(videoInfo.title).slice(0, 6);
+      log(`[ActorWM] Applying watermark for ${videoInfo.code}, title="${videoInfo.title}"`);
+      // 1) 优先DOM抓取（列表/首页可靠）
+      let actors = await this.extractActorsFromDOM(item);
+      if (actors.length === 0) {
+        // 2) 回退：标题解析（快速路径A -> 加权D）
+        actors = this.extractActorsFromTitle(videoInfo.title);
+        log(`[ActorWM] Extracted ${actors.length} candidate(s) from title`);
+      }
+      // 演员页兜底：若标题未能匹配到演员，则使用当前演员ID
+      if ((actors.length === 0) && /^\/actors\//.test(window.location.pathname)) {
+        const m = window.location.pathname.match(/\/actors\/(\w+)/);
+        if (m && m[1]) {
+          try {
+            log(`[ActorWM] Fallback to current actor page id: ${m[1]}`);
+            const rec = await actorManager.getActorById(m[1]);
+            if (rec) {
+              actors = [rec];
+              log(`[ActorWM] Fallback matched: ${rec.name}(${rec.id})`);
+            } else {
+              log('[ActorWM] Fallback actor not found in local DB');
+            }
+          } catch {}
+        }
+      }
+      actors = actors.slice(0, 6);
       if (actors.length === 0) return;
 
       const matched = actors.map(a => {
         const isBlack = !!a.blacklisted;
         const isSub = !!this.subscribedActorIds?.has(a.id);
-        const color = isBlack ? '#ef4444' : (isSub ? '#22c55e' : '');
-        return { actor: a, isBlack, isSub, color };
-      }).filter(x => x.color);
+        // 显示策略：红=黑名单、绿=订阅、琥珀=收藏（本地存在记录）
+        const type = isBlack ? 'black' : (isSub ? 'sub' : 'fav');
+        log(`[ActorWM] Badge -> ${a.name}(${a.id}): ${type}`);
+        return { actor: a, isBlack, isSub, type };
+      });
 
       if (matched.length === 0) return;
 
@@ -191,19 +343,30 @@ class ListEnhancementManager {
 
       const wm = document.createElement('div');
       wm.className = 'x-actor-wm';
-      wm.style.opacity = String(Math.max(0, Math.min(1, this.config.actorWatermarkOpacity ?? 0.4)));
+      wm.style.opacity = String(Math.max(0, Math.min(1, this.config.actorWatermarkOpacity ?? 0.8)));
 
       const pos = this.config.actorWatermarkPosition || 'top-right';
       wm.classList.add(`pos-${pos}`);
 
-      // 生成小圆点
-      matched.slice(0, 6).forEach(m => {
-        const dot = document.createElement('span');
-        dot.className = 'x-actor-dot';
-        dot.style.background = m.color;
-        dot.title = `${m.actor.name} ${m.isBlack ? '【黑名单】' : '【订阅】'}`;
-        wm.appendChild(dot);
+      // 生成文本胶囊，最多展示 countLimit，其余折叠为 +N
+      const countLimit = 4;
+      const toShow = matched.slice(0, countLimit);
+      const rest = matched.length - toShow.length;
+      toShow.forEach(m => {
+        const badge = document.createElement('span');
+        const cls = m.isBlack ? 'badge-red' : (m.isSub ? 'badge-green' : 'badge-amber');
+        badge.className = `x-actor-badge ${cls}`;
+        badge.textContent = m.isBlack ? '黑' : (m.isSub ? '订' : '藏');
+        badge.title = `${m.actor.name} ${m.isBlack ? '【黑名单】' : (m.isSub ? '【订阅】' : '【收藏】')}`;
+        wm.appendChild(badge);
       });
+      if (rest > 0) {
+        const more = document.createElement('span');
+        more.className = 'x-actor-badge x-actor-more';
+        more.textContent = `+${rest}`;
+        more.title = matched.slice(countLimit).map(x => `${x.actor.name}`).join('、');
+        wm.appendChild(more);
+      }
 
       coverElement.appendChild(wm);
     } catch (e) {
@@ -230,6 +393,11 @@ class ListEnhancementManager {
     // 初始化滚动翻页功能
     if (this.config.enableScrollPaging) {
       this.initScrollPaging();
+    }
+
+    // 若启用演员水印，初始化一次样式
+    if (this.config.enableActorWatermark) {
+      this.ensureWatermarkStyles();
     }
 
     log('List enhancement initialized successfully');
@@ -328,7 +496,11 @@ class ListEnhancementManager {
       }
 
       await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
-      const actors = this.extractActorsFromTitle(videoInfo.title);
+      // 先DOM，再标题
+      let actors = await this.extractActorsFromDOM(item);
+      if (actors.length === 0) {
+        actors = this.extractActorsFromTitle(videoInfo.title);
+      }
 
       // 是否命中黑名单
       const matchedBlack = hideByBlacklist && actors.some(a => !!a.blacklisted);
