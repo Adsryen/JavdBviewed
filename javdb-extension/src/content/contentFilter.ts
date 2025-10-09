@@ -162,7 +162,8 @@ export class ContentFilterManager {
       }
 
       // 检查是否应该被默认功能隐藏
-      const shouldBeHiddenByDefault = this.shouldBeHiddenByDefault(item);
+      const hasDefaultHiddenFlag = item.hasAttribute('data-hidden-by-default');
+      const shouldBeHiddenByDefault = hasDefaultHiddenFlag || this.shouldBeHiddenByDefault(item);
 
       // 清除之前的过滤效果（但保留默认隐藏状态）
       this.clearItemFilters(item, shouldBeHiddenByDefault);
@@ -778,8 +779,9 @@ export class ContentFilterManager {
    */
   private clearAllFilters(): void {
     this.filteredElements.forEach((_, element) => {
-      // 检查是否应该被默认功能隐藏
-      const shouldBeHiddenByDefault = this.shouldBeHiddenByDefault(element);
+      // 检查是否应该被默认功能隐藏（尊重已有默认隐藏标记）
+      const hasDefaultHiddenFlag = element.hasAttribute('data-hidden-by-default');
+      const shouldBeHiddenByDefault = hasDefaultHiddenFlag || this.shouldBeHiddenByDefault(element);
 
       // 恢复显示状态 - 但要考虑默认隐藏功能
       if (!shouldBeHiddenByDefault) {
