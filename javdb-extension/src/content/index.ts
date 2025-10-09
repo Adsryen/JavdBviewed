@@ -335,6 +335,10 @@ async function initialize(): Promise<void> {
             enableActorWatermark: settings.listEnhancement?.enableActorWatermark === true,
             actorWatermarkPosition: (settings.listEnhancement as any)?.actorWatermarkPosition || 'top-right',
             actorWatermarkOpacity: (typeof (settings.listEnhancement as any)?.actorWatermarkOpacity === 'number') ? (settings.listEnhancement as any).actorWatermarkOpacity : 0.4,
+            // 新增：演员过滤
+            hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
+            hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
+            treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
         });
         if (!isVideoPage) {
             initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init' });
@@ -464,6 +468,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             STATE.settings = settings;
             log('Updated display settings:', STATE.settings.display);
             processVisibleItems();
+
+            // 同步列表增强的“演员过滤”开关，并立即重应用（无需等待刷新）
+            try {
+                listEnhancementManager.updateConfig({
+                    hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
+                    hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
+                    treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
+                });
+                listEnhancementManager.reapplyActorHidingForAll?.();
+            } catch (e) {
+                log('Failed to reapply actor-based list hiding after settings update:', e as any);
+            }
 
             // 在默认隐藏功能处理完后，重新应用智能过滤
             if (settings.userExperience.enableContentFilter) {

@@ -19,6 +19,10 @@ export interface ListEnhancementConfig {
   enableActorWatermark?: boolean;
   actorWatermarkPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   actorWatermarkOpacity?: number;
+  // 基于演员偏好的过滤
+  hideBlacklistedActorsInList?: boolean; // 隐藏含黑名单演员的作品
+  hideNonFavoritedActorsInList?: boolean; // 隐藏未收藏演员的作品（通过标题近似识别）
+  treatSubscribedAsFavorited?: boolean; // 订阅视为收藏
 }
 
 interface VideoPreviewSource {
@@ -39,6 +43,10 @@ class ListEnhancementManager {
     enableActorWatermark: false,
     actorWatermarkPosition: 'top-right',
     actorWatermarkOpacity: 0.4,
+    // 默认：不开启演员过滤；将订阅视为收藏
+    hideBlacklistedActorsInList: false,
+    hideNonFavoritedActorsInList: false,
+    treatSubscribedAsFavorited: true,
   };
 
   private previewTimer: number | null = null;
@@ -69,6 +77,16 @@ class ListEnhancementManager {
         this.cleanupScrollPaging();
         log('Scroll paging disabled and cleaned up');
       }
+    }
+
+    // 若演员过滤配置变化，重应用一次
+    const actorFlagsChanged = (
+      oldConfig.hideBlacklistedActorsInList !== this.config.hideBlacklistedActorsInList ||
+      oldConfig.hideNonFavoritedActorsInList !== this.config.hideNonFavoritedActorsInList ||
+      oldConfig.treatSubscribedAsFavorited !== this.config.treatSubscribedAsFavorited
+    );
+    if (actorFlagsChanged) {
+      this.reapplyActorHidingForAll();
     }
   }
   // ====== 演员水印相关 ======
@@ -292,6 +310,95 @@ class ListEnhancementManager {
     // 演员水印
     if (this.config.enableActorWatermark) {
       this.applyActorWatermark(item, videoInfo).catch(err => log('Actor watermark error:', err));
+    }
+
+    // 基于演员偏好的隐藏（黑名单/未收藏）
+    this.applyActorBasedHiding(item, videoInfo).catch(err => log('Actor-based hiding error:', err));
+  }
+
+  // ====== 基于演员的隐藏逻辑 ======
+  private async applyActorBasedHiding(item: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
+    try {
+      const hideByBlacklist = !!this.config.hideBlacklistedActorsInList;
+      const hideByNonFavorited = !!this.config.hideNonFavoritedActorsInList;
+      if (!hideByBlacklist && !hideByNonFavorited) {
+        // 若之前由“演员原因”隐藏，现在需要清除（不影响其他默认隐藏原因）
+        this.clearActorOnlyHiding(item);
+        return;
+      }
+
+      await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
+      const actors = this.extractActorsFromTitle(videoInfo.title);
+
+      // 是否命中黑名单
+      const matchedBlack = hideByBlacklist && actors.some(a => !!a.blacklisted);
+
+      // 是否“未收藏”（无收藏/订阅的命中）
+      let matchedNonFav = false;
+      if (hideByNonFavorited) {
+        const treatSubs = this.config.treatSubscribedAsFavorited !== false; // 默认将订阅视为收藏
+        const subscribed = this.subscribedActorIds || new Set<string>();
+        // 规则：
+        // - 若标题无法匹配到任何本地演员（actors.length === 0），按“未收藏”处理（近似，允许误差）
+        // - 若匹配到了演员，但均为黑名单且未订阅，则也按“未收藏”处理
+        if (actors.length === 0) {
+          matchedNonFav = true;
+        } else {
+          const anyNonBlackFavoritedOrSubscribed = actors.some(a => {
+            const isBlack = !!a.blacklisted;
+            const isSubscribed = treatSubs && !!subscribed.has(a.id);
+            return (!isBlack) || isSubscribed;
+          });
+          matchedNonFav = !anyNonBlackFavoritedOrSubscribed;
+        }
+      }
+
+      if (matchedBlack) {
+        this.hideItemByActor(item, 'ACTOR_BLACKLIST');
+      } else if (matchedNonFav) {
+        this.hideItemByActor(item, 'ACTOR_NOT_FAVORITED');
+      } else {
+        this.clearActorOnlyHiding(item);
+      }
+    } catch (e) {
+      log('applyActorBasedHiding failed:', e);
+    }
+  }
+
+  private hideItemByActor(item: HTMLElement, reason: 'ACTOR_BLACKLIST' | 'ACTOR_NOT_FAVORITED'): void {
+    // 不覆盖其他原因，仅追加我们的标记
+    item.style.display = 'none';
+    item.setAttribute('data-hidden-by-default', 'true');
+    item.setAttribute('data-hidden-by-actor', 'true');
+    item.setAttribute('data-hide-reason-actor', reason);
+  }
+
+  private clearActorOnlyHiding(item: HTMLElement): void {
+    const hadActorHidden = item.hasAttribute('data-hidden-by-actor');
+    if (!hadActorHidden) return;
+    // 移除我们设置的“演员原因”标记
+    item.removeAttribute('data-hidden-by-actor');
+    item.removeAttribute('data-hide-reason-actor');
+    // 若不存在其他默认隐藏原因（如 VR/状态），则恢复显示并移除默认隐藏标记
+    const hasOtherReason = item.hasAttribute('data-hide-reason');
+    if (!hasOtherReason) {
+      item.style.display = '';
+      item.removeAttribute('data-hidden-by-default');
+    }
+  }
+
+  // 对外暴露：重应用当前页面所有条目的演员隐藏规则
+  public reapplyActorHidingForAll(): void {
+    try {
+      const items = document.querySelectorAll('.movie-list .item');
+      items.forEach(async (el) => {
+        const item = el as HTMLElement;
+        const info = this.extractVideoInfo(item);
+        if (!info) return;
+        await this.applyActorBasedHiding(item, info);
+      });
+    } catch (e) {
+      log('reapplyActorHidingForAll failed:', e);
     }
   }
 
