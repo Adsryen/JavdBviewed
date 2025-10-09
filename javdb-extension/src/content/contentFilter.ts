@@ -95,9 +95,16 @@ export class ContentFilterManager {
    * 加载默认关键字过滤规则
    */
   private loadDefaultKeywordRules(): void {
-    // 从配置中加载已保存的规则
-    // 规则现在通过设置页面管理，这里只需要确保规则已加载
-    log(`Loaded ${this.config.keywordRules.length} keyword filter rules`);
+    // 从全局 STATE.settings 中加载已保存的规则（由设置面板管理与持久化）
+    try {
+      const rules = STATE.settings?.contentFilter?.keywordRules || [];
+      this.config.keywordRules = Array.isArray(rules) ? rules : [];
+      log(`Loaded ${this.config.keywordRules.length} keyword filter rules from settings`);
+    } catch (e) {
+      log('Failed to load keyword rules from settings:', e);
+      // 兜底：保持现有配置中的规则（若有）
+      log(`Loaded ${this.config.keywordRules.length} keyword filter rules (fallback)`);
+    }
   }
 
   /**
