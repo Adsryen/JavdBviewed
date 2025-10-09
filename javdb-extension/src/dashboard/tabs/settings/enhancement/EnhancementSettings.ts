@@ -1159,7 +1159,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 演员水印配置回填
         const wmPos = (listEnhancement as any).actorWatermarkPosition || 'top-right';
         if (this.actorWatermarkPosition) this.actorWatermarkPosition.value = wmPos;
-        const wmOpacity = (typeof (listEnhancement as any).actorWatermarkOpacity === 'number') ? (listEnhancement as any).actorWatermarkOpacity : 0.4;
+        const wmOpacity = (typeof (listEnhancement as any).actorWatermarkOpacity === 'number') ? (listEnhancement as any).actorWatermarkOpacity : 0.8;
         if (this.actorWatermarkOpacity) {
             this.actorWatermarkOpacity.value = String(wmOpacity);
             const pct = Math.round(wmOpacity * 100);
@@ -1338,7 +1338,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     preferredPreviewSource: this.getPreferredPreviewSource(),
                     enableActorWatermark: this.enableActorWatermark?.checked === true,
                     actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
-                    actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.4'),
+                    actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
                 },
                 actorEnhancement: {
                     // 若任一子项启用即视为启用演员页增强
@@ -1428,7 +1428,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableRightClickBackground: true,
                 enableActorWatermark: this.enableActorWatermark?.checked === true,
                 actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
-                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.4'),
+                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
