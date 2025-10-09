@@ -156,6 +156,10 @@ export interface ExtensionSettings {
         enableActorWatermark?: boolean; // 启用在封面显示演员订阅/黑名单水印
         actorWatermarkPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'; // 水印位置
         actorWatermarkOpacity?: number; // 水印不透明度（0-1）
+        // 新增：基于演员偏好的过滤
+        hideBlacklistedActorsInList?: boolean; // 隐藏含黑名单演员的作品
+        hideNonFavoritedActorsInList?: boolean; // 隐藏未收藏演员的作品（按标题识别）
+        treatSubscribedAsFavorited?: boolean; // 订阅视为已收藏
     };
 
     // 新增：演员页增强配置

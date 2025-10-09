@@ -17,6 +17,10 @@ export class DisplaySettings extends BaseSettingsPanel {
     private hideBrowsedCheckbox!: HTMLInputElement;
     private hideVRCheckbox!: HTMLInputElement;
     private hideWantCheckbox!: HTMLInputElement;
+    // 新增：演员过滤（列表）
+    private hideBlacklistedActorsInListCheckbox: HTMLInputElement | null = null;
+    private hideNonFavoritedActorsInListCheckbox: HTMLInputElement | null = null;
+    private treatSubscribedAsFavoritedCheckbox: HTMLInputElement | null = null;
 
     constructor() {
         super({
@@ -36,6 +40,10 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideBrowsedCheckbox = document.getElementById('hideBrowsed') as HTMLInputElement;
         this.hideVRCheckbox = document.getElementById('hideVR') as HTMLInputElement;
         this.hideWantCheckbox = document.getElementById('hideWant') as HTMLInputElement;
+        // 可选：若页面存在则接入
+        this.hideBlacklistedActorsInListCheckbox = document.getElementById('hideBlacklistedActorsInList') as HTMLInputElement | null;
+        this.hideNonFavoritedActorsInListCheckbox = document.getElementById('hideNonFavoritedActorsInList') as HTMLInputElement | null;
+        this.treatSubscribedAsFavoritedCheckbox = document.getElementById('treatSubscribedAsFavorited') as HTMLInputElement | null;
 
         if (!this.hideViewedCheckbox || !this.hideBrowsedCheckbox || !this.hideVRCheckbox || !this.hideWantCheckbox) {
             throw new Error('显示设置相关的DOM元素未找到');
@@ -50,6 +58,10 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideBrowsedCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
         this.hideVRCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
         this.hideWantCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
+        // 仅当存在对应元素时绑定
+        this.hideBlacklistedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.hideNonFavoritedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.treatSubscribedAsFavoritedCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -60,6 +72,9 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideBrowsedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideVRCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideWantCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.hideBlacklistedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.hideNonFavoritedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.treatSubscribedAsFavoritedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -68,11 +83,23 @@ export class DisplaySettings extends BaseSettingsPanel {
     protected async doLoadSettings(): Promise<void> {
         const settings = STATE.settings;
         const display = settings?.display || {};
+        const listEnhancement = (settings as ExtensionSettings)?.listEnhancement as any || {};
 
         this.hideViewedCheckbox.checked = display.hideViewed || false;
         this.hideBrowsedCheckbox.checked = display.hideBrowsed || false;
         this.hideVRCheckbox.checked = display.hideVR || false;
         this.hideWantCheckbox.checked = !!display.hideWant;
+
+        if (this.hideBlacklistedActorsInListCheckbox) {
+            this.hideBlacklistedActorsInListCheckbox.checked = !!listEnhancement.hideBlacklistedActorsInList;
+        }
+        if (this.hideNonFavoritedActorsInListCheckbox) {
+            this.hideNonFavoritedActorsInListCheckbox.checked = !!listEnhancement.hideNonFavoritedActorsInList;
+        }
+        if (this.treatSubscribedAsFavoritedCheckbox) {
+            // 默认 true（若未配置）
+            this.treatSubscribedAsFavoritedCheckbox.checked = listEnhancement.treatSubscribedAsFavorited !== false;
+        }
     }
 
     /**
@@ -80,14 +107,21 @@ export class DisplaySettings extends BaseSettingsPanel {
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
+            const current = STATE.settings as ExtensionSettings;
+            const newListEnh: any = { ...(current.listEnhancement || {}) };
+            if (this.hideBlacklistedActorsInListCheckbox) newListEnh.hideBlacklistedActorsInList = this.hideBlacklistedActorsInListCheckbox.checked;
+            if (this.hideNonFavoritedActorsInListCheckbox) newListEnh.hideNonFavoritedActorsInList = this.hideNonFavoritedActorsInListCheckbox.checked;
+            if (this.treatSubscribedAsFavoritedCheckbox) newListEnh.treatSubscribedAsFavorited = this.treatSubscribedAsFavoritedCheckbox.checked;
+
             const newSettings: ExtensionSettings = {
-                ...STATE.settings,
+                ...current,
                 display: {
                     hideViewed: this.hideViewedCheckbox.checked,
                     hideBrowsed: this.hideBrowsedCheckbox.checked,
                     hideVR: this.hideVRCheckbox.checked,
                     hideWant: this.hideWantCheckbox.checked
-                }
+                },
+                listEnhancement: newListEnh
             };
 
             await saveSettings(newSettings);
@@ -104,7 +138,7 @@ export class DisplaySettings extends BaseSettingsPanel {
 
             return {
                 success: true,
-                savedSettings: { display: newSettings.display }
+                savedSettings: { display: newSettings.display, listEnhancement: newSettings.listEnhancement }
             };
         } catch (error) {
             return {
@@ -126,7 +160,7 @@ export class DisplaySettings extends BaseSettingsPanel {
      * 获取当前设置
      */
     protected doGetSettings(): Partial<ExtensionSettings> {
-        return {
+        const out: Partial<ExtensionSettings> = {
             display: {
                 hideViewed: this.hideViewedCheckbox.checked,
                 hideBrowsed: this.hideBrowsedCheckbox.checked,
@@ -134,6 +168,13 @@ export class DisplaySettings extends BaseSettingsPanel {
                 hideWant: this.hideWantCheckbox.checked
             }
         };
+        // 仅在元素存在时输出 listEnhancement 片段
+        const le: any = {};
+        if (this.hideBlacklistedActorsInListCheckbox) le.hideBlacklistedActorsInList = this.hideBlacklistedActorsInListCheckbox.checked;
+        if (this.hideNonFavoritedActorsInListCheckbox) le.hideNonFavoritedActorsInList = this.hideNonFavoritedActorsInListCheckbox.checked;
+        if (this.treatSubscribedAsFavoritedCheckbox) le.treatSubscribedAsFavorited = this.treatSubscribedAsFavoritedCheckbox.checked;
+        if (Object.keys(le).length > 0) (out as any).listEnhancement = le;
+        return out;
     }
 
     /**
@@ -154,6 +195,16 @@ export class DisplaySettings extends BaseSettingsPanel {
             if (display.hideWant !== undefined) {
                 this.hideWantCheckbox.checked = !!display.hideWant;
             }
+        }
+        const le = (settings as any).listEnhancement || {};
+        if (this.hideBlacklistedActorsInListCheckbox && le.hideBlacklistedActorsInList !== undefined) {
+            this.hideBlacklistedActorsInListCheckbox.checked = !!le.hideBlacklistedActorsInList;
+        }
+        if (this.hideNonFavoritedActorsInListCheckbox && le.hideNonFavoritedActorsInList !== undefined) {
+            this.hideNonFavoritedActorsInListCheckbox.checked = !!le.hideNonFavoritedActorsInList;
+        }
+        if (this.treatSubscribedAsFavoritedCheckbox && le.treatSubscribedAsFavorited !== undefined) {
+            this.treatSubscribedAsFavoritedCheckbox.checked = !!le.treatSubscribedAsFavorited;
         }
     }
 
