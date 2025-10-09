@@ -850,6 +850,7 @@
                                     <input type="checkbox" id="enableVideoPreview">
                                     <input type="checkbox" id="enableClickEnhancement">
                                     <input type="checkbox" id="enableScrollPaging">
+                                    <input type="checkbox" id="enableActorWatermark">
                                     <input type="checkbox" id="enableActorEnhancement">
                                     <input type="checkbox" id="enableVideoEnhancement">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
@@ -1194,6 +1195,55 @@
                                             <strong>提示：</strong>如遇到站点限速或触发反爬，请适当停顿或关闭此项。<br>
                                             <strong>适用：</strong>支持分页的影片列表页。
                                         </p>
+                                    </div>
+
+                                    <!-- 新：🖍️ 演员水印（订阅/黑名单） -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🖍️ 演员水印（订阅/黑名单）</h6>
+                                                    <span class="enhancement-feature-status available">列表页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableActorWatermark"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在影片封面角落显示演员状态水印，小圆点颜色区分订阅（绿色）与黑名单（红色）。<br>
+                                            <strong>识别：</strong>根据标题末尾的演员名匹配本地演员库（含别名）。未匹配到则不显示水印。
+                                        </p>
+
+                                        <!-- 演员水印子设置 -->
+                                        <div class="sub-settings" id="actorWatermarkConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🖍️ 水印设置</h5>
+                                                <p class="sub-description">自定义水印位置与透明度，以减少视觉干扰。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="actorWatermarkPosition">水印位置</label>
+                                                <select id="actorWatermarkPosition" class="select-input">
+                                                    <option value="top-left">左上</option>
+                                                    <option value="top-right">右上</option>
+                                                    <option value="bottom-left">左下</option>
+                                                    <option value="bottom-right">右下</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="form-group volume-control-group">
+                                                <div class="volume-header">
+                                                    <label for="actorWatermarkOpacity">透明度</label>
+                                                    <span id="actorWatermarkOpacityValue" class="volume-percentage">40%</span>
+                                                </div>
+                                                <div class="volume-slider-wrapper">
+                                                    <input type="range" id="actorWatermarkOpacity" class="modern-range" min="0" max="1" step="0.05" value="0.4">
+                                                    <div class="range-track-fill"></div>
+                                                </div>
+                                                <p class="input-description">降低透明度以减少干扰，0为全透明，1为不透明。</p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- 新：🖼️ 高质量封面（独立区块，右侧通用开关） -->

@@ -152,6 +152,10 @@ export interface ExtensionSettings {
         previewVolume: number; // 预览音量（0-1）
         enableRightClickBackground: boolean; // 启用右键后台打开
         preferredPreviewSource?: 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl'; // 预览来源优先
+        // 新增：列表页演员状态水印
+        enableActorWatermark?: boolean; // 启用在封面显示演员订阅/黑名单水印
+        actorWatermarkPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'; // 水印位置
+        actorWatermarkOpacity?: number; // 水印不透明度（0-1）
     };
 
     // 新增：演员页增强配置

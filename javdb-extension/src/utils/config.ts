@@ -327,6 +327,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         previewDelay: 1000,
         previewVolume: 0.2,
         enableRightClickBackground: true,
+        // 新增：演员水印默认配置
+        enableActorWatermark: false,
+        actorWatermarkPosition: 'top-right',
+        actorWatermarkOpacity: 0.4,
     },
 
     // 新增：Emby增强默认配置

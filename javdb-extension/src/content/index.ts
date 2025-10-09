@@ -332,6 +332,9 @@ async function initialize(): Promise<void> {
             previewDelay: settings.listEnhancement?.previewDelay || 1000,
             previewVolume: settings.listEnhancement?.previewVolume || 0.2,
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
+            enableActorWatermark: settings.listEnhancement?.enableActorWatermark === true,
+            actorWatermarkPosition: (settings.listEnhancement as any)?.actorWatermarkPosition || 'top-right',
+            actorWatermarkOpacity: (typeof (settings.listEnhancement as any)?.actorWatermarkOpacity === 'number') ? (settings.listEnhancement as any).actorWatermarkOpacity : 0.4,
         });
         if (!isVideoPage) {
             initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init' });

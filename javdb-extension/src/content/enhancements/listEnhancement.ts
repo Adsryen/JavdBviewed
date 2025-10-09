@@ -2,6 +2,8 @@
 
 import { log } from '../state';
 import { showToast } from '../toast';
+import { actorManager } from '../../services/actorManager';
+import { newWorksManager } from '../../services/newWorks';
 
 export interface ListEnhancementConfig {
   enabled: boolean;
@@ -13,6 +15,10 @@ export interface ListEnhancementConfig {
   previewVolume: number;
   enableRightClickBackground: boolean;
   preferredPreviewSource?: 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl';
+  // 演员水印
+  enableActorWatermark?: boolean;
+  actorWatermarkPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  actorWatermarkOpacity?: number;
 }
 
 interface VideoPreviewSource {
@@ -30,6 +36,9 @@ class ListEnhancementManager {
     previewDelay: 1000,
     previewVolume: 0.2,
     enableRightClickBackground: true,
+    enableActorWatermark: false,
+    actorWatermarkPosition: 'top-right',
+    actorWatermarkOpacity: 0.4,
   };
 
   private previewTimer: number | null = null;
@@ -40,6 +49,11 @@ class ListEnhancementManager {
   private maxPage: number | null = null;
   private scrollPagingThreshold = 200; // 距离底部多少像素时开始加载
   private scrollPagingHandler: ((event: Event) => void) | null = null;
+  // 演员索引与订阅缓存
+  private actorIndex: Map<string, import('../../types').ActorRecord> | null = null;
+  private subscribedActorIds: Set<string> | null = null;
+  private loadingActorIndex = false;
+  private loadingSubscriptions = false;
 
   updateConfig(newConfig: Partial<ListEnhancementConfig>): void {
     const oldConfig = { ...this.config };
@@ -55,6 +69,127 @@ class ListEnhancementManager {
         this.cleanupScrollPaging();
         log('Scroll paging disabled and cleaned up');
       }
+    }
+  }
+  // ====== 演员水印相关 ======
+  private async ensureActorIndex(): Promise<void> {
+    if (this.actorIndex || this.loadingActorIndex === true) return;
+    this.loadingActorIndex = true;
+    try {
+      const actors = await actorManager.getAllActors();
+      const idx = new Map<string, import('../../types').ActorRecord>();
+      actors.forEach(a => {
+        const pushKey = (s?: string) => {
+          const k = (s || '').trim().toLowerCase();
+          if (!k) return;
+          if (!idx.has(k)) idx.set(k, a);
+        };
+        pushKey(a.name);
+        (a.aliases || []).forEach(al => pushKey(al));
+      });
+      this.actorIndex = idx;
+    } catch (e) {
+      log('Failed to build actor index:', e);
+      this.actorIndex = new Map();
+    } finally {
+      this.loadingActorIndex = false;
+    }
+  }
+
+  private async ensureSubscriptions(): Promise<void> {
+    if (this.subscribedActorIds || this.loadingSubscriptions) return;
+    this.loadingSubscriptions = true;
+    try {
+      const subs = await newWorksManager.getSubscriptions();
+      this.subscribedActorIds = new Set(subs.map(s => s.actorId));
+    } catch (e) {
+      log('Failed to load subscriptions:', e);
+      this.subscribedActorIds = new Set();
+    } finally {
+      this.loadingSubscriptions = false;
+    }
+  }
+
+  private normalizeText(s: string): string {
+    return (s || '')
+      .replace(/[\t\n\r]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  private extractActorsFromTitle(title: string): import('../../types').ActorRecord[] {
+    if (!this.actorIndex) return [];
+    const norm = this.normalizeText(title).toLowerCase();
+    if (!norm) return [];
+    const tokens = norm.split(' ').filter(Boolean);
+    const results: import('../../types').ActorRecord[] = [];
+    const seen = new Set<string>();
+    // 只在标题末尾尝试匹配，最多回溯 6 个词，名称长度 1..3 词
+    const maxBackTokens = Math.min(tokens.length, 6);
+    for (let offset = 0; offset < maxBackTokens; offset++) {
+      const end = tokens.length - offset;
+      for (let len = 3; len >= 1; len--) {
+        const start = end - len;
+        if (start < 0) continue;
+        const phrase = tokens.slice(start, end).join(' ');
+        const rec = this.actorIndex.get(phrase);
+        if (rec && !seen.has(rec.id)) {
+          results.push(rec);
+          seen.add(rec.id);
+          break; // 命中后不再尝试更短的片段
+        }
+      }
+    }
+    return results;
+  }
+
+  private async applyActorWatermark(item: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
+    try {
+      await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
+      const coverElement = item.querySelector('.cover') as HTMLElement | null;
+      if (!coverElement) return;
+
+      // 清理旧水印
+      const existing = coverElement.querySelector('.x-actor-wm');
+      if (existing) existing.remove();
+
+      const actors = this.extractActorsFromTitle(videoInfo.title).slice(0, 6);
+      if (actors.length === 0) return;
+
+      const matched = actors.map(a => {
+        const isBlack = !!a.blacklisted;
+        const isSub = !!this.subscribedActorIds?.has(a.id);
+        const color = isBlack ? '#ef4444' : (isSub ? '#22c55e' : '');
+        return { actor: a, isBlack, isSub, color };
+      }).filter(x => x.color);
+
+      if (matched.length === 0) return;
+
+      // 确保容器定位
+      const cs = window.getComputedStyle(coverElement);
+      if (cs.position === 'static') {
+        coverElement.style.position = 'relative';
+      }
+
+      const wm = document.createElement('div');
+      wm.className = 'x-actor-wm';
+      wm.style.opacity = String(Math.max(0, Math.min(1, this.config.actorWatermarkOpacity ?? 0.4)));
+
+      const pos = this.config.actorWatermarkPosition || 'top-right';
+      wm.classList.add(`pos-${pos}`);
+
+      // 生成小圆点
+      matched.slice(0, 6).forEach(m => {
+        const dot = document.createElement('span');
+        dot.className = 'x-actor-dot';
+        dot.style.background = m.color;
+        dot.title = `${m.actor.name} ${m.isBlack ? '【黑名单】' : '【订阅】'}`;
+        wm.appendChild(dot);
+      });
+
+      coverElement.appendChild(wm);
+    } catch (e) {
+      log('applyActorWatermark failed:', e);
     }
   }
 
@@ -152,6 +287,11 @@ class ListEnhancementManager {
 
     if (this.config.enableListOptimization) {
       this.optimizeListItem(item, videoInfo);
+    }
+
+    // 演员水印
+    if (this.config.enableActorWatermark) {
+      this.applyActorWatermark(item, videoInfo).catch(err => log('Actor watermark error:', err));
     }
   }
 
@@ -940,6 +1080,26 @@ function injectStyles(): void {
     .loading-text {
       white-space: nowrap;
     }
+
+    /* 演员水印 */
+    .x-actor-wm {
+      position: absolute;
+      display: flex;
+      gap: 4px;
+      z-index: 3;
+      padding: 4px;
+      pointer-events: none;
+    }
+    .x-actor-wm .x-actor-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+    }
+    .x-actor-wm.pos-top-left { top: 6px; left: 6px; }
+    .x-actor-wm.pos-top-right { top: 6px; right: 6px; }
+    .x-actor-wm.pos-bottom-left { bottom: 6px; left: 6px; }
+    .x-actor-wm.pos-bottom-right { bottom: 6px; right: 6px; }
   `;
 
   document.head.appendChild(style);

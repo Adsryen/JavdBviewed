@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 功能增强设置面板
  * 解锁强大的增强功能，让JavDB体验更加丰富和高效
  */
@@ -59,6 +59,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private previewSourceJavSpyl!: HTMLInputElement;
     private previewSourceAVPreview!: HTMLInputElement;
     private previewSourceVBGFL!: HTMLInputElement;
+    // 演员水印配置
+    private enableActorWatermark!: HTMLInputElement;
+    private actorWatermarkPosition!: HTMLSelectElement;
+    private actorWatermarkOpacity!: HTMLInputElement;
+    private actorWatermarkOpacityValue!: HTMLSpanElement;
 
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
@@ -140,6 +145,21 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 同步演员水印透明度滑块的显示（数值与轨道填充）
+     */
+    private handleActorOpacityChange(): void {
+        if (!this.actorWatermarkOpacity) return;
+        const value = this.actorWatermarkOpacity.value;
+        const opacityFloat = parseFloat(value);
+        const percentage = Math.round(opacityFloat * 100);
+        if (this.actorWatermarkOpacityValue) this.actorWatermarkOpacityValue.textContent = `${percentage}%`;
+        const group = this.actorWatermarkOpacity.closest('.volume-control-group') as HTMLElement | null;
+        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+        if (trackFill) trackFill.style.width = `${percentage}%`;
+        this.handleSettingChange();
+    }
+
+    /**
      * 获取当前选中的预览来源
      */
     private getPreferredPreviewSource(): 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl' {
@@ -202,9 +222,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancement = document.getElementById('enableClickEnhancement') as HTMLInputElement;
         this.enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
         this.enableScrollPaging = document.getElementById('enableScrollPaging') as HTMLInputElement;
+        this.enableActorWatermark = document.getElementById('enableActorWatermark') as HTMLInputElement;
         this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
         this.previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
         this.previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
+        // 演员水印子设置元素
+        this.actorWatermarkPosition = document.getElementById('actorWatermarkPosition') as HTMLSelectElement;
+        this.actorWatermarkOpacity = document.getElementById('actorWatermarkOpacity') as HTMLInputElement;
+        this.actorWatermarkOpacityValue = document.getElementById('actorWatermarkOpacityValue') as HTMLSpanElement;
         // 预览来源单选
         this.previewSourceAuto = document.getElementById('previewSourceAuto') as HTMLInputElement;
         this.previewSourceJavDB = document.getElementById('previewSourceJavDB') as HTMLInputElement;
@@ -308,6 +333,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableActorWatermark?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 影片页增强事件监听
         this.enableVideoEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -335,6 +361,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 同步"视频预览增强"描述里的当前延迟显示
         this.previewDelay?.addEventListener('input', () => this.updateCurrentPreviewDelayDisplay());
         this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
+        // 演员水印透明度
+        this.actorWatermarkPosition?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
 
         // 缓存过期时间
         this.cacheExpiration?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1088,6 +1117,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
         if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
+        if (this.enableActorWatermark) this.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
 
         // 预览来源回填
         const preferred = (listEnhancement as any).preferredPreviewSource || 'auto';
@@ -1124,6 +1154,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 trackFill.style.width = `${percentage}%`;
                 console.log(`[Enhancement] 设置加载时同步音量进度条: ${percentage}%`);
             }
+        }
+
+        // 演员水印配置回填
+        const wmPos = (listEnhancement as any).actorWatermarkPosition || 'top-right';
+        if (this.actorWatermarkPosition) this.actorWatermarkPosition.value = wmPos;
+        const wmOpacity = (typeof (listEnhancement as any).actorWatermarkOpacity === 'number') ? (listEnhancement as any).actorWatermarkOpacity : 0.4;
+        if (this.actorWatermarkOpacity) {
+            this.actorWatermarkOpacity.value = String(wmOpacity);
+            const pct = Math.round(wmOpacity * 100);
+            if (this.actorWatermarkOpacityValue) this.actorWatermarkOpacityValue.textContent = `${pct}%`;
+            const group = this.actorWatermarkOpacity.closest('.volume-control-group') as HTMLElement | null;
+            const trackFill2 = group?.querySelector('.range-track-fill') as HTMLElement | null;
+            if (trackFill2) trackFill2.style.width = `${pct}%`;
         }
 
         // 影片页增强配置
@@ -1293,6 +1336,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
                     enableRightClickBackground: true, // 总是启用右键后台打开
                     preferredPreviewSource: this.getPreferredPreviewSource(),
+                    enableActorWatermark: this.enableActorWatermark?.checked === true,
+                    actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
+                    actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.4'),
                 },
                 actorEnhancement: {
                     // 若任一子项启用即视为启用演员页增强
@@ -1380,6 +1426,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
                 previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
                 enableRightClickBackground: true,
+                enableActorWatermark: this.enableActorWatermark?.checked === true,
+                actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
+                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.4'),
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
