@@ -331,6 +331,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableActorWatermark: false,
         actorWatermarkPosition: 'top-right',
         actorWatermarkOpacity: 0.4,
+        // 新增：基于演员偏好的过滤默认配置
+        hideBlacklistedActorsInList: false,
+        hideNonFavoritedActorsInList: false,
+        treatSubscribedAsFavorited: true,
     },
 
     // 新增：Emby增强默认配置

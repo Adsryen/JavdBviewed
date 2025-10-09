@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleViewedContainer = document.getElementById('toggleViewedContainer') as HTMLDivElement;
     const toggleVRContainer = document.getElementById('toggleVRContainer') as HTMLDivElement;
     const toggleWantContainer = document.getElementById('toggleWantContainer') as HTMLDivElement;
+    const toggleHideBlacklistedActorsContainer = document.getElementById('toggleHideBlacklistedActorsContainer') as HTMLDivElement;
+    const toggleHideNonFavoritedActorsContainer = document.getElementById('toggleHideNonFavoritedActorsContainer') as HTMLDivElement;
+    const toggleTreatSubscribedContainer = document.getElementById('toggleTreatSubscribedContainer') as HTMLDivElement;
     const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
 
@@ -75,6 +78,59 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (tabs[0].id) {
                         chrome.tabs.sendMessage(tabs[0].id, { type: 'settings-updated' });
                         // 仍然刷新页面以确保所有更改生效
+                        chrome.tabs.reload(tabs[0].id);
+                    }
+                }
+            });
+        });
+
+        container.innerHTML = '';
+        container.appendChild(button);
+    }
+
+    // ListEnhancement Toggle Buttons
+    async function createListEnhancementToggle(
+        key: keyof ExtensionSettings['listEnhancement'],
+        container: HTMLElement,
+        textTrue: string,
+        textFalse: string
+    ) {
+        const button = document.createElement('button');
+        button.className = 'toggle-button';
+
+        const updateState = (flag: boolean) => {
+            button.textContent = flag ? `当前：${textTrue}` : `当前：${textFalse}`;
+            button.classList.toggle('active', flag);
+        };
+
+        let settings = await getSettings();
+        const current = !!(settings.listEnhancement as any)?.[key];
+        updateState(current);
+
+        button.addEventListener('click', async () => {
+            settings = await getSettings();
+            if (!settings.listEnhancement) {
+                settings.listEnhancement = {
+                    enabled: true,
+                    enableClickEnhancement: true,
+                    enableVideoPreview: true,
+                    enableScrollPaging: false,
+                    enableListOptimization: true,
+                    previewDelay: 1000,
+                    previewVolume: 0.2,
+                    enableRightClickBackground: true,
+                } as any;
+            }
+            const currentVal = !!(settings.listEnhancement as any)[key];
+            (settings.listEnhancement as any)[key] = !currentVal;
+            await saveSettings(settings);
+            updateState(!currentVal);
+
+            // 通知内容脚本设置已更新（并刷新当前tab，保持与现有逻辑一致）
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]?.url?.includes('javdb')) {
+                    if (tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, { type: 'settings-updated' });
                         chrome.tabs.reload(tabs[0].id);
                     }
                 }
@@ -162,10 +218,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initializer Function
     async function initialize() {
-        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的番号', '隐藏已看的番号');
-        createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的番号', '隐藏已浏览的番号');
-        createToggleButton('hideVR', toggleVRContainer, '显示VR番号', '隐藏VR番号');
-        createToggleButton('hideWant', toggleWantContainer, '显示想看的番号', '隐藏想看的番号');
+        createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的作品', '隐藏已看的作品');
+        createToggleButton('hideBrowsed', toggleViewedContainer, '显示已浏览的作品', '隐藏已浏览的作品');
+        createToggleButton('hideVR', toggleVRContainer, '显示VR作品', '隐藏VR作品');
+        createToggleButton('hideWant', toggleWantContainer, '显示想看的作品', '隐藏想看的作品');
+
+        // 演员过滤开关（列表）
+        await createListEnhancementToggle('hideBlacklistedActorsInList', toggleHideBlacklistedActorsContainer, '隐藏含黑名单演员', '显示含黑名单演员');
+        await createListEnhancementToggle('hideNonFavoritedActorsInList', toggleHideNonFavoritedActorsContainer, '隐藏未收藏演员的作品', '显示未收藏演员的作品');
+        await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏');
 
         await setupVolumeControl();
 
