@@ -181,7 +181,15 @@ function processItem(item: HTMLElement): void {
     const dataTitle = dataTitleElement?.getAttribute('data-title') || '';
     const isVRInDataTitle = dataTitle.includes('【VR】');
 
-    const finalIsVR = isVR || isVRInDataTitle;
+    // 兜底：在未注入 data-title 前，从标题文本或 a[title] 中识别 VR 标记
+    const titleContainer = item.querySelector('.video-title') as HTMLElement | null;
+    const rawTitleText = titleContainer?.textContent?.trim() || '';
+    const linkWithTitle = item.querySelector('a[title]') as HTMLAnchorElement | null;
+    const linkTitleText = linkWithTitle?.getAttribute('title')?.trim() || '';
+    const mergedTitleText = linkTitleText || rawTitleText;
+    const isVRInTitleText = /(?:【\s*VR\s*】|\bVR\b)/i.test(mergedTitleText);
+
+    const finalIsVR = isVR || isVRInDataTitle || isVRInTitleText;
 
     if (!STATE.isSearchPage && STATE.settings?.display.hideVR && finalIsVR) {
         log(`Hiding VR video: ${videoId}`);

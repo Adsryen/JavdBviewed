@@ -338,6 +338,15 @@ async function initialize(): Promise<void> {
         });
         if (!isVideoPage) {
             initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init' });
+            // 在列表增强注入完成后，二次处理列表，确保【隐藏VR】在首屏也稳定生效
+            initOrchestrator.add('high', () => {
+                try {
+                    log('Reprocessing items after listEnhancement initialization');
+                    processVisibleItems();
+                } catch (e) {
+                    log('Reprocess after listEnhancement failed:', e as any);
+                }
+            }, { label: 'list:reprocess:after-listEnhancement', delayMs: 500 });
         }
     }
 
