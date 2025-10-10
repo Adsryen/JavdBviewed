@@ -880,6 +880,9 @@
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewBreaker">
                                     <input type="checkbox" id="veEnableFC2Breaker">
+                                    <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
+                                    <input type="checkbox" id="veEnableWantSync">
+                                    <input type="checkbox" id="veAutoMarkWatchedAfter115">
                                 </div>
 
                                 <!-- 数据增强 -->
@@ -1057,6 +1060,65 @@
                                             <strong>使用：</strong>在视频详情页显示演员信息卡片，点击可查看演员详细资料<br>
                                             <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
                                         </p>
+                                    </div>
+
+                                    <!-- 状态标记增强 主开关与子设置（显示在“影片页增强”子标签内） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎬 状态标记增强</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <!-- 主开关：控制子设置区块显隐 -->
+                                                <button class="enhancement-toggle" data-target="enableVideoEnhancement"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>功能：</strong>在影片详情页注入增强区块，支持“想看”点击同步到本地番号库，以及 115 推送后自动标记“已看”。<br>
+                                            <strong>说明：</strong>此主开关仅控制设置区块显示与核心增强；具体子功能可单独开关。
+                                        </p>
+
+                                        <!-- 子设置容器：由 data-target=enableVideoEnhancement 控制显隐 -->
+                                        <div id="videoEnhancementConfig" class="sub-settings" style="display: none;">
+                                            <!-- 子项：点击“想看”时同步到番号库 -->
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">✅ 点击“想看”时同步到番号库</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableWantSync"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    开启后，在 JavDB 影片页点击“想看”按钮，将自动把该影片以“想看”状态写入本地番号库（若不存在则自动创建）。
+                                                </p>
+                                            </div>
+
+                                            <!-- 子项：115 推送成功后自动标记“已看” -->
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">☑️ 115 推送成功后自动标记“已看”</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veAutoMarkWatchedAfter115"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    开启后，当从影片页触发 115 推送成功，将自动将本片标记为“已看”。
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
 

@@ -255,26 +255,29 @@ export async function handlePushToDrive115(
                 });
             }, 100); // 100ms后执行，确保有足够时间
 
-            // 推送成功后自动标记为已看
+            // 推送成功后自动标记为已看（受设置控制）
             try {
-                log('开始标记视频为已看...');
-                console.log('[JavDB Ext] 开始标记视频为已看...');
-                await markVideoAsWatched(videoId);
-                log('markVideoAsWatched函数执行完毕');
-                console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
+                const settings: any = await getSettings();
+                const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
+                if (autoMark) {
+                    log('开始标记视频为已看...');
+                    console.log('[JavDB Ext] 开始标记视频为已看...');
+                    await markVideoAsWatched(videoId);
+                    log('markVideoAsWatched函数执行完毕');
+                    console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
 
-                // 由于markVideoAsWatched内部会刷新页面，不需要恢复按钮状态
-                return;
-
+                    // 由于markVideoAsWatched内部会刷新页面，不需要恢复按钮状态
+                    return;
+                }
             } catch (error) {
-                console.warn('自动标记已看失败:', error);
-                console.error('[JavDB Ext] 自动标记已看失败:', error);
+                console.warn('自动标记已看失败或被关闭:', error);
+                console.error('[JavDB Ext] 自动标记已看失败或被关闭:', error);
                 try {
                     const errMsg = error instanceof Error ? error.message : String(error);
-                    showToast(`自动标记已看失败：${errMsg}。已完成推送，可稍后在 JavDB 页面手动标记`, 'warning');
+                    showToast(`已推送到115。自动标记已看：${errMsg || '已关闭'}`, 'info');
                 } catch {}
 
-                // 标记已看失败时，仍然恢复按钮状态
+                // 关闭或失败时，仍然恢复按钮状态
                 setTimeout(() => {
                     button.innerHTML = originalText;
                     button.disabled = false;

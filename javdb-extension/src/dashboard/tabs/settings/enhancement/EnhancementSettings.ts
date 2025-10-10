@@ -36,6 +36,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veShowLoadingIndicator!: HTMLInputElement;
     private veEnableReviewBreaker!: HTMLInputElement;
     private veEnableFC2Breaker!: HTMLInputElement;
+    // 新增：状态标记增强子项
+    private veEnableWantSync!: HTMLInputElement;
+    private veAutoMarkWatchedAfter115!: HTMLInputElement;
 
     // 磁力搜索源配置
     private magnetSourceSukebei!: HTMLInputElement;
@@ -295,6 +298,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
         this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
         this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
+        // 新增：状态标记增强子项
+        this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
+        this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
 
         // 内容过滤相关元素
         this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
@@ -345,6 +351,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 新增：本地同步子项
+        this.veEnableWantSync?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veAutoMarkWatchedAfter115?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 演员页增强配置事件监听
         this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1192,6 +1201,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
         if (this.veEnableReviewBreaker) this.veEnableReviewBreaker.checked = videoEnhancement.enableReviewBreaker === true;
         if (this.veEnableFC2Breaker) this.veEnableFC2Breaker.checked = videoEnhancement.enableFC2Breaker === true;
+        // 新增：本地同步子项回填
+        if (this.veEnableWantSync) this.veEnableWantSync.checked = (videoEnhancement as any).enableWantSync !== false;
+        if (this.veAutoMarkWatchedAfter115) this.veAutoMarkWatchedAfter115.checked = (videoEnhancement as any).autoMarkWatchedAfter115 !== false;
 
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
@@ -1293,6 +1305,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
                     enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
                     enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
+                    // 新增：本地同步子项
+                    enableWantSync: this.veEnableWantSync?.checked !== false,
+                    autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
                 },
                 translation: {
                     provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',
@@ -1411,6 +1426,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
                 enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
                 enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
+                // 新增：本地同步子项
+                enableWantSync: this.veEnableWantSync?.checked !== false,
+                autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,
