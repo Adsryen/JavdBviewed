@@ -32,9 +32,9 @@
 
 ## 列表显示设置
 - 隐藏VR有问题（**待验证**）
-- 隐藏拉黑演员的影片（通过标题去过滤，有误差但可接受）
-- 支持一键，隐藏未收藏演员的作品（快捷，过滤非必要的影片）
-- 重新设计popup页面，方便显示多个开关
+- 隐藏拉黑演员的影片（通过标题去过滤，有误差但可接受）（**待验证**）
+- 支持一键，隐藏未收藏演员的作品（快捷，过滤非必要的影片）（**待验证**）
+- 重新设计popup页面，方便显示多个开关（**待验证**）
   
 ## WebDAV 设置
 - 恢复功能，不完善，没有分析按钮了
@@ -43,29 +43,7 @@
 - 检查所有功能增强时候有独立的标签
 
 ## 番号库
-- 增加点击“想看”按钮，更新番号库影片状态，如果番号库没有该影片，则添加
-  - @todo.md#L40-41在影片页，实现这个功能，并且将这个功能和已有的（115推送自动已看）的功能，做成影片页的增强区块，可供开关
-
-<div class="column">
-      <div class="buttons are-small review-buttons">
-          <form class="button_to" method="post" action="/v/wK5ZJ1/reviews/want_to_watch" data-remote="true"><button type="submit" class="button" data-disable-with="...">
-            <span class="icon is-small">
-              <i class="icon-check-circle-o"></i>
-            </span>
-            <span>想看</span>
-</button><input type="hidden" name="authenticity_token" value="bIqcl19D8eCIJ7sMRhTx_aYJHp3PdTIbcLR0gbgQxv_Cqay4W6LooSp4KGCRvCyxKWj-x6ORM-ulPyWet_6pQQ" autocomplete="off"></form>          <button name="button" type="button" id="review-watched" data-target="modal-review-watched" data-haspopup="true" data-auth="true" class="button modal-button">
-            <span class="icon is-small">
-              <i class="icon-check-circle"></i>
-            </span>
-            <span>看過</span>
-</button>        <!-- 保存清单 -->
-        <button name="button" type="button" data-target="modal-save-list" data-haspopup="true" data-auth="true" id="save-list-button" class="button modal-button modal-save-list-button">
-          <span class="icon is-small">
-            <i class="icon-bookmark-o"></i>
-          </span>
-          <span>存入清單</span>
-</button>      </div>
-    </div> 
+- 增加点击“想看”按钮，更新番号库影片状态，如果番号库没有该影片，则添加（**待验证**）
 - 增加功能按钮，显示封面，则在番号库列表左侧直接显示影片封面，减少点击。当页面滚动到图片容器才开始加载封面，避免加载过多的图片
 - 整理影片页的功能加载顺序，保存番号库与更换icon的优先级最高（**待验证**）
 - ！！！优化开始识别番号，保存番号库的开始判断，当页面识别到navbar-item 的元素时，才开始识别数据回写。要是没有，说明页面被安全拦截了或请求频繁了，就不要回写番号库。（**待验证**）

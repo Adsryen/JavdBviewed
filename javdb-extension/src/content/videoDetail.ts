@@ -13,6 +13,7 @@ import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
+import { getSettings, saveSettings } from '../utils/storage';
 
 // 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
 // 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
@@ -252,11 +253,193 @@ async function markActorsOnPage(): Promise<void> {
         } catch (markErr) {
             log('Marking actors on page failed:', markErr);
         }
+
+        // 绑定“想看”按钮同步与注入增强区块
+        try {
+            bindWantSyncOnClick(videoId);
+        } catch (e) { log('bindWantSyncOnClick error:', e as any); }
+        try {
+            await injectVideoEnhancementPanel();
+        } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
     } catch (error) {
         log(`Error processing video ${videoId} (operation ${operationId}):`, error);
         showToast(`处理失败: ${videoId}`, 'error');
     } finally {
         concurrencyManager.finishProcessingVideo(videoId, operationId);
+    }
+}
+
+// 绑定“想看”按钮点击事件：将本地番号库状态升级为 WANT（若无记录则创建）
+function bindWantSyncOnClick(videoId: string): void {
+    try {
+        const enabled = STATE.settings?.videoEnhancement?.enableWantSync !== false;
+        if (!enabled) return;
+
+        // 兼容多种DOM：优先 form[data-remote][action*="/reviews/want_to_watch"]，回退到包含文本“想看”的按钮
+        const wantForm = document.querySelector<HTMLFormElement>('form.button_to[action*="/reviews/want_to_watch"]');
+        const wantButton = wantForm?.querySelector('button') || Array.from(document.querySelectorAll('button')).find(btn => (btn.textContent || '').includes('想看')) || null;
+        const target: Element | null = wantForm || wantButton || null;
+        if (!target) return;
+
+        const FLAG = '__bound_want_sync__';
+        if ((target as any)[FLAG]) return;
+        (target as any)[FLAG] = true;
+
+        const handler = (_e: Event) => {
+            // 不拦截默认行为，仅在提交后短暂延迟本地写入
+            setTimeout(() => {
+                upsertWantStatus(videoId).catch(err => log('upsertWantStatus error:', err));
+            }, 800);
+        };
+
+        if (wantForm) {
+            wantForm.addEventListener('submit', handler, { capture: true });
+        } else if (wantButton) {
+            wantButton.addEventListener('click', handler, { capture: true });
+        }
+    } catch (e) {
+        log('bindWantSyncOnClick failed:', e as any);
+    }
+}
+
+// 将本地番号库状态升级为 WANT（若无记录则创建）
+async function upsertWantStatus(videoId: string): Promise<void> {
+    const opId = await concurrencyManager.startProcessingVideo(videoId).catch(() => null);
+    if (!opId) {
+        // 已有并发在处理，避免冲突直接返回
+        return;
+    }
+    try {
+        const now = Date.now();
+        const currentUrl = window.location.href;
+        const existing = STATE.records[videoId];
+
+        if (existing) {
+            // 升级现有记录状态
+            const result = await storageManager.updateRecord(
+                videoId,
+                (current) => {
+                    const cur = current[videoId];
+                    const updated = { ...cur } as VideoRecord;
+                    updated.status = safeUpdateStatus(cur.status, VIDEO_STATUS.WANT as any);
+                    updated.updatedAt = now;
+                    updated.javdbUrl = currentUrl;
+                    return updated;
+                },
+                opId
+            );
+            if (result.success) {
+                updateFaviconForStatus(VIDEO_STATUS.WANT);
+                showToast('已同步为「我想看」', 'success');
+            } else {
+                showToast(`同步失败: ${result.error || '未知错误'}`, 'error');
+            }
+        } else {
+            // 新建记录并设为 WANT
+            let newRecord = await createVideoRecord(videoId, now, currentUrl);
+            if (!newRecord) {
+                // 兜底：最小记录
+                newRecord = {
+                    id: videoId,
+                    title: document.title.replace(/ \| JavDB.*/, '').trim(),
+                    status: VIDEO_STATUS.WANT as any,
+                    tags: [],
+                    createdAt: now,
+                    updatedAt: now,
+                    javdbUrl: currentUrl,
+                } as VideoRecord;
+            } else {
+                newRecord.status = VIDEO_STATUS.WANT as any;
+                newRecord.updatedAt = now;
+            }
+            const result = await storageManager.addRecord(videoId, newRecord, opId);
+            if (result.success) {
+                updateFaviconForStatus(VIDEO_STATUS.WANT);
+                showToast('已添加到番号库并标记为「我想看」', 'success');
+            } else {
+                showToast(`保存失败: ${result.error || '未知错误'}`, 'error');
+            }
+        }
+    } catch (e) {
+        log('upsertWantStatus exception:', e as any);
+        showToast('同步失败：出现异常', 'error');
+    } finally {
+        concurrencyManager.finishProcessingVideo(videoId, opId || undefined);
+    }
+}
+
+// 注入影片页“增强区块”提供两个设置开关
+async function injectVideoEnhancementPanel(): Promise<void> {
+    try {
+        const PANEL_ID = 'jdb-video-enhance-panel';
+        if (document.getElementById(PANEL_ID)) return;
+
+        // 优先插到评论按钮区域附近
+        const reviewButtons = document.querySelector('.review-buttons');
+        const container = (reviewButtons?.parentElement as HTMLElement) || document.querySelector<HTMLElement>('.column') || document.body;
+        if (!container) return;
+
+        const settings = await getSettings();
+        const ve = settings.videoEnhancement || {} as any;
+
+        const panel = document.createElement('div');
+        panel.id = PANEL_ID;
+        panel.style.cssText = `
+          margin-top: 8px;
+          padding: 8px 10px;
+          background: #f7f7f7;
+          border: 1px solid #e6e6e6;
+          border-radius: 6px;
+          font-size: 13px;
+        `;
+
+        const title = document.createElement('div');
+        title.textContent = '影片页增强';
+        title.style.cssText = 'font-weight: bold; margin-bottom: 6px; color: #333;';
+
+        const line = (labelText: string, checked: boolean, onToggle: (v: boolean) => void) => {
+            const wrap = document.createElement('label');
+            wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !!checked;
+            cb.addEventListener('change', () => onToggle(cb.checked));
+            const txt = document.createElement('span');
+            txt.textContent = labelText;
+            wrap.appendChild(cb);
+            wrap.appendChild(txt);
+            return wrap;
+        };
+
+        const onSave = async (patch: Partial<typeof settings['videoEnhancement']>) => {
+            try {
+                settings.videoEnhancement = { ...settings.videoEnhancement, ...patch } as any;
+                await saveSettings(settings);
+                // 同步内存配置
+                if (STATE.settings) {
+                    STATE.settings.videoEnhancement = { ...settings.videoEnhancement } as any;
+                }
+                showToast('设置已保存', 'success');
+            } catch (e) {
+                showToast('保存设置失败', 'error');
+            }
+        };
+
+        const l1 = line('点击“想看”时同步到番号库', ve.enableWantSync !== false, (v) => onSave({ enableWantSync: v }));
+        const l2 = line('115 推送成功后自动标记“已看”', ve.autoMarkWatchedAfter115 !== false, (v) => onSave({ autoMarkWatchedAfter115: v }));
+
+        panel.appendChild(title);
+        panel.appendChild(l1);
+        panel.appendChild(l2);
+
+        // 插入在 review-buttons 下方
+        if (reviewButtons && reviewButtons.parentElement) {
+            reviewButtons.parentElement.insertBefore(panel, reviewButtons.nextSibling);
+        } else if (container) {
+            container.appendChild(panel);
+        }
+    } catch (e) {
+        log('injectVideoEnhancementPanel failed:', e as any);
     }
 }
 
