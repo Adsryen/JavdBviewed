@@ -126,6 +126,9 @@ export interface ExtensionSettings {
         showLoadingIndicator: boolean; // 显示加载指示器
         enableReviewBreaker: boolean; // 启用破解评论区
         enableFC2Breaker: boolean; // 启用破解FC2拦截
+        // 新增：影片页增强控制开关
+        enableWantSync?: boolean; // 点击“想看”时同步到本地番号库
+        autoMarkWatchedAfter115?: boolean; // 115推送成功后自动标记“已看”
     };
 
     // 新增：内容过滤配置
