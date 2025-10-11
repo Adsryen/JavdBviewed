@@ -17,23 +17,96 @@ interface WebDAVFile {
     size?: number;
 }
 
+/**
+ * 防御性修正：确保四个操作按钮都在当前弹窗的 .modal-footer 内
+ */
+function ensureFooterInModal(): void {
+    const modal = getRestoreModal();
+    if (!modal) return;
+    let footer = modal.querySelector('.modal-footer') as HTMLElement | null;
+    if (!footer) {
+        // 若当前可见弹窗内不存在 .modal-footer，则即时创建一个容器
+        const content = modal.querySelector('.modal-content') as HTMLElement | null;
+        if (content) {
+            footer = document.createElement('div');
+            footer.className = 'modal-footer';
+            content.appendChild(footer);
+        } else {
+            return;
+        }
+    }
+
+    const ids = ['webdavRestoreBack', 'webdavRestoreCancel', 'webdavRestoreConfirm'];
+    ids.forEach(id => {
+        // 查找所有重复按钮（使用属性选择器，避免 #id 只取首个）
+        const nodes = Array.from(document.querySelectorAll(`[id="${id}"]`)) as HTMLElement[];
+
+        // 优先选择当前可见弹窗内的那个，其次任取第一个
+        let preferred = nodes.find(n => modal.contains(n)) || nodes[0] || null;
+
+        if (preferred) {
+            if (!footer.contains(preferred)) {
+                footer.appendChild(preferred);
+            }
+        }
+
+        // 移除其它同 ID 的漂移副本，避免出现在页面底部
+        nodes.forEach(n => {
+            if (n !== preferred) {
+                try { n.remove(); } catch {}
+            }
+        });
+    });
+}
+
 // 全局变量
 let selectedFile: WebDAVFile | null = null;
+
+// Helper: scope queries to the restore modal to avoid duplicate IDs elsewhere
+function getRestoreModal(): HTMLElement | null {
+    const root = document.getElementById('dashboard-modals-root');
+    // 绝对优先：文档中当前“可见”的实例（不限定在 root 内）
+    const docVisible = document.querySelector('#webdavRestoreModal.modal-overlay.visible') as HTMLElement | null;
+    if (docVisible) return docVisible;
+    // 次优先：root 内可见实例
+    const inRootVisible = root?.querySelector('#webdavRestoreModal.modal-overlay.visible') as HTMLElement | null;
+    if (inRootVisible) return inRootVisible;
+    // 再次：root 内任意实例
+    const inRootAny = root?.querySelector('#webdavRestoreModal') as HTMLElement | null;
+    if (inRootAny) return inRootAny;
+    // 兜底：文档中任意实例（可能是隐藏的克隆）
+    return document.getElementById('webdavRestoreModal') as HTMLElement | null;
+}
+
+function mq<T extends HTMLElement = HTMLElement>(selector: string): T | null {
+    const modal = getRestoreModal();
+    return (modal ? modal.querySelector(selector) : null) as T | null;
+}
 
 /**
  * 创建正确的按钮
  */
 function createCorrectButtons(): void {
-    const modal = document.getElementById('webdavRestoreModal');
+    const modal = getRestoreModal();
     if (!modal) return;
-    
-    const modalFooter = modal.querySelector('.modal-footer');
-    if (!modalFooter) return;
-    
+
+    let modalFooter = modal.querySelector('.modal-footer') as HTMLElement | null;
+    if (!modalFooter) {
+        // 若缺少页脚容器，先在 .modal-content 内创建
+        const content = modal.querySelector('.modal-content') as HTMLElement | null;
+        if (content) {
+            modalFooter = document.createElement('div');
+            modalFooter.className = 'modal-footer';
+            content.appendChild(modalFooter);
+        } else {
+            return;
+        }
+    }
+
     // 清空现有内容
     modalFooter.innerHTML = '';
     
-    // 创建按钮
+    // 创建按钮（不再创建“分析数据”按钮）
     const backBtn = document.createElement('button');
     backBtn.id = 'webdavRestoreBack';
     backBtn.className = 'btn btn-secondary hidden';
@@ -42,25 +115,20 @@ function createCorrectButtons(): void {
     const cancelBtn = document.createElement('button');
     cancelBtn.id = 'webdavRestoreCancel';
     cancelBtn.className = 'btn btn-secondary';
-    cancelBtn.textContent = '取消';
-    
-    const analyzeBtn = document.createElement('button');
-    analyzeBtn.id = 'webdavRestoreAnalyze';
-    analyzeBtn.className = 'btn btn-primary hidden';
-    analyzeBtn.innerHTML = '<i class="fas fa-search"></i> 分析数据';
+    cancelBtn.innerHTML = '取消';
     
     const confirmBtn = document.createElement('button');
     confirmBtn.id = 'webdavRestoreConfirm';
     confirmBtn.className = 'btn btn-primary';
     confirmBtn.disabled = true;
-    confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
+    confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始覆盖式恢复';
     
     // 添加到footer
     modalFooter.appendChild(backBtn);
     modalFooter.appendChild(cancelBtn);
-    modalFooter.appendChild(analyzeBtn);
     modalFooter.appendChild(confirmBtn);
 }
+
 let currentCloudData: any = null;
 let currentLocalData: any = null;
 let currentDiffResult: DataDiffResult | null = null;
@@ -164,8 +232,8 @@ function formatDateYMD(date: Date): string {
 // 更新“云端备份数量 & 范围”摘要
 function updateBackupSummary(files: WebDAVFile[]): void {
     try {
-        const countEl = document.getElementById('webdavBackupCount');
-        const rangeEl = document.getElementById('webdavBackupRange');
+        const countEl = mq<HTMLElement>('#webdavBackupCount');
+        const rangeEl = mq<HTMLElement>('#webdavBackupRange');
 
         if (countEl) countEl.textContent = String(files.length);
 
@@ -217,6 +285,18 @@ function initializeRestoreInterface(diffResult: DataDiffResult): void {
 
     // 显示数据预览
     showElement('webdavDataPreview');
+
+    // 专家模式已废弃：移除影响预览容器，避免叠加/干扰
+    try {
+        const impact = document.getElementById('expertImpactPreview');
+        if (impact) impact.remove();
+        // 同时清理旧模板中的“影响预览”区块与摘要容器
+        const modal = getRestoreModal();
+        const impactSummary = (modal || document).querySelector('#impactSummary') as HTMLElement | null;
+        if (impactSummary) impactSummary.remove();
+        const impactPreview = (modal || document).querySelector('.impact-preview') as HTMLElement | null;
+        if (impactPreview) impactPreview.remove();
+    } catch {}
 }
 
 /**
@@ -314,7 +394,7 @@ function initializeQuickMode(diffResult: DataDiffResult): void {
     updateElement('quickConflictCount', totalConflicts.toString());
 
     // 绑定快捷恢复按钮
-    const quickRestoreBtn = document.getElementById('quickRestoreBtn');
+    const quickRestoreBtn = mq<HTMLElement>('#quickRestoreBtn');
     if (quickRestoreBtn) {
         quickRestoreBtn.onclick = () => {
             startQuickRestore();
@@ -439,7 +519,7 @@ function startQuickRestore(): void {
  * 更新向导步骤指示器
  */
 function updateWizardSteps(): void {
-    const steps = document.querySelectorAll('.step');
+    const steps = getRestoreModal()?.querySelectorAll('.step') || [];
 
     steps.forEach((step, index) => {
         const stepNumber = index + 1;
@@ -453,7 +533,7 @@ function updateWizardSteps(): void {
     });
 
     // 更新步骤内容显示
-    document.querySelectorAll('.wizard-step-content').forEach((content, index) => {
+    (getRestoreModal() || document).querySelectorAll('.wizard-step-content').forEach((content, index) => {
         content.classList.remove('active');
         if (index + 1 === wizardState.currentStep) {
             content.classList.add('active');
@@ -466,7 +546,7 @@ function updateWizardSteps(): void {
  */
 function initializeStrategySelection(diffResult: DataDiffResult): void {
     // 绑定策略选择事件
-    const strategyRadios = document.querySelectorAll('input[name="wizardStrategy"]');
+    const strategyRadios = (getRestoreModal() || document).querySelectorAll('input[name="wizardStrategy"]');
     strategyRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             const target = e.target as HTMLInputElement;
@@ -485,7 +565,7 @@ function initializeStrategySelection(diffResult: DataDiffResult): void {
  * 更新策略预览
  */
 function updateStrategyPreview(strategy: string, diffResult: DataDiffResult): void {
-    const previewContent = document.getElementById('previewContent');
+    const previewContent = mq<HTMLElement>('#previewContent');
     if (!previewContent) return;
 
     let previewHtml = '';
@@ -571,9 +651,9 @@ function updateStrategyPreview(strategy: string, diffResult: DataDiffResult): vo
  * 绑定向导导航事件
  */
 function bindWizardNavigation(): void {
-    const prevBtn = document.getElementById('wizardPrevBtn');
-    const nextBtn = document.getElementById('wizardNextBtn');
-    const startBtn = document.getElementById('wizardStartBtn');
+    const prevBtn = mq<HTMLElement>('#wizardPrevBtn');
+    const nextBtn = mq<HTMLElement>('#wizardNextBtn');
+    const startBtn = mq<HTMLElement>('#wizardStartBtn');
 
     if (prevBtn) {
         prevBtn.onclick = () => {
@@ -614,9 +694,9 @@ function bindWizardNavigation(): void {
  * 更新向导导航按钮状态
  */
 function updateWizardNavigation(): void {
-    const prevBtn = document.getElementById('wizardPrevBtn') as HTMLButtonElement;
-    const nextBtn = document.getElementById('wizardNextBtn') as HTMLButtonElement;
-    const startBtn = document.getElementById('wizardStartBtn') as HTMLButtonElement;
+    const prevBtn = mq<HTMLButtonElement>('#wizardPrevBtn');
+    const nextBtn = mq<HTMLButtonElement>('#wizardNextBtn');
+    const startBtn = mq<HTMLButtonElement>('#wizardStartBtn');
 
     if (prevBtn) {
         prevBtn.disabled = wizardState.currentStep === 1;
@@ -672,14 +752,14 @@ function initializeCurrentStep(): void {
 function initializeContentSelection(): void {
     if (!currentCloudData) return;
 
-    const grid = document.getElementById('contentSelectionGrid');
+    const grid = mq<HTMLElement>('#contentSelectionGrid');
     if (!grid) return;
 
     // 重用现有的configureRestoreOptions逻辑
     configureRestoreOptions(currentCloudData);
 
     // 将现有的恢复选项移动到向导中
-    const existingOptions = document.querySelector('.restore-options-grid');
+    const existingOptions = mq<HTMLElement>('.restore-options-grid');
     if (existingOptions) {
         grid.innerHTML = existingOptions.innerHTML;
 
@@ -698,7 +778,8 @@ function initializeContentSelection(): void {
  * 更新选中的内容
  */
 function updateSelectedContent(): void {
-    const checkboxes = document.querySelectorAll('#contentSelectionGrid input[type="checkbox"]:checked');
+    const modal = getRestoreModal();
+    const checkboxes = (modal || document).querySelectorAll('#contentSelectionGrid input[type="checkbox"]:checked');
     wizardState.selectedContent = Array.from(checkboxes).map(cb => (cb as HTMLInputElement).id);
 }
 
@@ -706,7 +787,7 @@ function updateSelectedContent(): void {
  * 初始化确认步骤
  */
 function initializeConfirmation(): void {
-    const summaryContainer = document.getElementById('confirmationSummary');
+    const summaryContainer = mq<HTMLElement>('#confirmationSummary');
     if (!summaryContainer || !currentDiffResult) return;
 
     const strategyNames = {
@@ -725,7 +806,7 @@ function initializeConfirmation(): void {
             <h5><i class="fas fa-list"></i> 恢复内容</h5>
             <ul>
                 ${wizardState.selectedContent.map(id => {
-                    const element = document.getElementById(id);
+                    const element = mq<HTMLElement>('#' + id) || document.getElementById(id);
                     const label = element?.closest('.form-group-checkbox')?.querySelector('label')?.textContent || id;
                     return `<li>${label}</li>`;
                 }).join('')}
@@ -767,15 +848,23 @@ function startWizardRestore(): void {
     });
 
     // 根据选择的策略和内容构建合并选项
+    const restoreSettings = (document.getElementById('webdavRestoreSettings') as HTMLInputElement)?.checked ?? true;
+    const restoreRecords = (document.getElementById('webdavRestoreRecords') as HTMLInputElement)?.checked ?? true;
+    const restoreUserProfile = (document.getElementById('webdavRestoreUserProfile') as HTMLInputElement)?.checked ?? true;
+    const restoreActorRecords = (document.getElementById('webdavRestoreActorRecords') as HTMLInputElement)?.checked ?? true;
+    const restoreLogs = (document.getElementById('webdavRestoreLogs') as HTMLInputElement)?.checked ?? false;
+    const restoreImportStats = (document.getElementById('webdavRestoreImportStats') as HTMLInputElement)?.checked ?? false;
+    const restoreNewWorks = (document.getElementById('webdavRestoreNewWorks') as HTMLInputElement)?.checked ?? false;
+
     const mergeOptions: MergeOptions = {
         strategy: wizardState.strategy as any,
-        restoreSettings: wizardState.selectedContent.includes('webdavRestoreSettings'),
-        restoreRecords: wizardState.selectedContent.includes('webdavRestoreRecords') || wizardState.selectedContent.length === 0, // 默认恢复记录
-        restoreUserProfile: wizardState.selectedContent.includes('webdavRestoreUserProfile'),
-        restoreActorRecords: wizardState.selectedContent.includes('webdavRestoreActorRecords') || wizardState.selectedContent.length === 0, // 默认恢复演员
-        restoreLogs: wizardState.selectedContent.includes('webdavRestoreLogs'),
-        restoreImportStats: wizardState.selectedContent.includes('webdavRestoreImportStats'),
-        restoreNewWorks: wizardState.selectedContent.includes('webdavRestoreNewWorks')
+        restoreSettings,
+        restoreRecords,
+        restoreUserProfile,
+        restoreActorRecords,
+        restoreLogs,
+        restoreImportStats,
+        restoreNewWorks
     };
 
     // 执行恢复
@@ -883,9 +972,9 @@ function showRestoreProgress(): void {
     const modalBody = modal.querySelector('.modal-body');
     if (!modalBody) return;
 
-    // 隐藏其他内容，显示进度界面
-    const existingContent = modalBody.querySelectorAll('> div');
-    existingContent.forEach(el => (el as HTMLElement).style.display = 'none');
+    // 隐藏其他内容，显示进度界面（使用 children 避免无效选择器）
+    const existingContent = Array.from(modalBody.children) as HTMLElement[];
+    existingContent.forEach(el => { el.style.display = 'none'; });
 
     // 创建进度界面
     const progressContainer = document.createElement('div');
@@ -945,6 +1034,13 @@ function showRestoreResults(summary: any): void {
         progressContainer.remove();
     }
 
+    // 只展示结果视图：显式隐藏选择/预览/错误/加载等区域，避免叠在一起
+    hideElement('webdavRestoreLoading');
+    hideElement('webdavRestoreError');
+    hideElement('webdavRestoreOptions');
+    hideElement('webdavDataPreview');
+    hideElement('webdavRestoreContent');
+
     // 创建结果界面
     const resultsContainer = document.createElement('div');
     resultsContainer.id = 'restoreResultsContainer';
@@ -969,30 +1065,124 @@ function showRestoreResults(summary: any): void {
         <div class="results-categories">
     `;
 
-    if (summary?.categories) {
-        Object.entries(summary.categories).forEach(([category, result]: [string, any]) => {
-            const categoryName = categoryNames[category] || category;
-            const icon = result.replaced ? 'fas fa-check text-success' : 'fas fa-times text-muted';
-            const status = result.replaced ? '已覆盖' : '跳过';
-            const details = result.written ? `${result.written} 条记录` : (result.reason || '');
-            
-            resultsHtml += `
-                <div class="result-item">
-                    <div class="result-icon"><i class="${icon}"></i></div>
-                    <div class="result-content">
-                        <div class="result-title">${categoryName}</div>
-                        <div class="result-status">${status}</div>
-                        ${details ? `<div class="result-details">${details}</div>` : ''}
-                    </div>
+    // 遍历所有类别，未选择的也展示为“跳过”
+    const catsToShow = Object.keys(categoryNames);
+    catsToShow.forEach((category) => {
+        const result: any = (summary?.categories && summary.categories[category]) ? summary.categories[category] : { reason: 'not_selected' };
+        const categoryName = categoryNames[category] || category;
+
+        const hasError = !!result?.error || result?.reason === 'error';
+        const missing = result?.reason === 'missing';
+        const notSelected = result?.reason === 'not_selected';
+        const hasReplaced = result?.replaced === true;
+        const hasCleared = result?.cleared === true;
+        const written = typeof result?.written === 'number' ? result.written : undefined;
+        const hadNewWorks = !!(result?.hasSubs || result?.hasRecords || result?.hasConfig);
+
+        let statusText = '跳过';
+        let statusClass = 'status-skipped';
+        let icon = 'fas fa-minus text-muted';
+
+        if (hasError) {
+            statusText = '失败';
+            statusClass = 'status-error';
+            icon = 'fas fa-times text-danger';
+        } else if (hasReplaced || hasCleared || (typeof written === 'number' && written > 0) || hadNewWorks) {
+            statusText = '已覆盖';
+            statusClass = 'status-success';
+            icon = 'fas fa-check text-success';
+        } else if (missing || notSelected) {
+            statusText = '跳过';
+            statusClass = 'status-skipped';
+            icon = 'fas fa-minus text-muted';
+        }
+
+        // 构建详情：云端统计 + 写入条数 + 耗时 + 备注
+        const detailParts: string[] = [];
+        // 云端统计（从 currentCloudData 推断）
+        try {
+            switch (category) {
+                case 'settings': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const has = !!(currentCloudData?.settings || sa[STORAGE_KEYS.SETTINGS]);
+                    detailParts.push(`云端：${has ? '有' : '无'}`);
+                    break;
+                }
+                case 'userProfile': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const has = currentCloudData?.userProfile != null || sa[STORAGE_KEYS.USER_PROFILE] != null;
+                    detailParts.push(`云端：${has ? '有' : '无'}`);
+                    break;
+                }
+                case 'viewed': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const idbArr = Array.isArray(currentCloudData?.idb?.viewedRecords) ? currentCloudData.idb.viewedRecords : [];
+                    const cloudViewed = idbArr.length || Object.keys(currentCloudData?.data || currentCloudData?.viewed || sa[STORAGE_KEYS.VIEWED_RECORDS] || {}).length;
+                    if (cloudViewed || cloudViewed === 0) detailParts.push(`云端：${cloudViewed} 条`);
+                    break;
+                }
+                case 'actors': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const idbArr = Array.isArray(currentCloudData?.idb?.actors) ? currentCloudData.idb.actors : [];
+                    const cloudActors = idbArr.length || Object.keys(currentCloudData?.actorRecords || sa[STORAGE_KEYS.ACTOR_RECORDS] || {}).length;
+                    if (cloudActors || cloudActors === 0) detailParts.push(`云端：${cloudActors} 条`);
+                    break;
+                }
+                case 'newWorks': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const subs = Object.keys((currentCloudData?.newWorks?.subscriptions) || (sa[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
+                    const recs = Object.keys((currentCloudData?.newWorks?.records) || (sa[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
+                    detailParts.push(`云端：订阅 ${subs} · 记录 ${recs}`);
+                    break;
+                }
+                case 'logs': {
+                    const idbArr = Array.isArray(currentCloudData?.idb?.logs) ? currentCloudData.idb.logs : [];
+                    const logsCount = idbArr.length || (Array.isArray(currentCloudData?.logs) ? currentCloudData.logs.length : 0);
+                    detailParts.push(`云端：${logsCount} 条`);
+                    break;
+                }
+                case 'magnets': {
+                    const idbArr = Array.isArray(currentCloudData?.idb?.magnets) ? currentCloudData.idb.magnets : [];
+                    detailParts.push(`云端：${idbArr.length} 条`);
+                    break;
+                }
+                case 'importStats': {
+                    const sa = (currentCloudData?.storageAll || {});
+                    const has = currentCloudData?.importStats != null || sa[STORAGE_KEYS.LAST_IMPORT_STATS] != null;
+                    detailParts.push(`云端：${has ? '有' : '无'}`);
+                    break;
+                }
+                default:
+                    break;
+            }
+        } catch {}
+
+        if (typeof written === 'number') detailParts.push(`写入：${written} 条`);
+        if (typeof result?.durationMs === 'number') detailParts.push(`${Math.round(result.durationMs)} ms`);
+        if (result?.reason && !['missing', 'error', 'not_selected'].includes(result.reason)) detailParts.push(String(result.reason));
+        if (notSelected) detailParts.push('未选择');
+        const details = detailParts.join(' · ');
+
+        resultsHtml += `
+            <div class="result-item">
+                <div class="result-icon"><i class="${icon}"></i></div>
+                <div class="result-content">
+                    <div class="result-title">${categoryName}</div>
+                    <div class="result-status ${statusClass}">${statusText}</div>
+                    ${details ? `<div class="result-details">${details}</div>` : ''}
                 </div>
-            `;
-        });
-    }
+            </div>
+        `;
+    });
 
     resultsHtml += `
         </div>
         <div class="results-footer">
-            <button class="btn btn-primary" onclick="closeWebDAVRestoreModal()">
+            <button class="btn btn-secondary" id="resultsBackBtn">
+                <i class="fas fa-arrow-left"></i>
+                返回选择备份
+            </button>
+            <button class="btn btn-primary" id="resultsDoneBtn">
                 <i class="fas fa-check"></i>
                 完成
             </button>
@@ -1001,6 +1191,54 @@ function showRestoreResults(summary: any): void {
 
     resultsContainer.innerHTML = resultsHtml;
     modalBody.appendChild(resultsContainer);
+
+    // 隐藏默认底部按钮，只显示结果页自带的按钮
+    const modalEl = getRestoreModal();
+    const modalFooter = modalEl?.querySelector('.modal-footer') as HTMLElement | null;
+    if (modalFooter) modalFooter.style.display = 'none';
+
+    // 绑定结果页按钮事件
+    const resultsBackBtn = resultsContainer.querySelector('#resultsBackBtn') as HTMLButtonElement | null;
+    const resultsDoneBtn = resultsContainer.querySelector('#resultsDoneBtn') as HTMLButtonElement | null;
+    if (resultsBackBtn) {
+        resultsBackBtn.onclick = () => {
+            // 返回文件列表视图
+            resultsContainer.remove();
+            const modal = getRestoreModal();
+
+            // 恢复 modal-body 子元素显示
+            const modalBody2 = modal?.querySelector('.modal-body') as HTMLElement | null;
+            if (modalBody2) {
+                Array.from(modalBody2.children).forEach((el: Element) => {
+                    (el as HTMLElement).style.display = '';
+                });
+            }
+
+            // 回到文件选择页：先显示加载，再重新获取列表
+            hideElement('webdavRestoreError');
+            hideElement('webdavDataPreview');
+            showElement('webdavRestoreLoading');
+            const p = (modal?.querySelector('#webdavRestoreLoading p')) as HTMLElement | null;
+            if (p) p.textContent = '正在获取云端文件列表...';
+            fetchFileList();
+
+            const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+            const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
+            if (confirmBtn) confirmBtn.disabled = true;
+            if (backBtn) backBtn.classList.add('hidden');
+
+            // 恢复默认底部按钮可见
+            if (modalFooter) modalFooter.style.display = '';
+        };
+    }
+    if (resultsDoneBtn) {
+        resultsDoneBtn.onclick = () => {
+            // 关闭弹窗
+            try { closeModal(); } catch {}
+            // 恢复默认底部按钮可见（下次打开弹窗时可用）
+            if (modalFooter) modalFooter.style.display = '';
+        };
+    }
 }
 
 /**
@@ -1043,21 +1281,22 @@ async function saveRestoredData(mergeResult: MergeResult): Promise<void> {
  * 关闭WebDAV恢复弹窗
  */
 function closeWebDAVRestoreModal(): void {
-    const modal = document.getElementById('webdavRestoreModal');
+    const modal = getRestoreModal();
     if (modal) {
-        modal.classList.remove('show');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+        modal.classList.remove('visible');
+        modal.classList.add('hidden');
     }
 }
 
 export function showWebDAVRestoreModal(): void {
-    const modal = document.getElementById('webdavRestoreModal');
+    const modal = getRestoreModal();
     if (!modal) return;
     
     // 创建正确的按钮
     createCorrectButtons();
+
+    // 确保按钮在当前弹窗页脚内（防御：若存在同名元素在别处）
+    ensureFooterInModal();
 
     // 重置状态
     selectedFile = null;
@@ -1084,13 +1323,13 @@ function resetModalState(): void {
     showElement('webdavRestoreLoading');
 
     // 重置按钮状态
-    const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
     if (confirmBtn) {
         confirmBtn.disabled = true;
     }
 
     // 清空文件列表
-    const fileList = document.getElementById('webdavFileList');
+    const fileList = mq<HTMLElement>('#webdavFileList');
     if (fileList) {
         fileList.innerHTML = '';
     }
@@ -1098,12 +1337,11 @@ function resetModalState(): void {
 
 function bindModalEvents(): void {
     // 关闭按钮
-    const closeBtn = document.getElementById('webdavRestoreModalClose');
-    const cancelBtn = document.getElementById('webdavRestoreCancel');
-    const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement | null;
-    const retryBtn = document.getElementById('webdavRestoreRetry');
-    const analyzeBtn = document.getElementById('webdavRestoreAnalyze');
-    const backBtn = document.getElementById('webdavRestoreBack');
+    const closeBtn = mq('#webdavRestoreModalClose');
+    const cancelBtn = mq('#webdavRestoreCancel');
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+    const retryBtn = mq('#webdavRestoreRetry');
+    const backBtn = mq('#webdavRestoreBack');
 
     if (closeBtn) {
         closeBtn.onclick = closeModal;
@@ -1121,9 +1359,6 @@ function bindModalEvents(): void {
         retryBtn.onclick = fetchFileList;
     }
 
-    if (analyzeBtn) {
-        analyzeBtn.onclick = performDataAnalysis;
-    }
 
     if (backBtn) {
         backBtn.onclick = () => {
@@ -1131,23 +1366,23 @@ function bindModalEvents(): void {
             hideElement('webdavDataPreview');
 
             // 显示文件选择相关的元素
-            const restoreDescription = document.querySelector('#webdavRestoreContent .restore-description');
-            const fileListContainer = document.querySelector('#webdavRestoreContent .file-list-container');
+            const modal = getRestoreModal();
+            const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description');
+            const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
             if (restoreDescription) restoreDescription.classList.remove('hidden');
             if (fileListContainer) fileListContainer.classList.remove('hidden');
 
             // 更新按钮状态
-            analyzeBtn?.classList.remove('hidden');
             if (confirmBtn) confirmBtn.disabled = true;
             backBtn.classList.add('hidden');
         };
     }
 
     // 点击背景关闭
-    const modal = document.getElementById('webdavRestoreModal');
-    if (modal) {
-        modal.onclick = (e) => {
-            if (e.target === modal) {
+    const modalEl = getRestoreModal();
+    if (modalEl) {
+        modalEl.onclick = (e) => {
+            if (e.target === modalEl) {
                 closeModal();
             }
         };
@@ -1178,21 +1413,32 @@ function fetchFileList(): void {
     });
 }
 
-function displayFileList(files: WebDAVFile[]): void {
+async function displayFileList(files: WebDAVFile[]): Promise<void> {
     hideElement('webdavRestoreLoading');
     hideElement('webdavRestoreError');
     showElement('webdavRestoreContent');
 
-    const fileList = document.getElementById('webdavFileList');
+    // 确保文件列表相关容器可见
+    try {
+        const modal = getRestoreModal();
+        const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description') as HTMLElement | null;
+        const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container') as HTMLElement | null;
+        if (restoreDescription) restoreDescription.classList.remove('hidden');
+        if (fileListContainer) fileListContainer.classList.remove('hidden');
+        // 进入文件列表时隐藏数据预览
+        hideElement('webdavDataPreview');
+    } catch {}
+
+    const fileList = mq<HTMLElement>('#webdavFileList');
     if (!fileList) return;
 
     fileList.innerHTML = '';
 
     // 按最后修改时间排序，最新的在前面
-    const sortedFiles = files.sort((a, b) => {
+    const sortedFiles = files.slice().sort((a, b) => {
         const dateA = new Date(a.lastModified).getTime();
         const dateB = new Date(b.lastModified).getTime();
-        return dateB - dateA; // 降序排列，最新的在前面
+        return dateB - dateA;
     });
 
     logAsync('INFO', '文件列表排序完成', {
@@ -1203,6 +1449,9 @@ function displayFileList(files: WebDAVFile[]): void {
 
     // 更新摘要（数量与范围）
     updateBackupSummary(sortedFiles);
+
+    // 建立 path 到元素与对象的映射，便于之后快速预选
+    const pathMap = new Map<string, { file: WebDAVFile; el: HTMLElement }>();
 
     sortedFiles.forEach((file, index) => {
         const li = document.createElement('li');
@@ -1240,12 +1489,27 @@ function displayFileList(files: WebDAVFile[]): void {
 
         li.addEventListener('click', () => selectFile(file, li));
         fileList.appendChild(li);
+
+        pathMap.set(file.path, { file, el: li });
     });
+
+    // 稳定性加固：列表渲染后再次确保按钮在弹窗页脚
+    try { ensureFooterInModal(); } catch {}
+
+    // 默认仅高亮最新（第一个）但不进入预览
+    const first = sortedFiles[0];
+    if (first) {
+        const pair = pathMap.get(first.path);
+        if (pair) {
+            pair.el.classList.add('selected');
+            selectedFile = pair.file;
+        }
+    }
 }
 
 function selectFile(file: WebDAVFile, element: HTMLElement): void {
     // 移除之前的选中状态
-    const previousSelected = document.querySelector('.webdav-file-item.selected');
+    const previousSelected = (getRestoreModal() || document).querySelector('.webdav-file-item.selected');
     if (previousSelected) {
         previousSelected.classList.remove('selected');
     }
@@ -1253,6 +1517,8 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
     // 设置新的选中状态
     element.classList.add('selected');
     selectedFile = file;
+
+    // 不再记忆上次选择（按用户要求始终默认最新）
 
     // 重置状态
     currentCloudData = null;
@@ -1263,22 +1529,142 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
     hideElement('webdavRestoreOptions');
     hideElement('webdavDataPreview');
 
-    // 显示分析按钮
-    const analyzeBtn = document.getElementById('webdavRestoreAnalyze') as HTMLButtonElement;
-    const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
-
-    if (analyzeBtn) {
-        analyzeBtn.classList.remove('hidden');
-        analyzeBtn.disabled = false;
-    }
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
 
     if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-ban"></i> 请先分析';
-        confirmBtn.title = '请先点击"分析"按钮预览恢复内容';
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始覆盖式恢复';
+      confirmBtn.title = '选择备份后即可恢复';
     }
 
-    logAsync('INFO', '用户选择了文件', { filename: file.name });
+  try { ensureFooterInModal(); } catch {}
+
+  logAsync('INFO', '用户选择了文件', { filename: file.name });
+
+  // 选择文件后，直接加载云端预览并填充统计
+  void loadCloudPreview();
+}
+
+/**
+ * 加载云端备份预览并填充统计（不做本地/差异分析）
+ */
+async function loadCloudPreview(): Promise<void> {
+    if (!selectedFile) return;
+
+    // 显示加载
+    const loading = document.getElementById('webdavRestoreLoading');
+    const p = loading?.querySelector('p');
+    if (p) p.textContent = '正在读取云端备份统计...';
+    hideElement('webdavRestoreError');
+    hideElement('webdavRestoreContent');
+    showElement('webdavRestoreLoading');
+
+    try {
+        const resp = await new Promise<any>((resolve) => {
+            chrome.runtime.sendMessage({
+                type: 'WEB_DAV:RESTORE_PREVIEW',
+                filename: selectedFile!.path,
+            }, resolve);
+        });
+
+        if (!resp?.success) throw new Error(resp?.error || '预览失败');
+
+        currentCloudData = resp.raw || resp.data || {};
+
+        // 计算云端统计（优先使用后台 preview.counts），并增加 storageAll 回退
+        const previewCounts = resp.preview?.counts || {};
+        const storageAll = currentCloudData?.storageAll || {};
+        let videoCount = Number(previewCounts.viewed ?? NaN);
+        let actorCount = Number(previewCounts.actors ?? NaN);
+
+        if (isNaN(videoCount)) {
+            // 回退：data/viewed 或 idb.viewedRecords 或 storageAll.VIEWED_RECORDS
+            const viewedMap = currentCloudData.data || currentCloudData.viewed || storageAll[STORAGE_KEYS.VIEWED_RECORDS] || {};
+            const idbViewedArr = Array.isArray(currentCloudData?.idb?.viewedRecords) ? currentCloudData.idb.viewedRecords : [];
+            videoCount = (Object.keys(viewedMap || {}).length) || idbViewedArr.length || 0;
+        }
+        if (isNaN(actorCount)) {
+            // 回退：idb.actors 或 actorRecords 或 storageAll.ACTOR_RECORDS
+            const storageActors = storageAll[STORAGE_KEYS.ACTOR_RECORDS] || {};
+            actorCount = Array.isArray(currentCloudData?.idb?.actors)
+                ? currentCloudData.idb.actors.length
+                : (Object.keys(currentCloudData.actorRecords || {}).length || Object.keys(storageActors).length);
+        }
+        // newWorks 拆分为 subs/recs 两个计数（含 storageAll 回退）
+        const subsCount = Object.keys((currentCloudData.newWorks?.subscriptions) || (storageAll[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
+        const recsCount = Object.keys((currentCloudData.newWorks?.records) || (storageAll[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
+        // 磁链缓存计数：优先 preview.counts.magnets，回退到 idb.magnets.length
+        let magnetCount = Number(previewCounts.magnets ?? NaN);
+        if (isNaN(magnetCount)) {
+            const idbMagnetsArr = Array.isArray(currentCloudData?.idb?.magnets) ? currentCloudData.idb.magnets : [];
+            magnetCount = idbMagnetsArr.length || 0;
+        }
+
+        updateElement('quickVideoCount', videoCount.toString());
+        updateElement('quickActorCount', actorCount.toString());
+        updateElement('quickNewWorksSubsCount', subsCount.toString());
+        updateElement('quickNewWorksRecsCount', recsCount.toString());
+
+        // 显示或注入“磁链缓存”计数
+        const magnetNumEl = mq<HTMLElement>('#quickMagnetCount');
+        if (magnetNumEl) {
+            magnetNumEl.textContent = magnetCount.toString();
+        } else {
+            const statsContainer = mq<HTMLElement>('#restoreModeStats');
+            if (statsContainer) {
+                const item = document.createElement('div');
+                item.className = 'stat-item';
+                item.innerHTML = `
+                    <span class="stat-number" id="quickMagnetCount">${magnetCount}</span>
+                    <span class="stat-label">磁链缓存</span>
+                `;
+                statsContainer.appendChild(item);
+            }
+        }
+
+        // 配置可选恢复项
+        configureRestoreOptions(currentCloudData);
+
+        // 切换到统计视图
+        hideElement('webdavRestoreLoading');
+        const modal = getRestoreModal();
+        const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description');
+        const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
+        if (restoreDescription) restoreDescription.classList.add('hidden');
+        if (fileListContainer) fileListContainer.classList.add('hidden');
+        showElement('webdavRestoreContent');
+        showElement('webdavDataPreview');
+
+        // 强制清理“影响预览”残留 UI（旧模板可能仍包含该块）
+        try {
+            const impactSummary2 = (modal || document).querySelector('#impactSummary') as HTMLElement | null;
+            if (impactSummary2) impactSummary2.remove();
+            const impactPreview2 = (modal || document).querySelector('.impact-preview') as HTMLElement | null;
+            if (impactPreview2) impactPreview2.remove();
+        } catch {}
+
+        // 启用操作按钮
+        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+        const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class=\"fas fa-download\"></i> 开始覆盖式恢复';
+            confirmBtn.title = '开始执行覆盖式恢复';
+        }
+        if (backBtn) backBtn.classList.remove('hidden');
+
+        // 同步绑定中部动作按钮
+        const quickRestoreBtn = mq<HTMLElement>('#quickRestoreBtn');
+        if (quickRestoreBtn) quickRestoreBtn.onclick = () => startWizardRestore();
+
+        try { ensureFooterInModal(); } catch {}
+    } catch (e: any) {
+        hideElement('webdavRestoreLoading');
+        showElement('webdavRestoreError');
+        const msgEl = document.getElementById('webdavRestoreErrorMessage');
+        if (msgEl) msgEl.textContent = e?.message || '预览失败';
+        logAsync('ERROR', '读取云端备份统计失败', { error: e?.message });
+    }
 }
 
 /**
@@ -1317,7 +1703,7 @@ async function performDataAnalysis(): Promise<void> {
         // 先显示数据预览界面
         hideElement('webdavRestoreLoading');
         // 确保webdavRestoreContent容器显示
-        const restoreContent = document.getElementById('webdavRestoreContent');
+        const restoreContent = mq<HTMLElement>('#webdavRestoreContent');
         if (restoreContent) {
             restoreContent.classList.remove('hidden');
             restoreContent.style.display = 'block';
@@ -1327,8 +1713,9 @@ async function performDataAnalysis(): Promise<void> {
         }
 
         // 隐藏文件选择相关的元素，但保持webdavRestoreContent容器显示
-        const restoreDescription = document.querySelector('#webdavRestoreContent .restore-description');
-        const fileListContainer = document.querySelector('#webdavRestoreContent .file-list-container');
+        const modal = getRestoreModal();
+        const restoreDescription = modal?.querySelector('#webdavRestoreContent .restore-description');
+        const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
         if (restoreDescription) restoreDescription.classList.add('hidden');
         if (fileListContainer) fileListContainer.classList.add('hidden');
 
@@ -1344,7 +1731,7 @@ async function performDataAnalysis(): Promise<void> {
         showElement('webdavDataPreview');
 
         // 强制显示元素（调试用）
-        const previewElement = document.getElementById('webdavDataPreview');
+        const previewElement = mq<HTMLElement>('#webdavDataPreview');
         if (previewElement) {
             previewElement.style.display = 'block';
             previewElement.style.visibility = 'visible';
@@ -1355,7 +1742,7 @@ async function performDataAnalysis(): Promise<void> {
         }
 
         // 验证元素是否正确显示
-        const previewElementAfterShow = document.getElementById('webdavDataPreview');
+        const previewElementAfterShow = mq<HTMLElement>('#webdavDataPreview');
         logAsync('INFO', '显示webdavDataPreview后验证', {
             isHidden: previewElementAfterShow?.classList.contains('hidden'),
             display: previewElementAfterShow ? getComputedStyle(previewElementAfterShow).display : 'N/A',
@@ -1368,9 +1755,9 @@ async function performDataAnalysis(): Promise<void> {
         initializeRestoreInterface(currentDiffResult);
 
         // 更新按钮状态
-        const analyzeBtn = document.getElementById('webdavRestoreAnalyze') as HTMLButtonElement;
-        const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
-        const backBtn = document.getElementById('webdavRestoreBack') as HTMLButtonElement;
+        const analyzeBtn = mq<HTMLButtonElement>('#webdavRestoreAnalyze');
+        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+        const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
 
         if (analyzeBtn) analyzeBtn.classList.add('hidden');
         if (confirmBtn) {
@@ -1451,45 +1838,8 @@ function hideAnalysisLoading(): void {
  * 显示差异分析结果（专家模式）
  */
 function displayDiffAnalysis(diffResult: DataDiffResult): void {
-    logAsync('INFO', '开始显示差异分析结果', {
-        videoSummary: diffResult.videoRecords.summary,
-        actorSummary: diffResult.actorRecords.summary
-    });
-
-    // 检查专家模式容器是否存在
-    const expertModeElement = document.getElementById('expertMode');
-    if (!expertModeElement) {
-        logAsync('ERROR', '专家模式容器不存在');
-        return;
-    }
-
-    // 清空现有内容并重新生成
-    const existingContent = expertModeElement.querySelector('.diff-summary');
-    if (existingContent) {
-        existingContent.remove();
-    }
-
-    // 生成差异分析内容
-    const diffSummaryHtml = generateDiffSummaryHTML(diffResult);
-
-    // 在标题后插入内容
-    const titleElement = expertModeElement.querySelector('h4');
-    if (titleElement) {
-        titleElement.insertAdjacentHTML('afterend', diffSummaryHtml);
-    } else {
-        expertModeElement.innerHTML = `
-            <h4>
-                <i class="fas fa-chart-line"></i>
-                数据差异分析
-            </h4>
-            ${diffSummaryHtml}
-        `;
-    }
-
-    logAsync('INFO', '专家模式差异分析内容已生成');
-
-    // 绑定专家模式事件
-    bindExpertModeEvents(diffResult);
+    // 专家模式已废弃：此函数改为无操作，避免影响覆盖式恢复
+    return;
 }
 
 /**
@@ -1657,15 +2007,7 @@ function generateDiffSummaryHTML(diffResult: DataDiffResult): string {
             </div>
         </div>
 
-        <div class="impact-preview-section">
-            <h5>
-                <i class="fas fa-eye"></i>
-                影响预览
-            </h5>
-            <div class="impact-content" id="expertImpactPreview">
-                <p>选择合并策略后将显示详细的影响预览</p>
-            </div>
-        </div>
+        <!-- 影响预览模块已移除，保持分析界面简洁 -->
     `;
 }
 
@@ -1733,11 +2075,61 @@ function configureRestoreOptions(cloudData: any): void {
 
         if (!checkbox || !container) return;
 
-        // 检查数据是否存在
-        const hasData = cloudData && cloudData[option.dataKey] &&
-                       (Array.isArray(cloudData[option.dataKey]) ?
-                        cloudData[option.dataKey].length > 0 :
-                        Object.keys(cloudData[option.dataKey]).length > 0);
+        // 更健壮的数据源回退（优先原字段 -> storageAll -> idb.*）
+        const sa = cloudData?.storageAll || {};
+        let dataset: any = undefined;
+        let hasData = false;
+
+        switch (option.dataKey) {
+            case 'data': { // 观看记录
+                dataset = cloudData?.data || cloudData?.viewed || sa[STORAGE_KEYS.VIEWED_RECORDS] ||
+                    (Array.isArray(cloudData?.idb?.viewedRecords) ? cloudData.idb.viewedRecords : undefined);
+                break;
+            }
+            case 'actorRecords': { // 演员库
+                dataset = cloudData?.actorRecords || sa[STORAGE_KEYS.ACTOR_RECORDS] ||
+                    (Array.isArray(cloudData?.idb?.actors) ? cloudData.idb.actors : undefined);
+                break;
+            }
+            case 'settings': {
+                dataset = cloudData?.settings || sa[STORAGE_KEYS.SETTINGS];
+                break;
+            }
+            case 'userProfile': {
+                dataset = cloudData?.userProfile ?? sa[STORAGE_KEYS.USER_PROFILE];
+                break;
+            }
+            case 'logs': {
+                dataset = cloudData?.logs || (Array.isArray(cloudData?.idb?.logs) ? cloudData.idb.logs : undefined);
+                break;
+            }
+            case 'newWorks': {
+                const subs = Object.keys((cloudData?.newWorks?.subscriptions) || (sa[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS] || {})).length;
+                const recs = Object.keys((cloudData?.newWorks?.records) || (sa[STORAGE_KEYS.NEW_WORKS_RECORDS] || {})).length;
+                const cfg = Object.keys((cloudData?.newWorks?.config) || (sa[STORAGE_KEYS.NEW_WORKS_CONFIG] || {})).length;
+                dataset = cloudData?.newWorks || { subscriptions: subs, records: recs, config: cfg };
+                hasData = (subs + recs + cfg) > 0;
+                break;
+            }
+            case 'importStats': {
+                dataset = cloudData?.importStats ?? sa[STORAGE_KEYS.LAST_IMPORT_STATS];
+                break;
+            }
+            case 'magnets': {
+                // 磁链只在 IDB 快照中可用
+                dataset = Array.isArray(cloudData?.idb?.magnets) ? cloudData.idb.magnets : [];
+                break;
+            }
+            default: {
+                dataset = cloudData ? cloudData[option.dataKey] : undefined;
+            }
+        }
+
+        if (option.dataKey !== 'newWorks') {
+            if (Array.isArray(dataset)) hasData = dataset.length > 0;
+            else if (dataset && typeof dataset === 'object') hasData = Object.keys(dataset).length > 0;
+            else hasData = !!dataset;
+        }
 
         if (hasData) {
             // 数据存在，启用选项
@@ -1747,7 +2139,7 @@ function configureRestoreOptions(cloudData: any): void {
             container.classList.add('available');
 
             // 添加数据统计信息
-            updateOptionStats(container, cloudData[option.dataKey], option.dataKey);
+            updateOptionStats(container, dataset, option.dataKey);
             availableCount++;
         } else if (option.required) {
             // 必需数据不存在，显示警告但保持启用
@@ -1791,7 +2183,9 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
 
     switch (dataKey) {
         case 'data':
-            if (data && typeof data === 'object') {
+            if (Array.isArray(data)) {
+                statsText = `包含 ${data.length} 条观看记录`;
+            } else if (data && typeof data === 'object') {
                 const videoCount = Object.keys(data).length;
                 statsText = `包含 ${videoCount} 条观看记录`;
             }
@@ -1799,6 +2193,9 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
         case 'actorRecords':
             if (Array.isArray(data)) {
                 statsText = `包含 ${data.length} 个演员信息`;
+            } else if (data && typeof data === 'object') {
+                const count = Object.keys(data).length;
+                statsText = `包含 ${count} 个演员信息`;
             }
             break;
         case 'logs':
@@ -1823,6 +2220,17 @@ function updateOptionStats(container: HTMLElement, data: any, dataKey: string): 
                 statsText = `最后导入: ${date.toLocaleDateString()}`;
             }
             break;
+        case 'newWorks': {
+            let subs = 0, recs = 0;
+            if (data && typeof data === 'object') {
+                const s = (data as any).subscriptions;
+                const r = (data as any).records;
+                subs = typeof s === 'number' ? s : (s && typeof s === 'object' ? Object.keys(s).length : 0);
+                recs = typeof r === 'number' ? r : (r && typeof r === 'object' ? Object.keys(r).length : 0);
+            }
+            statsText = `订阅 ${subs} · 记录 ${recs}`;
+            break;
+        }
         case 'magnets':
             if (Array.isArray(data)) {
                 statsText = `包含 ${data.length} 条磁链缓存`;
@@ -1956,9 +2364,9 @@ async function handleConfirmRestore(): Promise<void> {
             options: mergeOptions
         });
 
-        // 禁用按钮，显示加载状态
-        const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
-        const cancelBtn = document.getElementById('webdavRestoreCancel') as HTMLButtonElement;
+        // 禁用按钮，显示加载状态（限定在当前弹窗作用域）
+        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+        const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
 
         if (confirmBtn) {
             confirmBtn.disabled = true;
@@ -1993,9 +2401,9 @@ async function handleConfirmRestore(): Promise<void> {
         logAsync('ERROR', '智能合并恢复失败', { error: error.message });
         showMessage(`恢复失败: ${error.message}`, 'error');
 
-        // 恢复按钮状态
-        const confirmBtn = document.getElementById('webdavRestoreConfirm') as HTMLButtonElement;
-        const cancelBtn = document.getElementById('webdavRestoreCancel') as HTMLButtonElement;
+        // 恢复按钮状态（限定在当前弹窗作用域）
+        const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+        const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
 
         if (confirmBtn) {
             confirmBtn.disabled = false;
@@ -2437,10 +2845,9 @@ function showError(message: string): void {
     hideElement('webdavRestoreContent');
     showElement('webdavRestoreError');
 
-    const errorMessage = document.getElementById('webdavRestoreErrorMessage');
-    if (errorMessage) {
-        errorMessage.textContent = message;
-    }
+    const ctx = getRestoreModal() || document;
+    const errorMessage = ctx.querySelector('#webdavRestoreErrorMessage') as HTMLElement | null;
+    if (errorMessage) errorMessage.textContent = message;
 }
 
 function closeModal(): void {
@@ -2455,27 +2862,21 @@ function closeModal(): void {
 }
 
 function showElement(id: string): void {
-    const element = document.getElementById(id);
-    if (element) {
-        element.classList.remove('hidden');
-    }
+    const ctx = getRestoreModal() || document;
+    const element = ctx.querySelector('#' + id) as HTMLElement | null;
+    if (element) element.classList.remove('hidden');
 }
 
 function hideElement(id: string): void {
-    const element = document.getElementById(id);
-    if (element) {
-        element.classList.add('hidden');
-    }
+    const ctx = getRestoreModal() || document;
+    const element = ctx.querySelector('#' + id) as HTMLElement | null;
+    if (element) element.classList.add('hidden');
 }
 
 function updateElement(id: string, text: string): void {
-    const element = document.getElementById(id);
-    if (element) {
-        element.textContent = text;
-        logAsync('INFO', '更新元素内容', { id, text, success: true });
-    } else {
-        logAsync('WARN', '元素不存在', { id, text });
-    }
+    const ctx = getRestoreModal() || document;
+    const element = ctx.querySelector('#' + id) as HTMLElement | null;
+    if (element) element.textContent = text;
 }
 
 /**
@@ -3108,134 +3509,24 @@ function getResolutionText(resolution: string): string {
  * 绑定专家模式事件
  */
 function bindExpertModeEvents(diffResult: DataDiffResult): void {
-    // 绑定冲突详情查看事件
-    bindConflictDetailEvents(diffResult);
-
-    // 绑定策略选择事件
-    bindExpertStrategyChangeEvents();
-
-    // 自动检测并配置恢复内容选项
-    configureRestoreOptions(currentCloudData);
+    // 专家模式已废弃：此函数改为无操作
+    return;
 }
 
 /**
  * 绑定专家模式策略选择事件
  */
 function bindExpertStrategyChangeEvents(): void {
-    const strategyRadios = document.querySelectorAll('input[name="expertMergeStrategy"]');
-
-    strategyRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const target = e.target as HTMLInputElement;
-            if (target.checked && currentDiffResult) {
-                updateExpertImpactPreview(target.value, currentDiffResult);
-            }
-        });
-    });
-
-    // 初始化预览
-    if (currentDiffResult) {
-        updateExpertImpactPreview('smart', currentDiffResult);
-    }
+    // 专家模式已废弃：此函数改为无操作
+    return;
 }
 
 /**
  * 更新专家模式影响预览
  */
 function updateExpertImpactPreview(strategy: string, diffResult: DataDiffResult): void {
-    const previewContainer = document.getElementById('expertImpactPreview');
-    if (!previewContainer) return;
-
-    let previewHtml = '';
-
-    switch (strategy) {
-        case 'smart':
-            previewHtml = `
-                <div class="impact-section">
-                    <h6><i class="fas fa-check-circle text-success"></i> 智能合并结果</h6>
-                    <div class="impact-stats">
-                        <div class="impact-stat">
-                            <span class="impact-label">视频记录：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.totalLocal.toLocaleString()} 条（保留本地）+ ${diffResult.videoRecords.summary.cloudOnlyCount.toLocaleString()} 条（云端新增）</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">演员收藏：</span>
-                            <span class="impact-value">${diffResult.actorRecords.summary.totalLocal.toLocaleString()} 个（保留本地）+ ${diffResult.actorRecords.summary.cloudOnlyCount.toLocaleString()} 个（云端新增）</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">冲突处理：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.conflictCount + diffResult.actorRecords.summary.conflictCount} 个冲突将自动选择最新数据</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            break;
-        case 'local':
-            previewHtml = `
-                <div class="impact-section">
-                    <h6><i class="fas fa-shield-alt text-info"></i> 保留本地结果</h6>
-                    <div class="impact-stats">
-                        <div class="impact-stat">
-                            <span class="impact-label">视频记录：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.totalLocal.toLocaleString()} 条（保持不变）</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">演员收藏：</span>
-                            <span class="impact-value">${diffResult.actorRecords.summary.totalLocal.toLocaleString()} 个（保持不变）</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">云端数据：</span>
-                            <span class="impact-value">将被忽略，不会有任何改变</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            break;
-        case 'cloud':
-            previewHtml = `
-                <div class="impact-section">
-                    <h6><i class="fas fa-cloud-download-alt text-warning"></i> 使用云端结果</h6>
-                    <div class="impact-stats">
-                        <div class="impact-stat">
-                            <span class="impact-label">视频记录：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.totalCloud.toLocaleString()} 条（完全覆盖）</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">演员收藏：</span>
-                            <span class="impact-value">${diffResult.actorRecords.summary.totalCloud.toLocaleString()} 个（完全覆盖）</span>
-                        </div>
-                        <div class="impact-stat warning">
-                            <span class="impact-label">⚠️ 数据丢失：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.localOnlyCount} 条本地独有视频记录将丢失</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            break;
-        case 'manual':
-            previewHtml = `
-                <div class="impact-section">
-                    <h6><i class="fas fa-hand-paper text-primary"></i> 手动处理结果</h6>
-                    <div class="impact-stats">
-                        <div class="impact-stat">
-                            <span class="impact-label">需要处理：</span>
-                            <span class="impact-value">${diffResult.videoRecords.summary.conflictCount + diffResult.actorRecords.summary.conflictCount} 个冲突项</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">预计时间：</span>
-                            <span class="impact-value">${Math.ceil((diffResult.videoRecords.summary.conflictCount + diffResult.actorRecords.summary.conflictCount) / 10)} 分钟</span>
-                        </div>
-                        <div class="impact-stat">
-                            <span class="impact-label">最终结果：</span>
-                            <span class="impact-value">根据您的选择决定</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            break;
-    }
-
-    previewContainer.innerHTML = previewHtml;
+    // 专家模式已废弃：不再更新影响预览
+    return;
 }
 
 // 函数已在定义时导出

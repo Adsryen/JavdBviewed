@@ -722,7 +722,8 @@
     gap: 16px;
     background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
     position: relative !important;
-    z-index: 1 !important;
+    bottom: auto;
+    z-index: 2 !important;
 }
 
 /* 加载状态 - 优化版 */
@@ -1147,6 +1148,12 @@
 #webdavRestoreModal .modal-footer {
     contain: layout style !important;
 }
+/* 已废弃：隐藏“影响预览”相关容器，防止任何闪现/残留 */
+#webdavRestoreModal .impact-preview,
+#webdavRestoreModal #impactSummary,
+#webdavRestoreModal #expertImpactPreview {
+    display: none !important;
+}
 
 #webdavRestoreBack,
 #webdavRestoreCancel,
@@ -1156,6 +1163,112 @@
     float: none !important;
     transform: none !important;
     contain: layout style !important;
+}
+
+/* WebDAV 恢复弹窗按钮可见性兜底：
+   - 全局隐藏漂移到页面的“开始恢复”按钮
+   - 仅在弹窗的 .modal-footer 内显示“开始恢复”与“分析数据”按钮
+   这样即便 JS 未运行或运行失序，也不会把按钮渲染到页面底部 */
+#webdavRestoreConfirm { display: none !important; }
+#webdavRestoreModal .modal-footer #webdavRestoreConfirm { display: inline-flex !important; }
+#webdavRestoreModal .modal-footer #webdavRestoreAnalyze { display: inline-flex !important; }
+
+/* ================= 恢复结果摘要（结果页） ================= */
+.restore-results-container {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px 18px 12px 18px;
+}
+
+.restore-results-container .results-header {
+    margin-bottom: 12px;
+}
+
+.restore-results-container .results-header h4 {
+    margin: 0 0 4px 0;
+    color: #16a34a; /* 绿 */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.restore-results-container .results-header p {
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+}
+
+.restore-results-container .results-categories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .restore-results-container .results-categories {
+    grid-template-columns: 1fr;
+  }
+}
+
+.restore-results-container .result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.restore-results-container .result-icon i {
+    font-size: 18px;
+}
+
+.restore-results-container .result-content {
+    flex: 1;
+}
+
+.restore-results-container .result-title {
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.restore-results-container .result-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .3px;
+}
+
+.restore-results-container .result-status.status-success {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.restore-results-container .result-status.status-error {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.restore-results-container .result-status.status-skipped {
+    color: #374151;
+    background: #f3f4f6;
+}
+
+.restore-results-container .result-details {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.restore-results-container .results-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
 }
 
 /* 按钮样式 - 优化版 */

@@ -26,6 +26,9 @@ export const STORAGE_KEYS = {
     // Key for storing restore backups.
     RESTORE_BACKUP: 'restore_backup',
 
+    // WebDAV 恢复：记忆上次选择的备份文件（完整路径或 URL）
+    WEBDAV_LAST_SELECTED_BACKUP: 'webdav_last_selected_backup',
+
     // 隐私保护相关存储键
     PRIVACY_STATE: 'privacy_state',
     PRIVACY_SESSION: 'privacy_session',
