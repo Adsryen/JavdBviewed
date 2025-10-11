@@ -353,7 +353,7 @@
                           <div class="restore-summary-card">
                               <div class="summary-header">
                                   <i class="fas fa-sync-alt"></i>
-                                  <h3>恢复预览</h3>
+                                  <h3>云端备份统计</h3>
                               </div>
                               <div class="summary-stats" id="restoreModeStats">
                                   <div class="stat-item">
@@ -372,10 +372,7 @@
                                       <span class="stat-number" id="quickNewWorksRecsCount">-</span>
                                       <span class="stat-label">新作品记录</span>
                                   </div>
-                                  <div class="stat-item">
-                                      <span class="stat-number" id="quickConflictCount">-</span>
-                                      <span class="stat-label">数据差异</span>
-                                  </div>
+                                  
                               </div>
                               <div class="restore-action">
                                   <button class="btn btn-primary btn-large" id="quickRestoreBtn">
@@ -573,18 +570,15 @@
           </div>
 
           <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
-              <button id="webdavRestoreBack" class="btn btn-secondary hidden" style="display: none !important;">
+              <button id="webdavRestoreBack" class="btn btn-secondary hidden">
                   <i class="fas fa-arrow-left"></i>
                   返回
               </button>
-              <button id="webdavRestoreCancel" class="btn btn-secondary" style="display: none !important;">取消</button>
-              <button id="webdavRestoreAnalyze" class="btn btn-primary hidden" style="display: none !important;">
-                  <i class="fas fa-search"></i>
-                  分析数据
-              </button>
-              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled style="display: none !important;">
+              <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
+              
+              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
                   <i class="fas fa-download"></i>
-                  开始恢复
+                  开始覆盖式恢复
               </button>
           </div>
       </div>
