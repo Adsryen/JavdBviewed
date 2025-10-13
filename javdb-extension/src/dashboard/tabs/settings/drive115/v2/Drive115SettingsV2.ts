@@ -212,6 +212,20 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as HTMLInputElement | null;
     if (v2RefreshTokenInput) v2RefreshTokenInput.value = this.settings.v2RefreshToken || '';
 
+    // v2 自动刷新：回填 UI 状态与提前刷新秒数
+    const v2AutoRefreshCheckbox = document.getElementById('drive115V2AutoRefresh') as HTMLInputElement | null;
+    if (v2AutoRefreshCheckbox) {
+      // 默认开启：当未设置时也视为 true
+      const on = (this.settings as any).v2AutoRefresh;
+      v2AutoRefreshCheckbox.checked = (on !== false);
+    }
+    const v2AutoRefreshSkewInput = document.getElementById('drive115V2AutoRefreshSkewSec') as HTMLInputElement | null;
+    if (v2AutoRefreshSkewInput) {
+      const raw = (this.settings as any).v2AutoRefreshSkewSec;
+      const skew = Math.max(0, Number(raw ?? 60) || 0);
+      v2AutoRefreshSkewInput.value = String(Math.floor(skew));
+    }
+
     // 到期显示（并启动倒计时）
     const expiryEl = document.getElementById('drive115V2TokenExpiry') as HTMLSpanElement | null;
     if (expiryEl) {
@@ -231,8 +245,8 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       }
     }
 
-    // 禁用策略：当 v2 关闭时，下面的所有 v2 控件均不可用（仅保留版本按钮与新版开关）
-    const enableInteractive = !!this.settings.enabled && !!this.settings.enableV2;
+    // 禁用策略：当 v2 开启时即可交互；不再强制依赖缺失的全局开关（drive115Enabled）
+    const enableInteractive = !!this.settings.enableV2 || !!this.settings.enabled;
     const allowIds = new Set(['drive115EnableV2', 'drive115VerV1Btn', 'drive115VerV2Btn']);
 
     // 1) 容器内批量处理
