@@ -176,6 +176,12 @@ async function initialize(): Promise<void> {
         globalCache.cleanup().catch(err => log('Cache cleanup error:', err));
     }
 
+    // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
+    const magnetCfg = (settings as any).magnetSearch || {};
+    const pageMaxConcurrentRequests = (magnetCfg.concurrency?.pageMaxConcurrentRequests ?? 2) as number;
+    const magnetRequestTimeout = (magnetCfg.timeoutMs ?? 6000) as number;
+    performanceOptimizer.updateConfig({ maxConcurrentRequests: pageMaxConcurrentRequests, requestTimeout: magnetRequestTimeout });
+
     // 初始化/更新数据聚合器（无论是否启用多源，都严格按设置开启/关闭各来源，避免默认配置引发不必要的网络请求）
     log('Data aggregator configured according to settings');
     defaultDataAggregator.updateConfig({
@@ -783,13 +789,41 @@ document.addEventListener('visibilitychange', () => {
             enableMemoryCleanup: true,
             memoryCleanupInterval: 20000,
         });
+        try {
+            // 降档：仅保留 SUK + BTD，减少结果与超时
+            magnetSearchManager.updateConfig({
+                sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, custom: [] },
+                maxResults: 8,
+                timeout: 4000,
+            });
+        } catch {}
     } else {
         // 页面显示时，恢复正常配置
         log('[Performance] Page visible, restoring normal resource usage');
-        performanceOptimizer?.updateConfig({
-            maxConcurrentRequests: 2,
-            domBatchSize: 5,
-            domThrottleDelay: 100,
-        });
+        try {
+            const s = STATE.settings as any;
+            const mc = (s?.magnetSearch?.concurrency?.pageMaxConcurrentRequests ?? 2) as number;
+            performanceOptimizer?.updateConfig({
+                maxConcurrentRequests: mc,
+                domBatchSize: 5,
+                domThrottleDelay: 100,
+            });
+            // 恢复用户设定的磁力源、结果数与超时
+            const magnetSearchConfig = s?.magnetSearch || {};
+            const sources = magnetSearchConfig.sources || {};
+            magnetSearchManager.updateConfig({
+                sources: {
+                    sukebei: sources.sukebei !== false,
+                    btdig: sources.btdig !== false,
+                    btsow: sources.btsow !== false,
+                    torrentz2: sources.torrentz2 || false,
+                    custom: [],
+                },
+                maxResults: (magnetSearchConfig.maxResults ?? 15),
+                timeout: (magnetSearchConfig.timeoutMs ?? 6000),
+            });
+        } catch {
+            performanceOptimizer?.updateConfig({ maxConcurrentRequests: 2, domBatchSize: 5, domThrottleDelay: 100 });
+        }
     }
 });

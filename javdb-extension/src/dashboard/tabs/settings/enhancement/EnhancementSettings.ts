@@ -45,6 +45,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private magnetSourceBtdig!: HTMLInputElement;
     private magnetSourceBtsow!: HTMLInputElement;
     private magnetSourceTorrentz2!: HTMLInputElement;
+    // 磁力搜索并发与限流配置
+    private magnetPageMaxConcurrentRequests!: HTMLInputElement;
+    private magnetBgGlobalMaxConcurrent!: HTMLInputElement;
+    private magnetBgPerHostMaxConcurrent!: HTMLInputElement;
+    private magnetBgPerHostRateLimitPerMin!: HTMLInputElement;
 
     // 锚点优化配置
     private anchorButtonPosition!: HTMLSelectElement;
@@ -148,6 +153,68 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 动态注入“磁力资源搜索”的并发与限流配置 UI（避免直接修改 settings.html）
+     */
+    private injectMagnetConcurrencyControls(): void {
+        try {
+            const container = document.getElementById('magnetSourcesConfig');
+            if (!container) return;
+            if (document.getElementById('magnetConcurrencyConfig')) return; // 已存在则跳过
+
+            const section = document.createElement('div');
+            section.className = 'magnet-concurrency-config';
+            section.id = 'magnetConcurrencyConfig';
+
+            // 头部
+            const header = document.createElement('div');
+            header.className = 'sub-settings-header';
+            header.innerHTML = `
+                <h5>⚙️ 并发与限流</h5>
+                <p class="sub-description">控制磁力搜索的并发与后台限流策略，避免同时打开多个页面时产生突发流量。</p>
+            `;
+            section.appendChild(header);
+
+            // 行1：页面内并发 + 后台全局并发
+            const row1 = document.createElement('div');
+            row1.className = 'form-row';
+            row1.innerHTML = `
+                <div class="form-group-inline">
+                    <label for="magnetPageMaxConcurrentRequests">页面内并发:</label>
+                    <input type="number" id="magnetPageMaxConcurrentRequests" class="number-input" min="1" max="8" value="2">
+                    <span class="input-suffix">请求</span>
+                </div>
+                <div class="form-group-inline">
+                    <label for="magnetBgGlobalMaxConcurrent">后台全局并发:</label>
+                    <input type="number" id="magnetBgGlobalMaxConcurrent" class="number-input" min="1" max="16" value="4">
+                    <span class="input-suffix">请求</span>
+                </div>
+            `;
+            section.appendChild(row1);
+
+            // 行2：每域并发 + 每域速率
+            const row2 = document.createElement('div');
+            row2.className = 'form-row';
+            row2.innerHTML = `
+                <div class="form-group-inline">
+                    <label for="magnetBgPerHostMaxConcurrent">每域并发:</label>
+                    <input type="number" id="magnetBgPerHostMaxConcurrent" class="number-input" min="1" max="4" value="1">
+                    <span class="input-suffix">请求</span>
+                </div>
+                <div class="form-group-inline">
+                    <label for="magnetBgPerHostRateLimitPerMin">每域速率:</label>
+                    <input type="number" id="magnetBgPerHostRateLimitPerMin" class="number-input" min="1" max="120" value="12">
+                    <span class="input-suffix">次/分钟</span>
+                </div>
+            `;
+            section.appendChild(row2);
+
+            container.appendChild(section);
+        } catch (e) {
+            console.warn('[Enhancement] injectMagnetConcurrencyControls failed:', e);
+        }
+    }
+
+    /**
      * 同步演员水印透明度滑块的显示（数值与轨道填充）
      */
     private handleActorOpacityChange(): void {
@@ -216,6 +283,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.magnetSourceBtdig = document.getElementById('magnetSourceBtdig') as HTMLInputElement;
         this.magnetSourceBtsow = document.getElementById('magnetSourceBtsow') as HTMLInputElement;
         this.magnetSourceTorrentz2 = document.getElementById('magnetSourceTorrentz2') as HTMLInputElement;
+        // 注入并发与限流控件（若未存在）
+        this.injectMagnetConcurrencyControls();
+        // 并发与限流配置
+        this.magnetPageMaxConcurrentRequests = document.getElementById('magnetPageMaxConcurrentRequests') as HTMLInputElement;
+        this.magnetBgGlobalMaxConcurrent = document.getElementById('magnetBgGlobalMaxConcurrent') as HTMLInputElement;
+        this.magnetBgPerHostMaxConcurrent = document.getElementById('magnetBgPerHostMaxConcurrent') as HTMLInputElement;
+        this.magnetBgPerHostRateLimitPerMin = document.getElementById('magnetBgPerHostRateLimitPerMin') as HTMLInputElement;
 
         // 锚点优化配置
         this.anchorButtonPosition = document.getElementById('anchorButtonPosition') as HTMLSelectElement;
@@ -322,6 +396,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.magnetSourceBtdig?.addEventListener('change', this.handleSettingChange.bind(this));
         this.magnetSourceBtsow?.addEventListener('change', this.handleSettingChange.bind(this));
         this.magnetSourceTorrentz2?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 并发与限流配置事件监听
+        this.magnetPageMaxConcurrentRequests?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.magnetBgGlobalMaxConcurrent?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.magnetBgPerHostMaxConcurrent?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.magnetBgPerHostRateLimitPerMin?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 锚点优化配置事件监听
         this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1105,12 +1184,20 @@ export class EnhancementSettings extends BaseSettingsPanel {
             this.enableActorEnhancement.checked = userExperience.enableActorEnhancement;
         }
 
-        // 磁力搜索源配置
-        // const sources = magnetSearch.sources || {}; // 暂时注释
-        this.magnetSourceSukebei.checked = true; // 默认启用
-        this.magnetSourceBtdig.checked = true; // 默认启用
-        this.magnetSourceBtsow.checked = true; // 默认启用
-        this.magnetSourceTorrentz2.checked = false; // 默认禁用
+        // 磁力搜索配置
+        const magnetSearch = (settings as any).magnetSearch || {};
+        const msSources = magnetSearch.sources || {};
+        this.magnetSourceSukebei.checked = msSources.sukebei !== false;
+        this.magnetSourceBtdig.checked = msSources.btdig !== false;
+        this.magnetSourceBtsow.checked = msSources.btsow !== false;
+        this.magnetSourceTorrentz2.checked = !!msSources.torrentz2;
+
+        // 并发与限流配置回填
+        const cc = (magnetSearch.concurrency || {}) as any;
+        if (this.magnetPageMaxConcurrentRequests) this.magnetPageMaxConcurrentRequests.value = String(typeof cc.pageMaxConcurrentRequests === 'number' ? cc.pageMaxConcurrentRequests : 2);
+        if (this.magnetBgGlobalMaxConcurrent) this.magnetBgGlobalMaxConcurrent.value = String(typeof cc.bgGlobalMaxConcurrent === 'number' ? cc.bgGlobalMaxConcurrent : 4);
+        if (this.magnetBgPerHostMaxConcurrent) this.magnetBgPerHostMaxConcurrent.value = String(typeof cc.bgPerHostMaxConcurrent === 'number' ? cc.bgPerHostMaxConcurrent : 1);
+        if (this.magnetBgPerHostRateLimitPerMin) this.magnetBgPerHostRateLimitPerMin.value = String(typeof cc.bgPerHostRateLimitPerMin === 'number' ? cc.bgPerHostRateLimitPerMin : 12);
 
         // 锚点优化配置
         if (anchorOptimization) {
@@ -1216,6 +1303,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 显示/隐藏配置区域
         this.toggleConfigSections();
 
+        // 再次尝试注入“并发与限流”UI（防止极端竞态导致未插入）
+        this.injectMagnetConcurrencyControls();
+
         // 统一由悬浮控制子设置显隐——不在此处强制显示翻译配置
 
         // 初始化功能增强开关
@@ -1276,6 +1366,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
             );
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
+                // 磁力资源搜索设置保存
+                magnetSearch: {
+                    sources: {
+                        sukebei: this.magnetSourceSukebei?.checked !== false,
+                        btdig: this.magnetSourceBtdig?.checked !== false,
+                        btsow: this.magnetSourceBtsow?.checked !== false,
+                        torrentz2: this.magnetSourceTorrentz2?.checked === true,
+                        custom: [],
+                    },
+                    maxResults: (STATE.settings?.magnetSearch as any)?.maxResults ?? 15,
+                    timeoutMs: (STATE.settings?.magnetSearch as any)?.timeoutMs ?? 6000,
+                    concurrency: {
+                        pageMaxConcurrentRequests: parseInt(this.magnetPageMaxConcurrentRequests?.value || '2', 10),
+                        bgGlobalMaxConcurrent: parseInt(this.magnetBgGlobalMaxConcurrent?.value || '4', 10),
+                        bgPerHostMaxConcurrent: parseInt(this.magnetBgPerHostMaxConcurrent?.value || '1', 10),
+                        bgPerHostRateLimitPerMin: parseInt(this.magnetBgPerHostRateLimitPerMin?.value || '12', 10),
+                    },
+                },
                 dataEnhancement: {
                     enableMultiSource: false, // 仍未启用
                     enableImageCache: false,  // 仍未启用
