@@ -287,6 +287,53 @@
     margin-top: 1rem;
 }
 
+/* ================= 磁力搜索：并发与限流（内联表单优化） ================= */
+#enhancement-settings .magnet-concurrency-config {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+
+#enhancement-settings .magnet-concurrency-config .form-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap; /* 窄屏自然换行到下一行 */
+    align-items: center;
+}
+
+#enhancement-settings .magnet-concurrency-config .form-group-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap; /* 避免“标签/单位”被拆行 */
+}
+
+#enhancement-settings .magnet-concurrency-config .form-group-inline label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* 覆盖通用 .number-input 默认 100% 宽，改为紧凑数字框 */
+#enhancement-settings .magnet-concurrency-config .number-input {
+    width: 84px;
+    max-width: 84px;
+    text-align: center;
+    padding: 6px 8px;
+}
+
+#enhancement-settings .magnet-concurrency-config .input-suffix {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+@media (max-width: 480px) {
+    #enhancement-settings .magnet-concurrency-config .number-input {
+        width: 72px;
+        max-width: 72px;
+    }
+}
+
 #enhancement-settings .source-item {
     display: flex;
     align-items: center;

@@ -295,6 +295,25 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
+    // 磁力资源搜索默认配置
+    magnetSearch: {
+        sources: {
+            sukebei: true,
+            btdig: true,
+            btsow: true,
+            torrentz2: false,
+            custom: [],
+        },
+        maxResults: 15,
+        timeoutMs: 6000,
+        concurrency: {
+            pageMaxConcurrentRequests: 2,
+            bgGlobalMaxConcurrent: 4,
+            bgPerHostMaxConcurrent: 1,
+            bgPerHostRateLimitPerMin: 12,
+        },
+    },
+
     // 新增：影片页增强默认配置
     videoEnhancement: {
         enabled: false,

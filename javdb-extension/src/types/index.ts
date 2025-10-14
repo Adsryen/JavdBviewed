@@ -116,6 +116,30 @@ export interface ExtensionSettings {
         showEnhancedTooltips: boolean; // 显示增强提示
     };
 
+    // 磁力资源搜索配置
+    magnetSearch?: {
+        sources?: {
+            sukebei: boolean;
+            btdig: boolean;
+            btsow: boolean;
+            torrentz2: boolean;
+            custom?: string[];
+        };
+        maxResults?: number;
+        /** 单次请求超时时间（毫秒） */
+        timeoutMs?: number;
+        concurrency?: {
+            /** 内容脚本页面内的并发请求数（PerformanceOptimizer.maxConcurrentRequests） */
+            pageMaxConcurrentRequests?: number;
+            /** 后台全局并发上限（所有标签页合计） */
+            bgGlobalMaxConcurrent?: number;
+            /** 后台按域并发上限 */
+            bgPerHostMaxConcurrent?: number;
+            /** 后台按域速率限制（请求/分钟） */
+            bgPerHostRateLimitPerMin?: number;
+        };
+    };
+
     // 新增：影片页增强配置
     videoEnhancement: {
         enabled: boolean; // 启用影片页增强

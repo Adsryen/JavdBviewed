@@ -2,10 +2,11 @@
 // 抽离杂项 handlers 与消息路由
 
 import { getValue, setValue } from '../utils/storage';
-import { STORAGE_KEYS } from '../utils/config';
+import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import { refreshRecordById } from './sync';
 import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
 import { newWorksScheduler } from '../services/newWorks';
+import { requestScheduler } from './requestScheduler';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
   INFO: console.info,
@@ -137,6 +138,15 @@ export function registerMiscRouter(): void {
           return false;
       }
     });
+    // 初始化调度器配置，并监听 settings 变化
+    applySchedulerConfigFromSettings().catch(() => {});
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes['settings']) {
+          applySchedulerConfigFromSettings().catch(() => {});
+        }
+      });
+    } catch {}
   } catch {}
 }
 
@@ -145,23 +155,58 @@ export function registerMiscRouter(): void {
 async function handleExternalDataFetch(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const url = message?.url;
-    const options = message?.options || {};
+    const options = (message?.options || {}) as any;
     if (!url) {
       sendResponse({ success: false, error: 'No URL provided' });
       return;
     }
-    const response = await fetch(url, options as RequestInit);
     const responseType = options.responseType || 'text';
+
+    // 超时控制
+    const controller = new AbortController();
+    const timeoutMs = typeof options.timeout === 'number' ? options.timeout : 10000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const reqInit: RequestInit = {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      body: options.body,
+      signal: controller.signal,
+      // credentials / mode 等保持默认
+    };
+
+    const response = await requestScheduler.enqueue(url, reqInit);
     let data: any;
     if (responseType === 'json') data = await response.json().catch(() => null);
     else if (responseType === 'blob') data = await response.blob();
     else data = await response.text();
     const headersObj: Record<string, string> = {};
     try { response.headers.forEach((v, k) => { headersObj[k] = v; }); } catch {}
+    clearTimeout(timer);
     sendResponse({ success: true, data, status: response.status, headers: headersObj });
   } catch (error: any) {
     console.error('[Background] Failed to fetch external data:', error);
     sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * 根据 settings.magnetSearch.concurrency 动态应用调度器配置
+ */
+async function applySchedulerConfigFromSettings(): Promise<void> {
+  try {
+    const settings = await getValue<any>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS as any);
+    const cc = settings?.magnetSearch?.concurrency || {};
+    requestScheduler.updateConfig({
+      globalMaxConcurrent: typeof cc.bgGlobalMaxConcurrent === 'number' ? cc.bgGlobalMaxConcurrent : 4,
+      perHostMaxConcurrent: typeof cc.bgPerHostMaxConcurrent === 'number' ? cc.bgPerHostMaxConcurrent : 1,
+      perHostRateLimitPerMin: typeof cc.bgPerHostRateLimitPerMin === 'number' ? cc.bgPerHostRateLimitPerMin : 12,
+    });
+    console.info('[Background] RequestScheduler config applied:', {
+      global: cc.bgGlobalMaxConcurrent, perHost: cc.bgPerHostMaxConcurrent, rate: cc.bgPerHostRateLimitPerMin
+    });
+  } catch (e) {
+    console.warn('[Background] applySchedulerConfigFromSettings failed:', e);
   }
 }
 
