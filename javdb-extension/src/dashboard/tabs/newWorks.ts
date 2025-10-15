@@ -873,7 +873,7 @@ export class NewWorksTab {
      */
     private async showGlobalConfigModal(): Promise<void> {
         try {
-            console.log('开始显示全局配置弹窗');
+            console.log('开始显示设置弹窗');
 
             // 初始化新作品管理器
             await newWorksManager.initialize();
@@ -885,14 +885,23 @@ export class NewWorksTab {
 
             if (newConfig) {
                 await newWorksManager.updateGlobalConfig(newConfig);
-                await this.render(); // 重新渲染以反映配置变化
-                showMessage('配置已保存', 'success');
+                // 尝试重启自动检查调度器
+                try {
+                    await new Promise<void>((resolve) => {
+                        // 忽略返回值即可
+                        chrome.runtime.sendMessage({ type: 'new-works-scheduler-restart' }, () => resolve());
+                    });
+                } catch (e) {
+                    console.warn('重启自动检查失败:', e);
+                }
+                await this.render(); // 重新渲染以反映设置变化
+                showMessage('设置已保存', 'success');
             } else {
-                console.log('用户取消了配置');
+                console.log('用户取消了设置');
             }
         } catch (error) {
-            console.error('配置全局设置失败:', error);
-            showMessage('配置失败，请重试: ' + error.message, 'error');
+            console.error('打开或保存设置失败:', error);
+            showMessage('设置失败，请重试: ' + (error as any).message, 'error');
         }
     }
 
@@ -916,11 +925,7 @@ export class NewWorksTab {
                 return;
             }
 
-            const globalConfig = await newWorksManager.getGlobalConfig();
-            if (!globalConfig.enabled) {
-                showMessage('新作品功能未启用，请先在全局配置中启用', 'warn');
-                return;
-            }
+            // 手动检查不再依赖总开关，可直接执行
 
             // 通过后台脚本执行检查
             const response = await new Promise<any>((resolve) => {
