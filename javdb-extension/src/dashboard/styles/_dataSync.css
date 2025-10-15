@@ -49,6 +49,67 @@
     min-width: 140px;
 }
 
+/* 双按钮布局：图标+主文案+副文案纵向排布（还原旧版体验） */
+.sync-button-group .sync-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    min-height: 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.sync-button-group .sync-option-btn i {
+    font-size: 20px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.sync-button-group .btn-text {
+    font-weight: 600;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.sync-button-group .btn-desc {
+    font-size: 11px;
+    opacity: 0.9;
+    display: block;
+    line-height: 1.2;
+    font-weight: 400;
+}
+
+/* 恢复按钮悬浮动效（缩放+投影） */
+.sync-button-group .sync-option-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+}
+
+/* 确保 group 场景下高光动画可见（防止被旧样式禁用） */
+.sync-option-actions .sync-option-btn::before,
+.sync-button-group .sync-option-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    transition: left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.sync-option-actions .sync-option-btn:hover::before,
+.sync-button-group .sync-option-btn:hover::before {
+    left: 100%;
+}
+
 /* 确保单个按钮占满宽度 */
 .sync-option-actions .sync-btn:only-child {
     width: 100%;

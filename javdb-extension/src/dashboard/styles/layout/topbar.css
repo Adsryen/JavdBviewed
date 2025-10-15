@@ -1,0 +1,56 @@
+/* 顶层 Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: #ffffff;
+  border-radius: 16px 16px 0 0; /* 与容器圆角衔接 */
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.brand-text {
+  font-weight: 600;
+  color: var(--text-color, #111827);
+}
+
+/* 窄屏仅保留图标 */
+@media (max-width: 960px) {
+  .brand-text { display: none; }
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 顶栏帮助按钮（圆形图标按钮） */
+.help-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.help-btn i { font-size: 16px; line-height: 1; }
+.help-btn:hover { background: #eef2ff; border-color: #c7d2fe; color: #374151; }
+.help-btn:active { transform: scale(0.96); }

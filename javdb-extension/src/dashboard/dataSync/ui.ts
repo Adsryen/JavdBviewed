@@ -51,16 +51,17 @@ export class SyncUI {
     public async checkUserLoginStatus(): Promise<void> {
         try {
             const userProfile = await userService.getUserProfile();
-            const dataSyncSection = document.getElementById('data-sync-section');
+            // 兼容实际 DOM：优先使用 #data-sync-section-main，回退 #data-sync-section
+            const mainSection = document.getElementById('data-sync-section-main') as HTMLElement | null;
+            const fallbackSection = document.getElementById('data-sync-section') as HTMLElement | null;
+            const dataSyncSection = (mainSection || fallbackSection) as HTMLElement | null;
+            const loginNotice = document.getElementById('sync-login-notice') as HTMLElement | null;
 
             if (dataSyncSection) {
-                if (userProfile && userProfile.isLoggedIn) {
-                    dataSyncSection.style.display = 'block';
-                    logAsync('INFO', '用户已登录，显示数据同步区域');
-                } else {
-                    dataSyncSection.style.display = 'none';
-                    logAsync('INFO', '用户未登录，隐藏数据同步区域');
-                }
+                const isLoggedIn = !!(userProfile && userProfile.isLoggedIn);
+                dataSyncSection.style.display = isLoggedIn ? 'block' : 'none';
+                if (loginNotice) loginNotice.style.display = isLoggedIn ? 'none' : 'block';
+                logAsync('INFO', isLoggedIn ? '用户已登录，显示数据同步区域' : '用户未登录，隐藏数据同步区域');
             }
         } catch (error: any) {
             logAsync('ERROR', '检查用户登录状态失败', { error: error.message });
