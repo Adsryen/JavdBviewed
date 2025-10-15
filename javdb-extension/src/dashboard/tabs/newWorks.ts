@@ -1,13 +1,13 @@
 // src/dashboard/tabs/newWorks.ts
 // 新作品标签页实现
 
-import { newWorksManager, newWorksCollector } from '../../services/newWorks';
-import { actorManager } from '../../services/actorManager';
+import { newWorksManager } from '../../services/newWorks';
+// 移除未使用的 actorManager 与 newWorksCollector 引用
 import { actorSelector } from '../components/actorSelector';
 import { newWorksConfigModal } from '../components/newWorks/configModal';
 import { showMessage } from '../ui/toast';
 import { showConfirm, showDanger } from '../components/confirmModal';
-import type { NewWorkRecord, NewWorksStats, ActorRecord, ActorSubscription, VideoRecord } from '../../types';
+import type { NewWorkRecord, ActorRecord, ActorSubscription } from '../../types';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
@@ -20,6 +20,7 @@ export class NewWorksTab {
     };
     private selectedWorks: Set<string> = new Set();
     private isLoading: boolean = false;
+    private debounceRender = this.debounce(() => this.render(), 300);
 
     /**
      * 初始化新作品标签页
@@ -48,6 +49,70 @@ export class NewWorksTab {
     }
 
     /**
+     * 批量打开当前页的未读新作品，并标记为已读
+     */
+    private async batchOpenCurrentPageUnread(): Promise<void> {
+        try {
+            const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...'; }
+
+            // 获取当前页数据（保持与 UI 同步）
+            const result = await newWorksManager.getNewWorks({
+                ...this.currentFilters,
+                page: this.currentPage,
+                pageSize: this.pageSize,
+            });
+            const unread = result.works.filter(w => !w.isRead);
+
+            if (unread.length === 0) {
+                showMessage('当前页没有未读作品', 'info');
+                return;
+            }
+
+            const confirmed = await showConfirm({
+                title: '批量打开未读',
+                message: `将打开 ${unread.length} 个未读作品的新标签页，并标记为已读，继续吗？`,
+                confirmText: '继续',
+                cancelText: '取消',
+                type: 'warning'
+            });
+            if (!confirmed) return;
+
+            // 逐个打开（使用 chrome.tabs.create 或回退 window.open）
+            for (const w of unread) {
+                try {
+                    // 优先使用 chrome.tabs.create（若可用）
+                    if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
+                        await new Promise<void>((resolve) => {
+                            try { chrome.tabs.create({ url: w.javdbUrl }, () => resolve()); } catch { resolve(); }
+                        });
+                    } else {
+                        window.open(w.javdbUrl, '_blank');
+                    }
+                } catch (e) {
+                    console.warn('打开标签页失败:', e);
+                }
+            }
+
+            // 标记为已读
+            try {
+                await newWorksManager.markAsRead(unread.map(w => w.id));
+            } catch (e) {
+                console.warn('批量标记已读失败:', e);
+            }
+
+            await this.render();
+            showMessage(`已打开 ${unread.length} 个未读作品并标为已读`, 'success');
+        } catch (error) {
+            console.error('批量打开未读失败:', error);
+            showMessage('批量打开失败，请重试', 'error');
+        } finally {
+            const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开未读（当页）'; }
+        }
+    }
+
+    /**
      * 等待DOM元素准备就绪
      */
     private async waitForDOM(): Promise<void> {
@@ -60,8 +125,12 @@ export class NewWorksTab {
                 const cleanupReadBtn = document.getElementById('cleanupReadWorksBtn');
                 const addSubscriptionBtn = document.getElementById('addSubscriptionBtn');
                 const manageSubscriptionsBtn = document.getElementById('manageSubscriptionsBtn');
+                const batchOpenUnreadBtn = document.getElementById('batchOpenUnreadBtn');
+                const selectAllCurrentPageBtn = document.getElementById('selectAllCurrentPageBtn');
+                const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+                const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn');
 
-                if (newWorksTab && configBtn && checkNowBtn && syncStatusBtn && cleanupReadBtn && addSubscriptionBtn && manageSubscriptionsBtn) {
+                if (newWorksTab && configBtn && checkNowBtn && syncStatusBtn && cleanupReadBtn && addSubscriptionBtn && manageSubscriptionsBtn && batchOpenUnreadBtn && selectAllCurrentPageBtn && clearSelectionBtn && batchOpenSelectedBtn) {
                     console.log('新作品标签页DOM元素已准备就绪');
                     resolve();
                 } else {
@@ -170,6 +239,52 @@ export class NewWorksTab {
             console.log('清理已读按钮事件已绑定');
         } else {
             console.warn('未找到清理已读按钮');
+        }
+
+        // 批量打开未读（当页）按钮
+        const batchOpenUnreadBtn = document.getElementById('batchOpenUnreadBtn');
+        if (batchOpenUnreadBtn) {
+            batchOpenUnreadBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('点击了批量打开未读（当页）按钮');
+                await this.batchOpenCurrentPageUnread();
+            });
+            console.log('批量打开未读按钮事件已绑定');
+        } else {
+            console.warn('未找到批量打开未读按钮');
+        }
+
+        // 本页全选按钮
+        const selectAllCurrentPageBtn = document.getElementById('selectAllCurrentPageBtn');
+        if (selectAllCurrentPageBtn) {
+            selectAllCurrentPageBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.selectAllCurrentPage();
+            });
+        } else {
+            console.warn('未找到本页全选按钮');
+        }
+
+        // 清空选择按钮
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clearSelection();
+            });
+        } else {
+            console.warn('未找到清空选择按钮');
+        }
+
+        // 批量打开（已选）按钮
+        const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn');
+        if (batchOpenSelectedBtn) {
+            batchOpenSelectedBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.batchOpenSelected();
+            });
+        } else {
+            console.warn('未找到批量打开（已选）按钮');
         }
     }
 
@@ -357,7 +472,7 @@ export class NewWorksTab {
             : '';
 
         return `
-            <li class="new-work-item ${readClass} ${selectedClass}" data-work-id="${work.id}">
+            <li class="new-work-item ${readClass} ${selectedClass}" data-work-id="${work.id}" data-javdb-url="${work.javdbUrl}">
                 <div class="new-work-checkbox">
                     <input type="checkbox" ${isSelected ? 'checked' : ''}>
                 </div>
@@ -466,33 +581,30 @@ export class NewWorksTab {
                 this.updateBatchOperations();
             });
 
-            // 操作按钮事件
-            const actionBtns = item.querySelectorAll('.new-work-action-btn');
-            actionBtns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const action = (e.target as HTMLElement).closest('.new-work-action-btn')?.getAttribute('data-action');
-                    
-                    switch (action) {
-                        case 'mark-read':
-                            await this.markWorksAsRead([workId]);
-                            break;
-                        case 'visit':
-                            await this.visitWork(workId);
-                            break;
-                        case 'delete':
-                            await this.deleteWorks([workId]);
-                            break;
-                    }
-                });
+            // 整项点击事件（以按钮为主，避免冒泡导致误选）
+            item.addEventListener('click', async (e) => {
+                const target = e.target as HTMLElement;
+                const actionBtn = target.closest ? target.closest('.new-work-action-btn') : null;
+                if (!actionBtn) return;
+                const action = (actionBtn as HTMLElement).getAttribute('data-action');
+                switch (action) {
+                    case 'mark-read':
+                        await this.markWorksAsRead([workId]);
+                        break;
+                    case 'visit':
+                        await this.visitWork(workId);
+                        break;
+                    case 'delete':
+                        await this.deleteWorks([workId]);
+                        break;
+                    default:
+                        break;
+                }
             });
         });
+        // 渲染后同步一次批量操作状态
+        this.updateBatchOperations();
     }
-
-    /**
-     * 防抖渲染
-     */
-    private debounceRender = this.debounce(() => this.render(), 300);
 
     /**
      * 防抖函数
@@ -631,7 +743,129 @@ export class NewWorksTab {
      * 更新批量操作状态
      */
     private updateBatchOperations(): void {
-        // TODO: 实现批量操作UI更新
+        const count = this.selectedWorks.size;
+        const label = document.getElementById('selectedCountLabel');
+        if (label) label.textContent = `已选 ${count}`;
+
+        const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
+        if (batchOpenSelectedBtn) {
+            batchOpenSelectedBtn.disabled = count === 0;
+        }
+    }
+
+    /**
+     * 本页全选
+     */
+    private selectAllCurrentPage(): void {
+        const items = Array.from(document.querySelectorAll('.new-work-item')) as HTMLElement[];
+        items.forEach(item => {
+            const id = item.getAttribute('data-work-id');
+            if (!id) return;
+            this.selectedWorks.add(id);
+            const cb = item.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+            if (cb) cb.checked = true;
+        });
+        this.updateBatchOperations();
+    }
+
+    /**
+     * 清空选择
+     */
+    private clearSelection(): void {
+        this.selectedWorks.clear();
+        // 反选 DOM
+        const items = Array.from(document.querySelectorAll('.new-work-item input[type="checkbox"]')) as HTMLInputElement[];
+        items.forEach(cb => { cb.checked = false; });
+        this.updateBatchOperations();
+    }
+
+    /**
+     * 批量打开（已选）
+     */
+    private async batchOpenSelected(): Promise<void> {
+        const ids = Array.from(this.selectedWorks);
+        if (ids.length === 0) {
+            showMessage('未选择任何作品', 'info');
+            return;
+        }
+
+        const confirmed = await showConfirm({
+            title: '批量打开（已选）',
+            message: `将打开 ${ids.length} 个已选作品的新标签页，并为未读项标记为已读，继续吗？`,
+            confirmText: '继续',
+            cancelText: '取消',
+            type: 'warning'
+        });
+        if (!confirmed) return;
+
+        const btn = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...'; }
+
+        try {
+            const worksToOpen: { id: string; url: string; isRead: boolean }[] = [];
+
+            // 优先从当前 DOM 抓取（更快）
+            const onPageMap = new Map<string, { url: string; isRead: boolean }>();
+            document.querySelectorAll('.new-work-item').forEach(li => {
+                const id = li.getAttribute('data-work-id') || '';
+                const url = li.getAttribute('data-javdb-url') || '';
+                const isRead = li.classList.contains('read');
+                if (id && url) onPageMap.set(id, { url, isRead });
+            });
+
+            for (const id of ids) {
+                const cached = onPageMap.get(id);
+                if (cached) {
+                    worksToOpen.push({ id, url: cached.url, isRead: cached.isRead });
+                    continue;
+                }
+                try {
+                    const res = await newWorksManager.getNewWorks({ search: id });
+                    const w = res.works.find(x => x.id === id);
+                    if (w && w.javdbUrl) {
+                        worksToOpen.push({ id, url: w.javdbUrl, isRead: !!w.isRead });
+                    }
+                } catch {}
+            }
+
+            if (worksToOpen.length === 0) {
+                showMessage('未找到可打开的作品链接', 'warn');
+                return;
+            }
+
+            // 打开标签页
+            for (const w of worksToOpen) {
+                try {
+                    if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
+                        await new Promise<void>((resolve) => {
+                            try { chrome.tabs.create({ url: w.url }, () => resolve()); } catch { resolve(); }
+                        });
+                    } else {
+                        window.open(w.url, '_blank');
+                    }
+                } catch (e) {
+                    console.warn('打开标签页失败:', e);
+                }
+            }
+
+            // 标记选中中的未读项为已读
+            const unreadIds = worksToOpen.filter(w => !w.isRead).map(w => w.id);
+            if (unreadIds.length > 0) {
+                try { await newWorksManager.markAsRead(unreadIds); } catch {}
+            }
+
+            // 清空选择并刷新
+            this.selectedWorks.clear();
+            await this.render();
+            showMessage(`已打开 ${worksToOpen.length} 个已选作品${unreadIds.length > 0 ? '（并标记未读为已读）' : ''}`, 'success');
+        } catch (error) {
+            console.error('批量打开（已选）失败:', error);
+            showMessage('批量打开失败，请重试', 'error');
+        } finally {
+            const btn2 = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
+            if (btn2) { btn2.disabled = this.selectedWorks.size === 0; btn2.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开（已选）'; }
+            this.updateBatchOperations();
+        }
     }
 
     /**
