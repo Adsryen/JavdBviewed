@@ -1,9 +1,38 @@
+/* 顶部导航容器（含品牌 + tabs） */
+.tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* 品牌区域 */
+.tabs-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.brand-icon { width: 20px; height: 20px; }
+.brand-text { font-weight: 600; color: var(--text-color, #111827); }
+
+/* 窄屏隐藏品牌文字，仅保留图标 */
+@media (max-width: 960px) {
+  .tabs-brand .brand-text { display: none; }
+}
+
 /* 顶部标签导航基础样式 */
 .tabs {
   display: flex;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* 放在 tabs-nav 中时，边框由 tabs-nav 控制，避免双边框与重复内边距 */
+.tabs-nav .tabs {
+  padding: 0;
+  border-bottom: none;
 }
 
 .tab-link {
