@@ -29,11 +29,24 @@ export class NewWorksManager {
         if (this.isLoaded) return;
 
         try {
-            // 加载全局配置
-            this.globalConfig = await getValue<NewWorksGlobalConfig>(
+            // 加载全局配置（带迁移）
+            const raw = await getValue<any>(
                 STORAGE_KEYS.NEW_WORKS_CONFIG,
-                DEFAULT_NEW_WORKS_CONFIG
+                DEFAULT_NEW_WORKS_CONFIG as any
             );
+            // 迁移：将旧的 enabled 映射为 autoCheckEnabled（仅当新字段未设置时）
+            const migrated: NewWorksGlobalConfig = {
+                ...DEFAULT_NEW_WORKS_CONFIG,
+                ...raw,
+                autoCheckEnabled: (
+                    raw?.autoCheckEnabled !== undefined
+                        ? !!raw.autoCheckEnabled
+                        : (raw?.enabled !== undefined ? !!raw.enabled : DEFAULT_NEW_WORKS_CONFIG.autoCheckEnabled)
+                )
+            };
+            // 清理遗留字段
+            delete (migrated as any).enabled;
+            this.globalConfig = migrated;
 
             // 加载订阅数据
             const subscriptionsData = await getValue<Record<string, ActorSubscription>>(
@@ -78,7 +91,10 @@ export class NewWorksManager {
     async updateGlobalConfig(config: Partial<NewWorksGlobalConfig>): Promise<void> {
         await this.initialize();
 
-        this.globalConfig = { ...this.globalConfig, ...config };
+        // 合并并清理遗留字段
+        const merged: any = { ...this.globalConfig, ...config };
+        delete merged.enabled;
+        this.globalConfig = merged as NewWorksGlobalConfig;
         await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, this.globalConfig);
     }
 

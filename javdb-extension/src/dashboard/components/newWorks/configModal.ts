@@ -6,7 +6,7 @@ import type { NewWorksGlobalConfig } from '../../../services/newWorks/types';
 
 export class NewWorksConfigModal {
     private modal: HTMLElement | null = null;
-    private onSaveCallback: ((config: NewWorksGlobalConfig) => void) | null = null;
+    private onSaveCallback: ((config: NewWorksGlobalConfig | null) => void) | null = null;
 
     /**
      * 显示配置弹窗
@@ -32,21 +32,21 @@ export class NewWorksConfigModal {
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3><i class="fas fa-cog"></i> 新作品全局配置</h3>
+                        <h3><i class="fas fa-cog"></i> 新作品设置</h3>
                         <button class="modal-close-btn" type="button">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     <div class="modal-body">
                         <form id="newWorksConfigForm">
-                            <!-- 基础设置 -->
+                            <!-- 自动检查 -->
                             <div class="config-section">
-                                <h4><i class="fas fa-sliders-h"></i> 基础设置</h4>
+                                <h4><i class="fas fa-sliders-h"></i> 自动检查</h4>
                                 <div class="form-group">
                                     <label class="checkbox-label">
-                                        <input type="checkbox" id="configEnabled" ${config.enabled ? 'checked' : ''}>
+                                        <input type="checkbox" id="configAutoCheckEnabled" ${config.autoCheckEnabled ? 'checked' : ''}>
                                         <span class="checkmark"></span>
-                                        启用新作品功能
+                                        启用自动检查
                                     </label>
                                 </div>
                                 <div class="form-group">
@@ -64,7 +64,7 @@ export class NewWorksConfigModal {
                             <!-- 过滤条件 -->
                             <div class="config-section">
                                 <h4><i class="fas fa-filter"></i> 过滤条件</h4>
-                                <p class="section-description">以下条件将应用于所有订阅演员的新作品检查。这些设置独立于功能启用状态，可随时调整。</p>
+                                <p class="section-description">以下条件将应用于所有订阅演员的新作品检查。这些设置始终生效，可随时调整。</p>
                                 
                                 <div class="form-group">
                                     <label class="checkbox-label">
@@ -97,9 +97,9 @@ export class NewWorksConfigModal {
                                 </div>
                             </div>
 
-                            <!-- 管理设置 -->
+                            <!-- 清理与限制 -->
                             <div class="config-section">
-                                <h4><i class="fas fa-tasks"></i> 管理设置</h4>
+                                <h4><i class="fas fa-tasks"></i> 清理与限制</h4>
                                 
                                 <div class="form-group">
                                     <label for="configMaxWorksPerCheck">每次检查最大作品数:</label>
@@ -172,10 +172,10 @@ export class NewWorksConfigModal {
             }
         });
 
-        // 启用状态变化时的联动效果
-        const enabledCheckbox = this.modal.querySelector('#configEnabled') as HTMLInputElement;
-        enabledCheckbox?.addEventListener('change', () => {
-            this.updateFormState(enabledCheckbox.checked);
+        // 自动检查状态变化时的联动效果
+        const autoCheckCheckbox = this.modal.querySelector('#configAutoCheckEnabled') as HTMLInputElement;
+        autoCheckCheckbox?.addEventListener('change', () => {
+            this.updateFormState(autoCheckCheckbox.checked);
         });
 
         // 自动清理状态变化时的联动效果
@@ -188,7 +188,7 @@ export class NewWorksConfigModal {
         });
 
         // 初始化表单状态
-        this.updateFormState(enabledCheckbox?.checked || false);
+        this.updateFormState(autoCheckCheckbox?.checked || false);
         if (cleanupDaysInput) {
             cleanupDaysInput.disabled = !autoCleanupCheckbox?.checked;
         }
@@ -200,11 +200,9 @@ export class NewWorksConfigModal {
     private updateFormState(enabled: boolean): void {
         if (!this.modal) return;
 
-        // 只禁用基础设置和管理设置的输入框，过滤条件始终可用
-        const basicInputs = this.modal.querySelectorAll('#configCheckInterval, #configRequestInterval, #configMaxWorksPerCheck');
-        const managementInputs = this.modal.querySelectorAll('#configAutoCleanup, #configCleanupDays');
-
-        [...basicInputs, ...managementInputs].forEach(input => {
+        // 只禁用与自动检查相关的输入框；过滤条件和清理设置始终可用
+        const autoInputs = this.modal.querySelectorAll('#configCheckInterval, #configRequestInterval, #configMaxWorksPerCheck');
+        autoInputs.forEach(input => {
             (input as HTMLInputElement).disabled = !enabled;
         });
 
@@ -269,9 +267,9 @@ export class NewWorksConfigModal {
         };
 
         return {
-            enabled: getValue('configEnabled'),
             checkInterval: getValue('configCheckInterval'),
             requestInterval: getValue('configRequestInterval'),
+            autoCheckEnabled: getValue('configAutoCheckEnabled'),
             filters: {
                 excludeViewed: getValue('configExcludeViewed'),
                 excludeBrowsed: getValue('configExcludeBrowsed'),
