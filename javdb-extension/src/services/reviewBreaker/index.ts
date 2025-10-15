@@ -2,6 +2,8 @@
 // 破解评论区功能 - 基于JAV-JHS的实现
 
 import { log } from '../../content/state';
+import { bgFetchJSON } from '../../utils/net';
+import { md5Hex } from '../../utils/md5';
 
 export interface ReviewData {
   id: string;
@@ -44,24 +46,13 @@ export class ReviewBreakerService {
 
     // 生成新签名
     const signatureData = `${now}${this.SIGNATURE_SALT}`;
-    const signature = `${now}.lpw6vgqzsp.${await this.md5(signatureData)}`;
+    const signature = `${now}.lpw6vgqzsp.${md5Hex(signatureData)}`;
     
     // 缓存签名和时间戳
     localStorage.setItem(this.TIMESTAMP_KEY, now.toString());
     localStorage.setItem(this.SIGNATURE_KEY, signature);
     
     return signature;
-  }
-
-  /**
-   * MD5哈希函数
-   */
-  private static async md5(text: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   /**
@@ -72,20 +63,20 @@ export class ReviewBreakerService {
     const queryString = new URLSearchParams(params).toString();
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
-    const response = await fetch(fullUrl, {
+    const { success, status, data, error } = await bgFetchJSON<any>({
+      url: fullUrl,
       method: 'GET',
       headers: {
-        'jdSignature': signature,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://javdb.com/',
+        // 与参考脚本保持一致：全小写 jdsignature
+        'jdsignature': signature,
       },
+      timeoutMs: 15000,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!success) {
+      throw new Error(error || `HTTP ${status}`);
     }
-
-    return response.json();
+    return data;
   }
 
   /**

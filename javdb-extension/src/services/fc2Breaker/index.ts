@@ -2,6 +2,7 @@
 // FC2拦截破解功能 - 基于JAV-JHS的实现
 
 import { log } from '../../content/state';
+import { bgFetchText } from '../../utils/net';
 
 export interface FC2VideoInfo {
   id: string;
@@ -35,6 +36,40 @@ export class FC2BreakerService {
   private static readonly FC2PPVDB_BASE = 'https://fc2ppvdb.com';
 
   /**
+   * 从文档中稳健提取发布日期（避免使用非标准选择器）
+   */
+  private static extractPublishDate(doc: Document): string {
+    // 方案1：直接在同一元素文本中匹配
+    const candidates = Array.from(doc.querySelectorAll('span,div,p,li,td,th,dt,dd')) as HTMLElement[];
+    for (const el of candidates) {
+      const t = (el.textContent || '').trim();
+      if (!t) continue;
+      const m = t.match(/リリース日[:：]?\s*([\d]{4}[\/\.-][\d]{1,2}[\/\.-][\d]{1,2}|[\d]{4}年[\d]{1,2}月[\d]{1,2}日)/);
+      if (m && m[1]) {
+        return m[1].replace(/年|月/g, '-').replace(/日/g, '').replace(/\./g, '-').replace(/\//g, '-');
+      }
+    }
+
+    // 方案2：找到包含关键词的元素，取其后续兄弟或下一个值节点
+    for (const el of candidates) {
+      const t = (el.textContent || '').trim();
+      if (t.includes('リリース日')) {
+        // 尝试下一个兄弟元素
+        const next = el.nextElementSibling as HTMLElement | null;
+        const text = (next?.textContent || '').trim();
+        if (text) {
+          const m = text.match(/([\d]{4}[\/\.-][\d]{1,2}[\/\.-][\d]{1,2}|[\d]{4}年[\d]{1,2}月[\d]{1,2}日)/);
+          if (m && m[1]) {
+            return m[1].replace(/年|月/g, '-').replace(/日/g, '').replace(/[\.\/]/g, '-');
+          }
+        }
+      }
+    }
+
+    return '';
+  }
+
+  /**
    * 检查是否为FC2视频
    */
   static isFC2Video(videoId: string): boolean {
@@ -48,19 +83,13 @@ export class FC2BreakerService {
   private static async getVideoInfoFrom123av(videoUrl: string): Promise<Partial<FC2VideoInfo>> {
     try {
       log(`[FC2Breaker] Fetching video info from 123av: ${videoUrl}`);
-      
-      const response = await fetch(videoUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://123av.com/',
-        },
-      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const { success, status, text, error } = await bgFetchText({ url: videoUrl, method: 'GET', timeoutMs: 15000 });
+      if (!success || !text) {
+        throw new Error(error || `HTTP ${status}`);
       }
 
-      const html = await response.text();
+      const html = text;
       
       // 解析视频ID
       const idMatch = html.match(/v-scope="Movie\({id:\s*(\d+),/);
@@ -72,8 +101,7 @@ export class FC2BreakerService {
 
       // 提取信息
       const title = doc.querySelector('h1')?.textContent?.trim() || '';
-      const publishDateEl = doc.querySelector('span:contains("リリース日:")');
-      const publishDate = publishDateEl?.nextElementSibling?.textContent?.trim() || '';
+      const publishDate = this.extractPublishDate(doc);
       const moviePoster = doc.querySelector('#player')?.getAttribute('data-poster') || '';
 
       return {
@@ -97,19 +125,13 @@ export class FC2BreakerService {
       const url = `${this.FC2PPVDB_BASE}/articles/${cleanId}`;
       
       log(`[FC2Breaker] Fetching actor info from fc2ppvdb: ${url}`);
-      
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://fc2ppvdb.com/',
-        },
-      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const { success, status, text, error } = await bgFetchText({ url, method: 'GET', timeoutMs: 15000 });
+      if (!success || !text) {
+        throw new Error(error || `HTTP ${status}`);
       }
 
-      const html = await response.text();
+      const html = text;
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
@@ -167,19 +189,11 @@ export class FC2BreakerService {
       const searchUrl = `${this.AV123_BASE}/search?q=FC2-${cleanId}`;
       
       log(`[FC2Breaker] Searching FC2 video on 123av: ${searchUrl}`);
-      
-      const response = await fetch(searchUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://123av.com/',
-        },
-      });
 
-      if (!response.ok) {
-        return null;
-      }
+      const { success, text } = await bgFetchText({ url: searchUrl, method: 'GET', timeoutMs: 15000 });
+      if (!success || !text) return null;
 
-      const html = await response.text();
+      const html = text;
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
