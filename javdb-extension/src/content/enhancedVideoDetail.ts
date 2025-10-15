@@ -480,6 +480,45 @@ export class VideoDetailEnhancer {
       if (!response.success || !response.data) {
         log('[FC2Breaker] Failed to get FC2 video info:', response.error);
         showToast(`FC2增强失败: ${response.error}`, 'error');
+
+        // 插入占位容器 + 重试按钮（不影响其它功能）
+        const targetContainer = document.querySelector('.container, .content, main');
+        if (targetContainer) {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'enhanced-fc2-info';
+          placeholder.style.cssText = `
+            margin: 20px 0;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px dashed #f0b37e;
+            border-left: 4px solid #ff9800;
+          `;
+
+          const setupErrorUI = (msg: string) => {
+            this.renderRetryBlock(placeholder, msg, '重试获取', async () => {
+              placeholder.innerHTML = '<div style="text-align:center;padding:16px;">正在重试...</div>';
+              const retry = await fc2BreakerService.getFC2VideoInfo(videoId);
+              if (retry.success && retry.data) {
+                const fc2Container = this.createFC2InfoContainer(retry.data);
+                try { placeholder.replaceWith(fc2Container); } catch { targetContainer.appendChild(fc2Container); placeholder.remove(); }
+                showToast('FC2视频信息增强成功', 'success');
+              } else {
+                setupErrorUI(`FC2增强失败：${retry.error || '未知错误'}`);
+              }
+            });
+          };
+
+          const insertPosition = targetContainer.querySelector('.video-info, .movie-info') || targetContainer.firstElementChild;
+          if (insertPosition) {
+            insertPosition.parentElement?.insertBefore(placeholder, insertPosition.nextSibling);
+          } else {
+            targetContainer.appendChild(placeholder);
+          }
+
+          setupErrorUI(`FC2增强失败：${response.error || '未知错误'}`);
+        }
         return;
       }
 
@@ -806,6 +845,33 @@ export class VideoDetailEnhancer {
   }
 
   /**
+   * 在容器内渲染错误提示与重试按钮（轻量UI，不影响其它增强流程）
+   */
+  private renderRetryBlock(container: HTMLElement, message: string, retryText: string, onRetry: () => Promise<void>): void {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 16px; color: #666;">
+        <div style="margin-bottom: 8px;">${message}</div>
+        <button class="enhance-retry-btn" style="background: #eee; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">${retryText}</button>
+      </div>
+    `;
+    const btn = container.querySelector('.enhance-retry-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+    btn.onclick = async () => {
+      const old = btn.textContent || '重试';
+      btn.disabled = true;
+      btn.textContent = '重试中...';
+      try {
+        await onRetry();
+      } catch (e) {
+        // 静默失败，保持按钮可再次重试
+      } finally {
+        btn.textContent = old;
+        btn.disabled = false;
+      }
+    };
+  }
+
+  /**
    * 创建评论区容器
    */
   private createReviewsContainer(): HTMLElement {
@@ -895,10 +961,42 @@ export class VideoDetailEnhancer {
               this.displayReviews(response.data, contentDiv, videoId);
               isLoaded = true;
             } else {
-              contentDiv.innerHTML = `<div style="text-align: center; padding: 20px; color: #666;">获取评论失败: ${response.error || '未知错误'}</div>`;
+              this.renderRetryBlock(
+                contentDiv,
+                `获取评论失败：${response.error || '未知错误'}`,
+                '重试加载',
+                async () => {
+                  contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;">正在加载评论...</div>';
+                  const resp2 = await reviewBreakerService.getReviews(videoId, currentPage, reviewsPerPage);
+                  if (resp2.success && resp2.data) {
+                    this.displayReviews(resp2.data, contentDiv, videoId);
+                    isLoaded = true;
+                  } else {
+                    this.renderRetryBlock(contentDiv, `获取评论失败：${resp2.error || '未知错误'}`, '重试加载', async () => {});
+                  }
+                }
+              );
             }
           } catch (error) {
-            contentDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">获取评论失败</div>';
+            this.renderRetryBlock(
+              contentDiv,
+              '获取评论失败',
+              '重试加载',
+              async () => {
+                contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;">正在加载评论...</div>';
+                try {
+                  const resp3 = await reviewBreakerService.getReviews(videoId, currentPage, reviewsPerPage);
+                  if (resp3.success && resp3.data) {
+                    this.displayReviews(resp3.data, contentDiv, videoId);
+                    isLoaded = true;
+                  } else {
+                    this.renderRetryBlock(contentDiv, `获取评论失败：${resp3.error || '未知错误'}`, '重试加载', async () => {});
+                  }
+                } catch {
+                  this.renderRetryBlock(contentDiv, '获取评论失败', '重试加载', async () => {});
+                }
+              }
+            );
           }
         }
       } else {
