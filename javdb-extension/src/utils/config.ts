@@ -71,9 +71,9 @@ export const DEFAULT_ACTOR_SYNC_CONFIG: ActorSyncConfig = {
 
 // 新作品功能默认配置
 export const DEFAULT_NEW_WORKS_CONFIG: NewWorksGlobalConfig = {
-    enabled: false, // 默认不启用
     checkInterval: 24, // 24小时检查一次
     requestInterval: 3, // 请求间隔3秒
+    autoCheckEnabled: false, // 默认不开启自动检查
     filters: {
         excludeViewed: true, // 默认排除已看
         excludeBrowsed: true, // 默认排除已浏览

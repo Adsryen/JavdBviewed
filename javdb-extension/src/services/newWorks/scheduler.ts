@@ -33,9 +33,9 @@ export class NewWorksScheduler {
             // 初始化新作品管理器
             await this.manager.initialize();
 
-            // 检查是否需要启动定时任务
+            // 检查是否需要启动定时任务（仅在自动检查开启时）
             const config = await this.manager.getGlobalConfig();
-            if (config.enabled) {
+            if (config.autoCheckEnabled) {
                 await this.start();
             }
 
@@ -58,8 +58,8 @@ export class NewWorksScheduler {
         try {
             const config = await this.manager!.getGlobalConfig();
 
-            if (!config.enabled) {
-                log.verbose('NewWorksScheduler: 新作品功能未启用');
+            if (!config.autoCheckEnabled) {
+                log.verbose('NewWorksScheduler: 自动检查未开启');
                 return;
             }
 
