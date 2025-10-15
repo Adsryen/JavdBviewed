@@ -7,8 +7,7 @@ import type {
     NewWorkRecord
 } from './types';
 import type { VideoRecord } from '../../types';
-import { getValue } from '../../utils/storage';
-import { STORAGE_KEYS } from '../../utils/config';
+import { viewedGetAll, newWorksGet } from '../../background/db';
 
 export class NewWorksCollector {
     private readonly BASE_DELAY = 3000; // 基础延迟3秒
@@ -128,9 +127,16 @@ export class NewWorksCollector {
             want: 0
         };
 
-        // 获取本地记录用于状态检查
-        const localRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-        console.log(`本地记录数量: ${Object.keys(localRecords).length}`);
+        // 使用 IndexedDB 番号库做状态检查（更准确）
+        let recordMap = new Map<string, VideoRecord>();
+        try {
+            const all = await viewedGetAll();
+            for (const r of all) { if (r?.id) recordMap.set(r.id, r); }
+            console.log(`IDB 番号库记录数量: ${recordMap.size}`);
+        } catch (e) {
+            console.warn('读取 IDB 番号库失败，过滤将退化为不过滤已看/已浏览/想看', e);
+            // 留空 recordMap 相当于不触发状态过滤
+        }
 
         // 计算日期范围
         let dateThreshold: Date | null = null;
@@ -154,9 +160,9 @@ export class NewWorksCollector {
                 }
             }
 
-            // 检查本地状态
+            // 检查番号库状态
             if (!shouldExclude) {
-                const localRecord = localRecords[work.id];
+                const localRecord = recordMap.get(work.id);
                 if (localRecord) {
                     if (filters.excludeViewed && localRecord.status === 'viewed') {
                         shouldExclude = true;
@@ -192,11 +198,8 @@ export class NewWorksCollector {
      */
     private async checkWorkExists(workId: string): Promise<boolean> {
         try {
-            const newWorksData = await getValue<Record<string, NewWorkRecord>>(
-                STORAGE_KEYS.NEW_WORKS_RECORDS, 
-                {}
-            );
-            return workId in newWorksData;
+            const existing = await newWorksGet(workId);
+            return !!existing;
         } catch (error) {
             console.error('检查作品存在性失败:', error);
             return false;
@@ -244,7 +247,6 @@ export class NewWorksCollector {
                 if (hasOldWorks) {
                     shouldContinue = false;
                 } else {
-                    allWorks.push(...pageWorks);
                     currentPage++;
 
                     // 添加页面间延迟
