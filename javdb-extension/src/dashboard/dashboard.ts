@@ -218,7 +218,6 @@ const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> = {
     'tab-sync': {
         name: 'tabs/sync.html',
         styles: [
-            './sync.css',
             './styles/_dataSync.css',
         ],
     },
@@ -299,9 +298,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Mount layout fragments and ensure layout styles are present
     try {
+        // 顶层 Topbar（品牌横跨整个容器）
+        await ensureMounted('#layout-topbar-root', 'layout/topbar.html');
+        // 左侧侧栏与顶部 tabs 导航
         await ensureMounted('#layout-sidebar-root', 'layout/sidebar.html');
         await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
+        // 注入对应样式
         await ensureStylesLoaded([
+            './styles/layout/topbar.css',
             './styles/layout/sidebar.css',
             './styles/layout/tabs-nav.css',
         ]);
@@ -360,6 +364,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         titleIcon.onerror = () => {
             // 濡傛灉鍥剧墖鍔犺浇澶辫触锛岄殣钘忓浘鐗囧厓绱?
             titleIcon.style.display = 'none';
+        };
+    }
+
+    // 顶部导航品牌图标
+    const brandIcon = document.getElementById('brand-icon') as HTMLImageElement;
+    if (brandIcon) {
+        brandIcon.src = chrome.runtime.getURL('assets/favicon-32x32.png');
+        brandIcon.onload = () => {
+            brandIcon.style.display = 'block';
+        };
+        brandIcon.onerror = () => {
+            brandIcon.style.display = 'none';
         };
     }
 

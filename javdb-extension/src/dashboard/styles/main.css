@@ -9,6 +9,7 @@ body {
 
 .dashboard-container {
     display: flex;
+    flex-direction: column; /* 顶层改为上下结构：Topbar 在上，Body 在下 */
     width: 100%;
     max-width: 1600px; /* 增加面板宽度 */
     margin: 20px auto;
@@ -18,6 +19,13 @@ body {
     /* 修复高度 - 让容器根据内容自动调整高度，同时保证最小高度 */
     height: auto !important;
     min-height: calc(100vh - 40px) !important;
+}
+
+/* 新增：主体区域为左右结构（侧栏 | 分隔 | 主内容） */
+.dashboard-body {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
 }
 
 .sidebar {
@@ -33,8 +41,10 @@ body {
 }
 
 .sidebar.collapsed {
-    width: 60px;
-    padding: 25px 15px;
+    width: 0;                /* 收缩后不占水平空间 */
+    min-width: 0;            /* 避免残留最小宽度 */
+    padding: 25px 0;         /* 仅保留上下内边距，移除左右间距 */
+    overflow: hidden;        /* 隐藏内容，防止溢出 */
 }
 
 .sidebar.collapsed .sidebar-section {
@@ -58,6 +68,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* 收缩态：压缩分隔栏宽度，主区域尽量占满 */
+.sidebar.collapsed + .sidebar-divider {
+    width: 0;
+    background: transparent;
+}
+
+/* 收缩态下，折叠按钮贴边显示，保证易点击 */
+.sidebar.collapsed + .sidebar-divider .sidebar-toggle-btn {
+    left: 0;
+    box-shadow: 3px 0 12px rgba(0, 0, 0, 0.12);
 }
 
 /* thin separator line inside sidebar sections */
