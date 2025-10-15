@@ -55,6 +55,19 @@
         <option value="releaseDate_desc">按发行时间排序 (最新)</option>
         <option value="actorName_asc">按演员姓名排序</option>
       </select>
+      <button id="batchOpenUnreadBtn" class="btn-action" title="打开当前页所有未读新作品">
+        <i class="fas fa-external-link-alt"></i> 批量打开未读（当页）
+      </button>
+      <button id="selectAllCurrentPageBtn" class="btn-secondary" title="选择当前页的全部作品">
+        <i class="fas fa-check-square"></i> 本页全选
+      </button>
+      <button id="clearSelectionBtn" class="btn-secondary" title="清空所有已选择的作品">
+        <i class="fas fa-eraser"></i> 清空选择
+      </button>
+      <button id="batchOpenSelectedBtn" class="btn-action" disabled title="打开所有已选择的作品">
+        <i class="fas fa-external-link-alt"></i> 批量打开（已选）
+      </button>
+      <span id="selectedCountLabel" style="margin-left:8px;opacity:.8;">已选 0</span>
     </div>
 
     <div class="new-works-list-container">
