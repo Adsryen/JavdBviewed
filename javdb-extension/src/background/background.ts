@@ -8,6 +8,7 @@ import { registerDbMessageRouter } from './dbRouter';
 import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
+import { registerNetProxyRouter } from './netProxy';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
@@ -18,6 +19,7 @@ ensureMigrationsStart();
 registerWebDAVRouter();
 registerDbMessageRouter();
 registerMiscRouter();
+registerNetProxyRouter();
 
 // 启动日志（通过 consoleProxy 持久化到 IDB）
 try {
@@ -34,3 +36,4 @@ try {
     }
   });
 } catch {}
+
