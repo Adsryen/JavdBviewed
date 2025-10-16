@@ -1,4 +1,4 @@
-import { getValue, setValue } from '../utils/storage';
+import { getValue, setValue, getSettings } from '../utils/storage';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import type { ExtensionSettings, VideoRecord, LogEntry } from '../types';
 import { logAsync } from './logger';
@@ -24,7 +24,7 @@ export async function initializeGlobalState(): Promise<void> {
     if (STATE.isInitialized) return;
 
     try {
-        let settings = await getValue<ExtensionSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+        let settings = await getSettings();
 
         // --- Settings Migration Logic ---
         let settingsChanged = false;

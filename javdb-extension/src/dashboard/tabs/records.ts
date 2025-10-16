@@ -5,7 +5,15 @@ import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
 import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
 
+// 防重复初始化（避免多次绑定事件导致重复行为）
+let RECORDS_TAB_INITIALIZED = false;
+
 export function initRecordsTab(): void {
+    if (RECORDS_TAB_INITIALIZED) {
+        console.warn('[RecordsTab] initRecordsTab() called more than once, skipping re-init');
+        return;
+    }
+    RECORDS_TAB_INITIALIZED = true;
     const searchInput = document.getElementById('searchInput') as HTMLInputElement;
     const filterSelect = document.getElementById('filterSelect') as HTMLSelectElement;
     const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
@@ -21,21 +29,21 @@ export function initRecordsTab(): void {
     const selectedTagsContainer = document.getElementById('selectedTagsContainer') as HTMLElement;
 
     // Advanced search elements
-    const advToggleBtn = document.getElementById('advancedSearchToggle') as HTMLButtonElement;
     const advPanel = document.getElementById('advancedSearchPanel') as HTMLDivElement;
     const advAddBtn = document.getElementById('addConditionBtn') as HTMLButtonElement;
     const advApplyBtn = document.getElementById('applyConditionsBtn') as HTMLButtonElement;
     const advResetBtn = document.getElementById('resetConditionsBtn') as HTMLButtonElement;
     const advConditionsEl = document.getElementById('advConditions') as HTMLDivElement;
-    const advPresetNameInput = document.getElementById('advPresetName') as HTMLInputElement;
-    const advPresetSelect = document.getElementById('advPresetSelect') as HTMLSelectElement;
-    const saveAdvPresetBtn = document.getElementById('saveAdvPresetBtn') as HTMLButtonElement;
-    const loadAdvPresetBtn = document.getElementById('loadAdvPresetBtn') as HTMLButtonElement;
-    const deleteAdvPresetBtn = document.getElementById('deleteAdvPresetBtn') as HTMLButtonElement;
     const quickTimeField = document.getElementById('quickTimeField') as HTMLSelectElement;
     const quickTimeValue = document.getElementById('quickTimeValue') as HTMLInputElement;
     const quickTimeUnit = document.getElementById('quickTimeUnit') as HTMLSelectElement;
     const addQuickTimeBtn = document.getElementById('addQuickTimeBtn') as HTMLButtonElement;
+
+    // 搜索自动补全集合与面板
+    const searchSuggest = document.getElementById('searchSuggest') as HTMLDivElement;
+    let suggestItems: string[] = [];
+    let suggestVisible = false;
+    let suggestActiveIndex = -1;
 
     // 批量操作相关元素
     const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
@@ -45,17 +53,265 @@ export function initRecordsTab(): void {
     const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
     const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
 
-    // 快捷查询元素
-    const quickQueryBtn = document.getElementById('quickQueryBtn') as HTMLButtonElement;
+    const toggleCoversBtn = document.getElementById('toggleCoversBtn') as HTMLButtonElement;
 
     let imageTooltipElement: HTMLDivElement | null = null;
+    let coverObserver: IntersectionObserver | null = null;
 
     // 选择状态
     let selectedRecords = new Set<string>();
 
     // Tags filter state
     let selectedTags = new Set<string>();
+    // 由搜索输入解析出的标签（自动同步到 selectedTags）
+    let tokenSelectedTags = new Set<string>();
     let allTags = new Set<string>();
+    let allTagsStale = true;
+    const markAllTagsStale = () => { allTagsStale = true; };
+
+    // 初始化图片 Tooltip 容器（若不存在则创建）
+    function ensureImageTooltipElement(): void {
+        if (!imageTooltipElement) {
+            const existing = document.querySelector('.image-tooltip') as HTMLDivElement | null;
+            if (existing) {
+                imageTooltipElement = existing;
+            } else {
+                const el = document.createElement('div');
+                el.className = 'image-tooltip';
+                document.body.appendChild(el);
+                imageTooltipElement = el;
+            }
+        }
+    }
+
+    // ---------- 搜索框 tag 自动补全 ----------
+    // 简单防抖实现
+    function debounce<F extends (...args: any[]) => void>(fn: F, wait = 150) {
+        let t: number | undefined;
+        return (...args: Parameters<F>) => {
+            if (t) window.clearTimeout(t);
+            t = window.setTimeout(() => fn(...args), wait);
+        };
+    }
+    type SuggestContext =
+        | { type: 'hash'; q: string; tokenStart: number; tokenEnd: number; prefix: string; subStartInToken: number }
+        | { type: 'tag'; q: string; tokenStart: number; tokenEnd: number; prefix: string; subStartInToken: number }
+        | { type: null };
+    function ensureAllTagsCollected() {
+        try { if (allTagsStale) { collectAllTags(); allTagsStale = false; } } catch {}
+    }
+
+    function computeSuggestContext(): SuggestContext {
+        const val = searchInput.value;
+        const caret = searchInput.selectionStart ?? val.length;
+        // 当前 token 边界（以空格分隔）
+        const tokenStart = (() => {
+            const idx = val.lastIndexOf(' ', Math.max(0, caret - 1));
+            return idx === -1 ? 0 : idx + 1;
+        })();
+        const tokenEnd = caret;
+        const token = val.slice(tokenStart, tokenEnd);
+        // # 前缀
+        if (token.startsWith('#')) {
+            const q = token.slice(1).trim();
+            return { type: 'hash', q, tokenStart, tokenEnd, prefix: '#', subStartInToken: 1 };
+        }
+        // tag:/tags: 前缀
+        const m = token.match(/^tags?:/i);
+        if (m) {
+            const prefix = m[0];
+            const content = token.slice(prefix.length);
+            // 支持多值：用 [，,;；] 分隔，取最后一段作为当前子查询
+            let lastSep = -1;
+            ['，', ',', ';', '；'].forEach(sep => {
+                const i = content.lastIndexOf(sep);
+                if (i > lastSep) lastSep = i;
+            });
+            const sub = content.slice(lastSep + 1);
+            const subStartInToken = prefix.length + (lastSep + 1);
+            const q = sub.trim();
+            return { type: 'tag', q, tokenStart, tokenEnd, prefix, subStartInToken };
+        }
+        return { type: null };
+    }
+
+    function renderSuggest() {
+        if (!searchSuggest) return;
+        if (!suggestVisible || suggestItems.length === 0) {
+            searchSuggest.style.display = 'none';
+            searchSuggest.innerHTML = '';
+            return;
+        }
+        const html = suggestItems.map((t, idx) => `<div class="suggest-item ${idx === suggestActiveIndex ? 'active' : ''}" data-tag="${t}">${t}</div>`).join('');
+        searchSuggest.innerHTML = html;
+        searchSuggest.style.display = 'block';
+        // 位置与宽度
+        try {
+            const parent = searchInput.parentElement as HTMLElement;
+            const r1 = searchInput.getBoundingClientRect();
+            const r2 = parent.getBoundingClientRect();
+            const left = r1.left - r2.left;
+            const top = r1.bottom - r2.top + 4;
+            (searchSuggest.style as any).position = 'absolute';
+            searchSuggest.style.left = `${left}px`;
+            searchSuggest.style.top = `${top}px`;
+            searchSuggest.style.minWidth = `${searchInput.offsetWidth}px`;
+            searchSuggest.style.zIndex = '20';
+        } catch {}
+    }
+
+    function updateSuggest() {
+        ensureAllTagsCollected();
+        const ctx = computeSuggestContext();
+        if (!ctx.type) {
+            suggestItems = [];
+            suggestVisible = false;
+            renderSuggest();
+            return;
+        }
+        const qLower = (ctx.q || '').toLowerCase();
+        const all = Array.from(allTags);
+        let items = all.filter(t => String(t).toLowerCase().includes(qLower));
+        items.sort((a, b) => a.localeCompare(b));
+        suggestItems = items.slice(0, 10);
+        suggestVisible = suggestItems.length > 0;
+        suggestActiveIndex = suggestVisible ? 0 : -1;
+        renderSuggest();
+    }
+
+    function applySuggestion(tag: string) {
+        const val = searchInput.value;
+        const ctx = computeSuggestContext();
+        if (!ctx.type) return;
+        if (ctx.type === 'hash') {
+            const { tokenStart, tokenEnd } = ctx;
+            const newToken = `#${tag}`;
+            const newVal = val.slice(0, tokenStart) + newToken + val.slice(tokenEnd);
+            searchInput.value = newVal;
+            const pos = tokenStart + newToken.length;
+            searchInput.setSelectionRange(pos, pos);
+        } else if (ctx.type === 'tag') {
+            const { tokenStart, tokenEnd, subStartInToken } = ctx;
+            // tag:/tags:
+            const token = val.slice(tokenStart, tokenEnd);
+            const contentBefore = token.slice(0, subStartInToken);
+            const newToken = `${contentBefore}${tag}`;
+            const newVal = val.slice(0, tokenStart) + newToken + val.slice(tokenEnd);
+            searchInput.value = newVal;
+            const pos = tokenStart + newToken.length;
+            searchInput.setSelectionRange(pos, pos);
+        }
+        suggestVisible = false;
+        renderSuggest();
+        // 触发过滤刷新
+        currentPage = 1; updateFilteredRecords(); render();
+        searchInput.focus();
+    }
+
+    // 解析搜索文本中的标签前缀，如：tag:素人  或  #无码
+    function parseSearchTokens(raw: string): { text: string; tags: string[] } {
+        const parts = (raw || '').split(/\s+/).filter(Boolean);
+        const tags: string[] = [];
+        const remains: string[] = [];
+        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+        for (const p of parts) {
+            if (/^#/.test(p)) {
+                const t = p.replace(/^#/, '').trim();
+                if (t) tags.push(...splitMulti(t));
+                continue;
+            }
+            if (/^tags?:/i.test(p)) {
+                const t = p.replace(/^tags?:/i, '').trim();
+                if (t) tags.push(...splitMulti(t));
+                continue;
+            }
+            remains.push(p);
+        }
+        return { text: remains.join(' ').trim(), tags };
+    }
+
+    // 更新“显示封面”按钮文案
+    function updateToggleCoversBtnUI(): void {
+        if (!toggleCoversBtn) return;
+        const enabled = !!STATE.settings.showCoversInRecords;
+        toggleCoversBtn.innerHTML = enabled
+            ? '<i class="fas fa-image"></i> 隐藏封面'
+            : '<i class="fas fa-image"></i> 显示封面';
+    }
+
+    // 懒加载：创建/销毁 Observer
+    function setupCoverObserver(): void {
+        if (coverObserver) coverObserver.disconnect();
+        const rootEl = document.querySelector('.video-list-container') as Element | null;
+        coverObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target as HTMLImageElement;
+                    const src = img.getAttribute('data-src');
+                    if (src) {
+                        img.src = src;
+                        img.onload = () => {
+                            img.classList.add('loaded');
+                            (img.parentElement as HTMLElement | null)?.classList.remove('skeleton');
+                            img.removeAttribute('data-src');
+                        };
+                        img.onerror = () => {
+                            const retries = Number(img.getAttribute('data-retries') || '0');
+                            if (retries < 2) {
+                                img.setAttribute('data-retries', String(retries + 1));
+                                // 简单重试：短暂延迟后重新赋值 src
+                                const current = img.getAttribute('data-src') || src;
+                                setTimeout(() => { img.src = current; }, 300);
+                            } else {
+                                img.src = chrome.runtime.getURL('assets/alternate-search.png');
+                                img.classList.add('loaded');
+                                (img.parentElement as HTMLElement | null)?.classList.remove('skeleton');
+                                img.removeAttribute('data-src');
+                            }
+                        };
+                    }
+                    coverObserver?.unobserve(img);
+                }
+            });
+        }, {
+            root: rootEl || null,
+            rootMargin: '150px',
+            threshold: 0.01
+        });
+    }
+
+    function teardownCoverObserver(): void {
+        if (coverObserver) {
+            coverObserver.disconnect();
+            coverObserver = null;
+        }
+    }
+
+    // 立即初始化 Tooltip 容器与按钮状态
+    ensureImageTooltipElement();
+    updateToggleCoversBtnUI();
+
+    // 高级搜索按钮 - 事件委托兜底（避免早期返回导致监听未绑定）
+    try {
+        const w: any = window as any;
+        if (!w.__recordsAdvToggleDelegated) {
+            document.addEventListener('click', (ev) => {
+                const target = ev.target as HTMLElement | null;
+                const btn = target && (target.closest as any)?.call(target, '#advancedSearchToggle') as HTMLButtonElement | null;
+                if (btn) {
+                    // 阻止默认与冒泡，避免与原监听重复触发导致切换两次
+                    try { ev.preventDefault(); ev.stopPropagation(); } catch {}
+                    const panel = document.getElementById('advancedSearchPanel') as HTMLDivElement | null;
+                    if (panel) {
+                        const show = (panel.style.display === 'none' || !panel.style.display);
+                        panel.style.display = show ? 'block' : 'none';
+                        try { console.info('[AdvancedSearch] toggled', { visible: panel.style.display !== 'none' }); } catch {}
+                    }
+                }
+            }, true);
+            w.__recordsAdvToggleDelegated = true;
+        }
+    } catch {}
 
     // Advanced search state
     type FieldKey = 'id' | 'title' | 'status' | 'tags' | 'releaseDate' | 'createdAt' | 'updatedAt' | 'javdbUrl' | 'javdbImage';
@@ -63,40 +319,12 @@ export function initRecordsTab(): void {
         | 'contains' | 'equals' | 'starts_with' | 'ends_with'
         | 'empty' | 'not_empty'
         | 'eq' | 'gt' | 'gte' | 'lt' | 'lte'
-        | 'includes' | 'length_eq' | 'length_gt' | 'length_gte' | 'length_lt';
+        | 'includes' | 'includes_all' | 'includes_any'
+        | 'length_eq' | 'length_gt' | 'length_gte' | 'length_lt';
     interface AdvCondition { id: string; field: FieldKey; op: Comparator; value?: string }
     let advConditions: AdvCondition[] = [];
 
-    type AdvPresets = Record<string, AdvCondition[]>;
-
-    async function loadAdvPresets(): Promise<AdvPresets> {
-        const data = await chrome.storage.local.get(STORAGE_KEYS.ADV_SEARCH_PRESETS);
-        return (data && data[STORAGE_KEYS.ADV_SEARCH_PRESETS]) || {};
-    }
-
-    async function saveAdvPresets(presets: AdvPresets): Promise<void> {
-        await chrome.storage.local.set({ [STORAGE_KEYS.ADV_SEARCH_PRESETS]: presets });
-    }
-
-    async function refreshPresetSelect(): Promise<void> {
-        try {
-            const presets = await loadAdvPresets();
-            const current = advPresetSelect.value;
-            advPresetSelect.innerHTML = '<option value="">选择已保存方案...</option>';
-            Object.keys(presets).sort().forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                advPresetSelect.appendChild(opt);
-            });
-            // 保持选择不变
-            if (current && presets[current]) {
-                advPresetSelect.value = current;
-            }
-        } catch (e) {
-            console.error('刷新高级搜索方案下拉失败:', e);
-        }
-    }
+    // 已移除：高级搜索方案相关逻辑（保存/载入/删除）
 
     function createAdvConditionRow(condition?: AdvCondition) {
         const rowId = condition?.id || `cond_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -131,6 +359,28 @@ export function initRecordsTab(): void {
         valueInput.className = 'adv-value';
         valueInput.type = 'text';
         valueInput.placeholder = '比较值';
+
+        // 人类可读时间提示
+        const hint = document.createElement('span');
+        hint.className = 'adv-value-hint';
+        const updateHumanHint = () => {
+            try {
+                const field = fieldSelect.value as FieldKey;
+                const op = opSelect.value as Comparator;
+                const raw = valueInput.value.trim();
+                const numeric = Number(raw);
+                const need = (field === 'createdAt' || field === 'updatedAt') && ['eq','gt','gte','lt','lte'].includes(op);
+                if (need && Number.isFinite(numeric) && numeric > 0) {
+                    const d = new Date(numeric);
+                    const pad = (n: number) => String(n).padStart(2,'0');
+                    hint.textContent = `${field} ${op} ${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    hint.style.display = '';
+                } else {
+                    hint.textContent = '';
+                    hint.style.display = 'none';
+                }
+            } catch { hint.textContent = ''; hint.style.display = 'none'; }
+        };
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'button-like adv-remove';
@@ -168,7 +418,9 @@ export function initRecordsTab(): void {
                 ]);
             } else if (field === 'tags') {
                 addOps([
-                    { value: 'includes', label: '包含某标签' },
+                    { value: 'includes_all', label: '包含全部标签(子串, AND)' },
+                    { value: 'includes_any', label: '包含任一标签(子串, OR)' },
+                    { value: 'includes', label: '包含某标签(精确)' },
                     { value: 'length_eq', label: '标签数量 = ' },
                     { value: 'length_gt', label: '标签数量 > ' },
                     { value: 'length_gte', label: '标签数量 ≥ ' },
@@ -176,6 +428,9 @@ export function initRecordsTab(): void {
                     { value: 'empty', label: '为空' },
                     { value: 'not_empty', label: '非空' },
                 ]);
+                valueInput.placeholder = '多个值用 空格/逗号/分号 分隔 (子串匹配, 忽略大小写)';
+            } else {
+                valueInput.placeholder = '比较值';
             }
         }
 
@@ -191,8 +446,10 @@ export function initRecordsTab(): void {
         fieldSelect.addEventListener('change', () => {
             setOperatorsForField(fieldSelect.value as FieldKey);
             updateValueVisibility();
+            updateHumanHint();
         });
-        opSelect.addEventListener('change', updateValueVisibility);
+        opSelect.addEventListener('change', () => { updateValueVisibility(); updateHumanHint(); });
+        valueInput.addEventListener('input', updateHumanHint);
         removeBtn.addEventListener('click', () => {
             const id = row.dataset.id!;
             advConditions = advConditions.filter(c => c.id !== id);
@@ -204,12 +461,14 @@ export function initRecordsTab(): void {
         fieldSelect.value = (condition?.field || 'id') as string;
         setOperatorsForField(fieldSelect.value as FieldKey);
         if (condition?.op) opSelect.value = condition.op;
+        else if (fieldSelect.value === 'tags') opSelect.value = 'includes_all'; // 默认 AND
         if (condition?.value !== undefined) valueInput.value = condition.value;
         updateValueVisibility();
 
         row.appendChild(fieldSelect);
         row.appendChild(opSelect);
         row.appendChild(valueInput);
+        row.appendChild(hint);
         row.appendChild(removeBtn);
         advConditionsEl.appendChild(row);
     }
@@ -226,14 +485,7 @@ export function initRecordsTab(): void {
         });
     }
 
-    function clearAdvRows(): void {
-        advConditionsEl.innerHTML = '';
-    }
-
-    function rebuildAdvRows(conditions: AdvCondition[]): void {
-        clearAdvRows();
-        conditions.forEach(cond => createAdvConditionRow(cond));
-    }
+    // 已移除：rebuildAdvRows（方案功能去除后不再需要）
 
     function evaluateCondition(record: VideoRecord, cond: AdvCondition): boolean {
         const getField = (key: FieldKey): any => {
@@ -293,8 +545,15 @@ export function initRecordsTab(): void {
 
         if (cond.field === 'tags') {
             const arr: string[] = Array.isArray(v) ? v : [];
+            const arrLower = arr.map(s => String(s).toLowerCase());
+            const tokens = String(compareVal || '').split(/[，,;；\s]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase());
             switch (op) {
-                case 'includes': return compareVal ? arr.includes(compareVal) : false;
+                case 'includes_all':
+                    return tokens.length === 0 ? false : tokens.every(tok => arrLower.some(tag => tag.includes(tok)));
+                case 'includes_any':
+                    return tokens.length === 0 ? false : tokens.some(tok => arrLower.some(tag => tag.includes(tok)));
+                case 'includes':
+                    return compareVal ? arr.includes(compareVal) : false; // 保留精确匹配
                 case 'length_eq': return arr.length === Number(compareVal || 0);
                 case 'length_gt': return arr.length > Number(compareVal || 0);
                 case 'length_gte': return arr.length >= Number(compareVal || 0);
@@ -346,7 +605,8 @@ export function initRecordsTab(): void {
         try {
             serverModeActive = true;
             const sort = parseSort();
-            const searchTerm = (searchInput?.value || '').trim();
+            const parsed = parseSearchTokens((searchInput?.value || '').trim());
+            const searchTerm = parsed.text;
             const hasTags = selectedTags.size > 0;
             const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
             const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
@@ -357,11 +617,11 @@ export function initRecordsTab(): void {
             let total = 0;
 
             // 复杂条件或按 id/title 排序 -> 后台查询
-            if (searchTerm || hasTags || adv.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
+            if (searchTerm || hasTags || adv.length > 0 || parsed.tags.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
                 const queryParams: ViewedQueryParams = {
                     search: searchTerm || undefined,
                     status: statusVal,
-                    tags: Array.from(selectedTags),
+                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
                     orderBy: sort ? sort.orderBy : 'updatedAt',
                     order: sort ? sort.order : 'desc',
                     offset: (currentPage - 1) * recordsPerPage,
@@ -399,7 +659,16 @@ export function initRecordsTab(): void {
 
     function updateFilteredRecords() {
         try {
-            const searchTerm = searchInput.value.toLowerCase();
+            const parsed = parseSearchTokens(searchInput.value);
+            const searchTerm = parsed.text.toLowerCase();
+
+            // 将搜索中的标签与组件所选同步：用 tokenSelectedTags 维护“来源于搜索”的集合
+            // 先把旧 token 标签从 selectedTags 移除，再加入新的 token 标签
+            tokenSelectedTags.forEach(t => selectedTags.delete(t));
+            tokenSelectedTags = new Set(parsed.tags);
+            tokenSelectedTags.forEach(t => selectedTags.add(t));
+            // 同步标签下拉与已选展示
+            try { refreshTagsFilterDisplay(); } catch {}
             const filterValue = filterSelect.value as 'all' | VideoStatus;
 
             // 确保 STATE.records 是数组
@@ -412,15 +681,19 @@ export function initRecordsTab(): void {
                     return false;
                 }
 
+                const tagsArr = Array.isArray(record.tags) ? record.tags : [];
+                const tagsLower = tagsArr.map(t => String(t).toLowerCase());
+
                 const matchesSearch = !searchTerm ||
                     (record.id && record.id.toLowerCase().includes(searchTerm)) ||
-                    (record.title && record.title.toLowerCase().includes(searchTerm));
+                    (record.title && record.title.toLowerCase().includes(searchTerm)) ||
+                    tagsLower.some(t => t.includes(searchTerm));
                 const matchesFilter = filterValue === 'all' || record.status === filterValue;
 
                 // Tags filter
-                const matchesTags = selectedTags.size === 0 ||
-                    (record.tags && Array.isArray(record.tags) &&
-                     Array.from(selectedTags).every(tag => record.tags.includes(tag)));
+                const selectedTagsLower = Array.from(selectedTags).map(t => String(t).toLowerCase());
+                // 标签过滤：选中的每个标签 token 都需与记录 tags 中至少一个子串匹配（AND，忽略大小写）
+                const matchesTags = selectedTags.size === 0 || selectedTagsLower.every(token => tagsLower.some(tag => tag.includes(token)));
 
                 const basicMatch = matchesSearch && matchesFilter && matchesTags;
                 if (!basicMatch) return false;
@@ -464,6 +737,9 @@ export function initRecordsTab(): void {
             videoList.innerHTML = '';
 
             const sourceRecords = serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []);
+
+            const coversEnabled = !!STATE.settings.showCoversInRecords;
+            if (coversEnabled) setupCoverObserver(); else teardownCoverObserver();
 
             if (sourceRecords.length === 0) {
                 videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
@@ -678,11 +954,14 @@ export function initRecordsTab(): void {
                         videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
                     }
 
-                    // 生成tags HTML
+                    // 生成tags HTML（按所选标签子串匹配高亮，忽略大小写）
+                    const selectedTokensLower = Array.from(selectedTags).map(t => String(t).toLowerCase());
                     const tagsHtml = record.tags && record.tags.length > 0
-                        ? `<div class="video-tags">${record.tags.map(tag =>
-                            `<span class="video-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`
-                        ).join('')}</div>`
+                        ? `<div class="video-tags">${record.tags.map(tag => {
+                            const tagLower = String(tag).toLowerCase();
+                            const isSelected = selectedTokensLower.length > 0 && selectedTokensLower.some(tok => tagLower.includes(tok));
+                            return `<span class="video-tag ${isSelected ? 'selected' : ''}" data-tag="${tag}" title="点击筛选此标签">${tag}</span>`;
+                        }).join('')}</div>`
                         : '';
 
                     li.innerHTML = `
@@ -696,6 +975,30 @@ export function initRecordsTab(): void {
                         <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
                         <span class="video-status status-${record.status}">${record.status}</span>
                     `;
+
+                    // 如果启用封面：在最左侧插入封面容器，并使用懒加载
+                    if (coversEnabled) {
+                        const coverUrl = (record.enhancedData?.coverImage || record.javdbImage || '').trim();
+                        const cover = document.createElement('div');
+                        cover.className = 'video-cover skeleton';
+                        const img = document.createElement('img');
+                        img.className = 'video-cover-img';
+                        img.alt = String(record.title || '');
+                        if (coverUrl) {
+                            img.setAttribute('data-src', coverUrl);
+                        } else {
+                            img.src = chrome.runtime.getURL('assets/alternate-search.png');
+                            img.classList.add('loaded');
+                            cover.classList.remove('skeleton');
+                        }
+                        cover.appendChild(img);
+                        // 插入到最左侧
+                        if (li.firstChild) {
+                            li.insertBefore(cover, li.firstChild);
+                        } else {
+                            li.appendChild(cover);
+                        }
+                    }
 
                     // 添加图片悬浮功能到video-id-link
                     const videoIdLink = li.querySelector('.video-id-link') as HTMLAnchorElement;
@@ -807,6 +1110,14 @@ export function initRecordsTab(): void {
                     li.appendChild(controlsContainer);
                     li.dataset.recordId = record.id;
                     videoList.appendChild(li);
+
+                    // 注册懒加载观察
+                    if (coversEnabled) {
+                        const coverImg = li.querySelector('.video-cover-img') as HTMLImageElement | null;
+                        if (coverImg && coverImg.getAttribute('data-src')) {
+                            coverObserver?.observe(coverImg);
+                        }
+                    }
                 } catch (error) {
                     console.error('渲染记录项时出错:', error, record);
                 }
@@ -1040,83 +1351,27 @@ export function initRecordsTab(): void {
         });
     }
 
-    searchInput.addEventListener('input', () => { currentPage = 1; updateFilteredRecords(); render(); });
+    const triggerSuggest = debounce(() => updateSuggest(), 120);
+    const triggerFilter = debounce(() => { currentPage = 1; updateFilteredRecords(); render(); }, 150);
+    searchInput.addEventListener('input', () => { triggerSuggest(); triggerFilter(); });
+    searchInput.addEventListener('focus', () => { updateSuggest(); renderSuggest(); });
     filterSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
     sortSelect.addEventListener('change', () => { currentPage = 1; updateFilteredRecords(); render(); });
 
-    // 快捷查询事件监听器
-    quickQueryBtn.addEventListener('click', async () => {
-        const videoId = prompt('请输入要查询的番号 ID:');
-        if (!videoId || !videoId.trim()) {
-            return;
-        }
-
-        const trimmedId = videoId.trim();
-        
-        try {
-            // 显示加载状态
-            quickQueryBtn.disabled = true;
-            quickQueryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 查询中...';
-            
-            // 直接从 IndexedDB 查询
-            const result = await dbViewedQuery({
-                search: trimmedId,
-                adv: [{ field: 'id', op: 'equals', value: trimmedId }],
-                limit: 1,
-                offset: 0
-            });
-            
-            if (result.items && result.items.length > 0) {
-                const record = result.items[0];
-                
-                // 清空当前搜索条件，显示查询结果
-                searchInput.value = '';
-                filterSelect.value = 'all';
-                selectedTags.clear();
-                advConditions = [];
-                advConditionsEl.innerHTML = '';
-                updateSelectedTagsDisplay();
-                
-                // 设置过滤条件为精确匹配这个记录
-                filteredRecords = [record];
-                currentPage = 1;
-                
-                render();
-                
-                showMessage(`找到记录: ${record.id} - ${record.title}`, 'success');
-                
-                // 高亮显示查询到的记录
-                setTimeout(() => {
-                    const recordElement = document.querySelector(`[data-video-id="${record.id}"]`);
-                    if (recordElement) {
-                        recordElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        recordElement.classList.add('highlight-result');
-                        setTimeout(() => {
-                            recordElement.classList.remove('highlight-result');
-                        }, 3000);
-                    }
-                }, 100);
-                
-            } else {
-                showMessage(`未找到番号 "${trimmedId}" 的记录`, 'warn');
-            }
-            
-        } catch (error) {
-            console.error('快捷查询失败:', error);
-            showMessage(`查询失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
-        } finally {
-            // 恢复按钮状态
-            quickQueryBtn.disabled = false;
-            quickQueryBtn.innerHTML = '<i class="fas fa-search-plus"></i> 精确查询';
-        }
-    });
-
-    // Advanced search event listeners
-    if (advToggleBtn && advPanel) {
-        advToggleBtn.addEventListener('click', () => {
-            advPanel.style.display = advPanel.style.display === 'none' ? 'block' : 'none';
+    // 显示封面开关
+    if (toggleCoversBtn) {
+        toggleCoversBtn.addEventListener('click', () => {
+            STATE.settings.showCoversInRecords = !STATE.settings.showCoversInRecords;
+            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
+            updateToggleCoversBtnUI();
+            // 重新渲染以应用封面开关
+            render();
         });
     }
+
+    // 已移除：精确查询事件监听器
+
+    // Advanced search 切换使用文档级事件委托（见前文注入），此处不再重复绑定
 
     if (advAddBtn) {
         advAddBtn.addEventListener('click', () => {
@@ -1127,12 +1382,13 @@ export function initRecordsTab(): void {
     }
 
     if (advApplyBtn) {
-        advApplyBtn.addEventListener('click', () => {
+        const debouncedApply = debounce(() => {
             advConditions = parseAdvConditionsFromUI();
             currentPage = 1;
             updateFilteredRecords();
             render();
-        });
+        }, 180);
+        advApplyBtn.addEventListener('click', () => debouncedApply());
     }
 
     if (advResetBtn) {
@@ -1145,58 +1401,36 @@ export function initRecordsTab(): void {
         });
     }
 
-    // Preset handlers
-    if (saveAdvPresetBtn) {
-        saveAdvPresetBtn.addEventListener('click', async () => {
-            const name = (advPresetNameInput?.value || '').trim();
-            if (!name) {
-                showMessage('请输入方案名称', 'warn');
-                return;
-            }
-            const presets = await loadAdvPresets();
-            const conditions = parseAdvConditionsFromUI();
-            presets[name] = conditions;
-            await saveAdvPresets(presets);
-            showMessage(`方案 "${name}" 已保存`, 'success');
-            await refreshPresetSelect();
-            advPresetSelect.value = name;
-        });
-    }
-
-    if (loadAdvPresetBtn) {
-        loadAdvPresetBtn.addEventListener('click', async () => {
-            const name = advPresetSelect?.value || '';
-            const presets = await loadAdvPresets();
-            if (!name || !presets[name]) {
-                showMessage('请选择要载入的方案', 'warn');
-                return;
-            }
-            advConditions = presets[name];
-            rebuildAdvRows(advConditions);
-            currentPage = 1;
-            updateFilteredRecords();
-            render();
-            showMessage(`已载入方案 "${name}"`, 'success');
-        });
-    }
-
-    if (deleteAdvPresetBtn) {
-        deleteAdvPresetBtn.addEventListener('click', async () => {
-            const name = advPresetSelect?.value || '';
-            const presets = await loadAdvPresets();
-            if (!name || !presets[name]) {
-                showMessage('请选择要删除的方案', 'warn');
-                return;
-            }
-            delete presets[name];
-            await saveAdvPresets(presets);
-            await refreshPresetSelect();
-            advPresetSelect.value = '';
-            showMessage(`方案 "${name}" 已删除`, 'success');
-        });
-    }
+    // 已移除：高级搜索方案事件绑定（保存/载入/删除）
 
     // Quick relative time condition
+    // 快捷条件预览（人类可读）
+    const quickTimePreview = document.getElementById('quickTimePreview') as HTMLSpanElement;
+    function formatLocal(ms: number): string {
+        const d = new Date(ms);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function updateQuickTimePreview() {
+        try {
+            const field = (quickTimeField?.value || 'createdAt') as FieldKey;
+            const n = parseInt(quickTimeValue?.value || '0', 10);
+            const unit = quickTimeUnit?.value || 'days';
+            if (!Number.isNaN(n) && n > 0) {
+                const now = Date.now();
+                const delta = unit === 'hours' ? n * 60 * 60 * 1000 : n * 24 * 60 * 60 * 1000;
+                const since = now - delta;
+                if (quickTimePreview) quickTimePreview.textContent = `将添加：${field} ≥ ${formatLocal(since)}`;
+            } else {
+                if (quickTimePreview) quickTimePreview.textContent = '';
+            }
+        } catch { if (quickTimePreview) quickTimePreview.textContent = ''; }
+    }
+    quickTimeField?.addEventListener('change', updateQuickTimePreview);
+    quickTimeValue?.addEventListener('input', updateQuickTimePreview);
+    quickTimeUnit?.addEventListener('change', updateQuickTimePreview);
+    updateQuickTimePreview();
+
     if (addQuickTimeBtn) {
         addQuickTimeBtn.addEventListener('click', () => {
             const field = (quickTimeField?.value || 'createdAt') as FieldKey;
@@ -1218,8 +1452,46 @@ export function initRecordsTab(): void {
         });
     }
 
-    // 初始化预置下拉
-    refreshPresetSelect();
+    // 已移除：初始化预置下拉
+
+    // 搜索建议键盘交互
+    searchInput.addEventListener('keydown', (e) => {
+        if (!suggestVisible || suggestItems.length === 0) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            suggestActiveIndex = (suggestActiveIndex + 1) % suggestItems.length;
+            renderSuggest();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            suggestActiveIndex = (suggestActiveIndex - 1 + suggestItems.length) % suggestItems.length;
+            renderSuggest();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const tag = suggestItems[suggestActiveIndex] || suggestItems[0];
+            if (tag) applySuggestion(tag);
+        } else if (e.key === 'Escape') {
+            suggestVisible = false; renderSuggest();
+        }
+    });
+
+    // 点击建议项
+    if (searchSuggest) {
+        searchSuggest.addEventListener('mousedown', (e) => {
+            const el = (e.target as HTMLElement).closest('.suggest-item') as HTMLElement | null;
+            if (!el) return;
+            const tag = el.getAttribute('data-tag');
+            if (tag) applySuggestion(tag);
+            e.preventDefault();
+        });
+    }
+
+    // 点击外部收起
+    document.addEventListener('click', (e) => {
+        const target = e.target as Node;
+        if (searchSuggest && !searchSuggest.contains(target) && target !== searchInput) {
+            suggestVisible = false; renderSuggest();
+        }
+    });
 
     // Tags filter event listeners
     tagsFilterInput.addEventListener('click', () => {
@@ -1287,6 +1559,9 @@ export function initRecordsTab(): void {
     batchDeleteBtn.addEventListener('click', handleBatchDelete);
     cancelBatchBtn.addEventListener('click', clearAllSelection);
 
+    // 初始化
+    ensureImageTooltipElement();
+    updateToggleCoversBtnUI();
     updateFilteredRecords();
     render();
     renderTagsFilter(); // 初始化标签筛选

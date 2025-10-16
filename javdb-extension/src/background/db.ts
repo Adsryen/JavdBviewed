@@ -62,11 +62,16 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
     if (lower) {
       const idS = (r.id || '').toLowerCase();
       const titleS = (r.title || '').toLowerCase();
-      if (!idS.includes(lower) && !titleS.includes(lower)) continue;
+      const tagsArr = Array.isArray(r.tags) ? r.tags : [];
+      const inTags = tagsArr.some(t => String(t || '').toLowerCase().includes(lower));
+      if (!idS.includes(lower) && !titleS.includes(lower) && !inTags) continue;
     }
     if (needTags) {
       const arr = Array.isArray(r.tags) ? r.tags : [];
-      if (!tags.every(t => arr.includes(t))) continue;
+      const arrLower = arr.map(s => String(s).toLowerCase());
+      const queryLower = tags.map(s => String(s).toLowerCase());
+      // 每个查询标签需要与记录的任意一个 tag 子串匹配（AND，忽略大小写）
+      if (!queryLower.every(qt => arrLower.some(t => t.includes(qt)))) continue;
     }
     if (adv.length > 0 && !matchAdvBasic(r, adv)) continue;
     list.push(r);
@@ -104,14 +109,34 @@ function matchAdvBasic(r: VideoRecord, adv: Array<{ field: string; op: string; v
   for (const c of adv) {
     const v = get(c.field);
     const op = c.op;
-    const val = c.value;
-    if (op === 'empty') { if (!(v == null || (Array.isArray(v) ? v.length === 0 : String(v) === ''))) return false; continue; }
-    if (op === 'not_empty') { if (v == null || (Array.isArray(v) ? v.length === 0 : String(v) === '')) return false; continue; }
-    if (op === 'contains') { if (!String(v ?? '').includes(String(val ?? ''))) return false; continue; }
-    if (op === 'equals') { if (!(String(v ?? '') === String(val ?? ''))) return false; continue; }
-    if (op === 'starts_with') { if (!String(v ?? '').startsWith(String(val ?? ''))) return false; continue; }
-    if (op === 'ends_with') { if (!String(v ?? '').endsWith(String(val ?? ''))) return false; continue; }
-    if (op === 'includes') { const arr = Array.isArray(v) ? v : []; if (!arr.includes(String(val ?? ''))) return false; continue; }
+    const val = c.value ?? '';
+    if (op === 'empty') { if (!(v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === ''))) return false; continue; }
+    if (op === 'not_empty') { if (v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === '')) return false; continue; }
+
+    // 文本比较：与前端一致，忽略大小写
+    if (op === 'contains' || op === 'equals' || op === 'starts_with' || op === 'ends_with') {
+      const sv = String(v ?? '').toLowerCase();
+      const cv = String(val ?? '').toLowerCase();
+      if (op === 'contains' && !sv.includes(cv)) return false;
+      if (op === 'equals' && !(sv === cv)) return false;
+      if (op === 'starts_with' && !sv.startsWith(cv)) return false;
+      if (op === 'ends_with' && !sv.endsWith(cv)) return false;
+      continue;
+    }
+
+    // tags 比较
+    if (op === 'includes' || op === 'includes_all' || op === 'includes_any') {
+      const arr: string[] = Array.isArray(v) ? v : [];
+      if (op === 'includes') {
+        if (!arr.includes(String(val))) return false; // 精确匹配
+        continue;
+      }
+      const arrLower = arr.map(s => String(s).toLowerCase());
+      const tokens = String(val || '').split(/[，,;；\s]+/).map(s => s.trim()).filter(Boolean).map(s => s.toLowerCase());
+      if (tokens.length === 0) return false;
+      if (op === 'includes_all') { if (!tokens.every(tok => arrLower.some(tag => tag.includes(tok)))) return false; continue; }
+      if (op === 'includes_any') { if (!tokens.some(tok => arrLower.some(tag => tag.includes(tok)))) return false; continue; }
+    }
     // 数组长度比较（如 tags 长度）
     if (op === 'length_eq' || op === 'length_gt' || op === 'length_gte' || op === 'length_lt') {
       const arr = Array.isArray(v) ? v : [];
