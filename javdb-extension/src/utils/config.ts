@@ -405,7 +405,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     // 新增：AI功能配置
     ai: DEFAULT_AI_SETTINGS,
 
-    version: '0.0.0'
+    version: '0.0.0',
+    // Dashboard 番号库：是否在列表中显示封面
+    showCoversInRecords: false
 };
 
 // WebDAV恢复配置
