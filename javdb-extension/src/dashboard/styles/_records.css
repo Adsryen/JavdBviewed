@@ -31,6 +31,27 @@
     align-items: start;
 }
 
+/* 显示/隐藏封面按钮配色与状态 */
+#toggleCoversBtn.button-like {
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+}
+#toggleCoversBtn.button-like:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+#toggleCoversBtn.toggle-on {
+    background: #e6f4ff !important;
+    color: #0969da !important;
+    border-color: #9ecaff !important;
+}
+#toggleCoversBtn.toggle-off {
+    background: #f3f4f6 !important;
+    color: #6b7280 !important;
+    border-color: #e5e7eb !important;
+}
+
 /* 搜索输入包装与建议面板 */
 .search-input-wrapper {
     position: relative;
@@ -265,18 +286,19 @@
     border-bottom: 1px solid var(--border-color);
     transition: background-color 0.2s ease;
     gap: 10px;
-    min-height: 60px;
+    min-height: 90px; /* 适配 5:2 封面更宽更矮 */
 }
 
 /* 封面容器与图片样式 */
 .video-cover {
-    flex: 0 0 88px;
-    width: 88px;
-    aspect-ratio: 2 / 3;
-    border-radius: 6px;
+    flex: 0 0 154px; /* -30% from 220 */
+    width: 154px;    /* -30% from 220 */
+    aspect-ratio: 3 / 2; /* 改为 3:2 比例 */
+    border-radius: 8px;
     overflow: hidden;
     background: #f2f2f2;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: zoom-in;
 }
 
 .video-cover-img {
@@ -481,13 +503,13 @@
 /* Image Tooltip Styles */
 .image-tooltip {
     position: fixed;
-    z-index: 10000;
+    z-index: 2147483647; /* 置于最上层，避免被框架遮挡 */
     display: none;
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
-    max-width: 300px;
-    max-height: 400px;
+    max-width: none;
+    max-height: none;
 }
 
 .image-tooltip-content {
@@ -497,17 +519,28 @@
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
     border: 1px solid #e0e0e0;
     overflow: hidden;
+    /* 视口自适应，留出边距避免贴边 */
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
 }
 
 .image-tooltip-content img {
     width: 100%;
     height: auto;
-    max-width: 300px;
-    max-height: 400px;
+    /* 控制绝对上限，同时不超过视口可用空间 */
+    max-width: min(840px, calc(100vw - 32px));
+    max-height: min(630px, calc(100vh - 32px));
     object-fit: cover;
     display: block;
     opacity: 0;
     transition: opacity 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .video-cover {
+        flex: 0 0 112px; /* 160 * 0.70 */
+        width: 112px;    /* 160 * 0.70 */
+    }
 }
 
 .image-tooltip-loading {

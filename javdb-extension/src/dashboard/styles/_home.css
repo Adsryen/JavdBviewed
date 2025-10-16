@@ -1,0 +1,82 @@
+.home-page { display: grid; gap: 16px; }
+
+.home-welcome h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+.home-subtitle { margin: 0; color: #6b7280; }
+
+/* stats-overview 已在 _stats.css 定义，这里只做容器间距 */
+.home-stats #stats-overview { margin-top: 8px; }
+
+/* 顶部刷新布局 */
+.home-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.home-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #111827;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.home-refresh-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.home-refresh-btn.loading { opacity: .7; cursor: wait; }
+.home-refresh-btn i { color: #17a2b8; }
+
+.home-quick-links .quick-links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+}
+.home-quick-links .quick-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 14px 12px;
+  text-decoration: none;
+  color: #111827;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.home-quick-links .quick-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  border-color: #d1d5db;
+}
+.home-quick-links .quick-link i { font-size: 18px; color: #4a90e2; }
+.home-quick-links .quick-link span { font-weight: 600; }
+
+/* 首页三个概览区块颜色映射（与以往一致） */
+.home-sections .stat-item[data-stat="total"] .stat-value { color: #007bff; }
+.home-sections .stat-item[data-stat="viewed"] .stat-value { color: #28a745; }
+.home-sections .stat-item[data-stat="browsed"] .stat-value { color: #17a2b8; }
+.home-sections .stat-item[data-stat="want"] .stat-value { color: #fd7e14; }
+
+/* 额外指标配色 */
+.home-sections .stat-item[data-stat="last7"] .stat-value { color: #6f42c1; }
+.home-sections .stat-item[data-stat="last30"] .stat-value { color: #6c757d; }
+
+/* 演员库维度配色 */
+.home-sections .stat-item[data-stat="female"] .stat-value { color: #d63384; }
+.home-sections .stat-item[data-stat="male"] .stat-value { color: #0d6efd; }
+.home-sections .stat-item[data-stat="unknown"] .stat-value { color: #6c757d; }
+.home-sections .stat-item[data-stat="censored"] .stat-value { color: #fd7e14; }
+.home-sections .stat-item[data-stat="uncensored"] .stat-value { color: #17a2b8; }
+.home-sections .stat-item[data-stat="blacklisted"] .stat-value { color: #dc3545; }
+.home-sections .stat-item[data-stat="recentlyAdded"] .stat-value { color: #28a745; }
+.home-sections .stat-item[data-stat="recentlyUpdated"] .stat-value { color: #007bff; }
+
+/* 新作品维度配色 */
+.home-sections .stat-item[data-stat="unread"] .stat-value { color: #ffc107; }
+.home-sections .stat-item[data-stat="today"] .stat-value { color: #ff5722; }
+.home-sections .stat-item[data-stat="week"] .stat-value { color: #20c997; }

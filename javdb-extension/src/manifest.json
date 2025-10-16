@@ -9,7 +9,8 @@
         "alarms",
         "scripting",
         "notifications",
-        "unlimitedStorage"
+        "unlimitedStorage",
+        "declarativeNetRequest"
     ],
     "host_permissions": [
         "*://*.javdb.com/*",

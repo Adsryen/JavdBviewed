@@ -964,11 +964,11 @@ button.primary {
     border: none !important;
 }
 
-.stat-label {
-    font-size: 12px;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+/* 隐藏原各标签页顶部概览（迁移到首页） */
+#tab-records .stats-section,
+#tab-actors .stats-section,
+#tab-new-works .stats-section {
+    display: none !important;
 }
 
 /* 响应式设计 */
@@ -982,7 +982,6 @@ button.primary {
     .stats-section .stats-grid {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
     }
-
     .stats-section .stat-item {
         padding: 12px;
     }
