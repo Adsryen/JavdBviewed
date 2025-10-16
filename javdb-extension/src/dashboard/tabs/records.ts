@@ -237,6 +237,11 @@ export function initRecordsTab(): void {
         toggleCoversBtn.innerHTML = enabled
             ? '<i class="fas fa-image"></i> 隐藏封面'
             : '<i class="fas fa-image"></i> 显示封面';
+        try {
+            toggleCoversBtn.classList.toggle('toggle-on', enabled);
+            toggleCoversBtn.classList.toggle('toggle-off', !enabled);
+            toggleCoversBtn.title = enabled ? '隐藏封面' : '显示封面';
+        } catch {}
     }
 
     // 懒加载：创建/销毁 Observer
@@ -992,6 +997,82 @@ export function initRecordsTab(): void {
                             cover.classList.remove('skeleton');
                         }
                         cover.appendChild(img);
+                        // 悬浮显示大图
+                        const bigImageUrl = (record.javdbImage || coverUrl || '').trim();
+                        if (bigImageUrl) {
+                            const onMouseEnter = (e: MouseEvent) => {
+                                if (!imageTooltipElement) return;
+                                const tooltipContent = document.createElement('div');
+                                tooltipContent.className = 'image-tooltip-content';
+                                const bigImg = document.createElement('img');
+                                bigImg.src = bigImageUrl;
+                                bigImg.alt = String(record.title || '');
+                                bigImg.style.opacity = '0';
+                                const loadingDiv = document.createElement('div');
+                                loadingDiv.className = 'image-tooltip-loading';
+                                loadingDiv.textContent = '加载中...';
+                                bigImg.addEventListener('load', () => {
+                                    bigImg.style.opacity = '1';
+                                    loadingDiv.style.display = 'none';
+                                });
+                                bigImg.addEventListener('error', () => {
+                                    bigImg.style.display = 'none';
+                                    loadingDiv.textContent = '图片加载失败';
+                                });
+                                imageTooltipElement.innerHTML = '';
+                                tooltipContent.appendChild(bigImg);
+                                tooltipContent.appendChild(loadingDiv);
+                                imageTooltipElement.appendChild(tooltipContent);
+                                imageTooltipElement.style.display = 'block';
+                                imageTooltipElement.style.opacity = '0';
+                                // 边缘避让定位：靠近右/下边缘时自动翻转，并进行视口夹紧
+                                let lastX = e.clientX;
+                                let lastY = e.clientY;
+                                const positionAt = (x: number, y: number) => {
+                                    if (!imageTooltipElement) return;
+                                    const padding = 8;
+                                    const offset = 15;
+                                    const vw = window.innerWidth;
+                                    const vh = window.innerHeight;
+                                    const rect = imageTooltipElement.getBoundingClientRect();
+                                    let left = x + offset;
+                                    let top = y + offset;
+                                    if (left + rect.width + padding > vw) left = x - rect.width - offset;
+                                    if (top + rect.height + padding > vh) top = y - rect.height - offset;
+                                    left = Math.max(padding, Math.min(left, vw - rect.width - padding));
+                                    top = Math.max(padding, Math.min(top, vh - rect.height - padding));
+                                    imageTooltipElement.style.left = `${Math.round(left)}px`;
+                                    imageTooltipElement.style.top = `${Math.round(top)}px`;
+                                };
+                                positionAt(lastX, lastY);
+                                const onMouseMove = (event: MouseEvent) => {
+                                    lastX = event.clientX;
+                                    lastY = event.clientY;
+                                    positionAt(lastX, lastY);
+                                };
+                                (cover as any).__updateTooltipPos = onMouseMove;
+                                cover.addEventListener('mousemove', onMouseMove);
+                                setTimeout(() => {
+                                    if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
+                                        imageTooltipElement.style.opacity = '1';
+                                        positionAt(lastX, lastY);
+                                    }
+                                }, 120);
+                            };
+                            const onMouseLeave = () => {
+                                if (imageTooltipElement) {
+                                    imageTooltipElement.style.display = 'none';
+                                    imageTooltipElement.style.opacity = '0';
+                                }
+                                const handler = (cover as any).__updateTooltipPos as ((ev: MouseEvent)=>void) | undefined;
+                                if (handler) {
+                                    cover.removeEventListener('mousemove', handler);
+                                    delete (cover as any).__updateTooltipPos;
+                                }
+                            };
+                            cover.addEventListener('mouseenter', onMouseEnter);
+                            cover.addEventListener('mouseleave', onMouseLeave);
+                        }
                         // 插入到最左侧
                         if (li.firstChild) {
                             li.insertBefore(cover, li.firstChild);
@@ -1040,31 +1121,57 @@ export function initRecordsTab(): void {
                             imageTooltipElement.style.display = 'block';
                             imageTooltipElement.style.opacity = '0';
 
-                            // 位置更新
-                            const updateImageTooltipPosition = (event: MouseEvent) => {
+                            // 边缘避让定位
+                            let lastX2 = e.clientX;
+                            let lastY2 = e.clientY;
+                            const positionAt2 = (x: number, y: number) => {
                                 if (!imageTooltipElement) return;
-                                const x = event.clientX + 15;
-                                const y = event.clientY + 15;
-                                imageTooltipElement.style.left = `${x}px`;
-                                imageTooltipElement.style.top = `${y}px`;
+                                const padding = 8;
+                                const offset = 15;
+                                const vw = window.innerWidth;
+                                const vh = window.innerHeight;
+                                const rect = imageTooltipElement.getBoundingClientRect();
+                                let left = x + offset;
+                                let top = y + offset;
+                                if (left + rect.width + padding > vw) left = x - rect.width - offset;
+                                if (top + rect.height + padding > vh) top = y - rect.height - offset;
+                                left = Math.max(padding, Math.min(left, vw - rect.width - padding));
+                                top = Math.max(padding, Math.min(top, vh - rect.height - padding));
+                                imageTooltipElement.style.left = `${Math.round(left)}px`;
+                                imageTooltipElement.style.top = `${Math.round(top)}px`;
                             };
 
-                            updateImageTooltipPosition(e);
+                            const onMouseMoveLink = (event: MouseEvent) => {
+                                lastX2 = event.clientX;
+                                lastY2 = event.clientY;
+                                positionAt2(lastX2, lastY2);
+                            };
 
-                            // 延迟显示，避免快速移动时闪烁
+                            positionAt2(lastX2, lastY2);
+
+                            // 延迟显示，避免快速移动时闪烁，并再次校正位置
                             setTimeout(() => {
                                 if (imageTooltipElement && imageTooltipElement.style.display === 'block') {
                                     imageTooltipElement.style.opacity = '1';
+                                    positionAt2(lastX2, lastY2);
                                 }
                             }, 200);
 
-                            videoIdLink.addEventListener('mousemove', updateImageTooltipPosition);
+                            // 记录监听器引用，便于 mouseleave 时移除
+                            (videoIdLink as any).__tooltipMove = onMouseMoveLink;
+                            videoIdLink.addEventListener('mousemove', onMouseMoveLink);
                         });
 
                         videoIdLink.addEventListener('mouseleave', () => {
                             if (imageTooltipElement) {
                                 imageTooltipElement.style.display = 'none';
                                 imageTooltipElement.style.opacity = '0';
+                            }
+                            // 移除先前注册的 mousemove 监听，防止累积
+                            const handler = (videoIdLink as any).__tooltipMove as ((ev: MouseEvent)=>void) | undefined;
+                            if (handler) {
+                                try { videoIdLink.removeEventListener('mousemove', handler); } catch {}
+                                try { delete (videoIdLink as any).__tooltipMove; } catch {}
                             }
                         });
                     }

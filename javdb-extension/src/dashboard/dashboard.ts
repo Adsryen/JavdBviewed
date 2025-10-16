@@ -23,6 +23,7 @@ import { getDrive115V2Service } from '../services/drive115v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted, loadPartial, injectPartial } from './loaders/partialsLoader';
 import { ensureStylesLoaded, prefetchStyles } from './loaders/stylesLoader';
+import { dbViewedStats, dbActorsStats, dbNewWorksStats } from './dbClient';
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -193,11 +194,19 @@ function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surpl
     `;
 }
 const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> = {
-    // 号码库（首屏）
+    // 首页（首屏）
+    'tab-home': {
+        name: 'tabs/home.html',
+        styles: [
+            './styles/_home.css',
+            './styles/_stats.css'
+        ],
+    },
+    // 号码库
     'tab-records': {
         name: 'tabs/records.html',
         styles: [
-            './styles/_records.css', // 记录页样式（若已在<head>中引入，将自动去重）
+            './styles/_records.css',
         ],
     },
     // 演员库
@@ -382,8 +391,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖栵紝鏃犻渶鍦ㄦ鏄惧紡鍒濆鍖?
 
     await initTabs();
-    await mountTabIfNeeded('tab-records');
-    await initializeTabById('tab-records');
+    await mountTabIfNeeded('tab-home');
+    await initializeTabById('tab-home');
+    try { await initStatsOverview(); } catch {}
+    try { await initHomeSectionsOverview(); } catch {}
+    bindHomeRefreshButton();
     // initActorsTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮婕斿憳搴撴爣绛鹃〉鏃舵墠鍔犺浇
     // initNewWorksTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮鏂颁綔鍝佹爣绛鹃〉鏃舵墠鍔犺浇
     // initSyncTab(); // lazy: moved to tab click and hash init
@@ -543,7 +555,7 @@ async function initTabs(): Promise<void> {
         }
 
         // 瑙ｆ瀽褰撳墠hash锛屾敮鎸佷簩绾ц矾寰?
-        const fullHash = window.location.hash.substring(1) || 'tab-records';
+        const fullHash = window.location.hash.substring(1) || 'tab-home';
         const [mainTab, subSection] = fullHash.split('/');
         const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
         switchTab(targetTab || (tabs.length > 0 ? tabs[0] : null));
@@ -556,10 +568,15 @@ async function initTabs(): Promise<void> {
         }
 
         await initializeTabById(mainTab);
+        if (mainTab === 'tab-home') {
+            try { await initStatsOverview(); } catch {}
+            try { await initHomeSectionsOverview(); } catch {}
+            bindHomeRefreshButton();
+        }
 
         // 娣诲姞hashchange浜嬩欢鐩戝惉鍣紝澶勭悊URL鍙樺寲
         window.addEventListener('hashchange', async () => {
-            const newHash = window.location.hash.substring(1) || 'tab-records';
+            const newHash = window.location.hash.substring(1) || 'tab-home';
             const [newMainTab, newSubSection] = newHash.split('/');
 
             // 濡傛灉涓绘爣绛鹃〉鍙戠敓鍙樺寲锛屽垏鎹富鏍囩椤?
@@ -576,6 +593,11 @@ async function initTabs(): Promise<void> {
 
             // 统一初始化当前主标签页
             await initializeTabById(newMainTab);
+            if (newMainTab === 'tab-home') {
+                try { await initStatsOverview(); } catch {}
+                try { await initHomeSectionsOverview(); } catch {}
+                bindHomeRefreshButton();
+            }
 
             // 濡傛灉鏄缃〉闈笖鏈夊瓙椤甸潰锛岄€氱煡璁剧疆椤甸潰鍒囨崲
             if (newMainTab === 'tab-settings' && newSubSection) {
@@ -590,58 +612,149 @@ async function initTabs(): Promise<void> {
     }
 }
 
-function initStatsOverview(): void {
+async function initStatsOverview(): Promise<void> {
     const container = document.getElementById('stats-overview');
     if (!container) return;
 
     try {
-        // 纭繚 STATE.records 鏄暟缁?
-        const records = Array.isArray(STATE.records) ? STATE.records : [];
-
-        const totalRecords = records.length;
-        const viewedCount = records.filter(r => r && r.status === VIDEO_STATUS.VIEWED).length;
-        const wantCount = records.filter(r => r && r.status === VIDEO_STATUS.WANT).length;
-        const browsedCount = records.filter(r => r && r.status === VIDEO_STATUS.BROWSED).length;
+        const s = await dbViewedStats();
+        const total = s.total ?? 0;
+        const viewed = s.byStatus?.viewed ?? 0;
+        const browsed = s.byStatus?.browsed ?? 0;
+        const want = s.byStatus?.want ?? 0;
 
         container.innerHTML = `
             <div data-stat="total">
-                <span class="stat-value">${totalRecords}</span>
-                <span class="stat-label">鎬昏褰?/span>
+                <span class="stat-value">${total}</span>
+                <span class="stat-label">总记录</span>
             </div>
             <div data-stat="viewed">
-                <span class="stat-value">${viewedCount}</span>
-                <span class="stat-label">宸茶鐪?/span>
+                <span class="stat-value">${viewed}</span>
+                <span class="stat-label">已观看</span>
             </div>
             <div data-stat="browsed">
-                <span class="stat-value">${browsedCount}</span>
-                <span class="stat-label">宸叉祻瑙?/span>
+                <span class="stat-value">${browsed}</span>
+                <span class="stat-label">已浏览</span>
             </div>
             <div data-stat="want">
-                <span class="stat-value">${wantCount}</span>
-                <span class="stat-label">鎯崇湅</span>
+                <span class="stat-value">${want}</span>
+                <span class="stat-label">想看</span>
             </div>
         `;
     } catch (error) {
-        console.error('鍒濆鍖栫粺璁℃瑙堟椂鍑洪敊:', error);
+        console.error('初始化统计概览时出错:', error);
         container.innerHTML = `
             <div data-stat="total">
                 <span class="stat-value">0</span>
-                <span class="stat-label">鎬昏褰?/span>
+                <span class="stat-label">总记录</span>
             </div>
             <div data-stat="viewed">
                 <span class="stat-value">0</span>
-                <span class="stat-label">宸茶鐪?/span>
+                <span class="stat-label">已观看</span>
             </div>
             <div data-stat="browsed">
                 <span class="stat-value">0</span>
-                <span class="stat-label">宸叉祻瑙?/span>
+                <span class="stat-label">已浏览</span>
             </div>
             <div data-stat="want">
                 <span class="stat-value">0</span>
-                <span class="stat-label">鎯崇湅</span>
+                <span class="stat-label">想看</span>
             </div>
         `;
     }
+}
+
+// 首页：迁移“番号库/演员库/新作品”的概览统计到首页
+async function initHomeSectionsOverview(): Promise<void> {
+    try {
+        // 番号库概览
+        const recordsBox = document.getElementById('homeRecordsStatsContainer');
+        if (recordsBox) {
+            try {
+                const s = await dbViewedStats();
+                const total = s.total ?? 0;
+                const viewed = s.byStatus?.viewed ?? 0;
+                const browsed = s.byStatus?.browsed ?? 0;
+                const want = s.byStatus?.want ?? 0;
+                recordsBox.innerHTML = `
+                    <div class="stat-item" data-stat="total"><span class="stat-label">总记录</span><span class="stat-value">${total}</span></div>
+                    <div class="stat-item" data-stat="viewed"><span class="stat-label">已观看</span><span class="stat-value">${viewed}</span></div>
+                    <div class="stat-item" data-stat="browsed"><span class="stat-label">已浏览</span><span class="stat-value">${browsed}</span></div>
+                    <div class="stat-item" data-stat="want"><span class="stat-label">想看</span><span class="stat-value">${want}</span></div>
+                    <div class="stat-item" data-stat="last7"><span class="stat-label">近7天新增</span><span class="stat-value">${s.last7Days ?? 0}</span></div>
+                    <div class="stat-item" data-stat="last30"><span class="stat-label">近30天新增</span><span class="stat-value">${s.last30Days ?? 0}</span></div>
+                `;
+            } catch (e) {
+                recordsBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+            }
+        }
+
+        // 演员库概览
+        const actorsBox = document.getElementById('homeActorsStatsContainer');
+        if (actorsBox) {
+            try {
+                const a = await dbActorsStats();
+                const female = a.byGender?.female ?? 0;
+                const male = a.byGender?.male ?? 0;
+                const unknown = a.byGender?.unknown ?? 0;
+                const censored = a.byCategory?.censored ?? 0;
+                const uncensored = a.byCategory?.uncensored ?? 0;
+                actorsBox.innerHTML = `
+                    <div class="stat-item" data-stat="total"><span class="stat-label">总演员数</span><span class="stat-value">${a.total ?? 0}</span></div>
+                    <div class="stat-item" data-stat="female"><span class="stat-label">女性</span><span class="stat-value">${female}</span></div>
+                    <div class="stat-item" data-stat="male"><span class="stat-label">男性</span><span class="stat-value">${male}</span></div>
+                    <div class="stat-item" data-stat="unknown"><span class="stat-label">未知</span><span class="stat-value">${unknown}</span></div>
+                    <div class="stat-item" data-stat="censored"><span class="stat-label">有码</span><span class="stat-value">${censored}</span></div>
+                    <div class="stat-item" data-stat="uncensored"><span class="stat-label">无码</span><span class="stat-value">${uncensored}</span></div>
+                    <div class="stat-item" data-stat="blacklisted"><span class="stat-label">黑名单</span><span class="stat-value">${a.blacklisted ?? 0}</span></div>
+                    <div class="stat-item" data-stat="recentlyAdded"><span class="stat-label">最近新增</span><span class="stat-value">${a.recentlyAdded ?? 0}</span></div>
+                    <div class="stat-item" data-stat="recentlyUpdated"><span class="stat-label">最近更新</span><span class="stat-value">${a.recentlyUpdated ?? 0}</span></div>
+                `;
+            } catch (e) {
+                actorsBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+            }
+        }
+
+        // 新作品概览
+        const worksBox = document.getElementById('homeNewWorksStatsContainer');
+        if (worksBox) {
+            try {
+                const w = await dbNewWorksStats();
+                worksBox.innerHTML = `
+                    <div class="stat-item" data-stat="total"><span class="stat-label">总记录</span><span class="stat-value">${w.total ?? 0}</span></div>
+                    <div class="stat-item" data-stat="unread"><span class="stat-label">未读</span><span class="stat-value">${w.unread ?? 0}</span></div>
+                    <div class="stat-item" data-stat="today"><span class="stat-label">今日发现</span><span class="stat-value">${w.today ?? 0}</span></div>
+                    <div class="stat-item" data-stat="week"><span class="stat-label">本周发现</span><span class="stat-value">${w.week ?? 0}</span></div>
+                `;
+            } catch (e) {
+                worksBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+            }
+        }
+    } catch (e) {
+        // 忽略首页缺失容器的情况
+    }
+}
+
+async function refreshHomeOverview(): Promise<void> {
+    await initStatsOverview();
+    await initHomeSectionsOverview();
+}
+
+function bindHomeRefreshButton(): void {
+    const btn = document.getElementById('homeRefreshBtn') as HTMLButtonElement | null;
+    if (!btn) return;
+    if ((btn as any)._bound) return;
+    btn.addEventListener('click', async () => {
+        try {
+            btn.disabled = true;
+            btn.classList.add('loading');
+            await refreshHomeOverview();
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+        }
+    });
+    (btn as any)._bound = true;
 }
 
 function initInfoContainer(): void {

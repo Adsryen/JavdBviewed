@@ -15,11 +15,45 @@ installDrive115V2Proxy();
 installConsoleProxyWithSettings();
 ensureMigrationsStart();
 
+// 安装 DNR 规则：为 jdbstatic 封面请求补充 Referer
+function installCoversRefererDNR(): void {
+  try {
+    const ruleId = 20001;
+    chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [ruleId],
+      addRules: [
+        {
+          id: ruleId,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [
+              { header: 'referer', operation: 'set', value: 'https://javdb.com/' }
+            ],
+          },
+          condition: {
+            // 仅匹配 jdbstatic 的封面资源
+            regexFilter: '^https?:\\/\\/([a-z0-9-]+\\.)?jdbstatic\\.com\\/covers\\/.*',
+            resourceTypes: ['image']
+          }
+        }
+      ]
+    }, () => {
+      try { console.info('[Background] DNR rule for covers referer installed'); } catch {}
+    });
+  } catch (e: any) {
+    try { console.warn('[Background] Failed to install DNR rule:', e?.message || e); } catch {}
+  }
+}
+
 // 注册所有消息路由
 registerWebDAVRouter();
 registerDbMessageRouter();
 registerMiscRouter();
 registerNetProxyRouter();
+
+// 安装封面 Referer 规则
+installCoversRefererDNR();
 
 // 启动日志（通过 consoleProxy 持久化到 IDB）
 try {
