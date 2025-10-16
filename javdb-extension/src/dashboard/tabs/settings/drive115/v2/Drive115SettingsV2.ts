@@ -41,6 +41,8 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
   private expiryTimer: number | undefined = undefined;
   // 监听 storage 变化以便在外部刷新 token 后同步 UI
   private storageChangedHandler?: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void;
+  // 保存成功 toast 节流
+  private lastSaveToastAt: number = 0;
 
   constructor() {
     super({
@@ -468,6 +470,16 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     const { text, class: className } = statusMap[status];
     statusEl.textContent = text;
     statusEl.className = `auto-save-status ${className}`;
+    // 保存成功时右下角 toast 提示（节流避免过于频繁）
+    if (status === 'saved') {
+      try {
+        const now = Date.now();
+        if (!this.lastSaveToastAt || now - this.lastSaveToastAt > 3000) {
+          showMessage('设置已保存', 'success');
+          this.lastSaveToastAt = now;
+        }
+      } catch {}
+    }
   }
 
   async reset(): Promise<void> {

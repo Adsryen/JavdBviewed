@@ -144,6 +144,14 @@ export class Drive115V2Pane implements IDrive115Pane {
       this.ctx?.update({ v2AutoRefresh: v });
       this.ctx?.save?.();
     });
+    // 限制点击范围：点击文字不触发切换，仅允许点击开关
+    try {
+      const toggleText = document.querySelector('#drive115V2Pane .drive115-toggle-text') as HTMLElement | null;
+      toggleText?.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+      });
+    } catch {}
 
     // 提前刷新秒数
     const v2AutoRefreshSkewInput = document.getElementById('drive115V2AutoRefreshSkewSec') as HTMLInputElement | null;
@@ -152,11 +160,13 @@ export class Drive115V2Pane implements IDrive115Pane {
       const n = Math.max(0, Math.floor(Number(raw) || 0));
       this.ctx?.update({ v2AutoRefreshSkewSec: n });
       this.ctx?.save?.();
+      // 更新“下次自动刷新时间”
+      this.updateRefreshIntervalUIFromStorage();
     };
     v2AutoRefreshSkewInput?.addEventListener('change', onSkewChange);
     v2AutoRefreshSkewInput?.addEventListener('input', onSkewChange);
 
-    // 动态注入：最小自动刷新间隔（分钟，>=30）+ 最近自动刷新时间（只读展示）
+    // 动态注入：最小自动刷新间隔（分钟，60-120）+ 最近/下次自动刷新时间（只读展示）
     this.injectRefreshIntervalUI();
 
     // access_token 输入（兼容 input 或 textarea）
@@ -210,6 +220,20 @@ export class Drive115V2Pane implements IDrive115Pane {
     manualRefreshBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
       const rt = (((v2RefreshTokenInput as any)?.value) || '').trim();
+      // 复制 refresh_token
+      try {
+        if (rt) {
+          await navigator.clipboard.writeText(rt);
+          showToast('已复制 refresh_token 到剪贴板', 'success');
+        }
+      } catch {}
+      // 打开帮助页面
+      try {
+        const masked = rt ? (rt.length > 12 ? (rt.slice(0,6) + '…' + rt.slice(-4)) : rt) : '（未填写）';
+        const helpHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>115 手动刷新帮助</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'Microsoft YaHei',sans-serif;padding:16px;line-height:1.6;color:#1f2937} code{background:#f3f4f6;padding:2px 4px;border-radius:4px} .ok{color:#16a34a} .warn{color:#d97706} .err{color:#dc2626}</style></head><body><h2>115 手动刷新指引</h2><ol><li>refresh_token 已复制：<strong class="ok">${masked}</strong></li><li>本页仅作辅助说明：扩展已内置“手动刷新”流程（调用 115 接口 /open/token/refresh），点击按钮后会自动刷新并保存。</li><li>若失败，请在设置页检查：<ul><li>接口域名：<code>https://proapi.115.com</code></li><li>refresh_token 是否正确、未过期</li></ul></li><li>如需自行调试接口，可参考 115 官方/社区文档（POST <code>/open/token/refresh</code>，携带 refresh_token）。</li></ol><p class="warn">提示：若你未填写 refresh_token，请返回设置页补充后再试。</p></body></html>`;
+        const url = 'data:text/html;charset=UTF-8,' + encodeURIComponent(helpHtml);
+        window.open(url, '_blank');
+      } catch {}
       if (!rt) {
         this.setUserInfoStatus('请先填写 refresh_token', 'error');
         return;
@@ -243,14 +267,15 @@ export class Drive115V2Pane implements IDrive115Pane {
           const nowSec = Math.floor(Date.now() / 1000);
           const settings: any = await getSettings();
           const ns: any = { ...settings };
-          const minMin = Math.max(30, Number((settings?.drive115 || {}).v2MinRefreshIntervalMin ?? 60) || 60);
+          const rawMin = Number((settings?.drive115 || {}).v2MinRefreshIntervalMin ?? 60) || 60;
+          const minMin = Math.min(120, Math.max(60, rawMin));
           ns.drive115 = {
             ...(settings?.drive115 || {}),
             v2LastTokenRefreshAtSec: nowSec,
             v2MinRefreshIntervalMin: minMin,
           };
           await saveSettings(ns);
-          // 同步刷新 UI 的“最近自动刷新时间”
+          // 同步刷新 UI 的“最近/下次自动刷新时间”
           await this.updateRefreshIntervalUIFromStorage();
         } catch {}
         // 立即刷新UI以更新到期时间显示
@@ -617,8 +642,46 @@ export class Drive115V2Pane implements IDrive115Pane {
       host = findRow(skewEl) || findRow(atEl);
       if (!host) return;
 
-      // 若已经存在则刷新显示
+      // 若已存在则刷新显示；兼容老版本：
+      // 1) 若缺少“下次自动刷新时间”一行，则升级为多行块
+      // 2) 若信息块已存在但被放在同一行(wrapper)内，则移动到下一行（wrapper 之后），实现换行
       if (document.getElementById('drive115V2MinRefreshIntervalMin')) {
+        try {
+          const hasNext = !!document.getElementById('drive115V2NextRefreshAt');
+          if (!hasNext) {
+            // 移除旧版单行展示（含“最近… 2小时内已刷新…”在同一行）
+            const oldLast = document.getElementById('drive115V2LastRefreshAt') as HTMLSpanElement | null;
+            if (oldLast) {
+              const oldLine = oldLast.closest('div') as HTMLElement | null;
+              if (oldLine && oldLine.parentElement) {
+                oldLine.parentElement.removeChild(oldLine);
+              }
+            }
+            // 注入新版三行块
+            const infoBlock = document.createElement('div');
+            infoBlock.id = 'drive115V2RefreshInfoBlock';
+            infoBlock.style.cssText = 'font-size:12px; color:#666; display:flex; flex-direction:column; gap:4px;';
+            infoBlock.innerHTML = `
+              <div>最近自动刷新时间：<span id="drive115V2LastRefreshAt" style="color:#444;">-</span></div>
+              <div>下次自动刷新时间：<span id="drive115V2NextRefreshAt" style="color:#444;">-</span></div>
+              <div>2小时内已刷新：<span id="drive115V2Refresh2hStat" style="color:#444;">-</span></div>
+            `;
+            host.appendChild(infoBlock);
+          }
+          // 若信息块已存在但仍位于同一行容器内，则移出到下一行
+          const infoBlock = document.getElementById('drive115V2RefreshInfoBlock');
+          if (infoBlock && infoBlock.parentElement) {
+            const parent = infoBlock.parentElement as HTMLElement;
+            const hasMinInput = !!parent.querySelector('#drive115V2MinRefreshIntervalMin');
+            if (hasMinInput && parent !== host) {
+              parent.removeChild(infoBlock);
+              infoBlock.style.marginTop = '6px';
+              infoBlock.style.flexBasis = '100%';
+              (infoBlock as any).style && (infoBlock.style.width = '100%');
+              host.appendChild(infoBlock);
+            }
+          }
+        } catch {}
         await this.updateRefreshIntervalUIFromStorage();
         return;
       }
@@ -631,45 +694,52 @@ export class Drive115V2Pane implements IDrive115Pane {
       wrapper.innerHTML = `
         <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:6px;">
           最小自动刷新间隔(分钟)
-          <input id="drive115V2MinRefreshIntervalMin" type="number" min="30" step="1" style="width:96px; padding:4px 6px;" />
-          <span style="font-size:12px; color:#888;">不低于30</span>
+          <input id="drive115V2MinRefreshIntervalMin" type="number" min="60" max="120" step="1" style="width:96px; padding:4px 6px;" />
+          <span style="font-size:12px; color:#888;">范围 60-120</span>
         </label>
-        <label style="font-size:12px; color:#555; display:flex; align-items:center; gap:6px;">
-          2小时自动刷新上限(次)
-          <input id="drive115V2MaxRefreshPer2h" type="number" min="1" step="1" style="width:96px; padding:4px 6px;" />
-          <span style="font-size:12px; color:#888;">默认3</span>
-        </label>
-        <div style="font-size:12px; color:#666;">
-          最近自动刷新时间：<span id="drive115V2LastRefreshAt" style="color:#444;">-</span>
-          <span style="margin-left:12px;">2小时内已刷新：<span id="drive115V2Refresh2hStat" style="color:#444;">-</span></span>
+        <div style="font-size:12px; color:#555; display:flex; align-items:center; gap:6px;">
+          <span>2小时自动刷新上限(次)</span>
+          <span style="font-weight:600; color:#444;">3（固定）</span>
         </div>
       `;
       host.appendChild(wrapper);
 
+      // 在单独一行渲染信息块，强制换行展示
+      const infoBlock = document.createElement('div');
+      infoBlock.id = 'drive115V2RefreshInfoBlock';
+      infoBlock.style.cssText = 'font-size:12px; color:#666; display:flex; flex-direction:column; gap:4px; margin-top:6px;';
+      infoBlock.innerHTML = `
+        <div>最近自动刷新时间：<span id="drive115V2LastRefreshAt" style="color:#444;">-</span></div>
+        <div>下次自动刷新时间：<span id="drive115V2NextRefreshAt" style="color:#444;">-</span></div>
+        <div>2小时内已刷新：<span id="drive115V2Refresh2hStat" style="color:#444;">-</span></div>
+      `;
+      host.appendChild(infoBlock);
+
       const input = wrapper.querySelector('#drive115V2MinRefreshIntervalMin') as HTMLInputElement | null;
+      // 输入时不强制覆盖输入框，允许清空再输入；值合法时实时保存
       input?.addEventListener('input', async () => {
         try {
-          const raw = Math.floor(Number(input.value || 0));
-          const val = Math.max(30, isNaN(raw) ? 30 : raw);
-          input.value = String(val);
+          const str = (input.value ?? '').trim();
+          if (str === '') return; // 允许清空
+          const raw = Math.floor(Number(str));
+          if (!Number.isFinite(raw)) return;
+          const val = Math.min(120, Math.max(60, raw));
           const settings: any = await getSettings();
           const ns: any = { ...settings };
           ns.drive115 = { ...(settings?.drive115 || {}), v2MinRefreshIntervalMin: val };
           await saveSettings(ns);
         } catch {}
       });
-
-      const maxInput = wrapper.querySelector('#drive115V2MaxRefreshPer2h') as HTMLInputElement | null;
-      maxInput?.addEventListener('input', async () => {
+      // 失焦时进行兜底与回填
+      input?.addEventListener('change', async () => {
         try {
-          const raw = Math.floor(Number(maxInput.value || 0));
-          const val = Math.max(1, isNaN(raw) ? 3 : raw);
-          maxInput.value = String(val);
+          const raw = Math.floor(Number((input.value ?? '').trim() || 60));
+          const val = Math.min(120, Math.max(60, Number.isFinite(raw) ? raw : 60));
+          input.value = String(val);
           const settings: any = await getSettings();
           const ns: any = { ...settings };
-          ns.drive115 = { ...(settings?.drive115 || {}), v2MaxRefreshPer2h: val };
+          ns.drive115 = { ...(settings?.drive115 || {}), v2MinRefreshIntervalMin: val };
           await saveSettings(ns);
-          await this.updateRefreshIntervalUIFromStorage();
         } catch {}
       });
 
@@ -681,16 +751,27 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const input = document.getElementById('drive115V2MinRefreshIntervalMin') as HTMLInputElement | null;
       const lastEl = document.getElementById('drive115V2LastRefreshAt') as HTMLSpanElement | null;
-      const maxInput = document.getElementById('drive115V2MaxRefreshPer2h') as HTMLInputElement | null;
+      const nextEl = document.getElementById('drive115V2NextRefreshAt') as HTMLSpanElement | null;
       const statEl = document.getElementById('drive115V2Refresh2hStat') as HTMLSpanElement | null;
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
-      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 30) || 30);
+      const minMin = Math.min(120, Math.max(60, Number(s.v2MinRefreshIntervalMin ?? 60) || 60));
       if (input) input.value = String(minMin);
       const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
       if (lastEl) lastEl.textContent = last > 0 ? this.formatLocalDateTime(last) : '-';
-      const maxPer2h = Math.max(1, Number(s.v2MaxRefreshPer2h ?? 3) || 3);
-      if (maxInput) maxInput.value = String(maxPer2h);
+      const maxPer2h = 3; // 固定上限
+      // 计算“下次自动刷新时间”：受最小间隔与到期-提前秒数共同约束
+      try {
+        const skewSec = Math.max(0, Number(s.v2AutoRefreshSkewSec ?? 60) || 0);
+        const expAt = typeof s.v2TokenExpiresAt === 'number' ? s.v2TokenExpiresAt : 0;
+        const nextByInterval = last > 0 ? (last + minMin * 60) : 0;
+        const nextByExpiry = expAt > 0 ? Math.max(0, expAt - skewSec) : 0;
+        const positives = [nextByInterval, nextByExpiry].filter(v => v > 0);
+        let next = 0;
+        if (positives.length === 1) next = positives[0];
+        else if (positives.length === 2) next = Math.max(positives[0], positives[1]); // 需要同时满足两条件，取较晚者
+        if (nextEl) nextEl.textContent = next > 0 ? this.formatLocalDateTime(next) : '-';
+      } catch {}
       // 2小时窗口统计
       try {
         const nowSec = Math.floor(Date.now() / 1000);
@@ -720,7 +801,7 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
-      const minMin = Math.max(30, Number(s.v2MinRefreshIntervalMin ?? 30) || 30);
+      const minMin = Math.min(120, Math.max(60, Number(s.v2MinRefreshIntervalMin ?? 60) || 60));
       const last = Number(s.v2LastTokenRefreshAtSec || 0) || 0;
       if (last <= 0) return true;
       const nowSec = Math.floor(Date.now() / 1000);
@@ -734,7 +815,7 @@ export class Drive115V2Pane implements IDrive115Pane {
       }
       // 2小时窗口限制（与服务层一致）
       try {
-        const maxPer2h = Math.max(1, Number(s.v2MaxRefreshPer2h ?? 3) || 3);
+        const maxPer2h = 3; // 固定上限
         const histRaw: any[] = Array.isArray(s.v2TokenRefreshHistorySec) ? s.v2TokenRefreshHistorySec : [];
         const hist: number[] = histRaw.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
         const twoHoursAgo = nowSec - 7200;

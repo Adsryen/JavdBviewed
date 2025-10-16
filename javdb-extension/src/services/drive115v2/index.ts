@@ -507,9 +507,8 @@ class Drive115V2Service {
     const autoRefreshSetting: boolean = drv.v2AutoRefresh !== false; // 默认开启
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : autoRefreshSetting;
     const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
-    // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，强制不低于30分钟
-    // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，强制不低于30分钟；默认改为30
-    const cfgMinMin: number = Math.max(30, Number(drv.v2MinRefreshIntervalMin ?? 30) || 30);
+    // 最小刷新间隔（分钟），配置项：v2MinRefreshIntervalMin，范围 60-120；默认 60
+    const cfgMinMin: number = Math.min(120, Math.max(60, Number(drv.v2MinRefreshIntervalMin ?? 60) || 60));
     const minIntervalSec: number = cfgMinMin * 60;
     const lastRefreshAtSec: number = Number(drv.v2LastTokenRefreshAtSec || 0) || 0;
 
@@ -530,9 +529,9 @@ class Drive115V2Service {
     }
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
 
-    // 2小时滑动窗口刷新次数限制（默认最多3次，可通过 v2MaxRefreshPer2h 配置），仅限制通过接口的自动刷新
+    // 2小时滑动窗口刷新次数限制（固定最多3次，不可配置），仅限制通过接口的自动刷新
     const nowSec = Math.floor(Date.now() / 1000);
-    const maxPer2h: number = Math.max(1, Number(drv.v2MaxRefreshPer2h ?? 3) || 3);
+    const maxPer2h: number = 3;
     const histRaw: any[] = Array.isArray(drv.v2TokenRefreshHistorySec) ? drv.v2TokenRefreshHistorySec : [];
     const hist: number[] = histRaw
       .map(v => Number(v))
@@ -584,8 +583,8 @@ class Drive115V2Service {
     newSettings.drive115.v2RefreshToken = newRt;
     newSettings.drive115.v2TokenExpiresAt = newExp;
     newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
-    // 若未配置或配置低于30，保存时也进行一次下限保护
-    newSettings.drive115.v2MinRefreshIntervalMin = Math.max(30, Number(newSettings.drive115.v2MinRefreshIntervalMin ?? cfgMinMin) || cfgMinMin);
+    // 保存时进行范围保护（60-120）
+    newSettings.drive115.v2MinRefreshIntervalMin = Math.min(120, Math.max(60, Number(newSettings.drive115.v2MinRefreshIntervalMin ?? cfgMinMin) || cfgMinMin));
     // 刷新历史：更新并限制长度（仅保留最近 20 条）
     try {
       const histRaw2: any[] = Array.isArray(newSettings.drive115.v2TokenRefreshHistorySec) ? newSettings.drive115.v2TokenRefreshHistorySec : hist;
@@ -593,9 +592,8 @@ class Drive115V2Service {
         .map(v => Number(v))
         .filter(v => Number.isFinite(v) && v > 0 && (nowSec - v) <= 86400);
       newSettings.drive115.v2TokenRefreshHistorySec = updated.slice(-20);
-      if (typeof newSettings.drive115.v2MaxRefreshPer2h !== 'number') {
-        newSettings.drive115.v2MaxRefreshPer2h = maxPer2h;
-      }
+      // 固定上限 3，不再从设置读取
+      newSettings.drive115.v2MaxRefreshPer2h = maxPer2h;
     } catch {}
     await saveSettings(newSettings);
     await addLogV2({ timestamp: Date.now(), level: 'info', message: `自动刷新 access_token 成功并已持久化（v2），记录时间戳=${nowSec}，限频=${newSettings.drive115.v2MinRefreshIntervalMin}分钟` });
