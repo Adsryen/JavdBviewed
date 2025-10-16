@@ -436,6 +436,23 @@
     background-color: #c9302c;
 }
 
+/* --- Confirmation Modal overflow handling ---
+   限制确认弹窗高度，令消息区可滚动，保证底部按钮始终可见 */
+#confirmationModal .modal-content {
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#confirmationModal #modalMessage {
+    /* 允许长内容滚动与断行（保留换行） */
+    overflow: auto;
+    max-height: 56vh;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* Diff view styles for data check modal */
 .diff-container {
     display: grid;
