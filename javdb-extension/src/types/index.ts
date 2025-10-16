@@ -217,6 +217,8 @@ export interface ExtensionSettings {
 
     version: string;
     recordsPerPage?: number;
+    // Dashboard 番号库：是否在列表中显示封面
+    showCoversInRecords?: boolean;
     // 更新检查相关设置（用于 Dashboard 设置面板）
     autoUpdateCheck?: boolean; // 是否自动检查更新
     updateCheckInterval?: string; // 检查间隔（小时，字符串形式以匹配下拉值）
