@@ -1237,9 +1237,15 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     min-width: 400px;
     max-width: 500px;
-    animation: modalSlideIn 0.3s ease-out;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
+/* 头部、正文与底部布局：正文可滚动，底部按钮固定可见 */
 .custom-confirm-header {
     padding: 20px 24px 16px;
     border-bottom: 1px solid #e9ecef;
@@ -1254,6 +1260,8 @@
 
 .custom-confirm-body {
     padding: 20px 24px;
+    flex: 1 1 auto;
+    overflow: auto;
 }
 
 .custom-confirm-body p {
@@ -1262,6 +1270,7 @@
     line-height: 1.5;
     color: #666;
     white-space: pre-line;
+    word-break: break-word;
 }
 
 .custom-confirm-footer {
@@ -1269,8 +1278,9 @@
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+    border-top: 1px solid #e9ecef;
+    background: #fff;
 }
-
 .custom-confirm-cancel,
 .custom-confirm-ok {
     padding: 8px 20px;
