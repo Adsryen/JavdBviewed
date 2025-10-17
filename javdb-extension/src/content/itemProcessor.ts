@@ -75,6 +75,14 @@ function shouldHide(videoId: string): boolean {
         return false;
     }
 
+    // 在“想看/已看”聚合页禁用状态隐藏，避免影响数据查看
+    try {
+        const p = window.location.pathname;
+        if (p.startsWith('/users/want_watch_videos') || p.startsWith('/users/watched_videos')) {
+            return false;
+        }
+    } catch {}
+
     const { hideViewed, hideBrowsed, hideWant } = STATE.settings.display as any;
     const record = STATE.records[videoId];
 
@@ -103,6 +111,14 @@ function getHideReason(videoId: string): string {
     if (STATE.isSearchPage || !STATE.settings) {
         return '';
     }
+
+    // 在“想看/已看”聚合页不返回隐藏原因（即不隐藏）
+    try {
+        const p = window.location.pathname;
+        if (p.startsWith('/users/want_watch_videos') || p.startsWith('/users/watched_videos')) {
+            return '';
+        }
+    } catch {}
 
     const { hideViewed, hideBrowsed, hideWant } = (STATE.settings.display as any);
     const record = STATE.records[videoId];
