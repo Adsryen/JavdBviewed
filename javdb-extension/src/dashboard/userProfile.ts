@@ -250,12 +250,13 @@ async function handleRefresh(): Promise<void> {
                 }, 60_000);
             } catch {}
         } else {
-            showMessage('刷新账号信息失败', 'error');
+            // 可能是未登录或被风控拦截，给出更明确的提示
+            showMessage('刷新账号信息失败：请先在 JavDB 登录后再试；如已登录仍失败，可能触发安全防护，请稍后重试', 'error');
         }
         // 同步刷新 115 用户信息（不触发网络刷新，仅更新缓存展示）
         await loadDrive115UserInfo({ allowNetwork: false });
     } catch (error: any) {
-        showMessage('刷新账号信息时发生错误', 'error');
+        showMessage('刷新账号信息时发生错误：请确认已登录 JavDB，或稍后再试', 'error');
         logAsync('ERROR', '刷新处理失败', { error: error.message });
     } finally {
         refreshBtn.disabled = false;

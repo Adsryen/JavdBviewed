@@ -7,6 +7,7 @@ import { refreshRecordById } from './sync';
 import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
 import { newWorksScheduler } from '../services/newWorks';
 import { requestScheduler } from './requestScheduler';
+import type { UserProfile } from '../types';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
   INFO: console.info,
@@ -390,10 +391,118 @@ async function handleUpdateWatchedStatus(message: any, sendResponse: (response: 
 
 async function fetchUserProfileFromJavDB(): Promise<any> {
   try {
-    const profile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
-    return profile || { isLoggedIn: false };
-  } catch {
-    return { isLoggedIn: false };
+    const baseProfile = await getValue<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null).catch(() => null);
+
+    const wantUrl = 'https://javdb.com/users/want_watch_videos';
+    const watchedUrl = 'https://javdb.com/users/watched_videos';
+
+    // 使用统一调度器发起请求（自动限速/并发控制）
+    const fetchHtml = async (url: string): Promise<{ ok: boolean; html?: string; finalUrl?: string; status?: number }> => {
+      try {
+        const res = await requestScheduler.enqueue(url, {
+          method: 'GET',
+          // 包含站点 Cookie 以访问登录页数据
+          credentials: 'include' as any,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Cache-Control': 'no-cache',
+          },
+        } as RequestInit);
+        const html = await res.text();
+        return { ok: res.ok, html, finalUrl: (res as any).url, status: res.status };
+      } catch {
+        return { ok: false };
+      }
+    };
+
+    const parseTotalFromHtml = (html: string): number | undefined => {
+      try {
+        // 常见“总数”文案匹配：共有/共/合计/合計/總計 等
+        const m = html.match(/(?:共(?:有)?|合(?:计|計)|總(?:計)?|总计)\s*([0-9][0-9,\.]*)\s*(?:部|条|項|项|个|個|影片|作品)/i);
+        if (m && m[1]) {
+          const n = Number(String(m[1]).replace(/[\s,]/g, ''));
+          if (isFinite(n)) return n;
+        }
+      } catch {}
+      return undefined;
+    };
+
+    const extractMaxPage = (html: string): number | undefined => {
+      try {
+        const nums = Array.from(html.matchAll(/\?page=(\d+)/g)).map(m => Number(m[1])).filter(n => isFinite(n));
+        if (nums.length) return Math.max(...nums);
+      } catch {}
+      return undefined;
+    };
+
+    const countItemsOnPage = (html: string): number => {
+      try {
+        // 与同步模块保持一致：匹配 /v/<id> 且排除 reviews 链接
+        const set = new Set<string>();
+        const re = /href="\/v\/([a-zA-Z0-9\-_]+)"(?![^>]*reviews)/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(html)) !== null) set.add(m[1]);
+        if (set.size > 0) return set.size;
+        // 兜底：统计列表项 class="item" 的出现次数
+        const it = html.match(/class="[^"]*\bitem\b[^"]*"/g);
+        return it ? it.length : 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const computeCount = async (baseUrl: string, htmlFirst: string): Promise<number> => {
+      // 优先使用“总数”文案
+      const direct = parseTotalFromHtml(htmlFirst);
+      if (typeof direct === 'number') return direct;
+
+      const totalPages = extractMaxPage(htmlFirst);
+      if (typeof totalPages === 'number' && totalPages > 1) {
+        // 抓取末页，计算最后一页条目数
+        const last = await fetchHtml(`${baseUrl}?page=${totalPages}`);
+        const lastCount = last.ok && last.html ? countItemsOnPage(last.html) : countItemsOnPage(htmlFirst);
+        // JavDB 列表通常每页 20 条
+        return (totalPages - 1) * 20 + lastCount;
+      }
+      // 单页或无法解析分页时，直接统计当前页项目数
+      return countItemsOnPage(htmlFirst);
+    };
+
+    const [wantRes, watchedRes] = await Promise.all([fetchHtml(wantUrl), fetchHtml(watchedUrl)]);
+
+    // 登录判定：若被重定向到登录页或内容为空，则视为未登录
+    const isLoggedIn = !!(
+      (wantRes.ok && wantRes.html && !((wantRes.finalUrl || '').includes('/sign_in')))
+      || (watchedRes.ok && watchedRes.html && !((watchedRes.finalUrl || '').includes('/sign_in')))
+    );
+
+    if (!isLoggedIn) {
+      throw new Error('未登录 JavDB');
+    }
+
+    const wantCount = wantRes.ok && wantRes.html ? await computeCount(wantUrl, wantRes.html) : 0;
+    const watchedCount = watchedRes.ok && watchedRes.html ? await computeCount(watchedUrl, watchedRes.html) : 0;
+
+    const now = Date.now();
+    const profile = {
+      email: baseProfile?.email || '',
+      username: baseProfile?.username || '',
+      userType: baseProfile?.userType || '',
+      isLoggedIn: true,
+      lastUpdated: now,
+      serverStats: {
+        wantCount,
+        watchedCount,
+        lastSyncTime: now,
+      },
+    };
+
+    // 写回缓存（便于内容页或后续快速展示）
+    try { await setValue(STORAGE_KEYS.USER_PROFILE, profile); } catch {}
+    return profile;
+  } catch (e) {
+    // 抛出错误，交由消息路由返回失败以便前端提示
+    throw e instanceof Error ? e : new Error('获取账号信息失败');
   }
 }
 
