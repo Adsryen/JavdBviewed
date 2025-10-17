@@ -5,7 +5,7 @@ import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import { refreshRecordById } from './sync';
 import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
-import { newWorksScheduler } from '../services/newWorks';
+import { newWorksScheduler, newWorksManager, newWorksCollector } from '../services/newWorks';
 import { requestScheduler } from './requestScheduler';
 import type { UserProfile } from '../types';
 
@@ -29,6 +29,8 @@ async function log(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, 
 
 export function registerMiscRouter(): void {
   try {
+    // 手动检查的取消标记（模块级，保证在多次消息间共享）
+    let manualCheckCancel = { cancelled: false };
     chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse): boolean | void => {
       if (!message || typeof message !== 'object') return false;
       switch (message.type) {
@@ -107,25 +109,88 @@ export function registerMiscRouter(): void {
         case 'DRIVE115_HEARTBEAT':
           sendResponse({ type: 'DRIVE115_HEARTBEAT_RESPONSE', success: true });
           return true;
-        case 'UPDATE_WATCHED_STATUS':
-          handleUpdateWatchedStatus(message, sendResponse);
-          return true;
-        case 'fetch-user-profile':
-          fetchUserProfileFromJavDB().then((profile) => sendResponse({ success: true, profile }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
-          return true;
         case 'setup-alarms':
           setupAlarms().then(() => sendResponse({ success: true }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
+        
         case 'new-works-manual-check':
-          newWorksScheduler.triggerManualCheck()
-            .then((result) => sendResponse({ success: true, result }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
+          (async () => {
+            try {
+              // 重置取消标记
+              manualCheckCancel.cancelled = false;
+
+              const config = await newWorksManager.getGlobalConfig();
+              const subs = await newWorksManager.getSubscriptions();
+              const active = subs.filter(s => s.enabled);
+              const total = active.length;
+              let processed = 0;
+              let discovered = 0;               // 实际写入的新作品数量
+              let identifiedTotal = 0;          // 解析到的原始数量
+              let effectiveTotal = 0;           // 过滤（排除番号库等）后的数量
+              const errors: string[] = [];
+
+              // 覆盖过滤条件：排除本地番号库中任意状态的记录
+              const cfg = {
+                ...config,
+                filters: {
+                  ...config.filters,
+                  excludeViewed: true,
+                  excludeBrowsed: true,
+                  excludeWant: true,
+                },
+              } as any;
+
+              for (const sub of active) {
+                if (manualCheckCancel.cancelled) break;
+                try {
+                  // 使用带统计的检查
+                  const det = await newWorksCollector.checkActorNewWorksDetailed(sub, cfg);
+                  identifiedTotal += det.identified;
+                  effectiveTotal += det.effective;
+
+                  if (det.works.length > 0) {
+                    try { await newWorksManager.addNewWorks(det.works); } catch {}
+                  }
+                  discovered += det.works.length;
+                } catch (e: any) {
+                  errors.push(`检查演员 ${sub.actorName} 失败: ${e?.message || String(e)}`);
+                } finally {
+                  processed++;
+                  try {
+                    chrome.runtime.sendMessage({
+                      type: 'new-works-progress',
+                      payload: { processed, total, discovered, identifiedTotal, effectiveTotal, actorId: sub.actorId, actorName: sub.actorName },
+                    });
+                  } catch {}
+                }
+                // 按配置的请求间隔小憩（避免过快）
+                try {
+                  if (manualCheckCancel.cancelled) break;
+                  const gap = Math.max(0, Number(cfg.requestInterval || 0)) * 1000;
+                  if (gap > 0) await new Promise(r => setTimeout(r, gap));
+                } catch {}
+              }
+
+              try { await newWorksManager.updateGlobalConfig({ lastGlobalCheck: Date.now() }); } catch {}
+              sendResponse({ success: true, result: { discovered, errors, cancelled: manualCheckCancel.cancelled, identifiedTotal, effectiveTotal } });
+            } catch (error: any) {
+              sendResponse({ success: false, error: error?.message || 'manual check failed' });
+            }
+          })();
+          return true;
+        case 'new-works-manual-cancel':
+          try {
+            manualCheckCancel.cancelled = true;
+            sendResponse({ success: true });
+          } catch (error: any) {
+            sendResponse({ success: false, error: error?.message || 'cancel failed' });
+          }
           return true;
         case 'new-works-scheduler-restart':
-          newWorksScheduler.restart().then(() => sendResponse({ success: true }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
+          newWorksScheduler.restart()
+            .then(() => sendResponse({ success: true }))
+            .catch((error: any) => sendResponse({ success: false, error: error?.message || 'restart failed' }));
           return true;
         case 'new-works-scheduler-status':
           try {

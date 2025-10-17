@@ -260,8 +260,14 @@ class ActorEnhancementManager {
       // 插入到收藏/取消收藏按钮后面
       anchorBtn.parentElement?.insertBefore(btn, anchorBtn.nextSibling);
 
-      // 点击事件：切换订阅
+      // 点击事件：切换订阅（带防抖/禁用）
       btn.addEventListener('click', async () => {
+        if (btn.getAttribute('data-busy') === '1') return;
+        btn.setAttribute('data-busy', '1');
+        const oldText = btn.textContent || '';
+        const oldClass = btn.className;
+        btn.classList.add('is-loading');
+        btn.textContent = isSubscribed ? '处理中...' : '处理中...';
         try {
           // 确保本地有演员记录
           let record = await actorManager.getActorById(this.currentActorId);
@@ -279,11 +285,24 @@ class ActorEnhancementManager {
           }
 
           if (!isSubscribed) {
-            await newWorksManager.addSubscription(this.currentActorId);
-            isSubscribed = true;
-            btn.className = 'button is-info is-light ml-2';
-            btn.textContent = '取消订阅';
-            showToast('已订阅该演员的新作品', 'success');
+            try {
+              await newWorksManager.addSubscription(this.currentActorId);
+              isSubscribed = true;
+              btn.className = 'button is-info is-light ml-2';
+              btn.textContent = '取消订阅';
+              showToast('已订阅该演员的新作品', 'success');
+            } catch (e: any) {
+              // 幂等处理：若已订阅，则直接修正UI
+              const msg = (e && e.message) || String(e);
+              if (msg && /已经订阅/.test(msg)) {
+                isSubscribed = true;
+                btn.className = 'button is-info is-light ml-2';
+                btn.textContent = '取消订阅';
+                showToast('该演员已在订阅列表', 'info');
+              } else {
+                throw e;
+              }
+            }
           } else {
             await newWorksManager.removeSubscription(this.currentActorId);
             isSubscribed = false;
@@ -293,7 +312,13 @@ class ActorEnhancementManager {
           }
         } catch (e) {
           console.error('[ActorEnhancement] 切换订阅状态失败:', e);
-          showToast('操作失败', 'error');
+          showToast('操作失败，请重试', 'error');
+          // 恢复按钮文本
+          btn.className = oldClass;
+          btn.textContent = oldText;
+        } finally {
+          btn.classList.remove('is-loading');
+          btn.removeAttribute('data-busy');
         }
       });
     } catch (e) {
