@@ -31,6 +31,181 @@
     align-items: start;
 }
 
+/* 番号库顶部工具栏：重构为两行布局 */
+.search-and-filter.records-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.search-and-filter.records-toolbar .search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap; /* 窄屏换行 */
+}
+.search-and-filter.records-toolbar .search-row .search-input-wrapper {
+    flex: 1 1 360px;
+    min-width: 300px;
+}
+
+.search-and-filter.records-toolbar .filter-row {
+    display: flex;
+    align-items: flex-start; /* 顶部对齐，保证标签选择和搜索框上边沿对齐 */
+    gap: 8px; /* 进一步压缩间距 */
+    flex-wrap: wrap;
+}
+.search-and-filter.records-toolbar .filter-row .search-input-wrapper {
+    flex: 1 1 640px;  /* 搜索占剩余空间 */
+    min-width: 380px;
+}
+.search-and-filter.records-toolbar .filter-row .tags-filter-container {
+    flex: 0 0 320px;  /* 缩小标签固定宽度，留更多空间给搜索 */
+    min-width: 280px;
+}
+
+/* 统一控件高度与内边距（仅限记录页工具栏） */
+.search-and-filter.records-toolbar #searchInput,
+.search-and-filter.records-toolbar #tagsFilterInput,
+.search-and-filter.records-toolbar #filterSelect,
+.search-and-filter.records-toolbar #sortSelect,
+.search-and-filter.records-toolbar .records-per-page-selector select,
+.search-and-filter.records-toolbar .button-like {
+    min-height: 42px; /* 再提升高度，确保文字完整显示 */
+    box-sizing: border-box;
+    line-height: 1.3;
+}
+.search-and-filter.records-toolbar #searchInput,
+.search-and-filter.records-toolbar #tagsFilterInput {
+    height: 42px; /* 统一可视高度 */
+}
+.search-and-filter.records-toolbar #tagsFilterInput {
+    width: 100%;
+}
+/* 搜索输入：右侧留空给帮助图标 */
+.search-and-filter.records-toolbar .search-input-wrapper {
+    position: relative;
+}
+.search-and-filter.records-toolbar .search-input-wrapper #searchInput {
+    width: 100%;
+    padding-right: 28px;  /* 贴近帮助按钮，减少空隙 */
+    padding-left: 12px;
+}
+
+/* 帮助图标按钮 */
+.search-and-filter.records-toolbar .search-help {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 18px;   /* 再缩小图标尺寸 */
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.search-and-filter.records-toolbar .search-help:hover {
+    color: #007bff;
+}
+
+/* 帮助气泡 */
+.search-and-filter.records-toolbar .search-help-popover {
+    position: absolute;
+    top: calc(100% + 6px); /* 更贴近输入框 */
+    right: 0;
+    min-width: 320px;
+    max-width: 480px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 12px 14px;
+    z-index: 30;
+    display: none;
+}
+.search-and-filter.records-toolbar .search-help-popover::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    right: 16px; /* 箭头更贴近图标 */
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent transparent #e9ecef transparent;
+}
+.search-and-filter.records-toolbar .search-help-popover::after {
+    content: "";
+    position: absolute;
+    top: -5px;
+    right: 16px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #fff transparent;
+}
+.search-and-filter.records-toolbar .help-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #333;
+}
+.search-and-filter.records-toolbar .help-list {
+    margin: 0;
+    padding-left: 16px;
+    color: #555;
+    font-size: 13px;
+}
+.search-and-filter.records-toolbar .help-list .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 0 4px;
+}
+
+/* 交互：仅图标 hover/focus 或浮层 hover 时显示，避免打字时遮挡 */
+.search-and-filter.records-toolbar .search-help:hover + .search-help-popover,
+.search-and-filter.records-toolbar .search-help:focus + .search-help-popover,
+.search-and-filter.records-toolbar .search-help-popover:hover {
+    display: block;
+}
+.search-and-filter.records-toolbar .button-like {
+    display: inline-flex;
+    align-items: center;
+}
+.search-and-filter.records-toolbar .records-per-page-selector label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 42px;
+}
+.search-and-filter.records-toolbar #filterSelect { min-width: 120px; }
+.search-and-filter.records-toolbar #sortSelect { min-width: 220px; }
+.search-and-filter.records-toolbar .records-per-page-selector select { min-width: 90px; }
+.search-and-filter.records-toolbar .records-per-page-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 响应式优化 */
+@media (max-width: 960px) {
+    .search-and-filter.records-toolbar .search-row .search-input-wrapper {
+        flex-basis: 100%;
+        min-width: auto;
+    }
+    .search-and-filter.records-toolbar .filter-row {
+        flex-wrap: wrap;
+    }
+    .search-and-filter.records-toolbar .filter-row .search-input-wrapper,
+    .search-and-filter.records-toolbar .filter-row .tags-filter-container {
+        flex-basis: 100%;
+        min-width: auto;
+    }
+}
+
 /* 显示/隐藏封面按钮配色与状态 */
 #toggleCoversBtn.button-like {
     background: #f3f4f6;

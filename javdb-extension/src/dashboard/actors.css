@@ -3,7 +3,7 @@
 /* 搜索和过滤区域 */
 .search-and-filter {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr; /* 搜索、性别、分类、黑名单、排序、分页大小 */
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr; /* 搜索、性别、分类、黑名单+订阅、排序、分页大小 */
     gap: 12px;
     margin-bottom: 24px;
     padding: 20px;
@@ -42,6 +42,7 @@
 #actorGenderFilter,
 #actorCategoryFilter,
 #actorBlacklistFilter,
+#actorStatusFilter,
 #actorSortSelect,
 #actorPageSizeSelect {
     padding: 14px 18px;
@@ -64,6 +65,7 @@
 #actorGenderFilter:hover,
 #actorCategoryFilter:hover,
 #actorBlacklistFilter:hover,
+#actorStatusFilter:hover,
 #actorSortSelect:hover,
 #actorPageSizeSelect:hover {
     border-color: #adb5bd;
@@ -74,12 +76,44 @@
 #actorGenderFilter:focus,
 #actorCategoryFilter:focus,
 #actorBlacklistFilter:focus,
+#actorStatusFilter:focus,
 #actorSortSelect:focus,
 #actorPageSizeSelect:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12), 0 6px 20px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
+}
+
+/* 拉黑 + 订阅 组合容器 */
+.actor-blacklist-and-sub {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 只看已订阅开关容器，适配搜索区风格 */
+.actor-subscribed-only {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    height: 100%;
+    min-height: 44px;
+}
+.actor-subscribed-only .label-text {
+    font-size: 14px;
+    color: #495057;
+}
+.actor-subscribed-only:hover {
+    border-color: #adb5bd;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
 }
 
 /* 黑名单角标与弱化样式 */
