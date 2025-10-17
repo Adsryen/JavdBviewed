@@ -688,6 +688,18 @@
     background-color: rgba(255, 255, 255, 0.65);
     backdrop-filter: blur(4px);
 }
+/* 显隐过渡，配合 .visible 类控制，避免需要多次点击 */
+.subscription-management-modal .modal-overlay {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility .2s ease;
+    pointer-events: none; /* 隐藏时不拦截点击 */
+}
+.subscription-management-modal .modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto; /* 显示时可交互 */
+}
 
 .subscription-management-modal .modal-content {
     /* 白底 + 浅边框 + 柔和阴影 */

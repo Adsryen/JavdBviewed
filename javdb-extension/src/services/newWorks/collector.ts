@@ -194,6 +194,131 @@ export class NewWorksCollector {
     }
 
     /**
+     * 应用全局过滤条件（返回过滤统计）
+     */
+    private async applyGlobalFiltersWithStats(
+        works: any[],
+        filters: NewWorksGlobalConfig['filters']
+    ): Promise<{ filteredWorks: any[]; filteredCount: { dateRange: number; viewed: number; browsed: number; want: number } }> {
+        console.log(`开始应用过滤条件(带统计)，原始作品数量: ${works.length}`);
+        console.log('过滤设置:', filters);
+
+        const filteredWorks: any[] = [];
+        const filteredCount = {
+            dateRange: 0,
+            viewed: 0,
+            browsed: 0,
+            want: 0
+        };
+
+        // 使用 IndexedDB 番号库做状态检查（更准确）
+        let recordMap = new Map<string, VideoRecord>();
+        try {
+            const all = await viewedGetAll();
+            for (const r of all) { if (r?.id) recordMap.set(r.id, r); }
+            console.log(`IDB 番号库记录数量: ${recordMap.size}`);
+        } catch (e) {
+            console.warn('读取 IDB 番号库失败，过滤将退化为不过滤已看/已浏览/想看', e);
+            // 留空 recordMap 相当于不触发状态过滤
+        }
+
+        // 计算日期范围
+        let dateThreshold: Date | null = null;
+        if (filters.dateRange > 0) {
+            dateThreshold = new Date();
+            dateThreshold.setMonth(dateThreshold.getMonth() - filters.dateRange);
+            console.log(`日期过滤阈值: ${dateThreshold.toISOString()}`);
+        }
+
+        for (const work of works) {
+            let shouldExclude = false;
+            let excludeReason: keyof typeof filteredCount | '' = '';
+
+            // 检查日期范围
+            if (dateThreshold && work.releaseDate) {
+                const releaseDate = new Date(work.releaseDate);
+                if (releaseDate < dateThreshold) {
+                    shouldExclude = true;
+                    excludeReason = 'dateRange';
+                }
+            }
+
+            // 检查番号库状态
+            if (!shouldExclude) {
+                const localRecord = recordMap.get(work.id);
+                if (localRecord) {
+                    if (filters.excludeViewed && localRecord.status === 'viewed') {
+                        shouldExclude = true;
+                        excludeReason = 'viewed';
+                    } else if (filters.excludeBrowsed && localRecord.status === 'browsed') {
+                        shouldExclude = true;
+                        excludeReason = 'browsed';
+                    } else if (filters.excludeWant && localRecord.status === 'want') {
+                        shouldExclude = true;
+                        excludeReason = 'want';
+                    }
+                }
+            }
+
+            if (!shouldExclude) {
+                filteredWorks.push(work);
+            } else {
+                if (excludeReason) (filteredCount as any)[excludeReason]++;
+            }
+        }
+
+        console.log('过滤统计(带统计):', filteredCount);
+        console.log(`过滤后作品数量: ${filteredWorks.length}`);
+
+        return { filteredWorks, filteredCount };
+    }
+
+    /**
+     * 检查单个演员的新作品（返回详细统计）
+     */
+    async checkActorNewWorksDetailed(
+        subscription: ActorSubscription,
+        globalConfig: NewWorksGlobalConfig
+    ): Promise<{ works: NewWorkRecord[]; identified: number; effective: number }> {
+        try {
+            console.log(`开始(详细)检查演员 ${subscription.actorName} 的新作品`);
+
+            const actorWorksUrl = `https://javdb.com/actors/${subscription.actorId}`;
+            const worksRaw = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
+            const identified = worksRaw.length;
+
+            const { filteredWorks } = await this.applyGlobalFiltersWithStats(worksRaw, globalConfig.filters);
+            const effective = filteredWorks.length;
+
+            const newWorks: NewWorkRecord[] = [];
+            const now = Date.now();
+            for (const work of filteredWorks.slice(0, globalConfig.maxWorksPerCheck)) {
+                const exists = await this.checkWorkExists(work.id);
+                if (!exists) {
+                    newWorks.push({
+                        id: work.id,
+                        actorId: subscription.actorId,
+                        actorName: subscription.actorName,
+                        title: work.title,
+                        releaseDate: work.releaseDate,
+                        javdbUrl: work.url,
+                        coverImage: work.coverImage,
+                        tags: work.tags || [],
+                        discoveredAt: now,
+                        isRead: false,
+                        status: 'new'
+                    });
+                }
+            }
+
+            return { works: newWorks, identified, effective };
+        } catch (error) {
+            console.error(`(详细)检查演员 ${subscription.actorName} 新作品失败:`, error);
+            return { works: [], identified: 0, effective: 0 };
+        }
+    }
+
+    /**
      * 检查作品是否已存在于新作品记录中
      */
     private async checkWorkExists(workId: string): Promise<boolean> {

@@ -21,6 +21,8 @@ export class NewWorksTab {
     private selectedWorks: Set<string> = new Set();
     private isLoading: boolean = false;
     private debounceRender = this.debounce(() => this.render(), 300);
+    private progressListener?: (message: any) => void;
+    private progressEl?: HTMLElement;
 
     /**
      * 初始化新作品标签页
@@ -925,7 +927,10 @@ export class NewWorksTab {
                 return;
             }
 
-            // 手动检查不再依赖总开关，可直接执行
+            // 配置进度UI与消息监听
+            this.ensureProgressUI();
+            this.updateProgressUI({ processed: 0, total: activeSubscriptions.length, identifiedTotal: 0, effectiveTotal: 0 });
+            this.attachProgressListener();
 
             // 通过后台脚本执行检查
             const response = await new Promise<any>((resolve) => {
@@ -938,7 +943,19 @@ export class NewWorksTab {
             if (response.success) {
                 await this.render();
 
-                let message = `检查完成！发现 ${response.result.discovered} 个新作品`;
+                const statsTail = (() => {
+                    const idt = response?.result?.identifiedTotal;
+                    const eff = response?.result?.effectiveTotal;
+                    const parts: string[] = [];
+                    if (typeof idt === 'number') parts.push(`已识别 ${idt}`);
+                    if (typeof eff === 'number') parts.push(`有效 ${eff}`);
+                    parts.push(`新增 ${response.result.discovered}`);
+                    return parts.join('，');
+                })();
+
+                let message = response?.result?.cancelled
+                    ? `检查已取消（${statsTail}，已保留已获取数据）`
+                    : `检查完成！${statsTail}`;
                 if (response.result.errors.length > 0) {
                     // 显示具体错误信息
                     const firstError = response.result.errors[0];
@@ -950,6 +967,7 @@ export class NewWorksTab {
                     console.warn('新作品检查错误详情:', response.result.errors);
                 }
                 showMessage(message, response.result.discovered > 0 ? 'success' : (response.result.errors.length > 0 ? 'warn' : 'info'));
+                this.updateProgressUI({ done: true });
             } else {
                 throw new Error(response.error || '检查失败');
             }
@@ -963,6 +981,95 @@ export class NewWorksTab {
                 checkBtn.disabled = false;
                 checkBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 立即检查';
             }
+            this.detachProgressListener();
+            this.hideProgressUIAfter(1500);
+        }
+    }
+
+    /**
+     * 创建进度UI（若不存在）
+     */
+    private ensureProgressUI(): void {
+        if (this.progressEl && document.body.contains(this.progressEl)) return;
+        const host = document.querySelector('.new-works-controls') || document.getElementById('newWorksStatsContainer') || document.getElementById('tab-new-works');
+        if (!host) return;
+        const el = document.createElement('div');
+        el.id = 'newWorksProgress';
+        el.style.cssText = 'margin:10px 0;padding:8px 12px;border:1px dashed #999;border-radius:6px;background:rgba(0,0,0,0.03);font-size:13px;display:flex;align-items:center;gap:10px;';
+        el.innerHTML = '<i class="fas fa-tasks"></i><span class="text">准备中...</span><button id="newWorksCancelBtn" class="btn-secondary" style="margin-left:auto;">取消</button>';
+        host.appendChild(el);
+        this.progressEl = el;
+
+        // 绑定取消按钮
+        const cancelBtn = el.querySelector('#newWorksCancelBtn') as HTMLButtonElement | null;
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                if (cancelBtn.disabled) return;
+                cancelBtn.disabled = true;
+                cancelBtn.textContent = '取消中...';
+                try {
+                    chrome.runtime.sendMessage({ type: 'new-works-manual-cancel' }, (_res?: any) => {
+                        // 不论成功与否，不再重复发送
+                    });
+                } catch {}
+            }, { once: true });
+        }
+    }
+
+    /**
+     * 更新进度UI
+     */
+    private updateProgressUI(data: { processed?: number; total?: number; identifiedTotal?: number; effectiveTotal?: number; actorName?: string; done?: boolean }): void {
+        if (!this.progressEl) return;
+        const text = this.progressEl.querySelector('.text') as HTMLElement | null;
+        if (!text) return;
+        if (data.done) {
+            text.textContent = '检查完成';
+            return;
+        }
+        const p = typeof data.processed === 'number' ? data.processed : undefined;
+        const t = typeof data.total === 'number' ? data.total : undefined;
+        const idt = typeof data.identifiedTotal === 'number' ? data.identifiedTotal : undefined;
+        const eff = typeof data.effectiveTotal === 'number' ? data.effectiveTotal : undefined;
+        const actor = data.actorName ? `，当前：${data.actorName}` : '';
+        const seg1 = (p !== undefined && t !== undefined) ? `进度 ${p}/${t}` : '进行中';
+        const seg2 = (idt !== undefined) ? `，已识别 ${idt}` : '';
+        const seg3 = (eff !== undefined) ? `，有效 ${eff}` : '';
+        text.textContent = `${seg1}${seg2}${seg3}${actor}`;
+    }
+
+    /**
+     * 隐藏进度UI（延迟）
+     */
+    private hideProgressUIAfter(ms: number): void {
+        if (!this.progressEl) return;
+        setTimeout(() => { if (this.progressEl) this.progressEl.remove(); this.progressEl = undefined; }, Math.max(0, ms));
+    }
+
+    /**
+     * 绑定后台进度消息监听
+     */
+    private attachProgressListener(): void {
+        this.detachProgressListener();
+        const handler = (message: any) => {
+            try {
+                if (message && message.type === 'new-works-progress') {
+                    const payload = message.payload || {};
+                    this.updateProgressUI({ processed: payload.processed, total: payload.total, identifiedTotal: payload.identifiedTotal, effectiveTotal: payload.effectiveTotal, actorName: payload.actorName });
+                }
+            } catch {}
+        };
+        this.progressListener = handler;
+        chrome.runtime.onMessage.addListener(handler as any);
+    }
+
+    /**
+     * 解绑后台进度消息监听
+     */
+    private detachProgressListener(): void {
+        if (this.progressListener) {
+            try { chrome.runtime.onMessage.removeListener(this.progressListener as any); } catch {}
+            this.progressListener = undefined;
         }
     }
 
@@ -1075,27 +1182,41 @@ export class NewWorksTab {
         document.body.appendChild(modal);
 
         // 设置事件监听器
+        let isClosing = false;
+        const escHandler = (ev: KeyboardEvent) => {
+            if (ev.key === 'Escape') closeModal();
+        };
         const closeModal = () => {
+            if (isClosing) return;
+            isClosing = true;
             const overlay = modal.querySelector('.modal-overlay');
             if (overlay) {
                 overlay.classList.remove('visible');
                 console.log('管理订阅弹窗: 已移除visible类，开始隐藏弹窗');
             }
-
+            try { document.removeEventListener('keydown', escHandler); } catch {}
             // 等待动画完成后移除弹窗
             setTimeout(() => {
                 modal.remove();
                 document.body.style.overflow = '';
-            }, 300); // 与CSS transition时间一致
+            }, 200); // 与CSS transition时间保持一致
         };
 
-        modal.querySelector('.modal-close-btn')?.addEventListener('click', closeModal);
-        modal.querySelector('#subscriptionManagementClose')?.addEventListener('click', closeModal);
-        modal.querySelector('.modal-overlay')?.addEventListener('click', (e) => {
-            if (e.target === modal.querySelector('.modal-overlay')) {
+        const headerCloseBtn = modal.querySelector('.modal-close-btn') as HTMLButtonElement | null;
+        headerCloseBtn?.setAttribute('type', 'button');
+        headerCloseBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(); }, { once: true });
+
+        const footerCloseBtn = modal.querySelector('#subscriptionManagementClose') as HTMLButtonElement | null;
+        footerCloseBtn?.setAttribute('type', 'button');
+        footerCloseBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(); }, { once: true });
+
+        const overlayEl = modal.querySelector('.modal-overlay');
+        overlayEl?.addEventListener('click', (e) => {
+            if (e.target === overlayEl) {
                 closeModal();
             }
         });
+        document.addEventListener('keydown', escHandler);
 
         // 订阅项操作
         modal.querySelectorAll('.subscription-item').forEach(item => {

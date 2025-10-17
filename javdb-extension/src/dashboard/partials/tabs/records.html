@@ -7,46 +7,71 @@
         </div>
     </div>
 
-    <div class="search-and-filter">
-        <div class="search-input-wrapper">
-            <input
-                type="text"
-                id="searchInput"
-                placeholder="搜索番号/标题/标签… 支持标签：tag:/#；多标签用 空格/逗号/分号 分隔。例：tag:中出,素人 #人妻"
-                title="高级用法：\n- 标签：tag:中出、tags:中出,素人、#人妻\n- 多标签：空格/逗号/分号 分隔（AND）\n- 文本同时匹配 番号/标题/标签\n- 可与右侧筛选共同使用"
-            >
-            <div id="searchSuggest" class="search-suggest" style="display:none"></div>
+    <div class="search-and-filter records-toolbar">
+        <div class="search-row">
+            <select id="filterSelect">
+                <option value="all">所有状态</option>
+                <option value="viewed">已观看</option>
+                <option value="browsed">已浏览</option>
+                <option value="want">我想看</option>
+            </select>
+            <select id="sortSelect">
+                <option value="updatedAt_desc">按更新时间排序 (最新)</option>
+                <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
+                <option value="createdAt_desc">按创建时间排序 (最新)</option>
+                <option value="createdAt_asc">按创建时间排序 (最旧)</option>
+                <option value="id_asc">按番号排序 (A-Z)</option>
+                <option value="id_desc">按番号排序 (Z-A)</option>
+            </select>
+            <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">高级搜索</button>
+            <button id="toggleCoversBtn" class="button-like" title="显示/隐藏封面">
+                <i class="fas fa-image"></i> 显示封面
+            </button>
+            <div class="records-per-page-selector" style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;">
+                <label for="recordsPerPageSelect">每页显示:</label>
+                <select id="recordsPerPageSelect">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
         </div>
-        <select id="filterSelect">
-            <option value="all">所有状态</option>
-            <option value="viewed">已观看</option>
-            <option value="browsed">已浏览</option>
-            <option value="want">我想看</option>
-        </select>
-        <select id="sortSelect">
-            <option value="updatedAt_desc">按更新时间排序 (最新)</option>
-            <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
-            <option value="createdAt_desc">按创建时间排序 (最新)</option>
-            <option value="createdAt_asc">按创建时间排序 (最旧)</option>
-            <option value="id_asc">按番号排序 (A-Z)</option>
-            <option value="id_desc">按番号排序 (Z-A)</option>
-        </select>
-        <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">高级搜索</button>
-        <button id="toggleCoversBtn" class="button-like" title="显示/隐藏封面">
-            <i class="fas fa-image"></i> 显示封面
-        </button>
-        <div class="tags-filter-container">
-            <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
-            <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
-                <div class="tags-search-box">
-                    <input type="text" id="tagsSearchInput" placeholder="输入标签名称...">
+        <div class="filter-row">
+            <div class="tags-filter-container">
+                <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
+                <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
+                    <div class="tags-search-box">
+                        <input type="text" id="tagsSearchInput" placeholder="输入标签名称...">
+                    </div>
+                    <div id="tagsFilterList" class="tags-list">
+                        <!-- 标签列表将由 JS 动态填充 -->
+                    </div>
                 </div>
-                <div id="tagsFilterList" class="tags-list">
-                    <!-- 标签列表将由 JS 动态填充 -->
+                <div id="selectedTagsContainer" class="selected-tags">
+                    <!-- 已选择的标签将由 JS 动态填充 -->
                 </div>
             </div>
-            <div id="selectedTagsContainer" class="selected-tags">
-                <!-- 已选择的标签将由 JS 动态填充 -->
+            <div class="search-input-wrapper">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="搜索番号/标题/标签… 支持标签：tag:/#；多标签用 空格/逗号/分号 分隔。例：tag:中出,素人 #人妻"
+                >
+                <div id="searchSuggest" class="search-suggest" style="display:none"></div>
+                <button type="button" class="search-help" aria-label="高级用法">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+                <div class="search-help-popover" role="tooltip">
+                    <div class="help-title">高级用法</div>
+                    <ul class="help-list">
+                        <li>标签：如 <b>tag:中出</b>、<b>tags:中出,素人</b>、<b>#人妻</b></li>
+                        <li>多标签 AND：空格/逗号/分号 分隔</li>
+                        <li>同时匹配：番号 / 标题 / 标签</li>
+                        <li>可与右侧状态、排序、分页共同使用</li>
+                        <li>示例：<span class="mono">tag:中出,素人 #人妻</span></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -113,15 +138,6 @@
     <div class="pagination-controls">
         <div class="pagination">
             <!-- 分页控件将由 JS 动态填充 -->
-        </div>
-        <div class="records-per-page-selector">
-            <label for="recordsPerPageSelect">每页显示:</label>
-            <select id="recordsPerPageSelect">
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </select>
         </div>
     </div>
 </div>

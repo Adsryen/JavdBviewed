@@ -2,6 +2,7 @@
 // 演员库标签页
 
 import { actorManager } from '../../services/actorManager';
+import { newWorksManager } from '../../services/newWorks';
 import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
 import { getSettings } from '../../utils/storage';
@@ -18,6 +19,7 @@ export class ActorsTab {
     private currentGenderFilter = '';
     private currentCategoryFilter = '';
     private currentBlacklistFilter: 'all' | 'exclude' | 'only' = 'all';
+    private subscribedOnly: boolean = false;
     private isLoading = false;
     public isInitialized = false;
     private settings?: ExtensionSettings;
@@ -94,12 +96,66 @@ export class ActorsTab {
             });
         }
 
+        // 合并后的状态筛选（黑名单 + 订阅）
+        const statusFilter = document.getElementById('actorStatusFilter') as HTMLSelectElement;
+        if (statusFilter) {
+            // 初始化：根据当前内部状态设置默认选项
+            let initial = 'all';
+            if (this.subscribedOnly) {
+                initial = this.currentBlacklistFilter === 'exclude' ? 'sub_exclude' : 'sub_only';
+            } else {
+                if (this.currentBlacklistFilter === 'exclude') initial = 'exclude';
+                else if (this.currentBlacklistFilter === 'only') initial = 'only';
+                else initial = 'all';
+            }
+            try { statusFilter.value = initial; } catch {}
+
+            statusFilter.addEventListener('change', () => {
+                const val = statusFilter.value as 'all' | 'exclude' | 'only' | 'sub_only' | 'sub_exclude';
+                switch (val) {
+                    case 'sub_only':
+                        this.subscribedOnly = true;
+                        this.currentBlacklistFilter = 'all';
+                        break;
+                    case 'sub_exclude':
+                        this.subscribedOnly = true;
+                        this.currentBlacklistFilter = 'exclude';
+                        break;
+                    case 'exclude':
+                        this.subscribedOnly = false;
+                        this.currentBlacklistFilter = 'exclude';
+                        break;
+                    case 'only':
+                        this.subscribedOnly = false;
+                        this.currentBlacklistFilter = 'only';
+                        break;
+                    case 'all':
+                    default:
+                        this.subscribedOnly = false;
+                        this.currentBlacklistFilter = 'all';
+                        break;
+                }
+                this.currentPage = 1;
+                this.loadActors();
+            });
+        }
+
         // 黑名单筛选（可选存在）
         const blacklistFilter = document.getElementById('actorBlacklistFilter') as HTMLSelectElement;
         if (blacklistFilter) {
             blacklistFilter.addEventListener('change', () => {
                 const val = blacklistFilter.value as 'all' | 'exclude' | 'only';
                 this.currentBlacklistFilter = val;
+                this.currentPage = 1;
+                this.loadActors();
+            });
+        }
+
+        // 只看已订阅
+        const subscribedOnlyEl = document.getElementById('actorSubscribedOnly') as HTMLInputElement;
+        if (subscribedOnlyEl) {
+            subscribedOnlyEl.addEventListener('change', () => {
+                this.subscribedOnly = !!subscribedOnlyEl.checked;
                 this.currentPage = 1;
                 this.loadActors();
             });
@@ -146,19 +202,69 @@ export class ActorsTab {
         this.showLoading(true);
 
         try {
-            const result: ActorSearchResult = await actorManager.searchActors(
-                this.currentQuery,
-                this.currentPage,
-                this.pageSize,
-                this.currentSort as any,
-                this.currentOrder,
-                this.currentGenderFilter || undefined,
-                this.currentCategoryFilter || undefined,
-                this.currentBlacklistFilter
-            );
+            if (!this.subscribedOnly) {
+                const result: ActorSearchResult = await actorManager.searchActors(
+                    this.currentQuery,
+                    this.currentPage,
+                    this.pageSize,
+                    this.currentSort as any,
+                    this.currentOrder,
+                    this.currentGenderFilter || undefined,
+                    this.currentCategoryFilter || undefined,
+                    this.currentBlacklistFilter
+                );
+                await this.renderActorList(result);
+                this.renderPagination(result);
+            } else {
+                // 前端过滤：仅展示订阅集合中的演员
+                const [subs, allActors] = await Promise.all([
+                    newWorksManager.getSubscriptions().catch(() => [] as any[]),
+                    actorManager.getAllActors(),
+                ]);
+                const subSet = new Set<string>((subs || []).filter((s: any) => s && (s.enabled !== false)).map((s: any) => s.actorId));
+                let actors = allActors.filter(a => subSet.has(a.id));
 
-            this.renderActorList(result);
-            this.renderPagination(result);
+                const lowerQuery = (this.currentQuery || '').trim().toLowerCase();
+                if (lowerQuery) {
+                    actors = actors.filter(actor => (actor.name || '').toLowerCase().includes(lowerQuery)
+                        || (Array.isArray(actor.aliases) && actor.aliases.some(alias => String(alias).toLowerCase().includes(lowerQuery))));
+                }
+                if (this.currentGenderFilter) actors = actors.filter(a => a.gender === this.currentGenderFilter);
+                if (this.currentCategoryFilter) actors = actors.filter(a => a.category === this.currentCategoryFilter);
+                if (this.currentBlacklistFilter === 'exclude') actors = actors.filter(a => !a.blacklisted);
+                else if (this.currentBlacklistFilter === 'only') actors = actors.filter(a => !!a.blacklisted);
+
+                // 排序
+                const sortBy = (this.currentSort || 'name') as 'name' | 'updatedAt' | 'worksCount';
+                const order = this.currentOrder === 'desc' ? -1 : 1;
+                actors.sort((a, b) => {
+                    let av: any; let bv: any;
+                    switch (sortBy) {
+                        case 'updatedAt': av = a.updatedAt || 0; bv = b.updatedAt || 0; break;
+                        case 'worksCount': av = a.details?.worksCount || 0; bv = b.details?.worksCount || 0; break;
+                        case 'name':
+                        default: av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase();
+                    }
+                    if (typeof av === 'string' && typeof bv === 'string') {
+                        const cmp = av.localeCompare(bv);
+                        return order === 1 ? cmp : -cmp;
+                    }
+                    return order === 1 ? (av - bv) : (bv - av);
+                });
+
+                const total = actors.length;
+                const start = (this.currentPage - 1) * this.pageSize;
+                const pageActors = actors.slice(start, start + this.pageSize);
+                const result: ActorSearchResult = {
+                    actors: pageActors,
+                    total,
+                    page: this.currentPage,
+                    pageSize: this.pageSize,
+                    hasMore: this.currentPage * this.pageSize < total,
+                };
+                await this.renderActorList(result);
+                this.renderPagination(result);
+            }
 
         } catch (error) {
             console.error('Failed to load actors:', error);
@@ -172,7 +278,7 @@ export class ActorsTab {
     /**
      * 渲染演员列表
      */
-    private renderActorList(result: ActorSearchResult): void {
+    private async renderActorList(result: ActorSearchResult): Promise<void> {
         const container = document.getElementById('actorListContainer');
         if (!container) return;
 
@@ -189,7 +295,16 @@ export class ActorsTab {
             return;
         }
 
-        const actorCards = result.actors.map(actor => this.createActorCard(actor)).join('');
+        // 获取订阅集合（存在即视为已订阅）
+        let subscribedSet = new Set<string>();
+        try {
+            const subs = await newWorksManager.getSubscriptions();
+            subscribedSet = new Set(subs.map(s => s.actorId));
+        } catch (e) {
+            subscribedSet = new Set();
+        }
+
+        const actorCards = result.actors.map(actor => this.createActorCard(actor, subscribedSet.has(actor.id))).join('');
         container.innerHTML = `<div class="actor-grid">${actorCards}</div>`;
 
         // 为每个演员卡片添加头像和事件监听器
@@ -231,7 +346,7 @@ export class ActorsTab {
     /**
      * 创建演员卡片HTML
      */
-    private createActorCard(actor: ActorRecord): string {
+    private createActorCard(actor: ActorRecord, isSubscribed: boolean = false): string {
         const worksCount = actor.details?.worksCount || 0;
         const lastSync = actor.syncInfo?.lastSyncAt
             ? new Date(actor.syncInfo.lastSyncAt).toLocaleDateString()
@@ -316,6 +431,12 @@ export class ActorsTab {
                             data-actor-id="${actor.id}"
                             title="${isBlacklisted ? '取消拉黑' : '拉黑'}">
                         <i class="fas fa-ban"></i>
+                    </button>
+                    <button class="actor-action-btn actor-subscribe-toggle-btn"
+                            data-actor-id="${actor.id}"
+                            data-sub="${isSubscribed ? '1' : '0'}"
+                            title="${isSubscribed ? '取消订阅' : '订阅'}">
+                        <i class="fas ${isSubscribed ? 'fa-bell-slash' : 'fa-bell'}"></i>
                     </button>
                 </div>
             </div>
@@ -409,6 +530,52 @@ export class ActorsTab {
 
         // 检查别名是否溢出，如果溢出则显示展开按钮
         this.checkAliasesOverflow(actor.id);
+
+        // 订阅/取消订阅按钮事件
+        const subBtn = document.querySelector(`[data-actor-id="${actor.id}"].actor-subscribe-toggle-btn`) as HTMLButtonElement | null;
+        if (subBtn) {
+            subBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const btn = e.currentTarget as HTMLButtonElement;
+                if (btn.getAttribute('data-busy') === '1') return;
+                btn.setAttribute('data-busy', '1');
+                const actorId = btn.dataset.actorId!;
+                const icon = btn.querySelector('i');
+                const wasSub = btn.dataset.sub === '1';
+                try {
+                    if (!wasSub) {
+                        await newWorksManager.addSubscription(actorId);
+                        btn.dataset.sub = '1';
+                        if (icon) { icon.classList.remove('fa-bell'); icon.classList.add('fa-bell-slash'); }
+                        btn.title = '取消订阅';
+                        showMessage('已订阅该演员的新作品', 'success');
+                        if (this.subscribedOnly) { await this.loadActors(); }
+                    } else {
+                        await newWorksManager.removeSubscription(actorId);
+                        btn.dataset.sub = '0';
+                        if (icon) { icon.classList.remove('fa-bell-slash'); icon.classList.add('fa-bell'); }
+                        btn.title = '订阅';
+                        showMessage('已取消订阅该演员', 'success');
+                        if (this.subscribedOnly) { await this.loadActors(); }
+                    }
+                } catch (err: any) {
+                    const msg = err?.message || String(err);
+                    if (!wasSub && /已经订阅/.test(msg)) {
+                        // 幂等：当已订阅报错时，直接修正UI
+                        btn.dataset.sub = '1';
+                        if (icon) { icon.classList.remove('fa-bell'); icon.classList.add('fa-bell-slash'); }
+                        btn.title = '取消订阅';
+                        showMessage('该演员已在订阅列表', 'info');
+                        if (this.subscribedOnly) { await this.loadActors(); }
+                    } else {
+                        console.error('切换订阅失败:', err);
+                        showMessage('操作失败，请重试', 'error');
+                    }
+                } finally {
+                    btn.removeAttribute('data-busy');
+                }
+            });
+        }
     }
 
     /**
