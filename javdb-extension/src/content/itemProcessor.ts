@@ -222,13 +222,19 @@ function processItem(item: HTMLElement): void {
         // 添加标记，表示被默认功能隐藏
         item.setAttribute('data-hidden-by-default', 'true');
         item.setAttribute('data-hide-reason', getHideReason(videoId));
-    } else {
-        // 确保显示未被隐藏的项目
-        item.style.display = '';
-        // 移除默认隐藏标记
-        item.removeAttribute('data-hidden-by-default');
-        item.removeAttribute('data-hide-reason');
+        return;
     }
+
+    if (item.hasAttribute('data-hidden-by-actor')) {
+        item.style.display = 'none';
+        return;
+    }
+
+    // 确保显示未被隐藏的项目
+    item.style.display = '';
+    // 移除默认隐藏标记
+    item.removeAttribute('data-hidden-by-default');
+    item.removeAttribute('data-hide-reason');
 }
 
 function addTag(container: HTMLElement, text: string, style: string): void {
