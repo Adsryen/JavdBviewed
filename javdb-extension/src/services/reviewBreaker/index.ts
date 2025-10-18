@@ -34,24 +34,27 @@ export class ReviewBreakerService {
   /**
    * 生成API签名
    */
-  private static async generateSignature(): Promise<string> {
-    const now = Math.floor(Date.now() / 1000);
-    const lastTs = parseInt(localStorage.getItem(this.TIMESTAMP_KEY) || '0');
-    
-    // 如果距离上次生成不到20秒，使用缓存的签名
-    if (now - lastTs <= 20) {
-      const cachedSign = localStorage.getItem(this.SIGNATURE_KEY);
-      if (cachedSign) return cachedSign;
-    }
+  private static computeSignature(ts: number): string {
+    const signatureData = `${ts}${this.SIGNATURE_SALT}`;
+    return `${ts}.lpw6vgqzsp.${md5Hex(signatureData)}`;
+  }
 
-    // 生成新签名
-    const signatureData = `${now}${this.SIGNATURE_SALT}`;
-    const signature = `${now}.lpw6vgqzsp.${md5Hex(signatureData)}`;
-    
-    // 缓存签名和时间戳
-    localStorage.setItem(this.TIMESTAMP_KEY, now.toString());
-    localStorage.setItem(this.SIGNATURE_KEY, signature);
-    
+  private static async generateSignature(): Promise<string> {
+    // 与 JAV-JHS 保持一致：20s 内复用签名
+    const now = Math.floor(Date.now() / 1000);
+    try {
+      const lastTsRaw = localStorage.getItem(this.TIMESTAMP_KEY) || '0';
+      const lastTs = parseInt(lastTsRaw, 10) || 0;
+      if (now - lastTs <= 20) {
+        const cached = localStorage.getItem(this.SIGNATURE_KEY);
+        if (cached) return cached;
+      }
+    } catch {}
+    const signature = this.computeSignature(now);
+    try {
+      localStorage.setItem(this.TIMESTAMP_KEY, String(now));
+      localStorage.setItem(this.SIGNATURE_KEY, signature);
+    } catch {}
     return signature;
   }
 
@@ -59,22 +62,28 @@ export class ReviewBreakerService {
    * 发送HTTP请求
    */
   private static async makeRequest(url: string, params: Record<string, any> = {}): Promise<any> {
-    const signature = await this.generateSignature();
+    // 与 JAV-JHS 保持一致：仅传 page/sort_by/limit 等必要参数
     const queryString = new URLSearchParams(params).toString();
     const fullUrl = queryString ? `${url}?${queryString}` : url;
+
+    const signature = await this.generateSignature();
 
     const { success, status, data, error } = await bgFetchJSON<any>({
       url: fullUrl,
       method: 'GET',
       headers: {
-        // 与参考脚本保持一致：全小写 jdsignature
+        // 关键：JHS 使用驼峰 jdSignature
+        'jdSignature': signature,
         'jdsignature': signature,
+        'accept': 'application/json',
       },
       timeoutMs: 15000,
     });
 
     if (!success) {
-      throw new Error(error || `HTTP ${status}`);
+      const serverMsg = data && (data.message || data.error || data.msg);
+      const errText = serverMsg ? `HTTP ${status}: ${serverMsg}` : (error || `HTTP ${status}`);
+      throw new Error(errText);
     }
     return data;
   }
@@ -85,15 +94,26 @@ export class ReviewBreakerService {
   static async getReviews(movieId: string, page: number = 1, limit: number = 20): Promise<ReviewResponse> {
     try {
       log(`[ReviewBreaker] Fetching reviews for movie: ${movieId}, page: ${page}`);
-      
       const url = `${this.API_BASE}/v1/movies/${movieId}/reviews`;
-      const params = {
-        page: page.toString(),
-        sort_by: 'hotly',
-        limit: limit.toString(),
-      };
 
-      const response = await this.makeRequest(url, params);
+      const sorts = ['hotly', 'hot', 'latest'];
+      let response: any | null = null;
+      let lastErr: any = null;
+      for (const s of sorts) {
+        try {
+          log(`[ReviewBreaker] Trying sort_by=${s}`);
+          const params = { page: page.toString(), sort_by: s, limit: limit.toString() };
+          response = await this.makeRequest(url, params);
+          log(`[ReviewBreaker] sort_by=${s} ok`);
+          break;
+        } catch (e) {
+          lastErr = e;
+          log(`[ReviewBreaker] sort_by=${s} failed`, e);
+        }
+      }
+      if (!response) {
+        throw lastErr || new Error('请求失败');
+      }
       
       if (!response.data || !response.data.reviews) {
         return {
