@@ -195,6 +195,9 @@ export interface ExtensionSettings {
         autoApplyTags: boolean; // 自动应用保存的tag过滤器
         defaultTags: string[]; // 默认应用的tags (如 ['s', 'd'])
         defaultSortType: number; // 默认排序类型
+        // 新增：影片分段显示（仅演员页）
+        enableTimeSegmentationDivider?: boolean; // 启用“影片分段显示”分隔线
+        timeSegmentationMonths?: number; // 阈值（月），默认 6
     };
 
     // 新增：Emby增强配置

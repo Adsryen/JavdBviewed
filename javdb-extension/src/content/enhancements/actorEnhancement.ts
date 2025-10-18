@@ -20,6 +20,9 @@ interface ActorEnhancementConfig {
   autoApplyTags: boolean;
   defaultTags: string[];
   defaultSortType: number;
+  // 新增：影片分段显示（仅演员页）
+  enableTimeSegmentationDivider?: boolean;
+  timeSegmentationMonths?: number; // 阈值（月），默认6
 }
 
 class ActorEnhancementManager {
@@ -34,9 +37,143 @@ class ActorEnhancementManager {
   private currentActorId = '';
   private availableTags: Map<string, string> = new Map(); // tag code -> tag name
   private storageKey = 'actorTagFilters';
+  // 分段显示：样式与观察器
+  private segStylesInjected = false;
+  private listObserver: MutationObserver | null = null;
 
   updateConfig(newConfig: Partial<ActorEnhancementConfig>): void {
     this.config = { ...this.config, ...newConfig };
+  }
+
+  /**
+   * 注入“影片分段显示”的样式
+   */
+  private ensureSegmentationStyles(): void {
+    if (this.segStylesInjected) return;
+    try {
+      const style = document.createElement('style');
+      style.id = 'x-actor-time-seg-styles';
+      style.textContent = `
+        .x-actor-seg-divider {
+          /* 占满一整行（兼容 grid 和 flex 布局） */
+          display: block;
+          grid-column: 1 / -1;
+          flex: 0 0 100%;
+          width: 100%;
+          box-sizing: border-box;
+          margin: 16px 0;
+          padding: 6px 8px;
+          /* 横条背景和上下边框，避免“卡片感” */
+          background: linear-gradient(to right, rgba(255,247,237,0), #fff7ed 20%, #fff7ed 80%, rgba(255,247,237,0));
+          border-top: 1px solid #f59e0b; /* amber-500 */
+          border-bottom: 1px solid #f59e0b;
+          color: #92400e; /* amber-900 */
+          font-weight: 600;
+          text-align: center;
+          letter-spacing: 0.3px;
+        }
+      `;
+      document.head.appendChild(style);
+      this.segStylesInjected = true;
+    } catch {}
+  }
+
+  /**
+   * 从列表项中解析发行日期（尽力而为）
+   */
+  private parseReleaseDateFromItem(item: HTMLElement): number | null {
+    try {
+      // 常见：.meta 文本包含日期
+      const meta = item.querySelector('.meta');
+      const text = (meta?.textContent || item.textContent || '').trim();
+      // 匹配 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD
+      const m = text.match(/(20\d{2}|19\d{2})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})/);
+      if (m) {
+        const y = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10) - 1;
+        const d = parseInt(m[3], 10);
+        const dt = new Date(y, mo, d).getTime();
+        return isNaN(dt) ? null : dt;
+      }
+      // 兜底：匹配 YYYY-MM（没有日）
+      const m2 = text.match(/(20\d{2}|19\d{2})[\.\/\-](\d{1,2})(?![\d\.\/\-])/);
+      if (m2) {
+        const y = parseInt(m2[1], 10);
+        const mo = parseInt(m2[2], 10) - 1;
+        const dt = new Date(y, mo, 1).getTime();
+        return isNaN(dt) ? null : dt;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 应用“影片分段显示”：按阈值插入分隔线
+   */
+  private applyTimeSegmentationDivider(): void {
+    if (!this.config.enableTimeSegmentationDivider) return;
+    const list = document.querySelector('.movie-list');
+    if (!list) return;
+
+    // 清理旧分隔线
+    list.querySelectorAll('.x-actor-seg-divider').forEach(el => el.remove());
+
+    const items = Array.from(list.querySelectorAll('.item')) as HTMLElement[];
+    if (items.length === 0) return;
+
+    const months = Math.max(1, this.config.timeSegmentationMonths || 6);
+    const now = Date.now();
+    const thresholdMs = now - months * 30 * 24 * 60 * 60 * 1000; // 简化：按30天/月
+
+    // 找到第一条“小于阈值”的项
+    let insertBefore: HTMLElement | null = null;
+    for (const it of items) {
+      const ts = this.parseReleaseDateFromItem(it);
+      if (ts && ts < thresholdMs) {
+        insertBefore = it;
+        break;
+      }
+    }
+
+    if (!insertBefore) return; // 都在近N个月内，或均未识别到日期
+
+    // 注入样式
+    this.ensureSegmentationStyles();
+
+    const seg = document.createElement('div');
+    seg.className = 'x-actor-seg-divider';
+    seg.textContent = `— 更早（${months}个月前） —`;
+    seg.setAttribute('role', 'separator');
+
+    insertBefore.parentElement?.insertBefore(seg, insertBefore);
+  }
+
+  private observeListForSegmentation(): void {
+    try {
+      if (!this.config.enableTimeSegmentationDivider) return;
+      const list = document.querySelector('.movie-list');
+      if (!list) return;
+      if (this.listObserver) {
+        this.listObserver.disconnect();
+        this.listObserver = null;
+      }
+      let timer: number | null = null;
+      this.listObserver = new MutationObserver((mutations) => {
+        let need = false;
+        for (const m of mutations) {
+          if (m.type === 'childList' && (m.addedNodes.length > 0 || m.removedNodes.length > 0)) {
+            need = true; break;
+          }
+        }
+        if (need) {
+          if (timer) window.clearTimeout(timer);
+          timer = window.setTimeout(() => this.applyTimeSegmentationDivider(), 200);
+        }
+      });
+      this.listObserver.observe(list, { childList: true, subtree: true });
+    } catch {}
   }
 
   /**
@@ -428,6 +565,13 @@ class ActorEnhancementManager {
     if (this.config.autoApplyTags) {
       setTimeout(() => this.applyStoredTagFilter(), 1000);
     }
+
+    // 演员页：影片分段显示
+    if (this.config.enableTimeSegmentationDivider) {
+      // 延时执行以等待列表渲染完成
+      setTimeout(() => this.applyTimeSegmentationDivider(), 800);
+      this.observeListForSegmentation();
+    }
   }
 
   private parseAvailableTags(): void {
@@ -716,6 +860,10 @@ class ActorEnhancementManager {
     this.saveCurrentTagFilter();
     // 清理事件监听器等资源
     console.log('🎭 演员页增强功能已销毁');
+    if (this.listObserver) {
+      try { this.listObserver.disconnect(); } catch {}
+      this.listObserver = null;
+    }
   }
 }
 

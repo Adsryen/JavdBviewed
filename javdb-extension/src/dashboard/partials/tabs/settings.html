@@ -882,6 +882,8 @@
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
+                                    <!-- 新增：演员页增强 - 影片分段显示（隐藏 checkbox 作为状态源） -->
+                                    <input type="checkbox" id="aeEnableTimeSegmentationDivider">
                                 </div>
 
                                 <!-- 数据增强 -->
@@ -1609,7 +1611,35 @@
                                         </div>
                                     </div>
 
-                                    
+                                    <div class="form-group" data-subtab="actor">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🧭 影片分段显示</h6>
+                                                    <span class="enhancement-feature-status available">演员页</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="aeEnableTimeSegmentationDivider"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在演员页的作品列表中，按时间阈值（默认6个月）在“近N个月”和“更早”之间插入一条高亮分隔线，增强时间分段的可读性。
+                                        </p>
+
+                                        <!-- 子设置：时间阈值（月） -->
+                                        <div class="sub-settings" id="actorTimeSegmentationConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🧭 分段配置</h5>
+                                                <p class="sub-description">设置“近N个月”的时间阈值。</p>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="aeTimeSegmentationMonths">时间阈值（月）:</label>
+                                                <input type="number" id="aeTimeSegmentationMonths" class="number-input" min="1" max="24" value="6">
+                                                <p class="input-description">用于区分“近N个月”和“更早”的临界值，默认 6 个月。</p>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">

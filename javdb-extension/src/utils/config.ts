@@ -397,6 +397,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         autoApplyTags: false,
         defaultTags: [],
         defaultSortType: 0,
+        // 新增：演员页“影片分段显示”默认配置
+        enableTimeSegmentationDivider: false,
+        // 默认以 6 个月为阈值
+        timeSegmentationMonths: 6,
     },
 
     // 新增：隐私保护配置
