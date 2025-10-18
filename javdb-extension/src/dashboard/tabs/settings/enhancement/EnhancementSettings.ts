@@ -83,6 +83,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private exportActorConfig!: HTMLButtonElement;
     private importActorConfig!: HTMLButtonElement;
     private actorConfigFileInput!: HTMLInputElement;
+    // 新增：演员页 影片分段显示
+    private aeEnableTimeSegmentationDivider!: HTMLInputElement;
+    private aeTimeSegmentationMonths!: HTMLInputElement;
 
     // 配置区域元素
     private translationConfig!: HTMLDivElement;
@@ -277,6 +280,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.exportActorConfig = document.getElementById('exportActorConfig') as HTMLButtonElement;
         this.importActorConfig = document.getElementById('importActorConfig') as HTMLButtonElement;
         this.actorConfigFileInput = document.getElementById('actorConfigFileInput') as HTMLInputElement;
+        // 新增：演员页 影片分段显示元素
+        this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
+        this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
 
         // 磁力搜索源配置
         this.magnetSourceSukebei = document.getElementById('magnetSourceSukebei') as HTMLInputElement;
@@ -431,26 +437,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
         // 新增：本地同步子项
-        this.veEnableWantSync?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veAutoMarkWatchedAfter115?.addEventListener('change', this.handleSettingChange.bind(this));
 
-        // 演员页增强配置事件监听
-        this.enableActorEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableAutoApplyTags?.addEventListener('change', () => {
-            this.handleSettingChange();
-            this.toggleConfigSections();
-        });
-        if (this.actorDefaultTagInputs) {
-            this.actorDefaultTagInputs.forEach(input => {
-                input.addEventListener('change', this.handleSettingChange.bind(this));
-            });
-        }
-        this.previewDelay?.addEventListener('change', this.handleSettingChange.bind(this));
-        // 同步"视频预览增强"描述里的当前延迟显示
-        this.previewDelay?.addEventListener('input', () => this.updateCurrentPreviewDelayDisplay());
-        this.previewVolume?.addEventListener('input', this.handleVolumeChange.bind(this));
-        // 演员水印透明度
-        this.actorWatermarkPosition?.addEventListener('change', this.handleSettingChange.bind(this));
+    // 锚点优化配置事件监听
+    this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
+    this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
         this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
 
         // 缓存过期时间
@@ -1231,6 +1221,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 input.checked = actorEnhancement.defaultTags.includes(input.value);
             });
         }
+        // 新增：演员页 影片分段显示回填
+        if (this.aeEnableTimeSegmentationDivider) this.aeEnableTimeSegmentationDivider.checked = (actorEnhancement as any).enableTimeSegmentationDivider === true;
+        if (this.aeTimeSegmentationMonths) this.aeTimeSegmentationMonths.value = String((actorEnhancement as any).timeSegmentationMonths || 6);
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
         // 首次加载时更新"当前延迟"展示
         this.updateCurrentPreviewDelayDisplay();
@@ -1471,6 +1464,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
                         : ['s', 'd'],
                     defaultSortType: 0,
+                    // 新增：演员页 影片分段显示
+                    enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
+                    timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
                 },
                 contentFilter: {
                     enabled: this.enableContentFilter.checked,
@@ -1509,9 +1505,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
     }
 
-    /**
-     * 获取当前设置
-     */
+    // 读取当前面板值为设置（满足 BaseSettingsPanel 接口）
     protected doGetSettings(): Partial<ExtensionSettings> {
         return {
             userExperience: {
@@ -1524,37 +1518,36 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableActorEnhancement: this.enableActorEnhancement.checked,
                 showEnhancedTooltips: false,
             },
-            videoEnhancement: {
-                enabled: this.enableVideoEnhancement?.checked === true,
-                enableCoverImage: this.veEnableCoverImage?.checked !== false,
-                // 影片页翻译已合并到全局翻译：镜像全局开关，确保旧逻辑兼容
-                enableTranslation: this.enableTranslation?.checked === true,
-                enableRating: this.veEnableRating?.checked !== false,
-                enableActorInfo: this.veEnableActorInfo?.checked !== false,
-                showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
-                enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
-                enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
-                // 新增：本地同步子项
-                enableWantSync: this.veEnableWantSync?.checked !== false,
-                autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
+            listEnhancement: {
+                enabled: this.enableListEnhancement.checked,
+                enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
+                enableVideoPreview: this.enableListVideoPreview?.checked !== false,
+                enableScrollPaging: this.enableScrollPaging?.checked === true,
+                enableListOptimization: true,
+                previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
+                previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
+                enableRightClickBackground: true,
+                preferredPreviewSource: this.getPreferredPreviewSource(),
+                enableActorWatermark: this.enableActorWatermark?.checked === true,
+                actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
+                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,
                 showPreviewButton: this.showPreviewButton?.checked !== false,
                 buttonPosition: (this.anchorButtonPosition?.value as 'right-center' | 'right-bottom') || 'right-center',
             },
-            listEnhancement: {
-                enabled: this.enableListEnhancement.checked,
-                enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
-                enableVideoPreview: this.enableListVideoPreview?.checked !== false,
-                enableScrollPaging: this.enableScrollPaging?.checked || false,
-                enableListOptimization: true,
-                previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
-                previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
-                enableRightClickBackground: true,
-                enableActorWatermark: this.enableActorWatermark?.checked === true,
-                actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
-                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
+            videoEnhancement: {
+                enabled: this.enableVideoEnhancement?.checked === true,
+                enableCoverImage: this.veEnableCoverImage?.checked !== false,
+                enableTranslation: this.enableTranslation?.checked === true,
+                enableRating: this.veEnableRating?.checked !== false,
+                enableActorInfo: this.veEnableActorInfo?.checked !== false,
+                showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
+                enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
+                enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
+                enableWantSync: this.veEnableWantSync?.checked !== false,
+                autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
@@ -1563,100 +1556,42 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
                     : ['s', 'd'],
                 defaultSortType: 0,
+                enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
+                timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
             },
         };
     }
 
-    /**
-     * 设置数据到UI
-     */
+    // 将给定设置快速回填到面板（满足 BaseSettingsPanel 接口）
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
-        const dataEnhancement = settings.dataEnhancement;
-        const userExperience = settings.userExperience;
-        const anchorOptimization = settings.anchorOptimization;
-        const listEnhancement = settings.listEnhancement || { enabled: true, enableClickEnhancement: true, enableVideoPreview: true, enableScrollPaging: false, enableListOptimization: true, previewDelay: 1000, previewVolume: 0.2, enableRightClickBackground: true };
-
-        // 数据增强设置
-        this.enableTranslation.checked = dataEnhancement?.enableTranslation || false;
-        this.cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
-
-        // 用户体验增强设置
-        this.enableContentFilter.checked = userExperience?.enableContentFilter || false;
-        this.enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
-        this.enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
-        if (userExperience?.enableListEnhancement !== undefined) {
-            this.enableListEnhancement.checked = userExperience.enableListEnhancement;
-        }
-        if (userExperience?.enableActorEnhancement !== undefined) {
-            this.enableActorEnhancement.checked = userExperience.enableActorEnhancement;
-        }
-
-        // 磁力搜索源配置
-        this.magnetSourceSukebei.checked = true; // 默认启用
-        this.magnetSourceBtdig.checked = true; // 默认启用
-        this.magnetSourceBtsow.checked = true; // 默认启用
-        this.magnetSourceTorrentz2.checked = false; // 默认禁用
-
-        // 锚点优化配置
-        if (anchorOptimization) {
-            if (anchorOptimization.buttonPosition && this.anchorButtonPosition) {
-                this.anchorButtonPosition.value = anchorOptimization.buttonPosition;
+        try {
+            if (settings.userExperience) {
+                const ux = settings.userExperience;
+                if (this.enableContentFilter && typeof ux.enableContentFilter === 'boolean') this.enableContentFilter.checked = ux.enableContentFilter;
+                if (this.enableMagnetSearch && typeof ux.enableMagnetSearch === 'boolean') this.enableMagnetSearch.checked = ux.enableMagnetSearch;
+                if (this.enableAnchorOptimization && typeof ux.enableAnchorOptimization === 'boolean') this.enableAnchorOptimization.checked = ux.enableAnchorOptimization;
+                if (this.enableListEnhancement && typeof ux.enableListEnhancement === 'boolean') this.enableListEnhancement.checked = ux.enableListEnhancement;
+                if (this.enableActorEnhancement && typeof ux.enableActorEnhancement === 'boolean') this.enableActorEnhancement.checked = ux.enableActorEnhancement;
             }
-            if (anchorOptimization.showPreviewButton !== undefined && this.showPreviewButton) {
-                this.showPreviewButton.checked = anchorOptimization.showPreviewButton;
+            if (settings.listEnhancement) {
+                const le = settings.listEnhancement as any;
+                if (this.enableClickEnhancement && typeof le.enableClickEnhancement === 'boolean') this.enableClickEnhancement.checked = le.enableClickEnhancement;
+                if (this.enableListVideoPreview && typeof le.enableVideoPreview === 'boolean') this.enableListVideoPreview.checked = le.enableVideoPreview;
+                if (this.enableScrollPaging && typeof le.enableScrollPaging === 'boolean') this.enableScrollPaging.checked = le.enableScrollPaging;
+                if (this.previewDelay && typeof le.previewDelay === 'number') this.previewDelay.value = String(le.previewDelay);
+                if (this.previewVolume && typeof le.previewVolume === 'number') this.previewVolume.value = String(le.previewVolume);
+                if (this.enableActorWatermark && typeof le.enableActorWatermark === 'boolean') this.enableActorWatermark.checked = le.enableActorWatermark;
+                if (this.actorWatermarkPosition && le.actorWatermarkPosition) this.actorWatermarkPosition.value = le.actorWatermarkPosition;
+                if (this.actorWatermarkOpacity && typeof le.actorWatermarkOpacity === 'number') this.actorWatermarkOpacity.value = String(le.actorWatermarkOpacity);
             }
-        }
-
-        // 列表增强配置
-        if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
-        if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
-        if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
-        
-        // 演员页增强配置
-        const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: ['s', 'd'], defaultSortType: 0 };
-        if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
-        if (this.actorDefaultTagInputs && actorEnhancement.defaultTags) {
-            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
-                input.checked = actorEnhancement.defaultTags.includes(input.value);
-            });
-        }
-        if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
-        if (this.previewVolume) {
-            const volumeValue = listEnhancement.previewVolume || 0.2;
-            this.previewVolume.value = String(volumeValue);
-            const percentage = Math.round(volumeValue * 100);
-
-            if (this.previewVolumeValue) {
-                this.previewVolumeValue.textContent = `${percentage}%`;
+            if (settings.actorEnhancement) {
+                const ae = settings.actorEnhancement as any;
+                if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
+                if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
+                if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
             }
-
-            // 同步进度条
-            const volumeGroup = document.querySelector('.volume-control-group') as HTMLElement;
-            const trackFill = volumeGroup?.querySelector('.range-track-fill') as HTMLElement;
-            if (trackFill) {
-                trackFill.style.width = `${percentage}%`;
-                console.log(`[Enhancement] 设置加载时同步音量进度条: ${percentage}%`);
-            }
-        }
-
-        // 内容过滤规则
-        const contentFilter = settings?.contentFilter || { keywordRules: [] };
-        this.currentFilterRules = contentFilter.keywordRules || [];
-        this.renderFilterRules();
-
-        // 显示/隐藏配置区域
-        this.toggleConfigSections();
-
-        // 确保翻译配置的显示状态正确
-        if (this.translationConfig) {
-            // 由 updateTranslationConfigVisibility + 悬浮逻辑统一控制显隐
-        }
-
-        // 翻译配置 UI 回填
-        this.initEnhancementToggles();
-
-        // 强制更新所有滑块状态以确保与存储同步
-        this.updateAllToggleStates();
+            this.updateAllToggleStates();
+        } catch {}
     }
 
     /**

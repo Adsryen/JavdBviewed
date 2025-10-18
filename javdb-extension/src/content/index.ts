@@ -367,6 +367,9 @@ async function initialize(): Promise<void> {
             autoApplyTags: settings.actorEnhancement?.autoApplyTags !== false,
             defaultTags: settings.actorEnhancement?.defaultTags || ['s', 'd'],
             defaultSortType: settings.actorEnhancement?.defaultSortType || 0,
+            // 新增：演员页“影片分段显示”配置
+            enableTimeSegmentationDivider: (settings.actorEnhancement as any)?.enableTimeSegmentationDivider === true,
+            timeSegmentationMonths: (settings.actorEnhancement as any)?.timeSegmentationMonths || 6,
         });
         initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
     }
