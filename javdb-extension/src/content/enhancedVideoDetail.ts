@@ -441,29 +441,112 @@ export class VideoDetailEnhancer {
    */
   private async enhanceReviews(videoId: string): Promise<void> {
     try {
-      // 查找合适的位置插入评论区
-      const targetContainer = document.querySelector('.container, .content, main, body');
-      if (!targetContainer) {
-        log('[ReviewBreaker] No suitable container found for reviews');
+      const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
+      if (!reviewsRoot) {
+        log('[ReviewBreaker] Native #reviews container not found, skip.');
         return;
       }
 
-      // 创建评论区容器
-      const reviewsContainer = this.createReviewsContainer();
+      // 若页面已存在原生评论项，则直接使用原生内容，跳过第三方 API。
+      // 为应对晚于容器出现的懒加载，最多等待 ~1.25s（5 * 250ms）
+      try {
+        const hasNative = () => (
+          reviewsRoot.querySelector("[id^='review-item-']")
+          || reviewsRoot.querySelector('dl.review-items dd')
+          || reviewsRoot.querySelector('dl.review-items .review-item')
+        );
+        if (hasNative()) {
+          log('[ReviewBreaker] Native review items detected, skip API fetch.');
+          return;
+        }
+        for (let i = 0; i < 5; i++) {
+          await new Promise(r => setTimeout(r, 250));
+          if (hasNative()) {
+            log('[ReviewBreaker] Native review items detected after delay, skip API fetch.');
+            return;
+          }
+        }
+      } catch {}
+
+      const ensureList = (): HTMLElement => {
+        let dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
+        if (!dl) {
+          const body = reviewsRoot.querySelector('.message .message-body') as HTMLElement | null
+                    || reviewsRoot.querySelector('.message-body') as HTMLElement | null
+                    || reviewsRoot;
+          dl = document.createElement('dl');
+          dl.className = 'review-items';
+          body.appendChild(dl);
+        }
+        return dl;
+      };
+
+      const listEl = ensureList();
+      const hideLoadingPlaceholders = () => {
+        const nodes = Array.from(reviewsRoot.querySelectorAll('.message .message-body, .message-body, p, div, span')) as HTMLElement[];
+        for (const el of nodes) {
+          const t = (el.textContent || '').trim();
+          if (!t) continue;
+          if (t.includes('读取中') || t.includes('讀取中') || t.includes('加载中') || t.includes('加載中') || t.includes('Loading')) {
+            el.style.display = 'none';
+          }
+        }
+      };
+      const getErrorHost = (): HTMLElement => {
+        let host = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'jhs-review-error';
+          listEl.parentElement?.insertBefore(host, listEl.nextSibling);
+        }
+        return host;
+      };
+
+      const injectOnce = async () => {
+        try {
+          const resp = await reviewBreakerService.getReviews(videoId, 1, 20);
+          hideLoadingPlaceholders();
+          if (resp.success && resp.data) {
+            this.displayNativeReviews(resp.data, listEl);
+            const err = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
+            if (err) err.remove();
+            log('[ReviewBreaker] Native reviews injected.');
+          } else {
+            const host = getErrorHost();
+            this.renderRetryBlock(host, `评论获取失败：${resp.error || ''}`, '重试获取', async () => {
+              host.innerHTML = '<div style="text-align:center;padding:16px;">正在重试...</div>';
+              await injectOnce();
+            });
+            log('[ReviewBreaker] Failed to fetch reviews for native mount:', resp.error);
+          }
+        } catch (e) {
+          hideLoadingPlaceholders();
+          const host = getErrorHost();
+          this.renderRetryBlock(host, `评论获取失败：${e instanceof Error ? e.message : String(e)}`, '重试获取', async () => {
+            host.innerHTML = '<div style="text-align:center;padding:16px;">正在重试...</div>';
+            await injectOnce();
+          });
+          log('[ReviewBreaker] Exception while injecting native reviews:', e);
+        }
+      };
+
+      await injectOnce();
+
+      // 监听 tabs 切换导致的 DOM 重渲染，自动补回注入
+      const observer = new MutationObserver(() => {
+        const dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
+        // 若列表被重建且没有我们的注入项，则再次注入
+        if (dl && !dl.querySelector('.jhs-review-item')) {
+          this.displayNativeReviews((window as any).__JHS_REVIEWS_CACHE__ || [], dl);
+        }
+      });
+      try {
+        observer.observe(reviewsRoot, { childList: true, subtree: true });
+      } catch {}
+      // 轻量缓存，供重渲染时快速还原（页面内作用域即可）
+      (window as any).__JHS_REVIEWS_CACHE__ = (window as any).__JHS_REVIEWS_CACHE__ || [];
       
-      // 插入到页面中
-      const insertPosition = targetContainer.querySelector('.video-info, .movie-info') || 
-                            targetContainer.firstElementChild;
-      if (insertPosition) {
-        insertPosition.parentElement?.insertBefore(reviewsContainer, insertPosition.nextSibling);
-      } else {
-        targetContainer.appendChild(reviewsContainer);
-      }
-
-      // 加载评论数据
-      await this.loadReviews(videoId, reviewsContainer);
-
-      log('[ReviewBreaker] Reviews enhanced successfully');
+      log('[ReviewBreaker] Reviews enhancement (native mount) ready');
     } catch (error) {
       log('[ReviewBreaker] Error enhancing reviews:', error);
       showToast('评论区增强失败', 'error');
@@ -1161,6 +1244,99 @@ export class VideoDetailEnhancer {
     element.appendChild(footer);
 
     return element;
+  }
+
+  /**
+   * 将评论渲染为原生样式并挂载到 <dl class="review-items">
+   */
+  private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement): void {
+    const filterKeywords = reviewBreakerService.getFilterKeywords();
+    const filtered = reviews.filter(r => !reviewBreakerService.shouldFilterReview(r, filterKeywords));
+
+    // 缓存供重渲染复用
+    try { (window as any).__JHS_REVIEWS_CACHE__ = filtered; } catch {}
+
+    filtered.forEach(review => {
+      const id = `jhs-review-${review.id}`;
+      if (document.getElementById(id)) return; // 去重
+      dl.appendChild(this.createNativeReviewElement(review));
+    });
+  }
+
+  /**
+   * 创建接近原生结构的 <dt class="review-item">，以复用站点样式
+   */
+  private createNativeReviewElement(review: ReviewData): HTMLElement {
+    const dt = document.createElement('dt');
+    dt.className = 'review-item jhs-review-item';
+    dt.id = `jhs-review-${review.id}`;
+    dt.setAttribute('data-source', 'jhs');
+
+    const title = document.createElement('div');
+    title.className = 'review-title';
+
+    // 右侧点赞（只展示，不提交）
+    const likesWrap = document.createElement('div');
+    likesWrap.className = 'likes is-pulled-right';
+    const likeBtn = document.createElement('button');
+    likeBtn.className = 'button is-small is-info';
+    likeBtn.type = 'button';
+    likeBtn.title = '贊';
+    likeBtn.disabled = true;
+    const likeLabel = document.createElement('span');
+    likeLabel.className = 'label';
+    likeLabel.textContent = '贊';
+    const likeCount = document.createElement('span');
+    likeCount.className = 'likes-count';
+    likeCount.textContent = String(review.likes ?? 0);
+    likeBtn.appendChild(likeLabel);
+    likeBtn.appendChild(likeCount);
+    likesWrap.appendChild(likeBtn);
+
+    // 作者
+    const authorText = document.createTextNode(`${review.author}\u00A0`);
+
+    // 评分星星（最多5个）
+    const stars = document.createElement('span');
+    stars.className = 'score-stars';
+    const starCount = Math.max(0, Math.min(5, Math.round(((review.rating ?? 0) as number) / 2)));
+    for (let i = 0; i < starCount; i++) {
+      const iEl = document.createElement('i');
+      iEl.className = 'icon-star';
+      stars.appendChild(iEl);
+    }
+
+    // 时间
+    const time = document.createElement('span');
+    time.className = 'time';
+    try {
+      const d = new Date(review.date);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      time.textContent = `${y}-${m}-${day}`;
+    } catch {
+      time.textContent = review.date;
+    }
+
+    // 标题行组装
+    title.appendChild(likesWrap);
+    title.appendChild(authorText);
+    title.appendChild(document.createTextNode('\u00A0'));
+    title.appendChild(stars);
+    title.appendChild(document.createTextNode('\u00A0'));
+    title.appendChild(time);
+
+    // 正文
+    const contentWrap = document.createElement('div');
+    contentWrap.className = 'content';
+    const p = document.createElement('p');
+    p.textContent = review.content;
+    contentWrap.appendChild(p);
+
+    dt.appendChild(title);
+    dt.appendChild(contentWrap);
+    return dt;
   }
 
   /**

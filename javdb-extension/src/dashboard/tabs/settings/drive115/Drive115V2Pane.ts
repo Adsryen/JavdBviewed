@@ -220,24 +220,22 @@ export class Drive115V2Pane implements IDrive115Pane {
     manualRefreshBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
       const rt = (((v2RefreshTokenInput as any)?.value) || '').trim();
-      // 复制 refresh_token
-      try {
-        if (rt) {
-          await navigator.clipboard.writeText(rt);
-          showToast('已复制 refresh_token 到剪贴板', 'success');
-        }
-      } catch {}
-      // 打开帮助页面
-      try {
-        const masked = rt ? (rt.length > 12 ? (rt.slice(0,6) + '…' + rt.slice(-4)) : rt) : '（未填写）';
-        const helpHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>115 手动刷新帮助</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'Microsoft YaHei',sans-serif;padding:16px;line-height:1.6;color:#1f2937} code{background:#f3f4f6;padding:2px 4px;border-radius:4px} .ok{color:#16a34a} .warn{color:#d97706} .err{color:#dc2626}</style></head><body><h2>115 手动刷新指引</h2><ol><li>refresh_token 已复制：<strong class="ok">${masked}</strong></li><li>本页仅作辅助说明：扩展已内置“手动刷新”流程（调用 115 接口 /open/token/refresh），点击按钮后会自动刷新并保存。</li><li>若失败，请在设置页检查：<ul><li>接口域名：<code>https://proapi.115.com</code></li><li>refresh_token 是否正确、未过期</li></ul></li><li>如需自行调试接口，可参考 115 官方/社区文档（POST <code>/open/token/refresh</code>，携带 refresh_token）。</li></ol><p class="warn">提示：若你未填写 refresh_token，请返回设置页补充后再试。</p></body></html>`;
-        const url = 'data:text/html;charset=UTF-8,' + encodeURIComponent(helpHtml);
-        window.open(url, '_blank');
-      } catch {}
+      // 当缺少 refresh_token 时：给出指引页
       if (!rt) {
+        try {
+          const masked = '（未填写）';
+          const helpHtml = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>115 手动刷新帮助</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'Microsoft YaHei',sans-serif;padding:16px;line-height:1.6;color:#1f2937} code{background:#f3f4f6;padding:2px 4px;border-radius:4px} .ok{color:#16a34a} .warn{color:#d97706} .err{color:#dc2626}</style></head><body><h2>115 手动刷新指引</h2><ol><li>refresh_token：<strong class="err">${masked}</strong></li><li>请返回设置页填写 refresh_token 后再试。</li></ol></body></html>`;
+          const url = 'data:text/html;charset=UTF-8,' + encodeURIComponent(helpHtml);
+          window.open(url, '_blank');
+        } catch {}
         this.setUserInfoStatus('请先填写 refresh_token', 'error');
         return;
       }
+      // 已填写 refresh_token：不打开新窗口，直接在当前页执行刷新
+      try {
+        await navigator.clipboard.writeText(rt);
+        showToast('已复制 refresh_token 到剪贴板', 'success');
+      } catch {}
       // 限频校验：手动刷新也受“最小自动刷新间隔(分钟)”限制（不低于30）
       const allow = await this.isManualRefreshAllowed_();
       if (!allow) return;

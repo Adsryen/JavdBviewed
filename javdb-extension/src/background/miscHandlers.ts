@@ -109,6 +109,10 @@ export function registerMiscRouter(): void {
         case 'DRIVE115_HEARTBEAT':
           sendResponse({ type: 'DRIVE115_HEARTBEAT_RESPONSE', success: true });
           return true;
+        case 'UPDATE_WATCHED_STATUS': {
+          handleUpdateWatchedStatus(message, sendResponse);
+          return true;
+        }
         case 'setup-alarms':
           setupAlarms().then(() => sendResponse({ success: true }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
