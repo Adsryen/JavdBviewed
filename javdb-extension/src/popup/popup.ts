@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Open Dashboard
     if (dashboardButton) {
+        dashboardButton.title = '高级设置 & 数据管理';
         dashboardButton.addEventListener('click', () => {
             if (chrome.runtime.openOptionsPage) {
                 chrome.runtime.openOptionsPage();
@@ -57,7 +58,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const updateState = (isHiding: boolean) => {
             // isHiding=true means the feature is enabled (hiding content)
             // isHiding=false means the feature is disabled (showing content)
-            button.textContent = isHiding ? `当前：${textHiding}` : `当前：${textShowing}`;
+            const label = isHiding ? `当前：${textHiding}` : `当前：${textShowing}`;
+            button.textContent = label;
+            button.title = label;
             button.classList.toggle('active', isHiding);
         };
 
@@ -99,7 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.className = 'toggle-button';
 
         const updateState = (flag: boolean) => {
-            button.textContent = flag ? `当前：${textTrue}` : `当前：${textFalse}`;
+            const label = flag ? `当前：${textTrue}` : `当前：${textFalse}`;
+            button.textContent = label;
+            button.title = label;
             button.classList.toggle('active', flag);
         };
 

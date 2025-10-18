@@ -1,10 +1,13 @@
 /* General Body and Panel */
 body {
-    min-width: 340px;
-    max-width: 340px;
+    min-width: 420px;
+    max-width: 640px;
+    width: max-content;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #f7f7f7;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 600px;
     margin: 0;
     padding: 0;
 }
@@ -58,6 +61,33 @@ body {
     flex-direction: column;
     gap: 10px;
     margin-bottom: 20px;
+}
+
+/* Two-column layout for popup main area */
+.main-grid {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 12px;
+}
+
+/* Make specific rows span both columns */
+.main-grid .full-row {
+    grid-column: 1 / -1;
+}
+
+.right-side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Make toggle buttons slightly more compact to fit in narrow columns */
+.filters-left .toggle-button,
+.filters-right .toggle-button {
+    font-size: 13px;
+    padding: 9px 10px;
 }
 
 /* Volume Control Section */
@@ -173,6 +203,7 @@ body {
     font-weight: 500;
     transition: all 0.3s ease;
     box-sizing: border-box;
+    white-space: nowrap;
 }
 
 /* Toggle hover effects */
@@ -216,6 +247,7 @@ body {
     font-weight: 600;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
 }
 .dashboard-link .button:hover {
     background-color: #3d8ae5;

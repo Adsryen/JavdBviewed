@@ -14,6 +14,10 @@ export interface DataViewOptions {
     onDownload?: (data: string, filename: string) => void;
     filename?: string;
     info?: string;
+    // 为“原始设置(JSON)”提供快速筛选开关（仅在 dataType=json 且 data 为对象时生效）
+    enableFilter?: boolean;
+    // 可选：键名到显示名的映射，用于在筛选列表显示中文
+    keyLabels?: Record<string, string>;
 }
 
 export class DataViewModal {
@@ -36,6 +40,12 @@ export class DataViewModal {
     private initialized: boolean = false;
     private modalsMounted: boolean = false;
     private domObserver: MutationObserver | null = null;
+
+    // 筛选相关状态
+    private filterSidebar: HTMLElement | null = null;
+    private filterEnabled: boolean = false;
+    private originalObject: any = null;
+    private selectedKeys: Set<string> = new Set();
 
     constructor() {
         // 先监听 partial 挂载事件，确保即便很早发出事件也能接收
@@ -160,6 +170,24 @@ export class DataViewModal {
         this.textarea.value = this.originalData;
         this.textarea.readOnly = true;
 
+        // 每次显示前清理上一次的筛选侧栏
+        this.teardownFilterUI();
+
+        // 如果启用筛选且数据可解析为对象，则构建筛选侧栏
+        this.filterEnabled = false;
+        if (options.enableFilter && options.dataType === 'json') {
+            try {
+                const parsed = typeof options.data === 'string' ? JSON.parse(options.data) : options.data;
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    this.originalObject = parsed;
+                    this.setupFilterUI();
+                }
+            } catch (e) {
+                // 解析失败则忽略筛选
+                this.originalObject = null;
+            }
+        }
+
         // 更新信息显示
         if (options.info) {
             this.infoElement.textContent = options.info;
@@ -192,6 +220,9 @@ export class DataViewModal {
                 return;
             }
         }
+
+        // 移除筛选侧栏并还原布局
+        this.teardownFilterUI();
 
         if (this.overlay) {
             this.overlay.classList.remove('visible');
@@ -285,6 +316,129 @@ export class DataViewModal {
         if (typeof (window as any).showMessage === 'function') {
             (window as any).showMessage(message, type);
         }
+    }
+
+    // ===== 筛选侧栏：仅在 JSON 查看时启用 =====
+    private setupFilterUI(): void {
+        if (!this.originalObject) return;
+        const container = this.modal.querySelector('.data-view-container') as HTMLElement | null;
+        if (!container || !this.textarea) return;
+
+        // 标记为分栏布局
+        container.classList.add('layout-split');
+
+        // 创建侧栏
+        const sidebar = document.createElement('div');
+        sidebar.className = 'data-filter-sidebar';
+        sidebar.innerHTML = `
+          <div class="filter-header">配置筛选</div>
+          <input type="search" class="filter-search" placeholder="搜索键名..."/>
+          <div class="filter-actions">
+            <button type="button" class="btn-mini" data-action="select-all">全选</button>
+            <button type="button" class="btn-mini" data-action="clear">清空</button>
+            <button type="button" class="btn-mini" data-action="reset">显示全部</button>
+          </div>
+          <div class="filter-list"></div>
+          <div class="filter-hint">提示：勾选后仅显示所选顶级键；“显示全部”恢复完整JSON</div>
+        `;
+
+        // 将侧栏插入到文本域之前
+        container.insertBefore(sidebar, this.textarea);
+        this.filterSidebar = sidebar;
+        this.filterEnabled = true;
+
+        // 渲染键列表（顶级键）
+        const keys = Object.keys(this.originalObject);
+        const list = sidebar.querySelector('.filter-list') as HTMLElement;
+        list.innerHTML = '';
+        keys.sort().forEach((k) => {
+            const item = document.createElement('label');
+            item.className = 'filter-item';
+            item.setAttribute('data-key', k);
+            const label = (this.currentOptions?.keyLabels && this.currentOptions.keyLabels[k]) ? this.currentOptions.keyLabels[k] : k;
+            item.innerHTML = `<input type="checkbox" value="${k}"><span title="${k}">${label}</span>`;
+            list.appendChild(item);
+        });
+
+        // 事件：勾选变化
+        list.addEventListener('change', () => {
+            this.selectedKeys.clear();
+            const checked = list.querySelectorAll('input[type="checkbox"]:checked');
+            checked.forEach((el: any) => this.selectedKeys.add(String(el.value)));
+            this.applyFilter();
+        });
+
+        // 事件：搜索
+        const search = sidebar.querySelector('.filter-search') as HTMLInputElement;
+        search.addEventListener('input', () => {
+            const q = search.value.trim().toLowerCase();
+            const items = list.querySelectorAll('.filter-item');
+            items.forEach((el: Element) => {
+                const key = (el as HTMLElement).dataset.key || '';
+                (el as HTMLElement).style.display = key.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+
+        // 事件：动作按钮
+        sidebar.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.matches('.btn-mini')) {
+                const action = target.getAttribute('data-action');
+                const boxes = list.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+                if (action === 'select-all') {
+                    boxes.forEach(b => b.checked = true);
+                } else if (action === 'clear') {
+                    boxes.forEach(b => b.checked = false);
+                } else if (action === 'reset') {
+                    boxes.forEach(b => b.checked = false);
+                    this.selectedKeys.clear();
+                    this.textarea.value = this.originalData;
+                    this.updateInfoDefault();
+                    return;
+                }
+                // 统一触发变更
+                this.selectedKeys.clear();
+                const checked = list.querySelectorAll('input[type="checkbox"]:checked');
+                checked.forEach((el: any) => this.selectedKeys.add(String(el.value)));
+                this.applyFilter();
+            }
+        });
+    }
+
+    private teardownFilterUI(): void {
+        const container = this.modal?.querySelector('.data-view-container') as HTMLElement | null;
+        if (container) container.classList.remove('layout-split');
+        if (this.filterSidebar && this.filterSidebar.parentElement) {
+            this.filterSidebar.parentElement.removeChild(this.filterSidebar);
+        }
+        this.filterSidebar = null;
+        this.filterEnabled = false;
+        this.originalObject = null;
+        this.selectedKeys.clear();
+    }
+
+    private applyFilter(): void {
+        if (!this.filterEnabled || !this.originalObject) return;
+        if (this.selectedKeys.size === 0) {
+            this.textarea.value = this.originalData;
+            this.updateInfoDefault();
+            return;
+        }
+        const out: Record<string, any> = {};
+        this.selectedKeys.forEach(k => {
+            if (k in this.originalObject) out[k] = this.originalObject[k];
+        });
+        this.textarea.value = JSON.stringify(out, null, 2);
+        const lines = this.textarea.value.split('\n').length;
+        const chars = this.textarea.value.length;
+        this.infoElement.textContent = `筛选：${this.selectedKeys.size} 项 · ${lines} 行, ${chars} 字符`;
+    }
+
+    private updateInfoDefault(): void {
+        // 恢复默认信息显示（行数/字符数）
+        const lines = this.originalData.split('\n').length;
+        const chars = this.originalData.length;
+        this.infoElement.textContent = `${lines} 行, ${chars} 字符`;
     }
 }
 
