@@ -2,11 +2,11 @@
 
 import { initializeGlobalState, STATE, cleanupSearchEngines } from './state';
 import { initializeTabById, prefetchModuleById } from './tabs/registry';
-// initAdvancedSettingsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
-// initLogsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
-// initAISettingsTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
-// initializeNetworkTestTab 宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
-// drive115 鍔熻兘宸茶縼绉诲埌妯″潡鍖栬缃郴缁熶腑
+// initAdvancedSettingsTab 已迁移到模块化设置系统
+// initLogsTab 已迁移到模块化设置系统
+// initAISettingsTab 已迁移到模块化设置系统
+// initializeNetworkTestTab 已迁移到模块化设置系统
+// drive115 功能已迁移到模块化设置系统
 import { initModal, showImportModal, handleFileRestoreClick } from './import';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';

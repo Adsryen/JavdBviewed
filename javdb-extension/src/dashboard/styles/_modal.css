@@ -320,6 +320,96 @@
     padding: 12px 0 16px 0;
 }
 
+.data-view-modal .data-view-container.layout-split {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.data-view-modal .data-filter-sidebar {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 10px 12px 10px;
+}
+
+.data-view-modal .data-filter-sidebar .filter-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.data-view-modal .data-filter-sidebar .filter-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 12px;
+    outline: none;
+}
+
+.data-view-modal .data-filter-sidebar .filter-search:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.data-view-modal .data-filter-sidebar .filter-actions {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.data-view-modal .data-filter-sidebar .btn-mini {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.data-view-modal .data-filter-sidebar .btn-mini:hover {
+    background: #f9fafb;
+}
+
+.data-view-modal .data-filter-sidebar .filter-list {
+    max-height: 50vh;
+    overflow: auto;
+    border: 1px dashed #e5e7eb;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.data-view-modal .data-filter-sidebar .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.data-view-modal .data-filter-sidebar .filter-item:hover {
+    background: #f9fafb;
+}
+
+.data-view-modal .data-filter-sidebar .filter-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #6366f1;
+}
+
+.data-view-modal .data-filter-sidebar .filter-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #6b7280;
+}
+
 .data-view-modal #dataViewTextarea {
     width: 100%;
     min-height: 55vh;
