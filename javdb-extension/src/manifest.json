@@ -92,6 +92,7 @@
         {
             "resources": [
                 "assets/*",
+                "assets/templates/*",
                 "assets/switch-viewed.png",
                 "assets/switch-want.png",
                 "assets/switch-browsed.png",

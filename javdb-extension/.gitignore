@@ -41,8 +41,7 @@ build.bat
 # md
 *.md
 # 排除todo文件夹
-!todo.md
-!115*.md
+!todo/*.md
 
 # temp
 temp/
@@ -52,4 +51,3 @@ temp/
 *test*.js
 *temp*.js
 *debug*.js
-

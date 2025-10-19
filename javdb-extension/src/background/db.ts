@@ -5,6 +5,7 @@ import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 import { getSettings } from '../utils/storage';
+import type { ViewsDaily, ReportMonthly } from '../types/insights';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）
 export interface PersistedLogEntry extends LogEntry {
@@ -226,10 +227,25 @@ interface JavdbDB extends DBSchema {
       by_expireAt: number;
     };
   };
+  insightsViews: {
+    key: string; // date YYYY-MM-DD
+    value: ViewsDaily;
+    indexes: {
+      by_date: string;
+    };
+  };
+  insightsReports: {
+    key: string; // month YYYY-MM
+    value: ReportMonthly;
+    indexes: {
+      by_month: string;
+      by_createdAt: number;
+    };
+  };
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -275,6 +291,18 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
             const store = tx.objectStore('viewedRecords');
             try { store.createIndex('by_status_updatedAt', ['status', 'updatedAt']); } catch {}
             try { store.createIndex('by_status_createdAt', ['status', 'createdAt']); } catch {}
+          } catch {}
+        }
+        // v4 -> 新增 insightsViews / insightsReports
+        if (oldVersion < 4) {
+          try {
+            const iv = db.createObjectStore('insightsViews', { keyPath: 'date' });
+            iv.createIndex('by_date', 'date');
+          } catch {}
+          try {
+            const ir = db.createObjectStore('insightsReports', { keyPath: 'month' });
+            ir.createIndex('by_month', 'month');
+            ir.createIndex('by_createdAt', 'createdAt');
           } catch {}
         }
       }
@@ -717,6 +745,111 @@ export async function magnetsClearExpired(beforeMs?: number): Promise<number> {
   }
   await tx.done;
   return removed;
+}
+
+// ----- insights (views / reports) API -----
+
+export async function insViewsPut(view: ViewsDaily): Promise<void> {
+  const db = await initDB();
+  await db.put('insightsViews', view);
+}
+
+export async function insViewsBulkPut(views: ViewsDaily[]): Promise<void> {
+  if (!views || views.length === 0) return;
+  const db = await initDB();
+  const tx = db.transaction('insightsViews', 'readwrite');
+  try {
+    for (const v of views) {
+      await tx.store.put(v as any);
+    }
+    await tx.done;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
+export async function insViewsRange(startDate: string, endDate: string): Promise<ViewsDaily[]> {
+  const db = await initDB();
+  const idx = db.transaction('insightsViews').store.index('by_date');
+  // 字符串范围 YYYY-MM-DD 可按字典序比较
+  // @ts-ignore
+  const range = IDBKeyRange.bound(startDate, endDate);
+  const list: ViewsDaily[] = [];
+  for (let cursor = await idx.openCursor(range as any); cursor; cursor = await cursor.continue()) {
+    list.push(cursor.value as ViewsDaily);
+  }
+  return list;
+}
+
+export async function insReportsPut(report: ReportMonthly): Promise<void> {
+  const db = await initDB();
+  await db.put('insightsReports', report);
+}
+
+export async function insReportsGet(month: string): Promise<ReportMonthly | undefined> {
+  const db = await initDB();
+  return db.get('insightsReports', month);
+}
+
+export async function insReportsList(limit = 24): Promise<ReportMonthly[]> {
+  const db = await initDB();
+  const idx = db.transaction('insightsReports').store.index('by_createdAt');
+  const list: ReportMonthly[] = [];
+  // 最新在前
+  for (let cursor = await idx.openCursor(undefined, 'prev'); cursor; cursor = await cursor.continue()) {
+    list.push(cursor.value as ReportMonthly);
+    if (list.length >= limit) break;
+  }
+  return list;
+}
+
+export async function insReportsDelete(month: string): Promise<void> {
+  const db = await initDB();
+  await db.delete('insightsReports', month);
+}
+
+export async function insReportsExportJSON(): Promise<string> {
+  const db = await initDB();
+  const all = await db.getAll('insightsReports');
+  return JSON.stringify(all || []);
+}
+
+export async function insReportsImportJSON(json: string): Promise<number> {
+  const db = await initDB();
+  const arr = JSON.parse(json || '[]');
+  if (!Array.isArray(arr)) return 0;
+  const tx = db.transaction('insightsReports', 'readwrite');
+  let cnt = 0;
+  try {
+    for (const r of arr) {
+      if (!r || typeof r !== 'object') continue;
+      const month = (r as any)?.month;
+      const period = (r as any)?.period || {};
+      const stats = (r as any)?.stats || {};
+      const html = (r as any)?.html;
+      const createdAt = (r as any)?.createdAt;
+      const status = (r as any)?.status;
+      const origin = (r as any)?.origin;
+      // basic validation
+      if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) continue;
+      if (typeof period?.start !== 'string' || typeof period?.end !== 'string') continue;
+      if (typeof html !== 'string' || html.length === 0) continue;
+      if (typeof createdAt !== 'number') continue;
+      if (status !== 'final' && status !== 'draft') continue;
+      if (origin !== 'auto' && origin !== 'manual') continue;
+      // stats shape (soft check)
+      const okStats = stats && Array.isArray(stats.tagsTop) && Array.isArray(stats.trend) && stats.changes && Array.isArray(stats.changes.newTags);
+      if (!okStats) continue;
+      await tx.store.put({ ...r, month } as any);
+      cnt++;
+    }
+    await tx.done;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+  return cnt;
 }
 
 // ----- actors API -----

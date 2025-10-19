@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{reportTitle}}</title>
+  <base href="{{baseHref}}">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; margin: 16px; }
+    main { max-width: 960px; margin: 0 auto; }
+    header h1 { margin: 0 0 8px; font-size: 20px; }
+    header p { color: #666; margin: 0 0 16px; }
+    section { margin: 20px 0; }
+    #insights { padding-left: 18px; }
+    #insights li { margin: 6px 0; }
+    footer { color: #888; margin-top: 24px; }
+    .chart { width: 100%; height: 360px; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1 id="report-title">{{reportTitle}}</h1>
+      <p id="period-text">{{periodText}}</p>
+    </header>
+
+    <section id="summary">
+      <h2>摘要</h2>
+      <p id="summary-text">{{summary}}</p>
+      <ul id="insights">{{insightList}}</ul>
+    </section>
+
+    <section id="charts">
+      <template id="insights-data">{{statsJSON}}</template>
+      <div id="tags-pie" class="chart"></div>
+      <div id="tags-top-bar" class="chart"></div>
+      <div id="trend-line" class="chart"></div>
+    </section>
+
+    <section id="methodology">
+      <h2>方法说明</h2>
+      <p id="methodology-text">{{methodology}}</p>
+    </section>
+
+    <footer>
+      <small id="footer-text">生成时间：{{generatedAt}} · 版本：{{version}}</small>
+    </footer>
+  </main>
+  <script src="assets/templates/echarts.min.js"></script>
+  <script src="assets/templates/insights-runtime.js"></script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 // Dashboard 到后台 Service Worker 的 DB 消息封装
 
 import type { LogEntry, VideoRecord } from '../types';
+import type { ViewsDaily, ReportMonthly } from '../types/insights';
 import type { ActorRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 
@@ -247,4 +248,52 @@ export async function dbNewWorksExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:NEWWORKS_EXPORT');
   // @ts-ignore
   return resp.json || '[]';
+}
+
+// ----- Insights APIs -----
+
+export async function dbInsViewsPut(view: ViewsDaily): Promise<void> {
+  await sendMessage('DB:INSIGHTS_VIEWS_PUT', { view });
+}
+
+export async function dbInsViewsBulkPut(views: ViewsDaily[]): Promise<void> {
+  await sendMessage('DB:INSIGHTS_VIEWS_BULK_PUT', { views });
+}
+
+export async function dbInsViewsRange(startDate: string, endDate: string): Promise<ViewsDaily[]> {
+  const resp = await sendMessage<{ success: true; records: ViewsDaily[] }>('DB:INSIGHTS_VIEWS_RANGE', { startDate, endDate });
+  // @ts-ignore
+  return resp.records || [];
+}
+
+export async function dbInsReportsPut(report: ReportMonthly): Promise<void> {
+  await sendMessage('DB:INSIGHTS_REPORTS_PUT', { report });
+}
+
+export async function dbInsReportsGet(month: string): Promise<ReportMonthly | undefined> {
+  const resp = await sendMessage<{ success: true; record?: ReportMonthly }>('DB:INSIGHTS_REPORTS_GET', { month });
+  // @ts-ignore
+  return resp.record;
+}
+
+export async function dbInsReportsList(limit = 24): Promise<ReportMonthly[]> {
+  const resp = await sendMessage<{ success: true; records: ReportMonthly[] }>('DB:INSIGHTS_REPORTS_LIST', { limit });
+  // @ts-ignore
+  return resp.records || [];
+}
+
+export async function dbInsReportsDelete(month: string): Promise<void> {
+  await sendMessage('DB:INSIGHTS_REPORTS_DELETE', { month });
+}
+
+export async function dbInsReportsExport(): Promise<string> {
+  const resp = await sendMessage<{ success: true; json: string }>('DB:INSIGHTS_REPORTS_EXPORT');
+  // @ts-ignore
+  return resp.json || '[]';
+}
+
+export async function dbInsReportsImport(json: string): Promise<number> {
+  const resp = await sendMessage<{ success: true; count: number }>('DB:INSIGHTS_REPORTS_IMPORT', { json });
+  // @ts-ignore
+  return resp.count || 0;
 }
