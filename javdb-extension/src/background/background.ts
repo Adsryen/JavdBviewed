@@ -9,6 +9,7 @@ import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
+import { registerMonthlyAlarm, handleAlarm, compensateOnStartup } from './scheduler';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
@@ -51,6 +52,7 @@ registerWebDAVRouter();
 registerDbMessageRouter();
 registerMiscRouter();
 registerNetProxyRouter();
+try { registerMonthlyAlarm(); } catch {}
 
 // 安装封面 Referer 规则
 installCoversRefererDNR();
@@ -65,9 +67,17 @@ try {
   chrome.runtime.onStartup.addListener(async () => {
     try {
       await newWorksScheduler.initialize();
+      try { compensateOnStartup(); } catch {}
     } catch (e: any) {
       console.warn('[Background] Failed to initialize new works scheduler:', e?.message || e);
     }
+  });
+} catch {}
+
+// 监听 Alarm 回调
+try {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    try { handleAlarm(alarm?.name || ''); } catch {}
   });
 } catch {}
 

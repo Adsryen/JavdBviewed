@@ -1,0 +1,26 @@
+<section class="tab-section" data-tab-id="insights">
+  <div class="container">
+    <h2>观影报告（标签）</h2>
+    <div class="controls">
+      <label>时间范围：</label>
+      <input type="month" id="insights-month" />
+      <button id="insights-generate">生成报告</button>
+      <button id="insights-save">保存为月报</button>
+      <button id="insights-export-html">导出 HTML</button>
+      <button id="insights-export-md">导出 Markdown</button>
+      <button id="insights-export-json">导出全部月报（JSON）</button>
+      <button id="insights-import-json">导入月报（JSON）</button>
+      <button id="insights-refresh-history">刷新历史</button>
+    </div>
+
+    <div class="history">
+      <h3>历史月报（保留 24 个月）</h3>
+      <div id="insights-history-list"></div>
+    </div>
+
+    <div class="preview">
+      <h3>预览</h3>
+      <iframe id="insights-preview" style="width:100%;height:480px;border:1px solid #e5e7eb;"></iframe>
+    </div>
+  </div>
+</section>
