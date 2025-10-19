@@ -21,6 +21,7 @@ import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { embyEnhancementManager } from './embyEnhancement';
 import { initOrchestrator } from './initOrchestrator';
+import { initInsightsCollector } from './insightsCollector';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
 
@@ -167,6 +168,9 @@ async function initialize(): Promise<void> {
         }, 5000);
         // 初始化115功能：改由编排器延时调度，保持原 1500ms 行为
         initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:video', delayMs: 1500 });
+
+        // 初始化观影标签采集器（仅影片详情页，延时以等待页面标签渲染）
+        initOrchestrator.add('deferred', () => initInsightsCollector(), { label: 'insights:collector', delayMs: 1200 });
     }
 
     // 初始化缓存系统

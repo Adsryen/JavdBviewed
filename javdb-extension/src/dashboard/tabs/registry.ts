@@ -40,6 +40,11 @@ export async function initializeTabById(tabId: string | null | undefined): Promi
         await mgr.initialize();
         break;
       }
+      case 'tab-insights': {
+        const { insightsTab } = await import('./insights');
+        if (!insightsTab.isInitialized) await insightsTab.initialize();
+        break;
+      }
       case 'tab-settings': {
         const { initSettingsTab } = await import('./settings');
         await initSettingsTab();
@@ -75,6 +80,9 @@ export async function prefetchModuleById(tabId: string | null | undefined): Prom
         break;
       case 'tab-drive115-tasks':
         await import('./drive115Tasks');
+        break;
+      case 'tab-insights':
+        await import('./insights');
         break;
       case 'tab-settings':
         await import('./settings');

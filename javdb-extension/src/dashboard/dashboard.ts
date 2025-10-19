@@ -232,21 +232,27 @@ const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> = {
     },
     // 115 任务
     'tab-drive115-tasks': {
-        name: 'tabs/drive115-tasks.html',
-        styles: [
-            './styles/drive115Tasks.css',
-        ],
+      name: 'tabs/drive115-tasks.html',
+      styles: [
+        './styles/drive115Tasks.css',
+      ],
+    },
+    'tab-insights': {
+      name: 'tabs/insights.html',
+      styles: [
+      ],
     },
     // 设置（基础样式，其余细分样式由各子面板自行导入或保留全局）
     'tab-settings': {
-        name: 'tabs/settings.html',
-        styles: [
-            './styles/settings/index.css',
+      name: 'tabs/settings.html',
+      styles: [
+        './styles/settings/index.css',
             './styles/settings/settings.css',
         ],
     },
     // 日志
     'tab-logs': {
+    // ... (rest of the code remains the same)
         name: 'tabs/logs.html',
         styles: [
             './styles/logs.css',
