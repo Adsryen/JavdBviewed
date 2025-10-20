@@ -5,7 +5,6 @@ import type {
     ChatCompletionRequest,
     ChatCompletionResponse,
     ModelsResponse,
-    APIError,
     ConnectionTestResult
 } from '../../types/ai';
 
@@ -81,13 +80,27 @@ export class NewApiClient {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorData: APIError = await response.json().catch(() => ({
-                    error: {
-                        message: `HTTP ${response.status}: ${response.statusText}`,
-                        type: 'http_error'
-                    }
-                }));
-                throw new Error(errorData.error.message);
+                let body: any = undefined;
+                try { body = await response.json(); } catch {}
+                const status = response.status;
+                const statusText = response.statusText || '';
+                const serverMsg = (body as any)?.error?.message || (body as any)?.message || '';
+                let msg = serverMsg || `HTTP ${status}: ${statusText}`;
+                // 分类提示
+                if (status === 401 || status === 403) {
+                    msg = `鉴权失败(${status})：请检查 API Key 是否正确/有效` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 404) {
+                    msg = `接口不存在(404)：请检查 API 地址是否正确（注意不要重复或缺少“/v1”）` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 408) {
+                    msg = `服务端超时(408)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 413) {
+                    msg = `请求体过大(413)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 429) {
+                    msg = `超出速率限制(429)：请降低请求频率或更换模型/Key` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status >= 500) {
+                    msg = `服务器错误(${status})` + (serverMsg ? `：${serverMsg}` : '');
+                }
+                throw new Error(msg);
             }
 
             return await response.json();
@@ -95,7 +108,11 @@ export class NewApiClient {
             clearTimeout(timeoutId);
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
-                    throw new Error('请求超时');
+                    throw new Error(`请求超时（客户端等待 ${this.settings.timeout}s）`);
+                }
+                // fetch 网络层错误常表现为 TypeError: Failed to fetch
+                if (error.name === 'TypeError' || /Failed to fetch/i.test(error.message)) {
+                    throw new Error(`网络错误：可能是网络不可达、证书问题、被浏览器拦截或跨域限制。原始信息：${error.message}`);
                 }
                 throw error;
             }
@@ -135,13 +152,26 @@ export class NewApiClient {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorData: APIError = await response.json().catch(() => ({
-                    error: {
-                        message: `HTTP ${response.status}: ${response.statusText}`,
-                        type: 'http_error'
-                    }
-                }));
-                throw new Error(errorData.error.message);
+                let body: any = undefined;
+                try { body = await response.json(); } catch {}
+                const status = response.status;
+                const statusText = response.statusText || '';
+                const serverMsg = (body as any)?.error?.message || (body as any)?.message || '';
+                let msg = serverMsg || `HTTP ${status}: ${statusText}`;
+                if (status === 401 || status === 403) {
+                    msg = `鉴权失败(${status})：请检查 API Key 是否正确/有效` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 404) {
+                    msg = `接口不存在(404)：请检查 API 地址是否正确（注意不要重复或缺少“/v1”）` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 408) {
+                    msg = `服务端超时(408)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 413) {
+                    msg = `请求体过大(413)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 429) {
+                    msg = `超出速率限制(429)：请降低请求频率或更换模型/Key` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status >= 500) {
+                    msg = `服务器错误(${status})` + (serverMsg ? `：${serverMsg}` : '');
+                }
+                throw new Error(msg);
             }
 
             const contentType = response.headers.get('content-type') || '';
@@ -223,7 +253,10 @@ export class NewApiClient {
             clearTimeout(timeoutId);
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
-                    throw new Error('请求超时');
+                    throw new Error(`请求超时（客户端等待 ${this.settings.timeout}s）`);
+                }
+                if (error.name === 'TypeError' || /Failed to fetch/i.test(error.message)) {
+                    throw new Error(`网络错误：可能是网络不可达、证书问题、被浏览器拦截或跨域限制。原始信息：${error.message}`);
                 }
                 throw error;
             }
@@ -255,13 +288,26 @@ export class NewApiClient {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorData: APIError = await response.json().catch(() => ({
-                    error: {
-                        message: `HTTP ${response.status}: ${response.statusText}`,
-                        type: 'http_error'
-                    }
-                }));
-                throw new Error(errorData.error.message);
+                let body: any = undefined;
+                try { body = await response.json(); } catch {}
+                const status = response.status;
+                const statusText = response.statusText || '';
+                const serverMsg = (body as any)?.error?.message || (body as any)?.message || '';
+                let msg = serverMsg || `HTTP ${status}: ${statusText}`;
+                if (status === 401 || status === 403) {
+                    msg = `鉴权失败(${status})：请检查 API Key 是否正确/有效` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 404) {
+                    msg = `接口不存在(404)：请检查 API 地址是否正确（注意不要重复或缺少“/v1”）` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status === 408) {
+                    msg = `服务端超时(408)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 413) {
+                    msg = `请求体过大(413)` + (serverMsg ? `：${serverMsg}` : '');
+                } else if (status === 429) {
+                    msg = `超出速率限制(429)：请降低请求频率或更换模型/Key` + (serverMsg ? `；服务端：${serverMsg}` : '');
+                } else if (status >= 500) {
+                    msg = `服务器错误(${status})` + (serverMsg ? `：${serverMsg}` : '');
+                }
+                throw new Error(msg);
             }
 
             if (!response.body) {
@@ -273,7 +319,10 @@ export class NewApiClient {
             clearTimeout(timeoutId);
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
-                    throw new Error('请求超时');
+                    throw new Error(`请求超时（客户端等待 ${this.settings.timeout}s）`);
+                }
+                if (error.name === 'TypeError' || /Failed to fetch/i.test(error.message)) {
+                    throw new Error(`网络错误：可能是网络不可达、证书问题、被浏览器拦截或跨域限制。原始信息：${error.message}`);
                 }
                 throw error;
             }

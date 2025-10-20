@@ -299,6 +299,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
             ...DEFAULT_SETTINGS.ai,
             ...(storedSettings.ai || {}),
         },
+        insights: {
+            ...DEFAULT_SETTINGS.insights,
+            ...(storedSettings as any).insights || {},
+        },
     };
 
     log.storage('Merged settings privacy config', mergedSettings.privacy);

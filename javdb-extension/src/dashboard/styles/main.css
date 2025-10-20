@@ -203,40 +203,82 @@ button, .button-like {
     align-items: center;
     justify-content: center;
 }
-button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    opacity: 0.9;
-}
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
+  button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      opacity: 0.9;
+  }
+  button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+  }
 
-/* Specific Button Colors */
-/* Primary Actions: Blue (save, export, sync) */
-#exportBtn, #syncNow, #saveWebdavSettings, #saveJsonBtn {
-    background-color: #007bff;
-}
+  /* Specific Button Colors */
+  /* Primary Actions: Blue (save, export, sync) */
+  #exportBtn, #syncNow, #saveWebdavSettings, #saveJsonBtn {
+      background-color: #007bff;
+  }
 
-/* Success Actions: Green (restore) */
+/*Success Actions: Green (restore) */
 #syncDown {
     background-color: #28a745;
 }
-
-/* Danger Actions: Red (clear data) */
-#clearAllBtn, #clear-logs-button {
-    background-color: #dc3545;
-}
-
 /* Secondary Actions: Gray (import, test connection) */
 .button-like, #testWebdavConnection {
     background-color: #6c757d;
 }
 
-/* Info/Toggle Actions: Teal */
-#editJsonBtn, #checkDataStructureBtn {
-    background-color: #17a2b8;
-}
+  /* Info/Toggle Actions: Teal */
+  #editJsonBtn, #checkDataStructureBtn {
+      background-color: #17a2b8;
+  }
+
+  /* ===== Insights (报告) 页按钮配色 ===== */
+  /* 容器 class 在 partial 中为 .controls，这里针对具体按钮ID，避免影响其他页面 */
+  .tab-section[data-tab-id="insights"] .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 16px;
+  }
+
+  /* 生成/保存：主动作（蓝色） */
+  #insights-generate,
+  #insights-save {
+      background-color: #007bff;
+  }
+  #insights-generate:hover:not(:disabled),
+  #insights-save:hover:not(:disabled) {
+      background-color: #0069d9;
+  }
+
+  /* 导出 HTML / Markdown：信息动作（青色） */
+  #insights-export-html,
+  #insights-export-md {
+      background-color: #17a2b8;
+  }
+  #insights-export-html:hover:not(:disabled),
+  #insights-export-md:hover:not(:disabled) {
+      background-color: #138496;
+  }
+
+  /* 导出/导入 JSON：次级动作（灰色） */
+  #insights-export-json,
+  #insights-import-json {
+      background-color: #6c757d;
+  }
+  #insights-export-json:hover:not(:disabled),
+  #insights-import-json:hover:not(:disabled) {
+      background-color: #5a6268;
+  }
+
+  /* 刷新历史：强调但不喧宾（紫色） */
+  #insights-refresh-history {
+      background-color: #6f42c1;
+  }
+  #insights-refresh-history:hover:not(:disabled) {
+      background-color: #5a36a0;
+  }
 
 
 /* Button Group */

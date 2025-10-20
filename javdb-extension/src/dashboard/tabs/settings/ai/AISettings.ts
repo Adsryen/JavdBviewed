@@ -23,12 +23,20 @@ export class AISettingsPanel extends BaseSettingsPanel {
     private maxTokens!: HTMLInputElement;
     private temperature!: HTMLInputElement;
     private temperatureValue!: HTMLSpanElement;
+    private timeoutEl!: HTMLInputElement;
+    // 错误重试（网络/超时/429/5xx）可选控件
+    private errorRetryEnabledEl?: HTMLInputElement;
+    private errorRetryMaxEl?: HTMLInputElement;
 
     // 功能配置元素 (可选，因为HTML中可能不存在)
     private enableAutoTranslation?: HTMLInputElement;
     private enableSummary?: HTMLInputElement;
     private enableRecommendation?: HTMLInputElement;
     private enableChatbot?: HTMLInputElement;
+
+    // 对话参数 - 自动重试（可选，因为HTML中可能不存在）
+    private autoRetryEmptyEl?: HTMLInputElement;
+    private autoRetryMaxEl?: HTMLInputElement;
 
     // 按钮元素
     private testConnectionBtn!: HTMLButtonElement;
@@ -55,7 +63,9 @@ export class AISettingsPanel extends BaseSettingsPanel {
         maxTokens: 2048,
         streamEnabled: true,
         systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
-        timeout: 30
+        timeout: 120,
+        autoRetryEmpty: false,
+        autoRetryMax: 2
     };
 
     constructor() {
@@ -68,9 +78,79 @@ export class AISettingsPanel extends BaseSettingsPanel {
     }
 
     /**
+     * 确保“请求超时时间(秒)”的说明文案更新为建议30-240秒
+     */
+    private ensureTimeoutHintUpdate(): void {
+        try {
+            const input = document.getElementById('aiTimeout') as HTMLInputElement | null;
+            if (!input) return;
+            const group = input.closest('.form-group') as HTMLElement | null;
+            const p = group?.querySelector('p.input-description') as HTMLParagraphElement | null;
+            if (p) p.textContent = 'API请求的超时时间，建议30-240秒。';
+        } catch {}
+    }
+
+    /**
+     * 若页面未内置对应DOM，则在“对话参数”区域注入自动重试控件
+     */
+    private ensureAutoRetryControls(): void {
+        try {
+            const maxTokensEl = document.getElementById('aiMaxTokens');
+            if (!maxTokensEl) return; // 找不到锚点，放弃注入
+            const section = maxTokensEl.closest('.settings-section') as HTMLElement | null;
+            if (!section) return;
+
+            // 已存在则不重复创建
+            const existed = document.getElementById('aiAutoRetryEmpty') || document.getElementById('aiAutoRetryMax');
+            if (existed) return;
+
+            // 1) 自动重试（空回复）复选框
+            const grp1 = document.createElement('div');
+            grp1.className = 'form-group-checkbox';
+            grp1.innerHTML = `
+                <input type="checkbox" id="aiAutoRetryEmpty">
+                <label for="aiAutoRetryEmpty">
+                    <i class="fas fa-redo-alt"></i>
+                    自动重试（空回复）
+                </label>
+                <p class="input-description">当 AI 返回空内容时自动重新请求。</p>
+            `;
+
+            // 2) 最大重试次数输入
+            const grp2 = document.createElement('div');
+            grp2.className = 'form-group';
+            grp2.innerHTML = `
+                <label for="aiAutoRetryMax">
+                    <i class="fas fa-sync"></i>
+                    最大重试次数:
+                </label>
+                <input type="number" id="aiAutoRetryMax" class="number-input" min="0" max="10" value="2">
+                <p class="input-description">仅在开启自动重试时生效（建议 0-5 次）。</p>
+            `;
+
+            // 插入到 aiMaxTokens 之后（作为同级块）
+            const maxTokensGroup = maxTokensEl.closest('.form-group');
+            if (maxTokensGroup && maxTokensGroup.parentElement === section) {
+                // 紧随其后插入
+                maxTokensGroup.insertAdjacentElement('afterend', grp1);
+                grp1.insertAdjacentElement('afterend', grp2);
+            } else {
+                // 兜底：直接附加到该 section 尾部
+                section.appendChild(grp1);
+                section.appendChild(grp2);
+            }
+        } catch {}
+    }
+
+    /**
      * 初始化DOM元素
      */
     protected initializeElements(): void {
+        // 先确保自动重试/错误重试控件存在（如HTML未内置，则动态注入）
+        this.ensureAutoRetryControls();
+        this.ensureErrorRetryControls();
+        this.ensureTimeoutHintUpdate();
+
         // AI配置元素
         this.enableAI = document.getElementById('aiEnabled') as HTMLInputElement;
         this.apiProvider = document.getElementById('aiProvider') as HTMLSelectElement || undefined;
@@ -80,12 +160,20 @@ export class AISettingsPanel extends BaseSettingsPanel {
         this.maxTokens = document.getElementById('aiMaxTokens') as HTMLInputElement;
         this.temperature = document.getElementById('aiTemperature') as HTMLInputElement;
         this.temperatureValue = document.getElementById('temperatureValue') as HTMLSpanElement;
+        this.timeoutEl = document.getElementById('aiTimeout') as HTMLInputElement;
 
         // 功能配置元素 (可选)
         this.enableAutoTranslation = document.getElementById('enableAutoTranslation') as HTMLInputElement || undefined;
         this.enableSummary = document.getElementById('enableSummary') as HTMLInputElement || undefined;
         this.enableRecommendation = document.getElementById('enableRecommendation') as HTMLInputElement || undefined;
         this.enableChatbot = document.getElementById('enableChatbot') as HTMLInputElement || undefined;
+
+        // 自动重试（空回复）相关控件（可选）
+        this.autoRetryEmptyEl = document.getElementById('aiAutoRetryEmpty') as HTMLInputElement || undefined;
+        this.autoRetryMaxEl = document.getElementById('aiAutoRetryMax') as HTMLInputElement || undefined;
+        // 错误重试相关控件（可选）
+        this.errorRetryEnabledEl = document.getElementById('aiErrorRetryEnabled') as HTMLInputElement || undefined;
+        this.errorRetryMaxEl = document.getElementById('aiErrorRetryMax') as HTMLInputElement || undefined;
 
         // 按钮元素
         this.testConnectionBtn = document.getElementById('testAiConnection') as HTMLButtonElement;
@@ -103,7 +191,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
         this.testResults = document.getElementById('aiTestResult') as HTMLElement || undefined;
 
         if (!this.enableAI || !this.apiKey || !this.apiEndpoint || !this.selectedModel ||
-            !this.maxTokens || !this.temperature || !this.temperatureValue ||
+            !this.maxTokens || !this.temperature || !this.temperatureValue || !this.timeoutEl ||
             !this.testConnectionBtn || !this.loadModelsBtn || !this.resetAISettingsBtn ||
             !this.sendTestMessageBtn || !this.exportAISettingsBtn || !this.importAISettingsBtn ||
             !this.clearTestResultsBtn || !this.toggleApiKeyVisibilityBtn || !this.testInput) {
@@ -123,12 +211,20 @@ export class AISettingsPanel extends BaseSettingsPanel {
         this.selectedModel?.addEventListener('change', this.handleSettingChange.bind(this));
         this.maxTokens?.addEventListener('input', this.handleSettingChange.bind(this));
         this.temperature?.addEventListener('input', this.handleTemperatureChange.bind(this));
+        this.timeoutEl?.addEventListener('input', this.handleSettingChange.bind(this));
 
         // 功能配置事件
         this.enableAutoTranslation?.addEventListener('change', this.handleFeatureToggle.bind(this));
         this.enableSummary?.addEventListener('change', this.handleFeatureToggle.bind(this));
         this.enableRecommendation?.addEventListener('change', this.handleFeatureToggle.bind(this));
         this.enableChatbot?.addEventListener('change', this.handleFeatureToggle.bind(this));
+
+        // 自动重试（空回复）
+        this.autoRetryEmptyEl?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.autoRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this));
+        // 错误重试
+        this.errorRetryEnabledEl?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.errorRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this));
 
         // 按钮事件
         this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this));
@@ -170,6 +266,22 @@ export class AISettingsPanel extends BaseSettingsPanel {
             this.temperature.value = String(this.aiSettings.temperature);
             if (this.temperatureValue) {
                 this.temperatureValue.textContent = this.aiSettings.temperature.toString();
+            }
+            this.timeoutEl.value = String(this.aiSettings.timeout);
+
+            // 自动重试（空回复）
+            if (this.autoRetryEmptyEl) {
+                this.autoRetryEmptyEl.checked = !!this.aiSettings.autoRetryEmpty;
+            }
+            if (this.autoRetryMaxEl) {
+                this.autoRetryMaxEl.value = String(this.aiSettings.autoRetryMax ?? 2);
+            }
+            // 错误重试
+            if (this.errorRetryEnabledEl) {
+                this.errorRetryEnabledEl.checked = !!this.aiSettings.errorRetryEnabled;
+            }
+            if (this.errorRetryMaxEl) {
+                this.errorRetryMaxEl.value = String(this.aiSettings.errorRetryMax ?? 2);
             }
 
             // 功能配置 (只有当元素存在时才设置)
@@ -224,7 +336,11 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 maxTokens: parseInt(this.maxTokens.value, 10),
                 streamEnabled: true,
                 systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
-                timeout: 30
+                timeout: parseInt(this.timeoutEl.value, 10),
+                autoRetryEmpty: this.autoRetryEmptyEl ? this.autoRetryEmptyEl.checked : (this.aiSettings.autoRetryEmpty ?? false),
+                autoRetryMax: this.autoRetryMaxEl ? (parseInt(this.autoRetryMaxEl.value, 10) || 0) : (this.aiSettings.autoRetryMax ?? 0),
+                errorRetryEnabled: this.errorRetryEnabledEl ? this.errorRetryEnabledEl.checked : (this.aiSettings.errorRetryEnabled ?? false),
+                errorRetryMax: this.errorRetryMaxEl ? (parseInt(this.errorRetryMaxEl.value, 10) || 0) : (this.aiSettings.errorRetryMax ?? 0)
             };
 
             // 保存到AI服务
@@ -270,6 +386,27 @@ export class AISettingsPanel extends BaseSettingsPanel {
             const temperature = parseFloat(this.temperature.value);
             if (isNaN(temperature) || temperature < 0 || temperature > 2) {
                 errors.push('温度值必须在0-2之间');
+            }
+
+            // 验证超时时间（秒）
+            const timeout = parseInt(this.timeoutEl.value, 10);
+            if (isNaN(timeout) || timeout < 5 || timeout > 300) {
+                errors.push('请求超时时间必须在5-300秒之间');
+            }
+
+            // 验证自动重试次数
+            if (this.autoRetryMaxEl) {
+                const v = parseInt(this.autoRetryMaxEl.value, 10);
+                if (isNaN(v) || v < 0 || v > 10) {
+                    errors.push('自动重试次数必须在0-10之间');
+                }
+            }
+            // 验证错误重试次数
+            if (this.errorRetryMaxEl) {
+                const v2 = parseInt(this.errorRetryMaxEl.value, 10);
+                if (isNaN(v2) || v2 < 0 || v2 > 10) {
+                    errors.push('错误重试次数必须在0-10之间');
+                }
             }
 
             // 验证模型选择
@@ -351,10 +488,10 @@ export class AISettingsPanel extends BaseSettingsPanel {
     /**
      * 处理设置变化
      */
-    private async handleSettingChange(): Promise<void> {
+    private async handleSettingChange(ev?: Event): Promise<void> {
         this.emit('change');
-        
-        // 如果是模型选择变化，立即保存
+
+        // 若为模型选择变化，立即保存
         if (this.selectedModel && this.selectedModel.value !== this.aiSettings.selectedModel) {
             try {
                 await this.saveModelSelection();
@@ -362,6 +499,71 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 console.warn('自动保存模型选择失败:', error);
             }
         }
+
+        // 若为自动重试或超时相关控件，立即保存
+        try {
+            const target = ev?.target as HTMLElement | undefined;
+            const id = target?.id;
+            if (id === 'aiAutoRetryEmpty' || id === 'aiAutoRetryMax' || id === 'aiTimeout' || id === 'aiErrorRetryEnabled' || id === 'aiErrorRetryMax') {
+                const partial: Partial<AISettings> = {
+                    autoRetryEmpty: this.autoRetryEmptyEl ? this.autoRetryEmptyEl.checked : this.aiSettings.autoRetryEmpty,
+                    autoRetryMax: this.autoRetryMaxEl ? (parseInt(this.autoRetryMaxEl.value, 10) || 0) : this.aiSettings.autoRetryMax,
+                    timeout: this.timeoutEl ? (parseInt(this.timeoutEl.value, 10) || this.aiSettings.timeout) : this.aiSettings.timeout,
+                    errorRetryEnabled: this.errorRetryEnabledEl ? this.errorRetryEnabledEl.checked : this.aiSettings.errorRetryEnabled,
+                    errorRetryMax: this.errorRetryMaxEl ? (parseInt(this.errorRetryMaxEl.value, 10) || 0) : this.aiSettings.errorRetryMax
+                };
+                this.aiSettings = { ...this.aiSettings, ...partial } as AISettings;
+                await aiService.saveSettings(partial);
+            }
+        } catch (e) {
+            console.warn('自动保存自动重试设置失败:', e);
+        }
+    }
+
+    /**
+     * 若页面未内置对应DOM，则在“对话参数”区域注入错误重试控件
+     */
+    private ensureErrorRetryControls(): void {
+        try {
+            const maxTokensEl = document.getElementById('aiMaxTokens');
+            if (!maxTokensEl) return;
+            const section = maxTokensEl.closest('.settings-section') as HTMLElement | null;
+            if (!section) return;
+
+            const existed = document.getElementById('aiErrorRetryEnabled') || document.getElementById('aiErrorRetryMax');
+            if (existed) return;
+
+            const grp1 = document.createElement('div');
+            grp1.className = 'form-group-checkbox';
+            grp1.innerHTML = `
+                <input type="checkbox" id="aiErrorRetryEnabled">
+                <label for="aiErrorRetryEnabled">
+                    <i class="fas fa-redo"></i>
+                    错误重试（超时/网络/429/5xx）
+                </label>
+                <p class="input-description">开启后遇到可恢复错误将自动指数退避重试。</p>
+            `;
+
+            const grp2 = document.createElement('div');
+            grp2.className = 'form-group';
+            grp2.innerHTML = `
+                <label for="aiErrorRetryMax">
+                    <i class="fas fa-sync-alt"></i>
+                    错误重试最大次数:
+                </label>
+                <input type="number" id="aiErrorRetryMax" class="number-input" min="0" max="10" value="2">
+                <p class="input-description">建议 0-3 次。</p>
+            `;
+
+            const anchor = document.getElementById('aiAutoRetryMax')?.closest('.form-group') || maxTokensEl.closest('.form-group');
+            if (anchor && anchor.parentElement === section) {
+                anchor.insertAdjacentElement('afterend', grp1);
+                grp1.insertAdjacentElement('afterend', grp2);
+            } else {
+                section.appendChild(grp1);
+                section.appendChild(grp2);
+            }
+        } catch {}
     }
 
     /**
@@ -450,6 +652,9 @@ export class AISettingsPanel extends BaseSettingsPanel {
             this.apiProvider, this.apiKey, this.apiEndpoint, this.selectedModel,
             this.maxTokens, this.temperature, this.enableAutoTranslation,
             this.enableSummary, this.enableRecommendation, this.enableChatbot,
+            this.timeoutEl,
+            this.autoRetryEmptyEl, this.autoRetryMaxEl,
+            this.errorRetryEnabledEl, this.errorRetryMaxEl,
             this.testConnectionBtn, this.loadModelsBtn
         ];
         
