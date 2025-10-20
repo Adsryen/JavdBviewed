@@ -1,6 +1,7 @@
 import { insViewsRange, insReportsGet, insReportsPut } from './db';
 import { aggregateMonthly } from '../services/insights/aggregator';
-import { renderTemplate } from '../services/insights/reportGenerator';
+import { generateReportHTML } from '../services/insights/reportGenerator';
+import { getSettings } from '../utils/storage';
 
 export const INSIGHTS_ALARM = "insights-monthly";
 
@@ -37,12 +38,46 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
   if (exists && exists.status === 'final') return false;
   const { start, end } = monthStartEnd(month);
   const days = await insViewsRange(start, end);
-  const stats = aggregateMonthly(days, { topN: 10 });
+  // 读取聚合参数设置
+  const settings = await getSettings();
+  const ins = settings?.insights || {};
+  // 读取上月范围
+  try {
+    const [y, m] = month.split('-').map(v => Number(v));
+    let py = y, pm = m - 1; if (pm <= 0) { py -= 1; pm = 12; }
+    const pStart = `${py}-${String(pm).padStart(2,'0')}-01`;
+    const pEnd = new Date(py, pm, 0).toISOString().slice(0, 10);
+    const prevDays = await insViewsRange(pStart, pEnd);
+    var stats = aggregateMonthly(days, {
+      topN: ins.topN ?? 10,
+      previousDays: prevDays,
+      changeThresholdRatio: ins.changeThresholdRatio,
+      minTagCount: ins.minTagCount,
+      risingLimit: ins.risingLimit,
+      fallingLimit: ins.fallingLimit,
+    });
+  } catch {
+    var stats = aggregateMonthly(days, {
+      topN: ins.topN ?? 10,
+      changeThresholdRatio: ins.changeThresholdRatio,
+      minTagCount: ins.minTagCount,
+      risingLimit: ins.risingLimit,
+      fallingLimit: ins.fallingLimit,
+    });
+  }
   const tpl = await loadTemplate();
   const topBrief = (stats.tagsTop || []).slice(0, 5).map(t => `${t.name}(${t.count})`).join('、');
+  const changeIns: string[] = [];
+  try {
+    const ch = stats?.changes || { newTags: [], rising: [], falling: [] } as any;
+    if (Array.isArray(ch.newTags) && ch.newTags.length) changeIns.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
+    if (Array.isArray(ch.rising) && ch.rising.length) changeIns.push(`明显上升：${ch.rising.slice(0,5).join('、')}`);
+    if (Array.isArray(ch.falling) && ch.falling.length) changeIns.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
+  } catch {}
   const insightList = [
     topBrief ? `本月偏好标签集中于：${topBrief}` : '数据量较少，暂无法判断主要偏好',
     `累计观看天数：${days.length} 天`,
+    ...changeIns,
   ].map(s => `<li>${s}</li>`).join('');
   const fields: Record<string, string> = {
     reportTitle: `我的观影标签月报（${month.replace('-','年')}月）`,
@@ -55,7 +90,7 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
     baseHref: chrome.runtime.getURL('') || './',
     statsJSON: JSON.stringify(stats || {}),
   };
-  const html = renderTemplate({ templateHTML: tpl, fields });
+  const html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
   const now = Date.now();
   await insReportsPut({ month, period: { start, end }, stats, html, createdAt: now, finalizedAt: now, status: 'final', origin: 'auto', version: '0.0.1' });
   try {

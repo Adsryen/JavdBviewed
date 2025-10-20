@@ -22,6 +22,14 @@ export interface AISettings {
     systemPrompt: string;
     /** 连接超时时间(秒) */
     timeout: number;
+    /** 当模型返回空内容时自动重试 */
+    autoRetryEmpty: boolean;
+    /** 自动重试的最大次数（仅在 autoRetryEmpty=true 时生效） */
+    autoRetryMax: number;
+    /** 对超时/网络错误/429/5xx 进行错误重试 */
+    errorRetryEnabled?: boolean;
+    /** 错误重试最大次数（指数退避） */
+    errorRetryMax?: number;
 }
 
 /**
@@ -185,9 +193,12 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
     maxTokens: 2048,
     streamEnabled: true,
     systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
-    timeout: 30
+    timeout: 120,
+    autoRetryEmpty: false,
+    autoRetryMax: 2,
+    errorRetryEnabled: false,
+    errorRetryMax: 2
 };
-
 /**
  * AI设置存储键
  */

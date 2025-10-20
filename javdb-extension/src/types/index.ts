@@ -218,6 +218,15 @@ export interface ExtensionSettings {
     // 新增：AI功能配置
     ai: AISettings;
 
+    // 新增：报告（Insights）配置（仅本地聚合参数；无UI时使用默认值）
+    insights?: {
+        topN?: number; // Top 标签数量，默认 10
+        changeThresholdRatio?: number; // 显著变化阈值（占比绝对变化），默认 0.08
+        minTagCount?: number; // 噪声过滤最小计数，默认 3
+        risingLimit?: number; // 上升标签最多展示条数，默认 5
+        fallingLimit?: number; // 下降标签最多展示条数，默认 5
+    };
+
     version: string;
     recordsPerPage?: number;
     // Dashboard 番号库：是否在列表中显示封面

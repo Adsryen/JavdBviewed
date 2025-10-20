@@ -14,6 +14,15 @@ import { NewApiClient, StreamParser } from './newApiClient';
 import { ModelManager } from './modelManager';
 import { getSettings, saveSettings as saveMainSettings } from '../../utils/storage';
 
+// 非流式发送的尝试事件（用于调用方记录追踪）
+type NonStreamAttemptEvent = {
+    type: 'emptyRetry' | 'errorRetry' | 'finalEmpty' | 'success' | 'error';
+    attempt: number;
+    left?: number;
+    waitMs?: number;
+    error?: string;
+};
+
 /**
  * AI服务核心类
  * 提供统一的AI功能接口
@@ -148,7 +157,10 @@ export class AIService {
     /**
      * 发送聊天消息（非流式）
      */
-    async sendMessage(messages: ChatMessage[]): Promise<ChatCompletionResponse> {
+    async sendMessage(
+        messages: ChatMessage[],
+        opts?: { observer?: (e: NonStreamAttemptEvent) => void }
+    ): Promise<ChatCompletionResponse> {
         if (!this.settings.enabled) {
             throw new Error('AI功能未启用');
         }
@@ -165,19 +177,72 @@ export class AIService {
             stream: false
         };
 
-        try {
-            const response = await this.client.createChatCompletion(request);
-            this.status.connected = true;
-            this.status.currentModel = this.settings.selectedModel;
-            this.status.lastError = undefined;
-            this.status.lastUpdate = Date.now();
-            
-            return response;
-        } catch (error) {
-            this.status.connected = false;
-            this.status.lastError = error instanceof Error ? error.message : '发送消息失败';
-            this.status.lastUpdate = Date.now();
-            throw error;
+        // note: removed detailed console logging; keep logic minimal
+
+        // 配置：空回复重试与错误重试
+        let emptyLeft = this.settings.autoRetryEmpty ? Math.max(0, this.settings.autoRetryMax || 0) : 0;
+        let errorLeft = this.settings.errorRetryEnabled ? Math.max(0, this.settings.errorRetryMax || 0) : 0;
+        let emptyAttempts = 0;
+        let errorAttempts = 0;
+
+        const observe = (ev: NonStreamAttemptEvent) => {
+            try { opts?.observer?.(ev); } catch {}
+        };
+
+        const isRetryableError = (err: any): boolean => {
+            const msg = (err instanceof Error ? err.message : String(err || '')) || '';
+            if (!msg) return false;
+            // 可重试：客户端/服务端超时、网络错误、429、5xx
+            return /请求超时|服务端超时\(408\)|网络错误|超出速率限制\(429\)|服务器错误\(/.test(msg);
+        };
+
+        while (true) {
+            try {
+                const response = await this.client.createChatCompletion(request);
+                const text = response?.choices?.[0]?.message?.content?.trim() || '';
+
+                // 空回复自动重试
+                if (text.length === 0 && emptyLeft > 0) {
+                    emptyAttempts++;
+                    emptyLeft--;
+                    const wait = Math.min(1500, 200 * Math.pow(2, emptyAttempts - 1));
+                    observe({ type: 'emptyRetry', attempt: emptyAttempts, left: emptyLeft, waitMs: wait });
+                    await new Promise(r => setTimeout(r, wait));
+                    continue;
+                }
+
+                // 最终仍为空，则抛错，交由上层回退
+                if (text.length === 0) {
+                    observe({ type: 'finalEmpty', attempt: emptyAttempts, left: emptyLeft });
+                    throw new Error('AI返回空内容');
+                }
+
+                this.status.connected = true;
+                this.status.currentModel = this.settings.selectedModel;
+                this.status.lastError = undefined;
+                this.status.lastUpdate = Date.now();
+                observe({ type: 'success', attempt: 0 });
+                return response;
+            } catch (error) {
+                // 可重试错误：指数退避后重试
+                if (errorLeft > 0 && isRetryableError(error)) {
+                    errorAttempts++;
+                    errorLeft--;
+                    const wait = Math.min(8000, 400 * Math.pow(2, errorAttempts - 1));
+                    const msg = (error instanceof Error ? error.message : String(error || '')) || '未知错误';
+                    observe({ type: 'errorRetry', attempt: errorAttempts, left: errorLeft, waitMs: wait, error: msg });
+                    await new Promise(r => setTimeout(r, wait));
+                    continue;
+                }
+
+                // 不可重试或次数用尽
+                this.status.connected = false;
+                this.status.lastError = error instanceof Error ? error.message : '发送消息失败';
+                this.status.lastUpdate = Date.now();
+                const msg = (error instanceof Error ? error.message : String(error || '')) || '发送消息失败';
+                observe({ type: 'error', attempt: errorAttempts, left: errorLeft, error: msg });
+                throw error;
+            }
         }
     }
 
@@ -206,6 +271,8 @@ export class AIService {
             stream: true
         };
 
+        // 不再输出控制台日志，避免泄露请求内容
+
         try {
             const stream = await this.client.createStreamChatCompletion(request);
             const parser = new StreamParser();
@@ -216,6 +283,7 @@ export class AIService {
             this.status.lastError = undefined;
             this.status.lastUpdate = Date.now();
 
+            let totalLen = 0;
             try {
                 while (true) {
                     const { done, value } = await reader.read();
@@ -227,6 +295,12 @@ export class AIService {
 
                     const chunks = parser.parseChunk(value);
                     for (const chunk of chunks) {
+                        try {
+                            const piece = (chunk as any)?.choices?.[0]?.delta?.content
+                                       ?? (chunk as any)?.choices?.[0]?.message?.content
+                                       ?? '';
+                            if (piece) totalLen += piece.length;
+                        } catch {}
                         onChunk(chunk);
                     }
                 }
@@ -247,16 +321,14 @@ export class AIService {
      */
     private prepareMessages(messages: ChatMessage[]): ChatMessage[] {
         const prepared = [...messages];
-        
         // 如果有系统提示词且第一条消息不是系统消息，则添加系统消息
-        if (this.settings.systemPrompt && 
+        if (this.settings.systemPrompt &&
             (prepared.length === 0 || prepared[0].role !== 'system')) {
             prepared.unshift({
                 role: 'system',
                 content: this.settings.systemPrompt
             });
         }
-
         return prepared;
     }
 
