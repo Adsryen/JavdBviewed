@@ -29,6 +29,8 @@ installConsoleProxy({
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
     categories: {
         general: { enabled: true, match: () => true, label: 'DB', color: '#8e44ad' },
+        ai: { enabled: true, match: /\[AI\]|\bAI\b/i, label: 'AI', color: '#e67e22' },
+        insights: { enabled: true, match: /\[INSIGHTS\]|Insights|报告|统计/i, label: 'INSIGHTS', color: '#2ecc71' },
     },
 });
 async function applyConsoleSettingsFromStorage_DB() {

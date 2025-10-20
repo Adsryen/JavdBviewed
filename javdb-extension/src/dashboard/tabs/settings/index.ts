@@ -33,6 +33,66 @@ export async function initAllSettingsPanels(): Promise<void> {
     try {
         console.log('[Settings] 开始初始化模块化设置系统...');
 
+        // 确保“报告（Insights）”面板 DOM 存在（在初始化各面板之前）
+        function ensureInsightsPanelDom(): void {
+            try {
+                const content = document.querySelector('.settings-content') as HTMLElement | null;
+                if (!content) return;
+                if (document.getElementById('insights-settings')) return;
+
+                const panel = document.createElement('div');
+                panel.className = 'settings-panel';
+                panel.id = 'insights-settings';
+                panel.innerHTML = `
+                    <div class="settings-panel-header">
+                        <h3>报告（Insights）设置</h3>
+                        <p class="settings-description">配置报告生成所用的聚合参数，仅影响本地统计与 AI 提示词输入。</p>
+                    </div>
+                    <div class="settings-panel-body">
+                        <div class="settings-section">
+                            <h4><i class="fas fa-sliders-h"></i> 聚合参数</h4>
+                            <div class="form-group">
+                                <label for="insightsTopN">TopN 标签数量:</label>
+                                <input type="number" id="insightsTopN" class="number-input" min="1" max="50" value="10">
+                                <p class="input-description">展示的热门标签数量（1-50，默认10）。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="insightsChangeThresholdRatio">显著变化阈值（0-1）:</label>
+                                <input type="number" id="insightsChangeThresholdRatio" class="number-input" step="0.01" min="0" max="1" value="0.08">
+                                <p class="input-description">按占比绝对变化判断“上升/下降”的阈值（默认0.08）。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="insightsMinTagCount">最小计数过滤:</label>
+                                <input type="number" id="insightsMinTagCount" class="number-input" min="0" max="999" value="3">
+                                <p class="input-description">低计数标签将被视为噪声并忽略（默认3）。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="insightsRisingLimit">上升标签展示条数:</label>
+                                <input type="number" id="insightsRisingLimit" class="number-input" min="0" max="50" value="5">
+                                <p class="input-description">“上升”列表中最多展示的标签数量（默认5）。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="insightsFallingLimit">下降标签展示条数:</label>
+                                <input type="number" id="insightsFallingLimit" class="number-input" min="0" max="50" value="5">
+                                <p class="input-description">“下降”列表中最多展示的标签数量（默认5）。</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // 插入到 AI 面板后方（如存在），否则追加到内容末尾
+                const aiPanel = document.getElementById('ai-settings');
+                if (aiPanel && aiPanel.parentElement === content) {
+                    content.insertBefore(panel, aiPanel.nextSibling);
+                } else {
+                    content.appendChild(panel);
+                }
+            } catch {}
+        }
+
+        // 先确保 DOM 存在
+        ensureInsightsPanelDom();
+
         const { settingsPanelManager } = await import('./base/SettingsPanelManager');
         const { getDisplaySettings } = await import('./display');
         const { getSearchEngineSettings } = await import('./searchEngine');
@@ -45,6 +105,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         const { getAdvancedSettings } = await import('./advanced');
         const { getLoggingSettings } = await import('./logging');
         const { getAiSettings } = await import('./ai');
+        const { getInsightsSettings } = await import('./insights');
         const { getDrive115SettingsV2 } = await import('./drive115');
         const { getEmbySettings } = await import('./emby');
         const { getUpdateSettings } = await import('./update');
@@ -62,6 +123,7 @@ export async function initAllSettingsPanels(): Promise<void> {
         settingsPanelManager.registerPanel(await getAdvancedSettings());
         settingsPanelManager.registerPanel(await getLoggingSettings());
         settingsPanelManager.registerPanel(await getAiSettings());
+        settingsPanelManager.registerPanel(await getInsightsSettings());
         // 使用 v2 独立控制器，避免对 v1 的任何依赖
         settingsPanelManager.registerPanel(await getDrive115SettingsV2());
         settingsPanelManager.registerPanel(await getEmbySettings());
