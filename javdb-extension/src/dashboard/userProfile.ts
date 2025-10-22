@@ -89,6 +89,7 @@ export function initUserProfileSection(): void {
                     <div class="stats-title">
                         <i class="fas fa-server"></i>
                         <span>服务器数据</span>
+                        <i class="fas fa-question-circle" title="仅数量展示，不具有完整数据同步功能；完整数据同步请前往“数据同步”页面进行操作"></i>
                     </div>
                     <div class="stats-grid">
                         <div class="stat-item want-stat">

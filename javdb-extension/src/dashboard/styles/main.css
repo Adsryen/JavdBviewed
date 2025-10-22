@@ -280,6 +280,26 @@ button, .button-like {
       background-color: #5a36a0;
   }
 
+  /* ===== 通用高亮提示条（用于标题下方的测试/公告等） ===== */
+  .alert-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      margin: 8px 0 16px;
+      border-radius: 8px;
+      border: 1px solid #ffeeba;
+      background-color: #fff3cd; /* 温和黄色背景 */
+      color: #856404;
+      font-size: 14px;
+  }
+
+  .alert-banner .icon {
+      font-size: 16px;
+      line-height: 1;
+  }
+
+
 
 /* Button Group */
 .button-group-vertical {

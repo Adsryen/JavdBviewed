@@ -330,6 +330,33 @@
     gap: 1rem;
 }
 
+/* 通用：输入说明中的内联提示样式（适用于任意设置面板） */
+.input-description .inline-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
+    border: 1px solid var(--status-neutral-border);
+}
+
+.input-description .inline-note::before {
+    content: "ⓘ";
+    font-weight: 700;
+    color: var(--status-neutral-text);
+}
+
+#enhancement-settings .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 #enhancement-settings .volume-control input[type="range"] {
     flex: 1;
 }
