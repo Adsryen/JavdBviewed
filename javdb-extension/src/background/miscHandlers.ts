@@ -38,6 +38,14 @@ export function registerMiscRouter(): void {
         case 'ping-background':
           sendResponse({ success: true, message: 'pong' });
           return true;
+        case 'fetch-user-profile': {
+          // 从 JavDB 抓取用户资料与服务器统计，并写入本地缓存
+          // 注意：异步处理需 return true 保持消息通道
+          fetchUserProfileFromJavDB()
+            .then((profile) => sendResponse({ success: true, profile }))
+            .catch((error: any) => sendResponse({ success: false, error: error?.message || '获取账号信息失败' }));
+          return true;
+        }
         case 'get-logs': {
           const payload = message?.payload || {};
           idbLogsQuery({
@@ -462,8 +470,6 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
   try {
     const baseProfile = await getValue<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null).catch(() => null);
 
-    const wantUrl = 'https://javdb.com/users/want_watch_videos';
-    const watchedUrl = 'https://javdb.com/users/watched_videos';
 
     // 使用统一调度器发起请求（自动限速/并发控制）
     const fetchHtml = async (url: string): Promise<{ ok: boolean; html?: string; finalUrl?: string; status?: number }> => {
@@ -474,6 +480,8 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
           credentials: 'include' as any,
           headers: {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Referer': 'https://javdb.com/',
             'Cache-Control': 'no-cache',
           },
         } as RequestInit);
@@ -520,6 +528,30 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
       }
     };
 
+    // 仅从 /users/profile 页面解析计数（暂停其他来源）
+    const parseWantCountFromHtml = (html: string): number | undefined => {
+      try {
+        // 匹配导航/侧栏：想看(97) 或 想看 (97)
+        const m = html.match(/href=["']\/users\/want_watch_videos["'][\s\S]*?想看[\s\S]*?\(([0-9][0-9,\.]*)\)/i);
+        if (m && m[1]) {
+          const n = Number(String(m[1]).replace(/[\s,\.]/g, ''));
+          if (isFinite(n)) return n;
+        }
+      } catch {}
+      return undefined;
+    };
+    const parseWatchedCountFromHtml = (html: string): number | undefined => {
+      try {
+        // 匹配导航/侧栏：看過(4166)/看过(4166) 或带空格
+        const m = html.match(/href=["']\/users\/watched_videos["'][\s\S]*?(?:看過|看过)[\s\S]*?\(([0-9][0-9,\.]*)\)/i);
+        if (m && m[1]) {
+          const n = Number(String(m[1]).replace(/[\s,\.]/g, ''));
+          if (isFinite(n)) return n;
+        }
+      } catch {}
+      return undefined;
+    };
+
     const computeCount = async (baseUrl: string, htmlFirst: string): Promise<number> => {
       // 优先使用“总数”文案
       const direct = parseTotalFromHtml(htmlFirst);
@@ -537,26 +569,66 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
       return countItemsOnPage(htmlFirst);
     };
 
-    const [wantRes, watchedRes] = await Promise.all([fetchHtml(wantUrl), fetchHtml(watchedUrl)]);
+    const profileUrl = 'https://javdb.com/users/profile';
+    const profileRes = await fetchHtml(profileUrl);
 
     // 登录判定：若被重定向到登录页或内容为空，则视为未登录
     const isLoggedIn = !!(
-      (wantRes.ok && wantRes.html && !((wantRes.finalUrl || '').includes('/sign_in')))
-      || (watchedRes.ok && watchedRes.html && !((watchedRes.finalUrl || '').includes('/sign_in')))
+      profileRes.ok && profileRes.html && !((profileRes.finalUrl || '').includes('/sign_in'))
     );
 
     if (!isLoggedIn) {
       throw new Error('未登录 JavDB');
     }
 
-    const wantCount = wantRes.ok && wantRes.html ? await computeCount(wantUrl, wantRes.html) : 0;
-    const watchedCount = watchedRes.ok && watchedRes.html ? await computeCount(watchedUrl, watchedRes.html) : 0;
+    // 从 profile 页面解析服务器计数（仅此来源）
+    const wantCount = profileRes.ok && profileRes.html ? (parseWantCountFromHtml(profileRes.html) ?? 0) : 0;
+    const watchedCount = profileRes.ok && profileRes.html ? (parseWatchedCountFromHtml(profileRes.html) ?? 0) : 0;
+
+    // 额外尝试获取用户详情（邮箱/用户名/类型）
+    const tryFetchUserInfoDetail = async (): Promise<{ email?: string; username?: string; userType?: string } | null> => {
+      const candidates = [
+        'https://javdb.com/users/profile',
+      ];
+      for (const url of candidates) {
+        try {
+          const ret = await fetchHtml(url);
+          if (ret.ok && ret.html && !((ret.finalUrl || '').includes('/sign_in'))) {
+            const html = ret.html;
+            // 从个人信息页列表提取（label+文本）
+            const emailFromProfile = (html.match(/<span[^>]*class=["']label["'][^>]*>\s*(?:电邮地址|電郵地址|邮箱|電子郵件|电子邮件)\s*:<\/span>\s*([^<\n]+)/i) || [])[1]?.trim();
+            const usernameFromProfile = (html.match(/<span[^>]*class=["']label["'][^>]*>\s*(?:用戶名|用户名|使用者名稱|使用者名称)\s*:<\/span>\s*([^<\n]+)/i) || [])[1]?.trim();
+            const userTypeFromProfile = (html.match(/<span[^>]*class=["']label["'][^>]*>\s*(?:用戶類型|用户类型|使用者類型|使用者类型)\s*:<\/span>\s*([^<\n]+)/i) || [])[1]?.trim();
+            // 从导航菜单提取用户名（例如 <a class="navbar-link" href="/users/profile">amixture</a>）
+            const usernameFromAnchor = (html.match(/<a[^>]*href=["']\/users\/profile["'][^>]*>\s*([^<]{1,40})\s*<\/a>/i) || [])[1]?.trim();
+
+            const emailMatch = html.match(/name="user\[email\]"[^>]*value="([^"]*)"/i) || html.match(/id="user_email"[^>]*value="([^"]*)"/i);
+            const usernameMatch = html.match(/name="user\[username\]"[^>]*value="([^"]*)"/i) || html.match(/id="user_username"[^>]*value="([^"]*)"/i);
+            const email = (emailMatch?.[1]?.trim()) || emailFromProfile;
+            const username = (usernameMatch?.[1]?.trim()) || usernameFromProfile || usernameFromAnchor;
+            // 严格以“用戶類型/用户类型”标签文本为准，避免因页面其它位置出现 VIP 文案而误判
+            const userTypeRaw = (userTypeFromProfile || '').replace(/[，,]/g, '').trim();
+            let userType: string | undefined = undefined;
+            if (userTypeRaw) {
+              if (/vip|premium/i.test(userTypeRaw)) userType = 'VIP';
+              else if (/(普通用戶|普通用户|normal|regular)/i.test(userTypeRaw)) userType = '普通用户';
+              else if (/(會員|会员)/.test(userTypeRaw)) userType = '会员';
+              else userType = userTypeRaw;
+            }
+            if (email || username || userType) return { email, username, userType };
+          }
+        } catch {}
+      }
+      // 兜底：仅使用 profile 页面，暂停其他页面来源
+      return null;
+    };
+    const detail = await tryFetchUserInfoDetail().catch(() => null);
 
     const now = Date.now();
     const profile = {
-      email: baseProfile?.email || '',
-      username: baseProfile?.username || '',
-      userType: baseProfile?.userType || '',
+      email: (detail?.email ?? baseProfile?.email) || '',
+      username: (detail?.username ?? baseProfile?.username) || '',
+      userType: (detail?.userType ?? baseProfile?.userType) || '',
       isLoggedIn: true,
       lastUpdated: now,
       serverStats: {
