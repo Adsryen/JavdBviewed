@@ -24,6 +24,24 @@
     --enhancement-text-muted: #64748b;
     --enhancement-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --enhancement-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    /* 状态徽章配色（available/beta/wip） */
+    --status-available-bg: #dcfce7;
+    --status-available-text: #166534;
+    --status-available-border: #86efac;
+
+    --status-beta-bg: #fef3c7;
+    --status-beta-text: #92400e;
+    --status-beta-border: #fde68a;
+
+    --status-wip-bg: #e2e8f0;
+    --status-wip-text: #334155;
+    --status-wip-border: #cbd5e1;
+
+    /* 状态徽章配色（neutral） */
+    --status-neutral-bg: #f1f5f9;
+    --status-neutral-text: #475569;
+    --status-neutral-border: #e2e8f0;
 }
 
 /* 功能增强设置面板特有样式 */
@@ -78,6 +96,49 @@
     max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
+}
+
+/* 状态徽章：名称与状态并排显示 */
+.enhancement-feature-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.enhancement-feature-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+
+.enhancement-feature-status.available {
+    background: var(--status-available-bg);
+    color: var(--status-available-text);
+    border-color: var(--status-available-border);
+}
+
+.enhancement-feature-status.beta {
+    background: var(--status-beta-bg);
+    color: var(--status-beta-text);
+    border-color: var(--status-beta-border);
+}
+
+.enhancement-feature-status.wip {
+    background: var(--status-wip-bg);
+    color: var(--status-wip-text);
+    border-color: var(--status-wip-border);
+}
+
+.enhancement-feature-status.neutral {
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
+    border-color: var(--status-neutral-border);
 }
 
 #enhancement-settings .enhancement-grid {

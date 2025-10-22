@@ -12,21 +12,9 @@
                                 <i class="fas fa-eye"></i>
                                 <span>显示设置</span>
                             </div>
-                            <div class="settings-nav-item" data-section="enhancement-settings">
-                                <i class="fas fa-magic"></i>
-                                <span>功能增强</span>
-                            </div>
                             <div class="settings-nav-item" data-section="search-engine-settings">
                                 <i class="fas fa-search"></i>
                                 <span>搜索引擎</span>
-                            </div>
-                            <div class="settings-nav-item" data-section="ai-settings">
-                                <i class="fas fa-robot"></i>
-                                <span>AI设置</span>
-                            </div>
-                            <div class="settings-nav-item" data-section="privacy-settings">
-                                <i class="fas fa-shield-alt"></i>
-                                <span>隐私保护</span>
                             </div>
                             <div class="settings-nav-item" data-section="webdav-settings">
                                 <i class="fas fa-cloud"></i>
@@ -40,33 +28,33 @@
                                 <i class="fas fa-cloud-download-alt"></i>
                                 <span>115网盘</span>
                             </div>
-                            <div class="settings-nav-item" data-section="emby-settings">
-                                <i class="fas fa-film"></i>
-                                <span>Emby增强</span>
-                            </div>
-                            <div class="settings-nav-item" data-section="insights-settings">
-                                <i class="fas fa-chart-line"></i>
-                                <span>报告（Insights）</span>
-                            </div>
-                            <div class="settings-nav-item" data-section="log-settings">
-                                <i class="fas fa-file-alt"></i>
-                                <span>日志设置</span>
-                            </div>
-                            <div class="settings-nav-item" data-section="advanced-settings">
-                                <i class="fas fa-cogs"></i>
-                                <span>高级配置</span>
+                            <div class="settings-nav-item" data-section="enhancement-settings">
+                                <i class="fas fa-magic"></i>
+                                <span>功能增强</span>
                             </div>
                             <div class="settings-nav-item" data-section="network-test-settings">
                                 <i class="fas fa-network-wired"></i>
                                 <span>网络测试</span>
                             </div>
-                            <div class="settings-nav-item" data-section="global-actions">
-                                <i class="fas fa-tools"></i>
-                                <span>全局操作</span>
+                            <div class="settings-nav-item" data-section="privacy-settings">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>隐私保护</span>
                             </div>
-                            <div class="settings-nav-item" data-section="update-settings">
-                                <i class="fas fa-sync-alt"></i>
-                                <span>检查更新</span>
+                            <div class="settings-nav-item" data-section="advanced-settings">
+                                <i class="fas fa-cogs"></i>
+                                <span>高级配置</span>
+                            </div>
+                            <div class="settings-nav-item" data-section="log-settings">
+                                <i class="fas fa-file-alt"></i>
+                                <span>日志设置</span>
+                            </div>
+                            <div class="settings-nav-item" data-section="ai-settings">
+                                <i class="fas fa-robot"></i>
+                                <span>AI设置</span>
+                            </div>
+                            <div class="settings-nav-item" data-section="insights-settings">
+                                <i class="fas fa-chart-line"></i>
+                                <span>报告（Insights）</span>
                             </div>
                         </div>
                     </div>
