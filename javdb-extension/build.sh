@@ -23,6 +23,8 @@ tag_name=""
 zip_name=""
 zip_path=""
 release_notes=""
+release_only="false"
+auto_notes="false"
 
 # --- Helper Functions ---
 
@@ -48,7 +50,9 @@ show_menu() {
     echo ""
     print_color "$WHITE" "  [4] Just Build (build without changing the version number)"
     print_color "$GRAY" "      Just Build - no version change"
-    print_color "$WHITE" "  [5] Exit"
+    print_color "$WHITE" "  [5] Generate GitHub Release (auto notes, skip build)"
+    print_color "$GRAY" "      Create release with gh --generate-notes, use existing artifact"
+    print_color "$WHITE" "  [6] Exit"
     echo ""
 }
 
@@ -235,136 +239,20 @@ get_remote_http_url() {
 }
 
 generate_release_notes() {
-    print_color "$GRAY" "Getting latest commit information for release notes..."
+    print_color "$GRAY" "Preparing template-based release notes..."
     
-    local head_short
-    head_short=$(git rev-parse --short HEAD 2>/dev/null || echo "")
-    
-    if [[ -z "$head_short" ]]; then
-        print_color "$YELLOW" "Warning: Could not get latest commit information, using default notes"
-        release_notes="Release $version_str ($version_type) - $(date '+%Y-%m-%d')"
-        return
-    fi
-    
-    # Get previous tag
+    # Previous tag for compare link
     local previous_tag
     previous_tag=$(git tag --list "v*" --sort=-v:refname | head -n1 2>/dev/null || echo "")
     
-    # Compute commit range
-    local commit_range=""
-    if [[ -n "$previous_tag" ]]; then
-        commit_range="$previous_tag..HEAD"
-    fi
-    
-    # Get remote HTTP URL for compare link
+    # Remote HTTP URL for compare link
     local remote_http
     remote_http=$(get_remote_http_url "origin")
-    
     local compare_link=""
     if [[ -n "$remote_http" && -n "$previous_tag" ]]; then
         compare_link="$remote_http/compare/$previous_tag...$tag_name"
     elif [[ -n "$remote_http" ]]; then
         compare_link="$remote_http/commits"
-    fi
-    
-    # Get commits in range
-    local log_args=()
-    if [[ -n "$commit_range" ]]; then
-        log_args+=("$commit_range")
-    fi
-    log_args+=("--date=short" "--pretty=format:%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1f%b%x1e")
-    
-    local log_raw
-    log_raw=$(git log "${log_args[@]}" 2>/dev/null || echo "")
-    
-    # Parse commits and group by type
-    local -A groups
-    groups["Features"]=""
-    groups["Fixes"]=""
-    groups["Refactor"]=""
-    groups["Performance"]=""
-    groups["Docs"]=""
-    groups["Chore"]=""
-    groups["CI"]=""
-    groups["Tests"]=""
-    groups["Build"]=""
-    groups["Style"]=""
-    groups["Reverts"]=""
-    groups["Others"]=""
-    
-    local breaking_changes=""
-    
-    if [[ -n "$log_raw" ]]; then
-        while IFS=$'\x1e' read -r entry; do
-            if [[ -z "$entry" ]]; then continue; fi
-            
-            IFS=$'\x1f' read -r full_hash short_hash author date subject body <<< "$entry"
-            
-            local group_name="Others"
-            local is_breaking=false
-            
-            # Parse conventional commit format
-            if [[ "$subject" =~ ^(feat|fix|refactor|perf|docs|chore|ci|test|build|style|revert)(\([^\)]+\))?(!)?:[[:space:]]*(.+)$ ]]; then
-                local commit_type="${BASH_REMATCH[1]}"
-                local breaking_marker="${BASH_REMATCH[3]}"
-                subject="${BASH_REMATCH[4]}"
-                
-                case "$commit_type" in
-                    "feat") group_name="Features" ;;
-                    "fix") group_name="Fixes" ;;
-                    "refactor") group_name="Refactor" ;;
-                    "perf") group_name="Performance" ;;
-                    "docs") group_name="Docs" ;;
-                    "chore") group_name="Chore" ;;
-                    "ci") group_name="CI" ;;
-                    "test") group_name="Tests" ;;
-                    "build") group_name="Build" ;;
-                    "style") group_name="Style" ;;
-                    "revert") group_name="Reverts" ;;
-                esac
-                
-                if [[ "$breaking_marker" == "!" ]]; then
-                    is_breaking=true
-                fi
-            fi
-            
-            # Check for BREAKING CHANGE in body
-            if [[ "$body" =~ BREAKING[[:space:]-]CHANGE ]]; then
-                is_breaking=true
-            fi
-            
-            local item="- $subject - by $author on $date ($short_hash)"
-            if [[ -n "$body" ]]; then
-                # Add body with limited lines
-                local body_lines
-                mapfile -t body_lines <<< "$body"
-                local line_count=0
-                for line in "${body_lines[@]}"; do
-                    if [[ -n "${line// }" && $line_count -lt 8 ]]; then
-                        item="$item"$'\n'"  > $line"
-                        ((line_count++))
-                    fi
-                done
-                if [[ ${#body_lines[@]} -gt 8 ]]; then
-                    item="$item"$'\n'"  > ..."
-                fi
-            fi
-            
-            if [[ "$is_breaking" == true ]]; then
-                if [[ -n "$breaking_changes" ]]; then
-                    breaking_changes="$breaking_changes"$'\n'"$item"
-                else
-                    breaking_changes="$item"
-                fi
-            fi
-            
-            if [[ -n "${groups[$group_name]}" ]]; then
-                groups["$group_name"]="${groups[$group_name]}"$'\n'"$item"
-            else
-                groups["$group_name"]="$item"
-            fi
-            
-        done <<< "$log_raw"
     fi
     
     # Compute artifact SHA256
@@ -375,48 +263,44 @@ generate_release_notes() {
         artifact_hash=$(shasum -a 256 "$zip_path" | cut -d' ' -f1)
     fi
     
-    # Build release notes
+    local date_str
+    date_str=$(date '+%Y-%m-%d')
+    
+    # Build professional template
     local notes_lines=()
-    notes_lines+=("## Release $version_str")
+    notes_lines+=("## JavDB Extension v$version_str")
     notes_lines+=("")
-    notes_lines+=("**Build Type:** $version_type release")
-    notes_lines+=("**Version:** $version_str")
-    notes_lines+=("**Release Date:** $(date '+%Y-%m-%d')")
-    
+    notes_lines+=("- 发布类型：${version_type:-N/A}")
+    notes_lines+=("- 发布日期：$date_str")
     if [[ -n "$compare_link" ]]; then
-        notes_lines+=("")
-        notes_lines+=("Compare: $compare_link")
+        notes_lines+=("- 变更对比：$compare_link")
     fi
-    
     notes_lines+=("")
-    
-    # Add sections in order
-    local section_order=("Features" "Fixes" "Refactor" "Performance" "Docs" "Build" "CI" "Tests" "Style" "Reverts" "Chore" "Others")
-    
-    for section in "${section_order[@]}"; do
-        if [[ -n "${groups[$section]}" ]]; then
-            notes_lines+=("### $section")
-            notes_lines+=("${groups[$section]}")
-            notes_lines+=("")
-        fi
-    done
-    
-    # Add breaking changes section
-    if [[ -n "$breaking_changes" ]]; then
-        notes_lines+=("### Breaking Changes")
-        notes_lines+=("$breaking_changes")
-        notes_lines+=("")
-    fi
-    
-    # Add artifacts section
-    notes_lines+=("### Artifacts")
+    notes_lines+=("### 亮点")
+    notes_lines+=("- 在此撰写本次版本的核心亮点、价值和关键体验改进。")
+    notes_lines+=("")
+    notes_lines+=("### 新增")
+    notes_lines+=("- 新增功能 1")
+    notes_lines+=("- 新增功能 2")
+    notes_lines+=("")
+    notes_lines+=("### 修复")
+    notes_lines+=("- 修复问题 1（场景/影响/结果）")
+    notes_lines+=("- 修复问题 2")
+    notes_lines+=("")
+    notes_lines+=("### 变更与优化")
+    notes_lines+=("- 行为变更/交互优化/性能优化等说明")
+    notes_lines+=("")
+    notes_lines+=("### 兼容性与升级指引")
+    notes_lines+=("- 是否存在不兼容变更（如有，用条目清晰列出）")
+    notes_lines+=("- 升级注意事项/迁移步骤/回滚建议")
+    notes_lines+=("")
+    notes_lines+=("### 资源")
     notes_lines+=("- $zip_name")
     if [[ -n "$artifact_hash" ]]; then
         notes_lines+=("  - SHA256: $artifact_hash")
     fi
     notes_lines+=("")
     
-    # Join lines
     local IFS=$'\n'
     release_notes="${notes_lines[*]}"
 }
@@ -476,6 +360,42 @@ create_github_release() {
     print_color "$GREEN" "GitHub Release created successfully!"
 }
 
+create_github_release_auto() {
+    echo ""
+    print_color "$GREEN" "Creating GitHub Release (auto notes)..."
+    
+    check_github_cli
+    read_version_info
+    
+    # Ensure tag exists; create if missing
+    if ! git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null 2>&1; then
+        print_color "$GRAY" "Tag $tag_name not found. Creating annotated tag..."
+        if ! git tag -a "$tag_name" -m "Release $tag_name"; then
+            show_error
+            exit 1
+        fi
+    fi
+    
+    # Push git commits and tags
+    print_color "$GRAY" "Pushing git commits and tags..."
+    if ! git push; then
+        show_error
+        exit 1
+    fi
+    if ! git push --tags; then
+        show_error
+        exit 1
+    fi
+    
+    # Create release with auto-generated notes
+    print_color "$GRAY" "Creating release (auto notes) and uploading $zip_name..."
+    if ! gh release create "$tag_name" "$zip_path" --title "Release $tag_name" --generate-notes; then
+        show_error
+        exit 1
+    fi
+    print_color "$GREEN" "GitHub Release created successfully!"
+}
+
 # --- Main Logic ---
 
 main() {
@@ -485,7 +405,7 @@ main() {
     while true; do
         show_menu
         local choice
-        choice=$(get_user_choice "Enter your choice (1-5)" "4")
+        choice=$(get_user_choice "Enter your choice (1-6)" "4")
         
         case "$choice" in
             "1")
@@ -505,6 +425,12 @@ main() {
                 break
                 ;;
             "5")
+                release_only="true"
+                auto_notes="true"
+                version_type=""
+                break
+                ;;
+            "6")
                 exit 0
                 ;;
             *)
@@ -534,19 +460,53 @@ main() {
         fi
     fi
     
-    # Install dependencies and build
-    install_and_build
+    # Install dependencies and build (skip when release-only)
+    if [[ "$release_only" != "true" ]]; then
+        install_and_build
+    else
+        print_color "$YELLOW" "Release-only mode: skipping build step."
+    fi
     
-    # Auto-create GitHub Release for options 1-3; skip for Just Build (option 4)
-    if [[ -z "$version_type" ]]; then
+    # Decide GitHub Release for options 1-3 (interactive), keep option 5 as auto notes; skip for Just Build (option 4)
+    if [[ -z "$version_type" && "$release_only" != "true" ]]; then
         echo ""
         print_color "$YELLOW" "Just Build selected. Skipping GitHub Release."
         show_success
         exit 0
     fi
     
-    # Create GitHub Release
-    create_github_release
+    # Option 5: release-only, auto notes
+    if [[ "$release_only" == "true" ]]; then
+        create_github_release_auto
+        show_success
+        exit 0
+    fi
+    
+    # Options 1-3: ask whether to create release
+    local do_release
+    do_release=$(get_user_choice "Create GitHub Release now? (y/n)" "N")
+    if [[ ! "$do_release" =~ ^[Yy]$ ]]; then
+        echo ""
+        print_color "$YELLOW" "Skip GitHub Release."
+        show_success
+        exit 0
+    fi
+    
+    # Choose notes mode
+    local notes_mode
+    notes_mode=$(get_user_choice "Release notes mode: [1] Auto (gh --generate-notes), [2] Manual (preview)" "1")
+    if [[ "$notes_mode" == "1" ]]; then
+        auto_notes="true"
+    else
+        auto_notes="false"
+    fi
+    
+    # Create GitHub Release based on mode
+    if [[ "$auto_notes" == "true" ]]; then
+        create_github_release_auto
+    else
+        create_github_release
+    fi
     show_success
 }
 
