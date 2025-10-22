@@ -339,9 +339,14 @@ function displayUserProfile(profile: UserProfile): void {
     const nameElement = document.getElementById('user-name-text');
     const typeElement = document.getElementById('user-type-text');
 
-    if (emailElement) emailElement.textContent = profile.email || '-';
-    if (nameElement) nameElement.textContent = profile.username || '-';
-    if (typeElement) typeElement.textContent = profile.userType || '-';
+    // 兜底显示（后端未解析出时，避免显示 “-”）
+    const emailText = (profile.email && profile.email.trim()) ? profile.email : '未公开';
+    const usernameText = (profile.username && profile.username.trim()) ? profile.username : 'JavDB 账号';
+    const userTypeText = (profile.userType && profile.userType.trim()) ? profile.userType : '已登录';
+
+    if (emailElement) emailElement.textContent = emailText;
+    if (nameElement) nameElement.textContent = usernameText;
+    if (typeElement) typeElement.textContent = userTypeText;
 
     // 更新服务器统计数据
     updateServerStats(profile.serverStats);

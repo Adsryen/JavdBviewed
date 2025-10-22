@@ -38,21 +38,20 @@ function ensureFooterInModal(): void {
 
     const ids = ['webdavRestoreBack', 'webdavRestoreCancel', 'webdavRestoreConfirm'];
     ids.forEach(id => {
-        // 查找所有重复按钮（使用属性选择器，避免 #id 只取首个）
-        const nodes = Array.from(document.querySelectorAll(`[id="${id}"]`)) as HTMLElement[];
+        // 优先在当前弹窗作用域内查找（避免误操作弹窗外的同 ID 节点）
+        const scopedNodes = Array.from((modal || document).querySelectorAll(`[id="${id}"]`)) as HTMLElement[];
 
-        // 优先选择当前可见弹窗内的那个，其次任取第一个
-        let preferred = nodes.find(n => modal.contains(n)) || nodes[0] || null;
+        // 选择当前弹窗内的节点作为首选；若无，则取作用域内任意一个
+        let preferred = scopedNodes.find(n => modal.contains(n)) || scopedNodes[0] || null;
 
-        if (preferred) {
-            if (!footer.contains(preferred)) {
-                footer.appendChild(preferred);
-            }
+        if (preferred && !footer.contains(preferred)) {
+            footer.appendChild(preferred);
         }
 
-        // 移除其它同 ID 的漂移副本，避免出现在页面底部
-        nodes.forEach(n => {
-            if (n !== preferred) {
+        // 额外清理：移除弹窗作用域外的重复节点，避免在页面底部出现
+        const allNodes = Array.from(document.querySelectorAll(`[id="${id}"]`)) as HTMLElement[];
+        allNodes.forEach(n => {
+            if (n !== preferred && !footer.contains(n)) {
                 try { n.remove(); } catch {}
             }
         });

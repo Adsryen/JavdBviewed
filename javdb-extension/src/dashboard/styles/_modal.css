@@ -1276,9 +1276,22 @@
    - 全局隐藏漂移到页面的“开始恢复”按钮
    - 仅在弹窗的 .modal-footer 内显示“开始恢复”与“分析数据”按钮
    这样即便 JS 未运行或运行失序，也不会把按钮渲染到页面底部 */
-#webdavRestoreConfirm { display: none !important; }
-#webdavRestoreModal .modal-footer #webdavRestoreConfirm { display: inline-flex !important; }
-#webdavRestoreModal .modal-footer #webdavRestoreAnalyze { display: inline-flex !important; }
+#webdavRestoreBack,
+#webdavRestoreCancel,
+#webdavRestoreConfirm {
+  display: none !important;
+}
+#webdavRestoreModal .modal-footer #webdavRestoreBack,
+#webdavRestoreModal .modal-footer #webdavRestoreCancel,
+#webdavRestoreModal .modal-footer #webdavRestoreConfirm,
+#webdavRestoreModal .modal-footer #webdavRestoreAnalyze {
+  display: inline-flex !important;
+}
+
+/* 当弹窗未可见时，确保其页脚不显示（防“页脚悬浮”错觉） */
+#webdavRestoreModal:not(.visible) .modal-footer {
+  display: none !important;
+}
 
 /* ================= 恢复结果摘要（结果页） ================= */
 .restore-results-container {
