@@ -45,13 +45,50 @@
       });
     } catch {}
   }
+  function setText(id, text){
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  function fmtPct(x){ if (typeof x !== 'number' || !isFinite(x)) return '-'; return (x*100).toFixed(1) + '%'; }
+  function trendWord(slope){ if (typeof slope !== 'number') return '-'; if (slope > 0.1) return '上升'; if (slope < -0.1) return '回落'; return '平稳'; }
+  function renderKpis(stats){
+    try{
+      var m = (stats && stats.metrics) || {};
+      setText('kpi-top3', fmtPct(m.concentrationTop3));
+      setText('kpi-hhi', (typeof m.hhi==='number' && isFinite(m.hhi)) ? m.hhi.toFixed(4) : '-');
+      setText('kpi-entropy', (typeof m.entropy==='number' && isFinite(m.entropy)) ? m.entropy.toFixed(2) : '-');
+      setText('kpi-trend', trendWord(m.trendSlope));
+    } catch{}
+  }
+  function renderRanking(stats){
+    try{
+      var body = document.getElementById('ranking-body');
+      var top = (stats && stats.tagsTop) || [];
+      if (!body || !top.length){
+        var sec = document.getElementById('ranking');
+        if (sec) sec.style.display = 'none';
+        return;
+      }
+      var total = (stats.metrics && stats.metrics.totalAll) || top.reduce(function(s, t){ return s + (t.count||0); }, 0) || 1;
+      body.innerHTML = '';
+      top.forEach(function(t, i){
+        var tr = document.createElement('tr');
+        var ratio = (typeof t.ratio === 'number') ? t.ratio : (t.count/total);
+        tr.innerHTML = '<td>'+(i+1)+'</td><td>'+String(t.name||'')+'</td><td>'+(t.count||0)+'</td><td>'+fmtPct(ratio)+'</td>';
+        body.appendChild(tr);
+      });
+    } catch{}
+  }
   function renderCharts(stats) {
     var echarts = safeEcharts();
     if (!echarts || !stats) { renderFallback(); return; }
+    // KPI & 排行
+    renderKpis(stats);
+    renderRanking(stats);
     try {
       // Pie: tagsTop
       var pieEl = document.getElementById('tags-pie');
-      if (pieEl) {
+      if (pieEl && (stats.tagsTop||[]).length) {
         var pie = echarts.init(pieEl);
         pie.setOption({
           title: { text: '标签占比', left: 'center' },
@@ -61,10 +98,10 @@
             data: (stats.tagsTop||[]).map(function(t){ return { name: t.name, value: t.count }; })
           }]
         });
-      }
+      } else { if (pieEl) pieEl.style.display='none'; }
       // Bar: topN
       var barEl = document.getElementById('tags-top-bar');
-      if (barEl) {
+      if (barEl && (stats.tagsTop||[]).length) {
         var bar = echarts.init(barEl);
         var cats = (stats.tagsTop||[]).map(function(t){ return t.name; });
         var vals = (stats.tagsTop||[]).map(function(t){ return t.count; });
@@ -75,10 +112,10 @@
           yAxis: { type: 'value' },
           series: [{ type: 'bar', data: vals }]
         });
-      }
+      } else { if (barEl) barEl.style.display='none'; }
       // Line: trend
       var lineEl = document.getElementById('trend-line');
-      if (lineEl) {
+      if (lineEl && (stats.trend||[]).length) {
         var line = echarts.init(lineEl);
         var x = (stats.trend||[]).map(function(p){ return p.date; });
         var y = (stats.trend||[]).map(function(p){ return p.total; });
@@ -89,7 +126,7 @@
           yAxis: { type: 'value' },
           series: [{ type: 'line', data: y, smooth: true }]
         });
-      }
+      } else { if (lineEl) lineEl.style.display='none'; }
     } catch (e) {
       renderFallback();
     }

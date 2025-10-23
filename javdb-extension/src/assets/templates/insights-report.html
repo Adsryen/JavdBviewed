@@ -9,12 +9,19 @@
     body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; margin: 16px; }
     main { max-width: 960px; margin: 0 auto; }
     header h1 { margin: 0 0 8px; font-size: 20px; }
-    header p { color: #666; margin: 0 0 16px; }
-    section { margin: 20px 0; }
+    header p { color: #666; margin: 0 0 12px; }
+    section { margin: 16px 0; }
     #insights { padding-left: 18px; }
     #insights li { margin: 6px 0; }
-    footer { color: #888; margin-top: 24px; }
-    .chart { width: 100%; height: 360px; margin: 12px 0; }
+    footer { color: #888; margin-top: 16px; }
+    .chart { width: 100%; height: 320px; margin: 8px 0; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 12px 0; }
+    .kpi { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; background: #fff; }
+    .kpi .label { color: #64748b; font-size: 12px; }
+    .kpi .value { font-weight: 700; font-size: 18px; color: #0f172a; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+    .table th { color: #475569; font-weight: 600; background: #f8fafc; }
   </style>
 </head>
 <body>
@@ -23,6 +30,15 @@
       <h1 id="report-title">{{reportTitle}}</h1>
       <p id="period-text">{{periodText}}</p>
     </header>
+
+    <section id="kpis">
+      <div class="kpis">
+        <div class="kpi"><div class="label">Top3占比</div><div id="kpi-top3" class="value">-</div></div>
+        <div class="kpi"><div class="label">HHI</div><div id="kpi-hhi" class="value">-</div></div>
+        <div class="kpi"><div class="label">熵</div><div id="kpi-entropy" class="value">-</div></div>
+        <div class="kpi"><div class="label">趋势</div><div id="kpi-trend" class="value">-</div></div>
+      </div>
+    </section>
 
     <section id="summary">
       <h2>摘要</h2>
@@ -35,6 +51,14 @@
       <div id="tags-pie" class="chart"></div>
       <div id="tags-top-bar" class="chart"></div>
       <div id="trend-line" class="chart"></div>
+    </section>
+
+    <section id="ranking">
+      <h2>标签排行</h2>
+      <table class="table">
+        <thead><tr><th>#</th><th>标签</th><th>次数</th><th>占比</th></tr></thead>
+        <tbody id="ranking-body"></tbody>
+      </table>
     </section>
 
     <section id="methodology">
