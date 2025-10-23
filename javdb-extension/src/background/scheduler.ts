@@ -123,12 +123,22 @@ export function handleAlarm(name: string): void {
     ensureReportForMonth(month).catch(() => {});
     // schedule next
     try {
-      const now = new Date();
-      let y = now.getFullYear();
-      let m = now.getMonth() + 1;
-      if (m >= 12) { y += 1; m = 0; }
-      const next = new Date(y, m, 1, 0, 10, 0, 0); // default 00:10
-      chrome.alarms.create(INSIGHTS_ALARM, { when: next.getTime() });
+      (async () => {
+        try {
+          const now = new Date();
+          let y = now.getFullYear();
+          let m = now.getMonth() + 1;
+          if (m >= 12) { y += 1; m = 0; }
+          const next = new Date(y, m, 1, 0, 0, 0, 0);
+          const settings = await getSettings();
+          const ins: any = (settings as any)?.insights || {};
+          let minute = Number(ins.autoMonthlyMinuteOfDay ?? 10);
+          if (!Number.isFinite(minute)) minute = 10;
+          if (minute < 0) minute = 0; if (minute > 1439) minute = 1439;
+          const when = next.getTime() + minute * 60_000;
+          chrome.alarms.create(INSIGHTS_ALARM, { when });
+        } catch {}
+      })();
     } catch {}
   } catch {}
 }
