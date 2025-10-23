@@ -2,10 +2,13 @@ import { renderTemplate, generateReportHTML } from "../../services/insights/repo
 import { aiService } from "../../services/ai/aiService";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
-import { dbInsViewsRange } from "../dbClient";
+import { dbInsViewsRange, dbViewedPage } from "../dbClient";
 import { aggregateMonthly } from "../../services/insights/aggregator";
 import { getSettings } from "../../utils/storage";
-import { getLastGenerationTrace } from "../../services/insights/generationTrace";
+import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
+import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
+import type { VideoRecord } from "../../types";
+import { showMessage } from "../ui/toast";
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -14,10 +17,24 @@ function getEl<T extends HTMLElement>(id: string): T | null {
 // ========== 查看生成过程：按钮与弹窗 ==========
 function ensureTraceButton(): HTMLButtonElement | null {
   try {
+    const BTN_ID = 'insights-trace';
+    // 优先插入到工具栏右侧动作区
+    const actionBar = document.getElementById('insights-toolbar-actions');
+    let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
+    if (actionBar) {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = BTN_ID;
+        btn.className = 'btn-ghost';
+        btn.innerHTML = '<i class="fas fa-list-ul"></i>&nbsp;查看生成过程';
+        actionBar.appendChild(btn);
+      }
+      return btn as HTMLButtonElement;
+    }
+
+    // 回退：插入到预览 iframe 之前
     const container = getPreviewContainer();
     if (!container) return null;
-    const BTN_ID = 'insights-trace';
-    let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
     const iframe = document.getElementById('insights-preview');
     if (!btn) {
       btn = document.createElement('button');
@@ -30,7 +47,6 @@ function ensureTraceButton(): HTMLButtonElement | null {
     b.style.marginRight = '8px';
     b.style.padding = '6px 10px';
     b.style.fontSize = '12px';
-    // 主题色与悬停效果
     b.style.background = '#2563eb';
     b.style.border = '1px solid #1d4ed8';
     b.style.color = '#fff';
@@ -76,13 +92,26 @@ function openTraceModal(): void {
       // 复制文案构建器
       const buildCopyText = (): string => {
         const fmt = (n?: number) => (typeof n === 'number' ? new Date(n).toLocaleString() : '-');
+        const fmtDur = (ms?: number): string => {
+          if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return '-';
+          if (ms < 1000) return `${ms} ms`;
+          if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+          if (ms < 3_600_000) {
+            const m = Math.floor(ms / 60_000);
+            const s = Math.round((ms % 60_000) / 1000);
+            return `${m}m ${s}s`;
+          }
+          const h = Math.floor(ms / 3_600_000);
+          const m = Math.round((ms % 3_600_000) / 60_000);
+          return `${h}h ${m}m`;
+        };
         if (!trace) return '暂无生成过程';
         const lines: string[] = [];
         const duration = (trace.endedAt && trace.startedAt) ? (trace.endedAt - trace.startedAt) : undefined;
         lines.push('本次生成过程');
         lines.push(`开始时间：${fmt(trace.startedAt)}`);
         lines.push(`结束时间：${fmt(trace.endedAt)}`);
-        lines.push(`耗时：${typeof duration==='number' ? duration + ' ms' : '-'}`);
+        lines.push(`耗时：${fmtDur(duration)}`);
         lines.push(`状态：${trace.status || '-'}`);
         lines.push('');
         lines.push('上下文');
@@ -112,8 +141,11 @@ function openTraceModal(): void {
       header.style.position = 'sticky';
       header.style.top = '0';
       header.style.zIndex = '10';
-      header.style.background = '#fff';
-      header.style.padding = '6px 0 8px 0';
+      header.style.background = 'rgba(255,255,255,0.92)';
+      header.style.padding = '10px 0 12px 0';
+      header.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+      header.style.minHeight = '36px';
+      header.style.paddingRight = '120px';
       header.style.borderBottom = '1px solid #e2e8f0';
       const titleWrap = document.createElement('div');
       titleWrap.style.display = 'flex';
@@ -144,6 +176,10 @@ function openTraceModal(): void {
       actions.style.display = 'flex';
       actions.style.alignItems = 'center';
       actions.style.gap = '8px';
+      // 固定到右上角
+      actions.style.position = 'absolute';
+      actions.style.right = '8px';
+      actions.style.top = '8px';
 
       const copyBtn = document.createElement('button');
       copyBtn.textContent = '复制';
@@ -186,15 +222,40 @@ function openTraceModal(): void {
 
       actions.appendChild(copyBtn);
       actions.appendChild(close);
+      // 先放标题组，再放右上角操作
+      header.appendChild(titleWrap);
       header.appendChild(actions);
+      // 动态保证头部高度 >= 操作区高度（防止按钮比白底高）
+      try {
+        const h = Math.max(36, actions.offsetHeight + 12);
+        header.style.minHeight = h + 'px';
+      } catch {}
 
       const body = document.createElement('div');
       body.style.fontSize = '12px';
       body.style.color = '#334155';
+      body.style.paddingTop = '4px';
+      body.style.display = 'block';
 
       const fmt = (n?: number) => (typeof n === 'number' ? new Date(n).toLocaleString() : '-');
+      const fmtDur = (ms?: number): string => {
+        if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return '-';
+        if (ms < 1000) return `${ms} ms`;
+        if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+        if (ms < 3_600_000) {
+          const m = Math.floor(ms / 60_000);
+          const s = Math.round((ms % 60_000) / 1000);
+          return `${m}m ${s}s`;
+        }
+        const h = Math.floor(ms / 3_600_000);
+        const m = Math.round((ms % 3_600_000) / 60_000);
+        return `${h}h ${m}m`;
+      };
       const pre = (obj: any) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
         (()=>{ try { return JSON.stringify(obj, null, 2); } catch { return String(obj); } })()
+      }</pre>`;
+      const prePlain = (s: string) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
+        String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'} as any)[c] || c)
       }</pre>`;
       const card = (title: string, content: string) => `
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;background:#ffffff;">
@@ -211,29 +272,69 @@ function openTraceModal(): void {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div><b>开始时间</b>：${fmt(trace.startedAt)}</div>
             <div><b>结束时间</b>：${fmt(trace.endedAt)}</div>
-            <div><b>耗时</b>：${typeof duration==='number' ? duration + ' ms' : '-'}</div>
+            <div><b>耗时</b>：${fmtDur(duration)}</div>
             <div><b>状态</b>：${trace.status || '-'}</div>
           </div>`;
-        const stepsHtml = (
-          Array.isArray(trace.entries) && trace.entries.length
-            ? trace.entries.map(e => `
-                <div style="border-left:3px solid ${e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6')}; padding-left:8px; margin:6px 0;">
-                  <div style="display:flex; gap:8px; color:#475569;">
-                    <span style="min-width:160px;">${fmt(e.time)}</span>
-                    <span>[${e.level.toUpperCase()}][${e.tag}] ${e.message || ''}</span>
-                  </div>
-                  ${ e.data ? pre(e.data) : '' }
-                </div>
-              `).join('')
-            : '<div style="color:#999;">无步骤</div>'
-        );
+        // 步骤：附带耗时（相对上一步与相对开始）
+        const entries = Array.isArray(trace.entries) ? trace.entries : [];
+        const tStart = typeof trace.startedAt === 'number' ? trace.startedAt : (entries[0]?.time || 0);
+        let prevT = tStart;
+        const fullDur = (typeof trace.startedAt === 'number' && typeof trace.endedAt === 'number')
+          ? (trace.endedAt - trace.startedAt)
+          : (entries.length ? (Math.max(0, (entries[entries.length - 1]?.time || 0) - tStart)) : 0);
+        const stepBlocks: string[] = [];
+        for (const e of entries) {
+          const dt = typeof e.time === 'number' ? (e.time - prevT) : 0;
+          const tot = typeof e.time === 'number' ? (e.time - tStart) : 0;
+          prevT = typeof e.time === 'number' ? e.time : prevT;
+          const color = e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6');
+          const pct = fullDur > 0 ? Math.min(100, Math.max(0, Math.round((tot / fullDur) * 100))) : 0;
+          stepBlocks.push(`
+            <div style="border-left:3px solid ${color}; padding-left:8px; margin:8px 0;">
+              <div style="display:flex; flex-wrap:wrap; gap:8px; color:#475569; align-items:center;">
+                <span style="min-width:160px;">${fmt(e.time)}</span>
+                <span>[${(e.level||'').toUpperCase()}][${e.tag}] ${e.message || ''}</span>
+                <span style="margin-left:auto; color:#64748b; font-size:11px;">+${fmtDur(dt)} / 总 ${fmtDur(tot)}</span>
+              </div>
+              <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:6px;">
+                <div style="width:${pct}%; height:100%; background:${color};"></div>
+              </div>
+              <div style="display:flex; gap:8px; color:#64748b; font-size:11px; margin-top:4px;">
+                <span>区间：${tStart ? fmt(prevT - dt) : '-'} → ${fmt(e.time)}（${fmtDur(dt)}）</span>
+                <span style="margin-left:auto;">累计：${fmtDur(tot)} / ${fmtDur(fullDur)}</span>
+              </div>
+              ${ e.data ? pre(e.data) : '' }
+            </div>
+          `);
+        }
+        const stepsHtml = stepBlocks.length ? stepBlocks.join('') : '<div style="color:#999;">无步骤</div>';
+
+        // 提示词：展示最近一次 PROMPT/messages 的内容
+        let promptHtml = '';
+        try {
+          const p = [...entries].reverse().find(x => x?.tag === 'PROMPT' && x?.message === 'messages' && x?.data?.messages);
+          if (p && Array.isArray(p.data?.messages)) {
+            const msgs = p.data.messages as Array<{ role: string; content: string }>;
+            const text = msgs.map((m, i) => `#${i+1} [${m.role}]\n${String(m.content||'').slice(0, 2000)}`).join('\n\n');
+            promptHtml = card('提示词', prePlain(text));
+          }
+        } catch {}
+
+        // AI 耗时：来自 AI/callEnd
+        let aiCost = '';
+        try {
+          const aiEnd = entries.find(x => x?.tag === 'AI' && x?.message === 'callEnd');
+          const ms = aiEnd?.data?.elapsedMs;
+          if (typeof ms === 'number') aiCost = `<div><b>AI耗时</b>：${fmtDur(ms)}</div>`;
+        } catch {}
 
         body.innerHTML = [
-          card('基本信息', baseInfo),
+          card('基本信息', baseInfo + (aiCost||'')),
+          promptHtml,
           card('上下文', pre(ctx)),
           card('步骤', stepsHtml),
           card('摘要', pre(trace.summary || {})),
-        ].join('');
+        ].filter(Boolean).join('');
       }
 
       modal.appendChild(header);
@@ -250,7 +351,19 @@ function openTraceModal(): void {
   } catch {}
 }
 
- 
+function onTraceClick(): void {
+  try {
+    const trace = getLastGenerationTrace();
+    if (!trace) {
+      // 无记录：仅右下角 toast 提示，不弹出遮罩窗
+      try { showMessage('暂无生成过程，请先点击“生成报告”。', 'info'); } catch {}
+      return;
+    }
+    openTraceModal();
+  } catch {
+    // 兜底：静默
+  }
+}
 
 function prepareForPreview(html: string): string {
   try {
@@ -282,6 +395,22 @@ async function loadTemplate(): Promise<string> {
   } catch {
     return '<!doctype html><html><head><meta charset="utf-8"/></head><body><p>模板加载失败</p></body></html>';
   }
+}
+
+// 分页读取番号库（避免一次性全量加载内存暴涨）
+async function fetchAllVideoRecordsPaged(pageSize = 500): Promise<VideoRecord[]> {
+  const items: VideoRecord[] = [];
+  let offset = 0;
+  while (true) {
+    const { items: page, total } = await dbViewedPage({ offset, limit: pageSize, orderBy: 'updatedAt', order: 'desc' });
+    const len = Array.isArray(page) ? page.length : 0;
+    if (!len) break;
+    items.push(...page);
+    offset += len;
+    if (items.length >= (total || 0)) break;
+    if (len < pageSize) break;
+  }
+  return items;
 }
 
 // ========== 生成过程 UI：加载动画与状态提示 ==========
@@ -323,6 +452,75 @@ function getPreviewContainer(): HTMLElement | null {
     if (cs.position === 'static') container.style.position = 'relative';
   }
   return container;
+}
+
+// 在预览框右上角放置复制 HTML 按钮
+function ensurePreviewCopyButton(): HTMLButtonElement | null {
+  try {
+    const container = getPreviewContainer();
+    if (!container) return null;
+    const ID = 'insights-preview-copy';
+    let btn = document.getElementById(ID) as HTMLButtonElement | null;
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = ID;
+      btn.className = 'preview-copy-btn';
+      btn.title = '复制预览HTML';
+      btn.innerHTML = '<i class="fas fa-copy"></i>';
+      // 内联样式，避免样式未加载时不可见
+      try {
+        btn.style.position = 'absolute';
+        btn.style.right = '8px';
+        btn.style.top = '8px';
+        btn.style.zIndex = '6';
+        btn.style.width = '28px';
+        btn.style.height = '28px';
+        btn.style.borderRadius = '50%';
+        btn.style.background = '#fff';
+        btn.style.border = '1px solid #e5e7eb';
+        btn.style.color = '#334155';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.justifyContent = 'center';
+        btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+        btn.style.cursor = 'pointer';
+        btn.style.fontSize = '13px';
+      } catch {}
+      container.appendChild(btn);
+      btn.addEventListener('click', copyPreviewHtml);
+    }
+    return btn;
+  } catch {
+    return null;
+  }
+}
+
+async function copyPreviewHtml() {
+  try {
+    const iframe = getEl<HTMLIFrameElement>('insights-preview');
+    if (!iframe) return;
+    const html = iframe.srcdoc || '';
+    if (!html) { try { showMessage('暂无预览内容可复制', 'info'); } catch {} return; }
+    // 内联依赖，便于外部粘贴复现
+    let finalHtml = await inlineAssets(html);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(finalHtml);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = finalHtml;
+        ta.style.position = 'fixed';
+        ta.style.left = '-1000px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      try { showMessage('预览HTML已复制', 'info'); } catch {}
+    } catch (e) {
+      try { showMessage('复制失败：' + ((e as any)?.message || e), 'error'); } catch {}
+    }
+  } catch {}
 }
 
 function showLoading(show: boolean): void {
@@ -430,6 +628,11 @@ async function previewSample() {
   const tpl = await loadTemplate();
   const html = renderTemplate({ templateHTML: tpl, fields });
   iframe.srcdoc = prepareForPreview(html);
+  try { ensurePreviewCopyButton(); } catch {}
+  try {
+    const grid = document.querySelector('.tab-section[data-tab-id="insights"] .insights-grid') as HTMLElement | null;
+    if (grid) grid.style.gridTemplateColumns = '0.9fr 1.5fr';
+  } catch {}
 }
 
 async function handleGenerate() {
@@ -441,41 +644,99 @@ async function handleGenerate() {
     if (!monthStr) { await previewSample(); return; }
     const [y, m] = monthStr.split('-');
     const start = `${y}-${m}-01`;
-    const end = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);
-
-    // 1) 读取当月与上月 views
+    const endDate = new Date(Number(y), Number(m), 0);
+    const end = `${endDate.getFullYear()}-${String(endDate.getMonth()+1).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
+    // 如当月月报已存在，则在“生成”前提示风险并确认（仅预览，不会覆盖保存）
+    try {
+      const exists = await dbInsReportsGet(`${y}-${m}`);
+      if (exists) {
+        const ok = await confirmDialog({
+          title: '确认生成（已存在同月月报）',
+          message: '该月份的月报已存在。继续将仅在右侧生成“预览”，不会自动覆盖已保存的月报；如需覆盖，请在“保存为月报”时再确认。',
+          okText: '继续仅预览',
+          cancelText: '取消'
+        });
+        if (!ok) { return; }
+      }
+    } catch {}
+    // 1) 读取设置与当月/上月 views（用于视图口径与回退）
+    const settings = await getSettings();
+    const ins = settings?.insights || {};
     const days = await dbInsViewsRange(start, end);
     let prevY = Number(y);
     let prevM = Number(m) - 1;
     if (prevM <= 0) { prevY -= 1; prevM = 12; }
     const prevStart = `${prevY}-${String(prevM).padStart(2,'0')}-01`;
-    const prevEnd = new Date(prevY, prevM, 0).toISOString().slice(0, 10);
+    const prevEndDate = new Date(prevY, prevM, 0);
+    const prevEnd = `${prevEndDate.getFullYear()}-${String(prevEndDate.getMonth()+1).padStart(2,'0')}-${String(prevEndDate.getDate()).padStart(2,'0')}`;
     const prevDays = await dbInsViewsRange(prevStart, prevEnd);
 
-    // 2) 聚合统计
-    const settings = await getSettings();
-    const ins = settings?.insights || {};
-    const stats = aggregateMonthly(days, {
-      topN: ins.topN ?? 10,
-      previousDays: prevDays,
-      changeThresholdRatio: ins.changeThresholdRatio,
-      minTagCount: ins.minTagCount,
-      risingLimit: ins.risingLimit,
-      fallingLimit: ins.fallingLimit,
-    });
+    // 2) 根据数据源模式聚合统计（compare/auto 支持样本量不足回退）
+    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'auto';
+    const statusScope = String((ins.statusScope as any) || 'viewed_browsed');
+    const startMs = new Date(Number(y), Number(m) - 1, 1, 0, 0, 0, 0).getTime();
+    const endMs = new Date(Number(y), Number(m), 0, 23, 59, 59, 999).getTime();
+    let stats: ReturnType<typeof aggregateMonthly> | ReturnType<typeof aggregateCompareFromRecords>['stats'];
+    let modeUsed: 'views' | 'compare' | 'views-fallback' = 'views';
+    let baselineCount = 0, newCount = 0;
+    if (source === 'views') {
+      stats = aggregateMonthly(days, {
+        topN: ins.topN ?? 10,
+        previousDays: prevDays,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+      });
+      modeUsed = 'views';
+    } else {
+      const all = await fetchAllVideoRecordsPaged(800);
+      const ret = aggregateCompareFromRecords(all, startMs, endMs, {
+        topN: ins.topN ?? 10,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+        statusScope: statusScope as any,
+      });
+      stats = ret.stats;
+      baselineCount = ret.baselineCount;
+      newCount = ret.newCount;
+      const minSamples = Number(ins.minMonthlySamples ?? 10);
+      if (source === 'auto' && newCount < minSamples) {
+        // 回退到 views 口径
+        stats = aggregateMonthly(days, {
+          topN: ins.topN ?? 10,
+          previousDays: prevDays,
+          changeThresholdRatio: ins.changeThresholdRatio,
+          minTagCount: ins.minTagCount,
+          risingLimit: ins.risingLimit,
+          fallingLimit: ins.fallingLimit,
+        });
+        modeUsed = 'views-fallback';
+        showStatus(`compare 样本不足（${newCount} < 阈值 ${minSamples}），已回退到“观看日表”口径。`);
+      } else {
+        modeUsed = 'compare';
+      }
+      try { addTrace('info', 'COMPARE', 'mode', { modeUsed, baselineCount, newCount, thresholds: { minMonthlySamples: ins.minMonthlySamples ?? 10 } }); } catch {}
+    }
 
     // 3) 生成 HTML（优先 AI；失败回退本地模板）
     const topBrief = (stats.tagsTop || []).slice(0, 5).map(t => `${t.name}(${t.count})`).join('、');
     const changeInsights: string[] = [];
     try {
-      const ch = stats?.changes || { newTags: [], rising: [], falling: [] };
+      const ch = (stats as any)?.changes || { newTags: [], rising: [], falling: [] };
       if (Array.isArray(ch.newTags) && ch.newTags.length) changeInsights.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
       if (Array.isArray(ch.rising) && ch.rising.length) changeInsights.push(`明显上升：${ch.rising.slice(0,5).join('、')}`);
       if (Array.isArray(ch.falling) && ch.falling.length) changeInsights.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
     } catch {}
+    const methodology = (modeUsed === 'compare')
+      ? 'compare 模式：基线=月初之前（按状态口径），新增=本月 updatedAt；按标签计数与占比计算变化。'
+      : '按影片ID去重，每部影片的标签计入当日计数；月度聚合统计 TopN、占比与趋势（图表将本地渲染）。';
+    const extraLine = (modeUsed === 'compare') ? `新增样本：${newCount}；基线样本：${baselineCount}` : `累计观看天数：${days.length} 天`;
     const insightList = [
       topBrief ? `本月偏好标签集中于：${topBrief}` : '数据量较少，暂无法判断主要偏好',
-      `累计观看天数：${days.length} 天`,
+      extraLine,
       ...changeInsights,
     ].map(s => `<li>${s}</li>`).join('');
     const fields: Record<string, string> = {
@@ -483,18 +744,23 @@ async function handleGenerate() {
       periodText: `统计范围：${start} ~ ${end}`,
       summary: '本报告基于本地统计数据生成，未包含演员/系列，仅统计标签。',
       insightList,
-      methodology: '按影片ID去重，每部影片的标签计入当日计数；月度聚合统计 TopN、占比与趋势（图表将本地渲染）。',
+      methodology,
       generatedAt: new Date().toLocaleString(),
       version: '0.0.1',
       baseHref: chrome.runtime.getURL('') || './',
       statsJSON: JSON.stringify(stats || {}),
     } as Record<string, string>;
     const tpl = await loadTemplate();
-    const html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
+    const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields });
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
     if (iframe) {
       iframe.srcdoc = prepareForPreview(html);
     }
+    try { ensurePreviewCopyButton(); } catch {}
+    try {
+      const grid = document.querySelector('.tab-section[data-tab-id="insights"] .insights-grid') as HTMLElement | null;
+      if (grid) grid.style.gridTemplateColumns = '0.9fr 1.5fr';
+    } catch {}
 
     // 根据 AI 服务状态给出提示
     try {
@@ -511,6 +777,76 @@ async function handleGenerate() {
   } finally {
     showLoading(false);
   }
+}
+
+// 简易确认弹窗
+function confirmDialog(opts: { title?: string; message: string; okText?: string; cancelText?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const OVERLAY_ID = 'insights-confirm-overlay';
+      let overlay = document.getElementById(OVERLAY_ID) as HTMLDivElement | null;
+      if (overlay) overlay.remove();
+      overlay = document.createElement('div');
+      overlay.id = OVERLAY_ID;
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.background = 'rgba(15,23,42,0.42)';
+      overlay.style.backdropFilter = 'blur(2px)';
+      overlay.style.zIndex = '9999';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      const modal = document.createElement('div');
+      modal.style.width = '520px';
+      modal.style.maxWidth = '95%';
+      modal.style.background = '#fff';
+      modal.style.borderRadius = '8px';
+      modal.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+      modal.style.border = '1px solid #e2e8f0';
+      modal.style.padding = '14px 16px';
+      const title = document.createElement('div');
+      title.textContent = opts.title || '确认';
+      title.style.fontWeight = '700';
+      title.style.marginBottom = '8px';
+      const msg = document.createElement('div');
+      msg.textContent = opts.message;
+      msg.style.color = '#334155';
+      msg.style.fontSize = '13px';
+      msg.style.margin = '6px 0 12px';
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.justifyContent = 'flex-end';
+      actions.style.gap = '8px';
+      const cancel = document.createElement('button');
+      cancel.textContent = opts.cancelText || '取消';
+      cancel.style.padding = '6px 12px';
+      cancel.style.fontSize = '12px';
+      cancel.style.background = '#f1f5f9';
+      cancel.style.border = '1px solid #cbd5e1';
+      cancel.style.color = '#334155';
+      cancel.style.borderRadius = '4px';
+      const ok = document.createElement('button');
+      ok.textContent = opts.okText || '确认';
+      ok.style.padding = '6px 12px';
+      ok.style.fontSize = '12px';
+      ok.style.background = '#2563eb';
+      ok.style.border = '1px solid #1d4ed8';
+      ok.style.color = '#fff';
+      ok.style.borderRadius = '4px';
+      cancel.onclick = () => { overlay?.remove(); resolve(false); };
+      ok.onclick = () => { overlay?.remove(); resolve(true); };
+      actions.appendChild(cancel);
+      actions.appendChild(ok);
+      modal.appendChild(title);
+      modal.appendChild(msg);
+      modal.appendChild(actions);
+      overlay.appendChild(modal);
+      overlay.onclick = (ev) => { if (ev.target === overlay) { overlay?.remove(); resolve(false); } };
+      document.body.appendChild(overlay);
+    } catch {
+      resolve(true);
+    }
+  });
 }
 
 async function inlineAssets(html: string): Promise<string> {
@@ -598,17 +934,16 @@ export const insightsTab = {
     try {
       if (monthEl && !monthEl.value) {
         const d = new Date();
-        d.setMonth(d.getMonth() - 1);
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        monthEl.value = `${y}-${m}`;
+        monthEl.value = `${y}-${m}`; // 默认当前月
       }
     } catch {}
 
     // 按钮：查看生成过程
     try {
       const traceBtn = ensureTraceButton();
-      traceBtn?.addEventListener('click', openTraceModal);
+      traceBtn?.addEventListener('click', onTraceClick);
     } catch {}
 
     // 初次进入显示示例预览
@@ -626,6 +961,20 @@ export const insightsTab = {
     const periodStart = `${y}-${m}-01`;
     const periodEnd = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);
 
+    // 如已存在同月月报，先确认是否覆盖
+    try {
+      const exists = await dbInsReportsGet(`${y}-${m}`);
+      if (exists) {
+        const ok = await confirmDialog({
+          title: '覆盖已存在的月报？',
+          message: '该月份的月报已存在。继续将覆盖已保存的内容（不可撤销）。如需保留原版本，建议先导出或备份。',
+          okText: '覆盖保存',
+          cancelText: '取消'
+        });
+        if (!ok) return;
+      }
+    } catch {}
+
     // 先计算真实 stats（用于保存以及占位渲染）
     const days = await dbInsViewsRange(periodStart, periodEnd);
     let prevY = Number(y);
@@ -636,14 +985,43 @@ export const insightsTab = {
     const prevDays = await dbInsViewsRange(prevStart, prevEnd);
     const settings = await getSettings();
     const ins = settings?.insights || {};
-    const stats = aggregateMonthly(days, {
-      topN: ins.topN ?? 10,
-      previousDays: prevDays,
-      changeThresholdRatio: ins.changeThresholdRatio,
-      minTagCount: ins.minTagCount,
-      risingLimit: ins.risingLimit,
-      fallingLimit: ins.fallingLimit,
-    });
+    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'views';
+    const startMs = new Date(Number(y), Number(m) - 1, 1, 0, 0, 0, 0).getTime();
+    const endMs = new Date(Number(y), Number(m), 0, 23, 59, 59, 999).getTime();
+    let stats: any;
+    if (source === 'views') {
+      stats = aggregateMonthly(days, {
+        topN: ins.topN ?? 10,
+        previousDays: prevDays,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+      });
+    } else {
+      const all = await fetchAllVideoRecordsPaged(800);
+      const ret = aggregateCompareFromRecords(all, startMs, endMs, {
+        topN: ins.topN ?? 10,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+        statusScope: (ins.statusScope as any) || 'viewed',
+      });
+      const minSamples = Number(ins.minMonthlySamples ?? 10);
+      if (source === 'auto' && ret.newCount < minSamples) {
+        stats = aggregateMonthly(days, {
+          topN: ins.topN ?? 10,
+          previousDays: prevDays,
+          changeThresholdRatio: ins.changeThresholdRatio,
+          minTagCount: ins.minTagCount,
+          risingLimit: ins.risingLimit,
+          fallingLimit: ins.fallingLimit,
+        });
+      } else {
+        stats = ret.stats;
+      }
+    }
 
     // 使用当前预览 HTML（若无则生成示例，包含图表依赖字段）
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
@@ -651,7 +1029,7 @@ export const insightsTab = {
     if (!html) {
       const tpl = await loadTemplate();
       const now = new Date();
-      const topBrief = (stats.tagsTop || []).slice(0, 5).map(t => `${t.name}(${t.count})`).join('、');
+      const topBrief = (stats.tagsTop || []).slice(0, 5).map((t: any) => `${t.name}(${t.count})`).join('、');
       const ch = stats?.changes || { newTags: [], rising: [], falling: [] };
       const changeIns: string[] = [];
       if (Array.isArray(ch.newTags) && ch.newTags.length) changeIns.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
@@ -711,8 +1089,8 @@ export const insightsTab = {
             <div style="color:#888; font-size:12px;">创建于 ${ts}</div>
           </div>
           <div style="display:flex; gap:6px;">
-            <button data-action="preview" data-month="${month}">预览</button>
-            <button data-action="delete" data-month="${month}">删除</button>
+            <button class="btn-secondary btn-sm" data-action="preview" data-month="${month}"><i class="fas fa-eye"></i>&nbsp;预览</button>
+            <button class="btn-danger btn-sm" data-action="delete" data-month="${month}"><i class="fas fa-trash-alt"></i>&nbsp;删除</button>
           </div>
         </div>
       `;
