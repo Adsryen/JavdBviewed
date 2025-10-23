@@ -15,6 +15,13 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
   private minTagCountInput!: HTMLInputElement;
   private risingLimitInput!: HTMLInputElement;
   private fallingLimitInput!: HTMLInputElement;
+  private statusScopeSelect!: HTMLSelectElement; // statusScope
+  private autoMonthlyCheckbox!: HTMLInputElement; // autoMonthlyEnabled
+  private autoCompensateCheckbox!: HTMLInputElement; // autoCompensateOnStartupEnabled
+  private sourceSelect!: HTMLSelectElement; // insights.source
+  private minMonthlySamplesInput!: HTMLInputElement; // insights.minMonthlySamples
+  private autoMinuteInput!: HTMLInputElement; // insights.autoMonthlyMinuteOfDay
+  private autoTipDiv!: HTMLDivElement; // 显著提示容器
 
   constructor() {
     super({
@@ -32,8 +39,15 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
     this.minTagCountInput = document.getElementById('insightsMinTagCount') as HTMLInputElement;
     this.risingLimitInput = document.getElementById('insightsRisingLimit') as HTMLInputElement;
     this.fallingLimitInput = document.getElementById('insightsFallingLimit') as HTMLInputElement;
+    this.statusScopeSelect = document.getElementById('insightsStatusScope') as HTMLSelectElement;
+    this.autoMonthlyCheckbox = document.getElementById('insightsAutoMonthlyEnabled') as HTMLInputElement;
+    this.autoCompensateCheckbox = document.getElementById('insightsAutoCompensateEnabled') as HTMLInputElement;
+    this.sourceSelect = document.getElementById('insightsSource') as HTMLSelectElement;
+    this.minMonthlySamplesInput = document.getElementById('insightsMinMonthlySamples') as HTMLInputElement;
+    this.autoMinuteInput = document.getElementById('insightsAutoMinuteOfDay') as HTMLInputElement;
+    this.autoTipDiv = document.getElementById('insights-auto-tip') as HTMLDivElement;
 
-    if (!this.topNInput || !this.thresholdInput || !this.minTagCountInput || !this.risingLimitInput || !this.fallingLimitInput) {
+    if (!this.topNInput || !this.thresholdInput || !this.minTagCountInput || !this.risingLimitInput || !this.fallingLimitInput || !this.statusScopeSelect || !this.autoMonthlyCheckbox || !this.autoCompensateCheckbox || !this.sourceSelect || !this.minMonthlySamplesInput || !this.autoMinuteInput || !this.autoTipDiv) {
       throw new Error('Insights 设置相关的DOM元素未找到');
     }
   }
@@ -45,6 +59,12 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
     this.minTagCountInput.addEventListener('input', handler);
     this.risingLimitInput.addEventListener('input', handler);
     this.fallingLimitInput.addEventListener('input', handler);
+    this.statusScopeSelect.addEventListener('change', handler);
+    this.autoMonthlyCheckbox.addEventListener('change', handler);
+    this.autoCompensateCheckbox.addEventListener('change', handler);
+    this.sourceSelect.addEventListener('change', handler);
+    this.minMonthlySamplesInput.addEventListener('input', handler);
+    this.autoMinuteInput.addEventListener('input', handler);
   }
 
   protected unbindEvents(): void {
@@ -60,6 +80,13 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
     this.minTagCountInput.value = String(ins.minTagCount ?? 3);
     this.risingLimitInput.value = String(ins.risingLimit ?? 5);
     this.fallingLimitInput.value = String(ins.fallingLimit ?? 5);
+    this.statusScopeSelect.value = String(ins.statusScope ?? 'viewed');
+    this.autoMonthlyCheckbox.checked = !!ins.autoMonthlyEnabled;
+    this.autoCompensateCheckbox.checked = !!ins.autoCompensateOnStartupEnabled;
+    this.sourceSelect.value = String(ins.source ?? 'views');
+    this.minMonthlySamplesInput.value = String(ins.minMonthlySamples ?? 10);
+    this.autoMinuteInput.value = String(Number.isFinite(ins.autoMonthlyMinuteOfDay as any) ? ins.autoMonthlyMinuteOfDay : 10);
+    this.updateAutoTip();
   }
 
   protected async doSaveSettings(): Promise<SettingsSaveResult> {
@@ -71,6 +98,12 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
         minTagCount: this.parseIntSafe(this.minTagCountInput.value, 3),
         risingLimit: this.parseIntSafe(this.risingLimitInput.value, 5),
         fallingLimit: this.parseIntSafe(this.fallingLimitInput.value, 5),
+        statusScope: (this.statusScopeSelect.value as any) || 'viewed',
+        autoMonthlyEnabled: !!this.autoMonthlyCheckbox.checked,
+        autoCompensateOnStartupEnabled: !!this.autoCompensateCheckbox.checked,
+        source: (this.sourceSelect.value as any) || 'views',
+        minMonthlySamples: this.parseIntSafe(this.minMonthlySamplesInput.value, 10),
+        autoMonthlyMinuteOfDay: this.parseIntSafe(this.autoMinuteInput.value, 10),
       } as NonNullable<ExtensionSettings['insights']>;
 
       const newSettings: ExtensionSettings = {
@@ -106,6 +139,18 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
     const falling = this.parseIntSafe(this.fallingLimitInput.value, 5);
     if (!Number.isFinite(falling) || falling < 0 || falling > 50) errors.push('下降标签展示条数需在 0-50 之间');
 
+    const statusScope = String(this.statusScopeSelect.value || 'viewed');
+    if (!['viewed','viewed_browsed','viewed_browsed_want'].includes(statusScope)) errors.push('统计状态口径取值不合法');
+
+    const source = String(this.sourceSelect.value || 'views');
+    if (!['views','compare','auto'].includes(source)) errors.push('数据源模式取值不合法');
+
+    const minMonthlySamples = this.parseIntSafe(this.minMonthlySamplesInput.value, 10);
+    if (!Number.isFinite(minMonthlySamples) || minMonthlySamples < 0 || minMonthlySamples > 999) errors.push('最小样本量需在 0-999 之间');
+
+    const minute = this.parseIntSafe(this.autoMinuteInput.value, 10);
+    if (!Number.isFinite(minute) || minute < 0 || minute > 1439) errors.push('触发分钟需在 0-1439 之间');
+
     return { isValid: errors.length === 0, errors: errors.length ? errors : undefined, warnings: warnings.length ? warnings : undefined };
   }
 
@@ -117,6 +162,12 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
         minTagCount: this.parseIntSafe(this.minTagCountInput.value, 3),
         risingLimit: this.parseIntSafe(this.risingLimitInput.value, 5),
         fallingLimit: this.parseIntSafe(this.fallingLimitInput.value, 5),
+        statusScope: (this.statusScopeSelect.value as any) || 'viewed',
+        autoMonthlyEnabled: !!this.autoMonthlyCheckbox.checked,
+        autoCompensateOnStartupEnabled: !!this.autoCompensateCheckbox.checked,
+        source: (this.sourceSelect.value as any) || 'views',
+        minMonthlySamples: this.parseIntSafe(this.minMonthlySamplesInput.value, 10),
+        autoMonthlyMinuteOfDay: this.parseIntSafe(this.autoMinuteInput.value, 10),
       },
     };
   }
@@ -128,11 +179,43 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
     if (ins.minTagCount !== undefined) this.minTagCountInput.value = String(ins.minTagCount);
     if (ins.risingLimit !== undefined) this.risingLimitInput.value = String(ins.risingLimit);
     if (ins.fallingLimit !== undefined) this.fallingLimitInput.value = String(ins.fallingLimit);
+    if (ins.statusScope !== undefined) this.statusScopeSelect.value = String(ins.statusScope);
+    if (ins.autoMonthlyEnabled !== undefined) this.autoMonthlyCheckbox.checked = !!ins.autoMonthlyEnabled;
+    if (ins.autoCompensateOnStartupEnabled !== undefined) this.autoCompensateCheckbox.checked = !!ins.autoCompensateOnStartupEnabled;
+    if (ins.source !== undefined) this.sourceSelect.value = String(ins.source);
+    if (ins.minMonthlySamples !== undefined) this.minMonthlySamplesInput.value = String(ins.minMonthlySamples);
+    if (ins.autoMonthlyMinuteOfDay !== undefined) this.autoMinuteInput.value = String(ins.autoMonthlyMinuteOfDay);
+    this.updateAutoTip();
   }
 
   private handleChange(): void {
     this.emit('change');
     this.scheduleAutoSave();
+    this.updateAutoTip();
+  }
+
+  private updateAutoTip(): void {
+    try {
+      const on = !!this.autoMonthlyCheckbox?.checked;
+      const onComp = !!this.autoCompensateCheckbox?.checked;
+      const minute = this.parseIntSafe(this.autoMinuteInput?.value || '10', 10);
+      const hh = Math.floor(minute / 60);
+      const mm = minute % 60;
+      const hhStr = String(hh).padStart(2, '0');
+      const mmStr = String(mm).padStart(2, '0');
+      const lines: string[] = [];
+      if (on) lines.push(`已启用自动月报：每月 1 日 ${hhStr}:${mmStr} 自动生成上月报告。`);
+      if (onComp) lines.push('已启用启动补偿：如错过定时，将在浏览器启动/扩展唤醒时自动补生成。');
+      if (this.autoTipDiv) {
+        if (lines.length > 0) {
+          this.autoTipDiv.style.display = 'block';
+          this.autoTipDiv.textContent = lines.join(' ');
+        } else {
+          this.autoTipDiv.style.display = 'none';
+          this.autoTipDiv.textContent = '';
+        }
+      }
+    } catch {}
   }
 
   private parseIntSafe(v: string, def: number): number {
