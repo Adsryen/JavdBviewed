@@ -1,5 +1,106 @@
 #!/usr/bin/env bash
 
+# Simple builder for javdb-extension
+# - Installs deps
+# - Builds via Vite
+# - Zips dist to dist-zip/javdb-extension-<version>.zip
+
+set -euo pipefail
+IFS=$'\n\t'
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+root_dir="$(cd "$(dirname "$0")" && pwd)"
+# Default: run interactive menu unless --quick/-q is specified
+if [[ "${1-}" != "--quick" && "${1-}" != "-q" ]]; then
+  if [[ -f "$root_dir/scripts/build-menu.sh" ]]; then
+    exec bash "$root_dir/scripts/build-menu.sh" "$@"
+  fi
+fi
+dist_dir="$root_dir/dist"
+zip_dir="$root_dir/dist-zip"
+zip_name=""
+
+log() { printf "%b\n" "$1"; }
+info() { printf "%b%s%b\n" "$CYAN" "$1" "$NC"; }
+ok() { printf "%b%s%b\n" "$GREEN" "$1" "$NC"; }
+warn() { printf "%b%s%b\n" "$YELLOW" "$1" "$NC"; }
+err() { printf "%b%s%b\n" "$RED" "$1" "$NC"; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+read_version() {
+  # Priority: version.json -> src/manifest.json -> package.json
+  local v=""
+  if [[ -f "$root_dir/version.json" ]]; then
+    v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('version.json','utf8')).version||'')" 2>/dev/null || true)
+  fi
+  if [[ -z "$v" && -f "$root_dir/src/manifest.json" ]]; then
+    v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('src/manifest.json','utf8')).version||'')" 2>/dev/null || true)
+  fi
+  if [[ -z "$v" && -f "$root_dir/package.json" ]]; then
+    v=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version||'')" 2>/dev/null || true)
+  fi
+  if [[ -z "$v" ]]; then v="0.0.0"; fi
+  echo "$v"
+}
+
+zip_dist() {
+  local version="$1"
+  mkdir -p "$zip_dir"
+  local out
+  if have zip; then
+    zip_name="javdb-extension-${version}.zip"
+    out="$zip_dir/$zip_name"
+    [[ -f "$out" ]] && rm -f "$out"
+    info "Zipping dist -> $out"
+    (cd "$dist_dir" && zip -qr "$out" .)
+    ok "ZIP created: $out"
+  else
+    zip_name="javdb-extension-${version}.tar.gz"
+    out="$zip_dir/$zip_name"
+    [[ -f "$out" ]] && rm -f "$out"
+    info "Archiving dist (tar.gz) -> $out"
+    (cd "$dist_dir" && tar -czf "$out" .)
+    ok "TAR.GZ created: $out"
+  fi
+}
+
+main() {
+  info "Working dir: $root_dir"
+
+  if ! have node; then err "Node.js 未安装"; exit 1; fi
+  if ! have pnpm; then err "pnpm 未安装 (建议: npm i -g pnpm)"; exit 1; fi
+
+  info "Installing dependencies (pnpm install)"
+  pnpm install --frozen-lockfile || pnpm install
+
+  info "Building via Vite"
+  # Use local dev dep vite
+  pnpm vite build
+
+  if [[ ! -d "$dist_dir" ]]; then
+    err "构建失败：未找到 dist/ 目录"
+    exit 1
+  fi
+
+  local version
+  version=$(read_version)
+  info "Detected version: $version"
+  zip_dist "$version"
+
+  ok "Done. Dist: $dist_dir"
+  ok "Zip: $zip_dir/$zip_name"
+}
+
+main "$@"
+exit 0
+#!/usr/bin/env bash
+
 # JavDB Extension - Interactive Build Assistant (Shell Version)
 # Ported from PowerShell version with full feature parity
 
