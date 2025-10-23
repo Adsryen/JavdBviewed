@@ -56,7 +56,7 @@ export function aggregateMonthly(days: ViewsDaily[], opts: AggregateOptions = {}
     const newTags = Object.keys(tagTotals).filter(k => !prevTotals[k] && tagTotals[k] >= minTagCount);
 
     // 计算各标签的占比变化
-    type DiffItem = { name: string; diff: number; cur: number; prev: number; };
+    type DiffItem = { name: string; diff: number; cur: number; prev: number; curR: number; prevR: number };
     const diffs: DiffItem[] = [];
     const allTags = new Set<string>([...Object.keys(tagTotals), ...Object.keys(prevTotals)]);
     for (const tag of allTags) {
@@ -68,7 +68,7 @@ export function aggregateMonthly(days: ViewsDaily[], opts: AggregateOptions = {}
       const prevR = prev / prevTotalAll;
       const diff = curR - prevR; // 正数=上升，负数=下降
       if (Math.abs(diff) >= changeThreshold) {
-        diffs.push({ name: tag, diff, cur, prev });
+        diffs.push({ name: tag, diff, cur, prev, curR, prevR });
       }
     }
 
@@ -86,7 +86,54 @@ export function aggregateMonthly(days: ViewsDaily[], opts: AggregateOptions = {}
     changes.newTags = newTags;
     changes.rising = rising;
     changes.falling = falling;
+    // 详细变化项（供文案更具体量化）
+    changes.risingDetailed = diffs
+      .filter(d => d.diff > 0)
+      .sort((a, b) => b.diff - a.diff)
+      .slice(0, risingLimit)
+      .map(d => ({ name: d.name, cur: d.cur, prev: d.prev, curRatio: d.curR, prevRatio: d.prevR, diffRatio: d.diff }));
+    changes.fallingDetailed = diffs
+      .filter(d => d.diff < 0)
+      .sort((a, b) => a.diff - b.diff)
+      .slice(0, fallingLimit)
+      .map(d => ({ name: d.name, cur: d.cur, prev: d.prev, curRatio: d.curR, prevRatio: d.prevR, diffRatio: d.diff }));
+    changes.newTagsDetailed = newTags.map(n => ({ name: n, count: tagTotals[n] || 0 }));
   }
 
-  return { tagsTop, trend, changes };
+  // 3) 聚合指标（集中度、分散度、走势）
+  const ratios = Object.values(tagTotals).map(c => (c / totalAll)).filter(r => r > 0);
+  const hhi = ratios.reduce((s, r) => s + r * r, 0);
+  const entropy = -ratios.reduce((s, r) => s + r * Math.log(r), 0);
+  const topRatiosSorted = Object.values(tagTotals).sort((a, b) => b - a).map(c => c / totalAll);
+  const concentrationTop3 = (topRatiosSorted[0] || 0) + (topRatiosSorted[1] || 0) + (topRatiosSorted[2] || 0);
+  const daysCount = ordered.length;
+  // 趋势斜率（最小二乘，x=0..n-1，y=day total）
+  let trendSlope = 0;
+  if (trend.length >= 2) {
+    const n = trend.length;
+    const meanX = (n - 1) / 2;
+    const meanY = trend.reduce((s, p) => s + p.total, 0) / n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      const dx = i - meanX;
+      const dy = trend[i].total - meanY;
+      num += dx * dy;
+      den += dx * dx;
+    }
+    trendSlope = den !== 0 ? (num / den) : 0;
+  }
+
+  return {
+    tagsTop,
+    trend,
+    changes,
+    metrics: {
+      totalAll,
+      concentrationTop3,
+      hhi,
+      entropy,
+      trendSlope,
+      daysCount,
+    }
+  };
 }
