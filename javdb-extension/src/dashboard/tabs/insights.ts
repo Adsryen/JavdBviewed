@@ -2,22 +2,51 @@ import { renderTemplate, generateReportHTML } from "../../services/insights/repo
 import { aiService } from "../../services/ai/aiService";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
-import { dbInsViewsRange } from "../dbClient";
+import { dbInsViewsRange, dbViewedPage } from "../dbClient";
 import { aggregateMonthly } from "../../services/insights/aggregator";
 import { getSettings } from "../../utils/storage";
-import { getLastGenerationTrace } from "../../services/insights/generationTrace";
+import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
+import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
+import type { VideoRecord } from "../../types";
+import { showMessage } from "../ui/toast";
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
+function updateDeleteSelectedEnabled(): void {
+  try {
+    const btn = getEl<HTMLButtonElement>('insights-delete-selected');
+    if (!btn) return;
+    const cnt = getSelectedHistoryMonths().length;
+    btn.disabled = cnt === 0;
+  } catch {}
+}
+
+// 预览动作的可用状态：生成后才允许“保存为月报”
+let canSaveReport = false;
+
 // ========== 查看生成过程：按钮与弹窗 ==========
 function ensureTraceButton(): HTMLButtonElement | null {
   try {
+    const BTN_ID = 'insights-trace';
+    // 插入到“第二行右侧动作区”
+    const actionBar = document.getElementById('insights-toolbar-row2-actions');
+    let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
+    if (actionBar) {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = BTN_ID;
+        btn.className = 'btn-ghost';
+        btn.innerHTML = '<i class="fas fa-list-ul"></i>&nbsp;查看生成过程';
+        actionBar.appendChild(btn);
+      }
+      return btn as HTMLButtonElement;
+    }
+
+    // 回退：插入到预览 iframe 之前
     const container = getPreviewContainer();
     if (!container) return null;
-    const BTN_ID = 'insights-trace';
-    let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
     const iframe = document.getElementById('insights-preview');
     if (!btn) {
       btn = document.createElement('button');
@@ -30,7 +59,6 @@ function ensureTraceButton(): HTMLButtonElement | null {
     b.style.marginRight = '8px';
     b.style.padding = '6px 10px';
     b.style.fontSize = '12px';
-    // 主题色与悬停效果
     b.style.background = '#2563eb';
     b.style.border = '1px solid #1d4ed8';
     b.style.color = '#fff';
@@ -76,13 +104,26 @@ function openTraceModal(): void {
       // 复制文案构建器
       const buildCopyText = (): string => {
         const fmt = (n?: number) => (typeof n === 'number' ? new Date(n).toLocaleString() : '-');
+        const fmtDur = (ms?: number): string => {
+          if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return '-';
+          if (ms < 1000) return `${ms} ms`;
+          if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+          if (ms < 3_600_000) {
+            const m = Math.floor(ms / 60_000);
+            const s = Math.round((ms % 60_000) / 1000);
+            return `${m}m ${s}s`;
+          }
+          const h = Math.floor(ms / 3_600_000);
+          const m = Math.round((ms % 3_600_000) / 60_000);
+          return `${h}h ${m}m`;
+        };
         if (!trace) return '暂无生成过程';
         const lines: string[] = [];
         const duration = (trace.endedAt && trace.startedAt) ? (trace.endedAt - trace.startedAt) : undefined;
         lines.push('本次生成过程');
         lines.push(`开始时间：${fmt(trace.startedAt)}`);
         lines.push(`结束时间：${fmt(trace.endedAt)}`);
-        lines.push(`耗时：${typeof duration==='number' ? duration + ' ms' : '-'}`);
+        lines.push(`耗时：${fmtDur(duration)}`);
         lines.push(`状态：${trace.status || '-'}`);
         lines.push('');
         lines.push('上下文');
@@ -112,8 +153,11 @@ function openTraceModal(): void {
       header.style.position = 'sticky';
       header.style.top = '0';
       header.style.zIndex = '10';
-      header.style.background = '#fff';
-      header.style.padding = '6px 0 8px 0';
+      header.style.background = 'rgba(255,255,255,0.92)';
+      header.style.padding = '10px 0 12px 0';
+      header.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+      header.style.minHeight = '36px';
+      header.style.paddingRight = '120px';
       header.style.borderBottom = '1px solid #e2e8f0';
       const titleWrap = document.createElement('div');
       titleWrap.style.display = 'flex';
@@ -144,6 +188,10 @@ function openTraceModal(): void {
       actions.style.display = 'flex';
       actions.style.alignItems = 'center';
       actions.style.gap = '8px';
+      // 固定到右上角
+      actions.style.position = 'absolute';
+      actions.style.right = '8px';
+      actions.style.top = '8px';
 
       const copyBtn = document.createElement('button');
       copyBtn.textContent = '复制';
@@ -186,15 +234,40 @@ function openTraceModal(): void {
 
       actions.appendChild(copyBtn);
       actions.appendChild(close);
+      // 先放标题组，再放右上角操作
+      header.appendChild(titleWrap);
       header.appendChild(actions);
+      // 动态保证头部高度 >= 操作区高度（防止按钮比白底高）
+      try {
+        const h = Math.max(36, actions.offsetHeight + 12);
+        header.style.minHeight = h + 'px';
+      } catch {}
 
       const body = document.createElement('div');
       body.style.fontSize = '12px';
       body.style.color = '#334155';
+      body.style.paddingTop = '4px';
+      body.style.display = 'block';
 
       const fmt = (n?: number) => (typeof n === 'number' ? new Date(n).toLocaleString() : '-');
+      const fmtDur = (ms?: number): string => {
+        if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return '-';
+        if (ms < 1000) return `${ms} ms`;
+        if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 2 : 1)} s`;
+        if (ms < 3_600_000) {
+          const m = Math.floor(ms / 60_000);
+          const s = Math.round((ms % 60_000) / 1000);
+          return `${m}m ${s}s`;
+        }
+        const h = Math.floor(ms / 3_600_000);
+        const m = Math.round((ms % 3_600_000) / 60_000);
+        return `${h}h ${m}m`;
+      };
       const pre = (obj: any) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
         (()=>{ try { return JSON.stringify(obj, null, 2); } catch { return String(obj); } })()
+      }</pre>`;
+      const prePlain = (s: string) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
+        String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'} as any)[c] || c)
       }</pre>`;
       const card = (title: string, content: string) => `
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;background:#ffffff;">
@@ -211,29 +284,69 @@ function openTraceModal(): void {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div><b>开始时间</b>：${fmt(trace.startedAt)}</div>
             <div><b>结束时间</b>：${fmt(trace.endedAt)}</div>
-            <div><b>耗时</b>：${typeof duration==='number' ? duration + ' ms' : '-'}</div>
+            <div><b>耗时</b>：${fmtDur(duration)}</div>
             <div><b>状态</b>：${trace.status || '-'}</div>
           </div>`;
-        const stepsHtml = (
-          Array.isArray(trace.entries) && trace.entries.length
-            ? trace.entries.map(e => `
-                <div style="border-left:3px solid ${e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6')}; padding-left:8px; margin:6px 0;">
-                  <div style="display:flex; gap:8px; color:#475569;">
-                    <span style="min-width:160px;">${fmt(e.time)}</span>
-                    <span>[${e.level.toUpperCase()}][${e.tag}] ${e.message || ''}</span>
-                  </div>
-                  ${ e.data ? pre(e.data) : '' }
-                </div>
-              `).join('')
-            : '<div style="color:#999;">无步骤</div>'
-        );
+        // 步骤：附带耗时（相对上一步与相对开始）
+        const entries = Array.isArray(trace.entries) ? trace.entries : [];
+        const tStart = typeof trace.startedAt === 'number' ? trace.startedAt : (entries[0]?.time || 0);
+        let prevT = tStart;
+        const fullDur = (typeof trace.startedAt === 'number' && typeof trace.endedAt === 'number')
+          ? (trace.endedAt - trace.startedAt)
+          : (entries.length ? (Math.max(0, (entries[entries.length - 1]?.time || 0) - tStart)) : 0);
+        const stepBlocks: string[] = [];
+        for (const e of entries) {
+          const dt = typeof e.time === 'number' ? (e.time - prevT) : 0;
+          const tot = typeof e.time === 'number' ? (e.time - tStart) : 0;
+          prevT = typeof e.time === 'number' ? e.time : prevT;
+          const color = e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6');
+          const pct = fullDur > 0 ? Math.min(100, Math.max(0, Math.round((tot / fullDur) * 100))) : 0;
+          stepBlocks.push(`
+            <div style="border-left:3px solid ${color}; padding-left:8px; margin:8px 0;">
+              <div style="display:flex; flex-wrap:wrap; gap:8px; color:#475569; align-items:center;">
+                <span style="min-width:160px;">${fmt(e.time)}</span>
+                <span>[${(e.level||'').toUpperCase()}][${e.tag}] ${e.message || ''}</span>
+                <span style="margin-left:auto; color:#64748b; font-size:11px;">+${fmtDur(dt)} / 总 ${fmtDur(tot)}</span>
+              </div>
+              <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:6px;">
+                <div style="width:${pct}%; height:100%; background:${color};"></div>
+              </div>
+              <div style="display:flex; gap:8px; color:#64748b; font-size:11px; margin-top:4px;">
+                <span>区间：${tStart ? fmt(prevT - dt) : '-'} → ${fmt(e.time)}（${fmtDur(dt)}）</span>
+                <span style="margin-left:auto;">累计：${fmtDur(tot)} / ${fmtDur(fullDur)}</span>
+              </div>
+              ${ e.data ? pre(e.data) : '' }
+            </div>
+          `);
+        }
+        const stepsHtml = stepBlocks.length ? stepBlocks.join('') : '<div style="color:#999;">无步骤</div>';
+
+        // 提示词：展示最近一次 PROMPT/messages 的内容
+        let promptHtml = '';
+        try {
+          const p = [...entries].reverse().find(x => x?.tag === 'PROMPT' && x?.message === 'messages' && x?.data?.messages);
+          if (p && Array.isArray(p.data?.messages)) {
+            const msgs = p.data.messages as Array<{ role: string; content: string }>;
+            const text = msgs.map((m, i) => `#${i+1} [${m.role}]\n${String(m.content||'').slice(0, 2000)}`).join('\n\n');
+            promptHtml = card('提示词', prePlain(text));
+          }
+        } catch {}
+
+        // AI 耗时：来自 AI/callEnd
+        let aiCost = '';
+        try {
+          const aiEnd = entries.find(x => x?.tag === 'AI' && x?.message === 'callEnd');
+          const ms = aiEnd?.data?.elapsedMs;
+          if (typeof ms === 'number') aiCost = `<div><b>AI耗时</b>：${fmtDur(ms)}</div>`;
+        } catch {}
 
         body.innerHTML = [
-          card('基本信息', baseInfo),
+          card('基本信息', baseInfo + (aiCost||'')),
+          promptHtml,
           card('上下文', pre(ctx)),
           card('步骤', stepsHtml),
           card('摘要', pre(trace.summary || {})),
-        ].join('');
+        ].filter(Boolean).join('');
       }
 
       modal.appendChild(header);
@@ -250,13 +363,25 @@ function openTraceModal(): void {
   } catch {}
 }
 
- 
+function onTraceClick(): void {
+  try {
+    const trace = getLastGenerationTrace();
+    if (!trace) {
+      // 无记录：仅右下角 toast 提示，不弹出遮罩窗
+      try { showMessage('暂无生成过程，请先点击“生成报告”。', 'info'); } catch {}
+      return;
+    }
+    openTraceModal();
+  } catch {
+    // 兜底：静默
+  }
+}
 
 function prepareForPreview(html: string): string {
   try {
     let res = html || '';
     // 1) 移除全部脚本（内联与外链），避免 about:srcdoc 下 CSP 报错
-    try { res = res.replace(/<script\b[\s\S]*?<\/script>/gi, ''); } catch {}
+    try { res = res.replace(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi, ''); } catch {}
     // 2) 确保 base 指向扩展根
     const base = chrome.runtime.getURL('') || './';
     if (/<base[^>]*>/i.test(res)) {
@@ -267,7 +392,81 @@ function prepareForPreview(html: string): string {
       // 若意外缺少 head，则加一个简单的头部
       res = res.replace(/<html[^>]*>/i, (m) => `${m}\n<head><base href="${base}"></head>`);
     }
+    // 2.0) 预清理：将任何显式白色字体替换为深色，避免白底白字（仅作用于预览）
+    try {
+      const whiteColorRe = /color\s*:\s*(?:#fff(?:fff)?|white|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)|rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*(?:0?\.\d+|1)\s*\))\s*(!important)?/ig;
+      res = res.replace(whiteColorRe, 'color:#111827$1');
+    } catch {}
+    // 2.0.1) 强制为 <body> 注入内联白底深字样式，并确保有唯一 root id（优先级最高）
+    try {
+      res = res.replace(/<body([^>]*)>/i, (m, attrs) => {
+        const styleRe = /style=("|')([\s\S]*?)\1/i;
+        const m2 = attrs.match(styleRe);
+        // 确保 root id 存在
+        let addId = '';
+        if (!/\bid\s*=/.test(attrs)) addId = ' id="__ins_preview_root__"';
+        if (m2) {
+          const quote = m2[1];
+          let style = m2[2] || '';
+          // 规范化并覆写 color/background
+          if (/color\s*:/i.test(style)) style = style.replace(/color\s*:[^;]*/i, 'color:#111827 !important');
+          else style += '; color:#111827 !important';
+          if (/background\s*:/i.test(style)) style = style.replace(/background\s*:[^;]*/i, 'background:#ffffff !important');
+          else style += '; background:#ffffff !important';
+          attrs = attrs.replace(styleRe, `style=${quote}${style}${quote}`);
+          return `<body${attrs}${addId}>`;
+        } else {
+          return `<body${attrs}${addId} style="background:#ffffff !important; color:#111827 !important">`;
+        }
+      });
+    } catch {}
+    // 2.0.2) 进一步清理：移除任意元素内联的 color 声明并统一为深色（防止 inline !important 覆盖）
+    try {
+      res = res.replace(/style=("|')([\s\S]*?)\1/ig, (all, q, style) => {
+        let s = String(style || '');
+        // 删除所有 color 与 -webkit-text-fill-color（不影响 border-color/outline-color 等）
+        s = s.replace(/(^|;)\s*color\s*:\s*[^;]*;?/ig, (m0, p1) => (p1 || ''));
+        s = s.replace(/(^|;)\s*-webkit-text-fill-color\s*:\s*[^;]*;?/ig, (m0, p1) => (p1 || ''));
+        // 收敛多余分号
+        s = s.replace(/;;+/g, ';').replace(/^\s*;|;\s*$/g, '');
+        // 重新追加深色字体
+        const sep = s ? '; ' : '';
+        return `style=${q}${s}${sep}color:#111827 !important; -webkit-text-fill-color:#111827 !important${q}`;
+      });
+    } catch {}
+    // 2.1) 注入兜底样式，强制白底深字，避免出现白底白字
+    try {
+      const hasFallback = /insights-preview-fallback/i.test(res);
+      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:#111827 !important; -webkit-text-fill-color:#111827 !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:#ffffff !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:#111827 !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:#111827 !important; }\n  .text-white, .text-light, [class*="text-white"] { color:#111827 !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:#111827 !important; }\n</style>`;
+      if (!hasFallback) {
+        if (/<\/body>/i.test(res)) {
+          res = res.replace(/<\/body>/i, (m) => `${fallback}\n${m}`);
+        } else if (/<\/head>/i.test(res)) {
+          res = res.replace(/<\/head>/i, (m) => `${fallback}\n${m}`);
+        } else if (/<head[^>]*>/i.test(res)) {
+          res = res.replace(/<head[^>]*>/i, (m) => `${m}\n  ${fallback}`);
+        } else {
+          res = res.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${fallback}</head>`);
+        }
+      }
+    } catch {}
     // 3) 不注入任何脚本，保持纯静态预览（图表在导出 HTML 或外部页展示）
+    try {
+      const needData = /id=["']insights-data["']/i.test(res);
+      const hasE = /echarts(\.min)?\.js/i.test(res);
+      const hasR = /insights-runtime\.js/i.test(res);
+      if (needData && (!hasE || !hasR)) {
+        const scripts = [
+          !hasE ? '<script src="assets/templates/echarts.min.js"></script>' : '',
+          !hasR ? '<script src="assets/templates/insights-runtime.js"></script>' : '',
+        ].filter(Boolean).join('\n  ');
+        if (/<\/body>/i.test(res)) {
+          res = res.replace(/<\/body>/i, (m) => `  ${scripts}\n${m}`);
+        } else {
+          res += `\n  ${scripts}\n`;
+        }
+      }
+    } catch {}
     return res;
   } catch {
     return html;
@@ -282,6 +481,22 @@ async function loadTemplate(): Promise<string> {
   } catch {
     return '<!doctype html><html><head><meta charset="utf-8"/></head><body><p>模板加载失败</p></body></html>';
   }
+}
+
+// 分页读取番号库（避免一次性全量加载内存暴涨）
+async function fetchAllVideoRecordsPaged(pageSize = 500): Promise<VideoRecord[]> {
+  const items: VideoRecord[] = [];
+  let offset = 0;
+  while (true) {
+    const { items: page, total } = await dbViewedPage({ offset, limit: pageSize, orderBy: 'updatedAt', order: 'desc' });
+    const len = Array.isArray(page) ? page.length : 0;
+    if (!len) break;
+    items.push(...page);
+    offset += len;
+    if (items.length >= (total || 0)) break;
+    if (len < pageSize) break;
+  }
+  return items;
 }
 
 // ========== 生成过程 UI：加载动画与状态提示 ==========
@@ -300,12 +515,12 @@ function setActionsDisabled(disabled: boolean): void {
   try {
     const ids = [
       'insights-generate',
-      'insights-save',
-      'insights-export-html',
-      'insights-export-md',
+      'insights-export',
       'insights-export-json',
-      'insights-import-json',
-      'insights-refresh-history'
+      'insights-refresh-history',
+      'insights-delete-selected',
+      'insights-preview-save',
+      'insights-preview-copy'
     ];
     for (const id of ids) {
       const btn = document.getElementById(id) as HTMLButtonElement | null;
@@ -323,6 +538,144 @@ function getPreviewContainer(): HTMLElement | null {
     if (cs.position === 'static') container.style.position = 'relative';
   }
   return container;
+}
+
+// 在预览框右上角放置复制 HTML 按钮
+function ensurePreviewCopyButton(): HTMLDivElement | null {
+  try {
+    const container = getPreviewContainer();
+    if (!container) return null;
+    const WRAP_ID = 'insights-preview-actions';
+    let wrap = document.getElementById(WRAP_ID) as HTMLDivElement | null;
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      try {
+        wrap.style.position = 'absolute';
+        wrap.style.right = '8px';
+        wrap.style.top = '8px';
+        wrap.style.zIndex = '6';
+        wrap.style.display = 'flex';
+        wrap.style.gap = '8px';
+      } catch {}
+      container.appendChild(wrap);
+    }
+
+    // 依据 iframe 顶部位置放置动作容器，避免与标题重叠
+    try {
+      const iframe = document.getElementById('insights-preview') as HTMLIFrameElement | null;
+      if (iframe && wrap) {
+        const top = (iframe.offsetTop || 0) + 8;
+        wrap.style.top = top + 'px';
+      }
+      // 监听窗口尺寸变化，动态修正位置
+      const REPOS_KEY = '__insights_preview_actions_repos__';
+      const anyWrap = wrap as any;
+      if (!anyWrap[REPOS_KEY]) {
+        const onResize = () => {
+          const iframe = document.getElementById('insights-preview') as HTMLIFrameElement | null;
+          if (!iframe || !wrap) return;
+          wrap.style.top = ((iframe.offsetTop || 0) + 8) + 'px';
+        };
+        window.addEventListener('resize', onResize);
+        anyWrap[REPOS_KEY] = true;
+      }
+    } catch {}
+
+    // 复制按钮（胶囊造型）
+    const COPY_ID = 'insights-preview-copy';
+    let copyBtn = document.getElementById(COPY_ID) as HTMLButtonElement | null;
+    if (!copyBtn) {
+      copyBtn = document.createElement('button');
+      copyBtn.id = COPY_ID;
+      copyBtn.className = 'preview-copy-btn';
+      copyBtn.title = '复制预览HTML';
+      copyBtn.innerHTML = '<i class="fas fa-copy"></i>&nbsp;复制预览';
+      try {
+        copyBtn.style.padding = '6px 10px';
+        copyBtn.style.borderRadius = '999px';
+        copyBtn.style.background = '#fff';
+        copyBtn.style.border = '1px solid #e5e7eb';
+        copyBtn.style.color = '#334155';
+        copyBtn.style.display = 'flex';
+        copyBtn.style.alignItems = 'center';
+        copyBtn.style.justifyContent = 'center';
+        copyBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+        copyBtn.style.cursor = 'pointer';
+        copyBtn.style.fontSize = '12px';
+      } catch {}
+      copyBtn.addEventListener('click', copyPreviewHtml);
+      wrap.appendChild(copyBtn);
+    }
+
+    // 保存按钮（生成后可用）
+    const SAVE_ID = 'insights-preview-save';
+    let saveBtn = document.getElementById(SAVE_ID) as HTMLButtonElement | null;
+    if (!saveBtn) {
+      saveBtn = document.createElement('button');
+      saveBtn.id = SAVE_ID;
+      saveBtn.className = 'preview-save-btn';
+      saveBtn.title = '保存为月报';
+      saveBtn.innerHTML = '<i class="fas fa-save"></i>&nbsp;保存为月报';
+      try {
+        saveBtn.style.padding = '6px 10px';
+        saveBtn.style.borderRadius = '999px';
+        saveBtn.style.background = '#2563eb';
+        saveBtn.style.border = '1px solid #1d4ed8';
+        saveBtn.style.color = '#fff';
+        saveBtn.style.display = 'flex';
+        saveBtn.style.alignItems = 'center';
+        saveBtn.style.justifyContent = 'center';
+        saveBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+        saveBtn.style.cursor = 'pointer';
+        saveBtn.style.fontSize = '12px';
+        saveBtn.style.opacity = canSaveReport ? '1' : '0.6';
+      } catch {}
+      saveBtn.onclick = () => { if (canSaveReport) insightsTab.saveCurrentAsMonthly(); };
+      wrap.appendChild(saveBtn);
+    }
+    // 每次调用时同步禁用态
+    try {
+      const btn = document.getElementById(SAVE_ID) as HTMLButtonElement | null;
+      if (btn) {
+        (btn as HTMLButtonElement).disabled = !canSaveReport;
+        btn.style.opacity = canSaveReport ? '1' : '0.6';
+        btn.style.cursor = canSaveReport ? 'pointer' : 'not-allowed';
+      }
+    } catch {}
+
+    return wrap;
+  } catch {
+    return null;
+  }
+}
+
+async function copyPreviewHtml() {
+  try {
+    const iframe = getEl<HTMLIFrameElement>('insights-preview');
+    if (!iframe) return;
+    const html = iframe.srcdoc || '';
+    if (!html) { try { showMessage('暂无预览内容可复制', 'info'); } catch {} return; }
+    // 内联依赖，便于外部粘贴复现
+    let finalHtml = await inlineAssets(html);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(finalHtml);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = finalHtml;
+        ta.style.position = 'fixed';
+        ta.style.left = '-1000px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      try { showMessage('预览HTML已复制', 'info'); } catch {}
+    } catch (e) {
+      try { showMessage('复制失败：' + ((e as any)?.message || e), 'error'); } catch {}
+    }
+  } catch {}
 }
 
 function showLoading(show: boolean): void {
@@ -422,6 +775,7 @@ async function previewSample() {
     summary: '这里将展示由 AI 生成的摘要文本示例占位。',
     insightList: '<li>示例洞察 A</li><li>示例洞察 B</li>',
     methodology: '仅演示用途，真实报告会根据本地统计与模板填充。',
+    disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
     generatedAt: now.toLocaleString(),
     version: '0.0.1',
     baseHref: chrome.runtime.getURL('') || './',
@@ -430,71 +784,175 @@ async function previewSample() {
   const tpl = await loadTemplate();
   const html = renderTemplate({ templateHTML: tpl, fields });
   iframe.srcdoc = prepareForPreview(html);
+  // 示例预览不允许保存
+  canSaveReport = false;
+  try { ensurePreviewCopyButton(); } catch {}
+  try {
+    const grid = document.querySelector('.tab-section[data-tab-id="insights"] .insights-grid') as HTMLElement | null;
+    if (grid) grid.style.gridTemplateColumns = '0.9fr 1.5fr';
+  } catch {}
 }
 
 async function handleGenerate() {
   showLoading(true);
   clearStatus();
-  const monthEl = getEl<HTMLInputElement>('insights-month');
-  const monthStr = (monthEl?.value || '').trim();
+  const startEl = getEl<HTMLInputElement>('insights-month-start');
+  const endEl = getEl<HTMLInputElement>('insights-month-end');
+  const startMonthStr = (startEl?.value || '').trim();
+  const endMonthStr = (endEl?.value || '').trim();
   try {
-    if (!monthStr) { await previewSample(); return; }
-    const [y, m] = monthStr.split('-');
-    const start = `${y}-${m}-01`;
-    const end = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);
-
-    // 1) 读取当月与上月 views
-    const days = await dbInsViewsRange(start, end);
-    let prevY = Number(y);
-    let prevM = Number(m) - 1;
-    if (prevM <= 0) { prevY -= 1; prevM = 12; }
-    const prevStart = `${prevY}-${String(prevM).padStart(2,'0')}-01`;
-    const prevEnd = new Date(prevY, prevM, 0).toISOString().slice(0, 10);
-    const prevDays = await dbInsViewsRange(prevStart, prevEnd);
-
-    // 2) 聚合统计
+    if (!startMonthStr || !endMonthStr) { await previewSample(); return; }
+    // 若开始>结束，自动对调
+    let sStr0 = startMonthStr;
+    let eStr0 = endMonthStr;
+    if (sStr0 > eStr0) { const tmp = sStr0; sStr0 = eStr0; eStr0 = tmp; }
+    const [sy, sm] = sStr0.split('-');
+    const [ey, em] = eStr0.split('-');
+    const startDate = new Date(Number(sy), Number(sm) - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(Number(ey), Number(em), 0, 23, 59, 59, 999);
+    const start = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,'0')}-01`;
+    const end = `${endDate.getFullYear()}-${String(endDate.getMonth()+1).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
+    // 如当月月报已存在，则在“生成”前提示风险并确认（仅预览，不会覆盖保存）
+    try {
+      const periodKey = `${sStr0}~${eStr0}`;
+      const exists = await dbInsReportsGet(periodKey);
+      if (exists) {
+        const ok = await confirmDialog({
+          title: '确认生成（已存在同范围报告）',
+          message: '该时间范围的报告已存在。继续将仅在右侧生成“预览”，不会自动覆盖已保存的报告；如需覆盖，请在“保存为月报”时再确认。',
+          okText: '继续仅预览',
+          cancelText: '取消'
+        });
+        if (!ok) { return; }
+      }
+    } catch {}
+    // 1) 读取设置与当月/上月 views（用于视图口径与回退）
     const settings = await getSettings();
     const ins = settings?.insights || {};
-    const stats = aggregateMonthly(days, {
-      topN: ins.topN ?? 10,
-      previousDays: prevDays,
-      changeThresholdRatio: ins.changeThresholdRatio,
-      minTagCount: ins.minTagCount,
-      risingLimit: ins.risingLimit,
-      fallingLimit: ins.fallingLimit,
-    });
+    const days = await dbInsViewsRange(start, end);
+    // 计算等长的上一周期（用于 views 变化对比）
+    const dayMs = 24 * 60 * 60 * 1000;
+    const rangeDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / dayMs) + 1);
+    const prevEndDate = new Date(startDate.getTime() - dayMs);
+    const prevStartDate = new Date(prevEndDate.getTime() - (rangeDays - 1) * dayMs);
+    const prevStart = `${prevStartDate.getFullYear()}-${String(prevStartDate.getMonth()+1).padStart(2,'0')}-${String(prevStartDate.getDate()).padStart(2,'0')}`;
+    const prevEnd = `${prevEndDate.getFullYear()}-${String(prevEndDate.getMonth()+1).padStart(2,'0')}-${String(prevEndDate.getDate()).padStart(2,'0')}`;
+    const prevDays = await dbInsViewsRange(prevStart, prevEnd);
+
+    // 2) 根据数据源模式聚合统计（compare/auto 支持样本量不足回退）
+    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'auto';
+    const statusScope = String((ins.statusScope as any) || 'viewed_browsed');
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    let stats: ReturnType<typeof aggregateMonthly> | ReturnType<typeof aggregateCompareFromRecords>['stats'];
+    let modeUsed: 'views' | 'compare' | 'views-fallback' = 'views';
+    let baselineCount = 0, newCount = 0;
+    if (source === 'views') {
+      stats = aggregateMonthly(days, {
+        topN: ins.topN ?? 10,
+        previousDays: prevDays,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+      });
+      modeUsed = 'views';
+    } else {
+      const all = await fetchAllVideoRecordsPaged(800);
+      const ret = aggregateCompareFromRecords(all, startMs, endMs, {
+        topN: ins.topN ?? 10,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+        statusScope: statusScope as any,
+      });
+      stats = ret.stats;
+      baselineCount = ret.baselineCount;
+      newCount = ret.newCount;
+      const minSamples = Number(ins.minMonthlySamples ?? 10);
+      if (source === 'auto' && newCount < minSamples) {
+        // 回退到 views 口径
+        stats = aggregateMonthly(days, {
+          topN: ins.topN ?? 10,
+          previousDays: prevDays,
+          changeThresholdRatio: ins.changeThresholdRatio,
+          minTagCount: ins.minTagCount,
+          risingLimit: ins.risingLimit,
+          fallingLimit: ins.fallingLimit,
+        });
+        modeUsed = 'views-fallback';
+        showStatus(`compare 样本不足（${newCount} < 阈值 ${minSamples}），已回退到“观看日表”口径。`);
+      } else {
+        modeUsed = 'compare';
+      }
+      try { addTrace('info', 'COMPARE', 'mode', { modeUsed, baselineCount, newCount, thresholds: { minMonthlySamples: ins.minMonthlySamples ?? 10 } }); } catch {}
+    }
 
     // 3) 生成 HTML（优先 AI；失败回退本地模板）
     const topBrief = (stats.tagsTop || []).slice(0, 5).map(t => `${t.name}(${t.count})`).join('、');
     const changeInsights: string[] = [];
     try {
-      const ch = stats?.changes || { newTags: [], rising: [], falling: [] };
+      const ch = (stats as any)?.changes || { newTags: [], rising: [], falling: [] };
       if (Array.isArray(ch.newTags) && ch.newTags.length) changeInsights.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
       if (Array.isArray(ch.rising) && ch.rising.length) changeInsights.push(`明显上升：${ch.rising.slice(0,5).join('、')}`);
       if (Array.isArray(ch.falling) && ch.falling.length) changeInsights.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
     } catch {}
+    const methodology = (modeUsed === 'compare')
+      ? 'compare 模式：基线=月初之前（按状态口径），新增=本月 updatedAt；按标签计数与占比计算变化。'
+      : '按影片ID去重，每部影片的标签计入当日计数；月度聚合统计 TopN、占比与趋势（图表将本地渲染）。';
+    const metrics = (stats as any)?.metrics || {};
+    const top3 = typeof metrics.concentrationTop3 === 'number' && isFinite(metrics.concentrationTop3) ? (metrics.concentrationTop3 * 100).toFixed(1) + '%' : '-';
+    const hhi = typeof metrics.hhi === 'number' && isFinite(metrics.hhi) ? metrics.hhi.toFixed(4) : '-';
+    const ent = typeof metrics.entropy === 'number' && isFinite(metrics.entropy) ? metrics.entropy.toFixed(2) : '-';
+    const trend = typeof metrics.trendSlope === 'number' ? (metrics.trendSlope > 0.1 ? '上升' : (metrics.trendSlope < -0.1 ? '回落' : '平稳')) : '-';
+    const risingTop = (stats as any)?.changes?.risingDetailed?.[0];
+    const fallingTop = (stats as any)?.changes?.fallingDetailed?.[0];
+    const styleShift = (risingTop && fallingTop)
+      ? `风格变化：偏好从「${fallingTop.name}」向「${risingTop.name}」迁移（+${(Math.abs(risingTop.diffRatio || 0) * 100).toFixed(1)} 个百分点）`
+      : '';
+    const extraLine = (modeUsed === 'compare') ? `新增样本：${newCount}；基线样本：${baselineCount}` : `累计观看天数：${days.length} 天`;
     const insightList = [
       topBrief ? `本月偏好标签集中于：${topBrief}` : '数据量较少，暂无法判断主要偏好',
-      `累计观看天数：${days.length} 天`,
+      `集中度与分散度：Top3 占比 ${top3}，HHI ${hhi}，熵 ${ent}`,
+      `趋势：总体 ${trend}`,
+      ...(styleShift ? [styleShift] : []),
+      extraLine,
       ...changeInsights,
     ].map(s => `<li>${s}</li>`).join('');
     const fields: Record<string, string> = {
-      reportTitle: `我的观影标签月报（${y}年${m}月）`,
+      reportTitle: `我的观影标签报告`,
       periodText: `统计范围：${start} ~ ${end}`,
-      summary: '本报告基于本地统计数据生成，未包含演员/系列，仅统计标签。',
+      summary: [
+        `这个月你的口味更集中，Top3 约 ${top3}，整体${trend}。`,
+        (Array.isArray((stats as any)?.changes?.newTags) && (stats as any).changes.newTags.length
+          ? `也有点新鲜感：${(stats as any).changes.newTags.slice(0,3).join('、')} 出现过。`
+          : '结构基本稳定，没有明显的偏好跳变。'),
+        (modeUsed === 'compare'
+          ? `样本不多（新增 ${newCount} / 基线 ${baselineCount}），这些判断更偏趋势参考。`
+          : ''),
+        '下月不妨留意前述标签的占比会不会继续上扬，看看新人是否延续热度。'
+      ].filter(Boolean).join(' '),
       insightList,
-      methodology: '按影片ID去重，每部影片的标签计入当日计数；月度聚合统计 TopN、占比与趋势（图表将本地渲染）。',
+      methodology,
+      disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
       generatedAt: new Date().toLocaleString(),
       version: '0.0.1',
       baseHref: chrome.runtime.getURL('') || './',
       statsJSON: JSON.stringify(stats || {}),
     } as Record<string, string>;
     const tpl = await loadTemplate();
-    const html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
+    const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields });
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
     if (iframe) {
       iframe.srcdoc = prepareForPreview(html);
     }
+    canSaveReport = true;
+    try { ensurePreviewCopyButton(); } catch {}
+    try {
+      const grid = document.querySelector('.tab-section[data-tab-id="insights"] .insights-grid') as HTMLElement | null;
+      if (grid) grid.style.gridTemplateColumns = '0.9fr 1.5fr';
+    } catch {}
 
     // 根据 AI 服务状态给出提示
     try {
@@ -511,6 +969,76 @@ async function handleGenerate() {
   } finally {
     showLoading(false);
   }
+}
+
+// 简易确认弹窗
+function confirmDialog(opts: { title?: string; message: string; okText?: string; cancelText?: string }): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const OVERLAY_ID = 'insights-confirm-overlay';
+      let overlay = document.getElementById(OVERLAY_ID) as HTMLDivElement | null;
+      if (overlay) overlay.remove();
+      overlay = document.createElement('div');
+      overlay.id = OVERLAY_ID;
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.background = 'rgba(15,23,42,0.42)';
+      overlay.style.backdropFilter = 'blur(2px)';
+      overlay.style.zIndex = '9999';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      const modal = document.createElement('div');
+      modal.style.width = '520px';
+      modal.style.maxWidth = '95%';
+      modal.style.background = '#fff';
+      modal.style.borderRadius = '8px';
+      modal.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+      modal.style.border = '1px solid #e2e8f0';
+      modal.style.padding = '14px 16px';
+      const title = document.createElement('div');
+      title.textContent = opts.title || '确认';
+      title.style.fontWeight = '700';
+      title.style.marginBottom = '8px';
+      const msg = document.createElement('div');
+      msg.textContent = opts.message;
+      msg.style.color = '#334155';
+      msg.style.fontSize = '13px';
+      msg.style.margin = '6px 0 12px';
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.justifyContent = 'flex-end';
+      actions.style.gap = '8px';
+      const cancel = document.createElement('button');
+      cancel.textContent = opts.cancelText || '取消';
+      cancel.style.padding = '6px 12px';
+      cancel.style.fontSize = '12px';
+      cancel.style.background = '#f1f5f9';
+      cancel.style.border = '1px solid #cbd5e1';
+      cancel.style.color = '#334155';
+      cancel.style.borderRadius = '4px';
+      const ok = document.createElement('button');
+      ok.textContent = opts.okText || '确认';
+      ok.style.padding = '6px 12px';
+      ok.style.fontSize = '12px';
+      ok.style.background = '#2563eb';
+      ok.style.border = '1px solid #1d4ed8';
+      ok.style.color = '#fff';
+      ok.style.borderRadius = '4px';
+      cancel.onclick = () => { overlay?.remove(); resolve(false); };
+      ok.onclick = () => { overlay?.remove(); resolve(true); };
+      actions.appendChild(cancel);
+      actions.appendChild(ok);
+      modal.appendChild(title);
+      modal.appendChild(msg);
+      modal.appendChild(actions);
+      overlay.appendChild(modal);
+      overlay.onclick = (ev) => { if (ev.target === overlay) { overlay?.remove(); resolve(false); } };
+      document.body.appendChild(overlay);
+    } catch {
+      resolve(true);
+    }
+  });
 }
 
 async function inlineAssets(html: string): Promise<string> {
@@ -554,9 +1082,11 @@ async function handleExportHTML() {
   if (!iframe) return;
   const html = iframe.srcdoc || '<!doctype html><html><body><p>暂无预览</p></body></html>';
   let finalHtml = await inlineAssets(html);
-  const monthEl = getEl<HTMLInputElement>('insights-month');
-  const month = (monthEl?.value || '').replaceAll('-', '') || 'preview';
-  download(`javdb-insights-${month}.html`, finalHtml);
+  const sEl = getEl<HTMLInputElement>('insights-month-start');
+  const eEl = getEl<HTMLInputElement>('insights-month-end');
+  const s = (sEl?.value || '').replaceAll('-', '') || 'cur';
+  const e = (eEl?.value || '').replaceAll('-', '') || 'cur';
+  download(`javdb-insights-${s}~${e}.html`, finalHtml);
 }
 
 function handleExportMD() {
@@ -566,9 +1096,131 @@ function handleExportMD() {
     '',
     '- 该导出为占位，后续将输出结构化 Markdown 内容',
   ].join('\n');
-  const monthEl = getEl<HTMLInputElement>('insights-month');
-  const month = (monthEl?.value || '').replaceAll('-', '') || 'preview';
-  download(`javdb-insights-${month}.md`, md, 'text/markdown;charset=utf-8');
+  const sEl = getEl<HTMLInputElement>('insights-month-start');
+  const eEl = getEl<HTMLInputElement>('insights-month-end');
+  const s = (sEl?.value || '').replaceAll('-', '') || 'cur';
+  const e = (eEl?.value || '').replaceAll('-', '') || 'cur';
+  download(`javdb-insights-${s}~${e}.md`, md, 'text/markdown;charset=utf-8');
+}
+
+// 读取历史列表中被勾选的月份键
+function getSelectedHistoryMonths(): string[] {
+  try {
+    const list = getEl<HTMLDivElement>('insights-history-list');
+    if (!list) return [];
+    const inputs = Array.from(list.querySelectorAll('input.history-select[type="checkbox"]')) as HTMLInputElement[];
+    return inputs.filter(i => i.checked).map(i => i.getAttribute('data-month') || '').filter(Boolean);
+  } catch { return []; }
+}
+
+async function exportSelectedJson(months: string[]): Promise<void> {
+  try {
+    const items = [] as any[];
+    for (const m of months) {
+      const rec = await dbInsReportsGet(m);
+      if (rec) items.push(rec);
+    }
+    if (!items.length) { try { showMessage('未选择可导出的历史项', 'info'); } catch {} return; }
+    const json = JSON.stringify({ items }, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const a = document.createElement('a');
+    const now = new Date();
+    const name = `javdb-insights-selected-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.json`;
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {}
+}
+
+async function exportSelectedHtml(months: string[]): Promise<void> {
+  try {
+    for (const m of months) {
+      const rec = await dbInsReportsGet(m);
+      if (!rec?.html) continue;
+      // 保持外链脚本与 base，不内联；历史导出无需粘贴复现
+      download(`javdb-insights-${m}.html`, rec.html);
+    }
+    if (!months.length) { try { showMessage('未选择可导出的历史项', 'info'); } catch {} }
+  } catch {}
+}
+
+async function exportSelectedMd(months: string[]): Promise<void> {
+  try {
+    for (const m of months) {
+      const md = [
+        `# 观影标签月报（${m}）`,
+        '',
+        '- 该导出为占位，后续将输出结构化 Markdown 内容',
+      ].join('\n');
+      download(`javdb-insights-${m}.md`, md, 'text/markdown;charset=utf-8');
+    }
+    if (!months.length) { try { showMessage('未选择可导出的历史项', 'info'); } catch {} }
+  } catch {}
+}
+
+async function performExport(format: 'html'|'md'|'json'): Promise<void> {
+  const months = getSelectedHistoryMonths();
+  if (months.length > 0) {
+    if (format === 'html') return exportSelectedHtml(months);
+    if (format === 'md') return exportSelectedMd(months);
+    if (format === 'json') return exportSelectedJson(months);
+    return;
+  }
+  // 未选择历史项：对当前预览导出（仅支持 html/md）
+  if (format === 'html') return handleExportHTML();
+  if (format === 'md') return handleExportMD();
+  try { showMessage('请先勾选历史项以导出 JSON', 'info'); } catch {}
+}
+
+function setupExportDropdown(btn: HTMLButtonElement | null): void {
+  if (!btn) return;
+  const MID = 'insights-export-menu';
+  let timer: number | undefined;
+  const show = () => {
+    let menu = document.getElementById(MID) as HTMLDivElement | null;
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = MID;
+      menu.style.position = 'fixed';
+      menu.style.zIndex = '1000';
+      menu.style.minWidth = '150px';
+      menu.style.background = '#fff';
+      menu.style.border = '1px solid #e2e8f0';
+      menu.style.borderRadius = '8px';
+      menu.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+      menu.style.padding = '6px';
+      menu.style.fontSize = '13px';
+      menu.innerHTML = [
+        '<div data-fmt="html" style="padding:6px 10px; border-radius:6px; cursor:pointer;">导出 HTML</div>',
+        '<div data-fmt="md" style="padding:6px 10px; border-radius:6px; cursor:pointer;">导出 Markdown</div>',
+        '<div data-fmt="json" style="padding:6px 10px; border-radius:6px; cursor:pointer;">导出 JSON</div>'
+      ].join('');
+      menu.onmouseenter = () => { if (timer) { clearTimeout(timer); timer = undefined as any; } };
+      menu.onmouseleave = () => { timer = window.setTimeout(() => menu?.remove(), 160); };
+      menu.onclick = async (ev) => {
+        const t = ev.target as HTMLElement;
+        const fmt = t?.getAttribute('data-fmt') as any;
+        if (fmt) {
+          await performExport(fmt);
+          menu?.remove();
+        }
+      };
+      document.body.appendChild(menu);
+    }
+    // 定位到按钮下方
+    const rect = btn.getBoundingClientRect();
+    menu.style.left = Math.round(rect.left) + 'px';
+    menu.style.top = Math.round(rect.bottom + 6) + 'px';
+  };
+  const hideLater = () => {
+    const menu = document.getElementById(MID) as HTMLDivElement | null;
+    if (!menu) return;
+    timer = window.setTimeout(() => menu?.remove(), 160);
+  };
+  btn.addEventListener('mouseenter', show);
+  btn.addEventListener('mouseleave', hideLater);
 }
 
 export const insightsTab = {
@@ -578,72 +1230,144 @@ export const insightsTab = {
     this.isInitialized = true;
 
     const genBtn = getEl<HTMLButtonElement>('insights-generate');
-    const expHtml = getEl<HTMLButtonElement>('insights-export-html');
-    const expMd = getEl<HTMLButtonElement>('insights-export-md');
-    const saveBtn = getEl<HTMLButtonElement>('insights-save');
+    const exportBtn = getEl<HTMLButtonElement>('insights-export');
     const refreshHistoryBtn = getEl<HTMLButtonElement>('insights-refresh-history');
-    const exportJsonBtn = getEl<HTMLButtonElement>('insights-export-json');
-    const importJsonBtn = getEl<HTMLButtonElement>('insights-import-json');
-    const monthEl = getEl<HTMLInputElement>('insights-month');
+    const deleteSelectedBtn = getEl<HTMLButtonElement>('insights-delete-selected');
 
     genBtn?.addEventListener('click', handleGenerate);
-    expHtml?.addEventListener('click', () => { handleExportHTML(); });
-    expMd?.addEventListener('click', handleExportMD);
-    saveBtn?.addEventListener('click', () => this.saveCurrentAsMonthly());
+    exportBtn?.addEventListener('click', () => { performExport('html'); });
+    setupExportDropdown(exportBtn || null);
+    // 保存按钮由预览区右上角动态注入与控制
     refreshHistoryBtn?.addEventListener('click', () => this.refreshHistory());
-    exportJsonBtn?.addEventListener('click', () => this.exportAllJson());
-    importJsonBtn?.addEventListener('click', () => this.importAllJson());
+    deleteSelectedBtn?.addEventListener('click', async () => {
+      const months = getSelectedHistoryMonths();
+      if (!months.length) { try { showMessage('请先勾选要删除的历史项', 'info'); } catch {} return; }
+      const ok = await confirmDialog({
+        title: '确认删除',
+        message: `将删除 ${months.length} 个已保存的月报，操作不可恢复。`,
+        okText: '删除',
+        cancelText: '取消'
+      });
+      if (!ok) return;
+      setActionsDisabled(true);
+      try {
+        for (const m of months) { try { await dbInsReportsDelete(m); } catch {} }
+        await this.refreshHistory();
+        try { showMessage('删除完成', 'info'); } catch {}
+      } finally { setActionsDisabled(false); }
+    });
 
     // 默认选中上一个月
     try {
-      if (monthEl && !monthEl.value) {
+      const sEl = getEl<HTMLInputElement>('insights-month-start');
+      const eEl = getEl<HTMLInputElement>('insights-month-end');
+      if (sEl && !sEl.value) {
         const d = new Date();
-        d.setMonth(d.getMonth() - 1);
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        monthEl.value = `${y}-${m}`;
+        sEl.value = `${y}-${m}`;
+      }
+      if (eEl && !eEl.value) {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        eEl.value = `${y}-${m}`;
       }
     } catch {}
 
     // 按钮：查看生成过程
     try {
       const traceBtn = ensureTraceButton();
-      traceBtn?.addEventListener('click', openTraceModal);
+      traceBtn?.addEventListener('click', onTraceClick);
     } catch {}
 
     // 初次进入显示示例预览
     try { await previewSample(); } catch {}
 
     // 刷新历史
-    try { await this.refreshHistory(); } catch {}
+    try { await this.refreshHistory(); updateDeleteSelectedEnabled(); } catch {}
   },
 
   async saveCurrentAsMonthly(): Promise<void> {
-    const monthEl = getEl<HTMLInputElement>('insights-month');
-    const monthStr = (monthEl?.value || '').trim(); // YYYY-MM
-    if (!monthStr) return;
-    const [y, m] = monthStr.split('-');
-    const periodStart = `${y}-${m}-01`;
-    const periodEnd = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);
+    const sEl = getEl<HTMLInputElement>('insights-month-start');
+    const eEl = getEl<HTMLInputElement>('insights-month-end');
+    const sStr = (sEl?.value || '').trim();
+    const eStr = (eEl?.value || '').trim();
+    if (!sStr || !eStr) return;
+    let sStr0 = sStr;
+    let eStr0 = eStr;
+    if (sStr0 > eStr0) { const tmp = sStr0; sStr0 = eStr0; eStr0 = tmp; }
+    const [sy, sm] = sStr0.split('-');
+    const [ey, em] = eStr0.split('-');
+    const sDate = new Date(Number(sy), Number(sm) - 1, 1, 0, 0, 0, 0);
+    const eDate = new Date(Number(ey), Number(em), 0, 23, 59, 59, 999);
+    const periodStart = `${sDate.getFullYear()}-${String(sDate.getMonth()+1).padStart(2,'0')}-01`;
+    const periodEnd = `${eDate.getFullYear()}-${String(eDate.getMonth()+1).padStart(2,'0')}-${String(eDate.getDate()).padStart(2,'0')}`;
+
+    // 如已存在同月月报，先确认是否覆盖
+    try {
+      const periodKey = `${sStr0}~${eStr0}`;
+      const exists = await dbInsReportsGet(periodKey);
+      if (exists) {
+        const ok = await confirmDialog({
+          title: '覆盖已存在的月报？',
+          message: '该时间范围的报告已存在。继续将覆盖已保存的内容（不可撤销）。如需保留原版本，建议先导出或备份。',
+          okText: '覆盖保存',
+          cancelText: '取消'
+        });
+        if (!ok) return;
+      }
+    } catch {}
 
     // 先计算真实 stats（用于保存以及占位渲染）
     const days = await dbInsViewsRange(periodStart, periodEnd);
-    let prevY = Number(y);
-    let prevM = Number(m) - 1;
-    if (prevM <= 0) { prevY -= 1; prevM = 12; }
-    const prevStart = `${prevY}-${String(prevM).padStart(2,'0')}-01`;
-    const prevEnd = new Date(prevY, prevM, 0).toISOString().slice(0, 10);
+    // 计算等长上一周期
+    const dayMs = 24 * 60 * 60 * 1000;
+    const rangeDays = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / dayMs) + 1);
+    const pPrevEndDate = new Date(sDate.getTime() - dayMs);
+    const pPrevStartDate = new Date(pPrevEndDate.getTime() - (rangeDays - 1) * dayMs);
+    const prevStart = `${pPrevStartDate.getFullYear()}-${String(pPrevStartDate.getMonth()+1).padStart(2,'0')}-${String(pPrevStartDate.getDate()).padStart(2,'0')}`;
+    const prevEnd = `${pPrevEndDate.getFullYear()}-${String(pPrevEndDate.getMonth()+1).padStart(2,'0')}-${String(pPrevEndDate.getDate()).padStart(2,'0')}`;
     const prevDays = await dbInsViewsRange(prevStart, prevEnd);
     const settings = await getSettings();
     const ins = settings?.insights || {};
-    const stats = aggregateMonthly(days, {
-      topN: ins.topN ?? 10,
-      previousDays: prevDays,
-      changeThresholdRatio: ins.changeThresholdRatio,
-      minTagCount: ins.minTagCount,
-      risingLimit: ins.risingLimit,
-      fallingLimit: ins.fallingLimit,
-    });
+    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'views';
+    const startMs = sDate.getTime();
+    const endMs = eDate.getTime();
+    let stats: any;
+    if (source === 'views') {
+      stats = aggregateMonthly(days, {
+        topN: ins.topN ?? 10,
+        previousDays: prevDays,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+      });
+    } else {
+      const all = await fetchAllVideoRecordsPaged(800);
+      const ret = aggregateCompareFromRecords(all, startMs, endMs, {
+        topN: ins.topN ?? 10,
+        changeThresholdRatio: ins.changeThresholdRatio,
+        minTagCount: ins.minTagCount,
+        risingLimit: ins.risingLimit,
+        fallingLimit: ins.fallingLimit,
+        statusScope: (ins.statusScope as any) || 'viewed',
+      });
+      const minSamples = Number(ins.minMonthlySamples ?? 10);
+      if (source === 'auto' && ret.newCount < minSamples) {
+        stats = aggregateMonthly(days, {
+          topN: ins.topN ?? 10,
+          previousDays: prevDays,
+          changeThresholdRatio: ins.changeThresholdRatio,
+          minTagCount: ins.minTagCount,
+          risingLimit: ins.risingLimit,
+          fallingLimit: ins.fallingLimit,
+        });
+      } else {
+        stats = ret.stats;
+      }
+    }
 
     // 使用当前预览 HTML（若无则生成示例，包含图表依赖字段）
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
@@ -651,14 +1375,14 @@ export const insightsTab = {
     if (!html) {
       const tpl = await loadTemplate();
       const now = new Date();
-      const topBrief = (stats.tagsTop || []).slice(0, 5).map(t => `${t.name}(${t.count})`).join('、');
+      const topBrief = (stats.tagsTop || []).slice(0, 5).map((t: any) => `${t.name}(${t.count})`).join('、');
       const ch = stats?.changes || { newTags: [], rising: [], falling: [] };
       const changeIns: string[] = [];
       if (Array.isArray(ch.newTags) && ch.newTags.length) changeIns.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
       if (Array.isArray(ch.rising) && ch.rising.length) changeIns.push(`明显上升：${ch.rising.slice(0,5).join('、')}`);
       if (Array.isArray(ch.falling) && ch.falling.length) changeIns.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
       const fields = {
-        reportTitle: `我的观影标签月报（${y}年${m}月）`,
+        reportTitle: `我的观影标签报告`,
         periodText: `统计范围：${periodStart} ~ ${periodEnd}`,
         summary: '（占位）基于本地统计与模板生成的摘要。',
         insightList: [
@@ -678,7 +1402,7 @@ export const insightsTab = {
 
     const nowMs = Date.now();
     const report: ReportMonthly = {
-      month: `${y}-${m}`,
+      month: `${sStr0}~${eStr0}`,
       period: { start: periodStart, end: periodEnd },
       stats,
       html,
@@ -706,17 +1430,31 @@ export const insightsTab = {
       const month = r.month || '';
       return `
         <div class="history-item" data-month="${month}" style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee;">
+          <input type="checkbox" class="history-select" data-month="${month}" />
           <div style="flex:1;">
             <div style="font-weight:600;">${month}</div>
             <div style="color:#888; font-size:12px;">创建于 ${ts}</div>
           </div>
           <div style="display:flex; gap:6px;">
-            <button data-action="preview" data-month="${month}">预览</button>
-            <button data-action="delete" data-month="${month}">删除</button>
+            <button class="btn-secondary btn-sm history-preview-btn" style="background:#ffffff; border:1px solid #e5e7eb; color:#334155; -webkit-text-fill-color:#334155" data-action="preview" data-month="${month}"><i class="fas fa-eye"></i>&nbsp;预览</button>
           </div>
         </div>
       `;
     }).join('');
+
+    // 勾选变化时，联动“删除所选”可用态
+    try {
+      listEl.addEventListener('change', (ev) => {
+        const t = ev.target as HTMLElement;
+        if (!t) return;
+        if (t.matches && t.matches('input.history-select')) {
+          updateDeleteSelectedEnabled();
+        }
+      });
+    } catch {}
+
+    // 初次渲染后更新一次
+    updateDeleteSelectedEnabled();
 
     // 事件委托
     listEl.onclick = async (ev) => {
@@ -730,9 +1468,6 @@ export const insightsTab = {
         if (iframe && rec?.html) {
           iframe.srcdoc = prepareForPreview(rec.html);
         }
-      } else if (action === 'delete') {
-        await dbInsReportsDelete(month);
-        await this.refreshHistory();
       }
     };
   },

@@ -9,7 +9,8 @@ import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
-import { registerMonthlyAlarm, handleAlarm, compensateOnStartup } from './scheduler';
+import { registerMonthlyAlarm, handleAlarm, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
+import { getSettings } from '../utils/storage';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
@@ -52,7 +53,21 @@ registerWebDAVRouter();
 registerDbMessageRouter();
 registerMiscRouter();
 registerNetProxyRouter();
-try { registerMonthlyAlarm(); } catch {}
+// 仅当用户开启“自动月报”时才注册闹钟
+try {
+  (async () => {
+    try {
+      const settings = await getSettings();
+      const ins = settings?.insights || {};
+      if (ins.autoMonthlyEnabled) {
+        const minute = Number(ins.autoMonthlyMinuteOfDay ?? 10);
+        registerMonthlyAlarm({ enabled: true, minuteOfDay: Number.isFinite(minute) ? minute : 10 });
+      } else {
+        try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
+      }
+    } catch {}
+  })();
+} catch {}
 
 // 安装封面 Referer 规则
 installCoversRefererDNR();
@@ -62,12 +77,18 @@ try {
   console.info('[Background] Service Worker ready', { ts: new Date().toISOString() });
 } catch {}
 
-// 浏览器启动时初始化新作品调度器
+// 浏览器启动时：仅当用户开启“自动补偿”时尝试补偿
 try {
   chrome.runtime.onStartup.addListener(async () => {
     try {
       await newWorksScheduler.initialize();
-      try { compensateOnStartup(); } catch {}
+      try {
+        const settings = await getSettings();
+        const ins = settings?.insights || {};
+        if (ins.autoCompensateOnStartupEnabled) {
+          compensateOnStartup();
+        }
+      } catch {}
     } catch (e: any) {
       console.warn('[Background] Failed to initialize new works scheduler:', e?.message || e);
     }
@@ -78,6 +99,24 @@ try {
 try {
   chrome.alarms.onAlarm.addListener((alarm) => {
     try { handleAlarm(alarm?.name || ''); } catch {}
+  });
+} catch {}
+
+// 监听设置变化：动态应用“自动月报”开关
+try {
+  chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (area === 'local' && changes['settings']) {
+      try {
+        const settings = await getSettings();
+        const ins = settings?.insights || {};
+        if (ins.autoMonthlyEnabled) {
+          const minute = Number(ins.autoMonthlyMinuteOfDay ?? 10);
+          registerMonthlyAlarm({ enabled: true, minuteOfDay: Number.isFinite(minute) ? minute : 10 });
+        } else {
+          try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
+        }
+      } catch {}
+    }
   });
 } catch {}
 
