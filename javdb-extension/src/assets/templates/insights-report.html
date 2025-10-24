@@ -22,6 +22,7 @@
     .table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .table th, .table td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; }
     .table th { color: #475569; font-weight: 600; background: #f8fafc; }
+    .notice { background: #fff7ed; border: 1px solid #fdba74; color: #92400e; padding: 10px 12px; border-radius: 8px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -31,15 +32,10 @@
       <p id="period-text">{{periodText}}</p>
     </header>
 
-    <section id="kpis">
-      <div class="kpis">
-        <div class="kpi"><div class="label">Top3占比</div><div id="kpi-top3" class="value">-</div></div>
-        <div class="kpi"><div class="label">HHI</div><div id="kpi-hhi" class="value">-</div></div>
-        <div class="kpi"><div class="label">熵</div><div id="kpi-entropy" class="value">-</div></div>
-        <div class="kpi"><div class="label">趋势</div><div id="kpi-trend" class="value">-</div></div>
-      </div>
+    <section id="disclaimer">
+      <div class="notice" id="disclaimer-block">{{disclaimerHTML}}</div>
     </section>
-
+    
     <section id="summary">
       <h2>摘要</h2>
       <p id="summary-text">{{summary}}</p>
