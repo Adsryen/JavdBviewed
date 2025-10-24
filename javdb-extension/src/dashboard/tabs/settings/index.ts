@@ -77,6 +77,54 @@ export async function initAllSettingsPanels(): Promise<void> {
                                 <p class="input-description">“下降”列表中最多展示的标签数量（默认5）。</p>
                             </div>
                         </div>
+                        <div class="settings-section">
+                            <h4><i class="fas fa-filter"></i> 统计状态口径（compare 模式）</h4>
+                            <div class="form-group">
+                                <label for="insightsStatusScope">统计口径：</label>
+                                <select id="insightsStatusScope" class="text-input">
+                                    <option value="viewed">仅“已看”（默认）</option>
+                                    <option value="viewed_browsed">“已看 + 已浏览”</option>
+                                    <option value="viewed_browsed_want">“已看 + 已浏览 + 想看”（全部）</option>
+                                </select>
+                                <p class="input-description">仅影响“番号库 compare 模式”的基线与当月新增；不影响观看日表口径。</p>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <h4><i class="fas fa-database"></i> 数据源模式</h4>
+                            <div class="form-group">
+                                <label for="insightsSource">数据源：</label>
+                                <select id="insightsSource" class="text-input">
+                                    <option value="views">观看日表（当前实现）</option>
+                                    <option value="compare">番号库 compare（基线 vs 新增）</option>
+                                    <option value="auto">自动（样本足够用 compare，否则回退 views）</option>
+                                </select>
+                                <p class="input-description">“compare/auto”将基于番号库的更新时间（updatedAt）与状态口径进行统计。</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="insightsMinMonthlySamples">最小样本量（compare/auto 回退阈值）:</label>
+                                <input type="number" id="insightsMinMonthlySamples" class="number-input" min="0" max="999" value="10">
+                                <p class="input-description">当月新增样本数小于该值时（仅 auto 模式），自动回退到“观看日表”口径。</p>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <h4><i class="fas fa-clock"></i> 自动生成</h4>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="insightsAutoMonthlyEnabled">
+                                <label for="insightsAutoMonthlyEnabled">自动月报（按月定时）</label>
+                            </div>
+                            <p class="input-description">默认关闭；开启后每月 1 日 00:10 生成上月报告（后台可调整分钟）。</p>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="insightsAutoCompensateEnabled">
+                                <label for="insightsAutoCompensateEnabled">启动补偿（错过后自动补生成）</label>
+                            </div>
+                            <p class="input-description">默认关闭；仅在开启后才会在浏览器启动/扩展唤醒时补偿生成。</p>
+                            <div class="form-group" style="margin-top:8px;">
+                                <label for="insightsAutoMinuteOfDay">触发分钟（0-1439）：</label>
+                                <input type="number" id="insightsAutoMinuteOfDay" class="number-input" min="0" max="1439" value="10">
+                                <p class="input-description">表示在每月 1 日的 00:00 后延迟的分钟数，例如 10 表示 00:10 触发。</p>
+                            </div>
+                            <div id="insights-auto-tip" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid #fde68a;background:#fef3c7;color:#92400e;border-radius:6px;font-size:12px;"></div>
+                        </div>
                     </div>
                 `;
 

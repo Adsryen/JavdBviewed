@@ -1,30 +1,48 @@
 <section class="tab-section" data-tab-id="insights">
   <div class="container">
-    <h2>观影报告（测试中）</h2>
+    <h2>观影报告</h2>
     <div class="alert-banner beta">
       <span class="icon">⚠</span>
       <span>测试功能：数据与交互仍在完善中，可能不稳定</span>
     </div>
-    <div class="controls">
-      <label>时间范围：</label>
-      <input type="month" id="insights-month" />
-      <button id="insights-generate">生成报告</button>
-      <button id="insights-save">保存为月报</button>
-      <button id="insights-export-html">导出 HTML</button>
-      <button id="insights-export-md">导出 Markdown</button>
-      <button id="insights-export-json">导出全部月报（JSON）</button>
-      <button id="insights-import-json">导入月报（JSON）</button>
-      <button id="insights-refresh-history">刷新历史</button>
+
+    <!-- 顶部工具栏：主动作清晰、分组排列 -->
+    <div class="insights-toolbar">
+      <!-- 第二行：时间范围 + 生成 + 查看生成过程 -->
+      <div class="toolbar-row row-2">
+        <div class="toolbar-left">
+          <div class="field-inline">
+            <label for="insights-month-start">时间范围：</label>
+            <input type="month" id="insights-month-start" />
+            <span style="margin: 0 6px; color: #64748b;">—</span>
+            <input type="month" id="insights-month-end" />
+          </div>
+          <button id="insights-generate" class="btn-primary"><i class="fas fa-magic" aria-hidden="true"></i>&nbsp;生成报告</button>
+        </div>
+        <div class="toolbar-right" id="insights-toolbar-row2-actions">
+          <!-- 这里将插入“查看生成过程”按钮（由脚本动态注入） -->
+        </div>
+      </div>
     </div>
 
-    <div class="history">
-      <h3>历史月报（保留 24 个月）</h3>
-      <div id="insights-history-list"></div>
-    </div>
-
-    <div class="preview">
-      <h3>预览</h3>
-      <iframe id="insights-preview" style="width:100%;height:480px;border:1px solid #e5e7eb;"></iframe>
+    <!-- 内容区：左右双栏布局（左：历史；右：预览） -->
+    <div class="insights-grid">
+      <div class="col-left">
+        <div class="section-title">
+          <div class="title-left"><i class="fas fa-history"></i>&nbsp;历史月报（保留 24 个月）</div>
+        </div>
+        <div class="history-actions">
+          <button id="insights-export" class="btn-secondary"><i class="fas fa-file-export"></i>&nbsp;导出</button>
+          <button id="insights-delete-selected" class="btn-danger" disabled><i class="fas fa-trash-alt"></i>&nbsp;删除所选</button>
+          <button id="insights-refresh-history" class="btn-ghost"><i class="fas fa-sync-alt"></i>&nbsp;刷新历史</button>
+        </div>
+        <div id="insights-history-list" class="history-list"></div>
+      </div>
+      <div class="col-right">
+        <div class="section-title"><div class="title-left"><i class="fas fa-eye"></i>&nbsp;预览</div></div>
+        <iframe id="insights-preview" style="width:100%;height:520px;border:1px solid #e5e7eb;border-radius:8px;"></iframe>
+      </div>
     </div>
   </div>
+  
 </section>
