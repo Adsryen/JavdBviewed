@@ -285,27 +285,11 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
       const merged = mergeFields(baseFields, asJson);
       return renderTemplate({ templateHTML, fields: merged });
     }
-    // 解析为 HTML
+    // 禁止采用 AI 自带的 HTML（避免干扰图表/排行渲染），若不是 JSON 则回退本地模板
     if (isLikelyHTML(text)) {
-      let html = text;
-      // 确保 base 与 statsJSON 存在（如 AI 未填充这些占位符）
-      try {
-        if (!/<base[^>]*>/i.test(html)) {
-          const base = baseFields.baseHref || './';
-          if (/<head[^>]*>/i.test(html)) {
-            html = html.replace(/<head[^>]*>/i, (m: string) => `${m}\n  <base href="${base}">`);
-          }
-        }
-        // 在 charts section 之前插入数据模板（尽力而为）
-        if (!/id=["']insights-data["']/i.test(html) && baseFields.statsJSON) {
-          html = html.replace(/<section[^>]*id=["']charts["'][^>]*>/i, (m: string) => `${m}\n  <template id="insights-data">${baseFields.statsJSON}</template>`);
-        }
-      } catch (e) {
-        try { addTrace('warn', 'PARSE', 'htmlAdjustError', { error: (e as any)?.message || String(e) }); } catch {}
-      }
-      try { addTrace('info', 'INSIGHTS', 'parsedAsHTML'); } catch {}
-      endGenerationTrace('success', { parsedAs: 'html', outputLen: text.length, outputHead: text.slice(0, 200) });
-      return html;
+      try { addTrace('warn', 'INSIGHTS', 'htmlIgnored'); } catch {}
+      endGenerationTrace('fallback', { parsedAs: 'html', outputLen: text.length, outputHead: text.slice(0, 200) });
+      return renderTemplate({ templateHTML, fields: baseFields });
     }
 
     // 无法识别，回退
