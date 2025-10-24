@@ -225,6 +225,17 @@ export interface ExtensionSettings {
         minTagCount?: number; // 噪声过滤最小计数，默认 3
         risingLimit?: number; // 上升标签最多展示条数，默认 5
         fallingLimit?: number; // 下降标签最多展示条数，默认 5
+        // 统计状态口径（仅影响 compare 模式）
+        // 'viewed' = 仅“已看”；'viewed_browsed' = “已看+已浏览”；'viewed_browsed_want' = “已看+已浏览+想看”
+        statusScope?: 'viewed' | 'viewed_browsed' | 'viewed_browsed_want';
+        // 数据源模式（待接入 compare 模式）
+        source?: 'views' | 'compare' | 'auto';
+        // 样本量不足回退阈值（compare 模式/auto 模式），默认 10
+        minMonthlySamples?: number;
+        // 自动月报（后台）控制项
+        autoMonthlyEnabled?: boolean; // 是否启用按月自动生成（默认 false）
+        autoCompensateOnStartupEnabled?: boolean; // 浏览器启动/扩展唤醒时是否自动补偿生成（默认 false）
+        autoMonthlyMinuteOfDay?: number; // 触发分钟（0-1439），默认 10 → 00:10
     };
 
     version: string;

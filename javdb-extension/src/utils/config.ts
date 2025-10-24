@@ -416,6 +416,13 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         minTagCount: 3,
         risingLimit: 5,
         fallingLimit: 5,
+        statusScope: 'viewed',
+        source: 'views',
+        minMonthlySamples: 10,
+        // 自动月报：默认关闭，仅用户开启时才注册闹钟与补偿
+        autoMonthlyEnabled: false,
+        autoCompensateOnStartupEnabled: false,
+        autoMonthlyMinuteOfDay: 10,
     },
 
     version: '0.0.0',

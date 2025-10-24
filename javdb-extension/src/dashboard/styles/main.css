@@ -7,6 +7,293 @@ body {
     min-width: 800px;
 }
 
+/* ===== Insights（报告）页：结构化布局与按钮分级 ===== */
+.tab-section[data-tab-id="insights"] .insights-toolbar {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+    display: block !important; /* 强制块级容器，避免其他样式覆盖 */
+    padding: 8px 0 12px;
+    border-bottom: 1px solid #eaecef;
+    margin-bottom: 12px;
+}
+
+/* 工具栏行：每一行左右分布、自动换行 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    flex: 1 0 100%; /* 即使父级是 flex，也强制占满整行 */
+    margin-top: 6px;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-1 {
+    margin-top: 0;
+}
+
+/* 让第二行左侧容器可收缩换行，右侧保持内容宽度 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row .toolbar-left {
+    flex: 1 1 520px;
+    min-width: 360px;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row .toolbar-right {
+    flex: 0 0 auto;
+}
+
+.tab-section[data-tab-id="insights"] .toolbar-left,
+.tab-section[data-tab-id="insights"] .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tab-section[data-tab-id="insights"] .field-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.tab-section[data-tab-id="insights"] .field-inline label {
+    color: #555;
+    font-weight: 500;
+}
+
+/* 时间范围选择：统一外观与焦点态 */
+.tab-section[data-tab-id="insights"] #insights-month,
+.tab-section[data-tab-id="insights"] #insights-month-start,
+.tab-section[data-tab-id="insights"] #insights-month-end {
+    appearance: auto;
+    -webkit-appearance: auto;
+    border: 1px solid #d0d7de;
+    background: #fff;
+    color: #111827;
+    border-radius: 6px;
+    padding: 6px 10px;
+    height: 32px;
+    font-size: 13px;
+    min-width: 150px;
+}
+.tab-section[data-tab-id="insights"] #insights-month:focus,
+.tab-section[data-tab-id="insights"] #insights-month-start:focus,
+.tab-section[data-tab-id="insights"] #insights-month-end:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* 按钮分级：主/次/幽灵（弱强调） */
+.btn-primary { background-color: #007bff; color: #fff; }
+.btn-primary:hover { background-color: #0069d9; }
+
+.btn-secondary { background-color: #17a2b8; color: #fff; }
+.btn-secondary:hover { background-color: #138496; }
+
+/* 危险动作：删除 */
+.btn-danger { background-color: #dc3545; color: #fff; }
+.btn-danger:hover { background-color: #c82333; }
+
+.btn-ghost {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #e9ecef;
+}
+.btn-ghost:hover { background: #f1f3f5; }
+.btn-group { display: inline-flex; gap: 8px; }
+
+/* 双栏内容区：左（历史） | 右（预览） */
+.tab-section[data-tab-id="insights"] .insights-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.5fr; /* 左侧减少约10%，右侧加宽（原 1fr 1.4fr） */
+    gap: 16px;
+}
+
+.tab-section[data-tab-id="insights"] .section-title {
+    font-weight: 600;
+    color: #333;
+    margin: 8px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-start; /* 默认左对齐，避免图标与文字分开 */
+}
+
+.tab-section[data-tab-id="insights"] .section-title.has-actions {
+    justify-content: space-between; /* 含右侧动作时，左右分布 */
+}
+
+.tab-section[data-tab-id="insights"] .section-title .title-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tab-section[data-tab-id="insights"] .section-title .section-actions {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 统一历史标题右侧两个按钮的尺寸与布局（强制一致） */
+.tab-section[data-tab-id="insights"] #insights-export,
+.tab-section[data-tab-id="insights"] #insights-refresh-history,
+.tab-section[data-tab-id="insights"] #insights-delete-selected {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 12px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+/* 历史月报标题右侧按钮：参考“保存为月报”的胶囊样式 */
+.tab-section[data-tab-id="insights"] #insights-export {
+    border-radius: 999px;
+    font-size: 12px;
+    background: #2563eb;           /* primary 蓝 */
+    border: 1px solid #1d4ed8;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.tab-section[data-tab-id="insights"] #insights-export:hover:not(:disabled) {
+    background: #1d4ed8;
+    border-color: #1e40af;
+}
+
+.tab-section[data-tab-id="insights"] #insights-export i,
+.tab-section[data-tab-id="insights"] #insights-refresh-history i {
+    line-height: 1;
+    font-size: 13px;
+    display: inline-block;
+}
+
+.tab-section[data-tab-id="insights"] #insights-refresh-history {
+    border-radius: 999px;
+    font-size: 12px;
+    background: #f8fafc;           /* 低强调浅底 */
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.tab-section[data-tab-id="insights"] #insights-refresh-history:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #1f2937;
+}
+
+/* 删除所选：危险色胶囊按钮 */
+.tab-section[data-tab-id="insights"] #insights-delete-selected {
+    border-radius: 999px;
+    font-size: 12px;
+    background: #ef4444;
+    border: 1px solid #dc2626;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.tab-section[data-tab-id="insights"] #insights-delete-selected:hover:not(:disabled) {
+    background: #dc2626;
+    border-color: #b91c1c;
+}
+
+.tab-section[data-tab-id="insights"] #insights-delete-selected:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* 预览区右上角动作容器（绝对定位在 iframe 顶边） */
+.tab-section[data-tab-id="insights"] #insights-preview-actions {
+    position: absolute;
+    right: 8px;
+    top: 8px; /* JS 会根据 iframe.offsetTop 进行覆盖修正 */
+    z-index: 6; /* 高于加载遮罩(5) */
+    display: flex;
+    gap: 8px;
+}
+/* 按钮采用自然宽高（胶囊形），不再强制 28px 圆形 */
+.tab-section[data-tab-id="insights"] .preview-copy-btn,
+.tab-section[data-tab-id="insights"] .preview-save-btn {
+    height: 28px;
+}
+
+/* 历史标题下的动作区（新一行） */
+.tab-section[data-tab-id="insights"] .history-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0 10px 0;
+}
+
+@keyframes ins-spark {
+    0%, 100% { transform: translateY(0) scale(1); opacity: .9; }
+    50% { transform: translateY(-1px) scale(1.12); opacity: 1; }
+}
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    top: -1px;
+}
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span {
+    font-size: 12px;
+    line-height: 1;
+    color: #fde047;
+    text-shadow: 0 0 6px rgba(250, 204, 21, 0.8);
+    animation: ins-spark 1.8s ease-in-out infinite;
+}
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span:nth-child(2) {
+    animation-delay: .14s;
+}
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span:nth-child(3) {
+    animation-delay: .28s;
+}
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkle-tail {
+    margin-left: 6px;
+    font-size: 10px;
+    line-height: 1;
+    color: #fde047;
+    opacity: .9;
+    text-shadow: 0 0 5px rgba(250, 204, 21, 0.7);
+    position: relative;
+    top: -1px;
+    animation: ins-spark 2s ease-in-out infinite;
+    animation-delay: .42s;
+}
+.tab-section[data-tab-id="insights"] .preview-copy-btn:hover {
+    background: #f8fafc;
+}
+
+/* 导出下拉菜单项 hover 高亮 */
+#insights-export-menu [data-fmt] {
+    display: block;
+    transition: background-color .15s ease, color .15s ease;
+}
+#insights-export-menu [data-fmt]:hover {
+    background: #eef2ff; /* 明显一点的 hover 背景 */
+    color: #111827;
+}
+
+.tab-section[data-tab-id="insights"] .history-list {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 140px;
+}
+
+@media (max-width: 1080px) {
+  .tab-section[data-tab-id="insights"] .insights-grid {
+      grid-template-columns: 1fr; /* 窄屏单列 */
+  }
+}
+
 .dashboard-container {
     display: flex;
     flex-direction: column; /* 顶层改为上下结构：Topbar 在上，Body 在下 */
@@ -279,6 +566,58 @@ button, .button-like {
   #insights-refresh-history:hover:not(:disabled) {
       background-color: #5a36a0;
   }
+
+  /* 小号按钮：用于历史列表等密集区域 */
+  .btn-sm {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  /* 历史列表按钮布局微调 */
+  .tab-section[data-tab-id="insights"] .history-item button {
+      min-width: 72px;
+  }
+
+  /* 历史列表：将“预览/删除”按钮统一为胶囊小按钮，和导出/刷新相同高度 */
+  .tab-section[data-tab-id="insights"] .history-item .btn-sm {
+      height: 28px;
+      min-height: 28px;
+      padding: 0 12px;
+      line-height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-sizing: border-box;
+      white-space: nowrap;
+  }
+  .tab-section[data-tab-id="insights"] .history-item .btn-sm i {
+      line-height: 1;
+      font-size: 13px;
+  }
+
+  /* 历史列表：预览按钮（次级、浅色胶囊） */
+  .tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      color: #334155;
+  }
+  .tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm:hover {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #1f2937;
+  }
+
+  .tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm,
+  .tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm *,
+  .tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm i {
+      color: #334155 !important;
+      -webkit-text-fill-color: #334155 !important;
+  }
+
+  /* 历史列表：删除按钮沿用危险色，只调整为胶囊小按钮（由 .btn-sm 统一高度处理） */
 
   /* ===== 通用高亮提示条（用于标题下方的测试/公告等） ===== */
   .alert-banner {
@@ -937,20 +1276,6 @@ button.primary {
         padding: 0 6px;
         font-size: 12px;
     }
-
-    .pagination {
-        gap: 2px;
-    }
-}
-
-/* ===== 通用统计概览样式 ===== */
-.stats-section {
-    margin-bottom: 24px;
-    padding: 20px;
-    background: linear-gradient(135deg, #ffffff, #f8f9fa);
-    border-radius: 16px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .stats-section h4 {
