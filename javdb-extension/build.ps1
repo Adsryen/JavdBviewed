@@ -27,8 +27,8 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  [4] Just Build (build without changing the version number)" -ForegroundColor White
     Write-Host "      Just Build - no version change" -ForegroundColor Gray
-    Write-Host "  [5] Generate GitHub Release (auto notes, skip build)" -ForegroundColor White
-    Write-Host "      Create release with gh --generate-notes, use existing artifact" -ForegroundColor Gray
+    Write-Host "  [5] Generate GitHub Release (custom notes, skip build)" -ForegroundColor White
+    Write-Host "      Create release with custom notes (prev tag..current tag), use existing artifact" -ForegroundColor Gray
     Write-Host "  [6] Exit" -ForegroundColor White
     Write-Host ""
 }
@@ -248,7 +248,7 @@ if (-not (Test-Path $zipPath)) {
     exit 1
 }
 
-# Fast path: Auto-generated notes via gh (applies to release-only or interactive)
+# Fast path: Create release with custom notes (prev tag..current tag)
 if ($autoNotes) {
     # Ensure tag exists; create if missing
     try {
@@ -271,15 +271,58 @@ if ($autoNotes) {
         exit 1
     }
 
-    # Create release with auto-generated notes
-    Write-Host "Creating release (auto notes) and uploading $zipName..." -ForegroundColor Gray
+    # Compose custom release notes between previous tag and current tag
+    Write-Host "Creating release (custom notes) and uploading $zipName..." -ForegroundColor Gray
+    $prevTag = ""
     try {
-        & gh release create $tagName $zipPath --title "Release $tagName" --generate-notes
+        $prevTag = & git describe --tags --abbrev=0 "$($tagName)^" 2>$null
+    } catch {}
+    $remote = ""
+    try { $remote = & git config --get remote.origin.url } catch {}
+    $repoUrl = $remote
+    if ($remote -match '^git@github.com:(.+?)(\.git)?$') {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    } elseif ($remote -match '^https://github.com/(.+?)(\.git)?$') {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    } else {
+        if ($repoUrl.EndsWith('.git')) { $repoUrl = $repoUrl.Substring(0, $repoUrl.Length - 4) }
+    }
+
+    $notesPath = "release-notes-$tagName.md"
+    $content = New-Object System.Collections.Generic.List[string]
+    $content.Add("Release $tagName") | Out-Null
+    $content.Add("") | Out-Null
+    $range = $null
+    if ($prevTag) {
+        $content.Add("Commits since $prevTag") | Out-Null
+        $range = "$prevTag..$tagName"
+    } else {
+        $content.Add("Commits") | Out-Null
+        $root = ""
+        try { $root = & git rev-list --max-parents=0 $tagName 2>$null } catch {}
+        if ($root) { $range = "$root..$tagName" } else { $range = $tagName }
+    }
+    $fmt = "- %s ([%h]($repoUrl/commit/%H)) by %an"
+    $logLines = & git log --no-merges --pretty=format:$fmt $range
+    if ($LASTEXITCODE -eq 0 -and $logLines) {
+        foreach ($l in $logLines) { $content.Add($l) | Out-Null }
+    }
+    if ($prevTag) {
+        $content.Add("") | Out-Null
+        $content.Add("Compare") | Out-Null
+        $content.Add("$repoUrl/compare/$prevTag...$tagName") | Out-Null
+    }
+    try { Set-Content -Path $notesPath -Value $content -Encoding UTF8 } catch {}
+
+    try {
+        & gh release create $tagName $zipPath --title "Release $tagName" -F $notesPath
         if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed" }
         Write-Host "GitHub Release created successfully!" -ForegroundColor Green
         Show-Success
+        Remove-Item -Force $notesPath -ErrorAction SilentlyContinue
         exit 0
     } catch {
+        Remove-Item -Force $notesPath -ErrorAction SilentlyContinue
         Show-Error
         exit 1
     }
