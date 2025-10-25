@@ -15,12 +15,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 root_dir="$(cd "$(dirname "$0")" && pwd)"
-# Default: run interactive menu unless --quick/-q is specified
-if [[ "${1-}" != "--quick" && "${1-}" != "-q" ]]; then
-  if [[ -f "$root_dir/scripts/build-menu.sh" ]]; then
-    exec bash "$root_dir/scripts/build-menu.sh" "$@"
-  fi
-fi
+# Default: we'll handle interactive menu inside this script; no external exec
 dist_dir="$root_dir/dist"
 zip_dir="$root_dir/dist-zip"
 zip_name=""
@@ -70,7 +65,7 @@ zip_dist() {
   fi
 }
 
-main() {
+quick_build() {
   info "Working dir: $root_dir"
 
   if ! have node; then err "Node.js 未安装"; exit 1; fi
@@ -97,181 +92,196 @@ main() {
   ok "Zip: $zip_dir/$zip_name"
 }
 
-main "$@"
-exit 0
-#!/usr/bin/env bash
+# ----- Integrated interactive menu (merged from scripts/build-menu.sh) -----
 
-# JavDB Extension - Interactive Build Assistant (Shell Version)
-# Ported from PowerShell version with full feature parity
+ask() { read -r -p "$1 " _ans; echo "${_ans:-}"; }
 
-# Bash strict mode
-set -euo pipefail
-IFS=$'\n\t'
-
-# Color codes for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly CYAN='\033[0;36m'
-readonly GRAY='\033[0;37m'
-readonly WHITE='\033[1;37m'
-readonly NC='\033[0m' # No Color
-
- # Global variables
- version_type=""
- version_str=""
- tag_name=""
- zip_name=""
- zip_path=""
- release_only="false"
- auto_notes="false"
-
-# --- Helper Functions ---
-
-print_color() {
-    local color="$1"
-{{ ... }}
-        show_error
-        exit 1
-    fi
+git_dirty() {
+  if ! have git; then echo ""; return; fi
+  git status --porcelain 2>/dev/null
 }
 
-create_github_release_auto() {
-    echo ""
-    print_color "$GREEN" "Creating GitHub Release (auto notes)..."
-    
-    check_github_cli
-    read_version_info
-{{ ... }}
-    # Ensure tag exists; create if missing
-    if ! git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null 2>&1; then
-        print_color "$GRAY" "Tag $tag_name not found. Creating annotated tag..."
-        if ! git tag -a "$tag_name" -m "Release $tag_name"; then
-            show_error
-            exit 1
-        fi
-    fi
-    
-    # Push git commits and tags
-    print_color "$GRAY" "Pushing git commits and tags..."
-    if ! git push; then
-        show_error
-        exit 1
-    fi
-    if ! git push --tags; then
-        show_error
-        exit 1
-    fi
-    
-    # Create release with auto-generated notes
-    print_color "$GRAY" "Creating release (auto notes) and uploading $zip_name..."
-    if ! gh release create "$tag_name" "$zip_path" --title "Release $tag_name" --generate-notes; then
-        show_error
-        exit 1
-    fi
-    print_color "$GREEN" "GitHub Release created successfully!"
+install_and_build() {
+  if ! have node; then err "需要 Node.js"; exit 1; fi
+  if ! have pnpm; then err "需要 pnpm (npm i -g pnpm)"; exit 1; fi
+  info "Installing dependencies (pnpm install)"
+  pnpm install --frozen-lockfile || pnpm install
+  info "Building via Vite"
+  pnpm vite build
 }
 
-# --- Main Logic ---
+show_menu() {
+  echo "================================================="
+  echo " JavDB Extension - Interactive Build Assistant"
+  echo "================================================="
+  echo ""
+  echo "请选择构建类型："
+  echo "  [1] Major Release（不兼容变更）"
+  echo "  [2] Minor Release（新增功能）"
+  echo "  [3] Patch Release（修复补丁）"
+  echo "  [4] Just Build（仅构建，不改版本）"
+  echo "  [5] Release Only（仅发布，自定义备注）"
+  echo "  [6] 退出"
+}
 
-main() {
-    # Check required commands
-    check_required_commands
-    
-    while true; do
-        show_menu
-        local choice
-        choice=$(get_user_choice "Enter your choice (1-6)" "4")
-        
-        case "$choice" in
-            "1")
-                version_type="major"
-                break
-                ;;
-            "2")
-                version_type="minor"
-                break
-                ;;
-            "3")
-                version_type="patch"
-                break
-                ;;
-            "4")
-                version_type=""
-                break
-                ;;
-            "5")
-                release_only="true"
-                auto_notes="true"
-                version_type=""
-                break
-                ;;
-            "6")
-                exit 0
-                ;;
-            *)
-                print_color "$RED" "Invalid choice."
-                continue
-                ;;
-        esac
-    done
-    
-    # Version confirmation
-    if [[ -n "$version_type" ]]; then
-        echo ""
-        print_color "$YELLOW" "You have selected a $version_type release. This will create a new git commit and tag."
-        local confirm
-        confirm=$(get_user_choice "Are you sure? (y/n)" "Y")
-        
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            print_color "$YELLOW" "Action cancelled."
-            exit 0
-        fi
-        
-        echo ""
-        print_color "$GREEN" "Updating version..."
-        if ! pnpm tsx scripts/version.ts "$version_type"; then
-            show_error
-            exit 1
-        fi
-    fi
-    
-    # Install dependencies and build (skip when release-only)
-    if [[ "$release_only" != "true" ]]; then
-        install_and_build
+tag_and_push() {
+  local tag="$1"
+  if ! have git; then warn "未检测到 git，跳过打 tag"; return 0; fi
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
+    warn "标签已存在：$tag（跳过创建）"
+  else
+    info "创建标签：$tag"
+    # 按要求：不自动 commit，只创建 tag
+    git tag -a "$tag" -m "Release $tag"
+  fi
+  info "Push commits & tags"
+  git push || true
+  git push --tags || true
+}
+
+create_release_custom() {
+  local tag="$1"; local asset="$2"
+  if ! have gh; then warn "未检测到 GitHub CLI (gh)，跳过创建 Release"; return 0; fi
+  info "创建 GitHub Release: $tag"
+  local prev_tag
+  prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
+  local remote repo_url notes
+  remote="$(git config --get remote.origin.url 2>/dev/null || true)"
+  repo_url=""
+  if [[ "$remote" =~ ^git@github\.com:(.+?)(\.git)?$ ]]; then
+    repo_url="https://github.com/${BASH_REMATCH[1]}"
+  elif [[ "$remote" =~ ^https://github\.com/(.+?)(\.git)?$ ]]; then
+    repo_url="https://github.com/${BASH_REMATCH[1]}"
+  else
+    repo_url="${remote%.git}"
+  fi
+  notes="$root_dir/.release_notes_${tag}.md"
+  {
+    echo "Release $tag"
+    echo
+    if [[ -n "$prev_tag" ]]; then
+      echo "Commits since $prev_tag"
+      git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$prev_tag..$tag"
+      echo
+      echo "Compare"
+      echo "$repo_url/compare/$prev_tag...$tag"
     else
-        print_color "$YELLOW" "Release-only mode: skipping build step."
+      echo "Commits"
+      local root
+      root="$(git rev-list --max-parents=0 "$tag" 2>/dev/null || echo "")"
+      if [[ -n "$root" ]]; then
+        git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$root..$tag"
+      else
+        git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$tag"
+      fi
     fi
-    
-    # Decide GitHub Release for options 1-3 (interactive), keep option 5 as auto notes; skip for Just Build (option 4)
-    if [[ -z "$version_type" && "$release_only" != "true" ]]; then
-        echo ""
-        print_color "$YELLOW" "Just Build selected. Skipping GitHub Release."
-        show_success
-        exit 0
-    fi
-    
-    # Option 5: release-only, auto notes
-    if [[ "$release_only" == "true" ]]; then
-        create_github_release_auto
-        show_success
-        exit 0
-    fi
-    
-    # Options 1-3: ask whether to create release
-    local do_release
-    do_release=$(get_user_choice "Create GitHub Release now? (y/n)" "N")
-    if [[ ! "$do_release" =~ ^[Yy]$ ]]; then
-        echo ""
-        print_color "$YELLOW" "Skip GitHub Release."
-        show_success
-        exit 0
-    fi
-    
-    # Create GitHub Release (auto notes only)
-    create_github_release_auto
-    show_success
+  } > "$notes"
+  echo ""
+  info "预览发布说明如下："
+  echo "----------------------------------------"
+  cat "$notes"
+  echo "----------------------------------------"
+  local confirm_release
+  read -r -p "确认使用以上文案创建 Release 并上传资源吗？(y/n) [Y]: " confirm_release
+  confirm_release="${confirm_release:-Y}"
+  if [[ ! "$confirm_release" =~ ^[Yy]$ ]]; then
+    warn "已取消发布。"
+    rm -f "$notes" || true
+    return 0
+  fi
+  gh release create "$tag" "$asset" --title "Release $tag" -F "$notes" || true
+  rm -f "$notes" || true
 }
 
-# --- Script Start ---
-main "$@" 
+menu_main() {
+  show_menu
+  local choice
+  read -r -p "输入你的选择 (1-6) [4]: " choice
+  choice="${choice:-4}"
+  case "$choice" in
+    1|2|3)
+      local mode="patch"
+      [[ "$choice" == "1" ]] && mode="major"
+      [[ "$choice" == "2" ]] && mode="minor"
+      echo ""
+      warn "选择了 $mode 发布，将创建新的 tag（不自动提交）。"
+      local confirm; confirm=$(ask "确认执行吗？(y/n) [Y]:")
+      [[ -z "$confirm" ]] && confirm="Y"
+      if [[ ! "$confirm" =~ ^[Yy]$ ]]; then warn "已取消"; exit 0; fi
+      info "更新版本号 (version.json & package.json)"
+      if ! pnpm tsx scripts/version.ts "$mode"; then err "版本更新失败"; exit 1; fi
+      install_and_build
+      if [[ ! -d "$dist_dir" ]]; then err "构建失败：缺少 dist/"; exit 1; fi
+      local v; v=$(read_version)
+      zip_dist "$v"
+      local doRel; doRel=$(ask "现在创建 GitHub Release 吗？(y/n) [N]:")
+      doRel="${doRel:-N}"
+      local tag="v${v}"
+      if [[ "$doRel" =~ ^[Yy]$ ]]; then
+        local dirty; dirty=$(git_dirty)
+        if [[ -n "$dirty" ]]; then
+          warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
+          local conf; conf=$(ask "仍要创建标签并发布吗？(y/n) [N]:")
+          conf="${conf:-N}"
+          if [[ ! "$conf" =~ ^[Yy]$ ]]; then
+            warn "已取消发布。请先手动提交后再重试。"
+            exit 0
+          fi
+        fi
+        tag_and_push "$tag"
+        local asset_zip="$zip_dir/$zip_name"
+        create_release_custom "$tag" "$asset_zip"
+      else
+        ok "已跳过 Release。你可以稍后手动运行：git tag/push 或 gh release create"
+      fi
+      ;;
+    4)
+      info "仅构建"
+      install_and_build
+      local v; v=$(read_version)
+      zip_dist "$v"
+      ;;
+    5)
+      info "仅发布（自定义备注）"
+      local v; v=$(read_version)
+      local tag="v${v}"
+      local asset_zip="$zip_dir/javdb-extension-${v}.zip"
+      local asset_tgz="$zip_dir/javdb-extension-${v}.tar.gz"
+      local asset=""
+      if [[ -f "$asset_zip" ]]; then asset="$asset_zip"; elif [[ -f "$asset_tgz" ]]; then asset="$asset_tgz"; fi
+      if [[ -z "$asset" ]]; then err "未找到打包产物，请先选择 [4] 仅构建。"; exit 1; fi
+      local dirty; dirty=$(git_dirty)
+      if [[ -n "$dirty" ]]; then
+        warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
+        local conf; conf=$(ask "仍要创建标签并发布吗？(y/n) [N]:")
+        conf="${conf:-N}"
+        if [[ ! "$conf" =~ ^[Yy]$ ]]; then
+          warn "已取消发布。请先手动提交后再重试。"
+          exit 0
+        fi
+      fi
+      tag_and_push "$tag"
+      create_release_custom "$tag" "$asset"
+      ;;
+    6)
+      exit 0
+      ;;
+    *)
+      err "无效的选项"
+      exit 1
+      ;;
+  esac
+  echo ""
+  ok "完成"
+}
+
+entrypoint() {
+  if [[ "${1-}" == "--quick" || "${1-}" == "-q" ]]; then
+    quick_build "$@"
+  else
+    menu_main "$@"
+  fi
+}
+
+entrypoint "$@"
+ 
