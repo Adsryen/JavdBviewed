@@ -578,19 +578,35 @@ function openTraceModal(): void {
             </div>
           </div>`;
         // 步骤：附带耗时（相对上一步与相对开始）
-        const entries = Array.isArray(trace.entries) ? trace.entries : [];
-        const tStart = typeof trace.startedAt === 'number' ? trace.startedAt : (entries[0]?.time || 0);
-        let prevT = tStart;
+        const rawEntries = Array.isArray(trace.entries) ? trace.entries : [];
+        const tStart = typeof trace.startedAt === 'number' ? trace.startedAt : (rawEntries[0]?.time || 0);
         const fullDur = (typeof trace.startedAt === 'number' && typeof trace.endedAt === 'number')
           ? (trace.endedAt - trace.startedAt)
-          : (entries.length ? (Math.max(0, (entries[entries.length - 1]?.time || 0) - tStart)) : 0);
+          : (rawEntries.length ? (Math.max(0, (rawEntries[rawEntries.length - 1]?.time || 0) - tStart)) : 0);
+
+        // 注入“AI请求中”虚拟步骤（覆盖 dt 为 callStart→callEnd 的等待时长）
+        const entries: any[] = [...rawEntries];
+        try {
+          const aiStart = rawEntries.find((x: any) => x?.tag === 'AI' && x?.message === 'callStart');
+          const aiEnd = rawEntries.find((x: any) => x?.tag === 'AI' && x?.message === 'callEnd');
+          if (aiStart?.time && aiEnd?.time && aiEnd.time > aiStart.time) {
+            const waitMs = aiEnd.time - aiStart.time;
+            const insertAt = Math.max(0, entries.indexOf(aiEnd));
+            entries.splice(insertAt, 0, { time: aiEnd.time, level: 'info', tag: 'AI', message: 'AI请求中', data: { virtual: true, waitMs }, __dt: waitMs });
+          }
+        } catch {}
+
+        let prevT = tStart;
         const stepBlocks: string[] = [];
-        for (const e of entries) {
-          const dt = typeof e.time === 'number' ? (e.time - prevT) : 0;
+        for (const e of entries as any[]) {
+          const dt = typeof (e as any).__dt === 'number'
+            ? (e as any).__dt
+            : (typeof e.time === 'number' ? (e.time - prevT) : 0);
           const tot = typeof e.time === 'number' ? (e.time - tStart) : 0;
           prevT = typeof e.time === 'number' ? e.time : prevT;
           const color = e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6');
-          const pct = fullDur > 0 ? Math.min(100, Math.max(0, Math.round((tot / fullDur) * 100))) : 0;
+          // 进度条改为“单步耗时占比”，并设置最小可见宽度1%
+          const barPct = fullDur > 0 ? Math.min(100, Math.max((dt > 0 ? 1 : 0), Math.round((dt / fullDur) * 100))) : 0;
           stepBlocks.push(`
             <div style="border-left:3px solid ${color}; padding-left:8px; margin:8px 0;">
               <div style="display:flex; flex-wrap:wrap; gap:8px; color:#475569; align-items:center;">
@@ -599,7 +615,7 @@ function openTraceModal(): void {
                 <span style="margin-left:auto; color:#64748b; font-size:11px;">+${fmtDur(dt)} / 总 ${fmtDur(tot)}</span>
               </div>
               <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:6px;">
-                <div style="width:${pct}%; height:100%; background:${color};"></div>
+                <div style="width:${barPct}%; height:100%; background:${color};"></div>
               </div>
               <div style="display:flex; gap:8px; color:#64748b; font-size:11px; margin-top:4px;">
                 <span>区间：${tStart ? fmt(prevT - dt) : '-'} → ${fmt(e.time)}（${fmtDur(dt)}）</span>
@@ -610,6 +626,9 @@ function openTraceModal(): void {
           `);
         }
         const stepsHtml = stepBlocks.length ? stepBlocks.join('') : '<div style="color:#999;">无步骤</div>';
+        const nonStreamNote = (ctx && ctx.streamEnabled === false)
+          ? '<div style="color:#64748b;font-size:11px;margin-bottom:6px;">本次为非流式调用，等待阶段不产生中间步骤</div>'
+          : '';
 
         // 提示词：展示最近一次 PROMPT/messages 的内容
         let promptHtml = '';
@@ -634,7 +653,7 @@ function openTraceModal(): void {
           card('基本信息', baseInfo + (aiCost||'')),
           promptHtml,
           card('上下文', pre(ctx)),
-          card('步骤', stepsHtml),
+          card('步骤', nonStreamNote + stepsHtml),
           card('摘要', pre(trace.summary || {})),
         ].filter(Boolean).join('');
       }
