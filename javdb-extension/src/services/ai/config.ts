@@ -13,7 +13,7 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   model: 'gpt-3.5-turbo',
   maxTokens: 1000,
   temperature: 0.7,
-  timeout: 30000,
+  timeout: 120000,
   streamEnabled: true,
   features: {
     titleTranslation: false,
