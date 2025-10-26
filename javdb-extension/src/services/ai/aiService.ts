@@ -63,6 +63,91 @@ export class AIService {
     }
 
     /**
+     * 使用临时模型发送聊天消息（非流式），不修改/持久化当前全局选中模型
+     */
+    async sendMessageWithModel(
+        messages: ChatMessage[],
+        modelId: string,
+        opts?: { observer?: (e: NonStreamAttemptEvent) => void }
+    ): Promise<ChatCompletionResponse> {
+        if (!this.settings.enabled) {
+            throw new Error('AI功能未启用');
+        }
+
+        if (!modelId) {
+            throw new Error('未选择模型');
+        }
+
+        const request: ChatCompletionRequest = {
+            model: modelId,
+            messages: this.prepareMessages(messages),
+            temperature: this.settings.temperature,
+            max_tokens: this.settings.maxTokens,
+            stream: false
+        };
+
+        let emptyLeft = this.settings.autoRetryEmpty ? Math.max(0, this.settings.autoRetryMax || 0) : 0;
+        let errorLeft = this.settings.errorRetryEnabled ? Math.max(0, this.settings.errorRetryMax || 0) : 0;
+        let emptyAttempts = 0;
+        let errorAttempts = 0;
+
+        const observe = (ev: NonStreamAttemptEvent) => {
+            try { opts?.observer?.(ev); } catch {}
+        };
+
+        const isRetryableError = (err: any): boolean => {
+            const msg = (err instanceof Error ? err.message : String(err || '')) || '';
+            if (!msg) return false;
+            return /请求超时|服务端超时\(408\)|网络错误|超出速率限制\(429\)|服务器错误\(/.test(msg);
+        };
+
+        while (true) {
+            try {
+                const response = await this.client.createChatCompletion(request);
+                const text = response?.choices?.[0]?.message?.content?.trim() || '';
+
+                if (text.length === 0 && emptyLeft > 0) {
+                    emptyAttempts++;
+                    emptyLeft--;
+                    const wait = Math.min(1500, 200 * Math.pow(2, emptyAttempts - 1));
+                    observe({ type: 'emptyRetry', attempt: emptyAttempts, left: emptyLeft, waitMs: wait });
+                    await new Promise(r => setTimeout(r, wait));
+                    continue;
+                }
+
+                if (text.length === 0) {
+                    observe({ type: 'finalEmpty', attempt: emptyAttempts, left: emptyLeft });
+                    throw new Error('AI返回空内容');
+                }
+
+                this.status.connected = true;
+                this.status.currentModel = modelId;
+                this.status.lastError = undefined;
+                this.status.lastUpdate = Date.now();
+                observe({ type: 'success', attempt: 0 });
+                return response;
+            } catch (error) {
+                if (errorLeft > 0 && isRetryableError(error)) {
+                    errorAttempts++;
+                    errorLeft--;
+                    const wait = Math.min(8000, 400 * Math.pow(2, errorAttempts - 1));
+                    const msg = (error instanceof Error ? error.message : String(error || '')) || '未知错误';
+                    observe({ type: 'errorRetry', attempt: errorAttempts, left: errorLeft, waitMs: wait, error: msg });
+                    await new Promise(r => setTimeout(r, wait));
+                    continue;
+                }
+
+                this.status.connected = false;
+                this.status.lastError = error instanceof Error ? error.message : '发送消息失败';
+                this.status.lastUpdate = Date.now();
+                const msg = (error instanceof Error ? error.message : String(error || '')) || '发送消息失败';
+                observe({ type: 'error', attempt: errorAttempts, left: errorLeft, error: msg });
+                throw error;
+            }
+        }
+    }
+
+    /**
      * 保存设置
      */
     async saveSettings(settings: Partial<AISettings>): Promise<void> {

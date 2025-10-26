@@ -1,6 +1,6 @@
 export type PromptPersona = 'doctor' | 'default';
 
-export function buildPrompts(opts?: { persona?: PromptPersona }) {
+export function buildPrompts(opts?: { persona?: PromptPersona; overrides?: { system?: string; rules?: string } }) {
   const persona = opts?.persona || 'default';
 
   const sharedStyle = [
@@ -18,13 +18,13 @@ export function buildPrompts(opts?: { persona?: PromptPersona }) {
     '禁止煽情/挑逗性措辞；避免过度细节；不涉及未成年人与非法情境；整体保持统计与分析语气（如“计数/占比/变化”）。',
   ].join('\n');
 
-  const system = (
+  let system = (
     persona === 'doctor'
       ? [doctorAddon, sharedStyle]
       : [sharedStyle]
   ).join('\n');
 
-  const rules = [
+  let rules = [
     '- reportTitle：≤30字，不要“分析报告/回顾/洞察”等套话；突出本月主题/变化。',
     '- summary：3-5句，120-220字，更人性化：先用人话给出主结论，再用1-2个关键数字背书；少堆数据：',
     '  1) 集中度/分散度：优先写 Top3 占比 + “更集中/更分散”；HHI/熵可选，若写仅给数字（不解释）。',
@@ -43,6 +43,12 @@ export function buildPrompts(opts?: { persona?: PromptPersona }) {
     '- periodText：轻微润色但不改日期范围。',
     '- 只返回上述 5 个键；字符串内双引号需正确转义；不要使用代码围栏/HTML/Markdown/表格/图表。',
   ].join('\n');
+
+  if (opts?.overrides) {
+    const o = opts.overrides;
+    if (typeof o.system === 'string' && o.system.trim()) system = o.system;
+    if (typeof o.rules === 'string' && o.rules.trim()) rules = o.rules;
+  }
 
   return { system, rules };
 }

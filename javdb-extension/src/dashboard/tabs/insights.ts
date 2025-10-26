@@ -4,7 +4,8 @@ import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete,
 import type { ReportMonthly } from "../../types/insights";
 import { dbInsViewsRange, dbViewedPage } from "../dbClient";
 import { aggregateMonthly } from "../../services/insights/aggregator";
-import { getSettings } from "../../utils/storage";
+import { getSettings, saveSettings } from "../../utils/storage";
+import { buildPrompts } from "../../services/insights/prompts";
 import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
 import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
 import type { VideoRecord } from "../../types";
@@ -12,6 +13,191 @@ import { showMessage } from "../ui/toast";
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
+}
+
+function ensurePromptsButton(): HTMLButtonElement | null {
+  try {
+    const BTN_ID = 'insights-edit-prompts';
+    const actionBar = document.getElementById('insights-toolbar-row2-actions');
+    let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null;
+    if (actionBar) {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = BTN_ID;
+        btn.className = 'btn-ghost';
+        btn.innerHTML = '<i class="fas fa-pen"></i>&nbsp;编辑提示词';
+        actionBar.appendChild(btn);
+      }
+      return btn as HTMLButtonElement;
+    }
+    return null;
+  } catch { return null; }
+}
+
+async function openPromptsModal(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const p = ((settings as any)?.insights?.prompts) || {};
+    const defaults = buildPrompts({ persona: 'doctor' });
+    const OVERLAY_ID = 'insights-prompts-overlay';
+    let overlay = document.getElementById(OVERLAY_ID) as HTMLDivElement | null;
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = OVERLAY_ID;
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(15,23,42,0.42)';
+    overlay.style.backdropFilter = 'blur(2px)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    const modal = document.createElement('div');
+    modal.style.width = '820px';
+    modal.style.maxWidth = '95%';
+    modal.style.maxHeight = '85%';
+    modal.style.overflow = 'auto';
+    modal.style.background = '#ffffff';
+    modal.style.borderRadius = '10px';
+    modal.style.boxShadow = '0 12px 36px rgba(0,0,0,0.22)';
+    modal.style.padding = '16px 18px';
+    modal.style.border = '1px solid #e5e7eb';
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '12px';
+    const title = document.createElement('div');
+    title.textContent = '编辑提示词';
+    title.style.fontWeight = '700';
+    title.style.fontSize = '14px';
+    header.appendChild(title);
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.fontSize = '18px';
+    closeBtn.style.lineHeight = '18px';
+    closeBtn.style.background = 'transparent';
+    closeBtn.style.border = 'none';
+    closeBtn.style.cursor = 'pointer';
+    try { closeBtn.style.setProperty('color', '#0f172a', 'important'); } catch { closeBtn.style.color = '#0f172a'; }
+    closeBtn.style.opacity = '0.9';
+    closeBtn.style.padding = '2px 6px';
+    closeBtn.style.borderRadius = '6px';
+    closeBtn.onmouseenter = () => { try { closeBtn.style.setProperty('background', '#f1f5f9', 'important'); } catch { closeBtn.style.background = '#f1f5f9'; } closeBtn.style.opacity = '1'; };
+    closeBtn.onmouseleave = () => { try { closeBtn.style.setProperty('background', 'transparent', 'important'); } catch { closeBtn.style.background = 'transparent'; } closeBtn.style.opacity = '0.9'; };
+    header.appendChild(closeBtn);
+    const body = document.createElement('div');
+    body.style.fontSize = '12px';
+    body.style.color = '#334155';
+    body.style.display = 'grid';
+    body.style.gridTemplateColumns = '1fr';
+    body.style.gap = '12px';
+    const row1 = document.createElement('div');
+    row1.style.display = 'flex';
+    row1.style.gap = '12px';
+    row1.style.alignItems = 'center';
+    const enableLabel = document.createElement('label');
+    enableLabel.textContent = '启用自定义';
+    const enableChk = document.createElement('input');
+    enableChk.type = 'checkbox';
+    enableChk.checked = !!p.enableCustom;
+    row1.appendChild(enableLabel);
+    row1.appendChild(enableChk);
+    const sysWrap = document.createElement('div');
+    const sysLab = document.createElement('div');
+    sysLab.textContent = 'System';
+    const sysTa = document.createElement('textarea');
+    sysTa.style.width = '100%';
+    sysTa.style.height = '140px';
+    sysTa.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    sysTa.style.fontSize = '12px';
+    sysTa.style.lineHeight = '1.5';
+    sysTa.style.padding = '10px';
+    sysTa.style.background = '#f8fafc';
+    sysTa.style.border = '1px solid #e5e7eb';
+    sysTa.style.borderRadius = '6px';
+    sysTa.style.resize = 'vertical';
+    sysTa.value = (typeof p.systemOverride === 'string' && p.systemOverride.trim()) ? p.systemOverride : defaults.system;
+    const rulesWrap = document.createElement('div');
+    const rulesLab = document.createElement('div');
+    rulesLab.textContent = 'Rules';
+    const rulesTa = document.createElement('textarea');
+    rulesTa.style.width = '100%';
+    rulesTa.style.height = '200px';
+    rulesTa.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    rulesTa.style.fontSize = '12px';
+    rulesTa.style.lineHeight = '1.5';
+    rulesTa.style.padding = '10px';
+    rulesTa.style.background = '#f8fafc';
+    rulesTa.style.border = '1px solid #e5e7eb';
+    rulesTa.style.borderRadius = '6px';
+    rulesTa.style.resize = 'vertical';
+    rulesTa.value = (typeof p.rulesOverride === 'string' && p.rulesOverride.trim()) ? p.rulesOverride : defaults.rules;
+    const hint = document.createElement('div');
+    hint.textContent = '未勾选“启用自定义”时，将使用系统默认提示词（当前已展示）。勾选后保存才会覆盖默认值。';
+    hint.style.color = '#64748b';
+    hint.style.fontSize = '12px';
+    sysWrap.appendChild(sysLab);
+    sysWrap.appendChild(sysTa);
+    rulesWrap.appendChild(rulesLab);
+    rulesWrap.appendChild(rulesTa);
+    rulesWrap.appendChild(hint);
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.justifyContent = 'flex-end';
+    actions.style.gap = '8px';
+    const cancel = document.createElement('button');
+    cancel.textContent = '取消';
+    cancel.className = 'btn-secondary';
+    const save = document.createElement('button');
+    save.textContent = '保存';
+    save.className = 'btn-primary';
+    actions.appendChild(cancel);
+    actions.appendChild(save);
+    body.appendChild(row1);
+    body.appendChild(sysWrap);
+    body.appendChild(rulesWrap);
+    body.appendChild(actions);
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.onclick = (ev) => { if (ev.target === overlay) overlay?.remove(); };
+    cancel.onclick = () => overlay?.remove();
+    closeBtn.onclick = () => overlay?.remove();
+
+    const syncDisabled = () => {
+      const enabled = !!enableChk.checked;
+      sysTa.disabled = !enabled;
+      rulesTa.disabled = !enabled;
+      sysTa.style.opacity = enabled ? '1' : '0.7';
+      rulesTa.style.opacity = enabled ? '1' : '0.7';
+    };
+    syncDisabled();
+    enableChk.onchange = syncDisabled;
+    save.onclick = async () => {
+      try {
+        const s = await getSettings();
+        const cur = (s as any).insights || {};
+        const next = {
+          ...cur,
+          prompts: {
+            persona: 'doctor',
+            enableCustom: !!enableChk.checked,
+            systemOverride: sysTa.value || '',
+            rulesOverride: rulesTa.value || '',
+          }
+        };
+        (s as any).insights = next;
+        await saveSettings(s as any);
+        try { showMessage('已保存提示词设置', 'success'); } catch {}
+      } catch {
+        try { showMessage('保存失败', 'error'); } catch {}
+      } finally {
+        overlay?.remove();
+      }
+    };
+    document.body.appendChild(overlay);
+  } catch {}
 }
 
 function updateDeleteSelectedEnabled(): void {
@@ -25,6 +211,8 @@ function updateDeleteSelectedEnabled(): void {
 
 // 预览动作的可用状态：生成后才允许“保存为月报”
 let canSaveReport = false;
+// 页面级：AI 模型覆盖，仅作用于本页面（不改全局设置）
+let pageModelOverride: string | undefined = undefined;
 
 // ========== 查看生成过程：按钮与弹窗 ==========
 function ensureTraceButton(): HTMLButtonElement | null {
@@ -71,6 +259,98 @@ function ensureTraceButton(): HTMLButtonElement | null {
   } catch {
     return null;
   }
+}
+
+// ========== 工具栏：AI 模型下拉（页面级覆盖） ==========
+async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
+  try {
+    const container = document.querySelector('.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .toolbar-left') as HTMLDivElement | null;
+    if (!container) return null;
+    const WRAP_ID = 'insights-model-wrap';
+    const STORAGE_KEY = 'insights_model_override';
+    const SEP_ID = 'insights-model-sep';
+    let wrap = document.getElementById(WRAP_ID) as HTMLDivElement | null;
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.className = 'field-inline';
+      wrap.style.marginLeft = '12px';
+      const lab = document.createElement('label');
+      lab.htmlFor = 'insights-model-select';
+      lab.textContent = 'AI模型：';
+      const sel = document.createElement('select');
+      sel.id = 'insights-model-select';
+      wrap.appendChild(lab);
+      wrap.appendChild(sel);
+      // 插在时间范围后、生成按钮前
+      const genBtn = document.getElementById('insights-generate');
+      // 分隔符：日期与模型之间
+      let sep = document.getElementById(SEP_ID) as HTMLSpanElement | null;
+      if (!sep) {
+        sep = document.createElement('span');
+        sep.id = SEP_ID;
+        sep.className = 'dot-sep';
+        sep.textContent = '·';
+      }
+      const rangeGroup = container.querySelector('.field-inline');
+      if (genBtn && genBtn.parentElement === container) {
+        if (rangeGroup) {
+          container.insertBefore(sep, genBtn);
+          container.insertBefore(wrap, genBtn);
+        } else {
+          container.insertBefore(wrap, genBtn);
+        }
+      } else {
+        if (rangeGroup) {
+          container.appendChild(sep);
+          container.appendChild(wrap);
+        } else {
+          container.appendChild(wrap);
+        }
+      }
+      // 事件：选择即更新页面覆盖
+      sel.onchange = () => {
+        const v = sel.value || '';
+        pageModelOverride = v ? v : undefined;
+        try {
+          if (v) sessionStorage.setItem(STORAGE_KEY, v); else sessionStorage.removeItem(STORAGE_KEY);
+        } catch {}
+      };
+    }
+    // 填充选项
+    const sel = document.getElementById('insights-model-select') as HTMLSelectElement | null;
+    if (sel) {
+      sel.innerHTML = '';
+      const aiCfg = aiService.getSettings();
+      const follow = document.createElement('option');
+      follow.value = '';
+      follow.textContent = aiCfg.selectedModel ? `跟随全局（${aiCfg.selectedModel}）` : '跟随全局（未选择）';
+      sel.appendChild(follow);
+      try {
+        const models = await aiService.getAvailableModels();
+        for (const m of (models || [])) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name ? `${m.name} (${m.id})` : m.id;
+          sel.appendChild(opt);
+        }
+      } catch {}
+      // 恢复：sessionStorage 记忆
+      let restored = '';
+      try { restored = sessionStorage.getItem(STORAGE_KEY) || ''; } catch {}
+      if (restored && Array.from(sel.options).some(o => o.value === restored)) {
+        sel.value = restored;
+        pageModelOverride = restored;
+      } else {
+        // 默认：不覆盖（跟随全局）
+        sel.value = '';
+        pageModelOverride = undefined;
+      }
+      // 若全局未启用 AI，则禁用下拉但仍展示
+      try { sel.disabled = !aiCfg.enabled; } catch {}
+    }
+    return wrap;
+  } catch { return null; }
 }
 
 function openTraceModal(): void {
@@ -286,6 +566,16 @@ function openTraceModal(): void {
             <div><b>结束时间</b>：${fmt(trace.endedAt)}</div>
             <div><b>耗时</b>：${fmtDur(duration)}</div>
             <div><b>状态</b>：${trace.status || '-'}</div>
+            <div><b>请求地址</b>：${ctx.apiUrl || '-'}</div>
+            <div><b>接口</b>：${ctx.endpoint || '-'}</div>
+            <div><b>模型</b>：${ctx.model || '-'}</div>
+            <div><b>温度</b>：${typeof ctx.temperature === 'number' ? ctx.temperature : '-'}</div>
+            <div><b>最大Tokens</b>：${typeof ctx.maxTokens === 'number' ? ctx.maxTokens : '-'}</div>
+            <div><b>超时(s)</b>：${typeof ctx.timeout_s === 'number' ? ctx.timeout_s : '-'}</div>
+            <div><b>重试策略</b>：
+              ${(ctx.autoRetryEmpty?`空重试开(${ctx.autoRetryMax??'-'})`:'空重试关')} / 
+              ${(ctx.errorRetryEnabled?`错重试开(${ctx.errorRetryMax??'-'})`:'错重试关')}
+            </div>
           </div>`;
         // 步骤：附带耗时（相对上一步与相对开始）
         const entries = Array.isArray(trace.entries) ? trace.entries : [];
@@ -400,6 +690,7 @@ function prepareForPreview(html: string): string {
     // 2.0.1) 强制为 <body> 注入内联白底深字样式，并确保有唯一 root id（优先级最高）
     try {
       res = res.replace(/<body([^>]*)>/i, (m, attrs) => {
+        void m;
         const styleRe = /style=("|')([\s\S]*?)\1/i;
         const m2 = attrs.match(styleRe);
         // 确保 root id 存在
@@ -423,10 +714,11 @@ function prepareForPreview(html: string): string {
     // 2.0.2) 进一步清理：移除任意元素内联的 color 声明并统一为深色（防止 inline !important 覆盖）
     try {
       res = res.replace(/style=("|')([\s\S]*?)\1/ig, (all, q, style) => {
+        void all;
         let s = String(style || '');
         // 删除所有 color 与 -webkit-text-fill-color（不影响 border-color/outline-color 等）
-        s = s.replace(/(^|;)\s*color\s*:\s*[^;]*;?/ig, (m0, p1) => (p1 || ''));
-        s = s.replace(/(^|;)\s*-webkit-text-fill-color\s*:\s*[^;]*;?/ig, (m0, p1) => (p1 || ''));
+        s = s.replace(/(^|;)\s*color\s*:\s*[^;]*;?/ig, (m0, p1) => { void m0; return (p1 || ''); });
+        s = s.replace(/(^|;)\s*-webkit-text-fill-color\s*:\s*[^;]*;?/ig, (m0, p1) => { void m0; return (p1 || ''); });
         // 收敛多余分号
         s = s.replace(/;;+/g, ';').replace(/^\s*;|;\s*$/g, '');
         // 重新追加深色字体
@@ -942,7 +1234,9 @@ async function handleGenerate() {
       statsJSON: JSON.stringify(stats || {}),
     } as Record<string, string>;
     const tpl = await loadTemplate();
-    const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields });
+    const modelSel = getEl<HTMLSelectElement>('insights-model-select');
+    const modelOverride = modelSel ? (modelSel.value || undefined) : pageModelOverride;
+    const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields, modelOverride });
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
     if (iframe) {
       iframe.srcdoc = prepareForPreview(html);
@@ -1235,6 +1529,13 @@ export const insightsTab = {
     const deleteSelectedBtn = getEl<HTMLButtonElement>('insights-delete-selected');
 
     genBtn?.addEventListener('click', handleGenerate);
+    // 将“生成报告”主按钮移动到右侧动作区
+    try {
+      const actionsBar = document.getElementById('insights-toolbar-row2-actions');
+      if (actionsBar && genBtn && genBtn.parentElement !== actionsBar) {
+        actionsBar.insertBefore(genBtn, actionsBar.firstChild);
+      }
+    } catch {}
     exportBtn?.addEventListener('click', () => { performExport('html'); });
     setupExportDropdown(exportBtn || null);
     // 保存按钮由预览区右上角动态注入与控制
@@ -1280,6 +1581,11 @@ export const insightsTab = {
       const traceBtn = ensureTraceButton();
       traceBtn?.addEventListener('click', onTraceClick);
     } catch {}
+    try {
+      const promptsBtn = ensurePromptsButton();
+      promptsBtn?.addEventListener('click', () => { openPromptsModal(); });
+    } catch {}
+    try { await ensureModelDropdown(); } catch {}
 
     // 初次进入显示示例预览
     try { await previewSample(); } catch {}
@@ -1331,7 +1637,7 @@ export const insightsTab = {
     const prevDays = await dbInsViewsRange(prevStart, prevEnd);
     const settings = await getSettings();
     const ins = settings?.insights || {};
-    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'views';
+    const source: 'views' | 'compare' | 'auto' = (ins.source as any) || 'auto';
     const startMs = sDate.getTime();
     const endMs = eDate.getTime();
     let stats: any;
@@ -1396,7 +1702,9 @@ export const insightsTab = {
         baseHref: chrome.runtime.getURL('') || './',
         statsJSON: JSON.stringify(stats || {}),
       } as Record<string, string>;
-      html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
+      const modelSel = getEl<HTMLSelectElement>('insights-model-select');
+      const modelOverride = modelSel ? (modelSel.value || undefined) : pageModelOverride;
+      html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields, modelOverride });
     }
     // 保存时保留外链脚本与 base，避免内联触发 CSP
 
