@@ -236,6 +236,13 @@ export interface ExtensionSettings {
         autoMonthlyEnabled?: boolean; // 是否启用按月自动生成（默认 false）
         autoCompensateOnStartupEnabled?: boolean; // 浏览器启动/扩展唤醒时是否自动补偿生成（默认 false）
         autoMonthlyMinuteOfDay?: number; // 触发分钟（0-1439），默认 10 → 00:10
+        // 提示词自定义（前台编辑与持久化）
+        prompts?: {
+            persona?: 'doctor' | 'default';
+            enableCustom?: boolean;
+            systemOverride?: string;
+            rulesOverride?: string;
+        };
     };
 
     version: string;

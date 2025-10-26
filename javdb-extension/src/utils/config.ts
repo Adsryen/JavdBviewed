@@ -417,12 +417,18 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         risingLimit: 5,
         fallingLimit: 5,
         statusScope: 'viewed',
-        source: 'views',
+        source: 'auto',
         minMonthlySamples: 10,
         // 自动月报：默认关闭，仅用户开启时才注册闹钟与补偿
         autoMonthlyEnabled: false,
         autoCompensateOnStartupEnabled: false,
         autoMonthlyMinuteOfDay: 10,
+        prompts: {
+            persona: 'doctor',
+            enableCustom: false,
+            systemOverride: '',
+            rulesOverride: '',
+        },
     },
 
     version: '0.0.0',
