@@ -2,7 +2,8 @@ import { ReportStats } from "../../types/insights";
 import { aiService } from "../ai/aiService";
 import { startGenerationTrace, addTrace, endGenerationTrace } from './generationTrace';
 import type { ChatMessage } from "../../types/ai";
-import { buildPrompts } from './prompts';
+import { buildPrompts, type PromptPersona } from './prompts';
+import { getSettings } from '../../utils/storage';
 
 export interface BuildAIInput {
   periodText: string;
@@ -33,6 +34,8 @@ export interface GenerateReportHTMLParams {
   stats: ReportStats;
   // 由调用方基于本地统计构造的基础字段（如 baseHref/statsJSON/periodText 等）
   baseFields: Record<string, string>;
+  // 页面级覆盖：仅本次调用使用的模型，不影响全局设置
+  modelOverride?: string;
 }
 
 function isLikelyHTML(text: string): boolean {
@@ -146,7 +149,7 @@ function tryParseJsonObject(text: string): Record<string, string> | null {
   return null;
 }
 
-function buildPromptMessages(params: BuildAIInput): ChatMessage[] {
+function buildPromptMessages(params: BuildAIInput, promptOptions?: { persona?: PromptPersona; overrides?: { system?: string; rules?: string } }): ChatMessage[] {
   const { periodText, stats } = params;
   const top = Array.isArray((stats as any)?.tagsTop) ? (stats as any).tagsTop : [];
   const changes = (stats as any)?.changes || { newTags: [], rising: [], falling: [] };
@@ -190,7 +193,9 @@ function buildPromptMessages(params: BuildAIInput): ChatMessage[] {
     });
   } catch {}
 
-  const { system, rules } = buildPrompts({ persona: 'doctor' });
+  const persona = promptOptions?.persona || 'doctor';
+  const overrides = promptOptions?.overrides;
+  const { system, rules } = buildPrompts({ persona, overrides });
 
   const messages: ChatMessage[] = [
     { role: 'system', content: system },
@@ -223,15 +228,22 @@ function mergeFields(base: Record<string, string>, ai: Record<string, string> | 
 /**
  * 调用 AI 生成报告文本，支持 HTML/JSON 回退；未启用或失败时回退本地模板渲染。
  */
-export async function generateReportHTML({ templateHTML, stats, baseFields }: GenerateReportHTMLParams): Promise<string> {
+export async function generateReportHTML({ templateHTML, stats, baseFields, modelOverride }: GenerateReportHTMLParams): Promise<string> {
   try {
     const settings = aiService.getSettings();
+    const effectiveModel = (typeof modelOverride === 'string' && modelOverride.trim())
+      ? modelOverride.trim()
+      : (settings?.selectedModel || '');
     // 启动本次追踪（仅保留最近一次）
     startGenerationTrace({
       aiEnabled: !!settings?.enabled,
       streamEnabled: false,
-      model: settings?.selectedModel || '',
+      model: effectiveModel,
+      apiUrl: settings?.apiUrl || '',
+      endpoint: '/v1/chat/completions',
       timeout_s: settings?.timeout,
+      temperature: settings?.temperature,
+      maxTokens: settings?.maxTokens,
       autoRetryEmpty: !!settings?.autoRetryEmpty,
       autoRetryMax: settings?.autoRetryMax,
       errorRetryEnabled: !!settings?.errorRetryEnabled,
@@ -247,14 +259,20 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
       return renderTemplate({ templateHTML, fields: baseFields });
     }
 
-    // 组装消息并调用 AI
-    const messages = buildPromptMessages({ periodText: baseFields.periodText || '', stats });
+    const extSettings = await getSettings();
+    const p = (extSettings as any)?.insights?.prompts || {};
+    const usePersona: PromptPersona = (p?.persona === 'doctor' || p?.persona === 'default') ? p.persona : 'doctor';
+    const overrides = p?.enableCustom ? {
+      system: typeof p?.systemOverride === 'string' ? p.systemOverride : '',
+      rules: typeof p?.rulesOverride === 'string' ? p.rulesOverride : ''
+    } : undefined;
+    const messages = buildPromptMessages({ periodText: baseFields.periodText || '', stats }, { persona: usePersona, overrides });
     let text = '';
     // 报告位置：强制非流式
     try { addTrace('info', 'INSIGHTS', 'useNonStreamForced'); } catch {}
     let t0 = Date.now();
     try { addTrace('info', 'AI', 'callStart'); } catch {}
-    const resp = await aiService.sendMessage(messages, {
+    const observerWrap = {
       observer: (ev: any) => {
         try {
           if (!ev || !ev.type) return;
@@ -271,7 +289,10 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
           else if (ev.type === 'error') addTrace('error', 'RETRY', 'error', common);
         } catch {}
       }
-    });
+    };
+    const resp = (typeof modelOverride === 'string' && modelOverride.trim())
+      ? await aiService.sendMessageWithModel(messages, effectiveModel, observerWrap)
+      : await aiService.sendMessage(messages, observerWrap);
     try { addTrace('info', 'AI', 'callEnd', { elapsedMs: Date.now() - t0 }); } catch {}
     text = resp?.choices?.[0]?.message?.content?.trim() || '';
 

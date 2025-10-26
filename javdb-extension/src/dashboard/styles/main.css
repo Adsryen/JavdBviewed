@@ -17,6 +17,13 @@ body {
     padding: 8px 0 12px;
     border-bottom: 1px solid #eaecef;
     margin-bottom: 12px;
+    /* row-2 统一尺寸变量，便于快速调整紧凑/舒适密度 */
+    --ins-row2-h: 30px;      /* 输入/下拉高度（紧凑） */
+    --ins-row2-btn-h: 44px;  /* 按钮高度，与“新作品”页保持一致 */
+    --ins-row2-font: 13px;
+    --ins-row2-pad-x: 12px;
+    --ins-row2-input-py: 4px;
+    --ins-row2-radius: 6px;
 }
 
 /* 工具栏行：每一行左右分布、自动换行 */
@@ -65,16 +72,17 @@ body {
 /* 时间范围选择：统一外观与焦点态 */
 .tab-section[data-tab-id="insights"] #insights-month,
 .tab-section[data-tab-id="insights"] #insights-month-start,
-.tab-section[data-tab-id="insights"] #insights-month-end {
+.tab-section[data-tab-id="insights"] #insights-month-end,
+.tab-section[data-tab-id="insights"] #insights-model-select {
     appearance: auto;
     -webkit-appearance: auto;
     border: 1px solid #d0d7de;
     background: #fff;
     color: #111827;
-    border-radius: 6px;
-    padding: 6px 10px;
-    height: 32px;
-    font-size: 13px;
+    border-radius: var(--ins-row2-radius);
+    padding: var(--ins-row2-input-py) 10px;
+    height: var(--ins-row2-h);
+    font-size: var(--ins-row2-font);
     min-width: 150px;
 }
 .tab-section[data-tab-id="insights"] #insights-month:focus,
@@ -103,6 +111,52 @@ body {
 }
 .btn-ghost:hover { background: #f1f3f5; }
 .btn-group { display: inline-flex; gap: 8px; }
+
+/* 小圆点分隔符（用于日期与模型之间） */
+.tab-section[data-tab-id="insights"] .insights-toolbar .dot-sep {
+    color: #cbd5e1;
+    margin: 0 6px;
+    user-select: none;
+}
+
+/* 统一第二行控件：下拉维持紧凑高度（30px） */
+.tab-section[data-tab-id="insights"] #insights-model-select {
+    height: var(--ins-row2-h);
+    line-height: var(--ins-row2-h);
+    border-radius: var(--ins-row2-radius);
+}
+
+/* 统一第二行控件（按钮/输入/下拉）的高度与内边距 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 button {
+    height: var(--ins-row2-btn-h);
+    min-height: var(--ins-row2-btn-h);
+    padding: 0 var(--ins-row2-pad-x); /* 覆盖通用 button padding，保证高度 */
+    font-size: var(--ins-row2-font);
+    border-radius: var(--ins-row2-radius);
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 input[type="month"],
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 select {
+    height: var(--ins-row2-h);
+    padding: var(--ins-row2-input-py) 10px; /* 月份控件在不同平台有内置垂直内边距，这里统一稍紧凑 */
+    font-size: var(--ins-row2-font);
+    border-radius: var(--ins-row2-radius);
+    box-sizing: border-box;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 label,
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .dot-sep,
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .field-inline span {
+    line-height: var(--ins-row2-h); /* 与控件等高，避免视觉忽高忽低 */
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 label {
+    font-size: var(--ins-row2-font);
+}
+.tab-section[data-tab-id="insights"] #insights-model-select { min-width: 180px; }
+
+/* 行内图标居中对齐，避免视觉偏上/偏下 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 i {
+    line-height: 1;
+    vertical-align: middle;
+}
 
 /* 双栏内容区：左（历史） | 右（预览） */
 .tab-section[data-tab-id="insights"] .insights-grid {
