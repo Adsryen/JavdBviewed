@@ -42,6 +42,7 @@ build.bat
 *.md
 # 排除todo文件夹
 !todo/*.md
+!scripts/*.md
 
 # temp
 temp/

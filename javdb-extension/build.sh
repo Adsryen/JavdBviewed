@@ -49,14 +49,14 @@ zip_dist() {
   mkdir -p "$zip_dir"
   local out
   if have zip; then
-    zip_name="javdb-extension-${version}.zip"
+    zip_name="javdb-extension-v${version}.zip"
     out="$zip_dir/$zip_name"
     [[ -f "$out" ]] && rm -f "$out"
     info "Zipping dist -> $out"
     (cd "$dist_dir" && zip -qr "$out" .)
     ok "ZIP created: $out"
   else
-    zip_name="javdb-extension-${version}.tar.gz"
+    zip_name="javdb-extension-v${version}.tar.gz"
     out="$zip_dir/$zip_name"
     [[ -f "$out" ]] && rm -f "$out"
     info "Archiving dist (tar.gz) -> $out"
@@ -110,10 +110,128 @@ install_and_build() {
   pnpm vite build
 }
 
+show_help() {
+  echo "用法: $0 [选项]"
+  echo "选项:"
+  echo "  -h, --help      显示帮助信息"
+  echo "  -p, --preview   预览发布信息"
+  echo "  -v, --version   显示版本信息"
+  echo ""
+  echo "交互式菜单选项:"
+  echo "  1) Major Release（不兼容变更）"
+  echo "  2) Minor Release（新增功能）"
+  echo "  3) Patch Release（修复补丁）"
+  echo "  4) Just Build（仅构建，不改版本）"
+  echo "  5) Release Only（仅发布，自定义备注）"
+  echo "  6) 预览发布信息"
+  echo "  7) 退出"
+}
+
+preview_release_notes() {
+  if ! have git; then err "未检测到 git"; return 1; fi
+  
+  local tag current_version
+  current_version=$(read_version)
+  tag="v$current_version"
+  
+  # 获取上一个标签
+  local prev_tag
+  prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
+  
+  # 获取仓库URL
+  local remote repo_url
+  remote="$(git config --get remote.origin.url 2>/dev/null || true)"
+  if [[ "$remote" =~ ^git@github\.com:(.+?)(\.git)?$ ]]; then
+    repo_url="https://github.com/${BASH_REMATCH[1]}"
+  elif [[ "$remote" =~ ^https://github\.com/(.+?)(\.git)?$ ]]; then
+    repo_url="https://github.com/${BASH_REMATCH[1]}"
+  else
+    repo_url="${remote%.git}"
+  fi
+  # 统一移除末尾的 .git，避免生成的链接包含 .git
+  repo_url="${repo_url%.git}"
+  
+  # 获取当前日期
+  local release_date
+  release_date=$(date +%Y-%m-%d)
+  
+  # 获取构建类型
+  local build_type="patch release"
+  if [[ "$current_version" =~ \.0\.0$ ]]; then
+    build_type="major release"
+  elif [[ "$current_version" =~ \.\d+\.0$ ]]; then
+    build_type="minor release"
+  fi
+  
+  # 预览：分离标题与正文
+  echo "Title: Release $current_version"
+  echo ""
+  echo "Body:"
+  echo ""
+  echo "**Build Type:** $build_type"
+  echo "**Version:** $current_version"
+  echo "**Release Date:** $release_date"
+  echo ""
+  
+  # 输出比较链接
+  if [[ -n "$repo_url" && -n "$prev_tag" && "$prev_tag" != "initial commit" ]]; then
+    echo "Compare: [$prev_tag...$tag]($repo_url/compare/$prev_tag...$tag)"
+    echo ""
+    
+    # 获取提交历史并按类型分类
+    local features fixes
+    features=$(git log --no-merges --grep="^feat" --pretty=format:"- %s - by %an on %ad ([%h]($repo_url/commit/%H))" --date=short "$prev_tag..$tag")
+    fixes=$(git log --no-merges --grep="^fix" --pretty=format:"- %s - by %an on %ad ([%h]($repo_url/commit/%H))" --date=short "$prev_tag..$tag")
+    
+    # 输出特性更新
+    if [[ -n "$features" ]]; then
+      echo "### Features"
+      echo -e "$features"
+      echo ""
+    fi
+    
+    # 输出修复
+    if [[ -n "$fixes" ]]; then
+      echo "### Fixes"
+      echo -e "$fixes"
+      echo ""
+    fi
+    
+    # 输出其他提交（非feat/fix）
+    local others
+    others=$(git log --no-merges --invert-grep --grep="^\(feat\|fix\)" --pretty=format:"- %s - by %an on %ad ([%h]($repo_url/commit/%H))" --date=short "$prev_tag..$tag")
+    
+    if [[ -n "$others" ]]; then
+      echo "### Other Changes"
+      echo -e "$others"
+      echo ""
+    fi
+    
+    # 输出制品信息（兼容带 v 与不带 v 的命名）
+    local zip_file_v="javdb-extension-v$current_version.zip"
+    local zip_file_nv="javdb-extension-${current_version}.zip"
+    local display_file=""
+    if [[ -f "$zip_dir/$zip_file_v" ]]; then
+      display_file="$zip_file_v"
+    elif [[ -f "$zip_dir/$zip_file_nv" ]]; then
+      display_file="$zip_file_nv"
+    else
+      display_file="$zip_file_v"
+    fi
+    echo "### Artifacts"
+    echo "- $display_file"
+    echo "  - SHA256: $(sha256sum "$zip_dir/$display_file" 2>/dev/null | cut -d' ' -f1 || echo "[文件未生成]")"
+  else
+    echo "无法生成完整的发布说明，请确保："
+    echo "1. 已设置远程仓库"
+    echo "2. 存在上一个标签"
+    echo "3. 已生成发布包"
+  fi
+  
+  echo ""
+}
+
 show_menu() {
-  echo "================================================="
-  echo " JavDB Extension - Interactive Build Assistant"
-  echo "================================================="
   echo ""
   echo "请选择构建类型："
   echo "  [1] Major Release（不兼容变更）"
@@ -121,7 +239,23 @@ show_menu() {
   echo "  [3] Patch Release（修复补丁）"
   echo "  [4] Just Build（仅构建，不改版本）"
   echo "  [5] Release Only（仅发布，自定义备注）"
-  echo "  [6] 退出"
+  echo "  [6] 预览发布信息"
+  echo "  [7] 退出"
+}
+
+get_commit_template() {
+  local template_file="$root_dir/scripts/commit_template.txt"
+  if [[ -f "$template_file" ]]; then
+    echo "$template_file"
+    return 0
+  fi
+  # fallback to release_template.txt if user renamed it
+  template_file="$root_dir/scripts/release_template.txt"
+  if [[ -f "$template_file" ]]; then
+    echo "$template_file"
+    return 0
+  fi
+  return 1
 }
 
 tag_and_push() {
@@ -131,7 +265,6 @@ tag_and_push() {
     warn "标签已存在：$tag（跳过创建）"
   else
     info "创建标签：$tag"
-    # 按要求：不自动 commit，只创建 tag
     git tag -a "$tag" -m "Release $tag"
   fi
   info "Push commits & tags"
@@ -143,39 +276,10 @@ create_release_custom() {
   local tag="$1"; local asset="$2"
   if ! have gh; then warn "未检测到 GitHub CLI (gh)，跳过创建 Release"; return 0; fi
   info "创建 GitHub Release: $tag"
-  local prev_tag
-  prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
-  local remote repo_url notes
-  remote="$(git config --get remote.origin.url 2>/dev/null || true)"
-  repo_url=""
-  if [[ "$remote" =~ ^git@github\.com:(.+?)(\.git)?$ ]]; then
-    repo_url="https://github.com/${BASH_REMATCH[1]}"
-  elif [[ "$remote" =~ ^https://github\.com/(.+?)(\.git)?$ ]]; then
-    repo_url="https://github.com/${BASH_REMATCH[1]}"
-  else
-    repo_url="${remote%.git}"
-  fi
+  local notes notes_release
   notes="$root_dir/.release_notes_${tag}.md"
-  {
-    echo "Release $tag"
-    echo
-    if [[ -n "$prev_tag" ]]; then
-      echo "Commits since $prev_tag"
-      git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$prev_tag..$tag"
-      echo
-      echo "Compare"
-      echo "$repo_url/compare/$prev_tag...$tag"
-    else
-      echo "Commits"
-      local root
-      root="$(git rev-list --max-parents=0 "$tag" 2>/dev/null || echo "")"
-      if [[ -n "$root" ]]; then
-        git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$root..$tag"
-      else
-        git log --no-merges --pretty=format:"- %s ([%h]($repo_url/commit/%H)) by %an" "$tag"
-      fi
-    fi
-  } > "$notes"
+  notes_release="$root_dir/.release_notes_${tag}.release.md"
+  preview_release_notes > "$notes"
   echo ""
   info "预览发布说明如下："
   echo "----------------------------------------"
@@ -189,15 +293,43 @@ create_release_custom() {
     rm -f "$notes" || true
     return 0
   fi
-  gh release create "$tag" "$asset" --title "Release $tag" -F "$notes" || true
-  rm -f "$notes" || true
+  # 发布时去掉预览专用的 Title/Body 行
+  sed -e '/^Title:/d' -e '/^Body:/d' "$notes" > "$notes_release"
+  gh release create "$tag" "$asset" --title "Release $tag" -F "$notes_release" || true
+  rm -f "$notes" "$notes_release" || true
 }
 
 menu_main() {
-  show_menu
+  # 处理命令行参数
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      -v|--version)
+        echo "$(basename "$0") version $(read_version)"
+        exit 0
+        ;;
+      -p|--preview)
+        preview_release_notes
+        exit 0
+        ;;
+      *)
+        warn "未知选项: $1"
+        show_help
+        exit 1
+        ;;
+    esac
+    shift
+  done
+  
+  # 交互式菜单
   local choice
-  read -r -p "输入你的选择 (1-6) [4]: " choice
-  choice="${choice:-4}"
+  show_menu
+  read -r -p "输入你的选择 (1-7) [4]: " choice
+  choice="${choice:-4}"  # 默认选择 4（仅构建）
+  
   case "$choice" in
     1|2|3)
       local mode="patch"
@@ -245,11 +377,30 @@ menu_main() {
       info "仅发布（自定义备注）"
       local v; v=$(read_version)
       local tag="v${v}"
-      local asset_zip="$zip_dir/javdb-extension-${v}.zip"
-      local asset_tgz="$zip_dir/javdb-extension-${v}.tar.gz"
+      local asset_zip_v="$zip_dir/javdb-extension-v${v}.zip"
+      local asset_tgz_v="$zip_dir/javdb-extension-v${v}.tar.gz"
+      local asset_zip_nv="$zip_dir/javdb-extension-${v}.zip"
+      local asset_tgz_nv="$zip_dir/javdb-extension-${v}.tar.gz"
       local asset=""
-      if [[ -f "$asset_zip" ]]; then asset="$asset_zip"; elif [[ -f "$asset_tgz" ]]; then asset="$asset_tgz"; fi
-      if [[ -z "$asset" ]]; then err "未找到打包产物，请先选择 [4] 仅构建。"; exit 1; fi
+      if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
+      if [[ -z "$asset" ]]; then
+        # 没有现成产物，尝试从 dist/ 打包一次（不进行编译）
+        if [[ -d "$dist_dir" ]]; then
+          info "未找到现有产物，检测到 dist/ 目录，开始打包..."
+          zip_dist "$v"
+          if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
+        else
+          err "未找到打包产物且缺少 dist/ 目录，无法发布。请先执行 [4] 仅构建。"; exit 1
+        fi
+      fi
+      # 如仅存在无 v 命名的旧产物，复制为带 v 命名以统一发布资产名称
+      if [[ "$asset" == "$asset_zip_nv" && -f "$asset_zip_nv" && ! -f "$asset_zip_v" ]]; then
+        info "发现旧命名产物，复制为统一命名：$(basename "$asset_zip_v")"
+        cp -f "$asset_zip_nv" "$asset_zip_v" && asset="$asset_zip_v"
+      elif [[ "$asset" == "$asset_tgz_nv" && -f "$asset_tgz_nv" && ! -f "$asset_tgz_v" ]]; then
+        info "发现旧命名产物，复制为统一命名：$(basename "$asset_tgz_v")"
+        cp -f "$asset_tgz_nv" "$asset_tgz_v" && asset="$asset_tgz_v"
+      fi
       local dirty; dirty=$(git_dirty)
       if [[ -n "$dirty" ]]; then
         warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
@@ -264,6 +415,9 @@ menu_main() {
       create_release_custom "$tag" "$asset"
       ;;
     6)
+      preview_release_notes
+      ;;
+    7)
       exit 0
       ;;
     *)
