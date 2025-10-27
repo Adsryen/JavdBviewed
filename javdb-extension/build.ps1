@@ -27,8 +27,8 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  [4] Just Build (build without changing the version number)" -ForegroundColor White
     Write-Host "      Just Build - no version change" -ForegroundColor Gray
-    Write-Host "  [5] Generate GitHub Release (auto notes, skip build)" -ForegroundColor White
-    Write-Host "      Create release with gh --generate-notes, use existing artifact" -ForegroundColor Gray
+    Write-Host "  [5] Generate GitHub Release (custom notes, skip build)" -ForegroundColor White
+    Write-Host "      Create release with custom notes (prev tag..current tag), use existing artifact" -ForegroundColor Gray
     Write-Host "  [6] Exit" -ForegroundColor White
     Write-Host ""
 }
@@ -243,12 +243,29 @@ $zipName = "javdb-extension-v$versionStr.zip"
 $zipPath = "dist-zip\$zipName"
 
 if (-not (Test-Path $zipPath)) {
-    Write-Host "ERROR: Build artifact $zipName not found in dist-zip\." -ForegroundColor Red
-    Show-Error
-    exit 1
+    # 如果没有现成产物，尝试从 dist/ 打包一次（不进行编译）
+    $distDir = "dist"
+    if (Test-Path $distDir) {
+        Write-Host "Artifact not found. Found dist/. Packaging without compile..." -ForegroundColor Yellow
+        try {
+            if (-not (Test-Path "dist-zip")) { New-Item -ItemType Directory -Force -Path "dist-zip" | Out-Null }
+            try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch {}
+            if (Test-Path $zipPath) { Remove-Item -Force $zipPath -ErrorAction SilentlyContinue }
+            [IO.Compression.ZipFile]::CreateFromDirectory($distDir, $zipPath)
+            Write-Host "Packaged to $zipPath" -ForegroundColor Green
+        } catch {
+            Write-Host "ERROR: Failed to package dist to $zipName." -ForegroundColor Red
+            Show-Error
+            exit 1
+        }
+    } else {
+        Write-Host "ERROR: Build artifact $zipName not found and dist/ is missing. Please run option [4] Just Build first." -ForegroundColor Red
+        Show-Error
+        exit 1
+    }
 }
 
-# Fast path: Auto-generated notes via gh (applies to release-only or interactive)
+# Fast path: Create release with custom notes (prev tag..current tag)
 if ($autoNotes) {
     # Ensure tag exists; create if missing
     try {
@@ -271,15 +288,104 @@ if ($autoNotes) {
         exit 1
     }
 
-    # Create release with auto-generated notes
-    Write-Host "Creating release (auto notes) and uploading $zipName..." -ForegroundColor Gray
+    # Compose custom release notes between previous tag and current tag
+    Write-Host "Creating release (custom notes) and uploading $zipName..." -ForegroundColor Gray
+    $prevTag = ""
     try {
-        & gh release create $tagName $zipPath --title "Release $tagName" --generate-notes
+        $prevTag = & git describe --tags --abbrev=0 "$($tagName)^" 2>$null
+    } catch {}
+    $remote = ""
+    try { $remote = & git config --get remote.origin.url } catch {}
+    $repoUrl = $remote
+    if ($remote -match '^git@github.com:(.+?)(\.git)?$') {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    } elseif ($remote -match '^https://github.com/(.+?)(\.git)?$') {
+        $repoUrl = "https://github.com/$($Matches[1])"
+    } else {
+        if ($repoUrl.EndsWith('.git')) { $repoUrl = $repoUrl.Substring(0, $repoUrl.Length - 4) }
+    }
+
+    $notesPath = "release-notes-$tagName.md"
+    $content = New-Object System.Collections.Generic.List[string]
+    # 标题/正文头，与 -p 预览一致
+    $content.Add("Title: Release $versionStr") | Out-Null
+    $content.Add("") | Out-Null
+    $content.Add("Body:") | Out-Null
+    $content.Add("") | Out-Null
+
+    # 基本信息
+    $releaseDate = Get-Date -Format "yyyy-MM-dd"
+    $buildType = "patch release"
+    if ($versionStr -match "\.0\.0$") { $buildType = "major release" }
+    elseif ($versionStr -match "\.\d+\.0$") { $buildType = "minor release" }
+    $content.Add("**Build Type:** $buildType") | Out-Null
+    $content.Add("**Version:** $versionStr") | Out-Null
+    $content.Add("**Release Date:** $releaseDate") | Out-Null
+    $content.Add("") | Out-Null
+
+    # 比较链接与日志范围
+    $range = $null
+    if ($prevTag) {
+        $content.Add("Compare: [$prevTag...$tagName]($repoUrl/compare/$prevTag...$tagName)") | Out-Null
+        $content.Add("") | Out-Null
+        $range = "$prevTag..$tagName"
+    } else {
+        $root = ""
+        try { $root = & git rev-list --max-parents=0 $tagName 2>$null } catch {}
+        if ($root) { $range = "$root..$tagName" } else { $range = $tagName }
+    }
+
+    $fmt = "- %s - by %an on %ad ([$h]($repoUrl/commit/%H))"
+
+    # 分类日志
+    $features = & git log --no-merges --grep="^feat" --pretty=("format:$fmt") --date=short $range
+    if ($LASTEXITCODE -eq 0 -and $features) { $features = @($features) } else { $features = @() }
+    $fixes = & git log --no-merges --grep="^fix" --pretty=("format:$fmt") --date=short $range
+    if ($LASTEXITCODE -eq 0 -and $fixes) { $fixes = @($fixes) } else { $fixes = @() }
+    $others = & git log --no-merges --invert-grep --grep="^(feat|fix)" --pretty=("format:$fmt") --date=short $range
+    if ($LASTEXITCODE -eq 0 -and $others) { $others = @($others) } else { $others = @() }
+
+    if ($features.Count -gt 0) {
+        $content.Add("### Features") | Out-Null
+        foreach ($l in $features) { $content.Add($l) | Out-Null }
+        $content.Add("") | Out-Null
+    }
+    if ($fixes.Count -gt 0) {
+        $content.Add("### Fixes") | Out-Null
+        foreach ($l in $fixes) { $content.Add($l) | Out-Null }
+        $content.Add("") | Out-Null
+    }
+    if ($others.Count -gt 0) {
+        $content.Add("### Other Changes") | Out-Null
+        foreach ($l in $others) { $content.Add($l) | Out-Null }
+        $content.Add("") | Out-Null
+    }
+
+    # 制品信息
+    $zipFile = "javdb-extension-v$versionStr.zip"
+    $sha256 = ""
+    try { $sha256 = (Get-FileHash -Algorithm SHA256 (Join-Path "dist-zip" $zipFile)).Hash } catch { $sha256 = "[文件未生成]" }
+    $content.Add("### Artifacts") | Out-Null
+    $content.Add("- $zipFile") | Out-Null
+    $content.Add("  - SHA256: $sha256") | Out-Null
+
+    try { Set-Content -Path $notesPath -Value $content -Encoding UTF8 } catch {}
+
+    # 发布时去掉预览专用的 Title/Body 行
+    $notesRelease = "release-notes-$tagName.release.md"
+    try {
+        Get-Content -Path $notesPath | Where-Object { $_ -notmatch '^(Title:|Body:)$' -and $_ -notmatch '^Title:' -and $_ -ne 'Body:' } | Set-Content -Path $notesRelease -Encoding UTF8
+    } catch {}
+
+    try {
+        & gh release create $tagName $zipPath --title "Release $tagName" -F $notesRelease
         if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed" }
         Write-Host "GitHub Release created successfully!" -ForegroundColor Green
         Show-Success
+        Remove-Item -Force $notesPath,$notesRelease -ErrorAction SilentlyContinue
         exit 0
     } catch {
+        Remove-Item -Force $notesPath,$notesRelease -ErrorAction SilentlyContinue
         Show-Error
         exit 1
     }
