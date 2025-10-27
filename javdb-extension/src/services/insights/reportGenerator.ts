@@ -2,6 +2,8 @@ import { ReportStats } from "../../types/insights";
 import { aiService } from "../ai/aiService";
 import { startGenerationTrace, addTrace, endGenerationTrace } from './generationTrace';
 import type { ChatMessage } from "../../types/ai";
+import { buildPrompts, type PromptPersona } from './prompts';
+import { getSettings } from '../../utils/storage';
 
 export interface BuildAIInput {
   periodText: string;
@@ -32,6 +34,8 @@ export interface GenerateReportHTMLParams {
   stats: ReportStats;
   // 由调用方基于本地统计构造的基础字段（如 baseHref/statsJSON/periodText 等）
   baseFields: Record<string, string>;
+  // 页面级覆盖：仅本次调用使用的模型，不影响全局设置
+  modelOverride?: string;
 }
 
 function isLikelyHTML(text: string): boolean {
@@ -88,20 +92,92 @@ function tryParseJsonObject(text: string): Record<string, string> | null {
     }
   } catch {}
 
+  // 5) 容错修复：去除围栏/散落反引号，并转义字符串中的未转义双引号后再解析
+  try {
+    const fenceRe = /```(?:json)?\s*([\s\S]*?)```/i;
+    let candidate = raw;
+    const fm = raw.match(fenceRe);
+    if (fm && fm[1]) candidate = fm[1];
+    // 去除可能残留的首尾反引号与围栏标记
+    candidate = candidate.replace(/^```(?:json)?/i, '').replace(/```$/i, '');
+    candidate = candidate.replace(/^[`\s]+|[`\s]+$/g, '');
+    // 在尝试修复前先做一次直接解析
+    try {
+      const obj = JSON.parse(candidate);
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        try { addTrace('info', 'PARSE', 'jsonSanitizedDirect'); } catch {}
+        return obj as Record<string, string>;
+      }
+    } catch {}
+
+    // 修复规则：在字符串内部，将不作为收尾引号的双引号视为内嵌引号并转义（启发式）
+    const escapeInnerQuotes = (s: string): string => {
+      let out = '';
+      let inStr = false;
+      let prev = '';
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (!inStr) {
+          if (c === '"') { inStr = true; out += c; }
+          else { out += c; }
+        } else {
+          if (c === '"' && prev !== '\\') {
+            // 向后看第一个非空白字符，若不是 , 或 }，则认为是内嵌引号，进行转义
+            let j = i + 1;
+            while (j < s.length && /\s/.test(s[j])) j++;
+            const next = s[j];
+            if (next === ',' || next === '}' ) { inStr = false; out += c; }
+            else { out += '\\"'; }
+          } else {
+            out += c;
+          }
+        }
+        prev = c;
+      }
+      return out;
+    };
+    const repaired = escapeInnerQuotes(candidate);
+    try {
+      const obj = JSON.parse(repaired);
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        try { addTrace('info', 'PARSE', 'jsonSanitizedEscaped'); } catch {}
+        return obj as Record<string, string>;
+      }
+    } catch {}
+  } catch {}
+
   return null;
 }
 
-function buildPromptMessages(params: BuildAIInput): ChatMessage[] {
+function buildPromptMessages(params: BuildAIInput, promptOptions?: { persona?: PromptPersona; overrides?: { system?: string; rules?: string } }): ChatMessage[] {
   const { periodText, stats } = params;
-  // 精简统计摘要，避免上下文过大导致 400
-  const top = (stats as any)?.tagsTop || [];
+  const top = Array.isArray((stats as any)?.tagsTop) ? (stats as any).tagsTop : [];
   const changes = (stats as any)?.changes || { newTags: [], rising: [], falling: [] };
+  const metrics = (stats as any)?.metrics || {};
+
+  // 精简但保留关键量化：Top、变化详情、指标
   const digest = {
     periodText,
-    topTags: top.slice(0, 5).map((t: any) => ({ name: t?.name, count: t?.count })),
-    newTags: Array.isArray(changes.newTags) ? changes.newTags.slice(0, 5) : [],
-    rising: Array.isArray(changes.rising) ? changes.rising.slice(0, 5) : [],
-    falling: Array.isArray(changes.falling) ? changes.falling.slice(0, 5) : []
+    topTags: top.slice(0, 10).map((t: any) => ({ name: t?.name, count: t?.count, ratio: t?.ratio })),
+    changes: {
+      newTags: Array.isArray(changes.newTags) ? changes.newTags.slice(0, 10) : [],
+      rising: Array.isArray(changes.rising) ? changes.rising.slice(0, 10) : [],
+      falling: Array.isArray(changes.falling) ? changes.falling.slice(0, 10) : [],
+      risingDetailed: Array.isArray(changes.risingDetailed) ? changes.risingDetailed.slice(0, 5) : [],
+      fallingDetailed: Array.isArray(changes.fallingDetailed) ? changes.fallingDetailed.slice(0, 5) : [],
+      newTagsDetailed: Array.isArray(changes.newTagsDetailed) ? changes.newTagsDetailed.slice(0, 5) : [],
+    },
+    metrics: {
+      totalAll: metrics.totalAll,
+      prevTotalAll: metrics.prevTotalAll,
+      concentrationTop3: metrics.concentrationTop3,
+      hhi: metrics.hhi,
+      entropy: metrics.entropy,
+      trendSlope: metrics.trendSlope,
+      daysCount: metrics.daysCount,
+      baselineCount: metrics.baselineCount,
+      newCount: metrics.newCount,
+    }
   };
 
   // 记录：输入摘要
@@ -112,39 +188,29 @@ function buildPromptMessages(params: BuildAIInput): ChatMessage[] {
       newTagsCount: Array.isArray(changes.newTags) ? changes.newTags.length : 0,
       risingCount: Array.isArray(changes.rising) ? changes.rising.length : 0,
       fallingCount: Array.isArray(changes.falling) ? changes.falling.length : 0,
+      metricsKeys: Object.keys(digest.metrics || {}),
       digestPreview: JSON.stringify(digest).slice(0, 800)
     });
   } catch {}
 
-  const system = [
-    '你是报表生成器，只负责把输入的“期文字段+统计摘要”转成报告字段。',
-    '严格只返回一个 JSON 对象（不要出现任何解释、注释、代码块标记、额外文本）。',
-    '字段：reportTitle, periodText, summary, insightList, methodology。',
-    '如果输入数据为空或信息不足，也必须返回上述字段，允许空字符串或空数组，但结构不能缺失。',
-    '输出语言为中文。'
-  ].join('\n');
-
-  const instruction = [
-    '请基于下方输入生成报告字段。',
-    '字段含义：',
-    ' - reportTitle：不超过30字；',
-    ' - summary：不超过200字，概括本期偏好与变化；',
-    ' - insightList：字符串，若干 <li>要点</li> 拼接的 HTML 片段（每条≤120字，突出“新出现/上升/下降”）；',
-    ' - methodology：1-2句方法说明；',
-    ' - periodText：可复用输入（必要时轻微润色）。',
-    '只返回一个 JSON 对象，不能包含解释或多余文本。'
-  ].join('\n');
+  const persona = promptOptions?.persona || 'doctor';
+  const overrides = promptOptions?.overrides;
+  const { system, rules } = buildPrompts({ persona, overrides });
 
   const messages: ChatMessage[] = [
     { role: 'system', content: system },
-    { role: 'user', content: instruction },
-    { role: 'user', content: `输入数据:\n${JSON.stringify(digest, null, 2)}` }
+    { role: 'user', content: '请严格按以下规则生成字段：\n' + rules },
+    { role: 'user', content: `输入数据（含量化指标与详细变化）：\n${JSON.stringify(digest, null, 2)}` }
   ];
   try {
     addTrace('info', 'INSIGHTS', 'messagesReady', {
       count: messages.length,
       msg0Len: (messages[0]?.content || '').length,
       msg1Len: (messages[1]?.content || '').length,
+    });
+    const trunc = (s: string, n = 1000) => (s || '').slice(0, n);
+    addTrace('info', 'PROMPT', 'messages', {
+      messages: messages.slice(0, 4).map(m => ({ role: m.role, content: trunc(String(m.content || ''), 1200) }))
     });
   } catch {}
   return messages;
@@ -162,15 +228,22 @@ function mergeFields(base: Record<string, string>, ai: Record<string, string> | 
 /**
  * 调用 AI 生成报告文本，支持 HTML/JSON 回退；未启用或失败时回退本地模板渲染。
  */
-export async function generateReportHTML({ templateHTML, stats, baseFields }: GenerateReportHTMLParams): Promise<string> {
+export async function generateReportHTML({ templateHTML, stats, baseFields, modelOverride }: GenerateReportHTMLParams): Promise<string> {
   try {
     const settings = aiService.getSettings();
+    const effectiveModel = (typeof modelOverride === 'string' && modelOverride.trim())
+      ? modelOverride.trim()
+      : (settings?.selectedModel || '');
     // 启动本次追踪（仅保留最近一次）
     startGenerationTrace({
       aiEnabled: !!settings?.enabled,
       streamEnabled: false,
-      model: settings?.selectedModel || '',
+      model: effectiveModel,
+      apiUrl: settings?.apiUrl || '',
+      endpoint: '/v1/chat/completions',
       timeout_s: settings?.timeout,
+      temperature: settings?.temperature,
+      maxTokens: settings?.maxTokens,
       autoRetryEmpty: !!settings?.autoRetryEmpty,
       autoRetryMax: settings?.autoRetryMax,
       errorRetryEnabled: !!settings?.errorRetryEnabled,
@@ -186,12 +259,20 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
       return renderTemplate({ templateHTML, fields: baseFields });
     }
 
-    // 组装消息并调用 AI
-    const messages = buildPromptMessages({ periodText: baseFields.periodText || '', stats });
+    const extSettings = await getSettings();
+    const p = (extSettings as any)?.insights?.prompts || {};
+    const usePersona: PromptPersona = (p?.persona === 'doctor' || p?.persona === 'default') ? p.persona : 'doctor';
+    const overrides = p?.enableCustom ? {
+      system: typeof p?.systemOverride === 'string' ? p.systemOverride : '',
+      rules: typeof p?.rulesOverride === 'string' ? p.rulesOverride : ''
+    } : undefined;
+    const messages = buildPromptMessages({ periodText: baseFields.periodText || '', stats }, { persona: usePersona, overrides });
     let text = '';
     // 报告位置：强制非流式
     try { addTrace('info', 'INSIGHTS', 'useNonStreamForced'); } catch {}
-    const resp = await aiService.sendMessage(messages, {
+    let t0 = Date.now();
+    try { addTrace('info', 'AI', 'callStart'); } catch {}
+    const observerWrap = {
       observer: (ev: any) => {
         try {
           if (!ev || !ev.type) return;
@@ -208,7 +289,11 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
           else if (ev.type === 'error') addTrace('error', 'RETRY', 'error', common);
         } catch {}
       }
-    });
+    };
+    const resp = (typeof modelOverride === 'string' && modelOverride.trim())
+      ? await aiService.sendMessageWithModel(messages, effectiveModel, observerWrap)
+      : await aiService.sendMessage(messages, observerWrap);
+    try { addTrace('info', 'AI', 'callEnd', { elapsedMs: Date.now() - t0 }); } catch {}
     text = resp?.choices?.[0]?.message?.content?.trim() || '';
 
     try { addTrace('info', 'INSIGHTS', 'aiOutput', { len: text.length, head: text.slice(0, 800) }); } catch {}
@@ -221,28 +306,11 @@ export async function generateReportHTML({ templateHTML, stats, baseFields }: Ge
       const merged = mergeFields(baseFields, asJson);
       return renderTemplate({ templateHTML, fields: merged });
     }
-
-    // 解析为 HTML
+    // 禁止采用 AI 自带的 HTML（避免干扰图表/排行渲染），若不是 JSON 则回退本地模板
     if (isLikelyHTML(text)) {
-      let html = text;
-      // 确保 base 与 statsJSON 存在（如 AI 未填充这些占位符）
-      try {
-        if (!/<base[^>]*>/i.test(html)) {
-          const base = baseFields.baseHref || './';
-          if (/<head[^>]*>/i.test(html)) {
-            html = html.replace(/<head[^>]*>/i, (m) => `${m}\n  <base href="${base}">`);
-          }
-        }
-        // 在 charts section 之前插入数据模板（尽力而为）
-        if (!/id=["']insights-data["']/i.test(html) && baseFields.statsJSON) {
-          html = html.replace(/<section[^>]*id=["']charts["'][^>]*>/i, (m) => `${m}\n  <template id="insights-data">${baseFields.statsJSON}</template>`);
-        }
-      } catch (e) {
-        try { addTrace('warn', 'PARSE', 'htmlAdjustError', { error: (e as any)?.message || String(e) }); } catch {}
-      }
-      try { addTrace('info', 'INSIGHTS', 'parsedAsHTML'); } catch {}
-      endGenerationTrace('success', { parsedAs: 'html', outputLen: text.length, outputHead: text.slice(0, 200) });
-      return html;
+      try { addTrace('warn', 'INSIGHTS', 'htmlIgnored'); } catch {}
+      endGenerationTrace('fallback', { parsedAs: 'html', outputLen: text.length, outputHead: text.slice(0, 200) });
+      return renderTemplate({ templateHTML, fields: baseFields });
     }
 
     // 无法识别，回退

@@ -40,3 +40,6 @@ temp/
 *test*.js
 *temp*.js
 *debug*.js
+
+# windsurf
+.windsurf/
