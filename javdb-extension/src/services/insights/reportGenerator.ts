@@ -216,11 +216,18 @@ function buildPromptMessages(params: BuildAIInput, promptOptions?: { persona?: P
   return messages;
 }
 
-function mergeFields(base: Record<string, string>, ai: Record<string, string> | null | undefined): Record<string, string> {
+export function mergeFields(base: Record<string, string>, ai: Record<string, string> | null | undefined): Record<string, string> {
   if (!ai) return { ...base };
   const merged: Record<string, string> = { ...base };
+  const allow: Record<string, true> = {
+    reportTitle: true,
+    summary: true,
+    insightList: true,
+    methodology: true,
+    periodText: true,
+  };
   for (const [k, v] of Object.entries(ai)) {
-    if (typeof v === 'string') merged[k] = v;
+    if (allow[k as keyof typeof allow] && typeof v === 'string') merged[k] = v;
   }
   return merged;
 }
