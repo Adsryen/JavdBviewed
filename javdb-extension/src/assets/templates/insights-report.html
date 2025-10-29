@@ -42,19 +42,19 @@
       <ul id="insights">{{insightList}}</ul>
     </section>
 
+    <section id="ranking">
+      <h2>标签排行</h2>
+      <table class="table">
+        <thead><tr><th>#</th><th>标签</th><th>次数</th><th>占比</th></tr></thead>
+        <tbody id="ranking-body">{{rankingRows}}</tbody>
+      </table>
+    </section>
+
     <section id="charts">
       <template id="insights-data">{{statsJSON}}</template>
       <div id="tags-pie" class="chart"></div>
       <div id="tags-top-bar" class="chart"></div>
       <div id="trend-line" class="chart"></div>
-    </section>
-
-    <section id="ranking">
-      <h2>标签排行</h2>
-      <table class="table">
-        <thead><tr><th>#</th><th>标签</th><th>次数</th><th>占比</th></tr></thead>
-        <tbody id="ranking-body"></tbody>
-      </table>
     </section>
 
     <section id="methodology">
