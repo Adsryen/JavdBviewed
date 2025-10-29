@@ -40,6 +40,32 @@ body {
 .tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-1 {
     margin-top: 0;
 }
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    column-gap: 12px;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .toolbar-left {
+    display: grid;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+    min-width: 0;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 #insights-model-sep {
+    display: none;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 #insights-model-wrap {
+    margin-left: 0 !important;
+}
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .toolbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+    min-width: max-content;
+}
 
 /* 让第二行左侧容器可收缩换行，右侧保持内容宽度 */
 .tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row .toolbar-left {
