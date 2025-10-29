@@ -51,6 +51,19 @@
         },
         {
             "matches": [
+                "http://*/web/*",
+                "https://*/web/*",
+                "http://localhost/*",
+                "https://localhost/*",
+                "http://127.0.0.1/*"
+            ],
+            "js": [
+                "content/index.ts"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
                 "*://115.com/*",
                 "*://*.115.com/*"
             ],
@@ -92,6 +105,8 @@
         {
             "resources": [
                 "assets/*",
+                "assets/*.js",
+                "content/*.js",
                 "assets/templates/*",
                 "assets/switch-viewed.png",
                 "assets/switch-want.png",
@@ -102,7 +117,7 @@
                 "assets/alternate-search.png",
                 "assets/115-logo.svg"
             ],
-            "matches": ["*://*.javdb.com/*"]
+            "matches": ["<all_urls>"]
         }
     ]
 }
