@@ -63,10 +63,15 @@
   function renderRanking(stats){
     try{
       var body = document.getElementById('ranking-body');
-      var top = (stats && stats.tagsTop) || [];
-      if (!body || !top.length){
-        var sec = document.getElementById('ranking');
-        if (sec) sec.style.display = 'none';
+      var top = (stats && (stats.tagsTop || stats.topTags)) || [];
+      if (!body){ return; }
+      var hasStatic = !!(body.innerHTML && body.innerHTML.trim().length);
+      if (!top.length){
+        // 若无可用数据，但模板已渲染静态行，则保留，不隐藏
+        if (!hasStatic){
+          var sec = document.getElementById('ranking');
+          if (sec) sec.style.display = 'none';
+        }
         return;
       }
       var total = (stats.metrics && stats.metrics.totalAll) || top.reduce(function(s, t){ return s + (t.count||0); }, 0) || 1;
@@ -81,30 +86,33 @@
   }
   function renderCharts(stats) {
     var echarts = safeEcharts();
-    if (!echarts || !stats) { renderFallback(); return; }
-    // KPI & 排行
+    if (!stats) { renderFallback(); return; }
+    // KPI & 排行优先渲染（不依赖 ECharts）
     renderKpis(stats);
     renderRanking(stats);
+    // 图表部分缺少 ECharts 时仅回退图表占位
+    if (!echarts) { renderFallback(); return; }
     try {
       // Pie: tagsTop
       var pieEl = document.getElementById('tags-pie');
-      if (pieEl && (stats.tagsTop||[]).length) {
+      var topArr = (stats && (stats.tagsTop || stats.topTags)) || [];
+      if (pieEl && topArr.length) {
         var pie = echarts.init(pieEl);
         pie.setOption({
           title: { text: '标签占比', left: 'center' },
           tooltip: { trigger: 'item' },
           series: [{
             type: 'pie', radius: '60%',
-            data: (stats.tagsTop||[]).map(function(t){ return { name: t.name, value: t.count }; })
+            data: topArr.map(function(t){ return { name: t.name, value: t.count }; })
           }]
         });
       } else { if (pieEl) pieEl.style.display='none'; }
       // Bar: topN
       var barEl = document.getElementById('tags-top-bar');
-      if (barEl && (stats.tagsTop||[]).length) {
+      if (barEl && topArr.length) {
         var bar = echarts.init(barEl);
-        var cats = (stats.tagsTop||[]).map(function(t){ return t.name; });
-        var vals = (stats.tagsTop||[]).map(function(t){ return t.count; });
+        var cats = topArr.map(function(t){ return t.name; });
+        var vals = topArr.map(function(t){ return t.count; });
         bar.setOption({
           title: { text: 'Top 标签计数', left: 'center' },
           tooltip: { trigger: 'axis' },
@@ -133,8 +141,7 @@
   }
   try {
     onReady(function(){
-      waitForEcharts(5000).then(function(e){
-        if (!e) { renderFallback(); return; }
+      waitForEcharts(5000).then(function(){
         var s = parseStats();
         if (!s) s = { tagsTop: [], trend: [] };
         renderCharts(s);
