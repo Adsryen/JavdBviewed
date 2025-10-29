@@ -5,6 +5,7 @@
 
 import { STATE, log } from './state';
 import { extractVideoId } from './videoId';
+import { showToast } from './toast';
 
 interface EmbyConfig {
     enabled: boolean;
@@ -28,6 +29,7 @@ class EmbyEnhancementManager {
     private observer: MutationObserver | null = null;
     private processedElements = new WeakSet<Element>();
     private config: EmbyConfig | null = null;
+    private quickActions: HTMLElement | null = null;
 
     /**
      * 初始化Emby增强功能
@@ -50,6 +52,8 @@ class EmbyEnhancementManager {
 
             this.setupMutationObserver();
             this.processExistingContent();
+            // 渲染右侧悬浮快捷框（搜番号 / 搜演员）
+            this.renderQuickActions();
             this.isInitialized = true;
 
             log('Emby enhancement initialized successfully');
@@ -68,6 +72,7 @@ class EmbyEnhancementManager {
         }
         this.isInitialized = false;
         this.processedElements = new WeakSet();
+        this.removeQuickActions();
         log('Emby enhancement destroyed');
     }
 
@@ -288,12 +293,45 @@ class EmbyEnhancementManager {
         const links = container.querySelectorAll('.emby-video-link');
         links.forEach(link => {
             link.addEventListener('click', (event) => {
+                event.preventDefault();
                 event.stopPropagation();
-                // 链接会自动在新标签页打开，这里可以添加额外的处理逻辑
                 const videoId = link.textContent?.trim();
-                if (videoId) {
-                    log(`User clicked on video link: ${videoId}`);
+                if (!videoId) return;
+
+                log(`User clicked on video link: ${videoId}`);
+
+                // 优先：直达详情（需要本地有直链或可即时刷新获取）
+                if (this.config?.linkBehavior === 'javdb-direct') {
+                    const local = STATE.records?.[videoId];
+                    if (local?.javdbUrl && local.javdbUrl !== '#') {
+                        window.open(local.javdbUrl, '_blank');
+                        return;
+                    }
+                    try {
+                        chrome.runtime.sendMessage({ type: 'refresh-record', videoId }, (resp: any) => {
+                            if ((typeof chrome !== 'undefined') && chrome.runtime && chrome.runtime.lastError) {
+                                const url = this.generateVideoUrl(videoId);
+                                window.open(url, '_blank');
+                                return;
+                            }
+                            const updatedUrl = resp?.record?.javdbUrl;
+                            if (resp?.success && updatedUrl && updatedUrl !== '#') {
+                                window.open(updatedUrl, '_blank');
+                            } else {
+                                const url = this.generateVideoUrl(videoId);
+                                window.open(url, '_blank');
+                            }
+                        });
+                    } catch {
+                        const url = this.generateVideoUrl(videoId);
+                        window.open(url, '_blank');
+                    }
+                    return;
                 }
+
+                // 回退：统一走搜索
+                const url = this.generateVideoUrl(videoId);
+                window.open(url, '_blank');
             });
 
             // 添加悬停效果
@@ -332,6 +370,7 @@ class EmbyEnhancementManager {
 
         this.processedElements = new WeakSet();
         this.processExistingContent();
+        this.renderQuickActions();
         log('Emby enhancement refreshed');
     }
 
@@ -344,6 +383,201 @@ class EmbyEnhancementManager {
             enabled: this.config?.enabled || false,
             matched: this.isCurrentPageMatched()
         };
+    }
+
+    /** 渲染右侧悬浮快捷框（搜番号 / 搜演员） */
+    private renderQuickActions(): void {
+        if (!this.config?.enabled || !this.isCurrentPageMatched()) return;
+        this.removeQuickActions();
+        const container = document.createElement('div');
+        container.className = 'emby-quick-actions';
+        container.style.cssText = `
+          position: fixed;
+          right: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 9999;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const btnSearchCode = this.createActionButton('search-code', '搜番号', '🔎', async () => {
+            try {
+                let id = this.getFirstVideoIdFromPage();
+                if (!id) {
+                    const sel = (window.getSelection()?.toString() || '').trim();
+                    const idsFromSel = sel ? this.extractVideoIds(sel) : [];
+                    id = idsFromSel[0] || extractVideoId(sel || '');
+                }
+                if (!id) {
+                    showToast('未检测到番号，请先在页面中出现或选中番号文本', 'warning');
+                    return;
+                }
+
+                // 链接行为：优先直达（若未有直链，尝试后台刷新），否则搜索
+                if (this.config?.linkBehavior === 'javdb-direct') {
+                    const local = STATE.records?.[id];
+                    if (local?.javdbUrl && local.javdbUrl !== '#') {
+                        window.open(local.javdbUrl, '_blank');
+                        showToast(`已打开详情：${id}`,'success');
+                        return;
+                    }
+                    chrome.runtime.sendMessage({ type: 'refresh-record', videoId: id }, (resp: any) => {
+                        if ((typeof chrome !== 'undefined') && chrome.runtime && chrome.runtime.lastError) {
+                            const url = this.generateVideoUrl(id);
+                            window.open(url, '_blank');
+                            showToast(`未找到直链，已改为搜索：${id}`,'info');
+                            return;
+                        }
+                        const updatedUrl = resp?.record?.javdbUrl;
+                        if (resp?.success && updatedUrl && updatedUrl !== '#') {
+                            try { (STATE.records as any)[id] = resp.record; } catch {}
+                            window.open(updatedUrl, '_blank');
+                            showToast(`已打开详情：${id}`,'success');
+                        } else {
+                            const url = this.generateVideoUrl(id);
+                            window.open(url, '_blank');
+                            showToast(`未找到直链，已改为搜索：${id}`,'info');
+                        }
+                    });
+                    return;
+                }
+
+                const url = this.generateVideoUrl(id);
+                window.open(url, '_blank');
+                showToast(`已在新标签页搜索番号：${id}`, 'success');
+            } catch (e) {
+                showToast('搜索番号失败', 'error');
+            }
+        });
+
+        const btnSearchActor = this.createActionButton('search-actor', '搜演员', '👤', async () => {
+            try {
+                let name = this.findActorNameFromPage();
+                if (!name) {
+                    const sel = (window.getSelection()?.toString() || '').trim();
+                    if (sel) name = sel;
+                }
+                if (!name) {
+                    const input = prompt('请输入演员名（也可先选中文本再点击按钮）', '');
+                    name = (input || '').trim();
+                }
+                if (!name) {
+                    showToast('未获取到演员名', 'warning');
+                    return;
+                }
+                const url = this.generateSearchUrl(name);
+                window.open(url, '_blank');
+                showToast(`已在新标签页搜索演员：${name}`, 'success');
+            } catch (e) {
+                showToast('搜索演员失败', 'error');
+            }
+        });
+
+        container.appendChild(btnSearchCode);
+        container.appendChild(btnSearchActor);
+        document.body.appendChild(container);
+        this.quickActions = container;
+    }
+
+    /** 移除悬浮快捷框 */
+    private removeQuickActions(): void {
+        if (this.quickActions) {
+            this.quickActions.remove();
+            this.quickActions = null;
+        }
+    }
+
+    /** 创建样式统一的按钮 */
+    private createActionButton(id: string, label: string, icon: string, onClick: () => void): HTMLElement {
+        const btn = document.createElement('a');
+        btn.className = `emby-quick-action-btn ${id}`;
+        btn.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 80px;
+          height: 40px;
+          background: rgba(255, 255, 255, 0.95);
+          border: 1px solid #ddd;
+          border-radius: 20px;
+          color: #333;
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 500;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s ease;
+          cursor: pointer;
+          padding: 0 12px;
+          gap: 6px;
+          backdrop-filter: blur(10px);
+        `;
+        const i = document.createElement('span');
+        i.textContent = icon;
+        i.style.fontSize = '14px';
+        const t = document.createElement('span');
+        t.textContent = label;
+        btn.appendChild(i);
+        btn.appendChild(t);
+        btn.addEventListener('mouseenter', () => {
+            (btn as HTMLElement).style.background = 'rgba(255, 255, 255, 1)';
+            (btn as HTMLElement).style.transform = 'scale(1.05)';
+            (btn as HTMLElement).style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+        });
+        btn.addEventListener('mouseleave', () => {
+            (btn as HTMLElement).style.background = 'rgba(255, 255, 255, 0.95)';
+            (btn as HTMLElement).style.transform = 'scale(1)';
+            (btn as HTMLElement).style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+        });
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            onClick();
+        });
+        return btn;
+    }
+
+    /** 从页面中尝试获取第一个番号 */
+    private getFirstVideoIdFromPage(): string | null {
+        try {
+            const text = (document.body?.innerText || document.body?.textContent || '');
+            const ids = this.extractVideoIds(text || '');
+            return ids[0] || null;
+        } catch {
+            return null;
+        }
+    }
+
+    /** 从页面尝试提取演员名（优先已选中文本） */
+    private findActorNameFromPage(): string | null {
+        // 1. 先看选中文本
+        const sel = (window.getSelection()?.toString() || '').trim();
+        if (sel) return sel;
+        // 2. 常见 Emby/Jellyfin 人员链接
+        const personLink = document.querySelector('a[href*="/Persons/"]') || document.querySelector('a[href*="/persons/"]');
+        if (personLink && personLink.textContent) {
+            const name = personLink.textContent.trim();
+            if (name) return name;
+        }
+        // 3. 类名包含 person/actor 的元素
+        const personEl = document.querySelector('[class*="person"], [class*="actor"]');
+        if (personEl && personEl.textContent) {
+            const name = personEl.textContent.trim().split(/[\n,，|]/)[0].trim();
+            if (name) return name;
+        }
+        // 4. 失败则返回 null，由调用方提示/弹窗
+        return null;
+    }
+
+    /** 构造通用搜索URL（默认 JavDB search?q=...&f=all） */
+    private generateSearchUrl(query: string): string {
+        const searchEngines = STATE.settings?.searchEngines || [];
+        const javdbEngine = searchEngines.find(engine => engine.id === 'javdb');
+        if (javdbEngine?.urlTemplate) {
+            return javdbEngine.urlTemplate.replace('{{ID}}', encodeURIComponent(query));
+        }
+        return `https://javdb.com/search?q=${encodeURIComponent(query)}&f=all`;
     }
 }
 

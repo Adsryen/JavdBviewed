@@ -302,18 +302,34 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
     const finalTitle = dataTitle || `未知标题`;
     log(`[refreshRecordById] Using title: ${finalTitle}`);
 
-    // 3. Get current records and update the specific one
+    // 3. Get current records and upsert the specific one
     log(`[refreshRecordById] Step 3: Updating record in storage.`);
     const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
     log('[refreshRecordById] Fetched all records from storage.');
     const existingRecord = allRecords[videoId];
+    const now = Date.now();
+
     if (!existingRecord) {
-        error(`[refreshRecordById] Record ${videoId} does not exist in storage. Cannot refresh.`);
-        throw new Error(`Record ${videoId} does not exist in storage. Cannot refresh.`);
+        // Create a new record when not exists
+        const newRecord: VideoRecord = {
+            id: videoId,
+            title: finalTitle,
+            status: 'browsed' as any,
+            tags: tags,
+            createdAt: now,
+            updatedAt: now,
+            releaseDate,
+            javdbUrl: detailPageUrl,
+            javdbImage,
+        };
+        allRecords[videoId] = newRecord;
+        await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+        log(`[refreshRecordById] Inserted new record for ${videoId} and saved to storage.`);
+        return newRecord;
     }
+
     log('[refreshRecordById] Found existing record:', existingRecord);
 
-    const now = Date.now();
     const updatedRecord: VideoRecord = {
         ...existingRecord,
         id: videoId,
@@ -332,4 +348,4 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
 
     log(`[refreshRecordById] Finished refresh for ${videoId}. Returning updated record.`);
     return updatedRecord;
-} 
+}
