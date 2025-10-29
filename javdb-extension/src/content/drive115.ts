@@ -9,6 +9,7 @@ import { waitForElement } from './utils';
 // extractVideoIdFromPage 已集成到推送按钮逻辑中
 import { showToast } from './toast';
 import { log } from './state';
+import { extractVideoIdFromPage } from './videoId';
 import { getSettings } from '../utils/storage';
 
 // 统一的网络请求超时与重试封装（用于对抗临时的网络抖动/连接重置）
@@ -100,6 +101,38 @@ function logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: str
     });
 }
 
+async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
+    const container = await waitForElement('#magnets-content', 5000, 150);
+    if (!container) return;
+    const videoId = extractVideoIdFromPage() || 'unknown';
+
+    const items = Array.from(container.querySelectorAll('.item')) as HTMLElement[];
+    items.forEach((item) => {
+        if (item.querySelector('.drive115-push-btn')) return;
+        const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement | null;
+        if (!magnetLink) return;
+        const nameEl = item.querySelector('.magnet-name .name') as HTMLElement | null;
+        const magnetName = (nameEl?.textContent || magnetLink.textContent || 'magnet').trim();
+
+        const btn = document.createElement('button');
+        btn.className = 'button is-success is-small drive115-push-btn';
+        (btn as HTMLButtonElement).style.marginLeft = '5px';
+        btn.innerHTML = '&nbsp;推送115&nbsp;';
+        btn.addEventListener('click', () => handlePushToDrive115(btn, videoId, magnetLink.href, magnetName));
+
+        let buttonsCol = item.querySelector('.buttons');
+        if (!buttonsCol) {
+            buttonsCol = document.createElement('div');
+            (buttonsCol as HTMLElement).className = 'buttons column';
+            (buttonsCol as HTMLElement).style.display = 'flex';
+            (buttonsCol as HTMLElement).style.alignItems = 'center';
+            (buttonsCol as HTMLElement).style.gap = '6px';
+            item.appendChild(buttonsCol);
+        }
+        (buttonsCol as HTMLElement).appendChild(btn);
+    });
+}
+
 /**
  * 初始化115功能
  */
@@ -111,10 +144,9 @@ export async function initDrive115Features(): Promise<void> {
             return;
         }
 
-        // 在详情页添加115按钮
+        // 在详情页为原生磁力列表注入 115 按钮（不依赖磁力搜索）
         if (window.location.pathname.startsWith('/v/')) {
-            // 暂时跳过按钮添加，避免依赖错误
-            log('[Drive115] Video detail page detected, but button addition is temporarily disabled');
+            try { await inject115ButtonsIntoNativeMagnetList(); } catch {}
         }
 
         // 等待容器元素出现，避免初始化过早导致刷新后不渲染
@@ -122,8 +154,7 @@ export async function initDrive115Features(): Promise<void> {
         const userStatus = await waitForElement('#drive115-user-status', 3000, 150);
         
         if (!userBox || !userStatus) {
-            log('[Drive115] Required containers not found, skipping initialization');
-            return;
+            log('[Drive115] Required containers not found, continue without quota UI');
         }
 
         // 简化初始化，避免调用不存在的函数
