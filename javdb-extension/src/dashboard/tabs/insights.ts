@@ -209,6 +209,39 @@ function updateDeleteSelectedEnabled(): void {
   } catch {}
 }
 
+function setModelErrorBanner(msg: string): void {
+  try {
+    const cont = document.querySelector('.tab-section[data-tab-id="insights"] .container') as HTMLDivElement | null;
+    if (!cont) return;
+    let el = document.getElementById('insights-model-error') as HTMLDivElement | null;
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'insights-model-error';
+      el.className = 'alert-banner';
+      try { el.style.borderColor = '#fecaca'; el.style.backgroundColor = '#fee2e2'; el.style.color = '#991b1b'; } catch {}
+      const icon = document.createElement('span');
+      icon.className = 'icon';
+      icon.textContent = '⛔';
+      const text = document.createElement('span');
+      el.appendChild(icon);
+      el.appendChild(text);
+      const toolbar = cont.querySelector('.insights-toolbar');
+      cont.insertBefore(el, toolbar || null);
+    }
+    const spans = el.querySelectorAll('span');
+    const textSpan = spans.length > 1 ? spans[1] : null;
+    if (textSpan) textSpan.textContent = msg;
+    else el.textContent = msg;
+  } catch {}
+}
+
+function clearModelErrorBanner(): void {
+  try {
+    const el = document.getElementById('insights-model-error');
+    if (el && el.parentElement) el.parentElement.removeChild(el);
+  } catch {}
+}
+
 // 预览动作的可用状态：生成后才允许“保存为月报”
 let canSaveReport = false;
 // 页面级：AI 模型覆盖，仅作用于本页面（不改全局设置）
@@ -280,8 +313,53 @@ async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
       lab.textContent = 'AI模型：';
       const sel = document.createElement('select');
       sel.id = 'insights-model-select';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'insights-model-custom';
+      input.placeholder = '输入模型ID';
+      input.style.display = 'none';
+      input.style.marginLeft = '6px';
+      input.style.height = 'var(--ins-row2-h)';
+      input.style.fontSize = 'var(--ins-row2-font)';
       wrap.appendChild(lab);
       wrap.appendChild(sel);
+      wrap.appendChild(input);
+      const refresh = document.createElement('button');
+      refresh.id = 'insights-model-refresh';
+      refresh.textContent = '刷新模型';
+      refresh.style.marginLeft = '6px';
+      refresh.style.height = 'var(--ins-row2-h)';
+      refresh.style.fontSize = 'var(--ins-row2-font)';
+      refresh.style.padding = '0 10px';
+      refresh.style.border = '1px solid #e2e8f0';
+      refresh.style.background = '#f8fafc';
+      refresh.style.color = '#334155';
+      refresh.style.borderRadius = 'var(--ins-row2-radius)';
+      refresh.onclick = async () => {
+        try {
+          const cfg = aiService.getSettings();
+          if (!cfg.enabled) { setModelErrorBanner('AI 未启用，无法刷新模型'); try { showMessage('AI 未启用，无法刷新模型', 'error'); } catch {} return; }
+          clearModelErrorBanner();
+          const old = refresh.textContent || '';
+          refresh.disabled = true;
+          refresh.textContent = '刷新中…';
+          try {
+            await aiService.getAvailableModels(true);
+            await ensureModelDropdown();
+            clearModelErrorBanner();
+            try { showMessage('模型列表已刷新', 'success'); } catch {}
+          } catch (err) {
+            let m = '';
+            try { m = err instanceof Error ? err.message : String(err || ''); } catch {}
+            setModelErrorBanner(`AI 模型列表加载失败：${m || '请检查设置或网络'}`);
+            try { showMessage(`模型列表刷新失败：${m || '请检查设置或网络'}`, 'error'); } catch {}
+          } finally {
+            refresh.disabled = false;
+            refresh.textContent = old || '刷新模型';
+          }
+        } catch {}
+      };
+      wrap.appendChild(refresh);
       // 插在时间范围后、生成按钮前
       const genBtn = document.getElementById('insights-generate');
       // 分隔符：日期与模型之间
@@ -311,14 +389,28 @@ async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
       // 事件：选择即更新页面覆盖
       sel.onchange = () => {
         const v = sel.value || '';
-        pageModelOverride = v ? v : undefined;
-        try {
-          if (v) sessionStorage.setItem(STORAGE_KEY, v); else sessionStorage.removeItem(STORAGE_KEY);
-        } catch {}
+        if (v === '__custom__') {
+          input.style.display = '';
+          input.focus();
+          const cur = (input.value || '').trim();
+          pageModelOverride = cur ? cur : undefined;
+          try { if (cur) sessionStorage.setItem(STORAGE_KEY, cur); else sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        } else {
+          input.style.display = 'none';
+          pageModelOverride = v ? v : undefined;
+          try { if (v) sessionStorage.setItem(STORAGE_KEY, v); else sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        }
+      };
+      input.oninput = () => {
+        const cur = (input.value || '').trim();
+        pageModelOverride = cur ? cur : undefined;
+        try { if (cur) sessionStorage.setItem(STORAGE_KEY, cur); else sessionStorage.removeItem(STORAGE_KEY); } catch {}
       };
     }
     // 填充选项
     const sel = document.getElementById('insights-model-select') as HTMLSelectElement | null;
+    const input = document.getElementById('insights-model-custom') as HTMLInputElement | null;
+    const refreshEl = document.getElementById('insights-model-refresh') as HTMLButtonElement | null;
     if (sel) {
       sel.innerHTML = '';
       const aiCfg = aiService.getSettings();
@@ -326,28 +418,47 @@ async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
       follow.value = '';
       follow.textContent = aiCfg.selectedModel ? `跟随全局（${aiCfg.selectedModel}）` : '跟随全局（未选择）';
       sel.appendChild(follow);
-      try {
-        const models = await aiService.getAvailableModels();
-        for (const m of (models || [])) {
-          const opt = document.createElement('option');
-          opt.value = m.id;
-          opt.textContent = m.name ? `${m.name} (${m.id})` : m.id;
-          sel.appendChild(opt);
+      if (aiCfg.enabled) {
+        try {
+          clearModelErrorBanner();
+          const models = await aiService.getAvailableModels();
+          for (const m of (models || [])) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name ? `${m.name} (${m.id})` : m.id;
+            sel.appendChild(opt);
+          }
+        } catch (err) {
+          let m = '';
+          try { m = err instanceof Error ? err.message : String(err || ''); } catch {}
+          setModelErrorBanner(`AI 模型列表加载失败：${m || '请检查设置或网络'}`);
         }
-      } catch {}
+      } else {
+        clearModelErrorBanner();
+      }
+      const custom = document.createElement('option');
+      custom.value = '__custom__';
+      custom.textContent = '自定义…';
+      sel.appendChild(custom);
       // 恢复：sessionStorage 记忆
       let restored = '';
       try { restored = sessionStorage.getItem(STORAGE_KEY) || ''; } catch {}
       if (restored && Array.from(sel.options).some(o => o.value === restored)) {
         sel.value = restored;
         pageModelOverride = restored;
+        if (input) input.style.display = 'none';
+      } else if (restored) {
+        sel.value = '__custom__';
+        if (input) { input.style.display = ''; input.value = restored; }
+        pageModelOverride = restored;
       } else {
         // 默认：不覆盖（跟随全局）
         sel.value = '';
         pageModelOverride = undefined;
+        if (input) input.style.display = 'none';
       }
       // 若全局未启用 AI，则禁用下拉但仍展示
-      try { sel.disabled = !aiCfg.enabled; } catch {}
+      try { sel.disabled = !aiCfg.enabled; if (input) input.disabled = !aiCfg.enabled; if (refreshEl) refreshEl.disabled = !aiCfg.enabled; } catch {}
     }
     return wrap;
   } catch { return null; }
@@ -1210,12 +1321,13 @@ async function handleGenerate() {
       if (Array.isArray(ch.falling) && ch.falling.length) changeInsights.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
     } catch {}
     const methodology = (modeUsed === 'compare')
-      ? 'compare 模式：基线=月初之前（按状态口径），新增=本月 updatedAt；按标签计数与占比计算变化。'
-      : '按影片ID去重，每部影片的标签计入当日计数；月度聚合统计 TopN、占比与趋势（图表将本地渲染）。';
+      ? '口径：与上月对比，看看这个月新增看的内容，按标签的次数和占比来比较变化。'
+      : '口径：按你的观看记录做简单统计，按天汇总后再算本月的前几名、占比和整体趋势（图表和排行由程序生成）。';
     const metrics = (stats as any)?.metrics || {};
     const top3 = typeof metrics.concentrationTop3 === 'number' && isFinite(metrics.concentrationTop3) ? (metrics.concentrationTop3 * 100).toFixed(1) + '%' : '-';
-    const hhi = typeof metrics.hhi === 'number' && isFinite(metrics.hhi) ? metrics.hhi.toFixed(4) : '-';
-    const ent = typeof metrics.entropy === 'number' && isFinite(metrics.entropy) ? metrics.entropy.toFixed(2) : '-';
+    const concWord = (typeof metrics.concentrationTop3 === 'number' && isFinite(metrics.concentrationTop3))
+      ? (metrics.concentrationTop3 >= 0.6 ? '较集中' : (metrics.concentrationTop3 <= 0.4 ? '较分散' : '比较均衡'))
+      : '-';
     const trend = typeof metrics.trendSlope === 'number' ? (metrics.trendSlope > 0.1 ? '上升' : (metrics.trendSlope < -0.1 ? '回落' : '平稳')) : '-';
     const risingTop = (stats as any)?.changes?.risingDetailed?.[0];
     const fallingTop = (stats as any)?.changes?.fallingDetailed?.[0];
@@ -1225,12 +1337,28 @@ async function handleGenerate() {
     const extraLine = (modeUsed === 'compare') ? `新增样本：${newCount}；基线样本：${baselineCount}` : `累计观看天数：${days.length} 天`;
     const insightList = [
       topBrief ? `本月偏好标签集中于：${topBrief}` : '数据量较少，暂无法判断主要偏好',
-      `集中度与分散度：Top3 占比 ${top3}，HHI ${hhi}，熵 ${ent}`,
+      `集中度与分散度：Top3 占比 ${top3}（结构${concWord}）`,
       `趋势：总体 ${trend}`,
       ...(styleShift ? [styleShift] : []),
       extraLine,
       ...changeInsights,
     ].map(s => `<li>${s}</li>`).join('');
+    const topList: any[] = Array.isArray((stats as any)?.tagsTop) ? (stats as any).tagsTop : [];
+    const totalAllNum: number = Number((stats as any)?.metrics?.totalAll) || topList.reduce((s, t) => s + (Number(t?.count) || 0), 0) || 1;
+    const esc = (s: any) => String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    const pct = (r: any) => {
+      const v = typeof r === 'number' && isFinite(r) ? r : (Number(r) || 0);
+      return (v * 100).toFixed(1) + '%';
+    };
+    const rankingRows = topList.map((t, i) => {
+      const ratio = (typeof t?.ratio === 'number' && isFinite(t.ratio)) ? t.ratio : ((Number(t?.count) || 0) / totalAllNum);
+      return `<tr><td>${i + 1}</td><td>${esc(t?.name)}</td><td>${Number(t?.count) || 0}</td><td>${pct(ratio)}</td></tr>`;
+    }).join('');
     const fields: Record<string, string> = {
       reportTitle: `我的观影标签报告`,
       periodText: `统计范围：${start} ~ ${end}`,
@@ -1251,10 +1379,23 @@ async function handleGenerate() {
       version: '0.0.1',
       baseHref: chrome.runtime.getURL('') || './',
       statsJSON: JSON.stringify(stats || {}),
+      rankingRows,
     } as Record<string, string>;
     const tpl = await loadTemplate();
     const modelSel = getEl<HTMLSelectElement>('insights-model-select');
-    const modelOverride = modelSel ? (modelSel.value || undefined) : pageModelOverride;
+    const modelInput = getEl<HTMLInputElement>('insights-model-custom');
+    let modelOverride: string | undefined;
+    if (modelSel) {
+      const v = (modelSel.value || '').trim();
+      if (v === '__custom__') {
+        const cur = (modelInput?.value || '').trim();
+        modelOverride = cur || undefined;
+      } else {
+        modelOverride = v || undefined;
+      }
+    } else {
+      modelOverride = pageModelOverride;
+    }
     const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields, modelOverride });
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
     if (iframe) {
@@ -1722,7 +1863,19 @@ export const insightsTab = {
         statsJSON: JSON.stringify(stats || {}),
       } as Record<string, string>;
       const modelSel = getEl<HTMLSelectElement>('insights-model-select');
-      const modelOverride = modelSel ? (modelSel.value || undefined) : pageModelOverride;
+      const modelInput = getEl<HTMLInputElement>('insights-model-custom');
+      let modelOverride: string | undefined;
+      if (modelSel) {
+        const v = (modelSel.value || '').trim();
+        if (v === '__custom__') {
+          const cur = (modelInput?.value || '').trim();
+          modelOverride = cur || undefined;
+        } else {
+          modelOverride = v || undefined;
+        }
+      } else {
+        modelOverride = pageModelOverride;
+      }
       html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields, modelOverride });
     }
     // 保存时保留外链脚本与 base，避免内联触发 CSP
