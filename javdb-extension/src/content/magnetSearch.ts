@@ -48,6 +48,7 @@ export class MagnetSearchManager {
   private config: MagnetSearchConfig;
   private isInitialized = false;
   private currentVideoId: string | null = null;
+  private baseMagnetWidth = 0;
 
   constructor(config: Partial<MagnetSearchConfig> = {}) {
     this.config = {
@@ -66,6 +67,46 @@ export class MagnetSearchManager {
       timeout: 15000, // 增加超时时间
       ...config,
     };
+  }
+
+  private clampMagnetContainerWidth(): void {
+    try {
+      const el = document.querySelector('#magnets-content') as HTMLElement | null;
+      if (!el) return;
+      if (!this.baseMagnetWidth || this.baseMagnetWidth < 600 || this.baseMagnetWidth > 2000) {
+        this.baseMagnetWidth = el.clientWidth || 1344;
+      }
+      el.style.maxWidth = `${Math.round(this.baseMagnetWidth)}px`;
+      el.style.width = '100%';
+      el.style.marginLeft = 'auto';
+      el.style.marginRight = 'auto';
+      el.style.boxSizing = 'border-box';
+    } catch {}
+  }
+
+  private debugOverflow(): void {
+    try {
+      const container = document.querySelector('#magnets-content') as HTMLElement | null;
+      if (!container) return;
+      const cw = container.clientWidth;
+      const sw = container.scrollWidth;
+      if (sw <= cw) return;
+      let culprit: HTMLElement | null = null;
+      let max = 0;
+      container.querySelectorAll<HTMLElement>('*').forEach(el => {
+        const w = el.scrollWidth;
+        if (w > cw && w > max) {
+          max = w;
+          culprit = el;
+        }
+      });
+      if (culprit) {
+        try { culprit.style.outline = '2px solid #e74c3c'; } catch {}
+        console.log('[Magnet Overflow] container', { clientWidth: cw, scrollWidth: sw, culprit, culpritWidth: max, style: getComputedStyle(culprit) });
+      } else {
+        console.log('[Magnet Overflow] container', { clientWidth: cw, scrollWidth: sw, note: 'no explicit culprit found' });
+      }
+    } catch {}
   }
 
   /**
@@ -92,6 +133,15 @@ export class MagnetSearchManager {
         log('No magnet content area found, skipping magnet search initialization');
         return;
       }
+
+      // 记录并钳制磁力容器的基线宽度，避免触发搜索后整体变宽
+      try {
+        const cw = (magnetContent as HTMLElement).clientWidth;
+        if (cw && cw >= 600 && cw <= 2000) {
+          this.baseMagnetWidth = cw;
+        }
+        this.clampMagnetContainerWidth();
+      } catch {}
 
       // 注入统一样式，确保磁力列表布局不会溢出
       this.addUnifiedMagnetStyles();
@@ -138,6 +188,14 @@ export class MagnetSearchManager {
       const javdbMagnets = this.collectJavdbMagnets();
       allMagnetResults.push(...javdbMagnets);
       log(`Collected ${javdbMagnets.length} JavDB native magnets`);
+
+      // 提前渲染：若尚未显示任何条目，先用 JavDB 原生磁力填充（包含 115 按钮）
+      try {
+        const magnetContentEl = document.querySelector('#magnets-content');
+        if (magnetContentEl && magnetContentEl.querySelectorAll('.item').length === 0 && javdbMagnets.length > 0) {
+          this.processAndDisplayAllMagnets([...javdbMagnets]);
+        }
+      } catch {}
 
       // 2. 搜索外部源
       const searchSources = [];
@@ -741,6 +799,12 @@ export class MagnetSearchManager {
       // 更新总数显示
       this.updateTotalCount();
 
+      // 渲染后再次钳制容器宽度，防止新增节点导致回流拉宽
+      this.clampMagnetContainerWidth();
+
+      // 检测并标记横向溢出来源
+      this.debugOverflow();
+
       showToast(`共找到 ${limitedResults.length} 个磁力链接`, 'success');
       log(`Successfully displayed ${limitedResults.length} total magnet results`);
     } catch (error) {
@@ -803,7 +867,7 @@ export class MagnetSearchManager {
   private createUnifiedMagnetItem(result: MagnetResult, index: number): HTMLElement {
     // 创建主容器
     const item = document.createElement('div');
-    item.className = `item columns is-desktop ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
+    item.className = `item is-desktop ${index % 2 === 0 ? '' : 'odd'} privacy-protected`;
     item.setAttribute('data-privacy-protected', 'true');
     // 统一使用弹性布局，避免 Bulma columns 的列宽不一致导致溢出
     item.style.display = 'flex';
@@ -818,7 +882,7 @@ export class MagnetSearchManager {
 
     // 创建磁力名称列 - 使用固定宽度以对齐按钮
     const nameColumn = document.createElement('div');
-    nameColumn.className = 'magnet-name column';
+    nameColumn.className = 'magnet-name';
     // 自适应宽度，并允许内容被省略号正确截断
     nameColumn.style.flex = '1 1 auto';
     nameColumn.style.minWidth = '0';
@@ -886,7 +950,7 @@ export class MagnetSearchManager {
 
     // 创建按钮列 - 固定宽度
     const buttonsColumn = document.createElement('div');
-    buttonsColumn.className = 'buttons column';
+    buttonsColumn.className = 'buttons';
     // 使用自然宽度，避免固定宽度导致整体溢出
     buttonsColumn.style.flex = '0 0 auto';
     buttonsColumn.style.display = 'flex';
@@ -920,7 +984,7 @@ export class MagnetSearchManager {
 
     // 创建日期列 - 固定宽度
     const dateColumn = document.createElement('div');
-    dateColumn.className = 'date column';
+    dateColumn.className = 'date';
     dateColumn.style.width = '80px'; // 固定日期列宽度
     dateColumn.style.flexShrink = '0'; // 防止收缩
     dateColumn.style.textAlign = 'center'; // 居中对齐
@@ -1039,6 +1103,14 @@ export class MagnetSearchManager {
       .magnet-search-tag.is-warning {
         animation: pulse 1.5s infinite;
       }
+
+      /* 避免顶部 meta 区域的 source 标签把页面横向撑宽 */
+      .top-meta .tags {
+        display: flex;
+        flex-wrap: wrap !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -1061,10 +1133,10 @@ export class MagnetSearchManager {
         padding-right: 0 !important;
       }
 
-      /* 覆盖 Bulma 在该区域的负边距行为 */
+      /* 恢复 Bulma 在该区域的负边距行为，避免列 padding 叠加导致超宽 */
       #magnets-content .columns {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
+        margin-left: -0.75rem !important;
+        margin-right: -0.75rem !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
@@ -1077,6 +1149,10 @@ export class MagnetSearchManager {
         overflow: hidden !important; /* 防止内部偶发性溢出 */
         padding-left: 8px !important;   /* 使用容器内边距提供间距，不依赖列的 padding */
         padding-right: 8px !important;
+      }
+
+      #magnets-content .item, #magnets-content .item * {
+        min-width: 0 !important;
       }
 
       /* 名称链接与文本本身的宽度约束与省略号 */
@@ -1094,7 +1170,7 @@ export class MagnetSearchManager {
         max-width: 100% !important;
       }
 
-      #magnets-content .item .buttons.column {
+      #magnets-content .item .buttons {
         display: flex;
         align-items: center;
         gap: 6px;
@@ -1102,19 +1178,65 @@ export class MagnetSearchManager {
         white-space: nowrap !important;
         max-width: 100% !important;
       }
-      #magnets-content .item .date.column {
+      #magnets-content .item .date {
         flex: 0 0 80px !important;
         text-align: center !important;
       }
       /* 小屏优化：当空间不足时允许在按钮前换行，避免横向溢出 */
       @media (max-width: 768px) {
-        #magnets-content .item.columns.is-desktop {
+        #magnets-content .item.is-desktop {
           flex-wrap: wrap;
           align-items: flex-start;
         }
-        #magnets-content .item .date.column {
+        #magnets-content .item .date {
           order: 3;
         }
+      }
+
+      /* 页面级溢出约束（仅限影片详情区块）*/
+      article.message.video-panel,
+      article.message.video-panel .message-body {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+
+      /* 统一限制影片详情主要内容宽度，保持与站点容器一致的上限（约 1344px） */
+      article.message.video-panel .message-body,
+      article.message.video-panel .moj-content,
+      article.message.video-panel .magnet-links,
+      article.message.video-panel #magnets-content {
+        width: 100% !important;
+        max-width: 1344px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+      }
+
+      /* 约束顶部切页 tabs，避免白屏撑宽 body */
+      article.message.video-panel .tabs,
+      article.message.video-panel .tabs ul {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important; /* 局部滚动，而非撑宽整个页面 */
+        white-space: normal !important; /* 允许换行 */
+        flex-wrap: wrap !important;
+      }
+
+      /* 针对站点上的 .tabs.no-bottom（你的诊断里出现了 nowrap）做兜底，限定在详情区 */
+      article.message.video-panel .tabs.no-bottom,
+      article.message.video-panel .tabs.no-bottom ul {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        white-space: normal !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+      }
+
+      /* Bulma columns 在详情区的列允许收缩 */
+      article.message.video-panel .columns > .column {
+        min-width: 0 !important;
       }
     `;
     document.head.appendChild(style);
