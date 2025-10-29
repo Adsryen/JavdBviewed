@@ -80,3 +80,8 @@
 .home-sections .stat-item[data-stat="unread"] .stat-value { color: #ffc107; }
 .home-sections .stat-item[data-stat="today"] .stat-value { color: #ff5722; }
 .home-sections .stat-item[data-stat="week"] .stat-value { color: #20c997; }
+
+.home-charts .home-charts-grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 12px; }
+.home-charts .chart-card { height: 260px; background: #fff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; }
+.home-charts .mini-chart-group { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; }
+.home-charts .chart-mini { height: 120px; background: #fff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; }

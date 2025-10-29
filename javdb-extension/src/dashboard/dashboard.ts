@@ -403,6 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initializeTabById('tab-home');
     try { await initStatsOverview(); } catch {}
     try { await initHomeSectionsOverview(); } catch {}
+    try { await initOrUpdateHomeCharts(); } catch {}
     bindHomeRefreshButton();
     // initActorsTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮婕斿憳搴撴爣绛鹃〉鏃舵墠鍔犺浇
     // initNewWorksTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮鏂颁綔鍝佹爣绛鹃〉鏃舵墠鍔犺浇
@@ -439,6 +440,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (enableV2) (window as any).initDrive115QuotaSidebar?.();
         }
     });
+    try {
+        if (!(window as any).__HOME_TAB_SHOW_BOUND__) {
+            window.addEventListener('tab:show' as any, async (e: any) => {
+                const id = e?.detail?.tabId;
+                if (id === 'tab-home') {
+                    try { await initOrUpdateHomeCharts(); } catch {}
+                }
+            });
+            (window as any).__HOME_TAB_SHOW_BOUND__ = true;
+        }
+    } catch {}
 });
 
 /**
@@ -579,6 +591,7 @@ async function initTabs(): Promise<void> {
         if (mainTab === 'tab-home') {
             try { await initStatsOverview(); } catch {}
             try { await initHomeSectionsOverview(); } catch {}
+            try { await initOrUpdateHomeCharts(); } catch {}
             bindHomeRefreshButton();
         }
 
@@ -604,6 +617,7 @@ async function initTabs(): Promise<void> {
             if (newMainTab === 'tab-home') {
                 try { await initStatsOverview(); } catch {}
                 try { await initHomeSectionsOverview(); } catch {}
+                try { await initOrUpdateHomeCharts(); } catch {}
                 bindHomeRefreshButton();
             }
 
@@ -746,6 +760,149 @@ async function initHomeSectionsOverview(): Promise<void> {
 async function refreshHomeOverview(): Promise<void> {
     await initStatsOverview();
     await initHomeSectionsOverview();
+    try { await initOrUpdateHomeCharts(); } catch {}
+}
+
+let echartsLoadingPromise: Promise<any> | null = null;
+async function ensureEchartsLoaded(): Promise<any> {
+    const w: any = window as any;
+    if (w.echarts) return w.echarts;
+    if (echartsLoadingPromise) return echartsLoadingPromise.then(() => (w.echarts || null));
+    const inject = (src: string) => new Promise<void>((resolve, reject) => {
+        try {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('load failed'));
+            (document.head || document.documentElement).appendChild(s);
+        } catch { resolve(); }
+    });
+    echartsLoadingPromise = new Promise(async (resolve) => {
+        try { await inject(chrome.runtime.getURL('assets/echarts.min.js')); }
+        catch { try { await inject(chrome.runtime.getURL('assets/templates/echarts.min.js')); } catch {} }
+        resolve(void 0);
+    });
+    return echartsLoadingPromise.then(() => ((window as any).echarts || null));
+}
+
+async function initOrUpdateHomeCharts(): Promise<void> {
+    try {
+        const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
+        const genderEl = document.getElementById('homeActorsGenderPie') as HTMLDivElement | null;
+        const categoryEl = document.getElementById('homeActorsCategoryPie') as HTMLDivElement | null;
+        const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
+        if (!statusEl && !genderEl && !categoryEl && !barsEl) return;
+        const ech = await ensureEchartsLoaded();
+        if (!ech) return;
+        const W: any = window as any;
+        const HC: any = (W.__HOME_CHARTS__ = W.__HOME_CHARTS__ || {});
+        const getChart = (el: HTMLDivElement | null, key: string) => {
+            if (!el) return null;
+            const cur = HC[key];
+            if (cur && cur.getDom && cur.getDom() === el) return cur;
+            if (cur && cur.dispose) { try { cur.dispose(); } catch {} }
+            const inst = ech.init(el);
+            HC[key] = inst;
+            return inst;
+        };
+        if (!HC._resizeBound) {
+            try {
+                window.addEventListener('resize', () => {
+                    ['statusDonut','actorsGenderPie','actorsCategoryPie','newWorksBars'].forEach((k: string) => {
+                        const c = HC[k];
+                        if (c && c.resize) { try { c.resize(); } catch {} }
+                    });
+                });
+                HC._resizeBound = true;
+            } catch {}
+        }
+        let s: any = null, a: any = null, w: any = null;
+        try { s = await dbViewedStats(); } catch {}
+        try { a = await dbActorsStats(); } catch {}
+        try { w = await dbNewWorksStats(); } catch {}
+        if (statusEl) {
+            const c = getChart(statusEl, 'statusDonut');
+            if (c) {
+                const viewed = s?.byStatus?.viewed || 0;
+                const browsed = s?.byStatus?.browsed || 0;
+                const want = s?.byStatus?.want || 0;
+                const sum = viewed + browsed + want;
+                if (sum <= 0) { try { statusEl.style.display = 'none'; } catch {} }
+                else { try { statusEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0 },
+                    series: [{ type: 'pie', radius: ['48%','70%'], avoidLabelOverlap: true, label: { show: false },
+                        data: [
+                            { name: '已观看', value: viewed },
+                            { name: '已浏览', value: browsed },
+                            { name: '想看', value: want }
+                        ]
+                    }]
+                });
+            }
+        }
+        if (genderEl) {
+            const c = getChart(genderEl, 'actorsGenderPie');
+            if (c) {
+                const female = a?.byGender?.female || 0;
+                const male = a?.byGender?.male || 0;
+                const unknown = a?.byGender?.unknown || 0;
+                const sum = female + male + unknown;
+                if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} }
+                else { try { genderEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0 },
+                    series: [{ type: 'pie', radius: '70%', label: { show: false },
+                        data: [
+                            { name: '女性', value: female },
+                            { name: '男性', value: male },
+                            { name: '未知', value: unknown }
+                        ]
+                    }]
+                });
+            }
+        }
+        if (categoryEl) {
+            const c = getChart(categoryEl, 'actorsCategoryPie');
+            if (c) {
+                const censored = a?.byCategory?.censored || 0;
+                const uncensored = a?.byCategory?.uncensored || 0;
+                const sum = censored + uncensored;
+                if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} }
+                else { try { categoryEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0 },
+                    series: [{ type: 'pie', radius: '70%', label: { show: false },
+                        data: [
+                            { name: '有码', value: censored },
+                            { name: '无码', value: uncensored }
+                        ]
+                    }]
+                });
+            }
+        }
+        if (barsEl) {
+            const c = getChart(barsEl, 'newWorksBars');
+            if (c) {
+                const unread = w?.unread || 0;
+                const today = w?.today || 0;
+                const week = w?.week || 0;
+                const sum = unread + today + week;
+                if (sum <= 0) { try { barsEl.style.display = 'none'; } catch {} }
+                else { try { barsEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: 30, right: 10, top: 20, bottom: 24 },
+                    xAxis: { type: 'category', data: ['未读','今日','本周'] },
+                    yAxis: { type: 'value' },
+                    series: [{ type: 'bar', data: [unread, today, week], barWidth: '40%' }]
+                });
+            }
+        }
+    } catch {}
 }
 
 function bindHomeRefreshButton(): void {
