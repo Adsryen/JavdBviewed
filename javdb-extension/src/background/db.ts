@@ -4,7 +4,8 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
-import { getSettings } from '../utils/storage';
+import { getSettings, getValue } from '../utils/storage';
+import { STORAGE_KEYS } from '../utils/config';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）
@@ -12,6 +13,122 @@ export interface PersistedLogEntry extends LogEntry {
   id?: number;            // 自增主键
   timestampMs: number;    // 数值时间戳，便于索引排序
   timestampISO?: string;  // 兼容保留
+}
+
+// ----- daily trends (records/actors/newWorks) -----
+
+type DateMode = 'cumulative' | 'daily';
+
+function fmtDateYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function eachDate(startDate: string, endDate: string): { date: string; startMs: number; endMs: number }[] {
+  const res: { date: string; startMs: number; endMs: number }[] = [];
+  const [sY, sM, sD] = startDate.split('-').map(n => Number(n));
+  const [eY, eM, eD] = endDate.split('-').map(n => Number(n));
+  let cur = new Date(sY, (sM || 1) - 1, sD || 1);
+  const end = new Date(eY, (eM || 1) - 1, eD || 1);
+  while (cur.getTime() <= end.getTime()) {
+    const dStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 0, 0, 0, 0).getTime();
+    const dEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999).getTime();
+    res.push({ date: fmtDateYMD(cur), startMs: dStart, endMs: dEnd });
+    cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
+  }
+  return res;
+}
+
+export interface RecordsTrendPoint { date: string; total: number; viewed: number; browsed: number; want: number; }
+export async function trendsRecordsRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<RecordsTrendPoint[]> {
+  const db = await initDB();
+  const idxCreated = db.transaction('viewedRecords').store.index('by_createdAt');
+  const idxStatusCreated = db.transaction('viewedRecords').store.index('by_status_createdAt');
+  const items: RecordsTrendPoint[] = [];
+  for (const d of eachDate(startDate, endDate)) {
+    let total = 0, viewed = 0, browsed = 0, want = 0;
+    try {
+      if (mode === 'daily') {
+        // @ts-ignore
+        total = await idxCreated.count(IDBKeyRange.bound(d.startMs, d.endMs));
+        // @ts-ignore
+        viewed = await idxStatusCreated.count(IDBKeyRange.bound(['viewed', d.startMs], ['viewed', d.endMs]));
+        // @ts-ignore
+        browsed = await idxStatusCreated.count(IDBKeyRange.bound(['browsed', d.startMs], ['browsed', d.endMs]));
+        // @ts-ignore
+        want = await idxStatusCreated.count(IDBKeyRange.bound(['want', d.startMs], ['want', d.endMs]));
+      } else {
+        // @ts-ignore
+        total = await idxCreated.count(IDBKeyRange.upperBound(d.endMs));
+        // @ts-ignore
+        viewed = await idxStatusCreated.count(IDBKeyRange.bound(['viewed', 0], ['viewed', d.endMs]));
+        // @ts-ignore
+        browsed = await idxStatusCreated.count(IDBKeyRange.bound(['browsed', 0], ['browsed', d.endMs]));
+        // @ts-ignore
+        want = await idxStatusCreated.count(IDBKeyRange.bound(['want', 0], ['want', d.endMs]));
+      }
+    } catch {}
+    items.push({ date: d.date, total, viewed, browsed, want });
+  }
+  return items;
+}
+
+export interface ActorsTrendPoint { date: string; total: number; female: number; male: number; blacklisted: number; }
+export async function trendsActorsRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<ActorsTrendPoint[]> {
+  const db = await initDB();
+  const all = await db.getAll('actors');
+  const days = eachDate(startDate, endDate);
+  const points: ActorsTrendPoint[] = [];
+  for (const d of days) {
+    let total = 0, female = 0, male = 0, blacklisted = 0;
+    for (const a of all) {
+      const ts = typeof (a as any)?.createdAt === 'number' ? (a as any).createdAt : (typeof (a as any)?.updatedAt === 'number' ? (a as any).updatedAt : 0);
+      if (ts <= 0) continue;
+      const inDay = (mode === 'daily') ? (ts >= d.startMs && ts <= d.endMs) : (ts <= d.endMs);
+      if (!inDay) continue;
+      total++;
+      const g = (a as any)?.gender;
+      if (g === 'female') female++;
+      else if (g === 'male') male++;
+      if ((a as any)?.blacklisted) blacklisted++;
+    }
+    points.push({ date: d.date, total, female, male, blacklisted });
+  }
+  return points;
+}
+
+export interface NewWorksTrendPoint { date: string; total: number; subscriptions: number; }
+export async function trendsNewWorksRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<NewWorksTrendPoint[]> {
+  const db = await initDB();
+  const idxDisc = db.transaction('newWorks').store.index('by_discoveredAt');
+  // 订阅数据来自 chrome.storage 本地
+  let subsMap: Record<string, any> = {};
+  try { subsMap = await getValue<Record<string, any>>(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {} as any); } catch { subsMap = {}; }
+  const subs: Array<{ enabled: boolean; subscribedAt: number }> = Object.values(subsMap || {}).map((s: any) => ({ enabled: !!s?.enabled, subscribedAt: Number(s?.subscribedAt || 0) || 0 }));
+  const points: NewWorksTrendPoint[] = [];
+  for (const d of eachDate(startDate, endDate)) {
+    let total = 0, subscriptions = 0;
+    try {
+      if (mode === 'daily') {
+        // @ts-ignore
+        total = await idxDisc.count(IDBKeyRange.bound(d.startMs, d.endMs));
+      } else {
+        // @ts-ignore
+        total = await idxDisc.count(IDBKeyRange.upperBound(d.endMs));
+      }
+    } catch {}
+    try {
+      if (mode === 'daily') {
+        subscriptions = subs.filter(s => s.enabled && s.subscribedAt >= d.startMs && s.subscribedAt <= d.endMs).length;
+      } else {
+        subscriptions = subs.filter(s => s.enabled && s.subscribedAt > 0 && s.subscribedAt <= d.endMs).length;
+      }
+    } catch {}
+    points.push({ date: d.date, total, subscriptions });
+  }
+  return points;
 }
 
 export interface ViewedQueryParams {
