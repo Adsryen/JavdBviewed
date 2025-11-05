@@ -23,7 +23,7 @@ import { getDrive115V2Service } from '../services/drive115v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted, loadPartial, injectPartial } from './loaders/partialsLoader';
 import { ensureStylesLoaded, prefetchStyles } from './loaders/stylesLoader';
-import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange } from './dbClient';
+import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbViewedPage, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange } from './dbClient';
 import { aggregateMonthly } from '../services/insights/aggregator';
 installConsoleProxy({
     level: 'DEBUG',
@@ -76,6 +76,35 @@ try {
         }
     });
 } catch {}
+
+// 从番号库记录聚合标签 Top（排除包含“影片”的标签），用于首页标签 Top 图
+async function getTagsTopFromRecords(limit: number = 10): Promise<Array<{ name: string; count: number }>> {
+    const totals: Record<string, number> = {};
+    let offset = 0;
+    const pageSize = 800;
+    while (true) {
+        const { items, total } = await dbViewedPage({ offset, limit: pageSize, orderBy: 'updatedAt', order: 'desc' });
+        const len = Array.isArray(items) ? items.length : 0;
+        if (!len) break;
+        for (const r of items as any[]) {
+            const arr = Array.isArray((r as any).tags) ? (r as any).tags : [];
+            for (const t of arr) {
+                const name = String(t || '').trim();
+                if (!name) continue;
+                const low = name.toLowerCase();
+                if (name.includes('影片') || low.includes('import')) continue;
+                totals[name] = (totals[name] ?? 0) + 1;
+            }
+        }
+        offset += len;
+        if (offset >= (total || 0)) break;
+        if (len < pageSize) break;
+    }
+    return Object.entries(totals)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, Math.max(1, Number(limit || 10)));
+}
 
 // 监听 Insights 变更，自动刷新首页图表
 try {
@@ -302,17 +331,14 @@ async function prefetchTabResources(tabId: string): Promise<void> {
 async function renderHomeChartsWithEcharts(): Promise<void> {
     try {
         const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
-        const genderEl = document.getElementById('homeActorsGenderPie') as HTMLDivElement | null;
-        const categoryEl = document.getElementById('homeActorsCategoryPie') as HTMLDivElement | null;
         const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
         const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
         const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
         const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
         const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
-        const weekdayEl = document.getElementById('homeWeekdayBars') as HTMLDivElement | null;
         const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
         const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
-        if (!statusEl && !genderEl && !categoryEl && !barsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl && !tagsEl && !weekdayEl && !changeEl && !newTagsEl) return;
+        if (!statusEl && !barsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl && !tagsEl && !changeEl && !newTagsEl) return;
         const ech = await ensureEchartsLoaded();
         if (!ech) return;
         const W: any = window as any;
@@ -329,7 +355,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
         if (!HC._resizeBound) {
             try {
                 window.addEventListener('resize', () => {
-                    ['statusDonut','actorsGenderPie','actorsCategoryPie','newWorksBars','activityTrend','tagsTop','weekdayBars','tagsChange','newTagsTop','recordsTrend','actorsTrend','newWorksTrend'].forEach((k: string) => {
+                    ['statusDonut','newWorksBars','activityTrend','tagsTop','tagsChange','newTagsTop','recordsTrend','actorsTrend','newWorksTrend'].forEach((k: string) => {
                         const c = HC[k];
                         if (c && c.resize) { try { c.resize(); } catch {} }
                     });
@@ -359,7 +385,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
             const day = String(d.getDate()).padStart(2, '0');
             return `${y}-${m}-${day}`;
         };
-        let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [];
+        let s: any = null, a: any = null, w: any = null, insRange: any = null, insAll: any = null, viewsArrRange: any[] = [];
         const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
         const msDay = 24*60*60*1000;
         try { s = await dbViewedStats(); } catch {}
@@ -372,9 +398,12 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
             const prevEnd = new Date(sDate.getTime() - msDay);
             const prevStart = new Date(prevEnd.getTime() - (span - 1) * msDay);
             const prevArr = await dbInsViewsRange(fmtDate(prevStart), fmtDate(prevEnd));
-            viewsArr = await dbInsViewsRange(startStr, endStr);
-            ins = aggregateMonthly(viewsArr || [], { topN: 8, previousDays: prevArr || [] });
-            try { console.info('[INSIGHTS][home][echarts] range', { start: startStr, end: endStr, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(ins?.tagsTop) ? ins.tagsTop.length : 0 }); } catch {}
+            viewsArrRange = await dbInsViewsRange(startStr, endStr);
+            insRange = aggregateMonthly(viewsArrRange || [], { topN: 8, previousDays: prevArr || [] });
+            // 全量聚合：标签 Top 10 不受时间范围影响
+            const viewsArrAll = await dbInsViewsRange('1970-01-01', '2999-12-31');
+            insAll = aggregateMonthly(viewsArrAll || [], { topN: 10 });
+            try { console.info('[INSIGHTS][home][echarts] range', { start: startStr, end: endStr, views: (viewsArrRange || []).length, trend: Array.isArray(insRange?.trend) ? insRange.trend.length : 0, tagsTop: Array.isArray(insAll?.tagsTop) ? insAll.tagsTop.length : 0 }); } catch {}
         } catch {}
         if (statusEl) {
             const c = getChart(statusEl, 'statusDonut');
@@ -419,85 +448,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                 });
             }
         }
-        if (genderEl) {
-            const c = getChart(genderEl, 'actorsGenderPie');
-            if (c) {
-                const female = a?.byGender?.female || 0;
-                const male = a?.byGender?.male || 0;
-                const unknown = a?.byGender?.unknown || 0;
-                const sum = female + male + unknown;
-                if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} }
-                else { try { genderEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
-                    legend: { show: false },
-                    series: [{
-                        type: 'pie',
-                        radius: ['50%','78%'],
-                        center: ['50%','50%'],
-                        label: { show: false },
-                        labelLine: { show: false },
-                        itemStyle: {
-                            borderColor: COLORS.surface,
-                            borderWidth: 2,
-                            color: function(params: any){
-                                if (params.name === '女性') return '#ec4899';
-                                if (params.name === '男性') return '#60a5fa';
-                                if (params.name === '未知') return '#94a3b8';
-                                return COLORS.primary;
-                            }
-                        },
-                        data: [
-                            { name: '女性', value: female },
-                            { name: '男性', value: male },
-                            { name: '未知', value: unknown }
-                        ]
-                    }],
-                    graphic: [{
-                        type: 'text', left: 'center', top: 'middle',
-                        style: { text: String(sum), fill: COLORS.text, fontSize: 13, fontWeight: 700 }
-                    }]
-                });
-            }
-        }
-        if (categoryEl) {
-            const c = getChart(categoryEl, 'actorsCategoryPie');
-            if (c) {
-                const censored = a?.byCategory?.censored || 0;
-                const uncensored = a?.byCategory?.uncensored || 0;
-                const sum = censored + uncensored;
-                if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} }
-                else { try { categoryEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
-                    legend: { show: false },
-                    series: [{
-                        type: 'pie',
-                        radius: ['50%','78%'],
-                        center: ['50%','50%'],
-                        label: { show: false },
-                        labelLine: { show: false },
-                        itemStyle: {
-                            borderColor: COLORS.surface,
-                            borderWidth: 2,
-                            color: function(params: any){
-                                if (params.name === '有码') return COLORS.primary;
-                                if (params.name === '无码') return '#a78bfa';
-                                return COLORS.info;
-                            }
-                        },
-                        data: [
-                            { name: '有码', value: censored },
-                            { name: '无码', value: uncensored }
-                        ]
-                    }],
-                    graphic: [{
-                        type: 'text', left: 'center', top: 'middle',
-                        style: { text: String(sum), fill: COLORS.text, fontSize: 13, fontWeight: 700 }
-                    }]
-                });
-            }
-        }
+        
         if (barsEl) {
             const c = getChart(barsEl, 'newWorksBars');
             if (c) {
@@ -544,10 +495,105 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                 });
             }
         }
+
+        // 三张多折线趋势（ECharts 兜底）
+        try {
+            const range = getHomeChartsRange();
+            // 番号库趋势
+            if (recordsTrendEl) {
+                const cR = getChart(recordsTrendEl, 'recordsTrend');
+                if (cR) {
+                    const rec = await dbTrendsRecordsRange(range.start, range.end, 'cumulative');
+                    const dates = (rec || []).map((p: any) => p.date);
+                    const sTotal = (rec || []).map((p: any) => p.total || 0);
+                    const sViewed = (rec || []).map((p: any) => p.viewed || 0);
+                    const sBrowsed = (rec || []).map((p: any) => p.browsed || 0);
+                    const sWant = (rec || []).map((p: any) => p.want || 0);
+                    const sumAll = [...sTotal, ...sViewed, ...sBrowsed, ...sWant].reduce((s, v) => s + (v || 0), 0);
+                    if (sumAll <= 0) { try { recordsTrendEl.style.display = 'none'; } catch {} }
+                    else { try { recordsTrendEl.style.display = ''; } catch {} }
+                    if (sumAll > 0) {
+                        cR.setOption({
+                            color: [COLORS.primary, COLORS.success, COLORS.info, COLORS.warning],
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
+                            legend: { top: 6, textStyle: { color: COLORS.muted } },
+                            grid: { left: 30, right: 10, top: 28, bottom: 24 },
+                            xAxis: { type: 'category', boundaryGap: false, data: dates, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            series: [
+                                { name: '总记录', type: 'line', data: sTotal, smooth: true, symbol: 'none' },
+                                { name: '已观看', type: 'line', data: sViewed, smooth: true, symbol: 'none' },
+                                { name: '已浏览', type: 'line', data: sBrowsed, smooth: true, symbol: 'none' },
+                                { name: '想看', type: 'line', data: sWant, smooth: true, symbol: 'none' },
+                            ]
+                        });
+                    }
+                }
+            }
+            // 演员库趋势
+            if (actorsTrendEl) {
+                const cA = getChart(actorsTrendEl, 'actorsTrend');
+                if (cA) {
+                    const act = await dbTrendsActorsRange(range.start, range.end, 'cumulative');
+                    const dates = (act || []).map((p: any) => p.date);
+                    const sTotal = (act || []).map((p: any) => p.total || 0);
+                    const sFemale = (act || []).map((p: any) => p.female || 0);
+                    const sMale = (act || []).map((p: any) => p.male || 0);
+                    const sBlacklist = (act || []).map((p: any) => p.blacklisted || 0);
+                    const sumAll = [...sTotal, ...sFemale, ...sMale, ...sBlacklist].reduce((s, v) => s + (v || 0), 0);
+                    if (sumAll <= 0) { try { actorsTrendEl.style.display = 'none'; } catch {} }
+                    else { try { actorsTrendEl.style.display = ''; } catch {} }
+                    if (sumAll > 0) {
+                        cA.setOption({
+                            color: [COLORS.primary, '#ec4899', '#60a5fa', '#ef4444'],
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
+                            legend: { top: 6, textStyle: { color: COLORS.muted } },
+                            grid: { left: 30, right: 10, top: 28, bottom: 24 },
+                            xAxis: { type: 'category', boundaryGap: false, data: dates, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            series: [
+                                { name: '总演员数', type: 'line', data: sTotal, smooth: true, symbol: 'none' },
+                                { name: '女性', type: 'line', data: sFemale, smooth: true, symbol: 'none' },
+                                { name: '男性', type: 'line', data: sMale, smooth: true, symbol: 'none' },
+                                { name: '黑名单', type: 'line', data: sBlacklist, smooth: true, symbol: 'none' },
+                            ]
+                        });
+                    }
+                }
+            }
+            // 新作品趋势
+            if (newWorksTrendEl) {
+                const cW = getChart(newWorksTrendEl, 'newWorksTrend');
+                if (cW) {
+                    const nw = await dbTrendsNewWorksRange(range.start, range.end, 'cumulative');
+                    const dates = (nw || []).map((p: any) => p.date);
+                    const sTotal = (nw || []).map((p: any) => p.total || 0);
+                    const sSubs = (nw || []).map((p: any) => p.subscriptions || 0);
+                    const sumAll = [...sTotal, ...sSubs].reduce((s, v) => s + (v || 0), 0);
+                    if (sumAll <= 0) { try { newWorksTrendEl.style.display = 'none'; } catch {} }
+                    else { try { newWorksTrendEl.style.display = ''; } catch {} }
+                    if (sumAll > 0) {
+                        cW.setOption({
+                            color: [COLORS.primary, '#a78bfa'],
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
+                            legend: { top: 6, textStyle: { color: COLORS.muted } },
+                            grid: { left: 30, right: 10, top: 28, bottom: 24 },
+                            xAxis: { type: 'category', boundaryGap: false, data: dates, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                            series: [
+                                { name: '总数', type: 'line', data: sTotal, smooth: true, symbol: 'none' },
+                                { name: '订阅数', type: 'line', data: sSubs, smooth: true, symbol: 'none' },
+                            ]
+                        });
+                    }
+                }
+            }
+        } catch {}
+
         if (trendEl) {
             const c = getChart(trendEl, 'activityTrend');
             if (c) {
-                const arr = Array.isArray(ins?.trend) ? ins.trend : [];
+                const arr = Array.isArray(insRange?.trend) ? insRange.trend : [];
                 const sumT = arr.reduce((ss: number, p: any) => ss + (p?.total || 0), 0);
                 if (!arr.length || sumT <= 0) { try { trendEl.style.display = 'none'; } catch {} }
                 else { try { trendEl.style.display = ''; } catch {} }
@@ -577,7 +623,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
         if (tagsEl) {
             const c = getChart(tagsEl, 'tagsTop');
             if (c) {
-                const top = Array.isArray(ins?.tagsTop) ? (ins.tagsTop as any[]).slice(0, 8) : [];
+                const top = await getTagsTopFromRecords(10);
                 if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
                 else { try { tagsEl.style.display = ''; } catch {} }
                 if (top.length) {
@@ -599,39 +645,11 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                 }
             }
         }
-
-        if (weekdayEl) {
-            const c = getChart(weekdayEl, 'weekdayBars');
-            if (c) {
-                const counts = [0,0,0,0,0,0,0]; // 周日..周六
-                const sumDay = (d: any) => Object.values(d?.tags || {}).reduce((s: number, v: any) => s + (Number(v||0)||0), 0);
-                const parseD = (str: string) => { try { const [Y,M,D] = String(str||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
-                for (const d of (viewsArr || [])) {
-                    const total = sumDay(d);
-                    const day = parseD(d?.date).getDay();
-                    if (total > 0 && day >= 0) counts[day] += total;
-                }
-                const cats = ['周一','周二','周三','周四','周五','周六','周日'];
-                const order = [1,2,3,4,5,6,0];
-                const vals = order.map((idx) => counts[idx]);
-                const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#10b981'];
-                const sumAll = vals.reduce((s, v) => s + (v||0), 0);
-                if (sumAll <= 0) { try { weekdayEl.style.display = 'none'; } catch {} } else { try { weekdayEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                    grid: { left: 30, right: 10, top: 20, bottom: 24 },
-                    xAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-                    yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-                    series: [{ type: 'bar', data: vals.map((v, i) => ({ value: v, itemStyle: { color: PALETTE[i % PALETTE.length], borderRadius: [6,6,0,0] } })), barMaxWidth: 28, label: { show: true, position: 'top', color: COLORS.text } }]
-                });
-            }
-        }
-
         if (changeEl) {
             const c = getChart(changeEl, 'tagsChange');
             if (c) {
-                const rising = Array.isArray(ins?.changes?.risingDetailed) ? ins.changes.risingDetailed.slice(0, 5) : [];
-                const falling = Array.isArray(ins?.changes?.fallingDetailed) ? ins.changes.fallingDetailed.slice(0, 5) : [];
+                const rising = Array.isArray(insRange?.changes?.risingDetailed) ? insRange.changes.risingDetailed.slice(0, 5) : [];
+                const falling = Array.isArray(insRange?.changes?.fallingDetailed) ? insRange.changes.fallingDetailed.slice(0, 5) : [];
                 const data = [
                     ...rising.map((d: any) => ({ name: d.name, value: +(d.diffRatio * 100).toFixed(1) })),
                     ...falling.map((d: any) => ({ name: d.name, value: -Math.abs(+(d.diffRatio * 100).toFixed(1)) })),
@@ -777,7 +795,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
-    // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖栵紝鏃犻渶鍦ㄦ鏄惧紡鍒濆鍖?
+    // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖?
 
     await initTabs();
     await mountTabIfNeeded('tab-home');
@@ -1006,7 +1024,7 @@ async function initTabs(): Promise<void> {
 
             // 濡傛灉鏄缃〉闈笖鏈夊瓙椤甸潰锛岄€氱煡璁剧疆椤甸潰鍒囨崲
             if (newMainTab === 'tab-settings' && newSubSection) {
-                // 瑙﹀彂鑷畾涔変簨浠讹紝閫氱煡璁剧疆椤甸潰鍒囨崲瀛愰〉闈?
+                // 瑙﹀彂鑷畾涔变簨浠讹紝閫氱煡璁剧疆椤甸潰鍒囨崲瀛愰〉闈?
                 window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
                     detail: { section: newSubSection }
                 }));
@@ -1193,15 +1211,16 @@ async function ensureG2PlotLoaded(): Promise<any> {
 async function initOrUpdateHomeCharts(): Promise<void> {
     try {
         const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
-        const genderEl = document.getElementById('homeActorsGenderPie') as HTMLDivElement | null;
-        const categoryEl = document.getElementById('homeActorsCategoryPie') as HTMLDivElement | null;
         const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
         const trendEl = document.getElementById('homeActivityTrend') as HTMLDivElement | null;
         const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
-        const weekdayEl = document.getElementById('homeWeekdayBars') as HTMLDivElement | null;
         const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
         const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
-        if (!statusEl && !genderEl && !categoryEl && !barsEl && !trendEl && !tagsEl && !weekdayEl && !changeEl && !newTagsEl) return;
+        // 三张趋势图容器（首页顶部：番号库/演员库/新作品）
+        const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
+        const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
+        const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
+        if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl) return;
         const G2P: any = await ensureG2PlotLoaded();
         if (!G2P) { await renderHomeChartsWithEcharts(); return; }
         const { Pie, Column, Line, Bar } = G2P;
@@ -1227,7 +1246,7 @@ async function initOrUpdateHomeCharts(): Promise<void> {
             return `${y}-${m}-${day}`;
         };
         const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
-        let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [];
+        let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [], insAllG2: any = null;
         try { s = await dbViewedStats(); } catch {}
         try { a = await dbActorsStats(); } catch {}
         try { w = await dbNewWorksStats(); } catch {}
@@ -1240,7 +1259,10 @@ async function initOrUpdateHomeCharts(): Promise<void> {
             const prevArr = await dbInsViewsRange(fmt(prevStart), fmt(prevEnd));
             viewsArr = await dbInsViewsRange(r.start, r.end);
             ins = aggregateMonthly(viewsArr || [], { topN: 8, previousDays: prevArr || [] });
-            try { console.info('[INSIGHTS][home][g2plot] range', { start: r.start, end: r.end, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(ins?.tagsTop) ? ins.tagsTop.length : 0 }); } catch {}
+            // 全量聚合：标签 Top 10 不受时间范围影响
+            const allViews = await dbInsViewsRange('1970-01-01', '2999-12-31');
+            insAllG2 = aggregateMonthly(allViews || [], { topN: 10 });
+            try { console.info('[INSIGHTS][home][g2plot] range', { start: r.start, end: r.end, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(insAllG2?.tagsTop) ? insAllG2.tagsTop.length : 0 }); } catch {}
         } catch {}
         // KPI 已移除
         // 三张多折线趋势（累计）
@@ -1341,73 +1363,7 @@ async function initOrUpdateHomeCharts(): Promise<void> {
                 HC['statusDonut'] = plot;
             }
         }
-        // 演员性别分布（饼图）
-        if (genderEl) {
-            const female = a?.byGender?.female || 0;
-            const male = a?.byGender?.male || 0;
-            const unknown = a?.byGender?.unknown || 0;
-            const sum = female + male + unknown;
-            if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} } else { try { genderEl.style.display = ''; } catch {} }
-            if (HC['actorsGenderPie']?.destroy) { try { HC['actorsGenderPie'].destroy(); } catch {} }
-            if (sum > 0) {
-                const data = [
-                    { type: '女性', value: female },
-                    { type: '男性', value: male },
-                    { type: '未知', value: unknown },
-                ];
-                const plot = new Pie(genderEl, {
-                    data,
-                    angleField: 'value',
-                    colorField: 'type',
-                    radius: 1,
-                    legend: { position: 'bottom' },
-                    label: false,
-                    statistic: { title: false, content: { formatter: () => String(sum) } },
-                    color: (d: any) => {
-                        if (d.type === '女性') return '#ec4899';
-                        if (d.type === '男性') return '#60a5fa';
-                        if (d.type === '未知') return '#94a3b8';
-                        return COLORS.primary;
-                    },
-                    interactions: [{ type: 'element-active' }],
-                    autoFit: true,
-                });
-                plot.render();
-                HC['actorsGenderPie'] = plot;
-            }
-        }
-        // 演员分类（有码/无码）
-        if (categoryEl) {
-            const censored = a?.byCategory?.censored || 0;
-            const uncensored = a?.byCategory?.uncensored || 0;
-            const sum = censored + uncensored;
-            if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} } else { try { categoryEl.style.display = ''; } catch {} }
-            if (HC['actorsCategoryPie']?.destroy) { try { HC['actorsCategoryPie'].destroy(); } catch {} }
-            if (sum > 0) {
-                const data = [
-                    { type: '有码', value: censored },
-                    { type: '无码', value: uncensored },
-                ];
-                const plot = new Pie(categoryEl, {
-                    data,
-                    angleField: 'value',
-                    colorField: 'type',
-                    radius: 1,
-                    legend: { position: 'bottom' },
-                    label: false,
-                    statistic: { title: false, content: { formatter: () => String(sum) } },
-                    color: (d: any) => {
-                        if (d.type === '有码') return COLORS.primary;
-                        if (d.type === '无码') return '#a78bfa';
-                        return COLORS.info;
-                    },
-                    interactions: [{ type: 'element-active' }],
-                    autoFit: true,
-                });
-                plot.render();
-                HC['actorsCategoryPie'] = plot;
-            }
-        }
+        
         // 新作品（柱状）
         if (barsEl) {
             const unread = w?.unread || 0;
@@ -1447,7 +1403,7 @@ async function initOrUpdateHomeCharts(): Promise<void> {
         // 旧单一“活跃度趋势”已移除
         if (tagsEl) {
             if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
-            const top = Array.isArray(ins?.tagsTop) ? (ins.tagsTop as any[]).slice(0, 8) : [];
+            const top = await getTagsTopFromRecords(10);
             if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
             else {
                 try { tagsEl.style.display = ''; } catch {}
@@ -1482,42 +1438,6 @@ async function initOrUpdateHomeCharts(): Promise<void> {
             }
         }
         // 周几分布（柱状）
-        if (weekdayEl) {
-            if (HC['weekdayBars']?.destroy) { try { HC['weekdayBars'].destroy(); } catch {} }
-            const counts = [0,0,0,0,0,0,0];
-            const sumDay = (d: any) => Object.values(d?.tags || {}).reduce((s: number, v: any) => s + (Number(v||0)||0), 0);
-            const parseD = (str: string) => { try { const [Y,M,D] = String(str||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
-            for (const d of (viewsArr || [])) {
-                const total = sumDay(d);
-                const day = parseD(d?.date).getDay();
-                if (total > 0 && day >= 0) counts[day] += total;
-            }
-            const order = [1,2,3,4,5,6,0];
-            const names = ['周一','周二','周三','周四','周五','周六','周日'];
-            const data = order.map((idx, i) => ({ weekday: names[i], total: counts[idx] }));
-            const sumAll = data.reduce((s, it) => s + (it.total||0), 0);
-            if (sumAll <= 0) { try { weekdayEl.style.display = 'none'; } catch {} }
-            else {
-                try { weekdayEl.style.display = ''; } catch {}
-                const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#10b981'];
-                const plot = new Column(weekdayEl, {
-                    data,
-                    xField: 'weekday',
-                    yField: 'total',
-                    columnWidthRatio: 0.5,
-                    columnStyle: { radius: [6, 6, 0, 0] },
-                    label: false,
-                    legend: false,
-                    color: (d: any) => { const i = names.indexOf(String(d.weekday)); return PALETTE[(i>=0?i:0)%PALETTE.length]; },
-                    xAxis: { label: { autoHide: false } },
-                    tooltip: { showTitle: false },
-                    autoFit: true,
-                    yAxis: { min: 0, nice: true },
-                });
-                plot.render();
-                HC['weekdayBars'] = plot;
-            }
-        }
         // 标签变化（上升/下降）
         if (changeEl) {
             if (HC['tagsChange']?.destroy) { try { HC['tagsChange'].destroy(); } catch {} }

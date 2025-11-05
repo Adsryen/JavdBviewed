@@ -110,25 +110,21 @@
   grid-template-columns: repeat(2, minmax(280px, 1fr));
   grid-template-areas:
     'tags status'
-    'newworks weekday'
-    'change newtags'
-    'mini mini';
+    'newworks newworks'
+    'change newtags';
   gap: 12px;
 }
 .home-charts .chart-card { height: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--elev-1); }
 .home-charts #homeStatusDonut { grid-area: status; }
 .home-charts #homeNewWorksBars { grid-area: newworks; }
 .home-charts #homeTagsTop { grid-area: tags; }
-.home-charts #homeWeekdayBars { grid-area: weekday; }
 .home-charts #homeTagsChange { grid-area: change; }
 .home-charts #homeNewTagsTop { grid-area: newtags; }
-.home-charts .mini-chart-group {
-  grid-area: mini;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+
+.home-charts .chart-card {
+  padding-top: 26px;
+  box-sizing: border-box;
 }
-.home-charts .chart-mini { height: 140px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--elev-1); }
 
 /* 响应式：窄屏改为单列顺序（trend -> tags -> status -> newworks -> weekday -> mini） */
 @media (max-width: 860px) {
@@ -141,11 +137,8 @@
       'tags'
       'status'
       'newworks'
-      'weekday'
       'change'
       'newtags'
-      'mini';
   }
   .home-charts .chart-card { height: 260px; }
-  .home-charts .chart-mini { height: 120px; }
 }
