@@ -33,12 +33,34 @@ async function main() {
         await build();
         console.log('Vite build finished successfully.');
 
-        // 2. Get version and define zip path
+        // 2. Ensure external runtime assets are present in dist
+        const distTemplatesDir = resolve(distDir, 'assets/templates');
+        await fs.ensureDir(distTemplatesDir);
+        const g2plotDistPath = resolve(distTemplatesDir, 'g2plot.min.js');
+        const g2plotCandidates = [
+            resolve(root, 'src/assets/templates/g2plot.min.js'),
+            resolve(root, 'public/assets/templates/g2plot.min.js'),
+            resolve(root, 'node_modules/@antv/g2plot/dist/g2plot.min.js'),
+        ];
+        let copied = false;
+        for (const p of g2plotCandidates) {
+            if (fs.existsSync(p)) {
+                await fs.copy(p, g2plotDistPath);
+                console.log(`[build] Copied g2plot.min.js from: ${p}`);
+                copied = true;
+                break;
+            }
+        }
+        if (!copied) {
+            console.warn('[build] g2plot.min.js not found in src/public/node_modules. G2Plot will fallback to ECharts at runtime.');
+        }
+
+        // 3. Get version and define zip path
         const version = await getVersion();
         const zipName = `javdb-extension-v${version}.zip`;
         const zipPath = resolve(distZipDir, zipName);
 
-        // 3. Create a zip file of the dist directory contents
+        // 4. Create a zip file of the dist directory contents
         console.log(`\nCreating zip file at ${zipPath}...`);
         
         await fs.ensureDir(distZipDir); // Ensure the zip output directory exists

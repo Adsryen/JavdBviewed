@@ -297,3 +297,22 @@ export async function dbInsReportsImport(json: string): Promise<number> {
   // @ts-ignore
   return resp.count || 0;
 }
+
+// ----- Trends (daily ranges) -----
+export async function dbTrendsRecordsRange(startDate: string, endDate: string, mode: 'cumulative' | 'daily' = 'cumulative'): Promise<any[]> {
+  const resp = await sendMessage<{ success: true; points: any[] }>('DB:TRENDS_RECORDS_RANGE', { startDate, endDate, mode });
+  // @ts-ignore
+  return resp.points || [];
+}
+
+export async function dbTrendsActorsRange(startDate: string, endDate: string, mode: 'cumulative' | 'daily' = 'cumulative'): Promise<any[]> {
+  const resp = await sendMessage<{ success: true; points: any[] }>('DB:TRENDS_ACTORS_RANGE', { startDate, endDate, mode });
+  // @ts-ignore
+  return resp.points || [];
+}
+
+export async function dbTrendsNewWorksRange(startDate: string, endDate: string, mode: 'cumulative' | 'daily' = 'cumulative'): Promise<any[]> {
+  const resp = await sendMessage<{ success: true; points: any[] }>('DB:TRENDS_NEWWORKS_RANGE', { startDate, endDate, mode });
+  // @ts-ignore
+  return resp.points || [];
+}
