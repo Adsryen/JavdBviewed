@@ -18,42 +18,66 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #111827;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
   font-size: 13px;
   cursor: pointer;
-  transition: all .2s ease;
+  transition: background-color .2s ease, color .2s ease, box-shadow .2s ease, transform .15s ease, border-color .2s ease;
 }
-.home-refresh-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.home-refresh-btn:hover { transform: translateY(-1px); box-shadow: var(--elev-2); }
 .home-refresh-btn.loading { opacity: .7; cursor: wait; }
-.home-refresh-btn i { color: #17a2b8; }
+.home-refresh-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.home-refresh-btn i { color: var(--primary); }
+
+.home-stats h3 { font-size: 20px; }
+.home-stats .stat-item .stat-value { font-size: 26px; font-weight: 800; }
+.home-stats .stat-item .stat-label { font-size: 13px; }
 
 .home-quick-links .quick-links-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
+}
+
+/* 趋势行：三卡同排，自动换行 */
+.home-charts .trend-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 1200px) {
+  .home-charts .trend-row {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .home-charts .trend-row {
+    grid-template-columns: 1fr;
+  }
 }
 .home-quick-links .quick-link {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #fff;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 14px 12px;
   text-decoration: none;
-  color: #111827;
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  color: var(--text);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background-color .2s ease;
+  box-shadow: var(--elev-1);
 }
 .home-quick-links .quick-link:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  box-shadow: var(--elev-2);
   border-color: #d1d5db;
 }
-.home-quick-links .quick-link i { font-size: 18px; color: #4a90e2; }
+.home-quick-links .quick-link i { font-size: 18px; color: var(--primary); }
 .home-quick-links .quick-link span { font-weight: 600; }
 
 /* 首页三个概览区块颜色映射（与以往一致） */
@@ -81,7 +105,47 @@
 .home-sections .stat-item[data-stat="today"] .stat-value { color: #ff5722; }
 .home-sections .stat-item[data-stat="week"] .stat-value { color: #20c997; }
 
-.home-charts .home-charts-grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 12px; }
-.home-charts .chart-card { height: 260px; background: #fff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; }
-.home-charts .mini-chart-group { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; }
-.home-charts .chart-mini { height: 120px; background: #fff; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; }
+.home-charts .home-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  grid-template-areas:
+    'tags status'
+    'newworks weekday'
+    'change newtags'
+    'mini mini';
+  gap: 12px;
+}
+.home-charts .chart-card { height: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--elev-1); }
+.home-charts #homeStatusDonut { grid-area: status; }
+.home-charts #homeNewWorksBars { grid-area: newworks; }
+.home-charts #homeTagsTop { grid-area: tags; }
+.home-charts #homeWeekdayBars { grid-area: weekday; }
+.home-charts #homeTagsChange { grid-area: change; }
+.home-charts #homeNewTagsTop { grid-area: newtags; }
+.home-charts .mini-chart-group {
+  grid-area: mini;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.home-charts .chart-mini { height: 140px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--elev-1); }
+
+/* 响应式：窄屏改为单列顺序（trend -> tags -> status -> newworks -> weekday -> mini） */
+@media (max-width: 860px) {
+  .home-charts .home-charts-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'recordsTrend'
+      'actorsTrend'
+      'newworksTrend'
+      'tags'
+      'status'
+      'newworks'
+      'weekday'
+      'change'
+      'newtags'
+      'mini';
+  }
+  .home-charts .chart-card { height: 260px; }
+  .home-charts .chart-mini { height: 120px; }
+}

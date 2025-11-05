@@ -1,60 +1,49 @@
 /* Stats Overview Section */
 #stats-overview {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
 }
 
 #stats-overview > div {
-    background: #ffffff;
+    background: var(--surface);
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #e8e8e8;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-shadow: var(--elev-1);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
-#stats-overview > div:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
+#stats-overview > div:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
 
 #stats-overview .stat-value {
     font-size: 22px !important;
     font-weight: 700 !important;
-    color: #333 !important;
+    color: var(--text) !important;
     margin-bottom: 4px;
     display: block;
 }
 
 #stats-overview .stat-label {
     font-size: 12px !important;
-    color: #666 !important;
+    color: var(--muted) !important;
     font-weight: 500 !important;
     display: block;
 }
 
 /* Color variations */
-#stats-overview > div[data-stat="total"] .stat-value {
-    color: #007bff !important; /* 蓝色 */
-}
+#stats-overview > div[data-stat="total"] .stat-value { color: var(--primary) !important; }
 
-#stats-overview > div[data-stat="viewed"] .stat-value {
-    color: #28a745 !important; /* 绿色 */
-}
+#stats-overview > div[data-stat="viewed"] .stat-value { color: var(--success) !important; }
 
-#stats-overview > div[data-stat="browsed"] .stat-value {
-    color: #17a2b8 !important; /* 青色 */
-}
+#stats-overview > div[data-stat="browsed"] .stat-value { color: var(--info) !important; }
 
-#stats-overview > div[data-stat="want"] .stat-value {
-    color: #fd7e14 !important; /* 橙色 */
-}
+#stats-overview > div[data-stat="want"] .stat-value { color: var(--warning) !important; }
 
 /* Adding icons */
 #stats-overview > div::before {
@@ -66,20 +55,21 @@
 
 #stats-overview > div[data-stat="total"]::before {
     content: "\f022"; /* fa-list-alt */
-    color: #007bff;
+    color: var(--primary);
 }
 
 #stats-overview > div[data-stat="viewed"]::before {
     content: "\f00c"; /* fa-check */
-    color: #28a745;
+    color: var(--success);
 }
 
 #stats-overview > div[data-stat="browsed"]::before {
     content: "\f06e"; /* fa-eye */
-    color: #17a2b8;
+    color: var(--info);
 }
 
 #stats-overview > div[data-stat="want"]::before {
     content: "\f005"; /* fa-star */
-    color: #ffc107;
-} 
+    color: var(--warning);
+}
+ 
