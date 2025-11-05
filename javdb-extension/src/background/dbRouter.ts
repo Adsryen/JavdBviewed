@@ -1,7 +1,7 @@
 // src/background/dbRouter.ts
 // 抽离 DB 相关消息路由
 
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON } from './db';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange } from './db';
 
 export function registerDbMessageRouter(): void {
   try { initDB().catch(() => {}); } catch {}
@@ -215,13 +215,19 @@ export function registerDbMessageRouter(): void {
       // insights views
       if (message.type === 'DB:INSIGHTS_VIEWS_PUT') {
         const view = message?.payload?.view;
-        insViewsPut(view).then(() => sendResponse({ success: true }))
+        insViewsPut(view).then(() => {
+          try { chrome.runtime.sendMessage({ type: 'DB:INSIGHTS_VIEWS_CHANGED', payload: { date: view?.date || null, count: 1 } }); } catch {}
+          sendResponse({ success: true });
+        })
           .catch((e) => sendResponse({ success: false, error: e?.message || 'insights views put failed' }));
         return true;
       }
       if (message.type === 'DB:INSIGHTS_VIEWS_BULK_PUT') {
         const views = message?.payload?.views || [];
-        insViewsBulkPut(views).then(() => sendResponse({ success: true }))
+        insViewsBulkPut(views).then(() => {
+          try { chrome.runtime.sendMessage({ type: 'DB:INSIGHTS_VIEWS_CHANGED', payload: { count: Array.isArray(views) ? views.length : 0 } }); } catch {}
+          sendResponse({ success: true });
+        })
           .catch((e) => sendResponse({ success: false, error: e?.message || 'insights views bulk put failed' }));
         return true;
       }
@@ -266,6 +272,31 @@ export function registerDbMessageRouter(): void {
         const json = message?.payload?.json || '[]';
         insReportsImportJSON(json).then((count) => sendResponse({ success: true, count }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'insights reports import failed' }));
+        return true;
+      }
+      // trends (records/actors/newWorks)
+      if (message.type === 'DB:TRENDS_RECORDS_RANGE') {
+        const startDate = message?.payload?.startDate;
+        const endDate = message?.payload?.endDate;
+        const mode = message?.payload?.mode || 'cumulative';
+        trendsRecordsRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends records failed' }));
+        return true;
+      }
+      if (message.type === 'DB:TRENDS_ACTORS_RANGE') {
+        const startDate = message?.payload?.startDate;
+        const endDate = message?.payload?.endDate;
+        const mode = message?.payload?.mode || 'cumulative';
+        trendsActorsRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends actors failed' }));
+        return true;
+      }
+      if (message.type === 'DB:TRENDS_NEWWORKS_RANGE') {
+        const startDate = message?.payload?.startDate;
+        const endDate = message?.payload?.endDate;
+        const mode = message?.payload?.mode || 'cumulative';
+        trendsNewWorksRange(startDate, endDate, mode).then((points) => sendResponse({ success: true, points }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'trends newWorks failed' }));
         return true;
       }
       return false;
