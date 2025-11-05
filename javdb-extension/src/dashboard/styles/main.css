@@ -1,9 +1,27 @@
 /* General Body and Layout */
+:root {
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e5e7eb;
+    --primary: #3b82f6;
+    --primary-600: #2563eb;
+    --success: #22c55e;
+    --info: #14b8a6;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --elev-1: 0 2px 10px rgba(0, 0, 0, 0.06);
+    --elev-2: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --ring: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f0f2f5;
+    background-color: var(--bg, #f0f2f5);
     margin: 0;
-    color: #333;
+    color: var(--text, #333);
     min-width: 800px;
 }
 
@@ -120,22 +138,22 @@ body {
 }
 
 /* 按钮分级：主/次/幽灵（弱强调） */
-.btn-primary { background-color: #007bff; color: #fff; }
-.btn-primary:hover { background-color: #0069d9; }
+.btn-primary { background-color: var(--primary); color: #fff; border-color: transparent; }
+.btn-primary:hover { background-color: var(--primary-600); }
 
-.btn-secondary { background-color: #17a2b8; color: #fff; }
-.btn-secondary:hover { background-color: #138496; }
+.btn-secondary { background-color: var(--info); color: #fff; border-color: transparent; }
+.btn-secondary:hover { filter: brightness(0.95); }
 
 /* 危险动作：删除 */
-.btn-danger { background-color: #dc3545; color: #fff; }
-.btn-danger:hover { background-color: #c82333; }
+.btn-danger { background-color: var(--danger); color: #fff; border-color: transparent; }
+.btn-danger:hover { filter: brightness(0.95); }
 
 .btn-ghost {
-    background: #f8f9fa;
-    color: #495057;
-    border: 1px solid #e9ecef;
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid var(--border);
 }
-.btn-ghost:hover { background: #f1f3f5; }
+.btn-ghost:hover { background: #f1f5f9; }
 .btn-group { display: inline-flex; gap: 8px; }
 
 /* 小圆点分隔符（用于日期与模型之间） */
@@ -545,39 +563,42 @@ body {
 
 /* Card for main content */
 .card {
-    background: #fff;
-    border: 1px solid #e8e8e8;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--elev-1);
+    transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease, background-color .2s ease;
     flex-grow: 1;
+}
+.card:hover {
+    box-shadow: var(--elev-2);
+    transform: translateY(-1px);
 }
 
 /* Generic Button Styles */
 button, .button-like {
-    padding: 10px 18px;
-    color: white;
-    border-radius: 8px;
+    height: 36px;
+    padding: 0 14px;
+    color: #fff;
+    border-radius: 999px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+    transition: background-color .2s ease, color .2s ease, transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
     white-space: nowrap;
     text-align: center;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background-color: var(--primary);
 }
-  button:hover:not(:disabled) {
-      transform: translateY(-1px);
-      opacity: 0.9;
-  }
-  button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-  }
+button:hover:not(:disabled), .button-like:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.10); }
+button:active:not(:disabled), .button-like:active:not(:disabled) { transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+button:focus-visible { outline: none; box-shadow: var(--ring); }
+button:disabled, .button-like:disabled { opacity: .6; cursor: not-allowed; }
 
   /* Specific Button Colors */
   /* Primary Actions: Blue (save, export, sync) */
@@ -586,18 +607,11 @@ button, .button-like {
   }
 
 /*Success Actions: Green (restore) */
-#syncDown {
-    background-color: #28a745;
-}
+#syncDown { background-color: var(--success); border-color: transparent; }
 /* Secondary Actions: Gray (import, test connection) */
-.button-like, #testWebdavConnection {
-    background-color: #6c757d;
-}
-
-  /* Info/Toggle Actions: Teal */
-  #editJsonBtn, #checkDataStructureBtn {
-      background-color: #17a2b8;
-  }
+.button-like, #testWebdavConnection { background-color: #6c757d; border-color: transparent; }
+/* Info/Toggle Actions: Teal */
+#editJsonBtn, #checkDataStructureBtn { background-color: var(--info); border-color: transparent; }
 
   /* ===== Insights (报告) 页按钮配色 ===== */
   /* 容器 class 在 partial 中为 .controls，这里针对具体按钮ID，避免影响其他页面 */
