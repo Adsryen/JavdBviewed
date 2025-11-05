@@ -23,7 +23,8 @@ import { getDrive115V2Service } from '../services/drive115v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted, loadPartial, injectPartial } from './loaders/partialsLoader';
 import { ensureStylesLoaded, prefetchStyles } from './loaders/stylesLoader';
-import { dbViewedStats, dbActorsStats, dbNewWorksStats } from './dbClient';
+import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange } from './dbClient';
+import { aggregateMonthly } from '../services/insights/aggregator';
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -49,6 +50,9 @@ async function applyConsoleSettingsFromStorage_DB() {
                 timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
             });
         }
+
+        // （已移除误注入的 ECharts 回退渲染逻辑）
+
         if (logging.consoleCategories) {
             const cfg = ctrl.getConfig();
             const allKeys = Object.keys(cfg?.categories || {});
@@ -71,6 +75,21 @@ try {
             applyConsoleSettingsFromStorage_DB();
         }
     });
+} catch {}
+
+// 监听 Insights 变更，自动刷新首页图表
+try {
+    const W: any = window as any;
+    if (!W.__INSIGHTS_CHANGED_BOUND__) {
+        chrome.runtime.onMessage.addListener((msg: any) => {
+            try {
+                if (msg && msg.type === 'DB:INSIGHTS_VIEWS_CHANGED') {
+                    try { initOrUpdateHomeCharts(); } catch {}
+                }
+            } catch {}
+        });
+        W.__INSIGHTS_CHANGED_BOUND__ = true;
+    }
 } catch {}
 
 function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
@@ -280,6 +299,368 @@ async function prefetchTabResources(tabId: string): Promise<void> {
     } catch {}
 }
 
+async function renderHomeChartsWithEcharts(): Promise<void> {
+    try {
+        const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
+        const genderEl = document.getElementById('homeActorsGenderPie') as HTMLDivElement | null;
+        const categoryEl = document.getElementById('homeActorsCategoryPie') as HTMLDivElement | null;
+        const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
+        const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
+        const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
+        const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
+        const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
+        const weekdayEl = document.getElementById('homeWeekdayBars') as HTMLDivElement | null;
+        const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
+        const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
+        if (!statusEl && !genderEl && !categoryEl && !barsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl && !tagsEl && !weekdayEl && !changeEl && !newTagsEl) return;
+        const ech = await ensureEchartsLoaded();
+        if (!ech) return;
+        const W: any = window as any;
+        const HC: any = (W.__HOME_CHARTS__ = W.__HOME_CHARTS__ || {});
+        const getChart = (el: HTMLDivElement | null, key: string) => {
+            if (!el) return null;
+            const cur = HC[key];
+            if (cur && cur.getDom && cur.getDom() === el) return cur;
+            if (cur && cur.dispose) { try { cur.dispose(); } catch {} }
+            const inst = ech.init(el);
+            HC[key] = inst;
+            return inst;
+        };
+        if (!HC._resizeBound) {
+            try {
+                window.addEventListener('resize', () => {
+                    ['statusDonut','actorsGenderPie','actorsCategoryPie','newWorksBars','activityTrend','tagsTop','weekdayBars','tagsChange','newTagsTop','recordsTrend','actorsTrend','newWorksTrend'].forEach((k: string) => {
+                        const c = HC[k];
+                        if (c && c.resize) { try { c.resize(); } catch {} }
+                    });
+                });
+                HC._resizeBound = true;
+            } catch {}
+        }
+        const getVar = (name: string, fallback: string) => {
+            try {
+                const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                return v || fallback;
+            } catch { return fallback; }
+        };
+        const COLORS = {
+            primary: getVar('--primary', '#3b82f6'),
+            success: getVar('--success', '#22c55e'),
+            info: getVar('--info', '#14b8a6'),
+            warning: getVar('--warning', '#f59e0b'),
+            text: getVar('--text', '#111827'),
+            muted: getVar('--muted', '#6b7280'),
+            border: getVar('--border', '#e5e7eb'),
+            surface: getVar('--surface', '#ffffff')
+        } as any;
+        const fmtDate = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+        let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [];
+        const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
+        const msDay = 24*60*60*1000;
+        try { s = await dbViewedStats(); } catch {}
+        try { a = await dbActorsStats(); } catch {}
+        try { w = await dbNewWorksStats(); } catch {}
+        try {
+            const { start: startStr, end: endStr } = getHomeChartsRange();
+            const sDate = parse(startStr), eDate = parse(endStr);
+            const span = Math.max(1, Math.round((eDate.getTime() - sDate.getTime())/msDay) + 1);
+            const prevEnd = new Date(sDate.getTime() - msDay);
+            const prevStart = new Date(prevEnd.getTime() - (span - 1) * msDay);
+            const prevArr = await dbInsViewsRange(fmtDate(prevStart), fmtDate(prevEnd));
+            viewsArr = await dbInsViewsRange(startStr, endStr);
+            ins = aggregateMonthly(viewsArr || [], { topN: 8, previousDays: prevArr || [] });
+            try { console.info('[INSIGHTS][home][echarts] range', { start: startStr, end: endStr, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(ins?.tagsTop) ? ins.tagsTop.length : 0 }); } catch {}
+        } catch {}
+        if (statusEl) {
+            const c = getChart(statusEl, 'statusDonut');
+            if (c) {
+                const viewed = s?.byStatus?.viewed || 0;
+                const browsed = s?.byStatus?.browsed || 0;
+                const want = s?.byStatus?.want || 0;
+                const sum = viewed + browsed + want;
+                if (sum <= 0) { try { statusEl.style.display = 'none'; } catch {} }
+                else { try { statusEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
+                    legend: { bottom: 0, icon: 'circle', itemWidth: 10, itemHeight: 10, textStyle: { color: COLORS.muted, fontSize: 12 } },
+                    series: [{
+                        type: 'pie',
+                        radius: ['58%','80%'],
+                        center: ['50%','50%'],
+                        avoidLabelOverlap: true,
+                        label: { show: false },
+                        labelLine: { show: false },
+                        itemStyle: {
+                            borderColor: COLORS.surface,
+                            borderWidth: 2,
+                            color: function(params: any){
+                                if (params.name === '已观看') return COLORS.success;
+                                if (params.name === '已浏览') return COLORS.info;
+                                if (params.name === '想看') return COLORS.warning;
+                                return COLORS.primary;
+                            }
+                        },
+                        emphasis: { scale: true, scaleSize: 6 },
+                        data: [
+                            { name: '已观看', value: viewed },
+                            { name: '已浏览', value: browsed },
+                            { name: '想看', value: want }
+                        ]
+                    }],
+                    graphic: [{
+                        type: 'text', left: 'center', top: 'middle',
+                        style: { text: String(sum), fill: COLORS.text, fontSize: 18, fontWeight: 700 }
+                    }]
+                });
+            }
+        }
+        if (genderEl) {
+            const c = getChart(genderEl, 'actorsGenderPie');
+            if (c) {
+                const female = a?.byGender?.female || 0;
+                const male = a?.byGender?.male || 0;
+                const unknown = a?.byGender?.unknown || 0;
+                const sum = female + male + unknown;
+                if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} }
+                else { try { genderEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
+                    legend: { show: false },
+                    series: [{
+                        type: 'pie',
+                        radius: ['50%','78%'],
+                        center: ['50%','50%'],
+                        label: { show: false },
+                        labelLine: { show: false },
+                        itemStyle: {
+                            borderColor: COLORS.surface,
+                            borderWidth: 2,
+                            color: function(params: any){
+                                if (params.name === '女性') return '#ec4899';
+                                if (params.name === '男性') return '#60a5fa';
+                                if (params.name === '未知') return '#94a3b8';
+                                return COLORS.primary;
+                            }
+                        },
+                        data: [
+                            { name: '女性', value: female },
+                            { name: '男性', value: male },
+                            { name: '未知', value: unknown }
+                        ]
+                    }],
+                    graphic: [{
+                        type: 'text', left: 'center', top: 'middle',
+                        style: { text: String(sum), fill: COLORS.text, fontSize: 13, fontWeight: 700 }
+                    }]
+                });
+            }
+        }
+        if (categoryEl) {
+            const c = getChart(categoryEl, 'actorsCategoryPie');
+            if (c) {
+                const censored = a?.byCategory?.censored || 0;
+                const uncensored = a?.byCategory?.uncensored || 0;
+                const sum = censored + uncensored;
+                if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} }
+                else { try { categoryEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
+                    legend: { show: false },
+                    series: [{
+                        type: 'pie',
+                        radius: ['50%','78%'],
+                        center: ['50%','50%'],
+                        label: { show: false },
+                        labelLine: { show: false },
+                        itemStyle: {
+                            borderColor: COLORS.surface,
+                            borderWidth: 2,
+                            color: function(params: any){
+                                if (params.name === '有码') return COLORS.primary;
+                                if (params.name === '无码') return '#a78bfa';
+                                return COLORS.info;
+                            }
+                        },
+                        data: [
+                            { name: '有码', value: censored },
+                            { name: '无码', value: uncensored }
+                        ]
+                    }],
+                    graphic: [{
+                        type: 'text', left: 'center', top: 'middle',
+                        style: { text: String(sum), fill: COLORS.text, fontSize: 13, fontWeight: 700 }
+                    }]
+                });
+            }
+        }
+        if (barsEl) {
+            const c = getChart(barsEl, 'newWorksBars');
+            if (c) {
+                const unread = w?.unread || 0;
+                const today = w?.today || 0;
+                const week = w?.week || 0;
+                const sum = unread + today + week;
+                if (sum <= 0) { try { barsEl.style.display = 'none'; } catch {} }
+                else { try { barsEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                    grid: { left: 30, right: 10, top: 20, bottom: 24 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['未读','今日','本周'],
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: COLORS.border } },
+                        axisLabel: { color: COLORS.muted }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        min: 0,
+                        max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)),
+                        splitLine: { lineStyle: { color: COLORS.border } },
+                        axisLabel: { color: COLORS.muted }
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: [unread, today, week],
+                        barMaxWidth: 36,
+                        itemStyle: {
+                            borderRadius: [6, 6, 0, 0],
+                            color: function(params: any){
+                                const names = ['未读','今日','本周'];
+                                const n = params?.name || names[params?.dataIndex || 0];
+                                if (n === '未读') return COLORS.warning;
+                                if (n === '今日') return COLORS.primary;
+                                if (n === '本周') return COLORS.info;
+                                return COLORS.primary;
+                            }
+                        },
+                        label: { show: true, position: 'top', color: COLORS.text, fontWeight: 'bold' }
+                    }]
+                });
+            }
+        }
+        if (trendEl) {
+            const c = getChart(trendEl, 'activityTrend');
+            if (c) {
+                const arr = Array.isArray(ins?.trend) ? ins.trend : [];
+                const sumT = arr.reduce((ss: number, p: any) => ss + (p?.total || 0), 0);
+                if (!arr.length || sumT <= 0) { try { trendEl.style.display = 'none'; } catch {} }
+                else { try { trendEl.style.display = ''; } catch {} }
+                if (arr.length && sumT > 0) {
+                    const x = arr.map((p: any) => p.date);
+                    const y = arr.map((p: any) => p.total);
+                    c.setOption({
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
+                        grid: { left: 30, right: 10, top: 20, bottom: 24 },
+                        xAxis: { type: 'category', boundaryGap: false, data: x, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                        yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                        series: [{
+                            type: 'line',
+                            data: y,
+                            smooth: true,
+                            symbol: 'none',
+                            lineStyle: { width: 2, color: COLORS.primary },
+                            areaStyle: { color: new ech.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(59,130,246,0.25)' },
+                                { offset: 1, color: 'rgba(59,130,246,0.05)' }
+                            ]) }
+                        }]
+                    });
+                }
+            }
+        }
+        if (tagsEl) {
+            const c = getChart(tagsEl, 'tagsTop');
+            if (c) {
+                const top = Array.isArray(ins?.tagsTop) ? (ins.tagsTop as any[]).slice(0, 8) : [];
+                if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
+                else { try { tagsEl.style.display = ''; } catch {} }
+                if (top.length) {
+                    const cats = top.map((t: any) => String(t.name || ''));
+                    const vals = top.map((t: any) => Number(t.count || 0));
+                    const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#f97316','#10b981','#3b82f6','#eab308','#06b6d4','#f43f5e'];
+                    c.setOption({
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        grid: { left: 80, right: 12, top: 10, bottom: 10 },
+                        xAxis: { type: 'value', min: 0, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                        yAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                        series: [{
+                            type: 'bar',
+                            data: vals.map((v, i) => ({ value: v, itemStyle: { color: PALETTE[i % PALETTE.length], borderRadius: [0, 6, 6, 0] } })),
+                            barMaxWidth: 22,
+                            label: { show: true, position: 'right', color: COLORS.text }
+                        }]
+                    });
+                }
+            }
+        }
+
+        if (weekdayEl) {
+            const c = getChart(weekdayEl, 'weekdayBars');
+            if (c) {
+                const counts = [0,0,0,0,0,0,0]; // 周日..周六
+                const sumDay = (d: any) => Object.values(d?.tags || {}).reduce((s: number, v: any) => s + (Number(v||0)||0), 0);
+                const parseD = (str: string) => { try { const [Y,M,D] = String(str||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
+                for (const d of (viewsArr || [])) {
+                    const total = sumDay(d);
+                    const day = parseD(d?.date).getDay();
+                    if (total > 0 && day >= 0) counts[day] += total;
+                }
+                const cats = ['周一','周二','周三','周四','周五','周六','周日'];
+                const order = [1,2,3,4,5,6,0];
+                const vals = order.map((idx) => counts[idx]);
+                const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#10b981'];
+                const sumAll = vals.reduce((s, v) => s + (v||0), 0);
+                if (sumAll <= 0) { try { weekdayEl.style.display = 'none'; } catch {} } else { try { weekdayEl.style.display = ''; } catch {} }
+                c.setOption({
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                    grid: { left: 30, right: 10, top: 20, bottom: 24 },
+                    xAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                    yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                    series: [{ type: 'bar', data: vals.map((v, i) => ({ value: v, itemStyle: { color: PALETTE[i % PALETTE.length], borderRadius: [6,6,0,0] } })), barMaxWidth: 28, label: { show: true, position: 'top', color: COLORS.text } }]
+                });
+            }
+        }
+
+        if (changeEl) {
+            const c = getChart(changeEl, 'tagsChange');
+            if (c) {
+                const rising = Array.isArray(ins?.changes?.risingDetailed) ? ins.changes.risingDetailed.slice(0, 5) : [];
+                const falling = Array.isArray(ins?.changes?.fallingDetailed) ? ins.changes.fallingDetailed.slice(0, 5) : [];
+                const data = [
+                    ...rising.map((d: any) => ({ name: d.name, value: +(d.diffRatio * 100).toFixed(1) })),
+                    ...falling.map((d: any) => ({ name: d.name, value: -Math.abs(+(d.diffRatio * 100).toFixed(1)) })),
+                ];
+                if (!data.length) { try { changeEl.style.display = 'none'; } catch {} } else { try { changeEl.style.display = ''; } catch {} }
+                const cats = data.map(d => d.name).reverse();
+                const vals = data.map(d => d.value).reverse();
+                c.setOption({
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (p: any) => {
+                        const v = Array.isArray(p) ? (p[0]?.value ?? 0) : (p?.value ?? 0);
+                        const sign = v > 0 ? '+' : '';
+                        return `${sign}${v}%`;
+                    } },
+                    grid: { left: 80, right: 12, top: 10, bottom: 10 },
+                    xAxis: { type: 'value', axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted, formatter: '{value}%' }, splitLine: { lineStyle: { color: COLORS.border } } },
+                    yAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                    series: [{
+                        type: 'bar',
+                        data: vals.map((v: number) => ({ value: v, itemStyle: { color: v >= 0 ? '#16a34a' : '#ef4444', borderRadius: [0,6,6,0] } })),
+                        barMaxWidth: 18,
+                        label: { show: true, position: 'right', color: COLORS.text, formatter: (p: any) => `${p.value > 0 ? '+' : ''}${p.value}%` }
+                    }]
+                });
+            }
+        }
+        
+    } catch {}
+}
+
 async function mountTabIfNeeded(tabId: string): Promise<void> {
     try {
         const cfg = (TAB_PARTIALS as any)[tabId];
@@ -401,6 +782,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initTabs();
     await mountTabIfNeeded('tab-home');
     await initializeTabById('tab-home');
+    try { bindHomeChartsRangeControls(); } catch {}
     try { await initStatsOverview(); } catch {}
     try { await initHomeSectionsOverview(); } catch {}
     try { await initOrUpdateHomeCharts(); } catch {}
@@ -445,6 +827,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.addEventListener('tab:show' as any, async (e: any) => {
                 const id = e?.detail?.tabId;
                 if (id === 'tab-home') {
+                    try { bindHomeChartsRangeControls(); } catch {}
                     try { await initOrUpdateHomeCharts(); } catch {}
                 }
             });
@@ -778,11 +1161,33 @@ async function ensureEchartsLoaded(): Promise<any> {
         } catch { resolve(); }
     });
     echartsLoadingPromise = new Promise(async (resolve) => {
-        try { await inject(chrome.runtime.getURL('assets/echarts.min.js')); }
-        catch { try { await inject(chrome.runtime.getURL('assets/templates/echarts.min.js')); } catch {} }
+        try { await inject(chrome.runtime.getURL('assets/templates/echarts.min.js')); }
+        catch { try { await inject(chrome.runtime.getURL('assets/echarts.min.js')); } catch {} }
         resolve(void 0);
     });
     return echartsLoadingPromise.then(() => ((window as any).echarts || null));
+}
+
+let g2plotLoadingPromise: Promise<any> | null = null;
+async function ensureG2PlotLoaded(): Promise<any> {
+    const w: any = window as any;
+    if (w.G2Plot) return w.G2Plot;
+    if (g2plotLoadingPromise) return g2plotLoadingPromise.then(() => (w.G2Plot || null));
+    const inject = (src: string) => new Promise<void>((resolve, reject) => {
+        try {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('load failed'));
+            (document.head || document.documentElement).appendChild(s);
+        } catch { resolve(); }
+    });
+    g2plotLoadingPromise = new Promise(async (resolve) => {
+        try { await inject(chrome.runtime.getURL('assets/templates/g2plot.min.js')); }
+        catch { try { await inject(chrome.runtime.getURL('assets/g2plot.min.js')); } catch {} }
+        resolve(void 0);
+    });
+    return g2plotLoadingPromise.then(() => ((window as any).G2Plot || null));
 }
 
 async function initOrUpdateHomeCharts(): Promise<void> {
@@ -791,115 +1196,382 @@ async function initOrUpdateHomeCharts(): Promise<void> {
         const genderEl = document.getElementById('homeActorsGenderPie') as HTMLDivElement | null;
         const categoryEl = document.getElementById('homeActorsCategoryPie') as HTMLDivElement | null;
         const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
-        if (!statusEl && !genderEl && !categoryEl && !barsEl) return;
-        const ech = await ensureEchartsLoaded();
-        if (!ech) return;
+        const trendEl = document.getElementById('homeActivityTrend') as HTMLDivElement | null;
+        const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
+        const weekdayEl = document.getElementById('homeWeekdayBars') as HTMLDivElement | null;
+        const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
+        const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
+        if (!statusEl && !genderEl && !categoryEl && !barsEl && !trendEl && !tagsEl && !weekdayEl && !changeEl && !newTagsEl) return;
+        const G2P: any = await ensureG2PlotLoaded();
+        if (!G2P) { await renderHomeChartsWithEcharts(); return; }
+        const { Pie, Column, Line, Bar } = G2P;
         const W: any = window as any;
         const HC: any = (W.__HOME_CHARTS__ = W.__HOME_CHARTS__ || {});
-        const getChart = (el: HTMLDivElement | null, key: string) => {
-            if (!el) return null;
-            const cur = HC[key];
-            if (cur && cur.getDom && cur.getDom() === el) return cur;
-            if (cur && cur.dispose) { try { cur.dispose(); } catch {} }
-            const inst = ech.init(el);
-            HC[key] = inst;
-            return inst;
-        };
-        if (!HC._resizeBound) {
+        const getVar = (name: string, fallback: string) => {
             try {
-                window.addEventListener('resize', () => {
-                    ['statusDonut','actorsGenderPie','actorsCategoryPie','newWorksBars'].forEach((k: string) => {
-                        const c = HC[k];
-                        if (c && c.resize) { try { c.resize(); } catch {} }
-                    });
-                });
-                HC._resizeBound = true;
-            } catch {}
-        }
-        let s: any = null, a: any = null, w: any = null;
+                const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                return v || fallback;
+            } catch { return fallback; }
+        };
+        const COLORS = {
+            primary: getVar('--primary', '#3b82f6'),
+            success: getVar('--success', '#22c55e'),
+            info: getVar('--info', '#14b8a6'),
+            warning: getVar('--warning', '#f59e0b'),
+        };
+        const msDay = 24 * 60 * 60 * 1000;
+        const fmt = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+        const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
+        let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [];
         try { s = await dbViewedStats(); } catch {}
         try { a = await dbActorsStats(); } catch {}
         try { w = await dbNewWorksStats(); } catch {}
+        try {
+            const r = getHomeChartsRange();
+            const sDate = parse(r.start), eDate = parse(r.end);
+            const span = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / msDay) + 1);
+            const prevEnd = new Date(sDate.getTime() - msDay);
+            const prevStart = new Date(prevEnd.getTime() - (span - 1) * msDay);
+            const prevArr = await dbInsViewsRange(fmt(prevStart), fmt(prevEnd));
+            viewsArr = await dbInsViewsRange(r.start, r.end);
+            ins = aggregateMonthly(viewsArr || [], { topN: 8, previousDays: prevArr || [] });
+            try { console.info('[INSIGHTS][home][g2plot] range', { start: r.start, end: r.end, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(ins?.tagsTop) ? ins.tagsTop.length : 0 }); } catch {}
+        } catch {}
+        // KPI 已移除
+        // 三张多折线趋势（累计）
+        try {
+            const r = getHomeChartsRange();
+            // 番号库趋势
+            if (recordsTrendEl) {
+                if (HC['recordsTrend']?.destroy) { try { HC['recordsTrend'].destroy(); } catch {} }
+                const rec = await dbTrendsRecordsRange(r.start, r.end, 'cumulative');
+                const data = ([] as any[]).concat(
+                    rec.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
+                    rec.map((p: any) => ({ date: p.date, type: '已观看', value: p.viewed })),
+                    rec.map((p: any) => ({ date: p.date, type: '已浏览', value: p.browsed })),
+                    rec.map((p: any) => ({ date: p.date, type: '想看', value: p.want }))
+                );
+                const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
+                if (sum <= 0) { try { recordsTrendEl.style.display = 'none'; } catch {} }
+                else {
+                    try { recordsTrendEl.style.display = ''; } catch {}
+                    const plot = new Line(recordsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
+                        const m: any = { '总记录': COLORS.primary, '已观看': COLORS.success, '已浏览': COLORS.info, '想看': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
+                    plot.render();
+                    HC['recordsTrend'] = plot;
+                }
+            }
+            // 演员库趋势
+            if (actorsTrendEl) {
+                if (HC['actorsTrend']?.destroy) { try { HC['actorsTrend'].destroy(); } catch {} }
+                const act = await dbTrendsActorsRange(r.start, r.end, 'cumulative');
+                const data = ([] as any[]).concat(
+                    act.map((p: any) => ({ date: p.date, type: '总演员数', value: p.total })),
+                    act.map((p: any) => ({ date: p.date, type: '女性', value: p.female })),
+                    act.map((p: any) => ({ date: p.date, type: '男性', value: p.male })),
+                    act.map((p: any) => ({ date: p.date, type: '黑名单', value: p.blacklisted }))
+                );
+                const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
+                if (sum <= 0) { try { actorsTrendEl.style.display = 'none'; } catch {} }
+                else {
+                    try { actorsTrendEl.style.display = ''; } catch {}
+                    const plot = new Line(actorsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
+                        const m: any = { '总演员数': COLORS.primary, '女性': '#ec4899', '男性': '#60a5fa', '黑名单': '#ef4444' }; return m[t?.type] || COLORS.primary; } });
+                    plot.render();
+                    HC['actorsTrend'] = plot;
+                }
+            }
+            // 新作品趋势
+            if (newWorksTrendEl) {
+                if (HC['newWorksTrend']?.destroy) { try { HC['newWorksTrend'].destroy(); } catch {} }
+                const nw = await dbTrendsNewWorksRange(r.start, r.end, 'cumulative');
+                const data = ([] as any[]).concat(
+                    nw.map((p: any) => ({ date: p.date, type: '总数', value: p.total })),
+                    nw.map((p: any) => ({ date: p.date, type: '订阅数', value: p.subscriptions }))
+                );
+                const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
+                if (sum <= 0) { try { newWorksTrendEl.style.display = 'none'; } catch {} }
+                else {
+                    try { newWorksTrendEl.style.display = ''; } catch {}
+                    const plot = new Line(newWorksTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
+                        const m: any = { '总数': COLORS.primary, '订阅数': '#a78bfa' }; return m[t?.type] || COLORS.primary; } });
+                    plot.render();
+                    HC['newWorksTrend'] = plot;
+                }
+            }
+        } catch {}
+        // 状态环形图（已观看/已浏览/想看）
         if (statusEl) {
-            const c = getChart(statusEl, 'statusDonut');
-            if (c) {
-                const viewed = s?.byStatus?.viewed || 0;
-                const browsed = s?.byStatus?.browsed || 0;
-                const want = s?.byStatus?.want || 0;
-                const sum = viewed + browsed + want;
-                if (sum <= 0) { try { statusEl.style.display = 'none'; } catch {} }
-                else { try { statusEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'item' },
-                    legend: { bottom: 0 },
-                    series: [{ type: 'pie', radius: ['48%','70%'], avoidLabelOverlap: true, label: { show: false },
-                        data: [
-                            { name: '已观看', value: viewed },
-                            { name: '已浏览', value: browsed },
-                            { name: '想看', value: want }
-                        ]
-                    }]
+            const viewed = s?.byStatus?.viewed || 0;
+            const browsed = s?.byStatus?.browsed || 0;
+            const want = s?.byStatus?.want || 0;
+            const sum = viewed + browsed + want;
+            if (sum <= 0) { try { statusEl.style.display = 'none'; } catch {} } else { try { statusEl.style.display = ''; } catch {} }
+            if (HC['statusDonut']?.destroy) { try { HC['statusDonut'].destroy(); } catch {} }
+            if (sum > 0) {
+                const data = [
+                    { type: '已观看', value: viewed },
+                    { type: '已浏览', value: browsed },
+                    { type: '想看', value: want },
+                ];
+                const plot = new Pie(statusEl, {
+                    data,
+                    angleField: 'value',
+                    colorField: 'type',
+                    radius: 1,
+                    innerRadius: 0.6,
+                    legend: { position: 'bottom' },
+                    label: false,
+                    statistic: { title: false, content: { formatter: () => String(sum) } },
+                    color: (d: any) => {
+                        if (d.type === '已观看') return COLORS.success;
+                        if (d.type === '已浏览') return COLORS.info;
+                        if (d.type === '想看') return COLORS.warning;
+                        return COLORS.primary;
+                    },
+                    interactions: [{ type: 'element-active' }],
+                    autoFit: true,
                 });
+                plot.render();
+                HC['statusDonut'] = plot;
             }
         }
+        // 演员性别分布（饼图）
         if (genderEl) {
-            const c = getChart(genderEl, 'actorsGenderPie');
-            if (c) {
-                const female = a?.byGender?.female || 0;
-                const male = a?.byGender?.male || 0;
-                const unknown = a?.byGender?.unknown || 0;
-                const sum = female + male + unknown;
-                if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} }
-                else { try { genderEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'item' },
-                    legend: { bottom: 0 },
-                    series: [{ type: 'pie', radius: '70%', label: { show: false },
-                        data: [
-                            { name: '女性', value: female },
-                            { name: '男性', value: male },
-                            { name: '未知', value: unknown }
-                        ]
-                    }]
+            const female = a?.byGender?.female || 0;
+            const male = a?.byGender?.male || 0;
+            const unknown = a?.byGender?.unknown || 0;
+            const sum = female + male + unknown;
+            if (sum <= 0) { try { genderEl.style.display = 'none'; } catch {} } else { try { genderEl.style.display = ''; } catch {} }
+            if (HC['actorsGenderPie']?.destroy) { try { HC['actorsGenderPie'].destroy(); } catch {} }
+            if (sum > 0) {
+                const data = [
+                    { type: '女性', value: female },
+                    { type: '男性', value: male },
+                    { type: '未知', value: unknown },
+                ];
+                const plot = new Pie(genderEl, {
+                    data,
+                    angleField: 'value',
+                    colorField: 'type',
+                    radius: 1,
+                    legend: { position: 'bottom' },
+                    label: false,
+                    statistic: { title: false, content: { formatter: () => String(sum) } },
+                    color: (d: any) => {
+                        if (d.type === '女性') return '#ec4899';
+                        if (d.type === '男性') return '#60a5fa';
+                        if (d.type === '未知') return '#94a3b8';
+                        return COLORS.primary;
+                    },
+                    interactions: [{ type: 'element-active' }],
+                    autoFit: true,
                 });
+                plot.render();
+                HC['actorsGenderPie'] = plot;
             }
         }
+        // 演员分类（有码/无码）
         if (categoryEl) {
-            const c = getChart(categoryEl, 'actorsCategoryPie');
-            if (c) {
-                const censored = a?.byCategory?.censored || 0;
-                const uncensored = a?.byCategory?.uncensored || 0;
-                const sum = censored + uncensored;
-                if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} }
-                else { try { categoryEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'item' },
-                    legend: { bottom: 0 },
-                    series: [{ type: 'pie', radius: '70%', label: { show: false },
-                        data: [
-                            { name: '有码', value: censored },
-                            { name: '无码', value: uncensored }
-                        ]
-                    }]
+            const censored = a?.byCategory?.censored || 0;
+            const uncensored = a?.byCategory?.uncensored || 0;
+            const sum = censored + uncensored;
+            if (sum <= 0) { try { categoryEl.style.display = 'none'; } catch {} } else { try { categoryEl.style.display = ''; } catch {} }
+            if (HC['actorsCategoryPie']?.destroy) { try { HC['actorsCategoryPie'].destroy(); } catch {} }
+            if (sum > 0) {
+                const data = [
+                    { type: '有码', value: censored },
+                    { type: '无码', value: uncensored },
+                ];
+                const plot = new Pie(categoryEl, {
+                    data,
+                    angleField: 'value',
+                    colorField: 'type',
+                    radius: 1,
+                    legend: { position: 'bottom' },
+                    label: false,
+                    statistic: { title: false, content: { formatter: () => String(sum) } },
+                    color: (d: any) => {
+                        if (d.type === '有码') return COLORS.primary;
+                        if (d.type === '无码') return '#a78bfa';
+                        return COLORS.info;
+                    },
+                    interactions: [{ type: 'element-active' }],
+                    autoFit: true,
                 });
+                plot.render();
+                HC['actorsCategoryPie'] = plot;
             }
         }
+        // 新作品（柱状）
         if (barsEl) {
-            const c = getChart(barsEl, 'newWorksBars');
-            if (c) {
-                const unread = w?.unread || 0;
-                const today = w?.today || 0;
-                const week = w?.week || 0;
-                const sum = unread + today + week;
-                if (sum <= 0) { try { barsEl.style.display = 'none'; } catch {} }
-                else { try { barsEl.style.display = ''; } catch {} }
-                c.setOption({
-                    tooltip: { trigger: 'axis' },
-                    grid: { left: 30, right: 10, top: 20, bottom: 24 },
-                    xAxis: { type: 'category', data: ['未读','今日','本周'] },
-                    yAxis: { type: 'value' },
-                    series: [{ type: 'bar', data: [unread, today, week], barWidth: '40%' }]
+            const unread = w?.unread || 0;
+            const today = w?.today || 0;
+            const week = w?.week || 0;
+            const sum = unread + today + week;
+            if (sum <= 0) { try { barsEl.style.display = 'none'; } catch {} } else { try { barsEl.style.display = ''; } catch {} }
+            if (HC['newWorksBars']?.destroy) { try { HC['newWorksBars'].destroy(); } catch {} }
+            if (sum > 0) {
+                const data = [
+                    { type: '未读', value: unread },
+                    { type: '今日', value: today },
+                    { type: '本周', value: week },
+                ];
+                const plot = new Column(barsEl, {
+                    data,
+                    xField: 'type',
+                    yField: 'value',
+                    columnWidthRatio: 0.5,
+                    columnStyle: { radius: [6, 6, 0, 0] },
+                    color: (d: any) => {
+                        if (d.type === '未读') return COLORS.warning;
+                        if (d.type === '今日') return COLORS.primary;
+                        if (d.type === '本周') return COLORS.info;
+                        return COLORS.primary;
+                    },
+                    label: false,
+                    legend: false,
+                    autoFit: true,
+                    tooltip: { showTitle: false },
+                    yAxis: { min: 0, nice: true },
                 });
+                plot.render();
+                HC['newWorksBars'] = plot;
+            }
+        }
+        // 旧单一“活跃度趋势”已移除
+        if (tagsEl) {
+            if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
+            const top = Array.isArray(ins?.tagsTop) ? (ins.tagsTop as any[]).slice(0, 8) : [];
+            if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
+            else {
+                try { tagsEl.style.display = ''; } catch {}
+                const PALETTE = [
+                    COLORS.primary,
+                    COLORS.success,
+                    COLORS.info,
+                    COLORS.warning,
+                    '#ef4444', '#8b5cf6', '#f97316', '#10b981', '#3b82f6', '#eab308', '#06b6d4', '#f43f5e',
+                ];
+                const idxByName: Record<string, number> = {};
+                top.forEach((d: any, i: number) => { idxByName[d.name] = i; });
+                const plot = new Bar(tagsEl, {
+                    data: top,
+                    xField: 'count',
+                    yField: 'name',
+                    seriesField: 'name',
+                    legend: false,
+                    autoFit: true,
+                    barStyle: { radius: [0, 6, 6, 0] },
+                    label: { position: 'right' },
+                    tooltip: { showTitle: false },
+                    xAxis: { min: 0, nice: true },
+                    yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                    color: (d: any) => {
+                        const i = idxByName[d.name] ?? 0;
+                        return PALETTE[i % PALETTE.length];
+                    },
+                });
+                plot.render();
+                HC['tagsTop'] = plot;
+            }
+        }
+        // 周几分布（柱状）
+        if (weekdayEl) {
+            if (HC['weekdayBars']?.destroy) { try { HC['weekdayBars'].destroy(); } catch {} }
+            const counts = [0,0,0,0,0,0,0];
+            const sumDay = (d: any) => Object.values(d?.tags || {}).reduce((s: number, v: any) => s + (Number(v||0)||0), 0);
+            const parseD = (str: string) => { try { const [Y,M,D] = String(str||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
+            for (const d of (viewsArr || [])) {
+                const total = sumDay(d);
+                const day = parseD(d?.date).getDay();
+                if (total > 0 && day >= 0) counts[day] += total;
+            }
+            const order = [1,2,3,4,5,6,0];
+            const names = ['周一','周二','周三','周四','周五','周六','周日'];
+            const data = order.map((idx, i) => ({ weekday: names[i], total: counts[idx] }));
+            const sumAll = data.reduce((s, it) => s + (it.total||0), 0);
+            if (sumAll <= 0) { try { weekdayEl.style.display = 'none'; } catch {} }
+            else {
+                try { weekdayEl.style.display = ''; } catch {}
+                const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#10b981'];
+                const plot = new Column(weekdayEl, {
+                    data,
+                    xField: 'weekday',
+                    yField: 'total',
+                    columnWidthRatio: 0.5,
+                    columnStyle: { radius: [6, 6, 0, 0] },
+                    label: false,
+                    legend: false,
+                    color: (d: any) => { const i = names.indexOf(String(d.weekday)); return PALETTE[(i>=0?i:0)%PALETTE.length]; },
+                    xAxis: { label: { autoHide: false } },
+                    tooltip: { showTitle: false },
+                    autoFit: true,
+                    yAxis: { min: 0, nice: true },
+                });
+                plot.render();
+                HC['weekdayBars'] = plot;
+            }
+        }
+        // 标签变化（上升/下降）
+        if (changeEl) {
+            if (HC['tagsChange']?.destroy) { try { HC['tagsChange'].destroy(); } catch {} }
+            const rising = Array.isArray(ins?.changes?.risingDetailed) ? ins.changes.risingDetailed.slice(0, 5) : [];
+            const falling = Array.isArray(ins?.changes?.fallingDetailed) ? ins.changes.fallingDetailed.slice(0, 5) : [];
+            const data = [
+                ...rising.map((d: any) => ({ name: d.name, diff: +(d.diffRatio * 100).toFixed(1) })),
+                ...falling.map((d: any) => ({ name: d.name, diff: +(-Math.abs(d.diffRatio * 100)).toFixed(1) })),
+            ];
+            if (!data.length) { try { changeEl.style.display = 'none'; } catch {} }
+            else {
+                try { changeEl.style.display = ''; } catch {}
+                const plot = new Bar(changeEl, {
+                    data,
+                    xField: 'diff',
+                    yField: 'name',
+                    legend: false,
+                    autoFit: true,
+                    barStyle: { radius: [0, 6, 6, 0] },
+                    label: { position: 'right', formatter: (v: any) => `${Number(v?.diff||0) > 0 ? '+' : ''}${v?.diff}%` },
+                    tooltip: { showTitle: false },
+                    xAxis: { min: null, nice: true, label: { formatter: (text: string) => `${text}%` } },
+                    yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                    color: (d: any) => (Number(d?.diff||0) >= 0 ? '#16a34a' : '#ef4444'),
+                });
+                plot.render();
+                HC['tagsChange'] = plot;
+            }
+        }
+        // 新增标签 Top 5（横向条形）
+        if (newTagsEl) {
+            if (HC['newTagsTop']?.destroy) { try { HC['newTagsTop'].destroy(); } catch {} }
+            const list = Array.isArray(ins?.changes?.newTagsDetailed) ? ins.changes.newTagsDetailed.slice(0, 5) : [];
+            if (!list.length) { try { newTagsEl.style.display = 'none'; } catch {} }
+            else {
+                try { newTagsEl.style.display = ''; } catch {}
+                const idxByName: Record<string, number> = {};
+                list.forEach((d: any, i: number) => { idxByName[d.name] = i; });
+                const PALETTE = ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f59e0b','#ef4444'];
+                const plot = new Bar(newTagsEl, {
+                    data: list.map((d: any) => ({ name: d.name, count: Number(d.count||0) })),
+                    xField: 'count',
+                    yField: 'name',
+                    legend: false,
+                    autoFit: true,
+                    barStyle: { radius: [0, 6, 6, 0] },
+                    label: { position: 'right' },
+                    tooltip: { showTitle: false },
+                    xAxis: { min: 0, nice: true },
+                    yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                    color: (d: any) => { const i = idxByName[d.name] ?? 0; return PALETTE[i % PALETTE.length]; },
+                });
+                plot.render();
+                HC['newTagsTop'] = plot;
             }
         }
     } catch {}
@@ -920,6 +1592,103 @@ function bindHomeRefreshButton(): void {
         }
     });
     (btn as any)._bound = true;
+}
+
+function bindHomeChartsRangeControls(): void {
+    try {
+        const preset = document.getElementById('homeChartsRangePreset') as HTMLSelectElement | null;
+        const start = document.getElementById('homeChartsRangeStart') as HTMLInputElement | null;
+        const end = document.getElementById('homeChartsRangeEnd') as HTMLInputElement | null;
+        const sep = document.getElementById('homeChartsRangeSep') as HTMLSpanElement | null;
+        const apply = document.getElementById('homeChartsRangeApply') as HTMLButtonElement | null;
+        if (!preset || !start || !end || !sep || !apply) return;
+        const fmt = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        };
+        const setVisible = (custom: boolean) => {
+            try { start.style.display = custom ? '' : 'none'; } catch {}
+            try { end.style.display = custom ? '' : 'none'; } catch {}
+            try { sep.style.display = custom ? '' : 'none'; } catch {}
+        };
+        const restore = () => {
+            preset.value = '30';
+            const now = new Date();
+            const endStr = fmt(now);
+            const startStr = fmt(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
+            start.value = startStr;
+            end.value = endStr;
+            setVisible(false);
+        };
+        if (!(apply as any)._bound) {
+            preset.onchange = () => {
+                setVisible(preset.value === 'custom');
+            };
+            apply.onclick = async () => {
+                try {
+                    let s = start.value;
+                    let e = end.value;
+                    const pv = preset.value || '30';
+                    if (pv !== 'custom') {
+                        const days = Math.max(1, parseInt(pv, 10) || 30);
+                        const now = new Date();
+                        e = fmt(now);
+                        s = fmt(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
+                    }
+                    if (s && e && s > e) { const t = s; s = e; e = t; }
+                    await initOrUpdateHomeCharts();
+                } catch {}
+            };
+            (apply as any)._bound = true;
+        }
+        restore();
+    } catch {}
+}
+
+function getHomeChartsRange(): { start: string; end: string } {
+    try {
+        const fmt = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        };
+        let pv = '30', s = '', e = '';
+        const preset = document.getElementById('homeChartsRangePreset') as HTMLSelectElement | null;
+        const start = document.getElementById('homeChartsRangeStart') as HTMLInputElement | null;
+        const end = document.getElementById('homeChartsRangeEnd') as HTMLInputElement | null;
+        if (preset && start && end) {
+            pv = preset.value || '30';
+            s = start.value || '';
+            e = end.value || '';
+        }
+        if (pv !== 'custom') {
+            const days = Math.max(1, parseInt(pv, 10) || 30);
+            const now = new Date();
+            e = fmt(now);
+            s = fmt(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
+        }
+        if (s && e && s > e) { const t = s; s = e; e = t; }
+        if (!(s && e)) {
+            const now = new Date();
+            e = fmt(now);
+            s = fmt(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
+        }
+        return { start: s, end: e };
+    } catch {
+        const now = new Date();
+        const fmt = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        };
+        const e = fmt(now);
+        const s = fmt(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000));
+        return { start: s, end: e };
+    }
 }
 
 function initInfoContainer(): void {
