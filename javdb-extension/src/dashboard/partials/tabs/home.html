@@ -2,60 +2,90 @@
   <div class="card home-welcome">
     <h2><i class="fas fa-house"></i> 首页概览</h2>
     <p class="home-subtitle">快速了解你的番号库状态，并可一键进入各功能页。</p>
-  </div>
-
-  <div class="card home-stats">
-    <div class="home-stats-header">
-      <h3>数据概览</h3>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
       <button id="homeRefreshBtn" class="home-refresh-btn" title="刷新首页概览">
         <i class="fas fa-rotate"></i> 刷新
       </button>
-    </div>
-    <div id="stats-overview"></div>
-  </div>
-
-  <div class="card home-sections">
-    <div class="stats-section">
-      <h4>番号库概览</h4>
-      <div id="homeRecordsStatsContainer" class="stats-grid"></div>
-    </div>
-    <div class="stats-section">
-      <h4>演员库概览</h4>
-      <div id="homeActorsStatsContainer" class="stats-grid"></div>
-    </div>
-    <div class="stats-section">
-      <h4>新作品概览</h4>
-      <div id="homeNewWorksStatsContainer" class="stats-grid"></div>
     </div>
   </div>
 
   <div class="card home-charts">
     <h3>可视化</h3>
-    <div class="home-charts-grid">
-      <div id="homeStatusDonut" class="chart-card"></div>
-      <div class="mini-chart-group">
-        <div id="homeActorsGenderPie" class="chart-mini"></div>
-        <div id="homeActorsCategoryPie" class="chart-mini"></div>
+    <div id="homeChartsToolbar" class="home-charts-toolbar" style="display:flex;gap:8px;align-items:center;margin:6px 0 8px 0;">
+      <label for="homeChartsRangePreset" style="font-size:12px;color:var(--muted);">时间范围</label>
+      <select id="homeChartsRangePreset" style="height:28px;font-size:12px;">
+        <option value="7">近7天</option>
+        <option value="14">近14天</option>
+        <option value="30" selected>近30天</option>
+        <option value="60">近60天</option>
+        <option value="90">近90天</option>
+        <option value="180">近180天</option>
+        <option value="365">近一年</option>
+        <option value="custom">自定义</option>
+      </select>
+      <input id="homeChartsRangeStart" type="date" style="height:28px;font-size:12px;display:none;" />
+      <span id="homeChartsRangeSep" style="display:none;color:var(--muted);">—</span>
+      <input id="homeChartsRangeEnd" type="date" style="height:28px;font-size:12px;display:none;" />
+      <button id="homeChartsRangeApply" class="btn-primary" style="height:28px;padding:0 10px;font-size:12px;">应用</button>
+    </div>
+    <div class="trend-row">
+      <div id="homeRecordsTrend" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">番号库数据量趋势</div>
       </div>
-      <div id="homeNewWorksBars" class="chart-card"></div>
+      <div id="homeActorsTrend" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员库数据量趋势</div>
+      </div>
+      <div id="homeNewWorksTrend" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新作品数据量趋势</div>
+      </div>
+    </div>
+    <div class="home-charts-grid">
+      <div id="homeStatusDonut" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">状态分布</div>
+      </div>
+      <div class="mini-chart-group">
+        <div id="homeActorsGenderPie" class="chart-mini" style="position:relative;">
+          <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员性别</div>
+        </div>
+        <div id="homeActorsCategoryPie" class="chart-mini" style="position:relative;">
+          <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员分类</div>
+        </div>
+      </div>
+      <div id="homeNewWorksBars" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新作品统计</div>
+      </div>
+      <div id="homeTagsTop" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 8</div>
+      </div>
+      <div id="homeWeekdayBars" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">周几分布</div>
+      </div>
+      <div id="homeTagsChange" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签变化（上升/下降）</div>
+      </div>
+      <div id="homeNewTagsTop" class="chart-card" style="position:relative;">
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新增标签 Top 5</div>
+      </div>
     </div>
   </div>
 
-  <div class="card home-quick-links">
-    <h3>快速入口</h3>
-    <div class="quick-links-grid">
-      <a class="quick-link" href="#tab-records" title="跳转到番号库">
-        <i class="fas fa-database"></i>
-        <span>番号库</span>
-      </a>
-      <a class="quick-link" href="#tab-actors" title="跳转到演员库">
-        <i class="fas fa-user"></i>
-        <span>演员库</span>
-      </a>
-      <a class="quick-link" href="#tab-new-works" title="跳转到新作品">
-        <i class="fas fa-film"></i>
-        <span>新作品</span>
-      </a>
+  <div class="card home-stats">
+    <div class="home-stats-header">
+      <h3>数据概览</h3>
+    </div>
+    <div class="home-sections">
+      <div class="stats-section">
+        <h4>番号库概览</h4>
+        <div id="homeRecordsStatsContainer" class="stats-grid"></div>
+      </div>
+      <div class="stats-section">
+        <h4>演员库概览</h4>
+        <div id="homeActorsStatsContainer" class="stats-grid"></div>
+      </div>
+      <div class="stats-section">
+        <h4>新作品概览</h4>
+        <div id="homeNewWorksStatsContainer" class="stats-grid"></div>
+      </div>
     </div>
   </div>
 </div>
