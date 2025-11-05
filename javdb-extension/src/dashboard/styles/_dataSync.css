@@ -57,6 +57,7 @@
     justify-content: center;
     padding: 16px 12px;
     min-height: 80px;
+    height: auto;
     text-align: center;
     position: relative;
     overflow: hidden;

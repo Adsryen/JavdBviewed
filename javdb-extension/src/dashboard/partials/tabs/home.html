@@ -1,16 +1,11 @@
 <div class="home-page">
-  <div class="card home-welcome">
-    <h2><i class="fas fa-house"></i> 首页概览</h2>
-    <p class="home-subtitle">快速了解你的番号库状态，并可一键进入各功能页。</p>
+  <div class="card home-welcome home-charts">
+    <h2><i class="fas fa-house"></i> 趋势概览</h2>
     <div style="margin-top:8px;display:flex;justify-content:flex-end;">
       <button id="homeRefreshBtn" class="home-refresh-btn" title="刷新首页概览">
         <i class="fas fa-rotate"></i> 刷新
       </button>
     </div>
-  </div>
-
-  <div class="card home-charts">
-    <h3>可视化</h3>
     <div id="homeChartsToolbar" class="home-charts-toolbar" style="display:flex;gap:8px;align-items:center;margin:6px 0 8px 0;">
       <label for="homeChartsRangePreset" style="font-size:12px;color:var(--muted);">时间范围</label>
       <select id="homeChartsRangePreset" style="height:28px;font-size:12px;">
@@ -43,22 +38,12 @@
       <div id="homeStatusDonut" class="chart-card" style="position:relative;">
         <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">状态分布</div>
       </div>
-      <div class="mini-chart-group">
-        <div id="homeActorsGenderPie" class="chart-mini" style="position:relative;">
-          <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员性别</div>
-        </div>
-        <div id="homeActorsCategoryPie" class="chart-mini" style="position:relative;">
-          <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员分类</div>
-        </div>
-      </div>
+      
       <div id="homeNewWorksBars" class="chart-card" style="position:relative;">
         <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新作品统计</div>
       </div>
       <div id="homeTagsTop" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 8</div>
-      </div>
-      <div id="homeWeekdayBars" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">周几分布</div>
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 10</div>
       </div>
       <div id="homeTagsChange" class="chart-card" style="position:relative;">
         <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签变化（上升/下降）</div>
@@ -68,7 +53,7 @@
       </div>
     </div>
   </div>
-
+  
   <div class="card home-stats">
     <div class="home-stats-header">
       <h3>数据概览</h3>
