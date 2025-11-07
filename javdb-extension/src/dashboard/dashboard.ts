@@ -590,36 +590,6 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
             }
         } catch {}
 
-        if (trendEl) {
-            const c = getChart(trendEl, 'activityTrend');
-            if (c) {
-                const arr = Array.isArray(insRange?.trend) ? insRange.trend : [];
-                const sumT = arr.reduce((ss: number, p: any) => ss + (p?.total || 0), 0);
-                if (!arr.length || sumT <= 0) { try { trendEl.style.display = 'none'; } catch {} }
-                else { try { trendEl.style.display = ''; } catch {} }
-                if (arr.length && sumT > 0) {
-                    const x = arr.map((p: any) => p.date);
-                    const y = arr.map((p: any) => p.total);
-                    c.setOption({
-                        tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
-                        grid: { left: 30, right: 10, top: 20, bottom: 24 },
-                        xAxis: { type: 'category', boundaryGap: false, data: x, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-                        yAxis: { type: 'value', min: 0, max: (v: any) => Math.max(1, Math.ceil((v.max || 0) * 1.1)), splitLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-                        series: [{
-                            type: 'line',
-                            data: y,
-                            smooth: true,
-                            symbol: 'none',
-                            lineStyle: { width: 2, color: COLORS.primary },
-                            areaStyle: { color: new ech.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(59,130,246,0.25)' },
-                                { offset: 1, color: 'rgba(59,130,246,0.05)' }
-                            ]) }
-                        }]
-                    });
-                }
-            }
-        }
         if (tagsEl) {
             const c = getChart(tagsEl, 'tagsTop');
             if (c) {
@@ -632,14 +602,30 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                     const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#f97316','#10b981','#3b82f6','#eab308','#06b6d4','#f43f5e'];
                     c.setOption({
                         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                        grid: { left: 80, right: 12, top: 10, bottom: 10 },
+                        grid: { left: 64, right: 12, top: 12, bottom: 8, containLabel: true },
                         xAxis: { type: 'value', min: 0, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-                        yAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                        yAxis: {
+                            type: 'category',
+                            data: cats,
+                            axisTick: { show: false },
+                            axisLine: { show: false },
+                            axisLabel: {
+                                show: true,
+                                color: COLORS.muted,
+                                margin: 6,
+                                formatter: function(val: any){ try { const s = String(val||''); return s.length > 12 ? (s.slice(0,12) + '…') : s; } catch { return val; } }
+                            }
+                        },
                         series: [{
                             type: 'bar',
                             data: vals.map((v, i) => ({ value: v, itemStyle: { color: PALETTE[i % PALETTE.length], borderRadius: [0, 6, 6, 0] } })),
                             barMaxWidth: 22,
-                            label: { show: true, position: 'right', color: COLORS.text }
+                            label: {
+                                show: true,
+                                position: 'insideRight',
+                                color: '#ffffff',
+                                formatter: function(p: any){ try { return String(p?.value ?? ''); } catch { return String(p?.value ?? ''); } }
+                            }
                         }]
                     });
                 }
@@ -1423,11 +1409,26 @@ async function initOrUpdateHomeCharts(): Promise<void> {
                     seriesField: 'name',
                     legend: false,
                     autoFit: true,
+                    padding: [12, 12, 12, 64],
+                    appendPadding: [8, 8, 8, 0],
                     barStyle: { radius: [0, 6, 6, 0] },
-                    label: { position: 'right' },
+                    label: { position: 'right', offset: -4, style: { fill: '#fff', textAlign: 'right' }, content: (d: any) => `${Number(d?.count||0)}` },
                     tooltip: { showTitle: false },
                     xAxis: { min: 0, nice: true },
-                    yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                    yAxis: {
+                        line: null,
+                        grid: null,
+                        tickLine: null,
+                        label: {
+                            autoHide: true,
+                            autoEllipsis: true,
+                            formatter: (text: string) => {
+                                const s = String(text || '');
+                                return s.length > 12 ? (s.slice(0, 12) + '…') : s;
+                            },
+                        },
+                        title: null,
+                    },
                     color: (d: any) => {
                         const i = idxByName[d.name] ?? 0;
                         return PALETTE[i % PALETTE.length];
