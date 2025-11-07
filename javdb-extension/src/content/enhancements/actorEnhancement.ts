@@ -300,6 +300,8 @@ class ActorEnhancementManager {
         blacklisted = !!existing?.blacklisted;
       } catch {}
 
+      this.updateCollectButtonsVisibility(blacklisted);
+
       // 创建按钮
       const btn = document.createElement('a');
       btn.id = 'button-blacklist-actor';
@@ -338,6 +340,7 @@ class ActorEnhancementManager {
           btn.className = this.getBlacklistBtnClass(blacklisted);
           btn.textContent = blacklisted ? '取消拉黑' : '拉黑';
           showToast(blacklisted ? '已拉黑该演员' : '已取消拉黑', 'success');
+          this.updateCollectButtonsVisibility(blacklisted);
         } catch (e) {
           console.error('[ActorEnhancement] 切换拉黑状态失败:', e);
           showToast('操作失败', 'error');
@@ -470,6 +473,37 @@ class ActorEnhancementManager {
     return blacklisted
       ? 'button is-white has-text-black ml-2'
       : 'button is-black ml-2';
+  }
+
+  private updateCollectButtonsVisibility(blacklisted: boolean): void {
+    try {
+      const collectBtn = document.getElementById('button-collect-actor') as HTMLAnchorElement | null;
+      const uncollectBtn = document.getElementById('button-uncollect-actor') as HTMLAnchorElement | null;
+      [collectBtn, uncollectBtn].forEach(btn => {
+        if (!btn) return;
+        if (blacklisted) {
+          if (!btn.getAttribute('data-original-display')) {
+            const computed = window.getComputedStyle(btn).display || '';
+            btn.setAttribute('data-original-display', computed);
+            btn.setAttribute('data-was-visible', computed !== 'none' ? '1' : '0');
+          }
+          btn.style.display = 'none';
+        } else {
+          const hasStored = btn.hasAttribute('data-was-visible') || btn.hasAttribute('data-original-display');
+          if (hasStored) {
+            const original = btn.getAttribute('data-original-display');
+            if (original !== null) {
+              btn.style.display = original;
+            } else {
+              const wasVisible = btn.getAttribute('data-was-visible') === '1';
+              btn.style.display = wasVisible ? 'inline-flex' : 'none';
+            }
+            btn.removeAttribute('data-original-display');
+            btn.removeAttribute('data-was-visible');
+          }
+        }
+      });
+    } catch {}
   }
 
   /**
