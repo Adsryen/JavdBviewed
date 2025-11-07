@@ -92,7 +92,7 @@ async function getTagsTopFromRecords(limit: number = 10): Promise<Array<{ name: 
                 const name = String(t || '').trim();
                 if (!name) continue;
                 const low = name.toLowerCase();
-                if (name.includes('影片') || low.includes('import')) continue;
+                if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
                 totals[name] = (totals[name] ?? 0) + 1;
             }
         }
@@ -593,13 +593,52 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
         if (tagsEl) {
             const c = getChart(tagsEl, 'tagsTop');
             if (c) {
-                const top = await getTagsTopFromRecords(10);
-                if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
-                else { try { tagsEl.style.display = ''; } catch {} }
-                if (top.length) {
-                    const cats = top.map((t: any) => String(t.name || ''));
-                    const vals = top.map((t: any) => Number(t.count || 0));
-                    const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#f97316','#10b981','#3b82f6','#eab308','#06b6d4','#f43f5e'];
+                const full = await getTagsTopFromRecords(50);
+                const pager = document.getElementById('homeTagsPager') as HTMLDivElement | null;
+                const prevBtn = document.getElementById('homeTagsPrevBtn') as HTMLButtonElement | null;
+                const nextBtn = document.getElementById('homeTagsNextBtn') as HTMLButtonElement | null;
+                const pageText = document.getElementById('homeTagsPageText') as HTMLSpanElement | null;
+                const pageSize = 10;
+                const totalPages = Math.max(1, Math.ceil((full?.length || 0) / pageSize));
+                if (!full.length) {
+                    try { tagsEl.style.display = 'none'; } catch {}
+                    if (pager) { try { pager.style.display = 'none'; } catch {} }
+                    return;
+                } else {
+                    try { tagsEl.style.display = ''; } catch {}
+                    if (pager) {
+                        try {
+                            try { if (!tagsEl.style.position) tagsEl.style.position = 'relative'; } catch {}
+                            pager.style.display = totalPages > 1 ? '' : 'none';
+                            // 确保 pager 在最上层与最后追加，避免被 canvas 覆盖
+                            if (pager.parentElement !== tagsEl) { try { tagsEl.appendChild(pager); } catch {} }
+                            try {
+                                (pager as any).style.pointerEvents = 'auto';
+                                (pager as any).style.zIndex = '1000';
+                                if (prevBtn) (prevBtn as any).style.pointerEvents = 'auto';
+                                if (nextBtn) (nextBtn as any).style.pointerEvents = 'auto';
+                            } catch {}
+                            try { if (pager.parentElement === tagsEl) { try { tagsEl.appendChild(pager); } catch {} } } catch {}
+                        } catch {}
+                    }
+                }
+                const PALETTE = ['#3b82f6','#22c55e','#14b8a6','#f59e0b','#ef4444','#8b5cf6','#f97316','#10b981','#3b82f6','#eab308','#06b6d4','#f43f5e'];
+                const idxByName: Record<string, number> = {};
+                full.forEach((d: any, i: number) => { idxByName[d.name] = i; });
+                const HC: any = (window as any).__HOME_CHARTS__ = ((window as any).__HOME_CHARTS__ || {});
+                HC.tagsTopMode = 'echarts';
+                HC.tagsTopDataFull = full;
+                HC.tagsTopPageSize = pageSize;
+                HC.tagsTopTotalPages = totalPages;
+                HC.tagsTopPage = Math.min(HC.tagsTopPage || 0, totalPages - 1);
+                const renderPage = (page: number) => {
+                    const start = page * pageSize;
+                    const list = full.slice(start, start + pageSize);
+                    const cats = list.map((t: any) => String(t.name || ''));
+                    const seriesData = list.map((t: any) => ({
+                        value: Number(t.count || 0),
+                        itemStyle: { color: PALETTE[(idxByName[t.name] ?? 0) % PALETTE.length], borderRadius: [0, 6, 6, 0] }
+                    }));
                     c.setOption({
                         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                         grid: { left: 64, right: 12, top: 12, bottom: 8, containLabel: true },
@@ -618,17 +657,31 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                         },
                         series: [{
                             type: 'bar',
-                            data: vals.map((v, i) => ({ value: v, itemStyle: { color: PALETTE[i % PALETTE.length], borderRadius: [0, 6, 6, 0] } })),
+                            data: seriesData,
                             barMaxWidth: 22,
-                            label: {
-                                show: true,
-                                position: 'insideRight',
-                                color: '#ffffff',
-                                formatter: function(p: any){ try { return String(p?.value ?? ''); } catch { return String(p?.value ?? ''); } }
-                            }
+                            label: { show: true, position: 'insideRight', color: '#ffffff', formatter: (p: any) => String(p?.value ?? '') }
                         }]
                     });
+                };
+                const updatePagerUI = () => {
+                    try { if (pageText) pageText.textContent = `${(HC.tagsTopPage || 0) + 1}/${totalPages}`; } catch {}
+                    try { if (prevBtn) prevBtn.disabled = (HC.tagsTopPage || 0) <= 0; } catch {}
+                    try { if (nextBtn) nextBtn.disabled = (HC.tagsTopPage || 0) >= totalPages - 1; } catch {}
+                };
+                if (prevBtn && !(prevBtn as any)._bound) {
+                    prevBtn.addEventListener('click', () => { if ((HC.tagsTopPage || 0) > 0) { HC.tagsTopPage--; renderPage(HC.tagsTopPage); updatePagerUI(); } });
+                    (prevBtn as any)._bound = true;
                 }
+                if (nextBtn && !(nextBtn as any)._bound) {
+                    nextBtn.addEventListener('click', () => { if ((HC.tagsTopPage || 0) < totalPages - 1) { HC.tagsTopPage++; renderPage(HC.tagsTopPage); updatePagerUI(); } });
+                    (nextBtn as any)._bound = true;
+                }
+                renderPage(HC.tagsTopPage || 0);
+                updatePagerUI();
+                try {
+                    const els = tagsEl.querySelectorAll('canvas, svg') as any;
+                    els && els.forEach((node: any) => { try { node.style.pointerEvents = 'none'; } catch {} });
+                } catch {}
             }
         }
         if (changeEl) {
@@ -1389,54 +1442,79 @@ async function initOrUpdateHomeCharts(): Promise<void> {
         // 旧单一“活跃度趋势”已移除
         if (tagsEl) {
             if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
-            const top = await getTagsTopFromRecords(10);
-            if (!top.length) { try { tagsEl.style.display = 'none'; } catch {} }
-            else {
-                try { tagsEl.style.display = ''; } catch {}
-                const PALETTE = [
-                    COLORS.primary,
-                    COLORS.success,
-                    COLORS.info,
-                    COLORS.warning,
-                    '#ef4444', '#8b5cf6', '#f97316', '#10b981', '#3b82f6', '#eab308', '#06b6d4', '#f43f5e',
-                ];
-                const idxByName: Record<string, number> = {};
-                top.forEach((d: any, i: number) => { idxByName[d.name] = i; });
-                const plot = new Bar(tagsEl, {
-                    data: top,
-                    xField: 'count',
-                    yField: 'name',
-                    seriesField: 'name',
-                    legend: false,
-                    autoFit: true,
-                    padding: [12, 12, 12, 64],
-                    appendPadding: [8, 8, 8, 0],
-                    barStyle: { radius: [0, 6, 6, 0] },
-                    label: { position: 'right', offset: -4, style: { fill: '#fff', textAlign: 'right' }, content: (d: any) => `${Number(d?.count||0)}` },
-                    tooltip: { showTitle: false },
-                    xAxis: { min: 0, nice: true },
-                    yAxis: {
-                        line: null,
-                        grid: null,
-                        tickLine: null,
-                        label: {
-                            autoHide: true,
-                            autoEllipsis: true,
-                            formatter: (text: string) => {
-                                const s = String(text || '');
-                                return s.length > 12 ? (s.slice(0, 12) + '…') : s;
-                            },
-                        },
-                        title: null,
-                    },
-                    color: (d: any) => {
-                        const i = idxByName[d.name] ?? 0;
-                        return PALETTE[i % PALETTE.length];
-                    },
-                });
-                plot.render();
-                HC['tagsTop'] = plot;
+            const full = await getTagsTopFromRecords(50);
+            const pager = document.getElementById('homeTagsPager') as HTMLDivElement | null;
+            const prevBtn = document.getElementById('homeTagsPrevBtn') as HTMLButtonElement | null;
+            const nextBtn = document.getElementById('homeTagsNextBtn') as HTMLButtonElement | null;
+            const pageText = document.getElementById('homeTagsPageText') as HTMLSpanElement | null;
+            const pageSize = 10;
+            const totalPages = Math.max(1, Math.ceil((full?.length || 0) / pageSize));
+            if (!full.length) { try { tagsEl.style.display = 'none'; } catch {} } else { try { tagsEl.style.display = ''; } catch {} }
+            if (pager) {
+                try {
+                    try { if (!tagsEl.style.position) tagsEl.style.position = 'relative'; } catch {}
+                    pager.style.display = totalPages > 1 ? '' : 'none';
+                    // 确保 pager 在最上层与最后追加，避免被 canvas 覆盖
+                    if (pager.parentElement !== tagsEl) { try { tagsEl.appendChild(pager); } catch {} }
+                    try {
+                        (pager as any).style.pointerEvents = 'auto';
+                        (pager as any).style.zIndex = '1000';
+                        if (prevBtn) (prevBtn as any).style.pointerEvents = 'auto';
+                        if (nextBtn) (nextBtn as any).style.pointerEvents = 'auto';
+                    } catch {}
+                    try { if (pager.parentElement === tagsEl) { try { tagsEl.appendChild(pager); } catch {} } } catch {}
+                } catch {}
             }
+            const PALETTE = [ COLORS.primary, COLORS.success, COLORS.info, COLORS.warning, '#ef4444', '#8b5cf6', '#f97316', '#10b981', '#3b82f6', '#eab308', '#06b6d4', '#f43f5e' ];
+            const idxByName: Record<string, number> = {};
+            full.forEach((d: any, i: number) => { idxByName[d.name] = i; });
+            const page = Math.min((HC as any).tagsTopPage || 0, totalPages - 1);
+            const slice = (pg: number) => { const st = pg * pageSize; return full.slice(st, st + pageSize); };
+            const plot = new Bar(tagsEl, {
+                data: slice(page),
+                xField: 'count',
+                yField: 'name',
+                seriesField: 'name',
+                legend: false,
+                autoFit: true,
+                padding: [12, 12, 12, 64],
+                appendPadding: [8, 8, 8, 0],
+                barStyle: { radius: [0, 6, 6, 0] },
+                label: { position: 'right', offset: -4, style: { fill: '#fff', textAlign: 'right' }, content: (d: any) => `${Number(d?.count||0)}` },
+                tooltip: { showTitle: false },
+                xAxis: { min: 0, nice: true },
+                yAxis: {
+                    line: null,
+                    grid: null,
+                    tickLine: null,
+                    label: {
+                        autoHide: true,
+                        autoEllipsis: true,
+                        formatter: (text: string) => { const s = String(text || ''); return s.length > 12 ? (s.slice(0, 12) + '…') : s; },
+                    },
+                    title: null,
+                },
+                color: (d: any) => { const i = idxByName[d.name] ?? 0; return PALETTE[i % PALETTE.length]; },
+            });
+            if (full.length) { plot.render(); HC['tagsTop'] = plot; }
+            const updatePagerUI = (pg: number) => {
+                if (pageText) { try { pageText.textContent = `${pg + 1}/${totalPages}`; } catch {} }
+                if (prevBtn) { try { prevBtn.disabled = pg <= 0; } catch {} }
+                if (nextBtn) { try { nextBtn.disabled = pg >= totalPages - 1; } catch {} }
+            };
+            const setPage = (pg: number) => {
+                (HC as any).tagsTopPage = pg;
+                plot.changeData(slice(pg));
+                updatePagerUI(pg);
+            };
+            (HC as any).tagsTopPage = page;
+            updatePagerUI(page);
+            try {
+                const els = tagsEl.querySelectorAll('canvas, svg') as any;
+                els && els.forEach((node: any) => { try { node.style.pointerEvents = 'none'; } catch {} });
+            } catch {}
+            if (prevBtn && !(prevBtn as any)._bound) { prevBtn.addEventListener('click', () => { const pg = ((HC as any).tagsTopPage || 0); if (pg > 0) setPage(pg - 1); }); (prevBtn as any)._bound = true; }
+            if (nextBtn && !(nextBtn as any)._bound) { nextBtn.addEventListener('click', () => { const pg = ((HC as any).tagsTopPage || 0); if (pg < totalPages - 1) setPage(pg + 1); }); (nextBtn as any)._bound = true; }
         }
         // 周几分布（柱状）
         // 标签变化（上升/下降）
@@ -1522,7 +1600,7 @@ function bindHomeChartsRangeControls(): void {
         const end = document.getElementById('homeChartsRangeEnd') as HTMLInputElement | null;
         const sep = document.getElementById('homeChartsRangeSep') as HTMLSpanElement | null;
         const apply = document.getElementById('homeChartsRangeApply') as HTMLButtonElement | null;
-        if (!preset || !start || !end || !sep || !apply) return;
+        if (!preset || !start || !end || !sep) return;
         const fmt = (d: Date) => {
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -1543,26 +1621,35 @@ function bindHomeChartsRangeControls(): void {
             end.value = endStr;
             setVisible(false);
         };
-        if (!(apply as any)._bound) {
-            preset.onchange = () => {
-                setVisible(preset.value === 'custom');
-            };
-            apply.onclick = async () => {
-                try {
-                    let s = start.value;
-                    let e = end.value;
-                    const pv = preset.value || '30';
-                    if (pv !== 'custom') {
-                        const days = Math.max(1, parseInt(pv, 10) || 30);
-                        const now = new Date();
-                        e = fmt(now);
-                        s = fmt(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
-                    }
-                    if (s && e && s > e) { const t = s; s = e; e = t; }
-                    await initOrUpdateHomeCharts();
-                } catch {}
-            };
-            (apply as any)._bound = true;
+        const applyNow = async () => {
+            try {
+                let s = start.value;
+                let e = end.value;
+                const pv = preset.value || '30';
+                if (pv !== 'custom') {
+                    const days = Math.max(1, parseInt(pv, 10) || 30);
+                    const now = new Date();
+                    e = fmt(now);
+                    s = fmt(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
+                }
+                if (s && e && s > e) { const t = s; s = e; e = t; }
+                await initOrUpdateHomeCharts();
+            } catch {}
+        };
+        const debounce = (() => {
+            let timer: any = null;
+            return (fn: () => void, ms = 300) => { try { if (timer) clearTimeout(timer); } catch {}; timer = setTimeout(fn, ms); };
+        })();
+        if (!(preset as any)._rangeBound) {
+            preset.onchange = () => { setVisible(preset.value === 'custom'); applyNow(); };
+            const onDateChange = () => debounce(applyNow, 250);
+            try { start.oninput = onDateChange; start.onchange = onDateChange; } catch {}
+            try { end.oninput = onDateChange; end.onchange = onDateChange; } catch {}
+            if (apply) {
+                try { apply.onclick = applyNow; } catch {}
+                try { (apply.style as any).display = 'none'; } catch {}
+            }
+            (preset as any)._rangeBound = true;
         }
         restore();
     } catch {}

@@ -1,27 +1,26 @@
 <div class="home-page">
   <div class="card home-welcome home-charts">
     <h2><i class="fas fa-house"></i> 趋势概览</h2>
-    <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+    <div class="home-charts-topbar">
+      <div id="homeChartsToolbar" class="home-charts-toolbar">
+        <label for="homeChartsRangePreset">时间范围</label>
+        <select id="homeChartsRangePreset">
+          <option value="7">近7天</option>
+          <option value="14">近14天</option>
+          <option value="30" selected>近30天</option>
+          <option value="60">近60天</option>
+          <option value="90">近90天</option>
+          <option value="180">近180天</option>
+          <option value="365">近一年</option>
+          <option value="custom">自定义</option>
+        </select>
+        <input id="homeChartsRangeStart" type="date" style="display:none;" />
+        <span id="homeChartsRangeSep" style="display:none;">—</span>
+        <input id="homeChartsRangeEnd" type="date" style="display:none;" />
+      </div>
       <button id="homeRefreshBtn" class="home-refresh-btn" title="刷新首页概览">
         <i class="fas fa-rotate"></i> 刷新
       </button>
-    </div>
-    <div id="homeChartsToolbar" class="home-charts-toolbar" style="display:flex;gap:8px;align-items:center;margin:6px 0 8px 0;">
-      <label for="homeChartsRangePreset" style="font-size:12px;color:var(--muted);">时间范围</label>
-      <select id="homeChartsRangePreset" style="height:28px;font-size:12px;">
-        <option value="7">近7天</option>
-        <option value="14">近14天</option>
-        <option value="30" selected>近30天</option>
-        <option value="60">近60天</option>
-        <option value="90">近90天</option>
-        <option value="180">近180天</option>
-        <option value="365">近一年</option>
-        <option value="custom">自定义</option>
-      </select>
-      <input id="homeChartsRangeStart" type="date" style="height:28px;font-size:12px;display:none;" />
-      <span id="homeChartsRangeSep" style="display:none;color:var(--muted);">—</span>
-      <input id="homeChartsRangeEnd" type="date" style="height:28px;font-size:12px;display:none;" />
-      <button id="homeChartsRangeApply" class="btn-primary" style="height:28px;padding:0 10px;font-size:12px;">应用</button>
     </div>
     <div class="trend-row">
       <div id="homeRecordsTrend" class="chart-card" style="position:relative;">
@@ -43,7 +42,12 @@
         <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新作品统计</div>
       </div>
       <div id="homeTagsTop" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 10</div>
+        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 50</div>
+        <div id="homeTagsPager" class="chart-pager" style="position:absolute;top:6px;right:8px;z-index:2;display:flex;align-items:center;gap:6px;">
+          <button id="homeTagsPrevBtn" class="chart-pager-btn" title="上一页">‹</button>
+          <span id="homeTagsPageText" class="chart-pager-text">1/1</span>
+          <button id="homeTagsNextBtn" class="chart-pager-btn" title="下一页">›</button>
+        </div>
       </div>
       <div id="homeTagsChange" class="chart-card" style="position:relative;">
         <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签变化（上升/下降）</div>
