@@ -54,7 +54,10 @@ export class ActorManager {
         await this.initialize();
         try {
             const r = await dbActorsGet(id);
-            if (r) return r;
+            if (r) {
+                this.cache.set(id, r);
+                return r;
+            }
         } catch {}
         return this.cache.get(id) || null;
     }
@@ -146,7 +149,16 @@ export class ActorManager {
      */
     async setBlacklisted(id: string, blacklisted: boolean): Promise<void> {
         await this.initialize();
-        const existing = this.cache.get(id);
+        let existing = this.cache.get(id);
+        if (!existing) {
+            try {
+                const r = await dbActorsGet(id);
+                if (r) {
+                    this.cache.set(id, r);
+                    existing = r;
+                }
+            } catch {}
+        }
         if (!existing) {
             throw new Error(`Actor not found: ${id}`);
         }
