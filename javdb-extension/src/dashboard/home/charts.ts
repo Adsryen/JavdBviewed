@@ -1,8 +1,63 @@
 // src/dashboard/home/charts.ts
 
-import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbViewedPage, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange } from '../dbClient';
+import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbViewedPage, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, ensureBackgroundReady } from '../dbClient';
 import { aggregateMonthly } from '../../services/insights/aggregator';
 import { initStatsOverview, initHomeSectionsOverview } from './overview';
+
+function installCanvasDirectionGuard(): void {
+  try {
+    const w: any = window as any;
+    if (w.__CANVAS_DIR_GUARD_INSTALLED__) return;
+    const Ctx = (w as any).CanvasRenderingContext2D;
+    if (!Ctx || !Ctx.prototype) return;
+    const proto = Ctx.prototype as any;
+    const desc = Object.getOwnPropertyDescriptor(proto, 'direction');
+    if (!desc) return;
+    const origSet = desc.set;
+    const origGet = desc.get;
+    const allowed = ['ltr', 'rtl', 'inherit'];
+    Object.defineProperty(proto, 'direction', {
+      configurable: true,
+      enumerable: true,
+      get: origGet ? function(this: any) { try { return origGet.call(this); } catch { return 'ltr'; } } : function(this: any) { return 'ltr'; },
+      set: function(this: any, val: any) {
+        try {
+          const v = allowed.includes(val) ? val : 'ltr';
+          if (origSet) origSet.call(this, v);
+        } catch {}
+      }
+    });
+
+    // 额外：在实例级别兜底，拦截 getContext('2d') 返回的 ctx 并定义安全的 direction 访问器
+    const CanvasProto = (w as any).HTMLCanvasElement?.prototype;
+    const origGetContext = CanvasProto && CanvasProto.getContext;
+    if (CanvasProto && typeof origGetContext === 'function') {
+      CanvasProto.getContext = function(this: HTMLCanvasElement, type: any, ...args: any[]) {
+        const ctx: any = origGetContext.apply(this, [type, ...args]);
+        try {
+          if (type === '2d' && ctx) {
+            const desc2 = Object.getOwnPropertyDescriptor(ctx, 'direction');
+            if (!desc2 || desc2.configurable) {
+              Object.defineProperty(ctx, 'direction', {
+                configurable: true,
+                enumerable: true,
+                get() { try { return proto.direction ? (proto as any).direction : 'ltr'; } catch { return 'ltr'; } },
+                set(val: any) {
+                  try {
+                    const v = allowed.includes(val) ? val : 'ltr';
+                    if (origSet) origSet.call(ctx, v);
+                  } catch { try { (ctx as any)._direction = 'ltr'; } catch {} }
+                }
+              });
+            }
+          }
+        } catch {}
+        return ctx;
+      } as any;
+    }
+    w.__CANVAS_DIR_GUARD_INSTALLED__ = true;
+  } catch {}
+}
 
 let echartsLoadingPromise: Promise<any> | null = null;
 async function ensureEchartsLoaded(): Promise<any> {
@@ -50,6 +105,8 @@ async function ensureG2PlotLoaded(): Promise<any> {
 
 async function renderHomeChartsWithEcharts(): Promise<void> {
   try {
+    installCanvasDirectionGuard();
+    try { await ensureBackgroundReady(); } catch {}
     const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
     const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
     const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
@@ -134,14 +191,29 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
             { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: COLORS.info },
             { name: '想看', value: s?.byStatus?.want ?? 0, color: COLORS.warning },
           ];
+          const total = data.reduce((s, d) => s + Number(d.value || 0), 0);
           c.setOption({
             tooltip: { trigger: 'item' },
             legend: { orient: 'vertical', left: 'left', textStyle: { color: COLORS.muted } },
+            graphic: [{
+              type: 'text', left: 'center', top: 'middle', z: 10,
+              style: {
+                text: `总数\n${total}`,
+                textAlign: 'center',
+                fill: COLORS.text,
+                lineHeight: 18,
+                fontSize: 14,
+                fontWeight: 'bold',
+              }
+            }],
             series: [
               {
-                type: 'pie', radius: ['40%', '70%'], avoidLabelOverlap: false,
-                itemStyle: { borderRadius: 6, borderColor: COLORS.surface, borderWidth: 2 },
-                label: { show: true, color: COLORS.text },
+                type: 'pie', radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                minAngle: 6,
+                itemStyle: { borderRadius: 10, borderColor: COLORS.surface, borderWidth: 2 },
+                label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
+                labelLine: { show: false },
                 emphasis: { label: { show: true, fontWeight: 'bold' } },
                 data: data.map(d => ({ name: d.name, value: d.value, itemStyle: { color: d.color } }))
               }
@@ -176,33 +248,48 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
           const pager = document.getElementById('homeTagsPager') as HTMLDivElement | null;
           const prevBtn = document.getElementById('homeTagsPrevBtn') as HTMLButtonElement | null;
           const nextBtn = document.getElementById('homeTagsNextBtn') as HTMLButtonElement | null;
-          let page = 0;
+          const pageText = document.getElementById('homeTagsPageText') as HTMLSpanElement | null;
           const pageSize = 10;
-          const getPage = (p: number) => full.slice(p * pageSize, (p + 1) * pageSize);
+          const totalPages = Math.max(1, Math.ceil(full.length / pageSize));
           const color = (idx: number) => ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f59e0b','#ef4444','#06b6d4','#84cc16','#fb7185'][idx % 10];
-          const renderPage = () => {
-            const pageData = getPage(page);
-            c.setOption({
-              dataset: [{ source: pageData.map((d, i) => ({ label: d.name, value: d.count, color: color(i) })) }],
-              grid: { left: 80, right: 12, top: 10, bottom: 10 },
-              xAxis: { type: 'value', axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-              yAxis: { type: 'category', axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
-              series: [{ type: 'bar', encode: { x: 'value', y: 'label' }, label: { show: true, position: 'right', color: COLORS.text }, itemStyle: { color: (p: any) => p.data.color, borderRadius: [0,6,6,0] }, barMaxWidth: 18 }]
-            });
+
+          const ctrl: any = {
+            page: 0,
+            render() {
+              const start = this.page * pageSize;
+              const pageData = full.slice(start, start + pageSize);
+              const option = {
+                dataset: [{ source: pageData.map((d, i) => ({ label: d.name, value: d.count, color: color(i) })) }],
+                grid: { left: 80, right: 12, top: 10, bottom: 10 },
+                xAxis: { type: 'value', axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                yAxis: { type: 'category', axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+                series: [{ type: 'bar', encode: { x: 'value', y: 'label' }, label: { show: true, position: 'right', color: COLORS.text }, itemStyle: { color: (p: any) => p.data.color, borderRadius: [0,6,6,0] }, barMaxWidth: 18 }]
+              };
+              try { c.setOption(option as any, true); } catch { c.setOption(option as any); }
+              this.updatePager();
+            },
+            updatePager() {
+              try { if (pageText) pageText.textContent = `${this.page + 1}/${totalPages}`; } catch {}
+              try { if (prevBtn) prevBtn.disabled = (this.page <= 0); } catch {}
+              try { if (nextBtn) nextBtn.disabled = ((this.page + 1) >= totalPages); } catch {}
+            }
           };
-          renderPage();
+          (W as any).__HOME_CHARTS__.__tagsTopPager = ctrl;
+          ctrl.render();
+
           if (pager) {
-            const updateButtons = () => {
-              try { if (prevBtn) prevBtn.disabled = (page <= 0); } catch {}
-              try { if (nextBtn) nextBtn.disabled = ((page + 1) * pageSize >= full.length); } catch {}
-            };
-            updateButtons();
             if (prevBtn && !(prevBtn as any)._bound) {
-              prevBtn.onclick = () => { if (page > 0) { page--; renderPage(); updateButtons(); } };
+              prevBtn.onclick = () => {
+                const P = (W as any).__HOME_CHARTS__?.__tagsTopPager; if (!P) return;
+                if (P.page > 0) { P.page--; P.render(); }
+              };
               (prevBtn as any)._bound = true;
             }
             if (nextBtn && !(nextBtn as any)._bound) {
-              nextBtn.onclick = () => { if ((page + 1) * pageSize < full.length) { page++; renderPage(); updateButtons(); } };
+              nextBtn.onclick = () => {
+                const P = (W as any).__HOME_CHARTS__?.__tagsTopPager; if (!P) return;
+                if ((P.page + 1) < totalPages) { P.page++; P.render(); }
+              };
               (nextBtn as any)._bound = true;
             }
           }
@@ -214,22 +301,46 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       if (changeEl) {
         const c = getChart(changeEl, 'tagsChange');
         if (c) {
-          const changes = Array.isArray((insAll as any)?.tagsChange) ? (insAll as any).tagsChange : [];
+          const rising = Array.isArray((insRange as any)?.changes?.risingDetailed) ? (insRange as any).changes.risingDetailed : [];
+          const falling = Array.isArray((insRange as any)?.changes?.fallingDetailed) ? (insRange as any).changes.fallingDetailed : [];
+          const changes = ([] as any[])
+            .concat(rising.map((d: any) => ({ name: d.name, change: Number((d.diffRatio || 0) * 100) })))
+            .concat(falling.map((d: any) => ({ name: d.name, change: Number((d.diffRatio || 0) * 100) })))
+            .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+            .slice(0, 10);
           const cats = changes.map((r: any) => r.name);
           const vals = changes.map((r: any) => Number(r.change || 0));
           c.setOption({
             tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: (p: any) => {
               const v = Array.isArray(p) ? (p[0]?.value ?? 0) : (p?.value ?? 0);
               const sign = v > 0 ? '+' : '';
-              return `${sign}${v}%`;
+              return `${sign}${v.toFixed ? v.toFixed(2) : v}%`;
             } },
             grid: { left: 80, right: 12, top: 10, bottom: 10 },
             xAxis: { type: 'value', axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted, formatter: '{value}%' }, splitLine: { lineStyle: { color: COLORS.border } } },
             yAxis: { type: 'category', data: cats, axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
             series: [{
               type: 'bar', data: vals.map((v: number) => ({ value: v, itemStyle: { color: v >= 0 ? '#16a34a' : '#ef4444', borderRadius: [0,6,6,0] } })),
-              barMaxWidth: 18, label: { show: true, position: 'right', color: COLORS.text, formatter: (p: any) => `${p.value > 0 ? '+' : ''}${p.value}%` }
+              barMaxWidth: 18, label: { show: true, position: 'right', color: COLORS.text, formatter: (p: any) => `${p.value > 0 ? '+' : ''}${(p.value as number).toFixed ? (p.value as number).toFixed(2) : p.value}%` }
             }]
+          });
+        }
+      }
+    } catch {}
+
+    // 新增标签 Top 5（ECharts）
+    try {
+      if (newTagsEl) {
+        const c = getChart(newTagsEl, 'newTagsTop');
+        if (c) {
+          const list = Array.isArray((insRange as any)?.changes?.newTagsDetailed) ? (insRange as any).changes.newTagsDetailed : [];
+          const top = list.slice(0, 5);
+          c.setOption({
+            dataset: [{ source: top.map((d: any, i: number) => ({ label: d.name, value: Number(d.count || 0), color: ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa'][i % 5] })) }],
+            grid: { left: 80, right: 12, top: 10, bottom: 10 },
+            xAxis: { type: 'value', axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+            yAxis: { type: 'category', axisTick: { show: false }, axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted } },
+            series: [{ type: 'bar', encode: { x: 'value', y: 'label' }, label: { show: true, position: 'right', color: COLORS.text }, itemStyle: { color: (p: any) => p.data.color, borderRadius: [0,6,6,0] }, barMaxWidth: 18 }]
           });
         }
       }
@@ -239,6 +350,8 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
 
 export async function initOrUpdateHomeCharts(): Promise<void> {
   try {
+    installCanvasDirectionGuard();
+    try { await ensureBackgroundReady(); } catch {}
     const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
     const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
     const trendEl = document.getElementById('homeActivityTrend') as HTMLDivElement | null;
@@ -251,7 +364,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl) return;
     const G2P: any = await ensureG2PlotLoaded();
     if (!G2P) { await renderHomeChartsWithEcharts(); return; }
-    const { Pie, Column, Line, Bar } = G2P;
+    const { Column, Line, Bar } = G2P;
     const W: any = window as any;
     const HC: any = (W.__HOME_CHARTS__ = W.__HOME_CHARTS__ || {});
     const getVar = (name: string, fallback: string) => {
@@ -265,7 +378,11 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       success: getVar('--success', '#22c55e'),
       info: getVar('--info', '#14b8a6'),
       warning: getVar('--warning', '#f59e0b'),
-    };
+      text: getVar('--text', '#111827'),
+      muted: getVar('--muted', '#6b7280'),
+      border: getVar('--border', '#e5e7eb'),
+      surface: getVar('--surface', '#ffffff'),
+    } as any;
     const msDay = 24 * 60 * 60 * 1000;
     const fmt = (d: Date) => {
       const y = d.getFullYear();
@@ -294,23 +411,58 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
 
     try {
       if (statusEl) {
-        if (HC['statusDonut']?.destroy) { try { HC['statusDonut'].destroy(); } catch {} }
-        const plot = new Pie(statusEl, {
-          data: [
-            { name: '已观看', value: s?.byStatus?.viewed ?? 0 },
-            { name: '已浏览', value: s?.byStatus?.browsed ?? 0 },
-            { name: '想看', value: s?.byStatus?.want ?? 0 },
-          ],
-          angleField: 'value',
-          colorField: 'name',
-          innerRadius: 0.6,
-          radius: 1,
-          color: [COLORS.success, COLORS.info, COLORS.warning],
-          label: { type: 'inner', offset: '-50%', content: '{value}', style: { textAlign: 'center', fontSize: 12 } },
-          legend: { position: 'right' },
-        });
-        plot.render();
-        HC['statusDonut'] = plot;
+        // 统一用 ECharts 渲染以获得圆角扇区
+        const ech = await ensureEchartsLoaded();
+        if (ech) {
+          try {
+            if (HC['statusDonut']?.destroy) { HC['statusDonut'].destroy(); }
+          } catch {}
+          try {
+            if (HC['statusDonut']?.dispose) { HC['statusDonut'].dispose(); }
+          } catch {}
+          const inst = ech.init(statusEl);
+          const data = [
+            { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: COLORS.success },
+            { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: COLORS.info },
+            { name: '想看', value: s?.byStatus?.want ?? 0, color: COLORS.warning },
+          ];
+          const total = data.reduce((s, d) => s + Number(d.value || 0), 0);
+          inst.setOption({
+            tooltip: { trigger: 'item' },
+            legend: { orient: 'vertical', left: 'left', textStyle: { color: COLORS.muted } },
+            graphic: [{
+              type: 'text', left: 'center', top: 'middle', z: 10,
+              style: {
+                text: `总数\n${total}`,
+                textAlign: 'center',
+                fill: COLORS.text,
+                lineHeight: 18,
+                fontSize: 14,
+                fontWeight: 'bold',
+              }
+            }],
+            series: [
+              {
+                type: 'pie', radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                minAngle: 6,
+                itemStyle: { borderRadius: 10, borderColor: COLORS.surface, borderWidth: 2 },
+                label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
+                labelLine: { show: false },
+                emphasis: { label: { show: true, fontWeight: 'bold' } },
+                data: data.map(d => ({ name: d.name, value: d.value, itemStyle: { color: d.color } }))
+              }
+            ]
+          });
+          HC['statusDonut'] = inst;
+          // 简单的自适应
+          if (!(HC as any)._statusDonutResizeBound) {
+            try {
+              window.addEventListener('resize', () => { try { HC['statusDonut']?.resize?.(); } catch {} });
+              (HC as any)._statusDonutResizeBound = true;
+            } catch {}
+          }
+        }
       }
     } catch {}
 
@@ -338,37 +490,72 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     try {
       if (tagsEl) {
         if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
+        HC['tagsTop'] = null;
         const full = await getTagsTopFromRecords(50);
         const pageSize = 10;
+        const totalPages = Math.max(1, Math.ceil(full.length / pageSize));
+        const pageText = document.getElementById('homeTagsPageText') as HTMLSpanElement | null;
         const color = (idx: number) => ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f59e0b','#ef4444','#06b6d4','#84cc16','#fb7185'][idx % 10];
-        let page = 0;
         const pager = document.getElementById('homeTagsPager') as HTMLDivElement | null;
         const prevBtn = document.getElementById('homeTagsPrevBtn') as HTMLButtonElement | null;
         const nextBtn = document.getElementById('homeTagsNextBtn') as HTMLButtonElement | null;
-        const render = () => {
-          const list = full.slice(page * pageSize, (page + 1) * pageSize).map((d, i) => ({ name: d.name, value: d.count, color: color(i) }));
-          const plot = new Bar(tagsEl, {
-            data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
-            barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
-            xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
-            color: (d: any) => d.color,
-          });
-          plot.render();
-          HC['tagsTop'] = plot;
+
+        const ctrl: any = {
+          page: 0,
+          render() {
+            const start = this.page * pageSize;
+            const list = full.slice(start, start + pageSize).map((d, i) => ({ name: d.name, value: d.count, color: color(i) }));
+            try {
+              if (HC['tagsTop'] && typeof HC['tagsTop'].changeData === 'function') {
+                HC['tagsTop'].changeData(list);
+              } else {
+                if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
+                const plot = new Bar(tagsEl, {
+                  data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
+                  barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
+                  xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                  color: (d: any) => d.color,
+                });
+                plot.render();
+                HC['tagsTop'] = plot;
+              }
+            } catch {
+              try { if (HC['tagsTop']?.destroy) { HC['tagsTop'].destroy(); } } catch {}
+              const plot = new Bar(tagsEl, {
+                data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
+                barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
+                xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
+                color: (d: any) => d.color,
+              });
+              plot.render();
+              HC['tagsTop'] = plot;
+            }
+            this.updatePager();
+          },
+          updatePager() {
+            try { if (pageText) pageText.textContent = `${this.page + 1}/${totalPages}`; } catch {}
+            try { if (prevBtn) prevBtn.disabled = (this.page <= 0); } catch {}
+            try { if (nextBtn) nextBtn.disabled = ((this.page + 1) >= totalPages); } catch {}
+          }
         };
-        render();
-        const updateButtons = () => {
-          try { if (prevBtn) prevBtn.disabled = (page <= 0); } catch {}
-          try { if (nextBtn) nextBtn.disabled = ((page + 1) * pageSize >= full.length); } catch {}
-        };
-        updateButtons();
-        if (prevBtn && !(prevBtn as any)._bound) {
-          prevBtn.onclick = () => { if (page > 0) { page--; render(); updateButtons(); } };
-          (prevBtn as any)._bound = true;
-        }
-        if (nextBtn && !(nextBtn as any)._bound) {
-          nextBtn.onclick = () => { if ((page + 1) * pageSize < full.length) { page++; render(); updateButtons(); } };
-          (nextBtn as any)._bound = true;
+        HC.__tagsTopPager = ctrl;
+        ctrl.render();
+
+        if (pager) {
+          if (prevBtn && !(prevBtn as any)._bound) {
+            prevBtn.onclick = () => {
+              const P = HC.__tagsTopPager; if (!P) return;
+              if (P.page > 0) { P.page--; P.render(); }
+            };
+            (prevBtn as any)._bound = true;
+          }
+          if (nextBtn && !(nextBtn as any)._bound) {
+            nextBtn.onclick = () => {
+              const P = HC.__tagsTopPager; if (!P) return;
+              if ((P.page + 1) < totalPages) { P.page++; P.render(); }
+            };
+            (nextBtn as any)._bound = true;
+          }
         }
       }
     } catch {}
@@ -376,16 +563,40 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     try {
       if (changeEl) {
         if (HC['tagsChange']?.destroy) { try { HC['tagsChange'].destroy(); } catch {} }
-        const changes = Array.isArray((insAllG2 as any)?.tagsChange) ? (insAllG2 as any).tagsChange : [];
+        const rising = Array.isArray((ins as any)?.changes?.risingDetailed) ? (ins as any).changes.risingDetailed : [];
+        const falling = Array.isArray((ins as any)?.changes?.fallingDetailed) ? (ins as any).changes.fallingDetailed : [];
+        const changes = ([] as any[])
+          .concat(rising.map((d: any) => ({ name: d.name, value: Number((d.diffRatio || 0) * 100) })))
+          .concat(falling.map((d: any) => ({ name: d.name, value: Number((d.diffRatio || 0) * 100) })))
+          .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+          .slice(0, 10);
         const plot = new Bar(changeEl, {
-          data: changes.map((r: any) => ({ name: r.name, value: Number(r.change || 0) })),
+          data: changes,
           xField: 'value', yField: 'name', legend: false, autoFit: true,
-          barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
-          xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
+          barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right', formatter: (d: any) => `${d.value > 0 ? '+' : ''}${(d.value as number).toFixed ? (d.value as number).toFixed(2) : d.value}%` }, tooltip: { showTitle: false },
+          xAxis: { nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
           color: (d: any) => d.value >= 0 ? '#16a34a' : '#ef4444',
         });
         plot.render();
         HC['tagsChange'] = plot;
+      }
+    } catch {}
+
+    // 新增标签 Top 5（G2Plot）
+    try {
+      if (newTagsEl) {
+        if (HC['newTagsTop']?.destroy) { try { HC['newTagsTop'].destroy(); } catch {} }
+        const list = Array.isArray((ins as any)?.changes?.newTagsDetailed) ? (ins as any).changes.newTagsDetailed : [];
+        const top = list.slice(0, 5).map((d: any, i: number) => ({ name: d.name, value: Number(d.count || 0), color: ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa'][i % 5] }));
+        const plot = new Bar(newTagsEl, {
+          data: top,
+          xField: 'value', yField: 'name', legend: false, autoFit: true,
+          barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
+          xAxis: { min: 0, nice: true }, yAxis: { label: { autoHide: true, autoEllipsis: true } },
+          color: (d: any) => d.color,
+        });
+        plot.render();
+        HC['newTagsTop'] = plot;
       }
     } catch {}
 
@@ -431,19 +642,26 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (newWorksTrendEl) {
         if (HC['newWorksTrend']?.destroy) { try { HC['newWorksTrend'].destroy(); } catch {} }
         const nw = await dbTrendsNewWorksRange(r.start, r.end, 'cumulative');
-        const data = ([] as any[]).concat(
+        let data = ([] as any[]).concat(
           nw.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
           nw.map((p: any) => ({ date: p.date, type: '未读', value: p.unread })),
         );
         const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
-        if (sum <= 0) { try { newWorksTrendEl.style.display = 'none'; } catch {} }
-        else {
-          try { newWorksTrendEl.style.display = ''; } catch {}
-          const plot = new Line(newWorksTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
-            const m: any = { '总记录': COLORS.primary, '未读': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
-          plot.render();
-          HC['newWorksTrend'] = plot;
+        // 若无数据点，构造起止两点的0值基线，确保折线可绘制
+        if (!data.length) {
+          data = [
+            { date: r.start, type: '总记录', value: 0 },
+            { date: r.end,   type: '总记录', value: 0 },
+            { date: r.start, type: '未读',   value: 0 },
+            { date: r.end,   type: '未读',   value: 0 },
+          ];
         }
+        try { newWorksTrendEl.style.display = ''; } catch {}
+        const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
+        const plot = new Line(newWorksTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
+          const m: any = { '总记录': COLORS.primary, '未读': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
+        plot.render();
+        HC['newWorksTrend'] = plot;
       }
     } catch {}
   } catch {}

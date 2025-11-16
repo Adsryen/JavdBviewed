@@ -1,13 +1,14 @@
 // src/dashboard/home/overview.ts
 // 首页统计与分区概览
 
-import { dbViewedStats, dbActorsStats, dbNewWorksStats } from '../dbClient';
+import { dbViewedStats, dbActorsStats, dbNewWorksStats, ensureBackgroundReady } from '../dbClient';
 
 export async function initStatsOverview(): Promise<void> {
   const container = document.getElementById('stats-overview');
   if (!container) return;
 
   try {
+    try { await ensureBackgroundReady(); } catch {}
     const s = await dbViewedStats();
     const total = s.total ?? 0;
     const viewed = s.byStatus?.viewed ?? 0;
@@ -58,6 +59,7 @@ export async function initStatsOverview(): Promise<void> {
 // 首页：迁移“番号库/演员库/新作品”的概览统计到首页
 export async function initHomeSectionsOverview(): Promise<void> {
   try {
+    try { await ensureBackgroundReady(); } catch {}
     // 番号库概览
     const recordsBox = document.getElementById('homeRecordsStatsContainer');
     if (recordsBox) {
