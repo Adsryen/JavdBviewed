@@ -118,9 +118,9 @@ show_help() {
   echo "  -v, --version   显示版本信息"
   echo ""
   echo "交互式菜单选项:"
-  echo "  1) Major Release（不兼容变更）"
-  echo "  2) Minor Release（新增功能）"
-  echo "  3) Patch Release（修复补丁）"
+  echo "  1) Major Release（不兼容变更）(e.g., 1.x.x -> 2.0.0)"
+  echo "  2) Minor Release（新增功能）(e.g., x.1.x -> x.2.0)"
+  echo "  3) Patch Release（修复补丁）(e.g., x.x.1 -> x.x.2)"
   echo "  4) Just Build（仅构建，不改版本）"
   echo "  5) Release Only（仅发布，自定义备注）"
   echo "  6) 预览发布信息"
@@ -136,7 +136,21 @@ preview_release_notes() {
   
   # 获取上一个标签
   local prev_tag
-  prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
+  prev_tag=""
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1; then
+    local i
+    local -a _tags
+    mapfile -t _tags < <(git tag -l 'v[0-9]*\.[0-9]*\.[0-9]*' --sort=-v:refname)
+    for ((i=0;i<${#_tags[@]};i++)); do
+      if [[ "${_tags[$i]}" == "$tag" && $i -lt $((${#_tags[@]}-1)) ]]; then
+        prev_tag="${_tags[$i+1]}"
+        break
+      fi
+    done
+  fi
+  if [[ -z "$prev_tag" ]]; then
+    prev_tag=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)
+  fi
   
   # 获取仓库URL
   local remote repo_url
@@ -234,9 +248,9 @@ preview_release_notes() {
 show_menu() {
   echo ""
   echo "请选择构建类型："
-  echo "  [1] Major Release（不兼容变更）"
-  echo "  [2] Minor Release（新增功能）"
-  echo "  [3] Patch Release（修复补丁）"
+  echo "  [1] Major Release（不兼容变更）(e.g., 1.x.x -> 2.0.0)"
+  echo "  [2] Minor Release（新增功能）(e.g., x.1.x -> x.2.0)"
+  echo "  [3] Patch Release（修复补丁）(e.g., x.x.1 -> x.x.2)"
   echo "  [4] Just Build（仅构建，不改版本）"
   echo "  [5] Release Only（仅发布，自定义备注）"
   echo "  [6] 预览发布信息"
