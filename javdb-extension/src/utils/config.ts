@@ -372,7 +372,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             '192.168.*.*:8096/*'
         ], // 默认匹配常见的Emby/Jellyfin地址
         videoCodePatterns: [
-            '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
+            '[A-Z]{2,6}\\d{2,6}', // 标准格式: ABC-123, ABCD-123
             '\\d{4,8}_\\d{1,3}', // 数字格式: 123456_01
             'FC2-PPV-\\d+', // FC2格式
             '\\d{6,12}', // 纯数字格式
@@ -385,7 +385,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             color: '#1976d2',
             borderRadius: '4px',
             padding: '2px 4px'
-        }
+        },
+        // 新增：右侧悬浮快捷按钮默认显示
+        showQuickSearchCode: true,
+        showQuickSearchActor: true
     },
 
     // 新增：演员同步配置

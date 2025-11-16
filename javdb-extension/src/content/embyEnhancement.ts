@@ -19,6 +19,9 @@ interface EmbyConfig {
         borderRadius: string;
         padding: string;
     };
+    // 右侧悬浮快捷按钮显示控制
+    showQuickSearchCode?: boolean;
+    showQuickSearchActor?: boolean;
 }
 
 /**
@@ -388,6 +391,15 @@ class EmbyEnhancementManager {
     /** 渲染右侧悬浮快捷框（搜番号 / 搜演员） */
     private renderQuickActions(): void {
         if (!this.config?.enabled || !this.isCurrentPageMatched()) return;
+        // 根据配置判断是否需要显示
+        const showCode = this.config.showQuickSearchCode !== false;
+        const showActor = this.config.showQuickSearchActor !== false;
+        // 如果两个都隐藏，则直接移除并返回
+        if (!showCode && !showActor) {
+            this.removeQuickActions();
+            return;
+        }
+
         this.removeQuickActions();
         const container = document.createElement('div');
         container.className = 'emby-quick-actions';
@@ -403,6 +415,7 @@ class EmbyEnhancementManager {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         `;
 
+        if (showCode) {
         const btnSearchCode = this.createActionButton('search-code', '搜番号', '🔎', async () => {
             try {
                 let id = this.getFirstVideoIdFromPage();
@@ -452,7 +465,10 @@ class EmbyEnhancementManager {
                 showToast('搜索番号失败', 'error');
             }
         });
+        container.appendChild(btnSearchCode);
+        }
 
+        if (showActor) {
         const btnSearchActor = this.createActionButton('search-actor', '搜演员', '👤', async () => {
             try {
                 let name = this.findActorNameFromPage();
@@ -475,9 +491,10 @@ class EmbyEnhancementManager {
                 showToast('搜索演员失败', 'error');
             }
         });
-
-        container.appendChild(btnSearchCode);
         container.appendChild(btnSearchActor);
+        }
+
+        // 若至少有一个按钮添加，则挂载容器
         document.body.appendChild(container);
         this.quickActions = container;
     }
