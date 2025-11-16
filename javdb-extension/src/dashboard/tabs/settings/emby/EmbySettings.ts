@@ -18,6 +18,8 @@ export class EmbySettings extends BaseSettingsPanel {
     private addUrlBtn!: HTMLButtonElement;
     private linkBehaviorSelect!: HTMLSelectElement;
     private autoDetectionToggle!: HTMLInputElement;
+    private showQuickSearchCodeToggle!: HTMLInputElement;
+    private showQuickSearchActorToggle!: HTMLInputElement;
     private testCurrentPageBtn!: HTMLButtonElement;
     private testSampleUrlsBtn!: HTMLButtonElement;
     private testResultDiv!: HTMLDivElement;
@@ -41,12 +43,15 @@ export class EmbySettings extends BaseSettingsPanel {
         this.addUrlBtn = document.getElementById('add-emby-url') as HTMLButtonElement;
         this.linkBehaviorSelect = document.getElementById('emby-link-behavior') as HTMLSelectElement;
         this.autoDetectionToggle = document.getElementById('emby-auto-detection') as HTMLInputElement;
+        this.showQuickSearchCodeToggle = document.getElementById('emby-show-quick-search-code') as HTMLInputElement;
+        this.showQuickSearchActorToggle = document.getElementById('emby-show-quick-search-actor') as HTMLInputElement;
         this.testCurrentPageBtn = document.getElementById('test-current-page') as HTMLButtonElement;
         this.testSampleUrlsBtn = document.getElementById('test-sample-urls') as HTMLButtonElement;
         this.testResultDiv = document.getElementById('test-result') as HTMLDivElement;
 
         if (!this.enabledToggle || !this.matchUrlsList || !this.addUrlBtn || 
-            !this.linkBehaviorSelect || !this.autoDetectionToggle) {
+            !this.linkBehaviorSelect || !this.autoDetectionToggle ||
+            !this.showQuickSearchCodeToggle || !this.showQuickSearchActorToggle) {
             throw new Error('Emby设置相关的DOM元素未找到');
         }
     }
@@ -61,6 +66,8 @@ export class EmbySettings extends BaseSettingsPanel {
         this.matchUrlsList.addEventListener('input', this.handleUrlListInput.bind(this));
         this.linkBehaviorSelect.addEventListener('change', this.handleSettingsChange.bind(this));
         this.autoDetectionToggle.addEventListener('change', this.handleSettingsChange.bind(this));
+        this.showQuickSearchCodeToggle.addEventListener('change', this.handleSettingsChange.bind(this));
+        this.showQuickSearchActorToggle.addEventListener('change', this.handleSettingsChange.bind(this));
         
         if (this.testCurrentPageBtn) {
             this.testCurrentPageBtn.addEventListener('click', this.handleTestCurrentPage.bind(this));
@@ -80,6 +87,8 @@ export class EmbySettings extends BaseSettingsPanel {
         this.matchUrlsList?.removeEventListener('input', this.handleUrlListInput.bind(this));
         this.linkBehaviorSelect?.removeEventListener('change', this.handleSettingsChange.bind(this));
         this.autoDetectionToggle?.removeEventListener('change', this.handleSettingsChange.bind(this));
+        this.showQuickSearchCodeToggle?.removeEventListener('change', this.handleSettingsChange.bind(this));
+        this.showQuickSearchActorToggle?.removeEventListener('change', this.handleSettingsChange.bind(this));
         
         if (this.testCurrentPageBtn) {
             this.testCurrentPageBtn?.removeEventListener('click', this.handleTestCurrentPage.bind(this));
@@ -100,6 +109,8 @@ export class EmbySettings extends BaseSettingsPanel {
             this.enabledToggle.checked = embyConfig.enabled;
             this.linkBehaviorSelect.value = embyConfig.linkBehavior;
             this.autoDetectionToggle.checked = embyConfig.enableAutoDetection;
+            this.showQuickSearchCodeToggle.checked = embyConfig.showQuickSearchCode !== false;
+            this.showQuickSearchActorToggle.checked = embyConfig.showQuickSearchActor !== false;
             
             this.renderMatchUrls();
             this.updateUIState();
@@ -205,6 +216,8 @@ export class EmbySettings extends BaseSettingsPanel {
             this.addUrlBtn,
             this.linkBehaviorSelect,
             this.autoDetectionToggle,
+            this.showQuickSearchCodeToggle,
+            this.showQuickSearchActorToggle,
             this.testCurrentPageBtn
         ];
 
@@ -318,7 +331,9 @@ export class EmbySettings extends BaseSettingsPanel {
                     color: '#1976d2',
                     borderRadius: '4px',
                     padding: '2px 4px'
-                }
+                },
+                showQuickSearchCode: true,
+                showQuickSearchActor: true
             };
         }
 
@@ -326,6 +341,8 @@ export class EmbySettings extends BaseSettingsPanel {
         STATE.settings.emby.matchUrls = this.getUrlsFromUI();
         STATE.settings.emby.linkBehavior = this.linkBehaviorSelect.value as 'javdb-direct' | 'javdb-search';
         STATE.settings.emby.enableAutoDetection = this.autoDetectionToggle.checked;
+        STATE.settings.emby.showQuickSearchCode = this.showQuickSearchCodeToggle.checked;
+        STATE.settings.emby.showQuickSearchActor = this.showQuickSearchActorToggle.checked;
     }
 
     /**

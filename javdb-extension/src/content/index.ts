@@ -503,6 +503,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     log('Content filter reapplied after settings update');
                 }, 100);
             }
+
+            // 刷新 Emby 增强（应用右侧快捷按钮显示开关等）
+            try {
+                embyEnhancementManager.refresh?.();
+            } catch (e) {
+                log('Failed to refresh Emby enhancement after settings update:', e as any);
+            }
         });
     } else if (message.type === 'show-toast') {
         // 处理来自background script的toast通知
