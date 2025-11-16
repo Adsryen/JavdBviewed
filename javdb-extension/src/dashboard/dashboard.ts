@@ -18,11 +18,12 @@ import { log } from '../utils/logController';
 // import { STORAGE_KEYS } from '../utils/config';
 import { initUserProfileSection } from './userProfile';
 // import { initDataSyncSection } from './dataSync';
-import './ui/dataViewModal'; // 纭繚dataViewModal琚垵濮嬪寲
+import './ui/dataViewModal'; // 确保 dataViewModal 被初始化
 import { getDrive115V2Service } from '../services/drive115v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted } from './loaders/partialsLoader';
 import { ensureStylesLoaded } from './loaders/stylesLoader';
+import { loadPartial } from './loaders/partialsLoader';
 import { applyConsoleSettingsFromStorage_DB, bindConsoleSettingsListener } from './console/settings';
 import { bindInsightsListeners } from './listeners/insights';
 import { initTopbarIcons } from './topbar/icons';
@@ -57,13 +58,13 @@ function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?:
     if (!section) return;
     const enabled = typeof enabledParam === 'boolean' ? enabledParam : !!STATE.settings?.drive115?.enabled;
     const enableV2 = typeof enableV2Param === 'boolean' ? enableV2Param : !!STATE.settings?.drive115?.enableV2;
-    // 鍙浠讳竴寮€鍚氨鏄剧ず
+    // 只要任一开启就显示
     section.style.display = (enabled || enableV2) ? '' : 'none';
 }
 
-// 棰勭疆涓€涓叏灞€鍗犱綅锛岄伩鍏嶅叾浠栨ā鍧楀湪鐪熷疄鍑芥暟缁戝畾鍓嶈皟鐢ㄥ鑷?ReferenceError
+// 预置一个全局占位，避免在真实函数绑定前被调用导致 ReferenceError
 (window as any).initDrive115QuotaSidebar = (window as any).initDrive115QuotaSidebar || (() => {});
-// 鏆撮湶缁欏叏灞€锛岄伩鍏嶄綔鐢ㄥ煙闂瀵艰嚧寮曠敤閿欒锛堝湪鐪熷疄鍑芥暟澹版槑鍚庝細琚鐩栦负瀹炵幇锛?(window as any).initDrive115QuotaSidebar = initDrive115QuotaSidebar;
+// 如需暴露为全局，待真实函数声明后再绑定到 window（避免作用域问题导致引用错误）
 
 // 隐私监控实现已迁移到 ./privacy/dashboardMonitor
 
@@ -193,22 +194,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Modals 常驻挂载
     try { await ensureModalsMounted(); } catch {}
 
-    // 鏃ュ織鎺у埗鍣ㄥ凡鍦ㄦā鍧楀姞杞芥椂鑷姩鍒濆鍖栵紝杩欓噷涓嶉渶瑕侀噸澶嶅垵濮嬪寲
+    // 日志控制器已在模块加载时自动初始化，这里无需重复初始化
 
-    // 娓呯悊鎼滅储寮曟搸閰嶇疆涓殑娴嬭瘯鏁版嵁
+    // 清理搜索引擎配置中的测试数据
     await cleanupSearchEngines();
 
     // QA 自检（开发期）：检查基础样式与模态框唯一性/挂载状态
     try { runQASelfCheckModule(); } catch {}
 
-    // 鍒濆鍖栭殣绉佷繚鎶ょ郴缁?
+    // 初始化隐私保护系统
     try {
         log.privacy('Initializing privacy system for Dashboard...');
         const { initializePrivacySystem } = await import('../services/privacy');
         await initializePrivacySystem();
         log.privacy('Privacy system initialized successfully for Dashboard');
 
-        // 璁剧疆Dashboard鐗瑰畾鐨勯殣绉佺洃鍚?
+        // 设置 Dashboard 特定的隐私监控
         setupDashboardPrivacyMonitoringModule();
     } catch (error) {
         console.error('Failed to initialize privacy system for Dashboard:', error);
@@ -216,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTopbarIcons();
 
-    // 115 鏈嶅姟閫氳繃缁熶竴璺敱鎸夐渶鍒濆鍖?
+    // 通过统一路由按需初始化 115 服务
 
     // 监听首页初始化事件（由 navigation.ts 触发），集中处理首页的概览与图表
     try {
@@ -233,37 +234,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
 
     await initTabs();
-    // initActorsTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮婕斿憳搴撴爣绛鹃〉鏃舵墠鍔犺浇
-    // initNewWorksTab(); // 寤惰繜鍒濆鍖栵紝鍙湪鐢ㄦ埛鐐瑰嚮鏂颁綔鍝佹爣绛鹃〉鏃舵墠鍔犺浇
+    // initActorsTab(); // 延迟初始化，仅在用户点击“演员库”标签页时加载
+    // initNewWorksTab(); // 延迟初始化，仅在用户点击“新作”标签页时加载
     // initSyncTab(); // lazy: moved to tab click and hash init
     // initSettingsTab(); // lazy: moved to tab click and hash init
-    // initAdvancedSettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
-    // initAISettingsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
-    // initDrive115Tab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
-    // initLogsTab(); // 宸茶縼绉诲埌妯″潡鍖栬缃郴缁?
+    // initAdvancedSettingsTab(); // 已迁移到模块化设置系统
+    // initAISettingsTab(); // 已迁移到模块化设置系统
+    // initDrive115Tab(); // 已迁移到模块化设置系统
+    // initLogsTab(); // 已迁移到模块化设置系统
     initSidebarActionsModule();
     initUserProfileSection();
-    // initDataSyncSection(); // 绉婚櫎閲嶅璋冪敤锛岀敱 initSyncTab 澶勭悊
+    // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
     initInfoContainer();
     initHelpSystem();
     initModal();
-    // 鏍规嵁璁剧疆鎺у埗 115 渚ц竟鏍忔樉绀猴紝骞跺湪鍚敤鏃讹紙V2锛夊姞杞介厤棰?
+    // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
     updateDrive115SidebarVisibility();
     if (STATE.settings?.drive115?.enableV2) {
         (window as any).initDrive115QuotaSidebar?.();
     }
     updateSyncStatusModule();
-    // 鐩戝惉鏉ヨ嚜璁剧疆椤电殑閰嶉鍒锋柊浜嬩欢
+    // 监听来自设置页的配额刷新事件
     window.addEventListener('drive115:refreshQuota' as any, () => {
         (window as any).initDrive115QuotaSidebar?.();
     });
-    // 鐩戝惉 115 鍚敤鐘舵€佸彉鏇达紝鍔ㄦ€佹樉闅愪晶杈规爮骞跺湪鍚敤锛圴2锛夋椂鍔犺浇閰嶉
+    // 监听 115 启用状态变更，动态显示侧边栏并在启用（V2）时加载配额
     window.addEventListener('drive115:enabled-changed' as any, (e: any) => {
         const enabled = !!(e?.detail?.enabled);
         const enableV2 = !!(e?.detail?.enableV2);
         updateDrive115SidebarVisibility(enabled, enableV2);
         if (enableV2 || enabled) {
-            // V1 鎴?V2 浠讳竴寮€鍚厛鏇存柊瀹瑰櫒锛涗粎褰?V2 鏃跺姞杞介厤棰?
+            // V1 或 V2 任一启用先更新容器；仅在 V2 时加载配额
             if (enableV2) (window as any).initDrive115QuotaSidebar?.();
         }
     });
@@ -282,38 +283,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * 鍒濆鍖栨紨鍛樺簱鏍囩椤?
+ * 初始化演员库标签页
  */
 async function initActorsTab(): Promise<void> {
     try {
         const { actorsTab } = await import('./tabs/actors');
         await actorsTab.initActorsTab();
     } catch (error) {
-        console.error('鍒濆鍖栨紨鍛樺簱鏍囩椤靛け璐?', error);
+        console.error('初始化演员库标签页失败:', error);
     }
 }
 
 /**
- * 鍒濆鍖栨柊浣滃搧鏍囩椤?
+ * 初始化新作标签页
  */
 async function initNewWorksTab(): Promise<void> {
     try {
         const { newWorksTab } = await import('./tabs/newWorks');
         await newWorksTab.initialize();
     } catch (error) {
-        console.error('鍒濆鍖栨柊浣滃搧鏍囩椤靛け璐?', error);
+        console.error('初始化新作标签页失败:', error);
     }
 }
 
 /**
- * 鍒濆鍖栨暟鎹悓姝ユ爣绛鹃〉
+ * 初始化数据同步标签页
  */
 async function initSyncTab(): Promise<void> {
     try {
         const { syncTab } = await import('./tabs/sync');
         await syncTab.initSyncTab();
     } catch (error) {
-        console.error('鍒濆鍖栨暟鎹悓姝ユ爣绛鹃〉澶辫触:', error);
+        console.error('初始化数据同步标签页失败:', error);
     }
 }
 
@@ -345,7 +346,7 @@ function initInfoContainer(): void {
     `;
 }
 
-function initHelpSystem(): void {
+async function initHelpSystem(): Promise<void> {
     const helpBtn = document.getElementById('helpBtn');
     const helpPanel = document.getElementById('helpPanel');
     const closeHelpBtn = document.getElementById('closeHelpBtn');
@@ -353,126 +354,20 @@ function initHelpSystem(): void {
 
     if (!helpBtn || !helpPanel || !closeHelpBtn || !helpBody) return;
 
-    // 甯姪鍐呭
-    const helpContent = `
-        <h3><i class="fas fa-rocket"></i> 蹇€熷紑濮?/h3>
-        <ul>
-            <li><strong>鎵撳紑浠〃鐩橈細</strong>鐐瑰嚮鎵╁睍鍥炬爣 鈫?杩涘叆鈥滅鐞嗛潰鏉库€濄€?/li>
-            <li><strong>棣栨閰嶇疆锛?/strong>鍦ㄢ€滆缃?鈫?WebDAV鍚屾/鍔熻兘澧炲己/115缃戠洏/闅愮淇濇姢鈥濈瓑澶勫畬鎴愬紑鍏充笌鍙傛暟閰嶇疆銆?/li>
-            <li><strong>绔嬪嵆浣撻獙锛?/strong>鍦ㄢ€滅暘鍙峰簱/婕斿憳搴?鏂颁綔鍝佲€濅腑娴忚銆佺瓫閫夈€佹壒閲忕鐞嗕綘鐨勮褰曘€?/li>
-        </ul>
+    // 从 partial 动态加载帮助内容
+    let html = '';
+    try {
+        html = await loadPartial('help/feature-help.html');
+    } catch {}
+    helpBody.innerHTML = html || '<div style="color:#888;">帮助内容加载失败，请检查构建产物（help/feature-help.html）。</div>';
 
-        <h3><i class="fas fa-database"></i> 鏁版嵁绠＄悊</h3>
-        <ul>
-            <li><strong>鐣彿搴擄細</strong>鍏ㄩ潰鐨勬湰鍦拌褰曞簱锛屾敮鎸佹悳绱€佹爣绛剧瓫閫夈€佹帓搴忋€佸垎椤点€佹壒閲忓埛鏂?鍒犻櫎绛夈€?/li>
-            <li><strong>婕斿憳搴擄細</strong>鍚屾 JavDB 鏀惰棌婕斿憳锛屾敮鎸佹€у埆/鍒嗙被/鎷夐粦绛涢€変笌鎺掑簭锛屾敮鎸侀〉澶у皬璋冭妭銆?/li>
-            <li><strong>鏂颁綔鍝侊細</strong>璁㈤槄婕斿憳骞惰嚜鍔ㄥ彂鐜板叾鏂颁綔锛屾彁渚涜繃婊ら厤缃€佺姸鎬佸悓姝ャ€佹竻鐞嗗凡璇讳笌鍒嗛〉娴忚銆?/li>
-            <li><strong>鏁版嵁瀵煎叆/瀵煎嚭锛?/strong>鏈湴 JSON 澶囦唤涓庢仮澶嶏紱鏀寔 WebDAV 浜戠璺ㄨ澶囧浠戒笌鎭㈠銆?/li>
-            <li><strong>缁熻姒傝锛?/strong>瀹炴椂缁熻鈥滃凡瑙傜湅/宸叉祻瑙?鎯崇湅鈥濈瓑鏁伴噺锛屼究浜庢€昏涓庢竻鐞嗐€?/li>
-        </ul>
-
-        <h3><i class="fas fa-user-circle"></i> 璐﹀彿淇℃伅</h3>
-        <ul>
-            <li><strong>璐﹀彿鐧诲綍锛?/strong>鏄剧ず骞剁鐞嗕綘鐨?JavDB 璐﹀彿淇℃伅锛堥偖绠便€佺敤鎴峰悕銆佺敤鎴风被鍨嬬瓑锛夈€?/li>
-            <li><strong>浠呯敤浜庡悓姝ワ細</strong>璐﹀彿鍑嵁鍙湪鏈湴鐢ㄤ簬涓?JavDB 鐨勬暟鎹悓姝ワ紝瀹夊叏瀛樺偍銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-sync-alt"></i> 鏁版嵁鍚屾锛圝avDB 鈬?鏈湴锛?/h3>
-        <ul>
-            <li><strong>鍚屾鍏ㄩ儴锛?/strong>浠?JavDB 鎷夊彇鈥滃凡瑙傜湅 + 鎯崇湅鈥濈殑鎵€鏈夎褰曞埌鏈湴銆?/li>
-            <li><strong>鍒嗙被鍚屾锛?/strong>鍙崟鐙媺鍙栤€滄兂鐪嬧€濇垨鈥滃凡鐪嬧€濊褰曪紝鎸夐渶鏇存柊銆?/li>
-            <li><strong>鏀惰棌婕斿憳锛?/strong>鏀寔鍚屾鏀惰棌婕斿憳锛屽苟鍙崟鐙ˉ鍏?鏇存柊婕斿憳鎬у埆淇℃伅銆?/li>
-            <li><strong>杩涘害涓庡彇娑堬細</strong>灞曠ず鈥滆幏鍙栧垪琛?鎷夊彇璇︽儏鈥濅袱闃舵杩涘害锛屽彲闅忔椂鍙栨秷銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-cloud"></i> WebDAV 澶囦唤涓庢仮澶?/h3>
-        <ul>
-            <li><strong>鑷姩/鎵嬪姩锛?/strong>鏀寔鎵嬪姩涓婁紶/涓嬭浇锛涘彲鎸夐渶寮€鍚嚜鍔ㄥ浠斤紝淇濇寔澶氳澶囦竴鑷淬€?/li>
-            <li><strong>鏈嶅姟鍏煎锛?/strong>閫傞厤鍧氭灉浜戙€丯extcloud銆乀eraCloud銆乊andex 绛変富娴?WebDAV 鏈嶅姟銆?/li>
-            <li><strong>鎭㈠鍚戝锛?/strong>鎻愪緵鈥滃揩鎹?鍚戝/涓撳鈥濅笁绉嶆ā寮忥紝鏀寔鏅鸿兘鍚堝苟銆佺瓥鐣ラ€夋嫨涓庡樊寮傚垎鏋愩€?/li>
-            <li><strong>鍙€夊唴瀹癸細</strong>鍙垎鍒仮澶嶁€滄墿灞曡缃?瑙傜湅璁板綍/璐﹀彿淇℃伅/婕斿憳搴?鏃ュ織/鏂颁綔鍝佲€濈瓑鏁版嵁绫诲埆銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-cloud-download-alt"></i> 115 缃戠洏闆嗘垚</h3>
-        <ul>
-            <li><strong>鎺ㄩ€佷笅杞斤細</strong>鍦ㄨ鎯呴〉鍙竴閿皢纾佸姏閾炬帴鎺ㄩ€佽嚦 115 绂荤嚎涓嬭浇銆?/li>
-            <li><strong>楠岃瘉鐮佸鐞嗭細</strong>鑷姩澶勭悊楠岃瘉娴佺▼锛屽け璐ュ彲閲嶈瘯锛涙垚鍔熷彲鑷姩鑱斿姩鏍囪鐘舵€併€?/li>
-            <li><strong>閰嶉渚ф爮锛?/strong>鑻ュ紑鍚?115-V2锛屽皢鍦ㄤ晶杈规爮鏄剧ず缃戠洏閰嶉锛堟€婚/宸茬敤/鍓╀綑锛夈€?/li>
-        </ul>
-
-        <h3><i class="fas fa-tv"></i> Emby 澧炲己</h3>
-        <ul>
-            <li><strong>淇℃伅鑱斿姩锛?/strong>鍦?Emby 椤甸潰澧炲己灞曠ず涓庤烦杞綋楠岋紙濡備笌鐣彿銆佹紨鍛樹俊鎭仈鍔級銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-eye"></i> 鏄剧ず涓庡唴瀹硅繃婊?/h3>
-        <ul>
-            <li><strong>鍒楄〃闅愯棌锛?/strong>鍙湪璁块棶 JavDB 鏃惰嚜鍔ㄩ殣钘忊€滃凡鐪?宸叉祻瑙?VR鈥濆奖鐗囷紝鍑€鍖栧垪琛ㄣ€?/li>
-            <li><strong>鏍峰紡鑷畾涔夛細</strong>鍙皟鏁存爣璁伴鑹层€佹樉绀轰綅缃笌鏍峰紡锛屽吋椤惧彲璇绘€т笌瀵嗗害銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-search"></i> 鎼滅储寮曟搸璺宠浆</h3>
-        <ul>
-            <li><strong>鑷畾涔夊紩鎿庯細</strong>涓虹暘鍙风偣鍑婚厤缃涓閮ㄦ悳绱㈢珯鐐癸紝浣跨敤 <code>{{ID}}</code> 浣滀负鍗犱綅绗︺€?/li>
-            <li><strong>鍥炬爣涓庨『搴忥細</strong>鍙缃睍绀哄浘鏍囦笌椤哄簭锛屼究浜庡揩閫熷垎娴佹绱€?/li>
-        </ul>
-
-        <h3><i class="fas fa-magic"></i> 鍔熻兘澧炲己</h3>
-        <ul>
-            <li><strong>纾侀摼鑱氬悎锛?/strong>鑷姩鑱氬悎绔欏唴澶栫鍔涜祫婧愬苟楂樹寒锛堝弬瑙佲€滃姛鑳藉寮?纾佸姏鑱氬悎鈥濓級銆?/li>
-            <li><strong>蹇€熷鍒讹細</strong>涓€閿鍒剁暘鍙?鏍囬/纾侀摼绛変俊鎭紝鎻愬崌鏁寸悊鏁堢巼銆?/li>
-            <li><strong>閿氱偣浼樺寲锛?/strong>鏀硅壇閾炬帴浜や簰锛氬乏閿墠鍙般€佸彸閿悗鍙版墦寮€锛涙敮鎸佹偓娴瑙堬紙鑻ユ湁婧愶級銆?/li>
-            <li><strong>璇︽儏澧炲己锛?/strong>鍦ㄨ棰戣鎯呴〉鎻愪緵蹇嵎鏍囪銆佽烦杞笌杈呭姪淇℃伅灞曠ず銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-shield-alt"></i> 闅愮淇濇姢</h3>
-        <ul>
-            <li><strong>鎴浘妯″紡锛?/strong>涓€閿ā绯婃晱鎰熷尯鍩燂紱鍒囨崲鏍囩鍚庤嚜鍔ㄦ仮澶嶉殣绉佹晥鏋溿€?/li>
-            <li><strong>闅愮璁剧疆锛?/strong>鍙湪鈥滆缃?鈫?闅愮淇濇姢鈥濅腑鑷畾涔夌瓥鐣ヤ笌寮哄害銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-keyboard"></i> 蹇嵎閿?/h3>
-        <ul>
-            <li><code>Ctrl + Shift + M</code>锛氬揩閫熸爣璁板綋鍓嶈棰戜负鈥滃凡瑙傜湅鈥濄€?/li>
-            <li><code>Ctrl + Shift + W</code>锛氬揩閫熸爣璁板綋鍓嶈棰戜负鈥滄兂鐪嬧€濄€?/li>
-            <li><strong>澶氶€夋搷浣滐細</strong>鏀寔 Ctrl/Shift 缁勫悎澶氶€夛紱鐐瑰嚮鐘舵€佹爣绛惧彲蹇€熺瓫閫夈€?/li>
-        </ul>
-
-        <h3><i class="fas fa-list-alt"></i> 鏃ュ織涓庤瘖鏂?/h3>
-        <ul>
-            <li><strong>杩愯鏃ュ織锛?/strong>璁板綍鎿嶄綔銆佸憡璀︿笌閿欒锛屾敮鎸佹寜绾у埆绛涢€夈€佹竻绌恒€佸鍑恒€?/li>
-            <li><strong>缃戠粶娴嬭瘯锛?/strong>娴嬭瘯 WebDAV 杩為€氭€с€佸搷搴旀椂闂翠笌鍚屾鎬ц兘锛屼究浜庤瘖鏂€?/li>
-        </ul>
-
-        <h3><i class="fas fa-tools"></i> 楂樼骇宸ュ叿</h3>
-        <ul>
-            <li><strong>鏁版嵁缁撴瀯妫€鏌ワ細</strong>鑷姩妫€娴嬪苟淇鍘嗗彶鏁版嵁鏍煎紡闂锛屼繚鎸佷竴鑷存€с€?/li>
-            <li><strong>鏁版嵁杩佺Щ锛?/strong>浠庢棫鐗堟湰鍗囩骇鍚庤嚜鍔ㄨ縼绉绘暟鎹粨鏋勶紝闄勮繘搴︽樉绀恒€?/li>
-            <li><strong>JSON 缂栬緫锛?/strong>涓鸿繘闃剁敤鎴锋彁渚涘師濮?JSON 鏌ョ湅涓庣紪杈戣兘鍔涳紙璇疯皑鎱庢搷浣滐級銆?/li>
-        </ul>
-
-        <h3><i class="fas fa-question-circle"></i> 甯歌闂</h3>
-        <ul>
-            <li><strong>鏁版嵁涓㈠け锛?/strong>鍙€氳繃 WebDAV 鎭㈠锛涙垨瀵煎叆浣犲厛鍓嶅鍑虹殑鏈湴 JSON 澶囦唤銆?/li>
-            <li><strong>鍚屾寮傚父锛?/strong>妫€鏌ョ綉缁滀笌鐧诲綍鐘舵€侊紝鏌ョ湅鈥滄棩蹇椻€濊幏鍙栬缁嗛敊璇苟瀹氫綅銆?/li>
-            <li><strong>鎬ц兘寤鸿锛?/strong>澶ч噺璁板綍鏃跺缓璁畾鏈熸竻鐞嗘棤鐢ㄦ暟鎹紝鍚堢悊璁剧疆骞跺彂浠ユ彁鍗囦綋楠屻€?/li>
-        </ul>
-
-        <div class="help-footer">
-            <p><i class="fas fa-info-circle"></i> <strong>鎻愮ず锛?/strong>鎵€鏈夋暟鎹粯璁ゅ瓨鍌ㄥ湪鏈湴娴忚鍣ㄤ腑锛屽缓璁紑鍚?WebDAV 鑷姩澶囦唤浠ラ伩鍏嶄涪澶便€?/p>
-            <p><i class="fas fa-github"></i> 娆㈣繋鍦?GitHub 鎻愪氦 Issue/Discussion 鍙嶉闂鎴栨彁鍑哄缓璁€?/p>
-        </div>
-    `;
-
-    helpBody.innerHTML = helpContent;
-
-    // 鏄剧ず甯姪闈㈡澘
+    // 显示帮助面板
     helpBtn.addEventListener('click', () => {
         helpPanel.classList.remove('hidden');
         helpPanel.classList.add('visible');
     });
 
-    // 鍏抽棴甯姪闈㈡澘
+    // 关闭帮助面板
     const closeHelp = () => {
         helpPanel.classList.remove('visible');
         helpPanel.classList.add('hidden');
@@ -480,14 +375,14 @@ function initHelpSystem(): void {
 
     closeHelpBtn.addEventListener('click', closeHelp);
 
-    // 鐐瑰嚮鑳屾櫙鍏抽棴
+    // 点击背景关闭
     helpPanel.addEventListener('click', (e) => {
         if (e.target === helpPanel) {
             closeHelp();
         }
     });
 
-    // ESC閿叧闂?
+    // ESC 关闭
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && helpPanel.classList.contains('visible')) {
             closeHelp();
