@@ -35,18 +35,46 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
     }
   });
 
-  // 针对 Service Worker 冷启动偶发的“Receiving end does not exist”做一次轻量重试
-  return tryOnce().catch((err: any) => {
-    const msg = String(err?.message || '').toLowerCase();
-    if (msg.includes('receiving end does not exist')) {
-      return new Promise<T>((resolve, reject) => {
-        setTimeout(() => {
-          tryOnce().then(resolve).catch(reject);
-        }, 200);
+  // 针对 Service Worker 冷启动/休眠的“Receiving end does not exist”采用指数退避多次重试
+  return new Promise<T>((resolve, reject) => {
+    let attempt = 0;
+    const maxAttempts = 5;
+    const run = () => {
+      tryOnce().then(resolve).catch((err: any) => {
+        const msg = String(err?.message || '').toLowerCase();
+        if (msg.includes('receiving end does not exist') && attempt < maxAttempts) {
+          const delay = [150, 350, 700, 1400, 2200][attempt] || 2200;
+          attempt++;
+          try { setTimeout(run, delay); } catch { run(); }
+          return;
+        }
+        reject(err);
       });
-    }
-    throw err;
+    };
+    run();
   });
+}
+
+export async function pingBackground(): Promise<void> {
+  await sendMessage('ping-background');
+}
+
+export async function ensureBackgroundReady(maxWaitMs: number = 4000): Promise<void> {
+  const start = Date.now();
+  let attempt = 0;
+  const delays = [80, 160, 320, 640, 1000, 1200];
+  while (true) {
+    try {
+      await pingBackground();
+      return;
+    } catch (e) {
+      const elapsed = Date.now() - start;
+      if (elapsed >= maxWaitMs) throw e;
+      const d = delays[Math.min(attempt, delays.length - 1)];
+      attempt++;
+      await new Promise((r) => setTimeout(r, d));
+    }
+  }
 }
 
 // ----- Viewed APIs -----
