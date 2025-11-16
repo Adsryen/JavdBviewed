@@ -213,6 +213,9 @@ export interface ExtensionSettings {
             borderRadius: string; // 圆角
             padding: string; // 内边距
         };
+        // 新增：右侧悬浮快捷按钮显示控制
+        showQuickSearchCode?: boolean; // 显示“搜番号”按钮
+        showQuickSearchActor?: boolean; // 显示“搜演员”按钮
     };
 
     // 新增：AI功能配置
