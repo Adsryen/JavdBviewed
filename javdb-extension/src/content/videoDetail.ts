@@ -8,12 +8,13 @@ import { STATE, SELECTORS, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { getRandomDelay } from './utils';
+import { getRandomDelay, waitForElement } from './utils';
 import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
 import { getSettings, saveSettings } from '../utils/storage';
+import { actorExtraInfoService } from '../services/actorRemarks';
 
 // 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
 // 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
@@ -30,6 +31,7 @@ function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] 
             if (text.includes('我看過這部影片') || tagText.includes('我看過這部影片')) {
                 return VIDEO_STATUS.VIEWED;
             }
+
         }
 
         const wantAnchor = document.querySelector<HTMLAnchorElement>(
@@ -181,6 +183,157 @@ async function markActorsOnPage(): Promise<void> {
     }
 }
 
+// 轻量版“演员备注”注入（面板模式，默认关闭，通过 settings.videoEnhancement.enableActorRemarks 开启）
+async function runActorRemarksQuick(): Promise<void> {
+    try {
+        const enabled = ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
+        if (!enabled) return;
+
+        const mode = (((STATE.settings as any)?.videoEnhancement?.actorRemarksMode) === 'inline') ? 'inline' : 'panel';
+
+        // 等待演员链接出现（页面结构可能变动，避免过早执行导致无效果）
+        const firstActorLink = await waitForElement('a[href^="/actors/"]', 8000, 200);
+        if (!firstActorLink) {
+            log('actorRemarks: no actor links found (timeout)');
+            return;
+        }
+
+        const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="/actors/"]'));
+        if (!links.length) {
+            log('actorRemarks: no actor links found (empty)');
+            return;
+        }
+
+        const actorBlock = links[0].closest<HTMLElement>('.panel-block') || (links[0].parentElement as HTMLElement | null);
+        if (!actorBlock) {
+            log('actorRemarks: actor container not found');
+            return;
+        }
+
+        log('actorRemarks: start', { mode, actors: links.length });
+
+        const buildBadgeText = (data: any): string => {
+            const parts: string[] = [];
+            if (typeof data?.age === 'number') parts.push(String(data.age));
+            if (typeof data?.heightCm === 'number') parts.push(`${data.heightCm}cm`);
+            if (data?.cup) parts.push(String(data.cup).toUpperCase());
+            let txt = parts.length ? parts.join(' / ') : '';
+            if (data?.retired) txt = txt ? `${txt} / 引退` : '引退';
+            return txt;
+        };
+
+        const ensurePanel = (): HTMLElement => {
+            let panel = document.getElementById('enhanced-actor-remarks');
+            if (panel) return panel;
+            panel = document.createElement('div');
+            panel.id = 'enhanced-actor-remarks';
+            panel.style.cssText = 'margin:12px 0;padding:12px;background:#fff7ed;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;color:#78350f;font-size:13px;';
+            const title = document.createElement('div');
+            title.textContent = '演员备注';
+            title.style.cssText = 'font-weight:bold;margin-bottom:6px;color:#92400e;';
+            panel.appendChild(title);
+            actorBlock.parentElement?.insertBefore(panel, actorBlock.nextSibling);
+            return panel;
+        };
+
+        const processed = new Set<string>();
+        let renderedCount = 0;
+
+        for (const a of links) {
+            const name = (a.textContent || '').trim();
+            if (!name) continue;
+            if (processed.has(name)) continue;
+            processed.add(name);
+
+            try {
+                const data = await actorExtraInfoService.getActorRemarks(name, STATE.settings as any);
+                const badgeText = data ? buildBadgeText(data) : '';
+
+                // 兜底：抓不到字段时，展示外链入口
+                const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
+                const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
+
+                if (mode === 'inline') {
+                    // 只移除当前演员 a 后面紧挨着的备注，避免同一父节点下互相覆盖
+                    const existing = a.nextElementSibling as HTMLElement | null;
+                    if (existing?.classList?.contains('jdb-actor-remarks-inline')) existing.remove();
+
+                    const wrap = document.createElement('span');
+                    wrap.className = 'jdb-actor-remarks-inline';
+                    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:6px;';
+
+                    if (badgeText) {
+                        const infoEl = document.createElement('span');
+                        infoEl.textContent = badgeText;
+                        infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
+                        wrap.appendChild(infoEl);
+                    } else {
+                        const link1 = document.createElement('a');
+                        link1.href = wikiUrl;
+                        link1.target = '_blank';
+                        link1.textContent = 'Wiki';
+                        link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                        wrap.appendChild(link1);
+
+                        const link2 = document.createElement('a');
+                        link2.href = xslistUrl;
+                        link2.target = '_blank';
+                        link2.textContent = 'xslist';
+                        link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                        wrap.appendChild(link2);
+                    }
+
+                    a.insertAdjacentElement('afterend', wrap);
+                } else {
+                    const panel = ensurePanel();
+
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap;';
+                    const nameEl = document.createElement('span');
+                    nameEl.textContent = name;
+                    nameEl.style.cssText = 'font-weight:600;';
+                    row.appendChild(nameEl);
+
+                    if (badgeText) {
+                        const infoEl = document.createElement('span');
+                        infoEl.textContent = badgeText;
+                        infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:2px 6px;border-radius:12px;font-size:12px;';
+                        row.appendChild(infoEl);
+                    } else {
+                        const link1 = document.createElement('a');
+                        link1.href = wikiUrl;
+                        link1.target = '_blank';
+                        link1.textContent = 'Wiki';
+                        link1.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
+                        row.appendChild(link1);
+
+                        const link2 = document.createElement('a');
+                        link2.href = xslistUrl;
+                        link2.target = '_blank';
+                        link2.textContent = 'xslist';
+                        link2.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
+                        row.appendChild(link2);
+                    }
+                    panel.appendChild(row);
+                }
+
+                renderedCount += 1;
+            } catch (e) {
+                log('actorRemarks: fetch failed for', name, e);
+            }
+        }
+
+        if (mode === 'panel') {
+            const panel = document.getElementById('enhanced-actor-remarks');
+            if (panel && renderedCount === 0) {
+                panel.remove();
+            }
+        }
+
+        log('actorRemarks: done', { mode, rendered: renderedCount });
+    } catch {}
+}
+
     // 并发控制：检查是否已经在处理这个视频
     const operationId = await concurrencyManager.startProcessingVideo(videoId);
     if (!operationId) {
@@ -246,6 +399,20 @@ async function markActorsOnPage(): Promise<void> {
                 // 调度失败不影响主要功能
             }
         }
+
+        // 独立：演员备注（不依赖 videoEnhancement.enabled，也不触发其它重型增强）
+        try {
+            const enabledActorRemarks = ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
+            if (enabledActorRemarks) {
+                const FLAG = '__jdb_actorRemarks_scheduled__';
+                if (!(window as any)[FLAG]) {
+                    (window as any)[FLAG] = true;
+                    initOrchestrator.add('deferred', async () => {
+                        try { await runActorRemarksQuick(); } catch {}
+                    }, { label: 'actorRemarks:run', idle: true, idleTimeout: 5000, delayMs: 1200 });
+                }
+            }
+        } catch {}
 
         // 无论是否启用增强功能，都尝试为“演員”区域的演员添加标识
         try {
@@ -380,7 +547,7 @@ async function injectVideoEnhancementPanel(): Promise<void> {
         if (!container) return;
 
         const settings = await getSettings();
-        const ve = settings.videoEnhancement || {} as any;
+        const ve: any = (settings as any).videoEnhancement || {};
 
         const panel = document.createElement('div');
         panel.id = PANEL_ID;
@@ -427,10 +594,12 @@ async function injectVideoEnhancementPanel(): Promise<void> {
 
         const l1 = line('点击“想看”时同步到番号库', ve.enableWantSync !== false, (v) => onSave({ enableWantSync: v }));
         const l2 = line('115 推送成功后自动标记“已看”', ve.autoMarkWatchedAfter115 !== false, (v) => onSave({ autoMarkWatchedAfter115: v }));
+        const l3 = line('演员备注（Wiki/xslist）', ve.enableActorRemarks === true, (v) => onSave(({ enableActorRemarks: v } as any)));
 
         panel.appendChild(title);
         panel.appendChild(l1);
         panel.appendChild(l2);
+        panel.appendChild(l3);
 
         // 插入在 review-buttons 下方
         if (reviewButtons && reviewButtons.parentElement) {
