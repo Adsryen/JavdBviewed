@@ -884,6 +884,7 @@
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewBreaker">
                                     <input type="checkbox" id="veEnableFC2Breaker">
+                                    <input type="checkbox" id="veEnableActorRemarks">
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
@@ -1391,6 +1392,47 @@
                                             <strong>效果：</strong>展示演员基本资料与作品条目。<br>
                                             <strong>说明：</strong>仅展示可匹配到的数据，加载失败时自动隐藏。
                                         </p>
+                                    </div>
+
+                                    <!-- 新：📝 演员备注（Wiki/xslist）（独立区块） -->
+                                    <div class="form-group" data-subtab="video">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📝 演员备注（Wiki / xslist）</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veEnableActorRemarks"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>显示演员基础备注（年龄/身高/罩杯/引退）与 Wiki 外链。<br>
+                                            <strong>数据源：</strong>Wikipedia → xslist（与原脚本一致）。
+                                        </p>
+
+                                        <div class="sub-settings" id="actorRemarksConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>📝 演员备注配置</h5>
+                                                <p class="sub-description">控制展示样式与缓存策略</p>
+                                            </div>
+
+                                            <div class="form-row">
+                                                <div class="form-group-inline">
+                                                    <label for="veActorRemarksMode">展示模式：</label>
+                                                    <select id="veActorRemarksMode" class="select-input">
+                                                        <option value="panel">面板</option>
+                                                        <option value="inline">内嵌胶囊</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group-inline">
+                                                    <label for="veActorRemarksTTL">缓存TTL（天）：</label>
+                                                    <input type="number" id="veActorRemarksTTL" class="number-input" min="0" max="30" value="0">
+                                                    <span class="input-suffix">天</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- 新：⌛ 显示加载指示器（独立区块） -->
