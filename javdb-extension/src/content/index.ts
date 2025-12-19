@@ -24,6 +24,8 @@ import { initOrchestrator } from './initOrchestrator';
 import { initInsightsCollector } from './insightsCollector';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
+import { actorExtraInfoService } from '../services/actorRemarks';
+import { waitForElement } from './utils';
 
 // 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
 let currentVolume: number = 0.2;
@@ -64,6 +66,120 @@ async function applyConsoleSettingsFromStorage_CS() {
         }
     } catch (e) {
         console.warn('[ConsoleProxy] Failed to apply settings in CS:', e);
+    }
+}
+
+async function runActorRemarksOnActorPage(settings: any): Promise<void> {
+    try {
+        const enabled = settings?.videoEnhancement?.enableActorRemarks === true;
+        if (!enabled) return;
+
+        const mode = (settings?.videoEnhancement?.actorRemarksMode === 'inline') ? 'inline' : 'panel';
+
+        // 演员页标题区有别名/作品数等 meta，必须优先取 .actor-section-name（主名）
+        const nameEl = (await waitForElement('.actor-section-name', 8000, 200)) as HTMLElement | null;
+        if (!nameEl) {
+            log('actorRemarks(actorPage): .actor-section-name not found');
+            return;
+        }
+
+        let name = (nameEl.textContent || '').trim();
+        name = name.replace(/\s+/g, ' ');
+        if (!name) {
+            log('actorRemarks(actorPage): actor name is empty');
+            return;
+        }
+
+        const buildBadgeText = (data: any): string => {
+            const parts: string[] = [];
+            if (typeof data?.age === 'number') parts.push(String(data.age));
+            if (typeof data?.heightCm === 'number') parts.push(`${data.heightCm}cm`);
+            if (data?.cup) parts.push(String(data.cup).toUpperCase());
+            let txt = parts.length ? parts.join(' / ') : '';
+            if (data?.retired) txt = txt ? `${txt} / 引退` : '引退';
+            return txt;
+        };
+
+        const data = await actorExtraInfoService.getActorRemarks(name, settings);
+        const badgeText = data ? buildBadgeText(data) : '';
+        const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
+        const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
+
+        // 先清理旧节点
+        try {
+            const existingInline = document.querySelector('.jdb-actor-remarks-inline.actor-page') as HTMLElement | null;
+            if (existingInline) existingInline.remove();
+            const existingPanel = document.getElementById('enhanced-actor-remarks-actorpage');
+            if (existingPanel) existingPanel.remove();
+        } catch {}
+
+        if (mode === 'inline') {
+            const wrap = document.createElement('span');
+            wrap.className = 'jdb-actor-remarks-inline actor-page';
+            wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:8px;vertical-align:middle;';
+
+            if (badgeText) {
+                const infoEl = document.createElement('span');
+                infoEl.textContent = badgeText;
+                infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
+                wrap.appendChild(infoEl);
+            } else {
+                const link1 = document.createElement('a');
+                link1.href = wikiUrl;
+                link1.target = '_blank';
+                link1.textContent = 'Wiki';
+                link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                wrap.appendChild(link1);
+
+                const link2 = document.createElement('a');
+                link2.href = xslistUrl;
+                link2.target = '_blank';
+                link2.textContent = 'xslist';
+                link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                wrap.appendChild(link2);
+            }
+
+            // 插到演员名旁边，而不是 h2 title 整块后面
+            nameEl.insertAdjacentElement('afterend', wrap);
+        } else {
+            const panel = document.createElement('div');
+            panel.id = 'enhanced-actor-remarks-actorpage';
+            panel.style.cssText = 'margin:10px 0;padding:10px;background:#fff7ed;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;color:#78350f;font-size:13px;';
+            const title = document.createElement('div');
+            title.textContent = '演员备注';
+            title.style.cssText = 'font-weight:bold;margin-bottom:6px;color:#92400e;';
+            panel.appendChild(title);
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+            if (badgeText) {
+                const infoEl = document.createElement('span');
+                infoEl.textContent = badgeText;
+                infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:2px 6px;border-radius:12px;font-size:12px;';
+                row.appendChild(infoEl);
+            } else {
+                const link1 = document.createElement('a');
+                link1.href = wikiUrl;
+                link1.target = '_blank';
+                link1.textContent = 'Wiki';
+                link1.style.cssText = 'color:#b45309;text-decoration:underline;';
+                row.appendChild(link1);
+
+                const link2 = document.createElement('a');
+                link2.href = xslistUrl;
+                link2.target = '_blank';
+                link2.textContent = 'xslist';
+                link2.style.cssText = 'color:#b45309;text-decoration:underline;';
+                row.appendChild(link2);
+            }
+            panel.appendChild(row);
+
+            nameEl.insertAdjacentElement('afterend', panel);
+        }
+
+        log('actorRemarks(actorPage): injected', { mode, hasBadge: Boolean(badgeText) });
+    } catch (e) {
+        log('actorRemarks(actorPage): failed', e);
     }
 }
 
@@ -257,6 +373,20 @@ async function initialize(): Promise<void> {
     const path = window.location.pathname;
     const isVideoPage = path.startsWith('/v/');
     const isActorPage = path.startsWith('/actors/');
+
+    // 演员页：演员备注（不依赖 videoEnhancement.enabled，也不触发其它重型增强）
+    try {
+        const enabledActorRemarks = (settings as any)?.videoEnhancement?.enableActorRemarks === true;
+        if (enabledActorRemarks && isActorPage) {
+            const FLAG = '__jdb_actorRemarks_actorPage_scheduled__';
+            if (!(window as any)[FLAG]) {
+                (window as any)[FLAG] = true;
+                initOrchestrator.add('deferred', async () => {
+                    await runActorRemarksOnActorPage(settings as any);
+                }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 800 });
+            }
+        }
+    } catch {}
 
     // 初始化用户体验优化功能（通过编排器注册到合适阶段）
     if (settings.userExperience.enableQuickCopy) {

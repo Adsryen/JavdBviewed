@@ -36,6 +36,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veShowLoadingIndicator!: HTMLInputElement;
     private veEnableReviewBreaker!: HTMLInputElement;
     private veEnableFC2Breaker!: HTMLInputElement;
+    private veEnableActorRemarks!: HTMLInputElement;
+    private veActorRemarksMode!: HTMLSelectElement;
+    private veActorRemarksTTL!: HTMLInputElement;
     // 新增：状态标记增强子项
     private veEnableWantSync!: HTMLInputElement;
     private veAutoMarkWatchedAfter115!: HTMLInputElement;
@@ -309,6 +312,20 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
         this.previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
         this.previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
+        
+        // 影片页增强子项
+        this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
+        this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
+        this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
+        this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
+        this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
+        this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
+        this.veEnableActorRemarks = document.getElementById('veEnableActorRemarks') as HTMLInputElement;
+        this.veActorRemarksMode = document.getElementById('veActorRemarksMode') as HTMLSelectElement;
+        this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
+        // 新增：本地同步类子项
+        this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
+        this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
         // 演员水印子设置元素
         this.actorWatermarkPosition = document.getElementById('actorWatermarkPosition') as HTMLSelectElement;
         this.actorWatermarkOpacity = document.getElementById('actorWatermarkOpacity') as HTMLInputElement;
@@ -341,14 +358,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
         this.videoEnhancementConfig = document.getElementById('videoEnhancementConfig') as HTMLDivElement;
 
-        // 让翻译配置在初始化阶段就具备统一的子设置类名，便于 hover 逻辑一次性绑定
-        if (this.translationConfig) {
-            if (!this.translationConfig.classList.contains('sub-settings')) {
-                this.translationConfig.classList.add('sub-settings');
-            }
-            // 避免内联样式强制显示/隐藏，交给统一 hover 控制
-            this.translationConfig.style.display = '';
-        }
+        // 合并翻译开关：高级选项已移除（仅保留单一全局开关）
+
+        // 内容过滤相关元素
+        this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
+        this.filterRulesList = document.getElementById('filterRulesList') as HTMLElement;
 
         // 子标签
         this.subtabLinks = document.querySelectorAll('#enhancementSubTabs .subtab-link') as NodeListOf<HTMLButtonElement>;
@@ -361,6 +375,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchestratorRefreshBtn = document.getElementById('orchestratorRefreshBtn') as HTMLButtonElement | null;
         this.orchestratorOpenJavdbBtn = document.getElementById('orchestratorOpenJavdbBtn') as HTMLButtonElement | null;
         this.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
+        this.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
+        this.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
         this.orchestratorPhases = document.getElementById('orchestratorPhases');
         this.orchestratorTimeline = document.getElementById('orchestratorTimeline');
         this.orchestratorSummary = document.getElementById('orchestratorSummary');
@@ -368,23 +384,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
         this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
         this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
-        this.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
-        this.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
-
-        // 影片页增强子项
-        this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
-        this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
-        this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
-        this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
-        this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
-        this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
-        // 新增：状态标记增强子项
-        this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
-        this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
-
-        // 内容过滤相关元素
-        this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
-        this.filterRulesList = document.getElementById('filterRulesList') as HTMLElement;
 
         if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
             throw new Error('功能增强设置相关的DOM元素未找到');
@@ -436,11 +435,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableActorRemarks?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veActorRemarksMode?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veActorRemarksTTL?.addEventListener('change', this.handleSettingChange.bind(this));
         // 新增：本地同步子项
 
-    // 锚点优化配置事件监听
-    this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
-    this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 锚点优化配置事件监听
+        this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
         this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
 
         // 缓存过期时间
@@ -892,7 +894,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchestratorTimeline.scrollTop = this.orchestratorTimeline.scrollHeight;
     }
 
-// ...
     // 注入一次性的轻量样式，保证在暗色主题下也清晰
     private ensureOrchestratorLocalStyles(): void {
         if (document.getElementById('orch-local-style')) return;
@@ -1284,6 +1285,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：本地同步子项回填
         if (this.veEnableWantSync) this.veEnableWantSync.checked = (videoEnhancement as any).enableWantSync !== false;
         if (this.veAutoMarkWatchedAfter115) this.veAutoMarkWatchedAfter115.checked = (videoEnhancement as any).autoMarkWatchedAfter115 !== false;
+        // 新增：演员备注
+        if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
+        if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
+        if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
 
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
@@ -1409,7 +1414,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 新增：本地同步子项
                     enableWantSync: this.veEnableWantSync?.checked !== false,
                     autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
-                },
+                    // 新增：演员备注
+                    enableActorRemarks: this.veEnableActorRemarks?.checked === true,
+                    actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
+                    actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
+                } as any,
                 translation: {
                     provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',
                     traditional: {
@@ -1548,6 +1557,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
                 enableWantSync: this.veEnableWantSync?.checked !== false,
                 autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
+                enableActorRemarks: this.veEnableActorRemarks?.checked === true,
+                actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
+                actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
@@ -1589,6 +1601,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
                 if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
                 if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
+            }
+            if (settings.videoEnhancement) {
+                const ve = settings.videoEnhancement as any;
+                if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
+                if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
+                if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
             }
             this.updateAllToggleStates();
         } catch {}
@@ -1796,6 +1814,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'enableVideoPreview': 'listVideoPreviewConfig',
             'enableMagnetSearch': 'magnetSourcesConfig',
             'enableVideoEnhancement': 'videoEnhancementConfig',
+            'veEnableActorRemarks': 'actorRemarksConfig',
         };
         const subSettingsId = map[targetId];
         if (!subSettingsId) return;
@@ -1814,11 +1833,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
         // 不强制 display，显隐交由统一的悬浮展开逻辑（setupSubSettingsHoverBehavior）控制
     }
-
-    /**
-     * 是否启用“高级选项”（允许分别控制两个翻译开关）
-     */
-    // 高级选项（分别控制全局与影片页）已移除：保留单开关逻辑，简化用户心智
 
     /**
      * 处理翻译服务切换
@@ -1919,6 +1933,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             );
             this.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');
             this.videoEnhancementConfig.style.display = 'block';
+        }
+        const actorRemarksConfig = document.getElementById('actorRemarksConfig');
+        if (actorRemarksConfig) {
+            actorRemarksConfig.setAttribute('data-enabled', this.veEnableActorRemarks?.checked ? '1' : '0');
+            actorRemarksConfig.style.display = 'block';
         }
         const actorAutoApplyConfig = document.getElementById('actorAutoApplyConfig');
         if (actorAutoApplyConfig) {

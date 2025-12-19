@@ -153,6 +153,10 @@ export interface ExtensionSettings {
         // 新增：影片页增强控制开关
         enableWantSync?: boolean; // 点击“想看”时同步到本地番号库
         autoMarkWatchedAfter115?: boolean; // 115推送成功后自动标记“已看”
+        // 新增：演员备注（Wiki/xslist）
+        enableActorRemarks?: boolean; // 是否启用演员备注
+        actorRemarksMode?: 'panel' | 'inline'; // 展示模式
+        actorRemarksTTLDays?: number; // 缓存 TTL（天），0 表示不缓存
     };
 
     // 新增：内容过滤配置
