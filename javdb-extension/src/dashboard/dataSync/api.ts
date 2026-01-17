@@ -3,7 +3,7 @@
  */
 
 import { logAsync } from '../logger';
-import type { VideoRecord, UserProfile } from '../../types';
+import type { VideoRecord, UserProfile, ListRecord } from '../../types';
 import type {
     SyncType,
     SyncResponseData,
@@ -12,6 +12,8 @@ import type {
 import { SyncCancelledError } from './types';
 import { getSettings, getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
+import { VIDEO_STATUS } from '../../utils/config';
+import { dbViewedPut } from '../dbClient';
 
 /**
  * 视频数据接口
@@ -25,10 +27,17 @@ interface VideoData {
  * 同步类型配置接口
  */
 interface SyncTypeConfig {
-    url: string;
-    status: 'want' | 'viewed';
+    url?: string;
+    status?: 'want' | 'viewed';
     displayName: string;
-    countField: 'wantCount' | 'watchedCount';
+    countField?: 'wantCount' | 'watchedCount';
+}
+
+interface ListPageItem {
+    id: string;
+    name: string;
+    moviesCount?: number;
+    clickedCount?: number;
 }
 
 /**
@@ -114,6 +123,10 @@ export class ApiClient {
             return await this.syncUserVideos(type, userProfile, config, onProgress, abortSignal);
         }
 
+        if (type === 'lists') {
+            return await this.syncUserLists(userProfile, config, onProgress, abortSignal);
+        }
+
         // 其他类型暂时返回空结果
         return {
             success: true,
@@ -138,6 +151,9 @@ export class ApiClient {
     ): Promise<SyncResponseData> {
         // 获取同步类型配置
         const syncConfig = await this.getSyncTypeConfig(type);
+        if (!syncConfig.url || !syncConfig.countField || !syncConfig.status) {
+            throw new Error('同步配置无效');
+        }
         logAsync('INFO', `开始同步${syncConfig.displayName}视频列表`, {
             userEmail: userProfile.email,
             type,
@@ -407,14 +423,36 @@ export class ApiClient {
                 status: 'viewed',
                 displayName: '全部',
                 countField: 'watchedCount'
+            },
+            lists: {
+                url: 'https://javdb.com/users/lists',
+                displayName: '清单'
             }
         };
 
         const config = configs[type];
+        const defaultUrl = (() => {
+            switch (type) {
+                case 'want':
+                    return 'https://javdb.com/users/want_watch_videos';
+                case 'viewed':
+                    return 'https://javdb.com/users/watched_videos';
+                case 'actors':
+                    return 'https://javdb.com/users/collection_actors';
+                case 'actors-gender':
+                    return 'https://javdb.com/users/collection_actors';
+                case 'all':
+                    return 'https://javdb.com/users/want_watch_videos';
+                case 'lists':
+                    return 'https://javdb.com/users/lists';
+                default:
+                    return config?.url;
+            }
+        })();
         logAsync('INFO', `获取同步配置: ${type}`, {
             url: config.url,
             displayName: config.displayName,
-            isCustomUrl: config.url !== configs[type].url
+            isCustomUrl: config.url !== defaultUrl
         });
 
         return config;
@@ -968,11 +1006,11 @@ export class ApiClient {
     private async saveVideoRecord(
         videoId: string,
         videoData: Partial<VideoRecord>,
-        status: 'want' | 'viewed' | 'browsed',
+        status: VideoRecord['status'],
         urlVideoId?: string
     ): Promise<void> {
         try {
-            // 获取现有记录
+            // 获取现有记录（在 IDB 模式下这里会从 IDB 组装，注意可能较慢）
             const existingRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
 
             // 创建新记录
@@ -999,6 +1037,13 @@ export class ApiClient {
                 javdbImage: videoData.javdbImage
             };
 
+            // 主写入：IndexedDB（Dashboard 默认使用 IDB 查询/分页）
+            try {
+                await dbViewedPut(newRecord);
+            } catch (e: any) {
+                logAsync('WARN', '写入 IndexedDB 失败（将继续写入 storage 作为兜底）', { videoId, error: e?.message });
+            }
+
             // 保存记录
             existingRecords[videoId] = newRecord;
             await setValue(STORAGE_KEYS.VIEWED_RECORDS, existingRecords);
@@ -1014,6 +1059,333 @@ export class ApiClient {
             logAsync('ERROR', `保存视频记录失败`, { videoId, error: error.message });
             throw error;
         }
+    }
+
+    private async isIDBMigrated(): Promise<boolean> {
+        try {
+            return await new Promise<boolean>((resolve) => {
+                chrome.storage.local.get([STORAGE_KEYS.IDB_MIGRATED], (r) => resolve(!!r[STORAGE_KEYS.IDB_MIGRATED]));
+            });
+        } catch {
+            return false;
+        }
+    }
+
+    private async sendDbMessage<T = any>(type: string, payload?: any): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            try {
+                chrome.runtime.sendMessage({ type, payload }, (resp) => {
+                    const lastErr = chrome.runtime.lastError;
+                    if (lastErr) {
+                        reject(new Error(lastErr.message || 'runtime error'));
+                        return;
+                    }
+                    if (!resp || resp.success !== true) {
+                        reject(new Error(resp?.error || 'db error'));
+                        return;
+                    }
+                    resolve(resp as T);
+                });
+            } catch (e: any) {
+                reject(e);
+            }
+        });
+    }
+
+    private parseListsFromHTML(html: string): ListPageItem[] {
+        const items: ListPageItem[] = [];
+        try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nodes = Array.from(doc.querySelectorAll('#lists li.list-item, li.list-item'));
+            for (const li of nodes) {
+                let id = '';
+                const rawId = String((li as HTMLElement).id || '').trim();
+                if (rawId.startsWith('list-')) {
+                    id = rawId.slice('list-'.length).trim();
+                }
+                if (!id) {
+                    const a = li.querySelector('a[href^="/lists/"]') as HTMLAnchorElement | null;
+                    const href = a?.getAttribute('href') || '';
+                    const m = href.match(/^\/lists\/([^/?#]+)$/);
+                    if (m) id = String(m[1] || '').trim();
+                }
+
+                const name = String(li.querySelector('.list-name')?.textContent || '').trim();
+                const metaRaw = String(li.querySelector('.meta')?.textContent || '')
+                    .replace(/\s+/g, ' ')
+                    .replace(/，/g, ',')
+                    .trim();
+
+                let moviesCount: number | undefined;
+                let clickedCount: number | undefined;
+
+                const mc = metaRaw.match(/(\d+)\s*部影片/);
+                if (mc) moviesCount = Number(mc[1]);
+                const cc = metaRaw.match(/點擊了\s*(\d+)\s*次/);
+                if (cc) clickedCount = Number(cc[1]);
+                if (!cc) {
+                    const cc2 = metaRaw.match(/(\d+)\s*次/);
+                    if (cc2) clickedCount = Number(cc2[1]);
+                }
+
+                if (id && name) {
+                    items.push({ id, name, moviesCount, clickedCount });
+                }
+            }
+        } catch {
+            return items;
+        }
+        return items;
+    }
+
+    private parseUrlVideoIdsFromListHTML(html: string): string[] {
+        const ids: string[] = [];
+        const seen = new Set<string>();
+        const hrefRegex = /href="\/v\/([a-zA-Z0-9\-_]+)"(?![^>]*reviews)/g;
+        let m: RegExpExecArray | null;
+        while ((m = hrefRegex.exec(html)) !== null) {
+            const urlId = m[1];
+            if (urlId && !seen.has(urlId)) {
+                seen.add(urlId);
+                ids.push(urlId);
+            }
+        }
+        return ids;
+    }
+
+    private async syncUserLists(
+        userProfile: UserProfile,
+        _config: SyncConfig,
+        onProgress?: (progress: any) => void,
+        abortSignal?: AbortSignal
+    ): Promise<SyncResponseData> {
+        const settings = await getSettings();
+        const requestInterval = settings.dataSync.requestInterval * 1000;
+
+        const now = Date.now();
+        let syncedCount = 0;
+        let skippedCount = 0;
+        let errorCount = 0;
+        let newRecords = 0;
+        let updatedRecords = 0;
+
+        const migrated = await this.isIDBMigrated();
+        const videoToLists = new Map<string, Set<string>>();
+        const seenListIds = new Set<string>();
+
+        const listRecords: ListRecord[] = [];
+        const listIndex: Array<{ id: string; moviesCount?: number }> = [];
+
+        const fetchListIndex = async (type: 'mine' | 'favorite', baseUrl: string): Promise<void> => {
+            for (let page = 1; page <= 50; page++) {
+                if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+                const url = `${baseUrl}?page=${page}`;
+                const res = await this.fetchWithRetry(url, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                const html = await res.text();
+                const items = this.parseListsFromHTML(html);
+                if (items.length === 0) {
+                    // 第 1 页就为空：很可能未登录或页面结构变化
+                    if (page === 1) {
+                        throw new Error('未能解析到任何清单数据，可能未登录或页面结构已变化');
+                    }
+                    break;
+                }
+                for (const it of items) {
+                    if (seenListIds.has(it.id)) continue;
+                    seenListIds.add(it.id);
+                    listIndex.push({ id: it.id, moviesCount: it.moviesCount });
+                    listRecords.push({
+                        id: it.id,
+                        name: it.name,
+                        type,
+                        url: `https://javdb.com/lists/${it.id}`,
+                        moviesCount: it.moviesCount,
+                        clickedCount: it.clickedCount,
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                }
+
+                onProgress?.({
+                    percentage: 0,
+                    message: `获取清单列表（${type === 'mine' ? '我的' : '收藏'}）第 ${page} 页...`,
+                    stage: 'pages'
+                });
+
+                await this.delay(500);
+            }
+        };
+
+        logAsync('INFO', '开始同步清单列表', { user: userProfile.username });
+        await fetchListIndex('mine', 'https://javdb.com/users/lists');
+        await fetchListIndex('favorite', 'https://javdb.com/users/favorite_lists');
+
+        // 写入 lists store（最佳努力）
+        try {
+            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: listRecords });
+        } catch (e: any) {
+            logAsync('WARN', '写入 lists 表失败（不阻断清单影片同步）', { error: e?.message });
+        }
+
+        if (listIndex.length === 0) {
+            return {
+                success: true,
+                syncedCount: 0,
+                skippedCount: 0,
+                errorCount: 0,
+                newRecords: 0,
+                updatedRecords: 0,
+                message: '没有找到任何清单'
+            };
+        }
+
+        // 同步每个清单的影片
+        let processedLists = 0;
+        for (const li of listIndex) {
+            processedLists++;
+            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+
+            const approxPages = li.moviesCount ? Math.max(1, Math.ceil(li.moviesCount / 20)) : 50;
+            for (let page = 1; page <= approxPages; page++) {
+                if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+
+                const listUrl = `https://javdb.com/lists/${li.id}?page=${page}`;
+                const res = await this.fetchWithRetry(listUrl, { method: 'GET', credentials: 'include' });
+                if (!res.ok) {
+                    errorCount++;
+                    break;
+                }
+                const html = await res.text();
+                const urlIds = this.parseUrlVideoIdsFromListHTML(html);
+                if (urlIds.length === 0) {
+                    // 没有影片则认为到底
+                    break;
+                }
+
+                onProgress?.({
+                    current: processedLists,
+                    total: listIndex.length,
+                    percentage: Math.round((processedLists / listIndex.length) * 100),
+                    message: `同步清单影片：${processedLists}/${listIndex.length}（${li.id} 第${page}页）...`,
+                    stage: 'pages'
+                });
+
+                for (let i = 0; i < urlIds.length; i++) {
+                    if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+                    const urlVideoId = urlIds[i];
+                    try {
+                        const videoDetail = await this.fetchVideoDetail(urlVideoId);
+                        if (!videoDetail) {
+                            errorCount++;
+                            continue;
+                        }
+                        const realVideoId = videoDetail.id || urlVideoId;
+
+                        // 汇总远端归属
+                        const set = videoToLists.get(realVideoId) || new Set<string>();
+                        set.add(li.id);
+                        videoToLists.set(realVideoId, set);
+
+                        // 先确保影片存在于番号库
+                        let existed = false;
+                        let currentRecord: VideoRecord | undefined;
+                        if (migrated) {
+                            try {
+                                const resp = await this.sendDbMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id: realVideoId });
+                                // @ts-ignore
+                                currentRecord = (resp as any).record;
+                                existed = !!currentRecord;
+                            } catch {
+                                existed = false;
+                            }
+                        } else {
+                            const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                            currentRecord = all[realVideoId];
+                            existed = !!currentRecord;
+                        }
+
+                        if (!existed) {
+                            const record: VideoRecord = {
+                                id: realVideoId,
+                                title: videoDetail.title || '',
+                                status: VIDEO_STATUS.UNTRACKED as any,
+                                tags: videoDetail.tags || [],
+                                createdAt: now,
+                                updatedAt: now,
+                                releaseDate: videoDetail.releaseDate,
+                                javdbUrl: `https://javdb.com/v/${urlVideoId}`,
+                                javdbImage: videoDetail.javdbImage,
+                                listIds: [li.id]
+                            };
+                            await dbViewedPut(record);
+                            newRecords++;
+                        } else {
+                            updatedRecords++;
+                        }
+
+                        syncedCount++;
+
+                        onProgress?.({
+                            current: syncedCount,
+                            total: syncedCount,
+                            percentage: 0,
+                            message: `已处理 ${syncedCount} 部影片...`,
+                            stage: 'details'
+                        });
+                    } catch (e: any) {
+                        errorCount++;
+                        logAsync('ERROR', '同步清单影片失败', { listId: li.id, urlVideoId, error: e?.message });
+                    }
+
+                    if (i < urlIds.length - 1) {
+                        await this.delay(requestInterval);
+                    }
+                }
+
+                // 页面间隔
+                await this.delay(500);
+            }
+        }
+
+        // 归属“以远端为准”：对已同步到的影片进行覆盖写入
+        for (const [videoId, set] of videoToLists.entries()) {
+            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+            try {
+                let record: VideoRecord | undefined;
+                if (migrated) {
+                    const resp = await this.sendDbMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id: videoId });
+                    // @ts-ignore
+                    record = (resp as any).record;
+                } else {
+                    const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                    record = all[videoId];
+                }
+                if (!record) {
+                    skippedCount++;
+                    continue;
+                }
+                record.listIds = Array.from(set);
+                record.updatedAt = Date.now();
+                await dbViewedPut(record);
+            } catch (e: any) {
+                // 覆盖失败时不要误删，本次不阻断
+                errorCount++;
+            }
+        }
+
+        return {
+            success: true,
+            syncedCount,
+            skippedCount,
+            errorCount,
+            newRecords,
+            updatedRecords,
+            message: `清单同步完成：影片 ${syncedCount}，清单 ${listIndex.length}`
+        };
     }
 }
 

@@ -3,7 +3,7 @@
  */
 
 // 同步类型
-export type SyncType = 'all' | 'viewed' | 'want' | 'actors' | 'actors-gender';
+export type SyncType = 'all' | 'viewed' | 'want' | 'actors' | 'actors-gender' | 'lists';
 
 // 同步模式（用于已观看、想看和演员同步）
 export type SyncMode = 'full' | 'incremental' | 'basic' | 'gender';
@@ -85,6 +85,15 @@ export const SYNC_OPTIONS: SyncOption[] = [
         icon: 'fas fa-users',
         color: '#6f42c1',
         enabled: true
+    },
+    {
+        id: 'syncListsData',
+        type: 'lists',
+        title: '同步清单',
+        description: '我的清单 + 收藏的清单',
+        icon: 'fas fa-sync-alt',
+        color: '#17a2b8',
+        enabled: true
     }
 ];
 
@@ -132,6 +141,7 @@ export function isSyncTypeSupported(type: SyncType): boolean {
         case 'want':
         case 'actors':
         case 'actors-gender':
+        case 'lists':
             return true; // 演员同步和性别更新已实现
         default:
             return false;
@@ -164,5 +174,5 @@ export function getEnabledSyncOptions(): SyncOption[] {
  * 验证同步类型是否有效
  */
 export function isValidSyncType(type: string): type is SyncType {
-    return ['all', 'viewed', 'want', 'actors'].includes(type);
+    return ['all', 'viewed', 'want', 'actors', 'lists'].includes(type);
 }
