@@ -22,6 +22,22 @@ function byteSizeOf(value: any): number {
   }
 }
 
+let webdavAutoUploadInProgress = false;
+
+export async function triggerWebDAVAutoUpload(): Promise<void> {
+  if (webdavAutoUploadInProgress) return;
+  webdavAutoUploadInProgress = true;
+  try {
+    const settings = await getSettings();
+    const webdav = settings?.webdav as any;
+    if (!webdav?.enabled || !webdav?.autoSync) return;
+    if (!webdav?.url || !webdav?.username || !webdav?.password) return;
+    await performUpload();
+  } finally {
+    webdavAutoUploadInProgress = false;
+  }
+}
+
 // ----- 恢复相关工具函数与常量 -----
 const RESTORE_BATCH_SIZE = 1000; // 默认批量写入大小
 let restoreInProgress = false;   // 简单并发锁，避免并发恢复

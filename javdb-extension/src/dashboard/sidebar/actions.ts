@@ -7,13 +7,17 @@ import { STORAGE_KEYS } from '../../utils/config';
 import { showWebDAVRestoreModal } from '../webdavRestore';
 import { showImportModal } from '../import';
 
-function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: HTMLDivElement, lastSync: string): void {
+const WEBDAV_WARN_LAST_AT_KEY = 'webdav-warn-last-at';
+const WEBDAV_WARN_THROTTLE_MS = 6 * 60 * 60 * 1000;
+
+function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: HTMLDivElement, lastSync: string, warningDays: number): void {
   if (lastSync) {
     const syncDate = new Date(lastSync);
     const now = new Date();
-    const diffMs = now.getTime() - syncDate.getTime();
+    const rawDiffMs = now.getTime() - syncDate.getTime();
+    const diffMs = Number.isFinite(rawDiffMs) ? Math.max(0, rawDiffMs) : 0;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
     let timeText = '';
     if (diffDays > 0) timeText = `${diffDays}天前`;
     else if (diffHours > 0) timeText = `${diffHours}小时前`;
@@ -21,7 +25,7 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
     lastSyncTimeElement.textContent = timeText;
     lastSyncTimeElement.title = syncDate.toLocaleString('zh-CN');
     syncIndicator.className = 'sync-indicator';
-    if (diffDays > 7) {
+    if (warningDays > 0 && diffDays > warningDays) {
       syncIndicator.classList.add('error');
       (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '需要同步';
     } else if (diffDays > 1) {
@@ -37,7 +41,21 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
     syncIndicator.className = 'sync-indicator';
     const text = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
     if (text) text.textContent = '未同步';
+    if (warningDays > 0) {
+      syncIndicator.classList.add('error');
+    }
   }
+}
+
+async function maybeWarnStaleBackup(diffDays: number, warningDays: number): Promise<void> {
+  try {
+    if (!(warningDays > 0 && diffDays > warningDays)) return;
+    const now = Date.now();
+    const lastAt = await getValue<number>(WEBDAV_WARN_LAST_AT_KEY, 0);
+    if (typeof lastAt === 'number' && lastAt > 0 && lastAt <= now && now - lastAt < WEBDAV_WARN_THROTTLE_MS) return;
+    showMessage(`⚠️ WebDAV 已超过 ${diffDays} 天未备份，建议尽快同步`, 'warn');
+    await setValue(WEBDAV_WARN_LAST_AT_KEY, now);
+  } catch {}
 }
 
 export function updateSyncStatus(): void {
@@ -47,11 +65,17 @@ export function updateSyncStatus(): void {
     const syncIndicator = document.getElementById('syncIndicator') as HTMLDivElement;
     const webdavSettings = STATE.settings?.webdav || {};
     const lastSync = webdavSettings.lastSync || '';
+    const warningDays = Number(webdavSettings.warningDays ?? 7);
     if (lastSyncTimeElement && syncIndicator) {
-      updateSyncDisplay(lastSyncTimeElement, syncIndicator, lastSync);
+      updateSyncDisplay(lastSyncTimeElement, syncIndicator, lastSync, Number.isFinite(warningDays) ? warningDays : 7);
     }
     if (lastSyncTimeSettings) {
       lastSyncTimeSettings.textContent = lastSync ? new Date(lastSync).toLocaleString('zh-CN') : '从未';
+    }
+    if (lastSync && Number.isFinite(warningDays) && warningDays > 0) {
+      const diffMs = Date.now() - new Date(lastSync).getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      maybeWarnStaleBackup(diffDays, warningDays).catch(() => {});
     }
   } catch (error) {
     console.error('更新同步状态时出错:', error);

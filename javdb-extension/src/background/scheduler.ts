@@ -2,8 +2,10 @@ import { insViewsRange, insReportsGet, insReportsPut } from './db';
 import { aggregateMonthly } from '../services/insights/aggregator';
 import { generateReportHTML } from '../services/insights/reportGenerator';
 import { getSettings } from '../utils/storage';
+import { triggerWebDAVAutoUpload } from './webdav';
 
 export const INSIGHTS_ALARM = "insights-monthly";
+export const WEBDAV_SYNC_ALARM = 'webdav-auto-sync';
 
 export interface SchedulerSettings {
   enabled: boolean;
@@ -129,6 +131,12 @@ export function registerMonthlyAlarm(settings: SchedulerSettings = { enabled: tr
 }
 
 export function handleAlarm(name: string): void {
+  if (name === WEBDAV_SYNC_ALARM) {
+    try {
+      triggerWebDAVAutoUpload().catch(() => {});
+    } catch {}
+    return;
+  }
   if (name !== INSIGHTS_ALARM) return;
   try {
     const d = new Date();
