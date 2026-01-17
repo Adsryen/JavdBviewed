@@ -32,12 +32,18 @@
     align-items: start;
 }
 
+#tab-records .card {
+    position: relative;
+}
+
 /* 番号库顶部工具栏：重构为两行布局 */
 .search-and-filter.records-toolbar {
     display: flex;
     flex-direction: column;
     gap: 12px;
     align-items: stretch;
+    position: relative;
+    z-index: 950;
 }
 
 .search-and-filter.records-toolbar .search-row {
@@ -294,6 +300,17 @@
     gap: 8px;
 }
 
+.dropdown-backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 900;
+    display: none;
+}
+
 #tagsFilterInput {
     padding: 10px 15px;
     border: 1px solid var(--border-color);
@@ -305,6 +322,18 @@
     position: relative;
 }
 
+ #listsFilterInput {
+     padding: 10px 15px;
+     border: 1px solid var(--border-color);
+     border-radius: var(--border-radius);
+     font-size: 14px;
+     background-color: var(--background-color);
+     color: var(--text-color);
+     cursor: pointer;
+     position: relative;
+     width: 100%;
+ }
+
 #tagsFilterInput::after {
     content: "▼";
     position: absolute;
@@ -313,6 +342,15 @@
     transform: translateY(-50%);
     pointer-events: none;
 }
+
+ #listsFilterInput::after {
+     content: "▼";
+     position: absolute;
+     right: 15px;
+     top: 50%;
+     transform: translateY(-50%);
+     pointer-events: none;
+ }
 
 .tags-dropdown {
     position: absolute;
@@ -324,7 +362,7 @@
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
-    max-height: 300px;
+    max-height: 240px;
     overflow: hidden;
 }
 
@@ -397,6 +435,14 @@
     opacity: 0.7;
     transition: opacity 0.2s;
 }
+
+ .selected-tag .remove-tag {
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     min-width: 18px;
+     min-height: 18px;
+ }
 
 .selected-tag .remove-tag:hover {
     opacity: 1;

@@ -21,6 +21,21 @@ export function initRecordsTab(): void {
     const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
 
+    // 兜底：有些旧版本 HTML/缓存可能缺少“未标记”选项，这里确保一定存在
+    try {
+        if (filterSelect && !Array.from(filterSelect.options || []).some(opt => opt.value === VIDEO_STATUS.UNTRACKED)) {
+            const opt = document.createElement('option');
+            opt.value = VIDEO_STATUS.UNTRACKED;
+            opt.textContent = '未标记';
+            const viewedOpt = Array.from(filterSelect.options || []).find(o => o.value === VIDEO_STATUS.VIEWED);
+            if (viewedOpt) {
+                filterSelect.insertBefore(opt, viewedOpt);
+            } else {
+                filterSelect.appendChild(opt);
+            }
+        }
+    } catch {}
+
     // Tags filter elements
     const tagsFilterInput = document.getElementById('tagsFilterInput') as HTMLInputElement;
     const tagsFilterDropdown = document.getElementById('tagsFilterDropdown') as HTMLElement;
@@ -35,7 +50,6 @@ export function initRecordsTab(): void {
     const selectedListsContainer = document.getElementById('selectedListsContainer') as HTMLElement;
 
     // Advanced search elements
-    const advPanel = document.getElementById('advancedSearchPanel') as HTMLDivElement;
     const advAddBtn = document.getElementById('addConditionBtn') as HTMLButtonElement;
     const advApplyBtn = document.getElementById('applyConditionsBtn') as HTMLButtonElement;
     const advResetBtn = document.getElementById('resetConditionsBtn') as HTMLButtonElement;
@@ -87,7 +101,6 @@ export function initRecordsTab(): void {
     let tokenSelectedTags = new Set<string>();
     let allTags = new Set<string>();
     let allTagsStale = true;
-    const markAllTagsStale = () => { allTagsStale = true; };
 
     let selectedListIds = new Set<string>();
     let tokenSelectedListIds = new Set<string>();
@@ -258,6 +271,7 @@ export function initRecordsTab(): void {
         const listNames: string[] = [];
         const remains: string[] = [];
         const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+
         for (const p of parts) {
             if (/^#/.test(p)) {
                 const t = p.replace(/^#/, '').trim();
@@ -282,6 +296,25 @@ export function initRecordsTab(): void {
             remains.push(p);
         }
         return { text: remains.join(' ').trim(), tags, listIds, listNames };
+    }
+
+    function removeListIdTokenFromSearchInput(raw: string, listId: string): string {
+        const parts = String(raw || '').split(/\s+/).filter(Boolean);
+        const idLower = String(listId || '').toLowerCase();
+        const out: string[] = [];
+        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+        for (const p of parts) {
+            if (/^listid:/i.test(p)) {
+                const t = p.replace(/^listid:/i, '').trim();
+                if (!t) continue;
+                const ids = splitMulti(t);
+                const remain = ids.filter(x => String(x).toLowerCase() !== idLower);
+                if (remain.length > 0) out.push(`listid:${remain.join(',')}`);
+                continue;
+            }
+            out.push(p);
+        }
+        return out.join(' ').trim();
     }
 
     // 更新“显示封面”按钮文案
@@ -1619,6 +1652,55 @@ export function initRecordsTab(): void {
         });
     }
 
+    let dropdownBackdrop: HTMLDivElement | null = null;
+    const positionDropdownBackdrop = () => {
+        try {
+            if (!dropdownBackdrop) return;
+            const card = dropdownBackdrop.parentElement as HTMLElement | null;
+            const toolbar = document.querySelector('#tab-records .records-toolbar') as HTMLElement | null;
+            if (!card || !toolbar) {
+                dropdownBackdrop.style.top = '0px';
+                return;
+            }
+            const cardRect = card.getBoundingClientRect();
+            const toolbarRect = toolbar.getBoundingClientRect();
+            const top = Math.max(0, toolbarRect.bottom - cardRect.top);
+            dropdownBackdrop.style.top = `${top}px`;
+        } catch {
+            try { if (dropdownBackdrop) dropdownBackdrop.style.top = '0px'; } catch {}
+        }
+    };
+    const syncDropdownBackdrop = () => {
+        const isOpen = (el: HTMLElement | null | undefined) => {
+            try {
+                if (!el) return false;
+                return window.getComputedStyle(el).display !== 'none';
+            } catch {
+                return false;
+            }
+        };
+
+        const anyOpen = isOpen(tagsFilterDropdown) || isOpen(listsFilterDropdown);
+        if (anyOpen) {
+            if (!dropdownBackdrop) {
+                const el = document.createElement('div');
+                el.className = 'dropdown-backdrop';
+                el.addEventListener('click', () => {
+                    try { tagsFilterDropdown.style.display = 'none'; } catch {}
+                    try { if (listsFilterDropdown) listsFilterDropdown.style.display = 'none'; } catch {}
+                    syncDropdownBackdrop();
+                });
+                const host = (document.querySelector('#tab-records .card') as HTMLElement | null) || document.body;
+                host.appendChild(el);
+                dropdownBackdrop = el;
+            }
+            positionDropdownBackdrop();
+            dropdownBackdrop.style.display = 'block';
+        } else {
+            if (dropdownBackdrop) dropdownBackdrop.style.display = 'none';
+        }
+    };
+
     const triggerSuggest = debounce(() => updateSuggest(), 120);
     const triggerFilter = debounce(() => { currentPage = 1; updateFilteredRecords(); render(); }, 150);
     searchInput.addEventListener('input', () => { triggerSuggest(); triggerFilter(); });
@@ -1768,6 +1850,7 @@ export function initRecordsTab(): void {
             renderTagsFilter();
             tagsSearchInput.focus();
         }
+        syncDropdownBackdrop();
     });
 
     tagsSearchInput.addEventListener('input', (e) => {
@@ -1813,6 +1896,7 @@ export function initRecordsTab(): void {
                 renderListsFilter();
                 try { listsSearchInput?.focus(); } catch {}
             }
+            syncDropdownBackdrop();
         });
     }
 
@@ -1845,6 +1929,14 @@ export function initRecordsTab(): void {
             if (removeBtn) {
                 const id = removeBtn.getAttribute('data-list-id');
                 if (id) {
+                    // 如果该清单来自 searchInput 的 token（listid:xxx），只删 selectedListIds 会被 updateFilteredRecords 再次加回
+                    try {
+                        if (tokenSelectedListIds.has(String(id))) {
+                            searchInput.value = removeListIdTokenFromSearchInput(searchInput.value, String(id));
+                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            return;
+                        }
+                    } catch {}
                     selectedListIds.delete(id);
                     refreshListsFilterDisplay();
                     currentPage = 1;
@@ -1865,6 +1957,7 @@ export function initRecordsTab(): void {
                 listsFilterDropdown.style.display = 'none';
             }
         }
+        syncDropdownBackdrop();
     });
 
     recordsPerPageSelect.addEventListener('change', () => {
