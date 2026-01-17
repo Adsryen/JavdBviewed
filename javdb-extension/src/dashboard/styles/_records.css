@@ -1,5 +1,6 @@
 
-/* 快捷查询高亮效果 */
+
+/* 快捷查询高亮效果 */
 .highlight-result {
     background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700) !important;
     animation: highlightPulse 3s ease-in-out;
@@ -63,6 +64,10 @@
 .search-and-filter.records-toolbar .filter-row .tags-filter-container {
     flex: 0 0 320px;  /* 缩小标签固定宽度，留更多空间给搜索 */
     min-width: 280px;
+}
+
+.search-and-filter.records-toolbar .filter-row .tags-filter-container {
+    max-width: 360px;
 }
 
 /* 统一控件高度与内边距（仅限记录页工具栏） */
@@ -618,6 +623,37 @@
     background-color: #1976d2;
     color: white;
     border-color: #1976d2;
+}
+
+.video-lists {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+.video-list-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: #f3e8ff;
+    border: 1px solid #e9d5ff;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #6b21a8;
+    line-height: 1.2;
+    user-select: none;
+}
+
+.video-list-more {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #475569;
+    line-height: 1.2;
+    user-select: none;
 }
 
 .video-title {

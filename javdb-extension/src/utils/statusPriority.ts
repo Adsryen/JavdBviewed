@@ -71,6 +71,8 @@ export function getStatusDisplayName(status: VideoStatus): string {
             return '我想看';
         case VIDEO_STATUS.BROWSED:
             return '已浏览';
+        case VIDEO_STATUS.UNTRACKED:
+            return '未标记';
         default:
             return '未知状态';
     }
@@ -85,6 +87,7 @@ export function getStatusesByPriority(): VideoStatus[] {
     return [
         VIDEO_STATUS.VIEWED,  // 优先级 3
         VIDEO_STATUS.WANT,    // 优先级 2
-        VIDEO_STATUS.BROWSED  // 优先级 1
+        VIDEO_STATUS.BROWSED,  // 优先级 1
+        VIDEO_STATUS.UNTRACKED // 优先级 0
     ];
 }
