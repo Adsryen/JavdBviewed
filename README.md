@@ -16,6 +16,160 @@
 
 Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等Jav视频网站设计。它能够在列表页和详情页标记视频的"已浏览"或"我看过"状态，并提供丰富的数据管理功能，包括 WebDAV 同步、数据导入导出、115网盘推送等高级特性。
 
+## ✨ 功能清单
+
+<table>
+  <thead>
+    <tr>
+      <th width="120">功能模块</th>
+      <th width="200">功能名称</th>
+      <th>功能描述</th>
+      <th width="80">状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="4"><strong>🎯 视频标记</strong></td>
+      <td>已浏览标记</td>
+      <td>自动记录访问过的视频详情页，在列表中显示标记</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>已观看标记</td>
+      <td>手动标记已观看的视频，支持快捷操作</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>想看标记</td>
+      <td>标记感兴趣但未观看的视频，建立观看清单</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>优先级显示</td>
+      <td>智能显示最重要的状态标记，避免信息冗余</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>📚 数据管理</strong></td>
+      <td>番号库管理</td>
+      <td>管理和查看已标记的视频番号，支持搜索和筛选</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>演员库管理</td>
+      <td>演员信息管理和分类，快速查找演员作品</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>数据导入导出</td>
+      <td>支持 JSON 格式的数据备份和恢复</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>统计信息</td>
+      <td>显示观看统计和数据概览，了解使用情况</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>☁️ 云端同步</strong></td>
+      <td>WebDAV 同步</td>
+      <td>支持坚果云、TeraCloud、Yandex 等主流服务</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>自动同步</td>
+      <td>定时自动同步数据到云端，保持多设备一致</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>冲突解决</td>
+      <td>智能处理多设备间的数据冲突</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>备份恢复</td>
+      <td>完整的数据备份和恢复机制</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>💾 115网盘</strong></td>
+      <td>一键推送</td>
+      <td>在视频详情页直接推送磁力链接到115网盘</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>自动标记</td>
+      <td>推送成功后自动标记视频为已观看</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>智能验证</td>
+      <td>自动处理115网盘的验证码流程</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>批量推送</td>
+      <td>支持快速连续推送多个磁力链接</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td rowspan="4"><strong>🎨 界面增强</strong></td>
+      <td>列表页标记</td>
+      <td>在视频列表中直观显示观看状态</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>详情页操作</td>
+      <td>在视频详情页快速标记状态</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>自定义样式</td>
+      <td>可自定义标记颜色和显示样式</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>隐藏功能</td>
+      <td>可选择隐藏已观看的视频，保持列表清爽</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td rowspan="3"><strong>🆕 新作品</strong></td>
+      <td>新作品监控</td>
+      <td>自动监控和订阅感兴趣的新发布内容</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>智能过滤</td>
+      <td>根据演员库和标签自动过滤新作品</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>批量操作</td>
+      <td>批量打开、标记新作品</td>
+      <td>🚧</td>
+    </tr>
+    <tr>
+      <td rowspan="3"><strong>🔧 其他功能</strong></td>
+      <td>操作日志</td>
+      <td>详细的操作记录和系统状态信息</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>快捷键支持</td>
+      <td>支持键盘快捷键快速操作</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td>多浏览器支持</td>
+      <td>支持 Chrome、Edge 等主流浏览器</td>
+      <td>✅</td>
+    </tr>
+  </tbody>
+</table>
+
+**图例说明**：✅ 已实现 | 🚧 开发中 | 📋 计划中
+
 ## 🖼️ 界面预览
 
 ### 番号库管理
@@ -380,6 +534,18 @@ try {
    npm run build
    ```
 3. 创建 GitHub Release 并上传 zip 文件
+
+## � 开发计划
+
+查看详细的开发计划和待办事项：[Todo 计划](javdb-extension/todo/todo.md)
+
+### 近期重点
+
+- 🔐 **115 功能优化**: refreshtoken 自动刷新机制
+- ⚡ **功能增强**: 智能内容过滤、磁力资源搜索优化
+- 🆕 **新作品管理**: 批量操作和智能过滤
+- ☁️ **WebDAV 改进**: 备份预警和自动上传修复
+- 🎬 **番号库增强**: 一键标记和状态同步
 
 ## 📄 许可证
 
