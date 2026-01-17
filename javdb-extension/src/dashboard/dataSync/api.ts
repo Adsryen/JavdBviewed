@@ -58,6 +58,27 @@ export class ApiClient {
         this.retryDelay = config.retryDelay ?? 1000;
     }
 
+    private getOriginFromUrl(url: string): string {
+        try {
+            const u = new URL(String(url));
+            return u.origin;
+        } catch {
+            return 'https://javdb.com';
+        }
+    }
+
+    private async getPreferredJavdbOrigin(): Promise<string> {
+        try {
+            const settings = await getSettings();
+            const urls: any = settings?.dataSync?.urls || {};
+            const candidate = String(urls.wantWatch || urls.watchedVideos || urls.collectionActors || '').trim();
+            if (candidate) return this.getOriginFromUrl(candidate);
+        } catch {
+            // ignore
+        }
+        return 'https://javdb.com';
+    }
+
     /**
      * 同步数据到服务器
      */
@@ -592,7 +613,7 @@ export class ApiClient {
             throw error;
         }
     }
-    
+
     /**
      * 从页面HTML中解析视频数据（URL ID和真实番号）
      */
@@ -652,12 +673,13 @@ export class ApiClient {
             return [];
         }
     }
-    
+
     /**
      * 获取视频详情
      */
     private async fetchVideoDetail(urlVideoId: string): Promise<Partial<VideoRecord> | null> {
-        const detailUrl = `https://javdb.com/v/${urlVideoId}`;
+        const origin = await this.getPreferredJavdbOrigin();
+        const detailUrl = `${origin}/v/${urlVideoId}`;
         logAsync('INFO', `获取视频详情: ${urlVideoId}`, { detailUrl });
 
         try {
@@ -876,12 +898,23 @@ export class ApiClient {
                 logAsync('WARN', `未找到封面图片: ${urlVideoId}`);
             }
 
+            // 从页面中推断 origin（兼容镜像站），避免写死 javdb.com
+            const inferredOrigin = (() => {
+                try {
+                    const m1 = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["'][^>]*>/i);
+                    const m2 = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["'][^>]*>/i);
+                    const url = (m1 && m1[1]) || (m2 && m2[1]) || '';
+                    if (url) return this.getOriginFromUrl(url);
+                } catch {}
+                return 'https://javdb.com';
+            })();
+
             const videoData: Partial<VideoRecord> = {
                 id: videoId, // 返回真正的视频ID
                 title,
                 tags,
                 releaseDate,
-                javdbUrl: `https://javdb.com/v/${urlVideoId}`,
+                javdbUrl: `${inferredOrigin}/v/${urlVideoId}`,
                 javdbImage
             };
 
@@ -1162,6 +1195,8 @@ export class ApiClient {
         const settings = await getSettings();
         const requestInterval = settings.dataSync.requestInterval * 1000;
 
+        const origin = this.getOriginFromUrl(String(settings?.dataSync?.urls?.wantWatch || settings?.dataSync?.urls?.watchedVideos || 'https://javdb.com'));
+
         const now = Date.now();
         let syncedCount = 0;
         let skippedCount = 0;
@@ -1202,7 +1237,7 @@ export class ApiClient {
                         id: it.id,
                         name: it.name,
                         type,
-                        url: `https://javdb.com/lists/${it.id}`,
+                        url: `${origin}/lists/${it.id}`,
                         moviesCount: it.moviesCount,
                         clickedCount: it.clickedCount,
                         createdAt: now,
@@ -1221,8 +1256,8 @@ export class ApiClient {
         };
 
         logAsync('INFO', '开始同步清单列表', { user: userProfile.username });
-        await fetchListIndex('mine', 'https://javdb.com/users/lists');
-        await fetchListIndex('favorite', 'https://javdb.com/users/favorite_lists');
+        await fetchListIndex('mine', `${origin}/users/lists`);
+        await fetchListIndex('favorite', `${origin}/users/favorite_lists`);
 
         // 写入 lists store（最佳努力）
         try {
@@ -1253,13 +1288,30 @@ export class ApiClient {
             for (let page = 1; page <= approxPages; page++) {
                 if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
 
-                const listUrl = `https://javdb.com/lists/${li.id}?page=${page}`;
+                const listUrl = `${origin}/lists/${li.id}?page=${page}`;
                 const res = await this.fetchWithRetry(listUrl, { method: 'GET', credentials: 'include' });
                 if (!res.ok) {
                     errorCount++;
                     break;
                 }
+                // 防止被重定向到首页/登录页等导致误解析 /v/
+                try {
+                    const finalUrl = String((res as any).url || '');
+                    if (finalUrl && !finalUrl.includes(`/lists/${li.id}`)) {
+                        errorCount++;
+                        break;
+                    }
+                } catch {}
                 const html = await res.text();
+                try {
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const hasVideos = doc.querySelectorAll('#videos .item, #videos .movie-list .item, .movie-list .item').length > 0;
+                    const hasListHint = html.includes(`/lists/${li.id}`);
+                    if (!hasVideos && !hasListHint) {
+                        errorCount++;
+                        break;
+                    }
+                } catch {}
                 const urlIds = this.parseUrlVideoIdsFromListHTML(html);
                 if (urlIds.length === 0) {
                     // 没有影片则认为到底
@@ -1317,7 +1369,7 @@ export class ApiClient {
                                 createdAt: now,
                                 updatedAt: now,
                                 releaseDate: videoDetail.releaseDate,
-                                javdbUrl: `https://javdb.com/v/${urlVideoId}`,
+                                javdbUrl: `${origin}/v/${urlVideoId}`,
                                 javdbImage: videoDetail.javdbImage,
                                 listIds: [li.id]
                             };
