@@ -20,6 +20,13 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
       './styles/_records.css',
     ],
   },
+  // 清单
+  'tab-lists': {
+    name: 'tabs/lists.html',
+    styles: [
+      './styles/_lists.css',
+    ],
+  },
   // 演员库
   'tab-actors': {
     name: 'tabs/actors.html',
