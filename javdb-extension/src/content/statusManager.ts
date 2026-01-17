@@ -63,6 +63,8 @@ export function updateFaviconForStatus(status: string | null): void {
     let targetState: 'original' | 'viewed' | 'want' | 'browsed';
     if (!status) {
         targetState = 'original';
+    } else if (status === VIDEO_STATUS.UNTRACKED) {
+        targetState = 'original';
     } else if (status === VIDEO_STATUS.VIEWED) {
         targetState = 'viewed';
     } else if (status === VIDEO_STATUS.WANT) {
@@ -119,6 +121,9 @@ export function updatePageTitleWithStatus(_videoId: string, status: string): voi
             break;
         case VIDEO_STATUS.BROWSED:
             statusText = '[已浏览]';
+            break;
+        case VIDEO_STATUS.UNTRACKED:
+            statusText = '';
             break;
     }
 

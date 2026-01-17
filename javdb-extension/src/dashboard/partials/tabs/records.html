@@ -11,6 +11,7 @@
         <div class="search-row">
             <select id="filterSelect">
                 <option value="all">所有状态</option>
+                <option value="untracked">未标记</option>
                 <option value="viewed">已观看</option>
                 <option value="browsed">已浏览</option>
                 <option value="want">我想看</option>
@@ -52,6 +53,20 @@
                     <!-- 已选择的标签将由 JS 动态填充 -->
                 </div>
             </div>
+            <div class="tags-filter-container">
+                <input type="text" id="listsFilterInput" placeholder="筛选清单..." readonly>
+                <div id="listsFilterDropdown" class="tags-dropdown" style="display: none;">
+                    <div class="tags-search-box">
+                        <input type="text" id="listsSearchInput" placeholder="输入清单名称...">
+                    </div>
+                    <div id="listsFilterList" class="tags-list">
+                        <!-- 清单列表将由 JS 动态填充 -->
+                    </div>
+                </div>
+                <div id="selectedListsContainer" class="selected-tags">
+                    <!-- 已选择的清单将由 JS 动态填充 -->
+                </div>
+            </div>
             <div class="search-input-wrapper">
                 <input
                     type="text"
@@ -66,6 +81,7 @@
                     <div class="help-title">高级用法</div>
                     <ul class="help-list">
                         <li>标签：如 <b>tag:中出</b>、<b>tags:中出,素人</b>、<b>#人妻</b></li>
+                        <li>清单：如 <b>list:精选</b>、<b>listid:VwR3aD</b>（会自动同步到清单筛选）</li>
                         <li>多标签 AND：空格/逗号/分号 分隔</li>
                         <li>同时匹配：番号 / 标题 / 标签</li>
                         <li>可与右侧状态、排序、分页共同使用</li>
