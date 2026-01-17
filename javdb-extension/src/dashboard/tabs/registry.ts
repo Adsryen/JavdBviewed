@@ -10,6 +10,11 @@ export async function initializeTabById(tabId: string | null | undefined): Promi
         await initRecordsTab();
         break;
       }
+      case 'tab-lists': {
+        const { listsTab } = await import('./lists');
+        if (!listsTab.isInitialized) await listsTab.initialize();
+        break;
+      }
       case 'tab-actors': {
         const { actorsTab } = await import('./actors');
         if (!actorsTab.isInitialized) await actorsTab.initActorsTab();
@@ -65,6 +70,9 @@ export async function prefetchModuleById(tabId: string | null | undefined): Prom
     switch (tabId) {
       case 'tab-records':
         await import('./records');
+        break;
+      case 'tab-lists':
+        await import('./lists');
         break;
       case 'tab-actors':
         await import('./actors');
