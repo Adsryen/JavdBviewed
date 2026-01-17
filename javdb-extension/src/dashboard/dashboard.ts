@@ -340,7 +340,14 @@ function initInfoContainer(): void {
     const infoContainer = document.getElementById('versionInfoSidebar') || document.getElementById('infoContainer');
     if (!infoContainer) return;
 
-    const version = import.meta.env.VITE_APP_VERSION || 'N/A';
+    let manifestVersion = '';
+    try {
+        manifestVersion = chrome?.runtime?.getManifest?.().version || '';
+    } catch {}
+
+    const envVersion = import.meta.env.VITE_APP_VERSION || '';
+    const version = manifestVersion || envVersion || 'N/A';
+    const buildId = import.meta.env.VITE_APP_BUILD_ID || '';
     const versionState = import.meta.env.VITE_APP_VERSION_STATE || 'unknown';
 
     const getStateTitle = (state: string): string => {
@@ -356,11 +363,19 @@ function initInfoContainer(): void {
     }
 };
 
+    const buildLine = buildId
+        ? `
+        <div class="info-item">
+            <span class="info-label">Build:</span>
+            <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${buildId}</span>
+        </div>`
+        : '';
+
     infoContainer.innerHTML = `
         <div class="info-item">
             <span class="info-label">Version:</span>
             <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${version}</span>
-        </div>
+        </div>${buildLine}
     `;
 }
 

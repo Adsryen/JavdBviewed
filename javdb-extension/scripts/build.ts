@@ -3,6 +3,7 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs-extra';
 import archiver from 'archiver';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -14,7 +15,8 @@ async function getVersion() {
     const versionJsonPath = resolve(root, 'version.json');
     if (fs.existsSync(versionJsonPath)) {
         const versionJson = await fs.readJson(versionJsonPath);
-        return versionJson.version;
+        const build = Number(versionJson.build);
+        return Number.isFinite(build) ? `${versionJson.version}.${build}` : versionJson.version;
     }
     // Fallback to package.json
     const packageJsonPath = resolve(root, 'package.json');
@@ -28,6 +30,16 @@ async function getVersion() {
 async function main() {
     try {
         console.log('Starting build process...');
+
+        // 0. Refresh version/build identifiers for this build
+        try {
+            execSync('node --import tsx scripts/version.ts', {
+                cwd: root,
+                stdio: 'inherit',
+            });
+        } catch (e) {
+            console.warn('[build] Failed to refresh build id via scripts/version.ts. Proceeding with existing env/version files.');
+        }
         
         // 1. Run Vite build (it will clean and create the dist directory)
         await build();

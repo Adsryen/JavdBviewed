@@ -13,12 +13,15 @@ function getUpdatedManifest() {
     if (fs.existsSync(versionJsonPath)) {
       const versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
       if (versionData.version) {
-        manifestCopy.version = versionData.version;
-        console.log(`📦 Manifest version synced to: ${versionData.version}`);
+        const build = Number(versionData.build);
+        const manifestVersion = Number.isFinite(build) ? `${versionData.version}.${build}` : `${versionData.version}`;
+        manifestCopy.version = manifestVersion;
+        console.log(`📦 Manifest version synced to: ${manifestVersion}`);
       }
     }
   } catch (error) {
-    console.warn('⚠️  Could not sync manifest version from version.json:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('⚠️  Could not sync manifest version from version.json:', message);
   }
 
   return manifestCopy;
