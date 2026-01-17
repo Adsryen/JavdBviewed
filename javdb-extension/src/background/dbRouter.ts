@@ -1,7 +1,7 @@
 // src/background/dbRouter.ts
 // 抽离 DB 相关消息路由
 
-import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange } from './db';
+import { initDB, viewedPut as idbViewedPut, viewedBulkPut as idbViewedBulkPut, viewedGet as idbViewedGet, viewedCount as idbViewedCount, viewedPage as idbViewedPage, viewedCountByStatus as idbViewedCountByStatus, viewedGetAll as idbViewedGetAll, viewedStats as idbViewedStats, viewedDelete as idbViewedDelete, viewedBulkDelete as idbViewedBulkDelete, viewedQuery as idbViewedQuery, logsAdd as idbLogsAdd, logsBulkAdd as idbLogsBulkAdd, logsQuery as idbLogsQuery, logsClear as idbLogsClear, viewedExportJSON as idbViewedExportJSON, logsExportJSON as idbLogsExportJSON, magnetsUpsertMany as idbMagnetsUpsertMany, magnetsQuery as idbMagnetsQuery, magnetsClearAll as idbMagnetsClearAll, magnetsClearExpired as idbMagnetsClearExpired, actorsPut as idbActorsPut, actorsBulkPut as idbActorsBulkPut, actorsGet as idbActorsGet, actorsDelete as idbActorsDelete, actorsQuery as idbActorsQuery, actorsStats as idbActorsStats, actorsExportJSON as idbActorsExportJSON, newWorksPut as idbNewWorksPut, newWorksBulkPut as idbNewWorksBulkPut, newWorksDelete as idbNewWorksDelete, newWorksGet as idbNewWorksGet, newWorksGetAll as idbNewWorksGetAll, newWorksQuery as idbNewWorksQuery, newWorksStats as idbNewWorksStats, newWorksExportJSON as idbNewWorksExportJSON, insViewsPut, insViewsBulkPut, insViewsRange, insReportsPut, insReportsGet, insReportsList, insReportsDelete, insReportsExportJSON, insReportsImportJSON, trendsRecordsRange, trendsActorsRange, trendsNewWorksRange, listsBulkPut as idbListsBulkPut, listsGetAll as idbListsGetAll } from './db';
 
 export function registerDbMessageRouter(): void {
   try { initDB().catch(() => {}); } catch {}
@@ -25,6 +25,12 @@ export function registerDbMessageRouter(): void {
         idbViewedGetAll().then((records) => sendResponse({ success: true, records }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'idb getAll failed' }));
         return true; // async
+      }
+      if (message.type === 'DB:VIEWED_GET') {
+        const id = message?.payload?.id;
+        idbViewedGet(id).then((record) => sendResponse({ success: true, record }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'idb get failed' }));
+        return true;
       }
       if (message.type === 'DB:VIEWED_COUNT') {
         const status = message?.payload?.status as any;
@@ -210,6 +216,18 @@ export function registerDbMessageRouter(): void {
         const beforeMs = message?.payload?.beforeMs;
         idbMagnetsClearExpired(beforeMs).then((removed) => sendResponse({ success: true, removed }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'magnets clear expired failed' }));
+        return true;
+      }
+      // lists
+      if (message.type === 'DB:LISTS_BULK_PUT') {
+        const records = message?.payload?.records || [];
+        idbListsBulkPut(records).then(() => sendResponse({ success: true }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'lists bulkPut failed' }));
+        return true;
+      }
+      if (message.type === 'DB:LISTS_GET_ALL') {
+        idbListsGetAll().then((records) => sendResponse({ success: true, records }))
+          .catch((e) => sendResponse({ success: false, error: e?.message || 'lists getAll failed' }));
         return true;
       }
       // insights views

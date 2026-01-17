@@ -283,7 +283,7 @@ export interface KeywordFilterRule {
     createdAt?: number;
 }
 
-export type VideoStatus = 'viewed' | 'browsed' | 'want';
+export type VideoStatus = 'viewed' | 'browsed' | 'want' | 'untracked';
 
 /**
  * @deprecated Use VideoRecord instead
@@ -309,6 +309,7 @@ export interface VideoRecord {
   title: string; // 标题
   status: VideoStatus; // 观看状态
   tags: string[]; // 标签
+  listIds?: string[];
   createdAt: number; // 创建时间 (Unix timestamp)
   updatedAt: number; // 最后更新时间 (Unix timestamp)
   releaseDate?: string; // 发行日期 (可选)
@@ -467,6 +468,18 @@ export interface UserServerStats {
   watchedCount: number; // 看过数量
   listsCount?: number; // 清单数量（可选）
   lastSyncTime: number; // 最后同步时间
+}
+
+export interface ListRecord {
+  id: string;
+  name: string;
+  type: 'mine' | 'favorite';
+  url: string;
+  moviesCount?: number;
+  clickedCount?: number;
+  createdAt: number;
+  updatedAt: number;
+  lastSyncAt?: number;
 }
 
 // 新作品功能相关类型定义已移动到 services/newWorks/types.ts

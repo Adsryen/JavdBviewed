@@ -1,7 +1,7 @@
 // src/dashboard/dbClient.ts
 // Dashboard 到后台 Service Worker 的 DB 消息封装
 
-import type { LogEntry, VideoRecord } from '../types';
+import type { LogEntry, VideoRecord, ListRecord } from '../types';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 import type { ActorRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
@@ -97,6 +97,7 @@ export interface ViewedQueryParams {
   search?: string;
   status?: VideoRecord['status'] | 'all';
   tags?: string[];
+  listIds?: string[];
   orderBy?: 'updatedAt' | 'createdAt' | 'id' | 'title';
   order?: 'asc' | 'desc';
   offset?: number;
@@ -122,6 +123,12 @@ export async function dbViewedStats(): Promise<ViewedStats> {
   return resp as ViewedStats;
 }
 
+export async function dbViewedGet(id: string): Promise<VideoRecord | undefined> {
+  const resp = await sendMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id });
+  // @ts-ignore
+  return resp.record;
+}
+
 export async function dbViewedDelete(id: string): Promise<void> {
   await sendMessage('DB:VIEWED_DELETE', { id });
 }
@@ -144,6 +151,12 @@ export async function dbViewedExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:VIEWED_EXPORT');
   // @ts-ignore
   return resp.json || '[]';
+}
+
+export async function dbListsGetAll(): Promise<ListRecord[]> {
+  const resp = await sendMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL');
+  // @ts-ignore
+  return resp.records || [];
 }
 
 // ----- Logs APIs -----
