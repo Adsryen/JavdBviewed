@@ -4,8 +4,17 @@ import type { ExtensionSettings } from '../types';
 function initVersionInfo() {
     const versionContainer = document.getElementById('versionAuthorInfo');
     if (versionContainer) {
-        const version = import.meta.env.VITE_APP_VERSION || 'N/A';
-        versionContainer.textContent = `Version: ${version}`;
+        let manifestVersion = '';
+        try {
+            manifestVersion = chrome?.runtime?.getManifest?.().version || '';
+        } catch {}
+
+        const envVersion = import.meta.env.VITE_APP_VERSION || '';
+        const buildId = import.meta.env.VITE_APP_BUILD_ID || '';
+        const version = manifestVersion || envVersion || 'N/A';
+
+        const buildSuffix = buildId ? `\nBuild: ${buildId}` : '';
+        versionContainer.textContent = `Version: ${version}${buildSuffix}`;
     }
 }
 

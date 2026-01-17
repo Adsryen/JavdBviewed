@@ -30,7 +30,11 @@ export async function initializeGlobalState(): Promise<void> {
         let settingsChanged = false;
 
         // --- Version Sync Logic ---
-        const actualVersion = import.meta.env.VITE_APP_VERSION || 'N/A';
+        let manifestVersion = '';
+        try {
+            manifestVersion = chrome?.runtime?.getManifest?.().version || '';
+        } catch {}
+        const actualVersion = manifestVersion || import.meta.env.VITE_APP_VERSION || 'N/A';
         if (settings.version !== actualVersion) {
             settings.version = actualVersion;
             settingsChanged = true;
