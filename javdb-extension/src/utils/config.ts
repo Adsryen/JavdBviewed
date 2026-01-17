@@ -52,7 +52,8 @@ export const STORAGE_KEYS = {
 export const VIDEO_STATUS = {
     VIEWED: 'viewed', // 已观看
     WANT: 'want',     // 我想看
-    BROWSED: 'browsed' // 已浏览
+    BROWSED: 'browsed', // 已浏览
+    UNTRACKED: 'untracked' // 未标记（仅入库/清单归属等）
 } as const;
 
 // 演员同步默认配置
@@ -178,6 +179,7 @@ export const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
 // 状态优先级定义：数字越大优先级越高
 // 已看 > 想看 > 已浏览
 export const STATUS_PRIORITY = {
+    [VIDEO_STATUS.UNTRACKED]: 0,
     [VIDEO_STATUS.BROWSED]: 1, // 已浏览 - 最低优先级
     [VIDEO_STATUS.WANT]: 2,    // 我想看 - 中等优先级
     [VIDEO_STATUS.VIEWED]: 3   // 已观看 - 最高优先级

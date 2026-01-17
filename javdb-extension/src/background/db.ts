@@ -2,7 +2,7 @@
 // IndexedDB 封装（使用 idb），为大体量数据（如 viewed 番号库）提供高效持久化
 
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
-import type { VideoRecord, ActorRecord, LogEntry } from '../types';
+import type { VideoRecord, ActorRecord, LogEntry, ListRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 import { getSettings, getValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
@@ -135,6 +135,7 @@ export interface ViewedQueryParams {
   search?: string;
   status?: VideoRecord['status'] | 'all';
   tags?: string[];
+  listIds?: string[];
   orderBy?: 'updatedAt' | 'createdAt' | 'id' | 'title';
   order?: 'asc' | 'desc';
   offset?: number;
@@ -143,7 +144,7 @@ export interface ViewedQueryParams {
 }
 
 export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }> {
-  const { search = '', status = 'all', tags = [], orderBy = 'updatedAt', order = 'desc', offset = 0, limit = 50 } = params || {} as any;
+  const { search = '', status = 'all', tags = [], listIds = [], orderBy = 'updatedAt', order = 'desc', offset = 0, limit = 50 } = params || {} as any;
   const db = await initDB();
   const tx = db.transaction('viewedRecords');
   const store = tx.store;
@@ -170,6 +171,7 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
 
   const lower = String(search || '').trim().toLowerCase();
   const needTags = Array.isArray(tags) && tags.length > 0;
+  const needListIds = Array.isArray(listIds) && listIds.length > 0;
   const adv = Array.isArray(params?.adv) ? params!.adv! : [];
 
   const list: VideoRecord[] = [];
@@ -190,6 +192,12 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
       const queryLower = tags.map(s => String(s).toLowerCase());
       // 每个查询标签需要与记录的任意一个 tag 子串匹配（AND，忽略大小写）
       if (!queryLower.every(qt => arrLower.some(t => t.includes(qt)))) continue;
+    }
+    if (needListIds) {
+      const recListIds = Array.isArray((r as any).listIds) ? ((r as any).listIds as string[]) : [];
+      if (recListIds.length === 0) continue;
+      // 命中任一所选清单即可（OR）
+      if (!listIds.some((id) => recListIds.includes(String(id)))) continue;
     }
     if (adv.length > 0 && !matchAdvBasic(r, adv)) continue;
     list.push(r);
@@ -309,6 +317,14 @@ interface JavdbDB extends DBSchema {
       by_status_createdAt: [string, number];
     };
   };
+  lists: {
+    key: string; // list id
+    value: ListRecord;
+    indexes: {
+      by_type: string;
+      by_updatedAt: number;
+    };
+  };
   logs: {
     key: number; // autoIncrement id
     value: PersistedLogEntry;
@@ -362,7 +378,7 @@ interface JavdbDB extends DBSchema {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -422,10 +438,50 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
             ir.createIndex('by_createdAt', 'createdAt');
           } catch {}
         }
+        // v5 -> 新增 lists
+        if (oldVersion < 5) {
+          try {
+            const ls = db.createObjectStore('lists', { keyPath: 'id' });
+            ls.createIndex('by_type', 'type');
+            ls.createIndex('by_updatedAt', 'updatedAt');
+          } catch {}
+        }
       }
     });
   }
   return dbPromise;
+}
+
+// ----- lists API -----
+
+export async function listsPut(record: ListRecord): Promise<void> {
+  const db = await initDB();
+  await db.put('lists', record);
+}
+
+export async function listsBulkPut(records: ListRecord[]): Promise<void> {
+  if (!records || records.length === 0) return;
+  const db = await initDB();
+  const tx = db.transaction('lists', 'readwrite');
+  try {
+    for (const r of records) {
+      await tx.store.put(r);
+    }
+    await tx.done;
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
+export async function listsGet(id: string): Promise<ListRecord | undefined> {
+  const db = await initDB();
+  return db.get('lists', id);
+}
+
+export async function listsGetAll(): Promise<ListRecord[]> {
+  const db = await initDB();
+  return db.getAll('lists');
 }
 
 // ----- viewedRecords API -----
