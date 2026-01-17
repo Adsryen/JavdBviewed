@@ -3,7 +3,7 @@ import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
 import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
-import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
+import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, dbListsGetAll, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -27,6 +27,12 @@ export function initRecordsTab(): void {
     const tagsSearchInput = document.getElementById('tagsSearchInput') as HTMLInputElement;
     const tagsFilterList = document.getElementById('tagsFilterList') as HTMLElement;
     const selectedTagsContainer = document.getElementById('selectedTagsContainer') as HTMLElement;
+
+    const listsFilterInput = document.getElementById('listsFilterInput') as HTMLInputElement;
+    const listsFilterDropdown = document.getElementById('listsFilterDropdown') as HTMLElement;
+    const listsSearchInput = document.getElementById('listsSearchInput') as HTMLInputElement;
+    const listsFilterList = document.getElementById('listsFilterList') as HTMLElement;
+    const selectedListsContainer = document.getElementById('selectedListsContainer') as HTMLElement;
 
     // Advanced search elements
     const advPanel = document.getElementById('advancedSearchPanel') as HTMLDivElement;
@@ -58,18 +64,6 @@ export function initRecordsTab(): void {
     let imageTooltipElement: HTMLDivElement | null = null;
     let coverObserver: IntersectionObserver | null = null;
 
-    // 选择状态
-    let selectedRecords = new Set<string>();
-
-    // Tags filter state
-    let selectedTags = new Set<string>();
-    // 由搜索输入解析出的标签（自动同步到 selectedTags）
-    let tokenSelectedTags = new Set<string>();
-    let allTags = new Set<string>();
-    let allTagsStale = true;
-    const markAllTagsStale = () => { allTagsStale = true; };
-
-    // 初始化图片 Tooltip 容器（若不存在则创建）
     function ensureImageTooltipElement(): void {
         if (!imageTooltipElement) {
             const existing = document.querySelector('.image-tooltip') as HTMLDivElement | null;
@@ -83,6 +77,54 @@ export function initRecordsTab(): void {
             }
         }
     }
+
+    // 选择状态
+    let selectedRecords = new Set<string>();
+
+    // Tags filter state
+    let selectedTags = new Set<string>();
+    // 由搜索输入解析出的标签（自动同步到 selectedTags）
+    let tokenSelectedTags = new Set<string>();
+    let allTags = new Set<string>();
+    let allTagsStale = true;
+    const markAllTagsStale = () => { allTagsStale = true; };
+
+    let selectedListIds = new Set<string>();
+    let tokenSelectedListIds = new Set<string>();
+
+    let listMetaLoaded = false;
+    let listMetaLoading = false;
+    const listIdToName = new Map<string, string>();
+    const ensureListMetaLoaded = () => {
+        if (listMetaLoaded || listMetaLoading) return;
+
+        listMetaLoading = true;
+        dbListsGetAll()
+            .then((lists) => {
+                listIdToName.clear();
+                (lists || []).forEach((l: any) => {
+                    if (l && l.id) listIdToName.set(String(l.id), String(l.name || l.id));
+                });
+                listMetaLoaded = true;
+            })
+            .catch(() => {
+                listMetaLoaded = true;
+            })
+            .finally(() => {
+                listMetaLoading = false;
+                try {
+                    const hasAnyLists = (Array.isArray(STATE.records) ? STATE.records : []).some((r: any) => Array.isArray(r?.listIds) && r.listIds.length > 0);
+                    if (hasAnyLists) render();
+                } catch {}
+            });
+    };
+
+    const escapeHtml = (s: string) => String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
     // ---------- 搜索框 tag 自动补全 ----------
     // 简单防抖实现
@@ -209,9 +251,11 @@ export function initRecordsTab(): void {
     }
 
     // 解析搜索文本中的标签前缀，如：tag:素人  或  #无码
-    function parseSearchTokens(raw: string): { text: string; tags: string[] } {
+    function parseSearchTokens(raw: string): { text: string; tags: string[]; listIds: string[]; listNames: string[] } {
         const parts = (raw || '').split(/\s+/).filter(Boolean);
         const tags: string[] = [];
+        const listIds: string[] = [];
+        const listNames: string[] = [];
         const remains: string[] = [];
         const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
         for (const p of parts) {
@@ -225,9 +269,19 @@ export function initRecordsTab(): void {
                 if (t) tags.push(...splitMulti(t));
                 continue;
             }
+            if (/^listid:/i.test(p)) {
+                const t = p.replace(/^listid:/i, '').trim();
+                if (t) listIds.push(...splitMulti(t));
+                continue;
+            }
+            if (/^list:/i.test(p)) {
+                const t = p.replace(/^list:/i, '').trim();
+                if (t) listNames.push(...splitMulti(t));
+                continue;
+            }
             remains.push(p);
         }
-        return { text: remains.join(' ').trim(), tags };
+        return { text: remains.join(' ').trim(), tags, listIds, listNames };
     }
 
     // 更新“显示封面”按钮文案
@@ -237,11 +291,7 @@ export function initRecordsTab(): void {
         toggleCoversBtn.innerHTML = enabled
             ? '<i class="fas fa-image"></i> 隐藏封面'
             : '<i class="fas fa-image"></i> 显示封面';
-        try {
-            toggleCoversBtn.classList.toggle('toggle-on', enabled);
-            toggleCoversBtn.classList.toggle('toggle-off', !enabled);
-            toggleCoversBtn.title = enabled ? '隐藏封面' : '显示封面';
-        } catch {}
+        try { toggleCoversBtn.classList.toggle('toggle-on', enabled); toggleCoversBtn.classList.toggle('toggle-off', !enabled); toggleCoversBtn.title = enabled ? '隐藏封面' : '显示封面'; } catch {}
     }
 
     // 懒加载：创建/销毁 Observer
@@ -613,6 +663,7 @@ export function initRecordsTab(): void {
             const parsed = parseSearchTokens((searchInput?.value || '').trim());
             const searchTerm = parsed.text;
             const hasTags = selectedTags.size > 0;
+            const hasLists = selectedListIds.size > 0;
             const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
             const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
 
@@ -622,11 +673,24 @@ export function initRecordsTab(): void {
             let total = 0;
 
             // 复杂条件或按 id/title 排序 -> 后台查询
-            if (searchTerm || hasTags || adv.length > 0 || parsed.tags.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
+            if (searchTerm || hasTags || hasLists || adv.length > 0 || parsed.tags.length > 0 || parsed.listIds.length > 0 || parsed.listNames.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
                 const queryParams: ViewedQueryParams = {
                     search: searchTerm || undefined,
                     status: statusVal,
                     tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
+                    listIds: (() => {
+                        const ids = new Set<string>();
+                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
+                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
+                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
+                        if (nameTokens.length > 0) {
+                            for (const [id, name] of listIdToName.entries()) {
+                                const n = String(name || '').toLowerCase();
+                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
+                            }
+                        }
+                        return Array.from(ids);
+                    })(),
                     orderBy: sort ? sort.orderBy : 'updatedAt',
                     order: sort ? sort.order : 'desc',
                     offset: (currentPage - 1) * recordsPerPage,
@@ -674,6 +738,20 @@ export function initRecordsTab(): void {
             tokenSelectedTags.forEach(t => selectedTags.add(t));
             // 同步标签下拉与已选展示
             try { refreshTagsFilterDisplay(); } catch {}
+
+            tokenSelectedListIds.forEach(t => selectedListIds.delete(t));
+            const resolved = new Set<string>();
+            (parsed.listIds || []).forEach(x => { if (x) resolved.add(String(x)); });
+            const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
+            if (nameTokens.length > 0) {
+                for (const [id, name] of listIdToName.entries()) {
+                    const n = String(name || '').toLowerCase();
+                    if (nameTokens.some(tok => n.includes(tok))) resolved.add(String(id));
+                }
+            }
+            tokenSelectedListIds = new Set(Array.from(resolved));
+            tokenSelectedListIds.forEach(t => selectedListIds.add(t));
+            try { refreshListsFilterDisplay(); } catch {}
             const filterValue = filterSelect.value as 'all' | VideoStatus;
 
             // 确保 STATE.records 是数组
@@ -700,7 +778,13 @@ export function initRecordsTab(): void {
                 // 标签过滤：选中的每个标签 token 都需与记录 tags 中至少一个子串匹配（AND，忽略大小写）
                 const matchesTags = selectedTags.size === 0 || selectedTagsLower.every(token => tagsLower.some(tag => tag.includes(token)));
 
-                const basicMatch = matchesSearch && matchesFilter && matchesTags;
+                const matchesLists = selectedListIds.size === 0 || (() => {
+                    const recListIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
+                    if (!recListIds || recListIds.length === 0) return false;
+                    return Array.from(selectedListIds).some(id => recListIds.includes(String(id)));
+                })();
+
+                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists;
                 if (!basicMatch) return false;
 
                 // Advanced search conditions (AND)
@@ -740,6 +824,8 @@ export function initRecordsTab(): void {
     function renderVideoList() {
         try {
             videoList.innerHTML = '';
+
+            ensureListMetaLoaded();
 
             const sourceRecords = serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []);
 
@@ -969,12 +1055,23 @@ export function initRecordsTab(): void {
                         }).join('')}</div>`
                         : '';
 
+                    const listIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
+                    const listNames = listIds.map((id) => listIdToName.get(String(id)) || String(id));
+                    const listNamesSafe = listNames.map((n) => escapeHtml(n));
+                    const listTitle = listNamesSafe.join('、');
+                    const listPreview = listNamesSafe.slice(0, 3);
+                    const moreCount = Math.max(0, listNamesSafe.length - listPreview.length);
+                    const listsHtml = listPreview.length > 0
+                        ? `<div class="video-lists" title="${listTitle}">${listPreview.map(n => `<span class="video-list-tag">${n}</span>`).join('')}${moreCount > 0 ? `<span class="video-list-more">另有 ${moreCount} 个清单</span>` : ''}</div>`
+                        : '';
+
                     li.innerHTML = `
                         <div class="video-content-wrapper">
                             <div class="video-id-container">
                                 ${videoIdHtml}
                             </div>
                             ${tagsHtml}
+                            ${listsHtml}
                             <span class="video-title">${record.title}</span>
                         </div>
                         <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
@@ -1179,7 +1276,7 @@ export function initRecordsTab(): void {
                     // 添加点击事件处理
                     li.addEventListener('click', (e) => {
                         // 如果点击的是按钮、链接或标签，不触发选择
-                        if ((e.target as HTMLElement).closest('button, a, .video-tag')) {
+                        if ((e.target as HTMLElement).closest('button, a, .video-tag, .video-list-tag, .video-list-more')) {
                             return;
                         }
 
@@ -1458,6 +1555,70 @@ export function initRecordsTab(): void {
         });
     }
 
+    function renderListsFilter() {
+        if (!listsFilterList || !selectedListsContainer || !listsFilterInput) return;
+        ensureListMetaLoaded();
+        const q = String(listsSearchInput?.value || '').trim().toLowerCase();
+        const items = Array.from(listIdToName.entries())
+            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
+            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        listsFilterList.innerHTML = items.map(it => `
+            <div class="tag-option ${selectedListIds.has(it.id) ? 'selected' : ''}" data-list-id="${it.id}">
+                <input type="checkbox" ${selectedListIds.has(it.id) ? 'checked' : ''}>
+                <span>${escapeHtml(it.name)}</span>
+            </div>
+        `).join('');
+
+        updateSelectedListsDisplay();
+        updateListsFilterInput();
+    }
+
+    function refreshListsFilterDisplay() {
+        if (!listsFilterList) return;
+        const opts = listsFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const id = option.getAttribute('data-list-id');
+            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            if (id) {
+                const isSelected = selectedListIds.has(id);
+                option.classList.toggle('selected', isSelected);
+                if (checkbox) checkbox.checked = isSelected;
+            }
+        });
+        updateSelectedListsDisplay();
+        updateListsFilterInput();
+    }
+
+    function updateSelectedListsDisplay() {
+        if (!selectedListsContainer) return;
+        selectedListsContainer.innerHTML = Array.from(selectedListIds).map(id => `
+            <div class="selected-tag">
+                <span>${escapeHtml(String(listIdToName.get(String(id)) || id))}</span>
+                <span class="remove-tag" data-list-id="${id}">×</span>
+            </div>
+        `).join('');
+    }
+
+    function updateListsFilterInput() {
+        if (!listsFilterInput) return;
+        const count = selectedListIds.size;
+        listsFilterInput.value = count > 0 ? `已选择 ${count} 个清单` : '点击选择清单';
+    }
+
+    function filterListsList(searchTerm: string) {
+        if (!listsFilterList) return;
+        const opts = listsFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const name = option.querySelector('span')?.textContent || '';
+            const id = option.getAttribute('data-list-id') || '';
+            const q = String(searchTerm || '').toLowerCase();
+            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
+        });
+    }
+
     const triggerSuggest = debounce(() => updateSuggest(), 120);
     const triggerFilter = debounce(() => { currentPage = 1; updateFilteredRecords(); render(); }, 150);
     searchInput.addEventListener('input', () => { triggerSuggest(); triggerFilter(); });
@@ -1645,10 +1806,64 @@ export function initRecordsTab(): void {
         }
     });
 
+    if (listsFilterInput && listsFilterDropdown) {
+        listsFilterInput.addEventListener('click', () => {
+            listsFilterDropdown.style.display = listsFilterDropdown.style.display === 'none' ? 'block' : 'none';
+            if (listsFilterDropdown.style.display === 'block') {
+                renderListsFilter();
+                try { listsSearchInput?.focus(); } catch {}
+            }
+        });
+    }
+
+    if (listsSearchInput) {
+        listsSearchInput.addEventListener('input', (e) => {
+            filterListsList((e.target as HTMLInputElement).value);
+        });
+    }
+
+    if (listsFilterList) {
+        listsFilterList.addEventListener('click', (e) => {
+            const opt = (e.target as HTMLElement).closest('.tag-option');
+            if (opt) {
+                const id = opt.getAttribute('data-list-id');
+                if (id) {
+                    if (selectedListIds.has(id)) selectedListIds.delete(id);
+                    else selectedListIds.add(id);
+                    refreshListsFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+
+    if (selectedListsContainer) {
+        selectedListsContainer.addEventListener('click', (e) => {
+            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
+            if (removeBtn) {
+                const id = removeBtn.getAttribute('data-list-id');
+                if (id) {
+                    selectedListIds.delete(id);
+                    refreshListsFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!tagsFilterInput.contains(e.target as Node) && !tagsFilterDropdown.contains(e.target as Node)) {
             tagsFilterDropdown.style.display = 'none';
+        }
+        if (listsFilterInput && listsFilterDropdown) {
+            if (!listsFilterInput.contains(e.target as Node) && !listsFilterDropdown.contains(e.target as Node)) {
+                listsFilterDropdown.style.display = 'none';
+            }
         }
     });
 
@@ -1672,6 +1887,7 @@ export function initRecordsTab(): void {
     updateFilteredRecords();
     render();
     renderTagsFilter(); // 初始化标签筛选
+    try { renderListsFilter(); } catch {}
     updateBatchUI(); // 初始化批量操作UI状态
 
     // 编辑记录的modal功能
@@ -1699,6 +1915,7 @@ export function initRecordsTab(): void {
                         <div class="form-group">
                             <label for="edit-status">状态:</label>
                             <select id="edit-status">
+                                <option value="${VIDEO_STATUS.UNTRACKED}" ${record.status === VIDEO_STATUS.UNTRACKED ? 'selected' : ''}>未标记</option>
                                 <option value="${VIDEO_STATUS.VIEWED}" ${record.status === VIDEO_STATUS.VIEWED ? 'selected' : ''}>已观看</option>
                                 <option value="${VIDEO_STATUS.BROWSED}" ${record.status === VIDEO_STATUS.BROWSED ? 'selected' : ''}>已浏览</option>
                                 <option value="${VIDEO_STATUS.WANT}" ${record.status === VIDEO_STATUS.WANT ? 'selected' : ''}>想看</option>
@@ -1771,7 +1988,7 @@ export function initRecordsTab(): void {
                 const jsonData = JSON.parse(jsonTextarea.value);
                 idInput.value = jsonData.id || '';
                 titleInput.value = jsonData.title || '';
-                statusSelect.value = jsonData.status || VIDEO_STATUS.BROWSED;
+                statusSelect.value = jsonData.status || VIDEO_STATUS.UNTRACKED;
                 releaseDateInput.value = jsonData.releaseDate || '';
                 javdbUrlInput.value = jsonData.javdbUrl || '';
                 javdbImageInput.value = jsonData.javdbImage || '';
