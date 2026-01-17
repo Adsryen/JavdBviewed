@@ -33,6 +33,8 @@ import { runQASelfCheck as runQASelfCheckModule } from './qa/selfCheck';
 import { bindUiListeners } from './listeners/ui';
 import { initStatsOverview, initHomeSectionsOverview } from './home/overview';
 import { initOrUpdateHomeCharts, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
+import { STORAGE_KEYS } from '../utils/config';
+import { getSettings } from '../utils/storage';
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -191,6 +193,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
 
     await initializeGlobalState();
+
+    try {
+        if (!(window as any).__SETTINGS_ON_CHANGED_BOUND__) {
+            chrome.storage.onChanged.addListener((changes, areaName) => {
+                try {
+                    if (areaName !== 'local') return;
+                    if (!changes || !changes[STORAGE_KEYS.SETTINGS]) return;
+                    getSettings().then((s) => {
+                        try { STATE.settings = s; } catch {}
+                        try { updateSyncStatusModule(); } catch {}
+                    }).catch(() => {});
+                } catch {}
+            });
+            (window as any).__SETTINGS_ON_CHANGED_BOUND__ = true;
+        }
+    } catch {}
     // Modals 常驻挂载
     try { await ensureModalsMounted(); } catch {}
 

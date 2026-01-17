@@ -7,6 +7,7 @@ import { refreshRecordById } from './sync';
 import { viewedPut as idbViewedPut, logsAdd as idbLogsAdd, logsQuery as idbLogsQuery } from './db';
 import { newWorksScheduler, newWorksManager, newWorksCollector } from '../services/newWorks';
 import { requestScheduler } from './requestScheduler';
+import { WEBDAV_SYNC_ALARM } from './scheduler';
 import type { UserProfile } from '../types';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
@@ -218,10 +219,12 @@ export function registerMiscRouter(): void {
     });
     // 初始化调度器配置，并监听 settings 变化
     applySchedulerConfigFromSettings().catch(() => {});
+    setupAlarms().catch(() => {});
     try {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === 'local' && changes['settings']) {
           applySchedulerConfigFromSettings().catch(() => {});
+          setupAlarms().catch(() => {});
         }
       });
     } catch {}
@@ -647,5 +650,19 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
   }
 }
 
-async function setupAlarms(): Promise<void> { try { /* no-op */ } catch {} }
+async function setupAlarms(): Promise<void> {
+  try {
+    if (!('alarms' in chrome) || !chrome.alarms) return;
+    const settings = await getValue<any>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS as any);
+    const webdav = settings?.webdav || {};
+    try { await chrome.alarms.clear(WEBDAV_SYNC_ALARM); } catch {}
+    if (!webdav.enabled || !webdav.autoSync) return;
+    if (!webdav.url || !webdav.username || !webdav.password) return;
+    let interval = Number(webdav.syncInterval ?? 30);
+    if (!Number.isFinite(interval)) interval = 30;
+    if (interval < 5) interval = 5;
+    if (interval > 1440) interval = 1440;
+    chrome.alarms.create(WEBDAV_SYNC_ALARM, { delayInMinutes: interval, periodInMinutes: interval });
+  } catch {}
+}
 

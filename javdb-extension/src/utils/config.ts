@@ -206,6 +206,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         syncInterval: 1440, // 24 hours in minutes
         // 默认保留天数：7 天
         retentionDays: 7,
+        warningDays: 7,
         lastSync: ''
     },
     dataSync: {

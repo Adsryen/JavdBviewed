@@ -22,11 +22,19 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private webdavAutoSync!: HTMLInputElement;
     private webdavSyncInterval!: HTMLInputElement;
     private webdavRetentionDays!: HTMLInputElement;
+    private webdavWarningDays!: HTMLInputElement;
     private saveWebdavSettingsBtn!: HTMLButtonElement;
     private testWebdavConnectionBtn!: HTMLButtonElement;
     private diagnoseWebdavConnectionBtn!: HTMLButtonElement;
     private toggleWebdavPasswordVisibilityBtn!: HTMLButtonElement;
     private lastSyncTime!: HTMLSpanElement;
+
+    private readonly onSaveClick = () => { this.handleSaveSettings().catch(() => {}); };
+    private readonly onWebdavEnabledChange = () => { this.handleWebDAVEnabledChange(); };
+    private readonly onWebdavAutoSyncChange = () => { this.handleWebDAVAutoSyncChange(); };
+    private readonly onTestClick = () => { this.handleTestWebDAV().catch(() => {}); };
+    private readonly onDiagnoseClick = () => { this.handleDiagnoseWebDAV().catch(() => {}); };
+    private readonly onTogglePasswordClick = () => { this.handleTogglePasswordVisibility(); };
 
     constructor() {
         super({
@@ -48,6 +56,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavAutoSync = document.getElementById('webdavAutoSync') as HTMLInputElement;
         this.webdavSyncInterval = document.getElementById('webdav-sync-interval') as HTMLInputElement;
         this.webdavRetentionDays = document.getElementById('webdav-retention-days') as HTMLInputElement;
+        this.webdavWarningDays = document.getElementById('webdav-warning-days') as HTMLInputElement;
         this.saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
         this.testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
         this.diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
@@ -56,7 +65,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
         if (!this.webdavEnabled || !this.webdavUrl || !this.webdavUser || !this.webdavPass ||
             !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn ||
-            !this.toggleWebdavPasswordVisibilityBtn || !this.webdavRetentionDays) {
+            !this.toggleWebdavPasswordVisibilityBtn || !this.webdavRetentionDays || !this.webdavWarningDays) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -65,22 +74,24 @@ export class WebDAVSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.saveWebdavSettingsBtn.addEventListener('click', this.handleSaveSettings.bind(this));
-        this.webdavEnabled.addEventListener('change', this.handleWebDAVEnabledChange.bind(this));
-        this.testWebdavConnectionBtn.addEventListener('click', this.handleTestWebDAV.bind(this));
-        this.diagnoseWebdavConnectionBtn.addEventListener('click', this.handleDiagnoseWebDAV.bind(this));
-        this.toggleWebdavPasswordVisibilityBtn.addEventListener('click', this.handleTogglePasswordVisibility.bind(this));
+        this.saveWebdavSettingsBtn.addEventListener('click', this.onSaveClick);
+        this.webdavEnabled.addEventListener('change', this.onWebdavEnabledChange);
+        this.webdavAutoSync.addEventListener('change', this.onWebdavAutoSyncChange);
+        this.testWebdavConnectionBtn.addEventListener('click', this.onTestClick);
+        this.diagnoseWebdavConnectionBtn.addEventListener('click', this.onDiagnoseClick);
+        this.toggleWebdavPasswordVisibilityBtn.addEventListener('click', this.onTogglePasswordClick);
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.saveWebdavSettingsBtn?.removeEventListener('click', this.handleSaveSettings.bind(this));
-        this.webdavEnabled?.removeEventListener('change', this.handleWebDAVEnabledChange.bind(this));
-        this.testWebdavConnectionBtn?.removeEventListener('click', this.handleTestWebDAV.bind(this));
-        this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.handleDiagnoseWebDAV.bind(this));
-        this.toggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.handleTogglePasswordVisibility.bind(this));
+        this.saveWebdavSettingsBtn?.removeEventListener('click', this.onSaveClick);
+        this.webdavEnabled?.removeEventListener('change', this.onWebdavEnabledChange);
+        this.webdavAutoSync?.removeEventListener('change', this.onWebdavAutoSyncChange);
+        this.testWebdavConnectionBtn?.removeEventListener('click', this.onTestClick);
+        this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.onDiagnoseClick);
+        this.toggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.onTogglePasswordClick);
     }
 
     /**
@@ -97,6 +108,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavAutoSync.checked = webdav.autoSync || false;
         this.webdavSyncInterval.value = String(webdav.syncInterval || 30);
         this.webdavRetentionDays.value = String(webdav.retentionDays ?? 7);
+        this.webdavWarningDays.value = String(webdav.warningDays ?? 7);
         this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
 
         // 更新UI状态
@@ -119,6 +131,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                     autoSync: this.webdavAutoSync.checked,
                     syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                     retentionDays: parseInt(this.webdavRetentionDays.value, 10),
+                    warningDays: parseInt(this.webdavWarningDays.value, 10),
                     lastSync: STATE.settings?.webdav?.lastSync || ''
                 }
             };
@@ -172,6 +185,11 @@ export class WebDAVSettings extends BaseSettingsPanel {
             if (isNaN(days) || days < 0 || days > 3650) {
                 errors.push('保留备份天数必须在0-3650之间');
             }
+
+            const warnDays = parseInt(this.webdavWarningDays.value, 10);
+            if (isNaN(warnDays) || warnDays < 0 || warnDays > 3650) {
+                errors.push('未备份预警阈值必须在0-3650之间');
+            }
         }
 
         return {
@@ -194,6 +212,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 autoSync: this.webdavAutoSync.checked,
                 syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                 retentionDays: parseInt(this.webdavRetentionDays.value, 10),
+                warningDays: parseInt(this.webdavWarningDays.value, 10),
                 lastSync: STATE.settings?.webdav?.lastSync || ''
             }
         };
@@ -226,6 +245,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
             if (webdav.retentionDays !== undefined) {
                 this.webdavRetentionDays.value = String(webdav.retentionDays);
             }
+            if (webdav.warningDays !== undefined) {
+                this.webdavWarningDays.value = String(webdav.warningDays);
+            }
             if (webdav.lastSync !== undefined) {
                 this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
             }
@@ -255,6 +277,15 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.updateWebDAVControlsState();
         this.updateFieldsVisibility();
         this.emit('change');
+
+        if (!this.webdavEnabled.checked) {
+            this.saveSettings().catch(() => {});
+        }
+    }
+
+    private handleWebDAVAutoSyncChange(): void {
+        this.emit('change');
+        this.saveSettings().catch(() => {});
     }
 
     /**

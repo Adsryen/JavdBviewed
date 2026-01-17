@@ -13,8 +13,8 @@ export interface ExtensionSettings {
     // 演员库相关设置
     actorLibrary: {
         blacklist: {
-            hideInList: boolean; // 默认在演员库隐藏拉黑
-            showBadge: boolean;  // 非隐藏时显示角标
+            hideInList: boolean;
+            showBadge: boolean;
         };
     };
 
@@ -25,18 +25,18 @@ export interface ExtensionSettings {
         password: string;
         autoSync: boolean;
         syncInterval: number;
-        // 新增：保留备份天数，用于自动清理过期备份
         retentionDays?: number;
+        warningDays?: number;
         lastSync: string | null;
     };
     dataSync: {
-        requestInterval: number; // 请求间隔（秒），用于缓解服务器压力
-        batchSize: number; // 批量处理大小
-        maxRetries: number; // 最大重试次数
+        requestInterval: number;
+        batchSize: number;
+        maxRetries: number;
         urls: {
-            wantWatch: string; // 想看视频列表URL
-            watchedVideos: string; // 已看视频列表URL
-            collectionActors: string; // 收藏演员列表URL
+            wantWatch: string;
+            watchedVideos: string;
+            collectionActors: string;
         };
     };
 
