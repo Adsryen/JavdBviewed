@@ -456,7 +456,29 @@ if ($autoNotes) {
         exit 0
     }
 
-    # 用户确认后，创建 tag
+    # 用户确认后，先将 version.json 和 .env.local 的变更追加到最近的 commit
+    Write-Host ""
+    Write-Host "Amending version files to last commit..." -ForegroundColor Green
+    try {
+        # 检查是否有 version.json 或 .env.local 的变更
+        $status = & git status --porcelain version.json .env.local 2>$null
+        if ($status) {
+            Write-Host "Found version file changes, amending to last commit..." -ForegroundColor Gray
+            & git add version.json .env.local 2>$null
+            & git commit --amend --no-edit
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Version files amended successfully" -ForegroundColor Green
+            } else {
+                Write-Host "Warning: Failed to amend version files" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "No version file changes to amend" -ForegroundColor Gray
+        }
+    } catch {
+        Write-Host "Warning: Could not amend version files - $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    # 创建 tag
     Write-Host ""
     Write-Host "Creating tag and pushing to GitHub..." -ForegroundColor Green
     try {
