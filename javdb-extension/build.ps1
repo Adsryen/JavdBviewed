@@ -165,12 +165,17 @@ if (-not $releaseOnly) {
     Write-Host "Release-only mode: skip build step." -ForegroundColor Yellow
 }
 
-# Decide release for options 1-3; skip for Just Build (option 4)
+# Decide release for options 1-3; for Just Build (option 4), ask user
 if (-not $versionType -and -not $releaseOnly) {
-    Write-Host "" 
-    Write-Host "Just Build selected. Skipping GitHub Release." -ForegroundColor Yellow
-    Show-Success
-    exit 0
+    $ans = Get-UserChoice "Create GitHub Release now? (y/n)" "N"
+    if ($ans.ToLower() -ne "y") {
+        Write-Host "" 
+        Write-Host "Build completed. Skipping GitHub Release." -ForegroundColor Yellow
+        Show-Success
+        exit 0
+    }
+    # User wants to create release after Just Build
+    $autoNotes = $true
 }
 
 # Interactive: ask whether to create release when version bumped
@@ -179,7 +184,7 @@ if ($versionType -and -not $releaseOnly) {
     $ans = Get-UserChoice "Create GitHub Release now? (y/n)" "N"
     if ($ans.ToLower() -eq "y") { $shouldRelease = $true }
 }
-if (-not $releaseOnly -and -not $shouldRelease) {
+if (-not $releaseOnly -and -not $shouldRelease -and $versionType) {
     Write-Host "" 
     Write-Host "Skip GitHub Release." -ForegroundColor Yellow
     Show-Success
@@ -228,6 +233,7 @@ Write-Host "Reading version from version.json..." -ForegroundColor Gray
 try {
     $versionContent = Get-Content "version.json" | ConvertFrom-Json
     $versionStr = $versionContent.version
+    $buildNum = $versionContent.build
 
     if (-not $versionStr) {
         throw "Could not read version from version.json"
@@ -238,23 +244,52 @@ try {
     exit 1
 }
 
-$tagName = "v$versionStr"
-$zipName = "javdb-extension-v$versionStr.zip"
+# 构建完整版本号（包含 build 号）
+$fullVersionStr = if ($buildNum) { "$versionStr.$buildNum" } else { $versionStr }
+$tagName = "v$fullVersionStr"
+$zipName = "javdb-extension-v$fullVersionStr.zip"
 $zipPath = "dist-zip\$zipName"
+
+Write-Host "Looking for artifact: $zipName" -ForegroundColor Gray
+
+# 检查带 build 号的文件是否存在
+if (Test-Path $zipPath) {
+    Write-Host "Found artifact with build number: $zipName" -ForegroundColor Green
+} else {
+    # 如果找不到带 build 号的文件，尝试查找不带 build 号的文件
+    $altZipName = "javdb-extension-v$versionStr.zip"
+    $altZipPath = "dist-zip\$altZipName"
+    if (Test-Path $altZipPath) {
+        Write-Host "Found alternative zip without build number: $altZipName" -ForegroundColor Yellow
+        $zipName = $altZipName
+        $zipPath = $altZipPath
+        $fullVersionStr = $versionStr
+        $tagName = "v$versionStr"
+    }
+}
+
+# 如果还是找不到，尝试从 dist/ 打包
 
 if (-not (Test-Path $zipPath)) {
     # 如果没有现成产物，尝试从 dist/ 打包一次（不进行编译）
     $distDir = "dist"
     if (Test-Path $distDir) {
         Write-Host "Artifact not found. Found dist/. Packaging without compile..." -ForegroundColor Yellow
+        Write-Host "Creating: $zipName" -ForegroundColor Gray
         try {
             if (-not (Test-Path "dist-zip")) { New-Item -ItemType Directory -Force -Path "dist-zip" | Out-Null }
             try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch {}
             if (Test-Path $zipPath) { Remove-Item -Force $zipPath -ErrorAction SilentlyContinue }
-            [IO.Compression.ZipFile]::CreateFromDirectory($distDir, $zipPath)
+            
+            # 使用绝对路径避免路径问题
+            $absDistPath = (Resolve-Path $distDir).Path
+            $absZipPath = Join-Path (Get-Location).Path $zipPath
+            
+            [IO.Compression.ZipFile]::CreateFromDirectory($absDistPath, $absZipPath)
             Write-Host "Packaged to $zipPath" -ForegroundColor Green
         } catch {
             Write-Host "ERROR: Failed to package dist to $zipName." -ForegroundColor Red
+            Write-Host "Error details: $($_.Exception.Message)" -ForegroundColor Red
             Show-Error
             exit 1
         }
@@ -308,7 +343,7 @@ if ($autoNotes) {
     $notesPath = "release-notes-$tagName.md"
     $content = New-Object System.Collections.Generic.List[string]
     # 标题/正文头，与 -p 预览一致
-    $content.Add("Title: Release $versionStr") | Out-Null
+    $content.Add("Title: Release $fullVersionStr") | Out-Null
     $content.Add("") | Out-Null
     $content.Add("Body:") | Out-Null
     $content.Add("") | Out-Null
@@ -319,7 +354,7 @@ if ($autoNotes) {
     if ($versionStr -match "\.0\.0$") { $buildType = "major release" }
     elseif ($versionStr -match "\.\d+\.0$") { $buildType = "minor release" }
     $content.Add("**Build Type:** $buildType") | Out-Null
-    $content.Add("**Version:** $versionStr") | Out-Null
+    $content.Add("**Version:** $fullVersionStr") | Out-Null
     $content.Add("**Release Date:** $releaseDate") | Out-Null
     $content.Add("") | Out-Null
 
@@ -338,11 +373,11 @@ if ($autoNotes) {
     $fmt = "- %s - by %an on %ad ([$h]($repoUrl/commit/%H))"
 
     # 分类日志
-    $features = & git log --no-merges --grep="^feat" --pretty=("format:$fmt") --date=short $range
+    $features = & git log --no-merges --date=short --grep="^feat" --pretty="format:$fmt" $range
     if ($LASTEXITCODE -eq 0 -and $features) { $features = @($features) } else { $features = @() }
-    $fixes = & git log --no-merges --grep="^fix" --pretty=("format:$fmt") --date=short $range
+    $fixes = & git log --no-merges --date=short --grep="^fix" --pretty="format:$fmt" $range
     if ($LASTEXITCODE -eq 0 -and $fixes) { $fixes = @($fixes) } else { $fixes = @() }
-    $others = & git log --no-merges --invert-grep --grep="^(feat|fix)" --pretty=("format:$fmt") --date=short $range
+    $others = & git log --no-merges --date=short --invert-grep --grep="^(feat|fix)" --pretty="format:$fmt" $range
     if ($LASTEXITCODE -eq 0 -and $others) { $others = @($others) } else { $others = @() }
 
     if ($features.Count -gt 0) {
@@ -362,11 +397,10 @@ if ($autoNotes) {
     }
 
     # 制品信息
-    $zipFile = "javdb-extension-v$versionStr.zip"
     $sha256 = ""
-    try { $sha256 = (Get-FileHash -Algorithm SHA256 (Join-Path "dist-zip" $zipFile)).Hash } catch { $sha256 = "[文件未生成]" }
+    try { $sha256 = (Get-FileHash -Algorithm SHA256 $zipPath).Hash } catch { $sha256 = "[文件未生成]" }
     $content.Add("### Artifacts") | Out-Null
-    $content.Add("- $zipFile") | Out-Null
+    $content.Add("- $zipName") | Out-Null
     $content.Add("  - SHA256: $sha256") | Out-Null
 
     try { Set-Content -Path $notesPath -Value $content -Encoding UTF8 } catch {}

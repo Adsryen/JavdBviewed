@@ -81,7 +81,8 @@ function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit:
     const envContent = `VITE_APP_VERSION=${versionData.version}\nVITE_APP_BUILD_ID=${buildId}\nVITE_APP_VERSION_STATE=${simpleGitState}\n`;
     fs.writeFileSync(viteEnvFilePath, envContent, 'utf8');
     
-    console.log(`\x1b[32mVersion updated to: ${versionData.version} (${buildId})\x1b[0m`);
+    const fullVersion = `${versionData.version}.${versionData.build}`;
+    console.log(`\x1b[32mVersion updated to: ${fullVersion} (${buildId})\x1b[0m`);
     console.log(`\x1b[32mVersion written to ${path.basename(viteEnvFilePath)} for Vite.\x1b[0m`);
 }
 
