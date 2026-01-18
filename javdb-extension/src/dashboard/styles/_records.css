@@ -238,6 +238,48 @@
     border-color: #e5e7eb !important;
 }
 
+/* 工具栏按钮统一样式优化 - 简洁配色 */
+.search-and-filter.records-toolbar #advancedSearchToggle.button-like {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+.search-and-filter.records-toolbar #advancedSearchToggle.button-like:hover {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #212529;
+}
+
+.search-and-filter.records-toolbar #toggleCoversBtn.button-like {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+.search-and-filter.records-toolbar #toggleCoversBtn.button-like:hover {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #212529;
+}
+.search-and-filter.records-toolbar #toggleCoversBtn.toggle-on {
+    background: #e7f5ff !important;
+    color: #1971c2 !important;
+    border-color: #74c0fc !important;
+}
+
+.search-and-filter.records-toolbar #exportRecordsBtn.button-like {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+.search-and-filter.records-toolbar #exportRecordsBtn.button-like:hover {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #212529;
+}
+
 /* 搜索输入包装与建议面板 */
 .search-input-wrapper {
     position: relative;
@@ -479,23 +521,32 @@
 }
 
 .records-per-page-selector select {
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
+    padding: 8px 32px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
     background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
     font-size: 14px;
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
 }
 
 .records-per-page-selector select:hover {
-    border-color: #999;
+    border-color: #adb5bd;
+    background-color: #f8f9fa;
 }
 
 .records-per-page-selector select:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+    border-color: #74c0fc;
+    box-shadow: 0 0 0 3px rgba(116, 192, 252, 0.15);
+    background-color: #fff;
 }
 
 #videoList {
