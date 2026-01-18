@@ -302,33 +302,45 @@ if (-not (Test-Path $zipPath)) {
 
 # Fast path: Create release with custom notes (prev tag..current tag)
 if ($autoNotes) {
-    # Ensure tag exists; create if missing
-    try {
-        & git rev-parse -q --verify "refs/tags/$tagName" | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Tag $tagName not found. Creating annotated tag..." -ForegroundColor Gray
-            & git tag -a $tagName -m "Release $tagName"
-        }
-    } catch {}
-
-    # Push commits and tags
-    Write-Host "Pushing git commits and tags..." -ForegroundColor Gray
-    try {
-        & git push
-        if ($LASTEXITCODE -ne 0) { throw "git push failed" }
-        & git push --tags
-        if ($LASTEXITCODE -ne 0) { throw "git push --tags failed" }
-    } catch {
-        Show-Error
-        exit 1
-    }
-
-    # Compose custom release notes between previous tag and current tag
-    Write-Host "Creating release (custom notes) and uploading $zipName..." -ForegroundColor Gray
+    # 先生成 Release Notes 预览，不创建 tag
+    Write-Host ""
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host " Generating Release Notes Preview..." -ForegroundColor Cyan
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host ""
     $prevTag = ""
     try {
-        $prevTag = & git describe --tags --abbrev=0 "$($tagName)^" 2>$null
-    } catch {}
+        # 获取所有 tag，手动按版本号排序
+        $allTagsRaw = & git tag 2>$null
+        if ($LASTEXITCODE -eq 0 -and $allTagsRaw) {
+            # 解析并排序
+            $tagObjects = @($allTagsRaw) | ForEach-Object {
+                if ($_ -match '^v?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?') {
+                    [PSCustomObject]@{
+                        Tag = $_
+                        Major = [int]$matches[1]
+                        Minor = [int]$matches[2]
+                        Patch = [int]$matches[3]
+                        Build = if ($matches[4]) { [int]$matches[4] } else { 0 }
+                    }
+                }
+            } | Sort-Object -Property Major,Minor,Patch,Build -Descending
+            
+            # 取第一个（最新的）作为上一个 tag
+            if ($tagObjects.Count -gt 0) {
+                $prevTag = $tagObjects[0].Tag
+                Write-Host "Found previous tag: $prevTag" -ForegroundColor Green
+            } else {
+                Write-Host "No previous tags found" -ForegroundColor Yellow
+            }
+        }
+    } catch {
+        Write-Host "Warning: Could not find previous tag - $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    if (-not $prevTag) {
+        Write-Host "No previous tag found, will show all commits from repository root" -ForegroundColor Yellow
+    }
     $remote = ""
     try { $remote = & git config --get remote.origin.url } catch {}
     $repoUrl = $remote
@@ -358,18 +370,22 @@ if ($autoNotes) {
     $content.Add("**Release Date:** $releaseDate") | Out-Null
     $content.Add("") | Out-Null
 
-    # 比较链接与日志范围
+    # 比较链接与日志范围（使用 HEAD 因为 tag 还未创建）
+    Write-Host "Previous tag: '$prevTag'" -ForegroundColor Gray
     $range = $null
     if ($prevTag) {
         $content.Add("Compare: [$prevTag...$tagName]($repoUrl/compare/$prevTag...$tagName)") | Out-Null
         $content.Add("") | Out-Null
-        $range = "$prevTag..$tagName"
+        $range = "$prevTag..HEAD"
+        Write-Host "Using range with previous tag: $range" -ForegroundColor Green
     } else {
+        Write-Host "No previous tag, using full history" -ForegroundColor Yellow
         $root = ""
-        try { $root = & git rev-list --max-parents=0 $tagName 2>$null } catch {}
-        if ($root) { $range = "$root..$tagName" } else { $range = $tagName }
+        try { $root = & git rev-list --max-parents=0 HEAD 2>$null } catch {}
+        if ($root) { $range = "$root..HEAD" } else { $range = "HEAD" }
     }
 
+    Write-Host "Final commit range: $range" -ForegroundColor Cyan
     $fmt = "- %s - by %an on %ad ([$h]($repoUrl/commit/%H))"
 
     # 分类日志
@@ -377,8 +393,11 @@ if ($autoNotes) {
     if ($LASTEXITCODE -eq 0 -and $features) { $features = @($features) } else { $features = @() }
     $fixes = & git log --no-merges --date=short --grep="^fix" --pretty="format:$fmt" $range
     if ($LASTEXITCODE -eq 0 -and $fixes) { $fixes = @($fixes) } else { $fixes = @() }
-    $others = & git log --no-merges --date=short --invert-grep --grep="^(feat|fix)" --pretty="format:$fmt" $range
+    # 使用两次 --grep 来排除 feat 和 fix
+    $others = & git log --no-merges --date=short --grep="^feat" --grep="^fix" --invert-grep --pretty="format:$fmt" $range
     if ($LASTEXITCODE -eq 0 -and $others) { $others = @($others) } else { $others = @() }
+    
+    Write-Host "Found $($features.Count) features, $($fixes.Count) fixes, $($others.Count) other changes" -ForegroundColor Gray
 
     if ($features.Count -gt 0) {
         $content.Add("### Features") | Out-Null
@@ -405,7 +424,67 @@ if ($autoNotes) {
 
     try { Set-Content -Path $notesPath -Value $content -Encoding UTF8 } catch {}
 
+    # 显示预览
+    Write-Host ""
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host " Release Notes Preview" -ForegroundColor Cyan
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Get-Content -Path $notesPath | ForEach-Object {
+        if ($_ -match '^Title:') {
+            Write-Host $_ -ForegroundColor Yellow
+        } elseif ($_ -match '^Body:') {
+            Write-Host $_ -ForegroundColor Yellow
+        } elseif ($_ -match '^###') {
+            Write-Host $_ -ForegroundColor Cyan
+        } elseif ($_ -match '^Compare:') {
+            Write-Host $_ -ForegroundColor Green
+        } else {
+            Write-Host $_
+        }
+    }
+    Write-Host ""
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # 询问是否继续
+    $confirm = Get-UserChoice "Release Notes generated. Continue to create tag and publish to GitHub? (y/n)" "Y"
+    if ($confirm.ToLower() -ne "y") {
+        Write-Host ""
+        Write-Host "Release cancelled. Release Notes saved to: $notesPath" -ForegroundColor Yellow
+        Show-Success
+        exit 0
+    }
+
+    # 用户确认后，创建 tag
+    Write-Host ""
+    Write-Host "Creating tag and pushing to GitHub..." -ForegroundColor Green
+    try {
+        & git rev-parse -q --verify "refs/tags/$tagName" | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Creating annotated tag: $tagName" -ForegroundColor Gray
+            & git tag -a $tagName -m "Release $tagName"
+        } else {
+            Write-Host "Tag $tagName already exists" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "Warning: Could not verify/create tag" -ForegroundColor Yellow
+    }
+
+    # Push commits and tags
+    Write-Host "Pushing git commits and tags..." -ForegroundColor Gray
+    try {
+        & git push
+        if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+        & git push --tags
+        if ($LASTEXITCODE -ne 0) { throw "git push --tags failed" }
+    } catch {
+        Show-Error
+        exit 1
+    }
+
     # 发布时去掉预览专用的 Title/Body 行
+    Write-Host "Creating GitHub Release..." -ForegroundColor Gray
     $notesRelease = "release-notes-$tagName.release.md"
     try {
         Get-Content -Path $notesPath | Where-Object { $_ -notmatch '^(Title:|Body:)$' -and $_ -notmatch '^Title:' -and $_ -ne 'Body:' } | Set-Content -Path $notesRelease -Encoding UTF8
