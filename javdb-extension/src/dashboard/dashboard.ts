@@ -35,6 +35,7 @@ import { initStatsOverview, initHomeSectionsOverview } from './home/overview';
 import { initOrUpdateHomeCharts, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
+import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -54,6 +55,22 @@ bindConsoleSettingsListener();
 bindInsightsListeners();
 // 监听 UI 级消息（toast等）
 bindUiListeners();
+
+// 监听来自 background 的 Cloudflare 验证请求
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'cloudflare-verification-request') {
+        const url = message.url;
+        
+        // 处理验证
+        handleCloudflareVerification(url).then((result) => {
+            sendResponse(result);
+        }).catch((error) => {
+            sendResponse({ success: false, error: error.message || '验证失败' });
+        });
+        
+        return true; // 保持消息通道开启
+    }
+});
 
 function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
     const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
