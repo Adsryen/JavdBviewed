@@ -15,6 +15,8 @@ import { STORAGE_KEYS } from '../../utils/config';
 import { VIDEO_STATUS } from '../../utils/config';
 import { dbViewedPut } from '../dbClient';
 import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflareVerification';
+import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
+import type { SavedSyncProgress } from '../config/syncConfig';
 
 /**
  * 视频数据接口
@@ -179,7 +181,8 @@ export class ApiClient {
         logAsync('INFO', `开始同步${syncConfig.displayName}视频列表`, {
             userEmail: userProfile.email,
             type,
-            url: syncConfig.url
+            url: syncConfig.url,
+            resumeMode: config.resumeFromProgress
         });
 
         try {
@@ -225,6 +228,32 @@ export class ApiClient {
             let newRecords = 0;
             let updatedRecords = 0;
             let processedVideos = 0; // 已处理的视频总数
+            let startPage = 1;
+            let startVideoIndex = 0;
+
+            // 检查是否有保存的进度
+            let savedProgress: SavedSyncProgress | null = null;
+            if (config.resumeFromProgress) {
+                savedProgress = await getSavedSyncProgress(type, userProfile.email);
+                if (savedProgress) {
+                    // 恢复进度
+                    startPage = savedProgress.currentPage;
+                    startVideoIndex = savedProgress.currentVideoIndex;
+                    syncedCount = savedProgress.syncedCount;
+                    errorCount = savedProgress.errorCount;
+                    newRecords = savedProgress.newRecords;
+                    updatedRecords = savedProgress.updatedRecords;
+                    processedVideos = syncedCount + errorCount;
+                    
+                    logAsync('INFO', `从上次进度继续同步`, {
+                        startPage,
+                        startVideoIndex,
+                        syncedCount,
+                        errorCount,
+                        processedVideos
+                    });
+                }
+            }
 
             // 增量同步相关变量
             const isIncrementalMode = config.mode === 'incremental';
@@ -249,13 +278,32 @@ export class ApiClient {
             }
 
             // 4. 分页处理：获取一页就立即同步这一页的视频
-            logAsync('INFO', `开始分页处理${syncConfig.displayName}视频...`);
+            logAsync('INFO', `开始分页处理${syncConfig.displayName}视频...`, {
+                startPage,
+                totalPages,
+                startVideoIndex
+            });
 
-            for (let page = 1; page <= totalPages; page++) {
+            for (let page = startPage; page <= totalPages; page++) {
                 try {
                     // 检查是否已取消
                     if (abortSignal?.aborted) {
-                        logAsync('INFO', `同步在第${page}页被取消`);
+                        logAsync('INFO', `同步在第${page}页被取消，保存进度`);
+                        // 保存当前进度
+                        await saveSyncProgress({
+                            type,
+                            userEmail: userProfile.email,
+                            currentPage: page,
+                            currentVideoIndex: startVideoIndex,
+                            totalPages,
+                            videoCount,
+                            syncedCount,
+                            errorCount,
+                            newRecords,
+                            updatedRecords,
+                            timestamp: Date.now(),
+                            mode: config.mode || 'full'
+                        });
                         throw new SyncCancelledError('用户取消了同步操作');
                     }
 
@@ -280,9 +328,28 @@ export class ApiClient {
                     });
 
                     // 4.2 立即处理当前页的每个视频
-                    for (let i = 0; i < videoData.length; i++) {
+                    // 如果是恢复的第一页，从保存的索引开始
+                    const startIdx = (page === startPage) ? startVideoIndex : 0;
+                    
+                    for (let i = startIdx; i < videoData.length; i++) {
                         // 检查是否已取消
                         if (abortSignal?.aborted) {
+                            logAsync('INFO', `同步在视频 ${i} 被取消，保存进度`);
+                            // 保存当前进度
+                            await saveSyncProgress({
+                                type,
+                                userEmail: userProfile.email,
+                                currentPage: page,
+                                currentVideoIndex: i,
+                                totalPages,
+                                videoCount,
+                                syncedCount,
+                                errorCount,
+                                newRecords,
+                                updatedRecords,
+                                timestamp: Date.now(),
+                                mode: config.mode || 'full'
+                            });
                             throw new SyncCancelledError('用户取消了同步操作');
                         }
 
@@ -379,10 +446,34 @@ export class ApiClient {
                         throw error;
                     }
 
+                    // 如果是验证错误，保存进度后抛出
+                    if (error.message && error.message.includes('Cloudflare')) {
+                        logAsync('INFO', '遇到Cloudflare验证，保存进度');
+                        await saveSyncProgress({
+                            type,
+                            userEmail: userProfile.email,
+                            currentPage: page,
+                            currentVideoIndex: 0,
+                            totalPages,
+                            videoCount,
+                            syncedCount,
+                            errorCount,
+                            newRecords,
+                            updatedRecords,
+                            timestamp: Date.now(),
+                            mode: config.mode || 'full'
+                        });
+                        throw error;
+                    }
+
                     // 其他错误继续处理下一页
                     errorCount++;
                 }
             }
+
+            // 同步完成，清除保存的进度
+            await clearSyncProgress();
+            logAsync('INFO', '同步完成，已清除保存的进度');
 
             const result = {
                 success: true,
@@ -1297,6 +1388,13 @@ export class ApiClient {
                         createdAt: now,
                         updatedAt: now
                     });
+                    
+                    logAsync('INFO', `解析到清单: ${it.name}`, { 
+                        id: it.id, 
+                        type,
+                        moviesCount: it.moviesCount,
+                        clickedCount: it.clickedCount
+                    });
                 }
 
                 onProgress?.({
@@ -1337,6 +1435,12 @@ export class ApiClient {
         for (const li of listIndex) {
             processedLists++;
             if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+
+            // 跳过空清单
+            if (li.moviesCount === 0) {
+                logAsync('INFO', `跳过空清单: ${li.id}`, { moviesCount: li.moviesCount });
+                continue;
+            }
 
             const approxPages = li.moviesCount ? Math.max(1, Math.ceil(li.moviesCount / 20)) : 50;
             for (let page = 1; page <= approxPages; page++) {

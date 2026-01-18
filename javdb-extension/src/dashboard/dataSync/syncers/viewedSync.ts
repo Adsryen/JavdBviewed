@@ -71,7 +71,10 @@ export class ViewedSyncManager {
                 'viewed',
                 [], // 已观看同步不需要本地数据
                 userProfile,
-                getSyncConfig({ mode: options.mode || 'full' }),
+                getSyncConfig({ 
+                    mode: options.mode || 'full',
+                    resumeFromProgress: options.resumeFromProgress || false
+                }),
                 (progress) => {
                     const { current, total, stage, percentage, message } = progress;
                     

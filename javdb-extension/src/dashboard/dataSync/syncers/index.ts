@@ -14,6 +14,7 @@ import type { SyncType, SyncMode } from '../../config/syncConfig';
 
 export interface SyncOptions {
     mode?: SyncMode;
+    resumeFromProgress?: boolean; // 是否从上次进度继续
     onProgress?: (progress: SyncProgress) => void;
     onComplete?: (result: SyncResult) => void;
     onError?: (error: Error) => void;

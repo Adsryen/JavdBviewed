@@ -134,6 +134,37 @@ async function handleSyncRequest(event: Event): Promise<void> {
                 return;
             }
 
+            // 检查是否有未完成的同步（仅对 want 和 viewed 类型）
+            if ((type === 'want' || type === 'viewed') && mode !== 'force') {
+                const { hasUnfinishedSync, getSavedSyncProgress } = await import('./progressManager');
+                const userProfile = await userService.getUserProfile();
+                
+                if (userProfile && await hasUnfinishedSync(type, userProfile.email)) {
+                    const savedProgress = await getSavedSyncProgress(type, userProfile.email);
+                    if (savedProgress) {
+                        // 显示确认对话框
+                        const shouldResume = await showResumeConfirmDialog(type, savedProgress);
+                        
+                        if (shouldResume === null) {
+                            // 用户取消
+                            return;
+                        }
+                        
+                        if (shouldResume) {
+                            // 继续上次同步
+                            logAsync('INFO', '用户选择继续上次同步', { type, progress: savedProgress });
+                            await executeSyncWithResume(type, mode, savedProgress, ui);
+                            return;
+                        } else {
+                            // 重新开始同步，清除进度
+                            const { clearSyncProgress } = await import('./progressManager');
+                            await clearSyncProgress();
+                            logAsync('INFO', '用户选择重新开始同步', { type });
+                        }
+                    }
+                }
+            }
+
             // 设置UI状态
             ui.setSyncMode(mode || 'full'); // 先设置同步模式
             ui.setButtonLoadingState(type, true);
@@ -154,7 +185,7 @@ async function handleSyncRequest(event: Event): Promise<void> {
                     onComplete: (result: any) => {
                         ui.showSyncProgress(false);
                         if (result.success) {
-                            ui.showSuccess(result.message, result.details);
+                            ui.showSuccess(result.message, result.details, result);
                             showMessage(result.message, 'success');
                         } else {
                             ui.showError(result.message);
@@ -182,7 +213,7 @@ async function handleSyncRequest(event: Event): Promise<void> {
                 onComplete: (result) => {
                     ui.showSyncProgress(false);
                     if (result.success) {
-                        ui.showSuccess(result.message, result.details);
+                        ui.showSuccess(result.message, result.details, result);
                         showMessage(result.message, 'success');
                     } else {
                         ui.showError(result.message);
@@ -380,3 +411,128 @@ export default {
     getStats: getSyncStatistics,
     checkAvailability: checkSyncAvailability
 };
+
+/**
+ * 显示恢复同步确认对话框
+ */
+async function showResumeConfirmDialog(type: SyncType, progress: any): Promise<boolean | null> {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'cloudflare-verification-modal';
+        modal.innerHTML = `
+            <div class="verification-overlay"></div>
+            <div class="verification-content" style="max-width: 500px;">
+                <div class="verification-header">
+                    <h3><i class="fas fa-history"></i> 发现未完成的同步</h3>
+                </div>
+                <div class="verification-body">
+                    <div class="verification-info">
+                        <p class="verification-main-text">检测到上次同步未完成</p>
+                        <div style="text-align: left; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px;">
+                            <div style="margin-bottom: 8px;"><strong>同步类型：</strong>${type === 'want' ? '想看' : '已观看'}</div>
+                            <div style="margin-bottom: 8px;"><strong>进度：</strong>第 ${progress.currentPage}/${progress.totalPages} 页</div>
+                            <div style="margin-bottom: 8px;"><strong>已同步：</strong>${progress.syncedCount} 个视频</div>
+                            <div style="margin-bottom: 8px;"><strong>新增：</strong>${progress.newRecords} 个，<strong>更新：</strong>${progress.updatedRecords} 个</div>
+                            <div><strong>时间：</strong>${formatTimestamp(progress.timestamp)}</div>
+                        </div>
+                        <p class="verification-sub-text" style="color: #6c757d;">
+                            是否要从上次中断的位置继续同步？
+                        </p>
+                    </div>
+                </div>
+                <div class="verification-footer">
+                    <button class="verification-cancel-btn" style="background: #6c757d;">重新开始</button>
+                    <button class="verification-complete-btn">继续同步</button>
+                </div>
+            </div>
+        `;
+
+        const cancelBtn = modal.querySelector('.verification-cancel-btn') as HTMLButtonElement;
+        const continueBtn = modal.querySelector('.verification-complete-btn') as HTMLButtonElement;
+
+        const cleanup = () => {
+            modal.remove();
+        };
+
+        cancelBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(false); // 重新开始
+        });
+
+        continueBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(true); // 继续同步
+        });
+
+        // ESC键取消
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                cleanup();
+                document.removeEventListener('keydown', handleKeydown);
+                resolve(null); // 取消
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+
+        document.body.appendChild(modal);
+    });
+}
+
+/**
+ * 格式化时间戳
+ */
+function formatTimestamp(timestamp: number): string {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / 1000 / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (minutes < 1) {
+        return '刚刚';
+    } else if (minutes < 60) {
+        return `${minutes} 分钟前`;
+    } else if (hours < 24) {
+        return `${hours} 小时前`;
+    } else {
+        const date = new Date(timestamp);
+        return date.toLocaleString('zh-CN');
+    }
+}
+
+/**
+ * 执行带恢复的同步
+ */
+async function executeSyncWithResume(type: SyncType, mode: SyncMode | undefined, savedProgress: any, ui: SyncUI): Promise<void> {
+    // 设置UI状态
+    ui.setSyncMode(mode || 'full');
+    ui.setButtonLoadingState(type, true);
+    ui.setAllButtonsDisabled(true);
+    ui.showSyncProgress(true);
+
+    // 执行同步，传入 resumeFromProgress 标志
+    await SyncManagerFactory.executeSync(type, {
+        mode,
+        resumeFromProgress: true, // 标记为恢复模式
+        // 进度回调
+        onProgress: (progress) => {
+            ui.updateProgress(progress);
+        },
+        // 完成回调
+        onComplete: (result) => {
+            ui.showSyncProgress(false);
+            if (result.success) {
+                ui.showSuccess(result.message, result.details, result);
+                showMessage(result.message, 'success');
+            } else {
+                ui.showError(result.message);
+                showMessage(result.message, 'error');
+            }
+        },
+        // 错误回调
+        onError: (error) => {
+            ui.showSyncProgress(false);
+            ui.showError(error.message);
+            showMessage(error.message, 'error');
+        }
+    });
+}
