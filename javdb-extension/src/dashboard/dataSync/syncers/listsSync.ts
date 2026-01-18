@@ -10,6 +10,8 @@ import { getSyncConfig } from '../../config/syncConfig';
 import type { SyncProgress, SyncResult } from '../types';
 
 export interface ListsSyncOptions {
+    mode?: string;
+    resumeFromProgress?: boolean;
     onProgress?: (progress: SyncProgress) => void;
     onComplete?: (result: SyncResult) => void;
     onError?: (error: Error) => void;
@@ -60,7 +62,10 @@ export class ListsSyncManager {
                 'lists',
                 [],
                 userProfile,
-                getSyncConfig({ mode: 'full' }),
+                getSyncConfig({ 
+                    mode: options.mode || 'full',
+                    resumeFromProgress: options.resumeFromProgress
+                }),
                 (progress) => {
                     const { current, total, stage, percentage, message } = progress;
                     options.onProgress?.({

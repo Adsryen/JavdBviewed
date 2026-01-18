@@ -396,9 +396,15 @@ export class ApiClient {
                                 }
 
                                 logAsync('INFO', `成功同步${syncConfig.displayName}视频 ${realVideoId}`);
+                                
+                                // 通知UI添加到已获取列表
+                                this.notifyVideoFetched(syncedCount, videoDetail.title || realVideoId, true);
                             } else {
                                 errorCount++;
                                 logAsync('ERROR', `视频详情获取失败: ${urlVideoId}`);
+                                
+                                // 通知UI添加失败项
+                                this.notifyVideoFetched(syncedCount + errorCount, `${urlVideoId} (获取失败)`, false);
                             }
                         } catch (error: any) {
                             errorCount++;
@@ -850,6 +856,13 @@ export class ApiClient {
             }
 
             const html = await response.text();
+            
+            // 检查是否为验证页面
+            if (isCloudflareChallenge(html)) {
+                logAsync('WARN', `视频详情页面是验证页面，跳过保存: ${urlVideoId}`);
+                return null;
+            }
+            
             logAsync('INFO', `视频详情页面HTML获取成功: ${urlVideoId}`, {
                 htmlLength: html.length,
                 hasTitle: html.includes('<title>'),
@@ -884,6 +897,22 @@ export class ApiClient {
      */
     private parseVideoDetailFromHTML(html: string, urlVideoId: string): Partial<VideoRecord> | null {
         try {
+            // 首先检查是否为验证页面（双重保险）
+            if (isCloudflareChallenge(html)) {
+                logAsync('WARN', `解析时检测到验证页面，拒绝解析: ${urlVideoId}`);
+                return null;
+            }
+            
+            // 检查是否有正常的视频内容
+            const hasVideoContent = html.includes('video-meta') || 
+                                   html.includes('video-detail') || 
+                                   html.includes('panel-block');
+            
+            if (!hasVideoContent) {
+                logAsync('WARN', `页面缺少视频内容，可能不是有效的详情页: ${urlVideoId}`);
+                return null;
+            }
+            
             // 首先提取真正的视频ID
             const realVideoId = this.extractVideoIdFromDetailHTML(html);
             const videoId = realVideoId || urlVideoId; // 如果提取失败，使用URL中的ID作为备选
@@ -901,6 +930,14 @@ export class ApiClient {
             const titleMatch = html.match(/<title>([^|]+)/);
             if (titleMatch) {
                 const rawTitle = titleMatch[1].trim();
+                
+                // 检查标题是否包含验证相关关键词
+                if (rawTitle.includes('Security Verification') || 
+                    rawTitle.includes('Cloudflare')) {
+                    logAsync('WARN', `标题包含验证关键词，拒绝解析: ${urlVideoId}`, { title: rawTitle });
+                    return null;
+                }
+                
                 // 移除视频ID前缀（如 "DVAJ-700 " -> ""）
                 const titleWithoutId = rawTitle.replace(/^[A-Z0-9\-]+\s+/, '');
                 title = titleWithoutId || rawTitle; // 如果移除后为空，使用原标题
@@ -1348,6 +1385,31 @@ export class ApiClient {
         let errorCount = 0;
         let newRecords = 0;
         let updatedRecords = 0;
+        
+        // 检查是否有保存的进度
+        let startListIndex = 0;
+        let startPage = 1;
+        let startVideoIndex = 0;
+        
+        if (_config.resumeFromProgress) {
+            const savedProgress = await getSavedSyncProgress('lists', userProfile.email);
+            if (savedProgress && savedProgress.currentListIndex !== undefined) {
+                startListIndex = savedProgress.currentListIndex;
+                startPage = savedProgress.currentPage;
+                startVideoIndex = savedProgress.currentVideoIndex;
+                syncedCount = savedProgress.syncedCount;
+                errorCount = savedProgress.errorCount;
+                newRecords = savedProgress.newRecords;
+                updatedRecords = savedProgress.updatedRecords;
+                
+                logAsync('INFO', '从上次进度继续清单同步', {
+                    startListIndex,
+                    startPage,
+                    startVideoIndex,
+                    syncedCount
+                });
+            }
+        }
 
         const migrated = await this.isIDBMigrated();
         const videoToLists = new Map<string, Set<string>>();
@@ -1431,10 +1493,32 @@ export class ApiClient {
         }
 
         // 同步每个清单的影片
-        let processedLists = 0;
-        for (const li of listIndex) {
+        let processedLists = startListIndex; // 从保存的位置开始
+        for (let listIdx = startListIndex; listIdx < listIndex.length; listIdx++) {
+            const li = listIndex[listIdx];
             processedLists++;
-            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+            
+            if (abortSignal?.aborted) {
+                // 保存进度
+                await saveSyncProgress({
+                    type: 'lists',
+                    userEmail: userProfile.email,
+                    currentPage: 1,
+                    currentVideoIndex: 0,
+                    currentListIndex: listIdx,
+                    currentListId: li.id,
+                    totalLists: listIndex.length,
+                    totalPages: 0,
+                    videoCount: syncedCount,
+                    syncedCount,
+                    errorCount,
+                    newRecords,
+                    updatedRecords,
+                    timestamp: Date.now(),
+                    mode: _config.mode || 'full'
+                });
+                throw new SyncCancelledError('同步已取消');
+            }
 
             // 跳过空清单
             if (li.moviesCount === 0) {
@@ -1443,8 +1527,30 @@ export class ApiClient {
             }
 
             const approxPages = li.moviesCount ? Math.max(1, Math.ceil(li.moviesCount / 20)) : 50;
-            for (let page = 1; page <= approxPages; page++) {
-                if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+            const pageStart = (listIdx === startListIndex) ? startPage : 1; // 如果是恢复的清单，从保存的页开始
+            
+            for (let page = pageStart; page <= approxPages; page++) {
+                if (abortSignal?.aborted) {
+                    // 保存进度
+                    await saveSyncProgress({
+                        type: 'lists',
+                        userEmail: userProfile.email,
+                        currentPage: page,
+                        currentVideoIndex: 0,
+                        currentListIndex: listIdx,
+                        currentListId: li.id,
+                        totalLists: listIndex.length,
+                        totalPages: approxPages,
+                        videoCount: syncedCount,
+                        syncedCount,
+                        errorCount,
+                        newRecords,
+                        updatedRecords,
+                        timestamp: Date.now(),
+                        mode: _config.mode || 'full'
+                    });
+                    throw new SyncCancelledError('同步已取消');
+                }
 
                 const listUrl = `${origin}/lists/${li.id}?page=${page}`;
                 const res = await this.fetchWithRetry(listUrl, { method: 'GET', credentials: 'include' });
@@ -1484,8 +1590,31 @@ export class ApiClient {
                     stage: 'pages'
                 });
 
-                for (let i = 0; i < urlIds.length; i++) {
-                    if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+                // 如果是恢复的清单和页面，从保存的视频索引开始
+                const videoStart = (listIdx === startListIndex && page === pageStart) ? startVideoIndex : 0;
+                
+                for (let i = videoStart; i < urlIds.length; i++) {
+                    if (abortSignal?.aborted) {
+                        // 保存进度
+                        await saveSyncProgress({
+                            type: 'lists',
+                            userEmail: userProfile.email,
+                            currentPage: page,
+                            currentVideoIndex: i,
+                            currentListIndex: listIdx,
+                            currentListId: li.id,
+                            totalLists: listIndex.length,
+                            totalPages: approxPages,
+                            videoCount: syncedCount,
+                            syncedCount,
+                            errorCount,
+                            newRecords,
+                            updatedRecords,
+                            timestamp: Date.now(),
+                            mode: _config.mode || 'full'
+                        });
+                        throw new SyncCancelledError('同步已取消');
+                    }
                     const urlVideoId = urlIds[i];
                     try {
                         const videoDetail = await this.fetchVideoDetail(urlVideoId);
@@ -1538,6 +1667,9 @@ export class ApiClient {
                         }
 
                         syncedCount++;
+                        
+                        // 通知UI添加到已获取列表
+                        this.notifyVideoFetched(syncedCount, videoDetail.title || realVideoId, true);
 
                         onProgress?.({
                             current: syncedCount,
@@ -1587,6 +1719,10 @@ export class ApiClient {
             }
         }
 
+        // 同步完成，清除保存的进度
+        await clearSyncProgress();
+        logAsync('INFO', '清单同步完成，已清除保存的进度');
+
         return {
             success: true,
             syncedCount,
@@ -1596,6 +1732,20 @@ export class ApiClient {
             updatedRecords,
             message: `清单同步完成：影片 ${syncedCount}，清单 ${listIndex.length}`
         };
+    }
+    /**
+     * 通知UI已获取影片
+     */
+    private notifyVideoFetched(videoNumber: number, videoTitle: string, isSuccess: boolean): void {
+        try {
+            // 发送自定义事件到UI
+            const event = new CustomEvent('video-fetched', {
+                detail: { videoNumber, videoTitle, isSuccess }
+            });
+            document.dispatchEvent(event);
+        } catch (error: any) {
+            // 忽略错误，不影响同步流程
+        }
     }
 }
 
