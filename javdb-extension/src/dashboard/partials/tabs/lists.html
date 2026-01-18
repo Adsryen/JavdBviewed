@@ -1,26 +1,26 @@
 <div class="card">
-  <div class="lists-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-    <h4 style="margin:0;">清单</h4>
-    <div class="lists-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+  <div class="lists-header">
+    <h4>清单</h4>
+    <div class="lists-actions">
       <button id="listsRefreshBtn" class="button-like" title="刷新清单列表"><i class="fas fa-rotate"></i> 刷新</button>
       <button id="listsGoSyncBtn" class="button-like" title="前往数据同步"><i class="fas fa-sync-alt"></i> 去同步</button>
     </div>
   </div>
 
-  <div class="lists-search-row" style="margin-top:10px;">
-    <input id="listsSearchInput" type="text" placeholder="搜索清单名称/ID…" style="width:100%;max-width:520px;" />
+  <div class="lists-search-row">
+    <input id="listsSearchInput" type="text" placeholder="搜索清单名称/ID…" />
   </div>
 
-  <div class="lists-sections" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+  <div class="lists-sections">
     <div class="lists-section">
-      <h5 style="margin:0 0 8px 0;">我的清单</h5>
+      <h5>我的清单</h5>
       <div id="listsMineContainer" class="lists-list"></div>
     </div>
     <div class="lists-section">
-      <h5 style="margin:0 0 8px 0;">收藏的清单</h5>
+      <h5>收藏的清单</h5>
       <div id="listsFavContainer" class="lists-list"></div>
     </div>
   </div>
 
-  <div id="listsEmptyTip" style="margin-top:10px;color:var(--muted);display:none;"></div>
+  <div id="listsEmptyTip" class="lists-empty-tip"></div>
 </div>
