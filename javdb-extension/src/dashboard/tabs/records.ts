@@ -20,6 +20,7 @@ export function initRecordsTab(): void {
     const videoList = document.getElementById('videoList') as HTMLUListElement;
     const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
+    const searchResultCount = document.getElementById('searchResultCount') as HTMLDivElement;
 
     // 兜底：有些旧版本 HTML/缓存可能缺少“未标记”选项，这里确保一定存在
     try {
@@ -655,6 +656,42 @@ export function initRecordsTab(): void {
 
     // 注：高级过滤直接集成在 updateFilteredRecords 中，无需额外包装函数
 
+    // 更新搜索结果数量显示
+    function updateSearchResultCount() {
+        if (!searchResultCount) return;
+
+        const totalCount = serverModeActive ? serverTotal : filteredRecords.length;
+        const searchTerm = searchInput?.value?.trim() || '';
+        const hasFilter = filterSelect?.value !== 'all';
+        const hasTags = selectedTags.size > 0;
+        const hasLists = selectedListIds.size > 0;
+        const hasAdvConditions = advConditions.length > 0;
+        
+        // 判断是否有任何搜索或筛选条件
+        const hasAnyCondition = searchTerm || hasFilter || hasTags || hasLists || hasAdvConditions;
+
+        if (hasAnyCondition && totalCount > 0) {
+            let conditionText = '';
+            const conditions: string[] = [];
+            
+            if (searchTerm) conditions.push(`"${searchTerm}"`);
+            if (hasFilter) {
+                const filterText = filterSelect.options[filterSelect.selectedIndex]?.text || '';
+                conditions.push(filterText);
+            }
+            if (hasTags) conditions.push(`${selectedTags.size}个标签`);
+            if (hasLists) conditions.push(`${selectedListIds.size}个清单`);
+            if (hasAdvConditions) conditions.push(`${advConditions.length}个高级条件`);
+            
+            conditionText = conditions.join(' + ');
+            
+            searchResultCount.innerHTML = `搜索 ${conditionText}，找到 <span class="count-number">${totalCount}</span> 个结果`;
+            searchResultCount.style.display = 'flex';
+        } else {
+            searchResultCount.style.display = 'none';
+        }
+    }
+
     if (!searchInput || !videoList || !sortSelect || !recordsPerPageSelect || !paginationContainer) return;
 
     let currentPage = 1;
@@ -751,6 +788,7 @@ export function initRecordsTab(): void {
             serverTotal = Number.isFinite(total) ? total : 0;
             renderVideoList();
             renderPagination();
+            updateSearchResultCount();
         } catch (e) {
             console.warn('[RecordsTab] IDB 查询/分页失败', e);
             // 不回退本地模式，仅提示错误，保留当前 UI 状态
@@ -864,6 +902,9 @@ export function initRecordsTab(): void {
 
             const coversEnabled = !!STATE.settings.showCoversInRecords;
             if (coversEnabled) setupCoverObserver(); else teardownCoverObserver();
+
+            // 更新搜索结果数量显示
+            updateSearchResultCount();
 
             if (sourceRecords.length === 0) {
                 videoList.innerHTML = '<li class="empty-list">没有符合条件的记录。</li>';
@@ -1093,9 +1134,14 @@ export function initRecordsTab(): void {
                     const listNamesSafe = listNames.map((n) => escapeHtml(n));
                     const listTitle = listNamesSafe.join('、');
                     const listPreview = listNamesSafe.slice(0, 3);
+                    const listPreviewIds = listIds.slice(0, 3);
                     const moreCount = Math.max(0, listNamesSafe.length - listPreview.length);
                     const listsHtml = listPreview.length > 0
-                        ? `<div class="video-lists" title="${listTitle}">${listPreview.map(n => `<span class="video-list-tag">${n}</span>`).join('')}${moreCount > 0 ? `<span class="video-list-more">另有 ${moreCount} 个清单</span>` : ''}</div>`
+                        ? `<div class="video-lists" title="${listTitle}">${listPreview.map((n, idx) => {
+                            const listId = listPreviewIds[idx];
+                            const isSelected = selectedListIds.has(String(listId));
+                            return `<span class="video-list-tag ${isSelected ? 'selected' : ''}" data-list-id="${listId}" title="点击筛选此清单">${n}</span>`;
+                        }).join('')}${moreCount > 0 ? `<span class="video-list-more">另有 ${moreCount} 个清单</span>` : ''}</div>`
                         : '';
 
                     li.innerHTML = `
@@ -1339,6 +1385,26 @@ export function initRecordsTab(): void {
                                 updateFilteredRecords();
                                 render();
                                 refreshTagsFilterDisplay();
+                            }
+                        });
+                    });
+
+                    // 为清单胶囊添加点击事件
+                    const videoListTags = li.querySelectorAll('.video-list-tag');
+                    videoListTags.forEach(listElement => {
+                        listElement.addEventListener('click', (e) => {
+                            e.stopPropagation(); // 防止触发行选择
+                            const listId = listElement.getAttribute('data-list-id');
+                            if (listId) {
+                                if (selectedListIds.has(listId)) {
+                                    selectedListIds.delete(listId);
+                                } else {
+                                    selectedListIds.add(listId);
+                                }
+                                currentPage = 1;
+                                updateFilteredRecords();
+                                render();
+                                refreshListsFilterDisplay();
                             }
                         });
                     });

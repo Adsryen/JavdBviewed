@@ -1,5 +1,31 @@
 
 
+/* 搜索结果数量显示 */
+.search-result-count {
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-result-count::before {
+    content: "🔍";
+    font-size: 16px;
+}
+
+.search-result-count .count-number {
+    font-weight: 700;
+    font-size: 16px;
+    color: #ffd700;
+}
+
 /* 快捷查询高亮效果 */
 .highlight-result {
     background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700) !important;
@@ -739,6 +765,22 @@
     color: #6b21a8;
     line-height: 1.2;
     user-select: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.video-list-tag:hover {
+    background-color: #e9d5ff;
+    border-color: #d8b4fe;
+    transform: translateY(-1px);
+}
+
+.video-list-tag.selected {
+    background-color: #7c3aed;
+    border-color: #6d28d9;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
 }
 
 .video-list-more {
