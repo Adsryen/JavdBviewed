@@ -3597,14 +3597,16 @@ body.modal-open {
 }
 
 /* 数据预览界面样式 */
-.data-preview {
-    background: #ffffff;
+#webdavRestoreModal .data-preview {
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 60%);
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 20px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
 }
 
-.data-preview h4 {
+#webdavRestoreModal .data-preview h4 {
     margin: 0 0 20px 0;
     color: #2c3e50;
     font-size: 20px;
@@ -3614,7 +3616,7 @@ body.modal-open {
     gap: 10px;
 }
 
-.data-preview h5 {
+#webdavRestoreModal .data-preview h5 {
     margin: 20px 0 12px 0;
     color: #34495e;
     font-size: 16px;
@@ -3622,6 +3624,68 @@ body.modal-open {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+#webdavRestoreModal .restore-summary-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px 18px 14px 18px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    margin-bottom: 16px;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-header i {
+    color: #667eea;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+    #webdavRestoreModal .restore-summary-card .summary-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+#webdavRestoreModal .restore-summary-card .summary-stats .stat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-stats .stat-number {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: 0.2px;
+}
+
+#webdavRestoreModal .restore-summary-card .summary-stats .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
 }
 
 /* 差异摘要样式 */
@@ -3793,6 +3857,42 @@ body.modal-open {
 /* 恢复选项样式 */
 .restore-options-section {
     margin-bottom: 24px;
+}
+
+#webdavRestoreModal .restore-options-section {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+#webdavRestoreModal .restore-options-section h5 {
+    color: #0f172a;
+}
+
+#webdavRestoreModal .restore-options-section h5 i {
+    color: #667eea;
+}
+
+#webdavRestoreModal .restore-options-section .form-group-checkbox label {
+    color: #111827;
+}
+
+#webdavRestoreModal .restore-options-section .form-group-checkbox small {
+    color: #475569;
+}
+
+#webdavRestoreModal .restore-options-section .stats-info {
+    color: #166534;
+}
+
+#webdavRestoreModal .restore-options-section .warning-text {
+    color: #92400e;
+}
+
+#webdavRestoreModal .restore-options-section .unavailable-text {
+    color: #b91c1c;
 }
 
 .restore-options-grid {
