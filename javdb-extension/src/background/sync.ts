@@ -9,6 +9,7 @@ const error = (...args: any[]) => console.error('[JavDB Sync]', ...args);
 
 /**
  * Fetches HTML content from a given URL with browser-like headers.
+ * Supports Cloudflare verification handling.
  * @param url The URL to fetch.
  * @returns The HTML content as string.
  */
@@ -32,7 +33,8 @@ async function fetchHtml(url: string): Promise<string> {
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1'
-        }
+        },
+        credentials: 'include'
     });
 
     log(`[fetchHtml] Response status for ${url}: ${response.status}`);
@@ -41,7 +43,83 @@ async function fetchHtml(url: string): Promise<string> {
     }
     const html = await response.text();
     log(`[fetchHtml] Fetched ${html.length} bytes of HTML from ${url}.`);
+    
+    // 检测 Cloudflare 验证
+    if (isCloudflareChallenge(html)) {
+        log(`[fetchHtml] Cloudflare challenge detected for ${url}`);
+        
+        // 请求前端处理验证并直接获取HTML
+        const verificationResult = await requestCloudflareVerification(url);
+        
+        if (!verificationResult.success || !verificationResult.html) {
+            throw new Error(verificationResult.error || 'Cloudflare 验证失败');
+        }
+        
+        log(`[fetchHtml] Received HTML from verification tab, ${verificationResult.html.length} bytes`);
+        
+        // 再次检查返回的HTML是否还是验证页面
+        if (isCloudflareChallenge(verificationResult.html)) {
+            throw new Error('验证后仍然遇到 Cloudflare 挑战，请重试');
+        }
+        
+        return verificationResult.html;
+    }
+    
     return html;
+}
+
+/**
+ * 检测是否为 Cloudflare 验证页面
+ */
+function isCloudflareChallenge(html: string): boolean {
+    // 更严格的检测：必须同时满足多个条件
+    const hasSecurityVerification = html.includes('Security Verification');
+    const hasCompleteSecurityCheck = html.includes('Please complete the security check');
+    const hasChallengeForm = html.includes('cf-challenge') || html.includes('cf_chl_opt');
+    
+    // 检查是否有正常的JavDB内容
+    const hasNormalContent = html.includes('video-meta') || 
+                            html.includes('movie-list') || 
+                            html.includes('video-detail') ||
+                            html.includes('panel-block');
+    
+    // 如果有正常内容，即使有验证关键词也不算验证页面（可能是缓存的文本）
+    if (hasNormalContent) {
+        return false;
+    }
+    
+    // 必须同时有验证标题和验证表单才算验证页面
+    return (hasSecurityVerification || hasCompleteSecurityCheck) && hasChallengeForm;
+}
+
+/**
+ * 请求前端处理 Cloudflare 验证
+ */
+async function requestCloudflareVerification(url: string): Promise<{ success: boolean; error?: string; html?: string }> {
+    return new Promise((resolve) => {
+        // 查找活动的 dashboard 标签页
+        chrome.tabs.query({ url: chrome.runtime.getURL('dashboard/dashboard.html') }, (tabs) => {
+            if (!tabs || tabs.length === 0 || !tabs[0].id) {
+                resolve({ success: false, error: '未找到管理面板，请打开管理面板后重试' });
+                return;
+            }
+            
+            const dashboardTabId = tabs[0].id;
+            
+            // 发送验证请求到 dashboard，让它在验证标签页中获取数据
+            chrome.tabs.sendMessage(dashboardTabId, {
+                type: 'cloudflare-verification-request',
+                url: url
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    resolve({ success: false, error: '无法与管理面板通信' });
+                    return;
+                }
+                
+                resolve(response || { success: false, error: '验证失败' });
+            });
+        });
+    });
 }
 
 /**
@@ -272,21 +350,35 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
     console.log(`[refreshRecordById] Function called with videoId: ${videoId}`);
     log(`[refreshRecordById] Starting refresh for: ${videoId}`);
 
-    // 1. Search for the video to find its page URL
-    const searchUrl = `https://javdb.com/search?q=${encodeURIComponent(videoId)}&f=all`;
-    log(`[refreshRecordById] Step 1: Searching at: ${searchUrl}`);
-    const searchHtml = await fetchHtml(searchUrl);
+    // 先尝试从存储中获取现有记录，看是否有javdbUrl
+    const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+    const existingRecord = allRecords[videoId];
+    
+    let detailPageUrl: string;
+    let dataTitle: string | undefined;
+    
+    // 如果已有javdbUrl，直接使用，避免搜索
+    if (existingRecord?.javdbUrl && existingRecord.javdbUrl !== '#') {
+        detailPageUrl = existingRecord.javdbUrl;
+        log(`[refreshRecordById] Using existing javdbUrl: ${detailPageUrl}`);
+    } else {
+        // 否则通过搜索获取详情页URL
+        const searchUrl = `https://javdb.com/search?q=${encodeURIComponent(videoId)}&f=all`;
+        log(`[refreshRecordById] Step 1: Searching at: ${searchUrl}`);
+        const searchHtml = await fetchHtml(searchUrl);
 
-    // Parse search results to find matching video
-    const searchResult = parseSearchResults(searchHtml, videoId);
-    if (!searchResult) {
-        error(`[refreshRecordById] Could not find a search result for ${videoId} at ${searchUrl}. No matching data-code found.`);
-        throw new Error(`Could not find a search result for ${videoId}`);
+        // Parse search results to find matching video
+        const searchResult = parseSearchResults(searchHtml, videoId);
+        if (!searchResult) {
+            error(`[refreshRecordById] Could not find a search result for ${videoId} at ${searchUrl}. No matching data-code found.`);
+            throw new Error(`Could not find a search result for ${videoId}`);
+        }
+
+        detailPageUrl = searchResult.href;
+        dataTitle = searchResult.title;
+        log(`[refreshRecordById] Found detail page URL: ${detailPageUrl}`);
+        log(`[refreshRecordById] Found data-title: ${dataTitle}`);
     }
-
-    const { href: detailPageUrl, title: dataTitle } = searchResult;
-    log(`[refreshRecordById] Found detail page URL: ${detailPageUrl}`);
-    log(`[refreshRecordById] Found data-title: ${dataTitle}`);
 
     // 2. Visit the detail page and scrape the data
     log(`[refreshRecordById] Step 2: Scraping detail page: ${detailPageUrl}`);
@@ -298,15 +390,21 @@ export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
     log(`[refreshRecordById] Scraped data - Release Date: ${releaseDate || 'Not Found'}, Tags count: ${tags.length}, Cover Image: ${javdbImage || 'Not Found'}`);
     log(`[refreshRecordById] Found tags: ${tags.join(', ')}`);
 
+    // 从详情页提取标题（如果没有从搜索结果获取）
+    if (!dataTitle) {
+        const titleMatch = detailHtml.match(/<title>([^|<]+)/);
+        if (titleMatch) {
+            const rawTitle = titleMatch[1].trim();
+            dataTitle = rawTitle.replace(/^[A-Z0-9\-]+\s+/, '') || rawTitle;
+        }
+    }
+
     // Use data-title as the primary title source
-    const finalTitle = dataTitle || `未知标题`;
+    const finalTitle = dataTitle || existingRecord?.title || `未知标题`;
     log(`[refreshRecordById] Using title: ${finalTitle}`);
 
-    // 3. Get current records and upsert the specific one
+    // 3. Update record in storage
     log(`[refreshRecordById] Step 3: Updating record in storage.`);
-    const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-    log('[refreshRecordById] Fetched all records from storage.');
-    const existingRecord = allRecords[videoId];
     const now = Date.now();
 
     if (!existingRecord) {

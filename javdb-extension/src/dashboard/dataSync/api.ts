@@ -14,6 +14,7 @@ import { getSettings, getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
 import { VIDEO_STATUS } from '../../utils/config';
 import { dbViewedPut } from '../dbClient';
+import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflareVerification';
 
 /**
  * 视频数据接口
@@ -487,19 +488,72 @@ export class ApiClient {
     }
 
     /**
-     * 带重试与超时的请求封装
+     * 带重试与超时的请求封装（支持 Cloudflare 验证）
      */
     private async fetchWithRetry(url: string, init: RequestInit = {}): Promise<Response> {
         const maxAttempts = Math.max(1, this.retryCount);
         let lastError: any = null;
+        
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 const signal = init.signal ?? AbortSignal.timeout(this.timeout);
                 const res = await fetch(url, { ...init, signal });
+                
+                // 检查是否为 Cloudflare 验证页面
+                if (res.ok || res.status === 403 || res.status === 503) {
+                    const contentType = res.headers.get('content-type') || '';
+                    if (contentType.includes('text/html')) {
+                        const html = await res.text();
+                        
+                        // 检测 Cloudflare 验证
+                        if (isCloudflareChallenge(html)) {
+                            logAsync('WARN', 'Cloudflare 人机验证触发', { url, attempt });
+                            
+                            // 显示验证窗口
+                            const verificationResult = await handleCloudflareVerification(url);
+                            
+                            if (!verificationResult.success) {
+                                throw new Error(verificationResult.error || 'Cloudflare 验证失败');
+                            }
+                            
+                            // 验证成功，重新请求
+                            logAsync('INFO', 'Cloudflare 验证成功，重新请求', { url });
+                            const retryRes = await fetch(url, { ...init, signal });
+                            
+                            // 再次检查是否还是验证页面
+                            if (retryRes.ok || retryRes.status === 403 || retryRes.status === 503) {
+                                const retryContentType = retryRes.headers.get('content-type') || '';
+                                if (retryContentType.includes('text/html')) {
+                                    const retryHtml = await retryRes.text();
+                                    if (isCloudflareChallenge(retryHtml)) {
+                                        throw new Error('验证后仍然遇到 Cloudflare 挑战，请稍后重试');
+                                    }
+                                    // 返回包含HTML的响应（需要重新构造）
+                                    return new Response(retryHtml, {
+                                        status: retryRes.status,
+                                        statusText: retryRes.statusText,
+                                        headers: retryRes.headers
+                                    });
+                                }
+                            }
+                            
+                            return retryRes;
+                        }
+                        
+                        // 不是验证页面，返回包含HTML的响应
+                        return new Response(html, {
+                            status: res.status,
+                            statusText: res.statusText,
+                            headers: res.headers
+                        });
+                    }
+                }
+                
                 // 对 5xx/429 进行重试，其余错误直接返回
                 if (!res.ok && (res.status >= 500 || res.status === 429)) {
                     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                 }
+                
                 return res;
             } catch (err) {
                 lastError = err;
