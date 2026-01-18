@@ -459,6 +459,7 @@ if ($autoNotes) {
     # 用户确认后，先将 version.json 和 .env.local 的变更追加到最近的 commit
     Write-Host ""
     Write-Host "Amending version files to last commit..." -ForegroundColor Green
+    $didAmend = $false
     try {
         # 检查是否有 version.json 或 .env.local 的变更
         $status = & git status --porcelain version.json .env.local 2>$null
@@ -468,6 +469,7 @@ if ($autoNotes) {
             & git commit --amend --no-edit
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "Version files amended successfully" -ForegroundColor Green
+                $didAmend = $true
             } else {
                 Write-Host "Warning: Failed to amend version files" -ForegroundColor Yellow
             }
@@ -493,10 +495,15 @@ if ($autoNotes) {
         Write-Host "Warning: Could not verify/create tag" -ForegroundColor Yellow
     }
 
-    # Push commits and tags
+    # Push commits and tags (如果修改了 commit 则使用 force push)
     Write-Host "Pushing git commits and tags..." -ForegroundColor Gray
     try {
-        & git push
+        if ($didAmend) {
+            Write-Host "Commit was amended, using force push..." -ForegroundColor Yellow
+            & git push --force-with-lease
+        } else {
+            & git push
+        }
         if ($LASTEXITCODE -ne 0) { throw "git push failed" }
         & git push --tags
         if ($LASTEXITCODE -ne 0) { throw "git push --tags failed" }
