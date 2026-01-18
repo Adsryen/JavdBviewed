@@ -757,7 +757,32 @@ export class SyncUI {
         if (resultElement && resultText) {
             resultElement.className = `sync-result ${result.success ? 'success' : 'error'}`;
             resultElement.style.display = 'flex';
-            resultText.textContent = result.message;
+            
+            // 构建详细的结果消息
+            let message = result.message;
+            if (result.details) {
+                message += `\n${result.details}`;
+            }
+            
+            // 如果有统计信息，添加到消息中
+            if (result.syncedCount !== undefined) {
+                const stats = [];
+                if (result.syncedCount > 0) {
+                    stats.push(`同步: ${result.syncedCount}`);
+                }
+                if (result.skippedCount !== undefined && result.skippedCount > 0) {
+                    stats.push(`跳过: ${result.skippedCount}`);
+                }
+                if (result.errorCount !== undefined && result.errorCount > 0) {
+                    stats.push(`错误: ${result.errorCount}`);
+                }
+                if (stats.length > 0) {
+                    message += `\n(${stats.join(', ')})`;
+                }
+            }
+            
+            resultText.textContent = message;
+            resultText.style.whiteSpace = 'pre-line'; // 支持换行显示
             
             // 更新图标
             const icon = resultElement.querySelector('i');
@@ -765,10 +790,22 @@ export class SyncUI {
                 icon.className = result.success ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
             }
             
-            // 3秒后自动隐藏
-            setTimeout(() => {
-                resultElement.style.display = 'none';
-            }, 3000);
+            // 不自动隐藏，让用户手动关闭或开始下一次同步时隐藏
+            // 添加关闭按钮（如果还没有）
+            let closeBtn = resultElement.querySelector('.result-close-btn') as HTMLButtonElement;
+            if (!closeBtn) {
+                closeBtn = document.createElement('button');
+                closeBtn.className = 'result-close-btn';
+                closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                closeBtn.title = '关闭';
+                closeBtn.style.cssText = 'margin-left: auto; background: none; border: none; color: inherit; cursor: pointer; padding: 4px 8px; opacity: 0.7; transition: opacity 0.2s;';
+                closeBtn.addEventListener('mouseenter', () => closeBtn.style.opacity = '1');
+                closeBtn.addEventListener('mouseleave', () => closeBtn.style.opacity = '0.7');
+                closeBtn.addEventListener('click', () => {
+                    resultElement.style.display = 'none';
+                });
+                resultElement.appendChild(closeBtn);
+            }
         }
     }
 
@@ -906,11 +943,14 @@ export class SyncUI {
     /**
      * 显示成功消息
      */
-    public showSuccess(message: string, details?: string): void {
+    public showSuccess(message: string, details?: string, result?: SyncResult): void {
         this.showSyncResult({
             success: true,
             message: message,
-            details: details
+            details: details,
+            syncedCount: result?.syncedCount,
+            skippedCount: result?.skippedCount,
+            errorCount: result?.errorCount
         });
     }
 }

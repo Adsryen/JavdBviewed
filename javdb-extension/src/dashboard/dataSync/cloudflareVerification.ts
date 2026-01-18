@@ -48,24 +48,107 @@ export async function handleCloudflareVerification(url: string): Promise<Verific
     logAsync('INFO', 'Cloudflare 验证触发', { url });
     
     return new Promise((resolve) => {
-        // 使用新标签页打开验证页面
-        chrome.tabs.create({ url, active: true }, (tab) => {
-            if (!tab || !tab.id) {
-                resolve({ success: false, error: '无法打开验证页面' });
+        // 第一步：显示确认对话框
+        const confirmModal = createConfirmModal(url, (shouldProceed) => {
+            if (!shouldProceed) {
+                // 用户取消
+                resolve({ success: false, error: '用户取消验证' });
                 return;
             }
             
-            const tabId = tab.id;
-            logAsync('INFO', 'Cloudflare 验证标签页已打开', { tabId, url });
-            
-            // 创建提示模态窗口
-            const modal = createVerificationPromptModal(tabId, (result) => {
-                resolve(result);
+            // 用户确认，打开验证标签页
+            chrome.tabs.create({ url, active: true }, (tab) => {
+                if (!tab || !tab.id) {
+                    resolve({ success: false, error: '无法打开验证页面' });
+                    return;
+                }
+                
+                const tabId = tab.id;
+                logAsync('INFO', 'Cloudflare 验证标签页已打开', { tabId, url });
+                
+                // 创建验证提示模态窗口
+                const verificationModal = createVerificationPromptModal(tabId, (result) => {
+                    resolve(result);
+                });
+                
+                document.body.appendChild(verificationModal);
             });
-            
-            document.body.appendChild(modal);
         });
+        
+        document.body.appendChild(confirmModal);
     });
+}
+
+/**
+ * 创建确认对话框
+ */
+function createConfirmModal(url: string, onConfirm: (shouldProceed: boolean) => void): HTMLElement {
+    const modal = document.createElement('div');
+    modal.className = 'cloudflare-verification-modal';
+    modal.innerHTML = `
+        <div class="verification-overlay"></div>
+        <div class="verification-content" style="max-width: 500px;">
+            <div class="verification-header">
+                <h3><i class="fas fa-shield-alt"></i> 需要人机验证</h3>
+            </div>
+            <div class="verification-body">
+                <div class="verification-info">
+                    <div class="verification-icon" style="color: #ff9800;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p class="verification-main-text">检测到 Cloudflare 人机验证</p>
+                    <p class="verification-sub-text" style="margin: 15px 0;">
+                        JavDB 需要进行人机验证才能继续访问。
+                    </p>
+                    <div style="text-align: left; padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
+                        <p style="margin: 0 0 10px 0; font-weight: 500;">验证流程：</p>
+                        <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                            <li>点击"开始验证"打开验证页面</li>
+                            <li>完成人机验证（勾选框或拼图等）</li>
+                            <li>等待页面加载完成</li>
+                            <li>返回此窗口点击"验证完成"</li>
+                        </ol>
+                    </div>
+                    <p class="verification-sub-text" style="color: #6c757d; font-size: 13px;">
+                        验证页面：${new URL(url).hostname}
+                    </p>
+                </div>
+            </div>
+            <div class="verification-footer">
+                <button class="verification-cancel-btn">取消同步</button>
+                <button class="verification-complete-btn">开始验证</button>
+            </div>
+        </div>
+    `;
+
+    const cancelBtn = modal.querySelector('.verification-cancel-btn') as HTMLButtonElement;
+    const startBtn = modal.querySelector('.verification-complete-btn') as HTMLButtonElement;
+
+    const cleanup = () => {
+        modal.remove();
+    };
+
+    cancelBtn.addEventListener('click', () => {
+        cleanup();
+        onConfirm(false);
+    });
+
+    startBtn.addEventListener('click', () => {
+        cleanup();
+        onConfirm(true);
+    });
+
+    // ESC键取消
+    const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            cleanup();
+            document.removeEventListener('keydown', handleKeydown);
+            onConfirm(false);
+        }
+    };
+    document.addEventListener('keydown', handleKeydown);
+
+    return modal;
 }
 
 /**
@@ -78,7 +161,7 @@ function createVerificationPromptModal(tabId: number, onComplete: (result: Verif
         <div class="verification-overlay"></div>
         <div class="verification-content verification-prompt">
             <div class="verification-header">
-                <h3><i class="fas fa-shield-alt"></i> 需要人机验证</h3>
+                <h3><i class="fas fa-shield-alt"></i> 正在进行人机验证</h3>
                 <button class="verification-close" title="取消验证">
                     <i class="fas fa-times"></i>
                 </button>
@@ -86,15 +169,23 @@ function createVerificationPromptModal(tabId: number, onComplete: (result: Verif
             <div class="verification-body">
                 <div class="verification-info">
                     <div class="verification-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="fas fa-hourglass-half"></i>
                     </div>
-                    <p class="verification-main-text">检测到 Cloudflare 人机验证</p>
-                    <p class="verification-sub-text">已在新标签页中打开验证页面，请完成验证。</p>
+                    <p class="verification-main-text">请在新标签页中完成验证</p>
+                    <p class="verification-sub-text">验证标签页已打开，请按照以下步骤操作：</p>
+                    <div style="text-align: left; padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
+                        <ol style="margin: 0; padding-left: 20px; line-height: 2;">
+                            <li>在验证标签页中完成人机验证</li>
+                            <li>等待页面完全加载（看到正常内容）</li>
+                            <li>返回此窗口</li>
+                            <li>点击下方"验证完成"按钮</li>
+                        </ol>
+                    </div>
                     <p class="verification-sub-text" style="color: #e67e22; font-weight: 500; margin-top: 12px;">
                         ⚠️ 重要提示：<br>
-                        1. 完成验证后，请等待页面完全加载<br>
-                        2. 确认看到正常内容后，点击"验证完成"<br>
-                        3. 不要手动关闭验证标签页
+                        • 完成验证后，请等待页面完全加载<br>
+                        • 确认看到正常内容后，再点击"验证完成"<br>
+                        • 不要手动关闭验证标签页
                     </p>
                 </div>
                 <div class="verification-status">

@@ -36,6 +36,23 @@ export interface SyncConfig {
     timeout: number; // 超时时间（毫秒）
     mode?: SyncMode; // 同步模式（可选）
     incrementalTolerance?: number; // 增量同步容忍度（遇到已存在记录后还要同步的数量）
+    resumeFromProgress?: boolean; // 是否从上次进度继续
+}
+
+// 同步进度保存接口
+export interface SavedSyncProgress {
+    type: SyncType;
+    userEmail: string;
+    currentPage: number;
+    currentVideoIndex: number;
+    totalPages: number;
+    videoCount: number;
+    syncedCount: number;
+    errorCount: number;
+    newRecords: number;
+    updatedRecords: number;
+    timestamp: number;
+    mode: SyncMode;
 }
 
 // 默认同步配置
