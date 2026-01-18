@@ -262,8 +262,14 @@ export class SyncUI {
                 }
             });
         });
+        
+        // 监听影片获取事件
+        document.addEventListener('video-fetched', ((event: CustomEvent) => {
+            const { videoNumber, videoTitle, isSuccess } = event.detail;
+            this.addFetchedVideo(videoNumber, videoTitle, isSuccess);
+        }) as EventListener);
 
-
+        this.eventsInitialized = true;
     }
 
     /**
@@ -425,6 +431,11 @@ export class SyncUI {
         
         if (resultElement && show) {
             resultElement.style.display = 'none';
+        }
+        
+        // 开始新同步时清空影片列表
+        if (show) {
+            this.clearFetchedVideos();
         }
     }
 
@@ -745,6 +756,63 @@ export class SyncUI {
         if (progressPercentage) {
             progressPercentage.textContent = `${Math.round(progress.percentage)}%`;
         }
+        
+        // 显示已获取影片列表容器
+        const fetchedVideosContainer = document.getElementById('fetchedVideosContainer');
+        if (fetchedVideosContainer && progress.current && progress.current > 0) {
+            fetchedVideosContainer.style.display = 'block';
+        }
+    }
+    
+    /**
+     * 添加已获取的影片到列表
+     */
+    public addFetchedVideo(videoNumber: number, videoTitle: string, isSuccess: boolean = true): void {
+        const fetchedVideosList = document.getElementById('fetchedVideosList');
+        if (!fetchedVideosList) return;
+        
+        // 创建影片项
+        const videoItem = document.createElement('div');
+        videoItem.className = `fetched-video-item ${isSuccess ? 'success' : 'error'}`;
+        videoItem.innerHTML = `
+            <span class="video-number">${videoNumber}.</span>
+            <span class="video-title">${this.escapeHtml(videoTitle)}</span>
+        `;
+        
+        // 插入到列表顶部（降序）
+        fetchedVideosList.insertBefore(videoItem, fetchedVideosList.firstChild);
+        
+        // 限制列表长度，最多显示100条
+        while (fetchedVideosList.children.length > 100) {
+            fetchedVideosList.removeChild(fetchedVideosList.lastChild!);
+        }
+        
+        // 自动滚动到顶部显示最新的
+        fetchedVideosList.scrollTop = 0;
+    }
+    
+    /**
+     * 清空已获取影片列表
+     */
+    public clearFetchedVideos(): void {
+        const fetchedVideosList = document.getElementById('fetchedVideosList');
+        if (fetchedVideosList) {
+            fetchedVideosList.innerHTML = '';
+        }
+        
+        const fetchedVideosContainer = document.getElementById('fetchedVideosContainer');
+        if (fetchedVideosContainer) {
+            fetchedVideosContainer.style.display = 'none';
+        }
+    }
+    
+    /**
+     * HTML转义
+     */
+    private escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**

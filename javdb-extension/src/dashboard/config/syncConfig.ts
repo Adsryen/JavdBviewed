@@ -53,6 +53,10 @@ export interface SavedSyncProgress {
     updatedRecords: number;
     timestamp: number;
     mode: SyncMode;
+    // 清单同步专用字段
+    currentListIndex?: number; // 当前处理到第几个清单
+    currentListId?: string; // 当前清单ID
+    totalLists?: number; // 总清单数
 }
 
 // 默认同步配置

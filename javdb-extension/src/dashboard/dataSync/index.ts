@@ -134,19 +134,30 @@ async function handleSyncRequest(event: Event): Promise<void> {
                 return;
             }
 
-            // 检查是否有未完成的同步（仅对 want 和 viewed 类型）
-            if ((type === 'want' || type === 'viewed') && mode !== 'force') {
+            // 检查是否有未完成的同步（want、viewed、lists 类型）
+            if ((type === 'want' || type === 'viewed' || type === 'lists') && mode !== 'force') {
                 const { hasUnfinishedSync, getSavedSyncProgress } = await import('./progressManager');
                 const userProfile = await userService.getUserProfile();
                 
+                logAsync('INFO', '检查是否有未完成的同步', { 
+                    type, 
+                    userEmail: userProfile?.email,
+                    mode 
+                });
+                
                 if (userProfile && await hasUnfinishedSync(type, userProfile.email)) {
                     const savedProgress = await getSavedSyncProgress(type, userProfile.email);
+                    logAsync('INFO', '发现未完成的同步', { savedProgress });
+                    
                     if (savedProgress) {
                         // 显示确认对话框
                         const shouldResume = await showResumeConfirmDialog(type, savedProgress);
                         
+                        logAsync('INFO', '用户选择', { shouldResume });
+                        
                         if (shouldResume === null) {
                             // 用户取消
+                            logAsync('INFO', '用户取消了恢复对话框');
                             return;
                         }
                         
@@ -159,9 +170,11 @@ async function handleSyncRequest(event: Event): Promise<void> {
                             // 重新开始同步，清除进度
                             const { clearSyncProgress } = await import('./progressManager');
                             await clearSyncProgress();
-                            logAsync('INFO', '用户选择重新开始同步', { type });
+                            logAsync('INFO', '用户选择重新开始同步，已清除进度', { type });
                         }
                     }
+                } else {
+                    logAsync('INFO', '没有发现未完成的同步', { type, userEmail: userProfile?.email });
                 }
             }
 
