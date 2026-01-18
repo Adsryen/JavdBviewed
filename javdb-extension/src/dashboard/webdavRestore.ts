@@ -1285,6 +1285,8 @@ function closeWebDAVRestoreModal(): void {
         modal.classList.remove('visible');
         modal.classList.add('hidden');
     }
+
+    try { document.body.classList.remove('modal-open'); } catch {}
 }
 
 export function showWebDAVRestoreModal(): void {
@@ -1304,6 +1306,8 @@ export function showWebDAVRestoreModal(): void {
     // 显示弹窗
     modal.classList.remove('hidden');
     modal.classList.add('visible');
+
+    try { document.body.classList.add('modal-open'); } catch {}
 
     // 绑定事件
     bindModalEvents();
@@ -2855,6 +2859,8 @@ function closeModal(): void {
         modal.classList.remove('visible');
         modal.classList.add('hidden');
     }
+
+    try { document.body.classList.remove('modal-open'); } catch {}
 
     selectedFile = null;
     logAsync('INFO', '用户关闭了WebDAV恢复弹窗');

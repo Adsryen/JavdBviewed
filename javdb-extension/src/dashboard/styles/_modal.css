@@ -221,8 +221,8 @@
 }
 
 /* =================================================================
-   =================== MODAL STYLES ================================
-   ================================================================= */
+    =================== MODAL STYLES ================================
+    ================================================================= */
 
 .modal-overlay {
     position: fixed;
@@ -238,6 +238,22 @@
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+body.modal-open {
+    overflow: hidden !important;
+}
+
+#webdavRestoreModal.modal-overlay {
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow: auto;
+    z-index: 10000;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
 }
 
 .modal-overlay.visible {
@@ -842,21 +858,23 @@
     border: 1px solid #e1e8ed;
 }
 
+@keyframes pulse-fade {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .85; transform: scale(1.02); }
+}
+
 .loading-spinner {
     font-size: 40px;
     color: #667eea;
     width: 64px;
     height: 64px;
     display: flex;
-@keyframes pulse-fade {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .85; transform: scale(1.02); }
-}
     align-items: center;
     justify-content: center;
     margin: 0 auto 20px;
     animation: pulse-fade 2s infinite;
 }
+
 /* 确保旋转围绕中心（保底，已换用 CSS Spinner）*/
 #webdavRestoreLoading .loading-spinner i.fa-spinner,
 #webdavRestoreLoading .fa-spin { display: none; }
