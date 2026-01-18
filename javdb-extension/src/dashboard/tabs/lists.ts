@@ -115,6 +115,13 @@ export class ListsTab {
     }
 
     private async navigateToRecordsWithList(listId: string): Promise<void> {
+        // 检查清单是否为空
+        const list = this.lists.find(l => String(l.id) === String(listId));
+        if (list && typeof list.moviesCount === 'number' && list.moviesCount === 0) {
+            showMessage('该清单为空，无需跳转', 'info');
+            return;
+        }
+
         location.hash = '#tab-records';
 
         const desired = `listid:${String(listId)}`;

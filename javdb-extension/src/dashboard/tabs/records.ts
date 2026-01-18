@@ -1719,6 +1719,14 @@ export function initRecordsTab(): void {
         });
     }
 
+    // 导出数据按钮
+    const exportRecordsBtn = document.getElementById('exportRecordsBtn') as HTMLButtonElement;
+    if (exportRecordsBtn) {
+        exportRecordsBtn.addEventListener('click', async () => {
+            await handleExportRecords();
+        });
+    }
+
     // 已移除：精确查询事件监听器
 
     // Advanced search 切换使用文档级事件委托（见前文注入），此处不再重复绑定
@@ -2478,6 +2486,292 @@ export function initRecordsTab(): void {
     function hideBatchProgress(modal: HTMLElement) {
         if (modal && modal.parentNode) {
             modal.parentNode.removeChild(modal);
+        }
+    }
+
+    // ========== 导出功能 ==========
+    
+    async function handleExportRecords() {
+        // 显示导出格式选择弹窗
+        const modal = document.createElement('div');
+        modal.className = 'custom-confirm-modal';
+        modal.innerHTML = `
+            <div class="custom-confirm-overlay"></div>
+            <div class="custom-confirm-content">
+                <div class="custom-confirm-header">
+                    <h3>导出番号数据</h3>
+                </div>
+                <div class="custom-confirm-body">
+                    <p>请选择导出格式：</p>
+                    <div style="margin-top: 12px;">
+                        <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                            <input type="radio" name="exportFormat" value="json" checked style="margin-right: 8px;">
+                            JSON 格式（完整数据，包含所有字段）
+                        </label>
+                        <label style="display: block; cursor: pointer;">
+                            <input type="radio" name="exportFormat" value="excel" style="margin-right: 8px;">
+                            Excel 格式（CSV文件，适合表格查看）
+                        </label>
+                    </div>
+                    <p style="margin-top: 16px; font-size: 12px; color: #666;">
+                        ${filteredRecords.length > 0 ? `当前筛选条件下共 ${filteredRecords.length} 条记录` : `共 ${STATE.records.length} 条记录`}
+                    </p>
+                </div>
+                <div class="custom-confirm-footer">
+                    <button class="custom-confirm-cancel">取消</button>
+                    <button class="custom-confirm-ok">开始导出</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
+        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
+        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
+
+        const closeModal = () => {
+            modal.remove();
+        };
+
+        overlay.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+
+        okBtn.addEventListener('click', async () => {
+            const selectedFormat = (modal.querySelector('input[name="exportFormat"]:checked') as HTMLInputElement)?.value || 'json';
+            closeModal();
+            
+            // 根据格式执行导出
+            if (selectedFormat === 'json') {
+                await exportAsJSON();
+            } else {
+                await exportAsExcel();
+            }
+        });
+
+        // ESC键关闭
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleKeydown);
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+    }
+
+    async function exportAsJSON() {
+        try {
+            // 获取要导出的数据（如果有筛选条件，导出筛选后的数据）
+            let dataToExport: VideoRecord[] = [];
+            
+            if (serverModeActive) {
+                // IDB模式：需要查询所有符合条件的数据
+                const progressModal = showBatchProgress('正在准备导出数据...', 1);
+                
+                const parsed = parseSearchTokens((searchInput?.value || '').trim());
+                const searchTerm = parsed.text;
+                const hasTags = selectedTags.size > 0;
+                const hasLists = selectedListIds.size > 0;
+                const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
+                const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
+                const sort = parseSort();
+
+                const queryParams: ViewedQueryParams = {
+                    search: searchTerm || undefined,
+                    status: statusVal,
+                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
+                    listIds: (() => {
+                        const ids = new Set<string>();
+                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
+                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
+                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
+                        if (nameTokens.length > 0) {
+                            for (const [id, name] of listIdToName.entries()) {
+                                const n = String(name || '').toLowerCase();
+                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
+                            }
+                        }
+                        return Array.from(ids);
+                    })(),
+                    orderBy: sort ? sort.orderBy : 'updatedAt',
+                    order: sort ? sort.order : 'desc',
+                    offset: 0,
+                    limit: 999999, // 获取所有数据
+                    adv,
+                };
+
+                const resp = await dbViewedQuery(queryParams);
+                dataToExport = resp.items || [];
+                
+                hideBatchProgress(progressModal);
+            } else {
+                // 内存模式：直接使用filteredRecords
+                dataToExport = filteredRecords;
+            }
+
+            if (dataToExport.length === 0) {
+                showMessage('没有数据可导出', 'warn');
+                return;
+            }
+
+            // 显示进度（如果数据量大）
+            let progressModal: HTMLElement | null = null;
+            if (dataToExport.length > 1000) {
+                progressModal = showBatchProgress('正在生成JSON文件...', dataToExport.length);
+            }
+
+            // 生成JSON
+            const exportData = {
+                exportTime: new Date().toISOString(),
+                totalCount: dataToExport.length,
+                records: dataToExport
+            };
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `javdb-records-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            if (progressModal) {
+                hideBatchProgress(progressModal);
+            }
+
+            showMessage(`成功导出 ${dataToExport.length} 条记录（JSON格式）`, 'success');
+        } catch (error: any) {
+            console.error('导出JSON失败:', error);
+            showMessage(`导出失败: ${error.message}`, 'error');
+        }
+    }
+
+    async function exportAsExcel() {
+        try {
+            // 获取要导出的数据
+            let dataToExport: VideoRecord[] = [];
+            
+            if (serverModeActive) {
+                // IDB模式：需要查询所有符合条件的数据
+                const progressModal = showBatchProgress('正在准备导出数据...', 1);
+                
+                const parsed = parseSearchTokens((searchInput?.value || '').trim());
+                const searchTerm = parsed.text;
+                const hasTags = selectedTags.size > 0;
+                const hasLists = selectedListIds.size > 0;
+                const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
+                const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
+                const sort = parseSort();
+
+                const queryParams: ViewedQueryParams = {
+                    search: searchTerm || undefined,
+                    status: statusVal,
+                    tags: Array.from(new Set([ ...Array.from(selectedTags), ...parsed.tags ])),
+                    listIds: (() => {
+                        const ids = new Set<string>();
+                        Array.from(selectedListIds).forEach((x) => { if (x) ids.add(String(x)); });
+                        (parsed.listIds || []).forEach((x) => { if (x) ids.add(String(x)); });
+                        const nameTokens = (parsed.listNames || []).map(s => String(s).toLowerCase()).filter(Boolean);
+                        if (nameTokens.length > 0) {
+                            for (const [id, name] of listIdToName.entries()) {
+                                const n = String(name || '').toLowerCase();
+                                if (nameTokens.some(tok => n.includes(tok))) ids.add(String(id));
+                            }
+                        }
+                        return Array.from(ids);
+                    })(),
+                    orderBy: sort ? sort.orderBy : 'updatedAt',
+                    order: sort ? sort.order : 'desc',
+                    offset: 0,
+                    limit: 999999,
+                    adv,
+                };
+
+                const resp = await dbViewedQuery(queryParams);
+                dataToExport = resp.items || [];
+                
+                hideBatchProgress(progressModal);
+            } else {
+                dataToExport = filteredRecords;
+            }
+
+            if (dataToExport.length === 0) {
+                showMessage('没有数据可导出', 'warn');
+                return;
+            }
+
+            // 显示进度
+            let progressModal: HTMLElement | null = null;
+            if (dataToExport.length > 1000) {
+                progressModal = showBatchProgress('正在生成CSV文件...', dataToExport.length);
+                updateBatchProgress(progressModal, 0, dataToExport.length, '正在处理数据...');
+            }
+
+            // 生成CSV内容
+            const headers = ['番号', '标题', '状态', '标签', '清单', '发行日期', '创建时间', '更新时间', 'JavDB链接', '封面链接'];
+            const csvRows: string[] = [];
+            
+            // 添加表头
+            csvRows.push(headers.map(h => `"${h}"`).join(','));
+
+            // 添加数据行
+            for (let i = 0; i < dataToExport.length; i++) {
+                const record = dataToExport[i];
+                
+                // 更新进度
+                if (progressModal && i % 100 === 0) {
+                    updateBatchProgress(progressModal, i, dataToExport.length, `已处理 ${i}/${dataToExport.length}`);
+                }
+
+                const tags = Array.isArray(record.tags) ? record.tags.join('、') : '';
+                const listIds = Array.isArray((record as any).listIds) ? ((record as any).listIds as string[]) : [];
+                const listNames = listIds.map((id) => listIdToName.get(String(id)) || String(id)).join('、');
+                const createdAt = record.createdAt ? new Date(record.createdAt).toLocaleString('zh-CN') : '';
+                const updatedAt = record.updatedAt ? new Date(record.updatedAt).toLocaleString('zh-CN') : '';
+                
+                const row = [
+                    record.id || '',
+                    record.title || '',
+                    record.status || '',
+                    tags,
+                    listNames,
+                    record.releaseDate || '',
+                    createdAt,
+                    updatedAt,
+                    record.javdbUrl || '',
+                    record.javdbImage || ''
+                ];
+                
+                // CSV转义：双引号转义为两个双引号，并用双引号包裹每个字段
+                csvRows.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','));
+            }
+
+            // 添加BOM以支持Excel正确识别UTF-8编码
+            const BOM = '\uFEFF';
+            const csvContent = BOM + csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `javdb-records-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            if (progressModal) {
+                hideBatchProgress(progressModal);
+            }
+
+            showMessage(`成功导出 ${dataToExport.length} 条记录（CSV格式）`, 'success');
+        } catch (error: any) {
+            console.error('导出CSV失败:', error);
+            showMessage(`导出失败: ${error.message}`, 'error');
         }
     }
 
