@@ -5,3 +5,141 @@
 .lists-item-meta{font-size:12px;opacity:.75;white-space:nowrap;}
 .lists-empty{padding:10px 12px;color:var(--muted);}
 @media (max-width: 900px){.lists-sections{grid-template-columns:1fr !important;}}
+
+/* 清单页面头部区域优化 */
+.lists-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.lists-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #212529;
+}
+
+/* 清单操作按钮组 */
+.lists-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.lists-actions .button-like {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lists-actions .button-like:hover {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #212529;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.lists-actions .button-like:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.lists-actions .button-like i {
+    font-size: 13px;
+}
+
+/* 清单搜索行优化 */
+.lists-search-row {
+    margin-top: 16px;
+    margin-bottom: 4px;
+}
+
+.lists-search-row input {
+    width: 100%;
+    max-width: 520px;
+    padding: 10px 16px;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #212529;
+    background: #fff;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.lists-search-row input:hover {
+    border-color: #adb5bd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.lists-search-row input:focus {
+    outline: none;
+    border-color: #74c0fc;
+    box-shadow: 0 0 0 3px rgba(116, 192, 252, 0.15);
+    background: #fff;
+}
+
+.lists-search-row input::placeholder {
+    color: #adb5bd;
+}
+
+/* 清单分区标题优化 */
+.lists-section h5 {
+    margin: 0 0 10px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #495057;
+    padding-left: 4px;
+}
+
+/* 清单分区容器 */
+.lists-sections {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* 空提示样式 */
+.lists-empty-tip {
+    margin-top: 12px;
+    padding: 12px;
+    color: var(--muted);
+    display: none;
+    text-align: center;
+    font-size: 14px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .lists-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .lists-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .lists-search-row input {
+        max-width: 100%;
+    }
+}
