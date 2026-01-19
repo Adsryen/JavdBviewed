@@ -43,3 +43,7 @@ temp/
 
 # windsurf
 .windsurf/
+
+# PRIVACY_POLICY
+!PRIVACY_POLICY.md
+!javdb-extension/PRIVACY_POLICY.md
