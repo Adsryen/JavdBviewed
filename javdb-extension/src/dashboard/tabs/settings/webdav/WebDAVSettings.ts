@@ -23,6 +23,13 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private webdavSyncInterval!: HTMLInputElement;
     private webdavRetentionDays!: HTMLInputElement;
     private webdavWarningDays!: HTMLInputElement;
+    // 数据范围选择
+    private webdavBackupSettings!: HTMLInputElement;
+    private webdavBackupRecords!: HTMLInputElement;
+    private webdavBackupUserProfile!: HTMLInputElement;
+    private webdavBackupActorRecords!: HTMLInputElement;
+    private webdavBackupNewWorks!: HTMLInputElement;
+    private webdavBackupLogs!: HTMLInputElement;
     private saveWebdavSettingsBtn!: HTMLButtonElement;
     private testWebdavConnectionBtn!: HTMLButtonElement;
     private diagnoseWebdavConnectionBtn!: HTMLButtonElement;
@@ -57,6 +64,13 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavSyncInterval = document.getElementById('webdav-sync-interval') as HTMLInputElement;
         this.webdavRetentionDays = document.getElementById('webdav-retention-days') as HTMLInputElement;
         this.webdavWarningDays = document.getElementById('webdav-warning-days') as HTMLInputElement;
+        // 数据范围选择
+        this.webdavBackupSettings = document.getElementById('webdavBackupSettings') as HTMLInputElement;
+        this.webdavBackupRecords = document.getElementById('webdavBackupRecords') as HTMLInputElement;
+        this.webdavBackupUserProfile = document.getElementById('webdavBackupUserProfile') as HTMLInputElement;
+        this.webdavBackupActorRecords = document.getElementById('webdavBackupActorRecords') as HTMLInputElement;
+        this.webdavBackupNewWorks = document.getElementById('webdavBackupNewWorks') as HTMLInputElement;
+        this.webdavBackupLogs = document.getElementById('webdavBackupLogs') as HTMLInputElement;
         this.saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
         this.testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
         this.diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
@@ -65,7 +79,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
         if (!this.webdavEnabled || !this.webdavUrl || !this.webdavUser || !this.webdavPass ||
             !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn ||
-            !this.toggleWebdavPasswordVisibilityBtn || !this.webdavRetentionDays || !this.webdavWarningDays) {
+            !this.toggleWebdavPasswordVisibilityBtn || !this.webdavRetentionDays || !this.webdavWarningDays ||
+            !this.webdavBackupSettings || !this.webdavBackupRecords || !this.webdavBackupUserProfile ||
+            !this.webdavBackupActorRecords || !this.webdavBackupNewWorks || !this.webdavBackupLogs) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -109,6 +125,14 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavSyncInterval.value = String(webdav.syncInterval || 30);
         this.webdavRetentionDays.value = String(webdav.retentionDays ?? 7);
         this.webdavWarningDays.value = String(webdav.warningDays ?? 7);
+        // 加载数据范围设置
+        const backupRange = webdav.backupRange || {};
+        this.webdavBackupSettings.checked = backupRange.settings !== false;
+        this.webdavBackupRecords.checked = backupRange.records !== false;
+        this.webdavBackupUserProfile.checked = backupRange.userProfile !== false;
+        this.webdavBackupActorRecords.checked = backupRange.actorRecords !== false;
+        this.webdavBackupNewWorks.checked = backupRange.newWorks || false;
+        this.webdavBackupLogs.checked = backupRange.logs || false;
         this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
 
         // 更新UI状态
@@ -132,7 +156,15 @@ export class WebDAVSettings extends BaseSettingsPanel {
                     syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                     retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                     warningDays: parseInt(this.webdavWarningDays.value, 10),
-                    lastSync: STATE.settings?.webdav?.lastSync || ''
+                    lastSync: STATE.settings?.webdav?.lastSync || '',
+                    backupRange: {
+                        settings: this.webdavBackupSettings.checked,
+                        records: this.webdavBackupRecords.checked,
+                        userProfile: this.webdavBackupUserProfile.checked,
+                        actorRecords: this.webdavBackupActorRecords.checked,
+                        newWorks: this.webdavBackupNewWorks.checked,
+                        logs: this.webdavBackupLogs.checked
+                    }
                 }
             };
 
@@ -190,6 +222,18 @@ export class WebDAVSettings extends BaseSettingsPanel {
             if (isNaN(warnDays) || warnDays < 0 || warnDays > 3650) {
                 errors.push('未备份预警阈值必须在0-3650之间');
             }
+
+            // 验证至少选择一项备份内容
+            const hasBackupContent = this.webdavBackupSettings.checked ||
+                                    this.webdavBackupRecords.checked ||
+                                    this.webdavBackupUserProfile.checked ||
+                                    this.webdavBackupActorRecords.checked ||
+                                    this.webdavBackupNewWorks.checked ||
+                                    this.webdavBackupLogs.checked;
+            
+            if (!hasBackupContent) {
+                errors.push('请至少选择一项要备份的数据');
+            }
         }
 
         return {
@@ -213,7 +257,15 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                 retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                 warningDays: parseInt(this.webdavWarningDays.value, 10),
-                lastSync: STATE.settings?.webdav?.lastSync || ''
+                lastSync: STATE.settings?.webdav?.lastSync || '',
+                backupRange: {
+                    settings: this.webdavBackupSettings.checked,
+                    records: this.webdavBackupRecords.checked,
+                    userProfile: this.webdavBackupUserProfile.checked,
+                    actorRecords: this.webdavBackupActorRecords.checked,
+                    newWorks: this.webdavBackupNewWorks.checked,
+                    logs: this.webdavBackupLogs.checked
+                }
             }
         };
     }
@@ -247,6 +299,15 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
             if (webdav.warningDays !== undefined) {
                 this.webdavWarningDays.value = String(webdav.warningDays);
+            }
+            if (webdav.backupRange !== undefined) {
+                const range = webdav.backupRange;
+                this.webdavBackupSettings.checked = range.settings !== false;
+                this.webdavBackupRecords.checked = range.records !== false;
+                this.webdavBackupUserProfile.checked = range.userProfile !== false;
+                this.webdavBackupActorRecords.checked = range.actorRecords !== false;
+                this.webdavBackupNewWorks.checked = range.newWorks || false;
+                this.webdavBackupLogs.checked = range.logs || false;
             }
             if (webdav.lastSync !== undefined) {
                 this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';

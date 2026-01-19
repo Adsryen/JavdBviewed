@@ -28,6 +28,14 @@ export interface ExtensionSettings {
         retentionDays?: number;
         warningDays?: number;
         lastSync: string | null;
+        backupRange?: {
+            settings: boolean;
+            records: boolean;
+            userProfile: boolean;
+            actorRecords: boolean;
+            newWorks: boolean;
+            logs: boolean;
+        };
     };
     dataSync: {
         requestInterval: number;

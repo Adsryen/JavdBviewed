@@ -53,6 +53,7 @@
     transform: translateY(-1px);
 }
 
+/* 主控制行 */
 .webdav-controls-row {
     display: flex;
     align-items: center;
@@ -63,6 +64,12 @@
 
 .webdav-controls-row:last-child {
     margin-bottom: 0;
+}
+
+.webdav-main-control {
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(139, 90, 43, 0.1);
+    margin-bottom: 20px;
 }
 
 /* WebDAV启用控件样式 */
@@ -103,12 +110,14 @@
 .webdav-sub-controls {
     background: rgba(139, 90, 43, 0.03);
     border-radius: 8px;
-    padding: 16px;
-    margin-top: 12px;
-    border-left: 4px solid var(--webdav-secondary);
+    padding: 20px;
+    margin-top: 0;
     transition: all 0.3s ease;
     opacity: 0.5;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .webdav-sub-controls.enabled {
@@ -117,8 +126,100 @@
     background: rgba(139, 90, 43, 0.05);
 }
 
+/* WebDAV 分区样式 */
+.webdav-section {
+    background: #ffffff;
+    border: 1px solid rgba(139, 90, 43, 0.15);
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.webdav-section:hover {
+    border-color: rgba(139, 90, 43, 0.3);
+    box-shadow: 0 2px 8px rgba(139, 90, 43, 0.08);
+}
+
+.webdav-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--webdav-primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(139, 90, 43, 0.1);
+}
+
+.webdav-section-header i {
+    font-size: 16px;
+}
+
+.webdav-section-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.webdav-section-description {
+    font-size: 13px;
+    color: var(--webdav-text-muted);
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+/* 内联控件容器 */
+.webdav-inline-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+/* 数据范围选项 */
+.webdav-data-range-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.webdav-data-range-options .form-group-checkbox {
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(139, 90, 43, 0.03);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.webdav-data-range-options .form-group-checkbox:hover {
+    background: rgba(139, 90, 43, 0.08);
+}
+
+.webdav-data-range-options .form-group-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--webdav-text);
+    cursor: pointer;
+}
+
+.webdav-data-range-options .form-group-checkbox label i {
+    font-size: 14px;
+    color: var(--webdav-secondary);
+    width: 16px;
+    text-align: center;
+}
+
+.webdav-data-range-options .form-group-checkbox input[type="checkbox"] {
+    margin: 0;
+    transform: scale(1.1);
+    accent-color: var(--webdav-primary);
+}
+
 .webdav-auto-control {
-    margin: 0 0 16px 0;
+    margin: 0;
 }
 
 .webdav-auto-control input[type="checkbox"] {
@@ -143,30 +244,38 @@
 }
 
 /* WebDAV间隔控件样式 */
-.webdav-interval-control {
+.webdav-interval-control,
+.webdav-retention-control,
+.webdav-warning-control {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: nowrap;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.8);
     padding: 8px 12px;
     border-radius: 6px;
     border: 1px solid #e5e7eb;
+    flex: 1;
+    min-width: 180px;
 }
 
-.webdav-interval-control label {
+.webdav-interval-control label,
+.webdav-retention-control label,
+.webdav-warning-control label {
     display: flex;
     align-items: center;
     font-weight: 500;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--webdav-text);
     gap: 6px;
     white-space: nowrap;
     margin: 0;
 }
 
-.webdav-interval-control label i {
-    font-size: 16px;
+.webdav-interval-control label i,
+.webdav-retention-control label i,
+.webdav-warning-control label i {
+    font-size: 14px;
     color: var(--webdav-secondary);
 }
 
@@ -208,8 +317,10 @@
     border-color: #d1d5db !important;
 }
 
-.webdav-interval-control .input-suffix {
-    font-size: 14px;
+.webdav-interval-control .input-suffix,
+.webdav-retention-control .input-suffix,
+.webdav-warning-control .input-suffix {
+    font-size: 13px;
     color: var(--webdav-text-muted);
     font-weight: 500;
 }
@@ -561,4 +672,82 @@
     line-height: 1 !important;
     margin: 0 !important;
     padding: 0 !important;
+}
+
+/* 响应式样式 */
+@media (max-width: 1200px) {
+    .webdav-inline-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .webdav-interval-control,
+    .webdav-retention-control,
+    .webdav-warning-control {
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .webdav-controls-container {
+        padding: 16px;
+    }
+
+    .webdav-sub-controls {
+        padding: 16px;
+    }
+
+    .webdav-section {
+        padding: 12px;
+    }
+
+    .webdav-data-range-options {
+        grid-template-columns: 1fr;
+    }
+
+    .webdav-section-header {
+        font-size: 13px;
+    }
+
+    .webdav-enable-control label {
+        font-size: 15px;
+    }
+
+    .webdav-interval-control label,
+    .webdav-retention-control label,
+    .webdav-warning-control label {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .webdav-controls-container {
+        padding: 12px;
+        margin: 16px 0;
+    }
+
+    .webdav-sub-controls {
+        padding: 12px;
+        gap: 16px;
+    }
+
+    .webdav-section {
+        padding: 10px;
+    }
+
+    .webdav-section-header {
+        font-size: 12px;
+    }
+
+    .webdav-section-description {
+        font-size: 12px;
+    }
+
+    .webdav-data-range-options .form-group-checkbox {
+        padding: 6px 10px;
+    }
+
+    .webdav-data-range-options .form-group-checkbox label {
+        font-size: 13px;
+    }
 }
