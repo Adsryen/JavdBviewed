@@ -43,6 +43,7 @@ build.bat
 # 排除todo文件夹
 !todo/*.md
 !scripts/*.md
+!PRIVACY_POLICY.md
 
 # temp
 temp/
