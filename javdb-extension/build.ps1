@@ -386,7 +386,8 @@ if ($autoNotes) {
     }
 
     Write-Host "Final commit range: $range" -ForegroundColor Cyan
-    $fmt = "- %s - by %an on %ad ([$h]($repoUrl/commit/%H))"
+    # 使用字符串拼接避免 PowerShell 变量解析问题
+    $fmt = "- %s - by %an on %ad ([%h]($repoUrl/commit/%H))"
 
     # 分类日志
     $features = & git log --no-merges --date=short --grep="^feat" --pretty="format:$fmt" $range
