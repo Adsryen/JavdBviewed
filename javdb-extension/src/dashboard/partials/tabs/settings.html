@@ -149,7 +149,8 @@
                             </div>
                             <div class="settings-panel-body">
                                 <div class="webdav-controls-container">
-                                    <div class="webdav-controls-row">
+                                    <!-- 主开关 -->
+                                    <div class="webdav-controls-row webdav-main-control">
                                         <div class="form-group-checkbox webdav-enable-control">
                                             <input type="checkbox" id="webdavEnabled">
                                             <label for="webdavEnabled">
@@ -159,40 +160,107 @@
                                         </div>
                                     </div>
 
-                                    <div class="webdav-controls-row webdav-sub-controls" id="webdavSubControls">
-                                        <div class="form-group-checkbox webdav-auto-control">
-                                            <input type="checkbox" id="webdavAutoSync">
-                                            <label for="webdavAutoSync">
-                                                <i class="fas fa-sync-alt"></i>
-                                                自动上传
-                                            </label>
+                                    <!-- 子控件区域 -->
+                                    <div class="webdav-sub-controls" id="webdavSubControls">
+                                        <!-- 自动同步设置 -->
+                                        <div class="webdav-section">
+                                            <div class="webdav-section-header">
+                                                <i class="fas fa-cog"></i>
+                                                <span>同步设置</span>
+                                            </div>
+                                            <div class="webdav-section-content">
+                                                <div class="form-group-checkbox webdav-auto-control">
+                                                    <input type="checkbox" id="webdavAutoSync">
+                                                    <label for="webdavAutoSync">
+                                                        <i class="fas fa-sync-alt"></i>
+                                                        自动上传
+                                                    </label>
+                                                </div>
+
+                                                <div class="webdav-inline-controls">
+                                                    <div class="form-group-inline webdav-interval-control">
+                                                        <label for="webdav-sync-interval">
+                                                            <i class="fas fa-clock"></i>
+                                                            同步间隔:
+                                                        </label>
+                                                        <input type="number" id="webdav-sync-interval" class="number-input" min="1" max="1440" value="30">
+                                                        <span class="input-suffix">分钟</span>
+                                                    </div>
+
+                                                    <div class="form-group-inline webdav-retention-control">
+                                                        <label for="webdav-retention-days">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                            保留备份:
+                                                        </label>
+                                                        <input type="number" id="webdav-retention-days" class="number-input" min="0" max="3650" value="7">
+                                                        <span class="input-suffix">天</span>
+                                                    </div>
+
+                                                    <div class="form-group-inline webdav-warning-control">
+                                                        <label for="webdav-warning-days">
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                            预警阈值:
+                                                        </label>
+                                                        <input type="number" id="webdav-warning-days" class="number-input" min="0" max="3650" value="7">
+                                                        <span class="input-suffix">天</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div class="form-group-inline webdav-interval-control">
-                                            <label for="webdav-sync-interval">
-                                                <i class="fas fa-clock"></i>
-                                                同步间隔:
-                                            </label>
-                                            <input type="number" id="webdav-sync-interval" class="number-input" min="1" max="1440" value="30">
-                                            <span class="input-suffix">分钟</span>
-                                        </div>
-
-                                        <div class="form-group-inline webdav-retention-control">
-                                            <label for="webdav-retention-days">
-                                                <i class="fas fa-trash-alt"></i>
-                                                保留备份天数:
-                                            </label>
-                                            <input type="number" id="webdav-retention-days" class="number-input" min="0" max="3650" value="7">
-                                            <span class="input-suffix">天</span>
-                                        </div>
-
-                                        <div class="form-group-inline webdav-warning-control">
-                                            <label for="webdav-warning-days">
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                未备份预警阈值:
-                                            </label>
-                                            <input type="number" id="webdav-warning-days" class="number-input" min="0" max="3650" value="7">
-                                            <span class="input-suffix">天</span>
+                                        <!-- 备份数据范围 -->
+                                        <div class="webdav-section">
+                                            <div class="webdav-section-header">
+                                                <i class="fas fa-database"></i>
+                                                <span>备份数据范围</span>
+                                            </div>
+                                            <div class="webdav-section-content">
+                                                <p class="webdav-section-description">选择要备份到云端的数据类型</p>
+                                                <div class="webdav-data-range-options">
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupSettings" checked>
+                                                        <label for="webdavBackupSettings">
+                                                            <i class="fas fa-cog"></i>
+                                                            扩展设置
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupRecords" checked>
+                                                        <label for="webdavBackupRecords">
+                                                            <i class="fas fa-video"></i>
+                                                            观看记录
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupUserProfile" checked>
+                                                        <label for="webdavBackupUserProfile">
+                                                            <i class="fas fa-user"></i>
+                                                            用户资料
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupActorRecords" checked>
+                                                        <label for="webdavBackupActorRecords">
+                                                            <i class="fas fa-users"></i>
+                                                            演员库
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupNewWorks">
+                                                        <label for="webdavBackupNewWorks">
+                                                            <i class="fas fa-star"></i>
+                                                            新作品订阅
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group-checkbox">
+                                                        <input type="checkbox" id="webdavBackupLogs">
+                                                        <label for="webdavBackupLogs">
+                                                            <i class="fas fa-file-alt"></i>
+                                                            日志记录
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
