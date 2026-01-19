@@ -39,6 +39,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private readonly onSaveClick = () => { this.handleSaveSettings().catch(() => {}); };
     private readonly onWebdavEnabledChange = () => { this.handleWebDAVEnabledChange(); };
     private readonly onWebdavAutoSyncChange = () => { this.handleWebDAVAutoSyncChange(); };
+    private readonly onBackupRangeChange = () => { this.handleBackupRangeChange(); };
     private readonly onTestClick = () => { this.handleTestWebDAV().catch(() => {}); };
     private readonly onDiagnoseClick = () => { this.handleDiagnoseWebDAV().catch(() => {}); };
     private readonly onTogglePasswordClick = () => { this.handleTogglePasswordVisibility(); };
@@ -93,6 +94,13 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.saveWebdavSettingsBtn.addEventListener('click', this.onSaveClick);
         this.webdavEnabled.addEventListener('change', this.onWebdavEnabledChange);
         this.webdavAutoSync.addEventListener('change', this.onWebdavAutoSyncChange);
+        // 绑定数据范围复选框的自动保存
+        this.webdavBackupSettings.addEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupRecords.addEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupUserProfile.addEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupActorRecords.addEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupNewWorks.addEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupLogs.addEventListener('change', this.onBackupRangeChange);
         this.testWebdavConnectionBtn.addEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn.addEventListener('click', this.onDiagnoseClick);
         this.toggleWebdavPasswordVisibilityBtn.addEventListener('click', this.onTogglePasswordClick);
@@ -105,6 +113,13 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.saveWebdavSettingsBtn?.removeEventListener('click', this.onSaveClick);
         this.webdavEnabled?.removeEventListener('change', this.onWebdavEnabledChange);
         this.webdavAutoSync?.removeEventListener('change', this.onWebdavAutoSyncChange);
+        // 解绑数据范围复选框
+        this.webdavBackupSettings?.removeEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupRecords?.removeEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupUserProfile?.removeEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupActorRecords?.removeEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupNewWorks?.removeEventListener('change', this.onBackupRangeChange);
+        this.webdavBackupLogs?.removeEventListener('change', this.onBackupRangeChange);
         this.testWebdavConnectionBtn?.removeEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.onDiagnoseClick);
         this.toggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.onTogglePasswordClick);
@@ -345,6 +360,14 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     private handleWebDAVAutoSyncChange(): void {
+        this.emit('change');
+        this.saveSettings().catch(() => {});
+    }
+
+    /**
+     * 处理备份数据范围变化
+     */
+    private handleBackupRangeChange(): void {
         this.emit('change');
         this.saveSettings().catch(() => {});
     }
