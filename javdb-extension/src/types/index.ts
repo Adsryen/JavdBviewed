@@ -29,12 +29,11 @@ export interface ExtensionSettings {
         warningDays?: number;
         lastSync: string | null;
         backupRange?: {
-            settings: boolean;
-            records: boolean;
-            userProfile: boolean;
-            actorRecords: boolean;
-            newWorks: boolean;
-            logs: boolean;
+            coreData: boolean;      // 核心数据：观看记录、用户资料
+            actorData: boolean;     // 演员数据：演员库、演员订阅
+            newWorksData: boolean;  // 新作品数据：新作品订阅和记录
+            systemConfig: boolean;  // 系统配置：拓展设置、域名配置、搜索引擎等
+            logsData: boolean;      // 日志数据：操作日志
         };
     };
     dataSync: {
