@@ -400,27 +400,44 @@ async function initHelpSystem(): Promise<void> {
     const helpBtn = document.getElementById('helpBtn');
     const helpPanel = document.getElementById('helpPanel');
     const closeHelpBtn = document.getElementById('closeHelpBtn');
-    const helpBody = helpPanel?.querySelector('.help-body');
 
-    if (!helpBtn || !helpPanel || !closeHelpBtn || !helpBody) return;
+    if (!helpBtn || !helpPanel || !closeHelpBtn) return;
+
+    // 动态导入 HelpPanelManager
+    const { HelpPanelManager } = await import('./help/helpPanelManager');
 
     // 从 partial 动态加载帮助内容
     let html = '';
     try {
         html = await loadPartial('help/feature-help.html');
-    } catch {}
-    helpBody.innerHTML = html || '<div style="color:#888;">帮助内容加载失败，请检查构建产物（help/feature-help.html）。</div>';
+    } catch (error) {
+        console.error('[initHelpSystem] 加载帮助内容失败:', error);
+        html = '';
+    }
+
+    // 创建帮助面板管理器
+    const helpManager = new HelpPanelManager(helpPanel);
+
+    // 初始化管理器
+    try {
+        await helpManager.init(html);
+    } catch (error) {
+        console.error('[initHelpSystem] 初始化帮助面板失败:', error);
+        // 降级：显示错误提示
+        const bodyContainer = helpPanel.querySelector('.help-body-container');
+        if (bodyContainer) {
+            bodyContainer.innerHTML = '<div style="padding:30px;color:#888;">帮助内容加载失败，请刷新页面重试。</div>';
+        }
+    }
 
     // 显示帮助面板
     helpBtn.addEventListener('click', () => {
-        helpPanel.classList.remove('hidden');
-        helpPanel.classList.add('visible');
+        helpManager.show();
     });
 
     // 关闭帮助面板
     const closeHelp = () => {
-        helpPanel.classList.remove('visible');
-        helpPanel.classList.add('hidden');
+        helpManager.hide();
     };
 
     closeHelpBtn.addEventListener('click', closeHelp);
