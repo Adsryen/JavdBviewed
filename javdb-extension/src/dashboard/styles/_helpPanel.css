@@ -409,7 +409,7 @@
 /* ========== 桌面布局优化 ========== */
 @media (min-width: 1200px) {
     #helpPanel .help-content-wrapper {
-        max-width: 1100px;
+        max-width: 1300px;
     }
 
     #helpPanel .help-sidebar {
