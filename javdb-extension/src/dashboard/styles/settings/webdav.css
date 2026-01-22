@@ -751,3 +751,13 @@
         font-size: 13px;
     }
 }
+
+/* 备份范围复选框描述文字样式 */
+.form-group-checkbox label .checkbox-description {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    font-weight: normal;
+    opacity: 0.8;
+}
