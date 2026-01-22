@@ -28,3 +28,56 @@
 
 .github-link-container { display:flex; }
 .github-link { color:inherit; text-decoration:none; font-size:18px; }
+
+/* WebDAV 预警横幅 */
+.webdav-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.15), rgba(255, 152, 0, 0.08));
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-left: 4px solid #ff9800;
+    border-radius: 6px;
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+.webdav-warning-banner i {
+    color: #ff9800;
+    font-size: 1.2rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.webdav-warning-banner .warning-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.webdav-warning-banner .warning-title {
+    font-weight: 600;
+    color: #ff9800;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.webdav-warning-banner .warning-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+@keyframes warningPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 8px 2px rgba(255, 152, 0, 0.2);
+    }
+}
+
+/* 侧边栏收缩时隐藏预警横幅 */
+.sidebar.collapsed .webdav-warning-banner {
+    display: none;
+}
