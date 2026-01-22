@@ -242,3 +242,77 @@ export function getAllDomains(): DomainInfo[] {
     return priorityOrder[a.priority] - priorityOrder[b.priority];
   });
 }
+
+/**
+ * 保存域名配置到 localStorage
+ */
+export function saveDomainConfig(): void {
+  const config: Record<string, boolean[]> = {};
+  
+  Object.entries(EXTENSION_DOMAINS).forEach(([key, category]) => {
+    config[key] = category.domains.map(domain => domain.enabled);
+  });
+
+  localStorage.setItem('domain_config', JSON.stringify(config));
+}
+
+/**
+ * 从 localStorage 加载域名配置
+ */
+export function loadDomainConfig(): void {
+  try {
+    const configStr = localStorage.getItem('domain_config');
+    if (!configStr) return;
+
+    const config: Record<string, boolean[]> = JSON.parse(configStr);
+
+    Object.entries(config).forEach(([key, enabledArray]) => {
+      const category = EXTENSION_DOMAINS[key];
+      if (category && Array.isArray(enabledArray)) {
+        enabledArray.forEach((enabled, index) => {
+          if (category.domains[index]) {
+            category.domains[index].enabled = enabled;
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error('加载域名配置失败:', error);
+  }
+}
+
+/**
+ * 导出域名配置（用于备份）
+ */
+export function exportDomainConfig(): Record<string, boolean[]> {
+  const config: Record<string, boolean[]> = {};
+  
+  Object.entries(EXTENSION_DOMAINS).forEach(([key, category]) => {
+    config[key] = category.domains.map(domain => domain.enabled);
+  });
+
+  return config;
+}
+
+/**
+ * 导入域名配置（用于恢复）
+ */
+export function importDomainConfig(config: Record<string, boolean[]>): void {
+  try {
+    Object.entries(config).forEach(([key, enabledArray]) => {
+      const category = EXTENSION_DOMAINS[key];
+      if (category && Array.isArray(enabledArray)) {
+        enabledArray.forEach((enabled, index) => {
+          if (category.domains[index]) {
+            category.domains[index].enabled = enabled;
+          }
+        });
+      }
+    });
+    
+    // 保存到 localStorage
+    saveDomainConfig();
+  } catch (error) {
+    console.error('导入域名配置失败:', error);
+  }
+}
