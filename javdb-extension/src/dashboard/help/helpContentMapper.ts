@@ -33,6 +33,7 @@ const TITLE_TO_CATEGORY_MAP: Record<string, string> = {
     '功能增强': 'enhancement',
     '隐私保护': 'privacy',
     '快捷键': 'shortcuts',
+    'AI 功能': 'ai-features',
     '日志与诊断': 'logs',
     '高级工具': 'advanced',
     '常见问题': 'faq'
@@ -48,9 +49,14 @@ export function parseHelpContent(html: string): ContentSection[] {
 
     // 获取所有 h3 标签
     const h3Elements = doc.querySelectorAll('h3');
+    console.log(`[HelpContentMapper] 找到 ${h3Elements.length} 个 h3 标签`);
 
     h3Elements.forEach((h3) => {
-        const title = h3.textContent?.trim() || '';
+        // 提取标题文本，移除图标元素
+        let title = h3.textContent?.trim() || '';
+        // 移除可能的图标字符和多余空格
+        title = title.replace(/[\uE000-\uF8FF]/g, '').trim();
+        
         const sectionHtml: string[] = [];
 
         // 添加 h3 本身
@@ -67,8 +73,11 @@ export function parseHelpContent(html: string): ContentSection[] {
             title,
             html: sectionHtml.join('\n')
         });
+        
+        console.log(`[HelpContentMapper] 解析段落: "${title}" (${sectionHtml.length} 个元素)`);
     });
 
+    console.log(`[HelpContentMapper] 总共解析了 ${sections.length} 个段落`);
     return sections;
 }
 
@@ -95,11 +104,22 @@ export function mapContentToCategories(html: string): Map<string, string> {
                 categoryId,
                 existingContent + (existingContent ? '\n' : '') + section.html
             );
+            console.log(`[HelpContentMapper] 映射成功: "${section.title}" -> ${categoryId}`);
         } else {
             // 未映射的标题，记录警告
             console.warn(`[HelpContentMapper] 未找到标题 "${section.title}" 的分类映射`);
         }
     });
+
+    // 输出映射结果统计
+    let totalMapped = 0;
+    categoryContentMap.forEach((content, id) => {
+        if (content) {
+            totalMapped++;
+            console.log(`[HelpContentMapper] 分类 ${id} 有内容 (${content.length} 字符)`);
+        }
+    });
+    console.log(`[HelpContentMapper] 共映射了 ${totalMapped} 个分类`);
 
     return categoryContentMap;
 }
