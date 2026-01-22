@@ -15,6 +15,15 @@
 <div class="sidebar-section">
   <h4>WebDAV 备份</h4>
   <div class="webdav-sync-container">
+    <!-- 预警横幅 -->
+    <div id="webdavWarningBanner" class="webdav-warning-banner" style="display: none;">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div class="warning-content">
+        <div class="warning-title">需要备份</div>
+        <div class="warning-message" id="webdavWarningMessage"></div>
+      </div>
+    </div>
+    
     <div class="button-group-vertical">
       <button id="syncNow">立即上传至云端</button>
       <button id="syncDown">从云端恢复</button>

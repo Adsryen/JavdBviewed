@@ -11,6 +11,9 @@ const WEBDAV_WARN_LAST_AT_KEY = 'webdav-warn-last-at';
 const WEBDAV_WARN_THROTTLE_MS = 6 * 60 * 60 * 1000;
 
 function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: HTMLDivElement, lastSync: string, warningDays: number): void {
+  const warningBanner = document.getElementById('webdavWarningBanner') as HTMLDivElement;
+  const warningMessage = document.getElementById('webdavWarningMessage') as HTMLDivElement;
+  
   if (lastSync) {
     const syncDate = new Date(lastSync);
     const now = new Date();
@@ -25,15 +28,30 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
     lastSyncTimeElement.textContent = timeText;
     lastSyncTimeElement.title = syncDate.toLocaleString('zh-CN');
     syncIndicator.className = 'sync-indicator';
+    
+    // 显示/隐藏预警横幅
     if (warningDays > 0 && diffDays > warningDays) {
       syncIndicator.classList.add('error');
       (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '需要同步';
-    } else if (diffDays > 1) {
-      syncIndicator.classList.add('synced');
-      (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '已同步';
+      
+      // 显示预警横幅
+      if (warningBanner && warningMessage) {
+        warningBanner.style.display = 'flex';
+        warningMessage.textContent = `已超过 ${diffDays} 天未备份，建议尽快同步`;
+      }
     } else {
-      syncIndicator.classList.add('synced');
-      (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '最新';
+      // 隐藏预警横幅
+      if (warningBanner) {
+        warningBanner.style.display = 'none';
+      }
+      
+      if (diffDays > 1) {
+        syncIndicator.classList.add('synced');
+        (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '已同步';
+      } else {
+        syncIndicator.classList.add('synced');
+        (syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null)!.textContent = '最新';
+      }
     }
   } else {
     lastSyncTimeElement.textContent = '从未';
@@ -41,8 +59,14 @@ function updateSyncDisplay(lastSyncTimeElement: HTMLSpanElement, syncIndicator: 
     syncIndicator.className = 'sync-indicator';
     const text = syncIndicator.querySelector('.sync-status-text') as HTMLSpanElement | null;
     if (text) text.textContent = '未同步';
-    if (warningDays > 0) {
+    
+    // 显示预警横幅（从未备份）
+    if (warningDays > 0 && warningBanner && warningMessage) {
       syncIndicator.classList.add('error');
+      warningBanner.style.display = 'flex';
+      warningMessage.textContent = '尚未进行过备份，建议立即同步';
+    } else if (warningBanner) {
+      warningBanner.style.display = 'none';
     }
   }
 }
@@ -75,7 +99,7 @@ export function updateSyncStatus(): void {
     if (lastSync && Number.isFinite(warningDays) && warningDays > 0) {
       const diffMs = Date.now() - new Date(lastSync).getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      maybeWarnStaleBackup(diffDays, warningDays).catch(() => {});
+      // 预警横幅已经在 updateSyncDisplay 中显示，不需要额外的 toast 消息
     }
   } catch (error) {
     console.error('更新同步状态时出错:', error);
@@ -129,6 +153,10 @@ export function initSidebarToggle(): void {
 
 export function initSidebarActions(): void {
   initSidebarToggle();
+  
+  // 初始化时更新同步状态
+  updateSyncStatus();
+  
   const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
   const syncNowBtn = document.getElementById('syncNow') as HTMLButtonElement;
   const syncDownBtn = document.getElementById('syncDown') as HTMLButtonElement;
