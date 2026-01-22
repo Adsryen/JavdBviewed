@@ -91,22 +91,28 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         order: 11
     },
     {
+        id: 'ai-features',
+        name: 'AI 功能',
+        icon: 'fa-robot',
+        order: 12
+    },
+    {
         id: 'logs',
         name: '日志诊断',
         icon: 'fa-list-alt',
-        order: 12
+        order: 13
     },
     {
         id: 'advanced',
         name: '高级工具',
         icon: 'fa-tools',
-        order: 13
+        order: 14
     },
     {
         id: 'faq',
         name: '常见问题',
         icon: 'fa-question-circle',
-        order: 14
+        order: 15
     }
 ];
 

@@ -1,102 +1,249 @@
-        <h3><i class="fas fa-rocket"></i> 快速开始</h3>
-        <ul>
-            <li><strong>打开控制面板：</strong>点击扩展图标后进入“控制面板”。</li>
-            <li><strong>首次配置：</strong>在“设置”中完成 WebDAV 同步、功能增强、115 网盘、隐私保护等开关与参数配置。</li>
-            <li><strong>立即体验：</strong>在“番号库/演员库/新作”中浏览、收藏，并管理你的记录。</li>
+<h3><i class="fas fa-rocket"></i> 快速开始</h3>
+<p>欢迎使用 Jav 助手！这是一个功能强大的浏览器扩展，帮助你更好地管理和追踪你的观影记录。</p>
+<ul>
+    <li><strong>打开控制面板：</strong>点击浏览器工具栏中的扩展图标，选择"控制面板"进入主界面。</li>
+    <li><strong>首次配置：</strong>进入"设置"标签页，根据需要配置各项功能：
+        <ul style="margin-top: 8px; padding-left: 20px;">
+            <li>WebDAV 同步 - 实现多设备数据同步</li>
+            <li>115 网盘 - 一键推送磁力链接下载</li>
+            <li>功能增强 - 磁链聚合、快速复制等</li>
+            <li>隐私保护 - 锁屏模式、敏感内容模糊</li>
         </ul>
+    </li>
+    <li><strong>开始使用：</strong>访问 JavDB 网站，扩展会自动在页面上添加标记按钮和增强功能。</li>
+    <li><strong>查看数据：</strong>在控制面板的"番号库"、"演员库"、"新作"标签页中管理你的记录。</li>
+</ul>
 
-        <h3><i class="fas fa-database"></i> 数据管理</h3>
-        <ul>
-            <li><strong>番号库：</strong>本地记录库，支持搜索、标签筛选、排序、分组、批量标记、编辑、删除。</li>
-            <li><strong>演员库：</strong>同步 JavDB 收藏演员，支持别名/分类/拖拽排序，并支持分页与卡片大小调节。</li>
-            <li><strong>新作：</strong>订阅演员并自动发现其新作，提供过滤、状态联动、清理已读与分页浏览。</li>
-            <li><strong>数据导入/导出：</strong>支持本地 JSON 备份与还原；可通过 WebDAV 在多设备间备份与恢复。</li>
-            <li><strong>统计与概览：</strong>实时统计“已观看/已想看/想再看”等数量，首页图表与概览模块展示。</li>
-        </ul>
+<h3><i class="fas fa-database"></i> 数据管理</h3>
+<p>强大的本地数据库，让你轻松管理所有观影记录。</p>
 
-        <h3><i class="fas fa-user-circle"></i> 账户信息</h3>
-        <ul>
-            <li><strong>账户登录：</strong>显示并管理你的 JavDB 账户信息（邮箱/用户名/用户类型等）。</li>
-            <li><strong>仅用于同步：</strong>账户凭据仅在本地用于与 JavDB 的数据同步，安全存储。</li>
-        </ul>
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">📚 番号库</h4>
+<ul>
+    <li><strong>搜索与筛选：</strong>支持番号、标题、演员名搜索，可按标签、状态、日期筛选。</li>
+    <li><strong>批量操作：</strong>使用 Ctrl/Shift 多选，批量标记状态、添加标签、删除记录。</li>
+    <li><strong>排序与分组：</strong>按添加时间、更新时间、番号排序；支持按状态、标签分组查看。</li>
+    <li><strong>详情编辑：</strong>点击记录可查看详情，编辑标签、备注、评分等信息。</li>
+    <li><strong>快速标记：</strong>使用快捷键 <code>Ctrl+Shift+M</code> 标记"已观看"，<code>Ctrl+Shift+W</code> 标记"想看"。</li>
+</ul>
 
-        <h3><i class="fas fa-sync-alt"></i> 数据同步（JavDB ↔ 本地）</h3>
-        <ul>
-            <li><strong>同步全部：</strong>从 JavDB 获取“已观看 + 想看”的所有记录到本地。</li>
-            <li><strong>分类同步：</strong>可单独拉取“想看”或“已看”的记录，按需更新。</li>
-            <li><strong>收藏演员：</strong>支持同步收藏演员，并可单独刷新演员维度信息。</li>
-            <li><strong>进度与取消：</strong>显示“获取列表/拉取详情”两阶段进度，支持随时取消。</li>
-        </ul>
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">👤 演员库</h4>
+<ul>
+    <li><strong>收藏同步：</strong>自动同步 JavDB 收藏的演员到本地，支持手动刷新。</li>
+    <li><strong>别名管理：</strong>为演员添加自定义别名，方便搜索和识别。</li>
+    <li><strong>分类整理：</strong>创建自定义分类（如"最爱"、"新人"等），拖拽排序。</li>
+    <li><strong>卡片视图：</strong>支持大、中、小三种卡片尺寸，分页浏览。</li>
+    <li><strong>快速跳转：</strong>点击演员卡片可直接跳转到 JavDB 演员页面。</li>
+</ul>
 
-        <h3><i class="fas fa-cloud"></i> WebDAV 备份与恢复</h3>
-        <ul>
-            <li><strong>自动/手动：</strong>支持手动上传/下载；可按需开启自动备份，保持多设备一致。</li>
-            <li><strong>服务兼容：</strong>兼容 Nextcloud/Seafile/TeraCloud/Yandex 等主流 WebDAV 服务。</li>
-            <li><strong>恢复与合并：</strong>提供“快速替换/合并/专家”三种模式，支持智能合并、策略选择与差异分析。</li>
-            <li><strong>可选内容：</strong>可分类型备份“扩展设置/观看记录/账户信息/演员库/日志/新作”等数据。</li>
-        </ul>
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">🆕 新作发现</h4>
+<ul>
+    <li><strong>自动订阅：</strong>订阅关注的演员，自动发现并展示他们的新作品。</li>
+    <li><strong>状态联动：</strong>新作状态与番号库同步，已标记的作品自动过滤。</li>
+    <li><strong>过滤选项：</strong>按演员、发布日期、状态筛选新作。</li>
+    <li><strong>清理已读：</strong>一键清理已标记或已过期的新作通知。</li>
+</ul>
 
-        <h3><i class="fas fa-cloud-download-alt"></i> 115 网盘集成</h3>
-        <ul>
-            <li><strong>一键推送下载：</strong>在详情页可将磁力链接一键推送至 115 离线下载。</li>
-            <li><strong>验证码处理：</strong>自动处理验证流程，失败可重试，成功后可自动联动标记状态。</li>
-            <li><strong>配额侧边栏：</strong>启用 115-V2 后，可在侧栏显示网盘配额（总量/已用/剩余）。</li>
-        </ul>
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">💾 数据导入导出</h4>
+<ul>
+    <li><strong>本地备份：</strong>导出为 JSON 文件，保存到本地磁盘。</li>
+    <li><strong>数据还原：</strong>从 JSON 文件导入，恢复历史数据。</li>
+    <li><strong>WebDAV 云备份：</strong>自动或手动上传到云端，多设备同步。</li>
+    <li><strong>选择性备份：</strong>可选择备份内容（设置、记录、演员、日志等）。</li>
+</ul>
 
-        <h3><i class="fas fa-tv"></i> Emby 增强</h3>
-        <ul>
-            <li><strong>信息联动：</strong>在 Emby 页面增强展示与跳转信息（与番号、演员信息联动等）。</li>
-        </ul>
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">📊 统计与报告</h4>
+<ul>
+    <li><strong>首页概览：</strong>实时显示"已观看"、"想看"、"想再看"等统计数据。</li>
+    <li><strong>图表分析：</strong>观看趋势图、标签分布图、演员排行等可视化图表。</li>
+    <li><strong>AI 报告：</strong>启用 AI 功能后，自动生成个性化观影分析报告。</li>
+    <li><strong>时间范围：</strong>支持查看不同时间段（7天、30天、90天、全部）的统计。</li>
+</ul>
 
-        <h3><i class="fas fa-eye"></i> 显示与内容过滤</h3>
-        <ul>
-            <li><strong>列表隐藏：</strong>访问 JavDB 时可自动隐藏“已看/已阅/VR”等条目，精简列表。</li>
-            <li><strong>样式自定义：</strong>可调整标记颜色、展示位置与样式，并可控制细节与密度。</li>
-        </ul>
+<h3><i class="fas fa-user-circle"></i> 账户信息</h3>
+<p>管理你的 JavDB 账户信息，用于数据同步。</p>
+<ul>
+    <li><strong>账户登录：</strong>显示并管理你的 JavDB 账户信息（邮箱/用户名/用户类型等）。</li>
+    <li><strong>安全存储：</strong>账户凭据仅在本地存储，仅用于与 JavDB 的数据同步。</li>
+    <li><strong>登录状态：</strong>实时显示登录状态，过期时会提示重新登录。</li>
+    <li><strong>隐私保护：</strong>所有数据仅在本地处理，不会上传到第三方服务器。</li>
+</ul>
 
-        <h3><i class="fas fa-search"></i> 搜索引擎跳转</h3>
-        <ul>
-            <li><strong>自定义导航：</strong>在番号处点击跳转预设的外部搜索站点，使用 <code>{{ID}}</code> 作为占位符。</li>
-            <li><strong>图标与顺序：</strong>可设置显示图标与顺序，便于快速分流检索。</li>
-        </ul>
+<h3><i class="fas fa-sync-alt"></i> 数据同步（JavDB ↔ 本地）</h3>
+<p>与 JavDB 网站双向同步你的观看记录和收藏。</p>
+<ul>
+    <li><strong>同步全部：</strong>一键从 JavDB 获取"已观看 + 想看"的所有记录到本地。</li>
+    <li><strong>分类同步：</strong>可单独拉取"想看"或"已看"的记录，按需更新。</li>
+    <li><strong>收藏演员：</strong>支持同步收藏演员列表，并可单独刷新演员信息。</li>
+    <li><strong>进度显示：</strong>显示"获取列表/拉取详情"两阶段进度，支持随时取消。</li>
+    <li><strong>增量同步：</strong>智能识别新增和更新的记录，避免重复拉取。</li>
+    <li><strong>冲突处理：</strong>本地与云端数据冲突时，可选择保留哪一方的数据。</li>
+</ul>
 
-        <h3><i class="fas fa-magic"></i> 功能增强</h3>
-        <ul>
-            <li><strong>磁链聚合：</strong>自动聚合站内外磁链资源并去重（参见“功能增强-磁链聚合”）。</li>
-            <li><strong>快速复制：</strong>一键复制番号/标题/磁链等，提升整理效率。</li>
-            <li><strong>键位优化：</strong>支持键盘快捷操作（上一页/下一页等）。</li>
-            <li><strong>详情增强：</strong>在视频详情页提供标记、跳转与辅助信息展示。</li>
+<h3><i class="fas fa-cloud"></i> WebDAV 备份与恢复</h3>
+<p>通过 WebDAV 协议实现多设备间的数据同步和备份。</p>
+<ul>
+    <li><strong>自动备份：</strong>可设置自动备份间隔（如每天、每周），无需手动操作。</li>
+    <li><strong>手动备份：</strong>随时手动上传当前数据到云端，确保数据安全。</li>
+    <li><strong>服务兼容：</strong>兼容 Nextcloud、Seafile、TeraCloud、Yandex Disk 等主流 WebDAV 服务。</li>
+    <li><strong>恢复模式：</strong>提供三种恢复模式：
+        <ul style="margin-top: 8px; padding-left: 20px;">
+            <li><strong>快速替换</strong> - 直接用云端数据覆盖本地</li>
+            <li><strong>智能合并</strong> - 合并本地和云端数据，保留最新</li>
+            <li><strong>专家模式</strong> - 查看差异，手动选择保留哪些数据</li>
         </ul>
+    </li>
+    <li><strong>选择性备份：</strong>可分别备份"扩展设置"、"观看记录"、"账户信息"、"演员库"、"日志"、"新作"等数据。</li>
+    <li><strong>版本管理：</strong>支持查看备份历史，恢复到指定版本。</li>
+    <li><strong>加密选项：</strong>可选择加密备份数据，保护隐私。</li>
+</ul>
 
-        <h3><i class="fas fa-shield-alt"></i> 隐私保护</h3>
-        <ul>
-            <li><strong>锁屏模式：</strong>一键模糊敏感区域；切换标签后自动恢复隐藏效果。</li>
-            <li><strong>隐私设置：</strong>在“设置 > 隐私保护”中自定义策略与强度。</li>
-        </ul>
+<h3><i class="fas fa-cloud-download-alt"></i> 115 网盘集成</h3>
+<p>与 115 网盘深度集成，实现一键离线下载。</p>
+<ul>
+    <li><strong>一键推送：</strong>在 JavDB 详情页点击按钮，直接将磁力链接推送至 115 离线下载。</li>
+    <li><strong>验证码处理：</strong>自动处理 115 的验证流程，失败可重试。</li>
+    <li><strong>状态联动：</strong>推送成功后可自动标记为"已观看"或其他状态。</li>
+    <li><strong>配额显示：</strong>启用 115-V2 后，在侧边栏实时显示网盘配额（总量/已用/剩余）。</li>
+    <li><strong>任务管理：</strong>查看推送历史和下载任务状态。</li>
+    <li><strong>批量推送：</strong>支持批量选择多个磁力链接，一次性推送。</li>
+</ul>
 
-        <h3><i class="fas fa-keyboard"></i> 快捷键</h3>
-        <ul>
-            <li><code>Ctrl + Shift + M</code>：快速标记当前条目为“已观看”。</li>
-            <li><code>Ctrl + Shift + W</code>：快速标记当前条目为“想看”。</li>
-            <li><strong>多选操作：</strong>支持 Ctrl/Shift 组合多选；点击状态标签可快速切换。</li>
-        </ul>
+<h3><i class="fas fa-tv"></i> Emby 增强</h3>
+<p>在 Emby 媒体服务器中增强显示和跳转功能。</p>
+<ul>
+    <li><strong>信息联动：</strong>在 Emby 页面自动识别番号，显示相关信息。</li>
+    <li><strong>快速跳转：</strong>从 Emby 一键跳转到 JavDB 对应页面。</li>
+    <li><strong>演员信息：</strong>显示演员的收藏状态和相关作品。</li>
+    <li><strong>标记同步：</strong>在 Emby 中标记的观看状态可同步到扩展。</li>
+</ul>
 
-        <h3><i class="fas fa-list-alt"></i> 日志与诊断</h3>
-        <ul>
-            <li><strong>运行日志：</strong>记录操作、警告与错误，支持按等级筛选、清空、导出。</li>
-            <li><strong>网络测试：</strong>测试 WebDAV 连通性、响应时间与同步性能，辅助排障。</li>
-        </ul>
+<h3><i class="fas fa-eye"></i> 显示与内容过滤</h3>
+<p>自定义 JavDB 页面的显示效果，过滤不需要的内容。</p>
+<ul>
+    <li><strong>自动隐藏：</strong>访问 JavDB 时自动隐藏"已看"、"已阅"、"VR"等条目，精简列表。</li>
+    <li><strong>标记样式：</strong>自定义标记的颜色、位置、大小，打造个性化界面。</li>
+    <li><strong>密度控制：</strong>调整列表密度（紧凑/标准/宽松），适应不同屏幕。</li>
+    <li><strong>过滤规则：</strong>创建自定义过滤规则，按标签、演员、类型过滤。</li>
+    <li><strong>显示切换：</strong>快速切换显示/隐藏已标记内容。</li>
+</ul>
 
-        <h3><i class="fas fa-tools"></i> 高级工具</h3>
-        <ul>
-            <li><strong>数据结构校验：</strong>自动检查并修复历史数据格式问题，保持一致性。</li>
-            <li><strong>数据迁移：</strong>从旧版本升级后自动迁移数据结构，可显示进度。</li>
-            <li><strong>JSON 编辑：</strong>为高级用户提供原始 JSON 查看与编辑（请谨慎操作）。</li>
-        </ul>
+<h3><i class="fas fa-search"></i> 搜索引擎跳转</h3>
+<p>配置外部搜索引擎，快速在多个站点搜索番号。</p>
+<ul>
+    <li><strong>自定义引擎：</strong>添加自定义搜索引擎，使用 <code>{{ID}}</code> 作为番号占位符。</li>
+    <li><strong>预设引擎：</strong>内置常用搜索引擎（JavBus、JavLibrary 等）。</li>
+    <li><strong>图标显示：</strong>为每个引擎设置图标，直观识别。</li>
+    <li><strong>排序管理：</strong>拖拽调整搜索引擎的显示顺序。</li>
+    <li><strong>快速跳转：</strong>在番号旁显示搜索按钮，一键跳转到对应站点。</li>
+    <li><strong>新标签打开：</strong>支持在新标签页或当前页打开搜索结果。</li>
+</ul>
 
-        <h3><i class="fas fa-question-circle"></i> 常见问题</h3>
-        <ul>
-            <li><strong>数据丢失：</strong>可通过 WebDAV 恢复，或导入你先前导出的本地 JSON 备份。</li>
-            <li><strong>同步异常：</strong>检查网络与登录状态，查看“日志”获取详细错误并定位。</li>
-            <li><strong>性能建议：</strong>大量记录时建议定期清理无用数据，合理设置并行与阈值。</li>
-        </ul>
+<h3><i class="fas fa-magic"></i> 功能增强</h3>
+<p>多种实用功能，提升浏览和管理效率。</p>
+<ul>
+    <li><strong>磁链聚合：</strong>自动聚合站内外磁链资源并去重，一次性查看所有下载源。</li>
+    <li><strong>快速复制：</strong>一键复制番号、标题、磁链等信息，方便整理和分享。</li>
+    <li><strong>键盘快捷键：</strong>支持键盘快捷操作（上一页/下一页、快速标记等）。</li>
+    <li><strong>详情增强：</strong>在视频详情页提供标记按钮、跳转链接、辅助信息展示。</li>
+    <li><strong>列表增强：</strong>在列表页显示标记状态、快速操作按钮。</li>
+    <li><strong>图片预览：</strong>鼠标悬停在封面上显示大图预览。</li>
+    <li><strong>自动翻页：</strong>可选启用自动翻页，无限滚动浏览。</li>
+</ul>
+
+<h3><i class="fas fa-shield-alt"></i> 隐私保护</h3>
+<p>保护你的隐私，避免敏感内容被他人看到。</p>
+<ul>
+    <li><strong>锁屏模式：</strong>一键模糊所有敏感区域（封面、标题、演员名等）。</li>
+    <li><strong>自动隐藏：</strong>切换标签页后自动启用隐私模式，回到页面时恢复。</li>
+    <li><strong>模糊强度：</strong>可调整模糊程度（轻度/中度/重度）。</li>
+    <li><strong>选择性模糊：</strong>选择要模糊的内容类型（封面/标题/演员/标签）。</li>
+    <li><strong>快捷键切换：</strong>设置快捷键快速开启/关闭隐私模式。</li>
+    <li><strong>密码保护：</strong>可设置密码，解锁后才能查看内容。</li>
+</ul>
+
+<h3><i class="fas fa-keyboard"></i> 快捷键</h3>
+<p>使用键盘快捷键，提升操作效率。</p>
+<ul>
+    <li><code>Ctrl + Shift + M</code> - 快速标记当前条目为"已观看"</li>
+    <li><code>Ctrl + Shift + W</code> - 快速标记当前条目为"想看"</li>
+    <li><code>Ctrl + Shift + B</code> - 快速标记当前条目为"想再看"</li>
+    <li><code>Ctrl + Shift + L</code> - 开启/关闭隐私锁屏模式</li>
+    <li><code>←/→</code> - 在列表页快速翻页（需启用）</li>
+    <li><strong>多选操作：</strong>按住 Ctrl 点击多选，按住 Shift 范围选择</li>
+    <li><strong>自定义快捷键：</strong>在设置中可自定义所有快捷键组合</li>
+</ul>
+
+<h3><i class="fas fa-robot"></i> AI 功能</h3>
+<p>利用 AI 技术生成个性化分析报告和智能推荐。</p>
+<ul>
+    <li><strong>观影报告：</strong>基于你的观看历史，AI 自动生成个性化分析报告。</li>
+    <li><strong>趋势分析：</strong>分析你的观影趋势、偏好变化、热门标签等。</li>
+    <li><strong>智能推荐：</strong>根据你的喜好，推荐可能感兴趣的作品。</li>
+    <li><strong>多模型支持：</strong>支持 OpenAI、Claude、Gemini 等多种 AI 模型。</li>
+    <li><strong>自定义提示词：</strong>可自定义 AI 提示词，调整报告风格和内容。</li>
+    <li><strong>报告导出：</strong>支持导出 AI 生成的报告为 HTML 或 PDF 格式。</li>
+</ul>
+
+<h3><i class="fas fa-list-alt"></i> 日志与诊断</h3>
+<p>查看运行日志，诊断和解决问题。</p>
+<ul>
+    <li><strong>运行日志：</strong>记录所有操作、警告与错误，支持按等级筛选。</li>
+    <li><strong>日志导出：</strong>导出日志文件，方便问题反馈和排查。</li>
+    <li><strong>日志清理：</strong>一键清空历史日志，释放存储空间。</li>
+    <li><strong>网络测试：</strong>测试 WebDAV 连通性、响应时间与同步性能。</li>
+    <li><strong>性能监控：</strong>查看扩展的性能指标（内存占用、响应时间等）。</li>
+    <li><strong>错误追踪：</strong>自动捕获并记录错误，帮助快速定位问题。</li>
+</ul>
+
+<h3><i class="fas fa-tools"></i> 高级工具</h3>
+<p>为高级用户提供的数据管理和调试工具。</p>
+<ul>
+    <li><strong>数据校验：</strong>自动检查并修复历史数据格式问题，保持数据一致性。</li>
+    <li><strong>数据迁移：</strong>从旧版本升级后自动迁移数据结构，显示迁移进度。</li>
+    <li><strong>JSON 编辑器：</strong>直接查看和编辑原始 JSON 数据（请谨慎操作）。</li>
+    <li><strong>数据统计：</strong>查看详细的数据统计信息（记录数、标签数、演员数等）。</li>
+    <li><strong>缓存管理：</strong>清理缓存数据，释放存储空间。</li>
+    <li><strong>重置选项：</strong>重置特定功能或全部设置到默认状态。</li>
+    <li><strong>开发者模式：</strong>启用调试功能，查看详细的运行信息。</li>
+</ul>
+
+<h3><i class="fas fa-question-circle"></i> 常见问题</h3>
+<p>遇到问题？这里有一些常见问题的解决方案。</p>
+
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">❓ 数据相关</h4>
+<ul>
+    <li><strong>数据丢失怎么办？</strong>可通过 WebDAV 恢复云端备份，或导入之前导出的本地 JSON 备份文件。</li>
+    <li><strong>如何迁移到新设备？</strong>在旧设备导出数据或上传到 WebDAV，在新设备导入或下载即可。</li>
+    <li><strong>数据占用空间太大？</strong>定期清理无用数据、日志，或使用"高级工具"中的缓存清理功能。</li>
+</ul>
+
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">🔄 同步相关</h4>
+<ul>
+    <li><strong>同步失败怎么办？</strong>检查网络连接和 JavDB 登录状态，查看"日志"获取详细错误信息。</li>
+    <li><strong>WebDAV 连接不上？</strong>使用"网络测试"功能检查连接，确认服务器地址、用户名、密码正确。</li>
+    <li><strong>同步速度慢？</strong>调整并发数和批次大小，或选择网络状况较好的时间同步。</li>
+</ul>
+
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">⚙️ 功能相关</h4>
+<ul>
+    <li><strong>115 推送失败？</strong>检查 115 账号登录状态，确认验证码处理正确，必要时重新登录。</li>
+    <li><strong>AI 功能不可用？</strong>检查 AI 设置中的 API Key 是否正确，模型是否可用。</li>
+    <li><strong>标记按钮不显示？</strong>刷新页面，或检查"功能增强"设置是否启用。</li>
+</ul>
+
+<h4 style="font-size: 16px; font-weight: 600; color: #555; margin-top: 20px; margin-bottom: 12px;">💡 性能优化</h4>
+<ul>
+    <li><strong>扩展运行卡顿？</strong>关闭不需要的功能，减少同时处理的数据量。</li>
+    <li><strong>大量记录时建议：</strong>定期清理无用数据，合理设置并行与阈值参数。</li>
+    <li><strong>浏览器占用内存高？</strong>定期重启浏览器，清理扩展缓存。</li>
+</ul>
+
+<div style="margin-top: 40px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+    <h4 style="margin-top: 0; color: white; font-size: 18px;">💬 需要帮助？</h4>
+    <p style="margin-bottom: 8px;">如果以上内容没有解决你的问题，可以：</p>
+    <ul style="margin-bottom: 0; padding-left: 20px;">
+        <li>查看"日志与诊断"页面获取详细错误信息</li>
+        <li>导出日志文件，向开发者反馈问题</li>
+        <li>访问项目主页查看更多文档和更新</li>
+    </ul>
+</div>
