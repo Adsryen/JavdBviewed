@@ -19,7 +19,6 @@ export class PrivacySettings extends BaseSettingsPanel {
     private blurIntensity!: HTMLInputElement;
     private blurIntensityValue!: HTMLSpanElement;
     private autoBlurTrigger!: HTMLSelectElement;
-    private temporaryViewDuration!: HTMLInputElement;
     private blurAreaCheckboxes!: NodeListOf<HTMLInputElement>;
 
     // 私密模式元素
@@ -34,7 +33,6 @@ export class PrivacySettings extends BaseSettingsPanel {
     private changePasswordBtn!: HTMLButtonElement;
     private setupSecurityQuestionsBtn!: HTMLButtonElement;
     private generateBackupCodeBtn!: HTMLButtonElement;
-    private testBlurBtn!: HTMLButtonElement;
 
     constructor() {
         super({
@@ -54,7 +52,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.blurIntensity = document.getElementById('blurIntensity') as HTMLInputElement;
         this.blurIntensityValue = document.getElementById('blurIntensityValue') as HTMLSpanElement;
         this.autoBlurTrigger = document.getElementById('autoBlurTrigger') as HTMLSelectElement;
-        this.temporaryViewDuration = document.getElementById('temporaryViewDuration') as HTMLInputElement;
         this.blurAreaCheckboxes = document.querySelectorAll('[data-area]') as NodeListOf<HTMLInputElement>;
 
         // 私密模式元素
@@ -69,7 +66,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.changePasswordBtn = document.getElementById('changePasswordBtn') as HTMLButtonElement;
         this.setupSecurityQuestionsBtn = document.getElementById('setupSecurityQuestionsBtn') as HTMLButtonElement;
         this.generateBackupCodeBtn = document.getElementById('generateBackupCodeBtn') as HTMLButtonElement;
-        this.testBlurBtn = document.getElementById('testBlurBtn') as HTMLButtonElement;
 
         if (!this.screenshotEnabled || !this.privateModeEnabled) {
             throw new Error('隐私保护设置相关的DOM元素未找到');
@@ -84,7 +80,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.screenshotEnabled?.addEventListener('change', this.handleScreenshotModeToggle.bind(this));
         this.blurIntensity?.addEventListener('input', this.handleBlurIntensityChange.bind(this));
         this.autoBlurTrigger?.addEventListener('change', this.handleAutoBlurTriggerChange.bind(this));
-        this.temporaryViewDuration?.addEventListener('change', this.handleScreenshotSettingsChange.bind(this));
         
         // 模糊区域选择事件
         this.blurAreaCheckboxes?.forEach(checkbox => {
@@ -103,7 +98,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.changePasswordBtn?.addEventListener('click', this.handleChangePassword.bind(this));
         this.setupSecurityQuestionsBtn?.addEventListener('click', this.handleSetupSecurityQuestions.bind(this));
         this.generateBackupCodeBtn?.addEventListener('click', this.handleGenerateBackupCode.bind(this));
-        this.testBlurBtn?.addEventListener('click', this.handleTestBlur.bind(this));
     }
 
     /**
@@ -129,7 +123,6 @@ export class PrivacySettings extends BaseSettingsPanel {
                 if (this.blurIntensityValue) this.blurIntensityValue.textContent = privacyConfig.screenshotMode.blurIntensity.toString();
             }
             if (this.autoBlurTrigger) this.autoBlurTrigger.value = privacyConfig.screenshotMode.autoBlurTrigger;
-            if (this.temporaryViewDuration) this.temporaryViewDuration.value = privacyConfig.screenshotMode.temporaryViewDuration.toString();
             
             // 加载模糊区域选择
             const enabledAreas = privacyConfig.screenshotMode.blurAreas || [];
@@ -186,14 +179,6 @@ export class PrivacySettings extends BaseSettingsPanel {
             const blurValue = parseInt(this.blurIntensity.value, 10);
             if (isNaN(blurValue) || blurValue < 1 || blurValue > 10) {
                 errors.push('模糊强度必须在1-10之间');
-            }
-        }
-
-        // 验证临时查看时长（5-60秒）
-        if (this.temporaryViewDuration) {
-            const duration = parseInt(this.temporaryViewDuration.value, 10);
-            if (isNaN(duration) || duration < 5 || duration > 60) {
-                errors.push('临时查看时长必须在5-60秒之间');
             }
         }
 
@@ -293,22 +278,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         } catch (error) {
             console.error('Failed to update auto blur trigger:', error);
             showMessage('更新自动模糊触发条件失败', 'error');
-        }
-    }
-
-    /**
-     * 处理截图设置变化
-     */
-    private async handleScreenshotSettingsChange(): Promise<void> {
-        try {
-            const privacyManager = getPrivacyManager();
-            await privacyManager.updateScreenshotSettings({
-                temporaryViewDuration: parseInt(this.temporaryViewDuration?.value || '3', 10)
-            });
-            this.emit('change');
-        } catch (error) {
-            console.error('Failed to update screenshot settings:', error);
-            showMessage('更新截图设置失败', 'error');
         }
     }
 
@@ -479,20 +448,6 @@ export class PrivacySettings extends BaseSettingsPanel {
         } catch (error) {
             console.error('Failed to generate backup code:', error);
             showMessage('生成备份码失败', 'error');
-        }
-    }
-
-    /**
-     * 处理测试模糊效果
-     */
-    private async handleTestBlur(): Promise<void> {
-        try {
-            const privacyManager = getPrivacyManager();
-            await privacyManager.testBlurEffect();
-            showMessage('模糊效果测试已启动', 'info');
-        } catch (error) {
-            console.error('Failed to test blur effect:', error);
-            showMessage('测试模糊效果失败', 'error');
         }
     }
 

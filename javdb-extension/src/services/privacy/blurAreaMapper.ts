@@ -88,19 +88,49 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
     ],
     
     'playlist-page': [
-        // === 新作品列表 ===
+        // === 新作品页面（tab-new-works）===
+        '.new-work-item',                  // 新作品项
+        '.new-work-cover',                 // 新作品封面
+        '.new-work-cover img',             // 新作品封面图片
         '.new-work-title',                 // 新作品标题
         '.new-work-actor',                 // 演员名字
-        '.new-work-cover',                 // 新作品封面图片
-        '.new-work-cover img',             // 新作品封面图片（img标签）
-        
-        // === 如果清单页包含番号库内容 ===
-        '.video-id-link',                  // 番号链接
-        '.video-id-text',                  // 番号文字
-        '.video-title',                    // 视频标题
+        '.new-work-meta',                  // 新作品元数据
+        '.new-work-tags',                  // 新作品标签
+        '.new-work-tag',                   // 单个标签
+        '.new-works-list-container',       // 新作品列表容器
         
         // === 自定义标记 ===
         '[data-area="playlist-page"]'
+    ],
+    
+    'lists-page': [
+        // === 清单管理页面（tab-lists）===
+        '.lists-item',                     // 清单项
+        '.lists-item-title',               // 清单标题
+        '.lists-item-meta',                // 清单元数据（数量等）
+        '#listsMineContainer',             // 我的清单容器
+        '#listsFavContainer',              // 收藏清单容器
+        
+        // === 自定义标记 ===
+        '[data-area="lists-page"]'
+    ],
+    
+    'home-page': [
+        // === 首页统计数字 ===
+        '.stat-value',                     // 统计数值
+        '.home-stats .stat-value',         // 数据概览中的统计数值
+        '#homeRecordsStatsContainer .stat-value',  // 番号库统计数值
+        '#homeActorsStatsContainer .stat-value',   // 演员库统计数值
+        '#homeNewWorksStatsContainer .stat-value', // 新作品统计数值
+        
+        // === 标签Top50图表中的标签名称 ===
+        // ECharts会在canvas旁边生成SVG或HTML元素显示文本
+        // 我们需要模糊Y轴的标签文本
+        '#homeTagsTop text',               // 标签Top50图表中的所有文本（包括标签名）
+        '#homeTagsTop .echarts-y-axis text', // Y轴标签文本
+        
+        // === 自定义标记 ===
+        '[data-area="home-page"]'
     ]
 };
 
@@ -153,7 +183,9 @@ export function getAreaDisplayName(area: BlurArea): string {
         'sidebar': '侧边栏',
         'video-library': '番号库',
         'actor-library': '演员库',
-        'playlist-page': '清单页'
+        'playlist-page': '新作品',
+        'lists-page': '清单管理',
+        'home-page': '首页'
     };
     return displayNames[area] || area;
 }
