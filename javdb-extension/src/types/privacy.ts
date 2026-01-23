@@ -33,7 +33,8 @@ export interface PrivateModeConfig {
   requirePassword: boolean;           // 是否需要密码验证
   passwordHash: string;               // 密码哈希值
   passwordSalt: string;               // 密码盐值
-  sessionTimeout: number;             // 会话超时时间(分钟)
+  sessionTimeout: number;             // 会话超时时间(分钟) - 已改为无操作超时
+  idleTimeout?: number;               // 无操作超时时间(分钟) - 新增
   lastVerified: number;               // 上次验证时间戳
   lockOnTabLeave: boolean;            // 离开标签页时锁定
   lockOnExtensionClose: boolean;      // 关闭拓展时锁定
