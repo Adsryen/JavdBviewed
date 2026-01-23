@@ -996,3 +996,43 @@ body.privacy-authenticated {
         align-items: stretch;
     }
 }
+
+/* 模糊区域选择 */
+.privacy-blur-areas {
+    margin: 20px 0;
+    padding: 16px;
+    background: #f8f9ff;
+    border-radius: 8px;
+    border: 1px solid #e3e8ff;
+}
+
+.blur-areas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.blur-areas-grid .privacy-checkbox {
+    background: white;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 2px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.blur-areas-grid .privacy-checkbox:hover {
+    border-color: #4f46e5;
+    background: #f8f9ff;
+}
+
+.blur-areas-grid .privacy-checkbox input:checked + label {
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+.blur-areas-grid .privacy-checkbox label {
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}

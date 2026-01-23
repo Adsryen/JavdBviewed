@@ -690,11 +690,11 @@ function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
     container.innerHTML = `
       <div style="display:flex; align-items:center; gap:10px;">
         ${avatar
-          ? `<img src="${avatar}" alt="avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
-          : `<div style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
+          ? `<img src="${avatar}" alt="avatar" data-sensitive style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
+          : `<div data-sensitive style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <div style="font-weight:700; font-size:14px; color:#222;">${name || '-'}</div>
+            <div style="font-weight:700; font-size:14px; color:#222;" data-sensitive>${name || '-'}</div>
             ${isVip === '是' ? `
               <span title="${vipLevelName || 'VIP'}" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
                 <i class=\"fas fa-crown\" style=\"color:#fff; font-size:11px;\"></i>
@@ -702,32 +702,32 @@ function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
               </span>
             ` : ''}
           </div>
-          <div style="font-size:12px; color:#666; margin-top:2px;">UID: ${uid || '-'}</div>
+          <div style="font-size:12px; color:#666; margin-top:2px;">UID: <span data-sensitive>${uid || '-'}</span></div>
           ${vipExpireText ? `
             <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:${expPillColor};\" title=\"${expireTitle}\"> 
               <span style=\"display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${expPillBg}; color:${expPillColor};\">
                 <i class=\"fas fa-calendar-alt\"></i>
-                到期 · ${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}
+                到期 · <span data-sensitive>${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}</span>
               </span>
             </div>
           ` : ''}
         </div>
       </div>
       <div style="margin-top:8px; font-size:12px; color:#444;">
-        <div>总 ${totalText} · 已用 ${usedText} · 剩余 ${freeText}</div>
-        ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：${(u as any).email}</div>` : ''}
-        ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：${(u as any).phone}</div>` : ''}
+        <div>总 <span data-sensitive>${totalText}</span> · 已用 <span data-sensitive>${usedText}</span> · 剩余 <span data-sensitive>${freeText}</span></div>
+        ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：<span data-sensitive>${(u as any).email}</span></div>` : ''}
+        ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：<span data-sensitive>${(u as any).phone}</span></div>` : ''}
       </div>
       <div style="margin-top:8px;">
         <div style="display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px;">
           <span>空间使用</span>
-          <span>${pctText}</span>
+          <span data-sensitive>${pctText}</span>
         </div>
         <div style="height:8px; background:#eee; border-radius:999px; overflow:hidden;">
           <div style="height:100%; width:${!isNaN(pct as any) ? pct : 0}%; background:${barColor}; transition:width .3s ease;"></div>
         </div>
       </div>
-      ${updatedText ? `<div style=\"margin-top:6px; font-size:11px; color:#888;\">更新于：${updatedText}</div>` : ''}
+      ${updatedText ? `<div style=\"margin-top:6px; font-size:11px; color:#888;\">更新于：<span data-sensitive>${updatedText}</span></div>` : ''}
     `;
 }
 
@@ -748,16 +748,16 @@ function render115Quota(info: Drive115V2QuotaInfo) {
         const surplus = typeof it.surplus === 'number' ? it.surplus : undefined;
         const exp = it.expire_info?.expire_text || '';
         return `<div style="display:flex; justify-content:space-between; font-size:12px; color:#444;">
-            <span>${name}${exp ? `（${exp}）` : ''}</span>
-            <span>${used !== undefined ? `已用 ${used}` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 ${surplus}` : ''}</span>
+            <span>${name}${exp ? `（<span data-sensitive>${exp}</span>）` : ''}</span>
+            <span>${used !== undefined ? `已用 <span data-sensitive>${used}</span>` : ''}${surplus !== undefined ? `${used !== undefined ? ' / ' : ''}剩余 <span data-sensitive>${surplus}</span>` : ''}</span>
         </div>`;
     }).join('');
-    const summary = `<div style=\"font-size:12px; color:#666;\">总额：${totalTxt}，总已用：${usedTxt}，总剩余：${surplusTxt}</div>`;
+    const summary = `<div style=\"font-size:12px; color:#666;\">总额：<span data-sensitive>${totalTxt}</span>，总已用：<span data-sensitive>${usedTxt}</span>，总剩余：<span data-sensitive>${surplusTxt}</span></div>`;
     container.innerHTML = `
       <div style="padding-top:8px; border-top:1px dashed #e0e0e0;">
         <div style="display:flex; align-items:center; gap:6px; font-weight:600; color:#333; margin-bottom:4px;">
           <i class="fas fa-ticket-alt"></i><span>离线配额</span>
-          <span style="margin-left:auto; font-size:12px; color:#888;">总额：${totalTxt}</span>
+          <span style="margin-left:auto; font-size:12px; color:#888;">总额：<span data-sensitive>${totalTxt}</span></span>
         </div>
         ${rows || '<div style=\"font-size:12px; color:#888;\">暂无配额明细</div>'}
         ${summary}
