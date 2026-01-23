@@ -483,12 +483,6 @@
                                             </select>
                                         </div>
 
-                                        <div class="form-group">
-                                            <label for="temporaryViewDuration" class="privacy-label">
-                                                <i class="fas fa-clock"></i> 临时查看持续时间（秒）
-                                            </label>
-                                            <input type="number" id="temporaryViewDuration" min="5" max="60" value="10" class="privacy-input">
-                                        </div>
                                     </div>
 
                                     <!-- 模糊区域选择 -->
@@ -511,16 +505,19 @@
                                             </div>
                                             <div class="form-group-checkbox privacy-checkbox">
                                                 <input type="checkbox" id="blurPlaylistPage" data-area="playlist-page" checked>
-                                                <label for="blurPlaylistPage">清单页</label>
+                                                <label for="blurPlaylistPage">新作品</label>
+                                            </div>
+                                            <div class="form-group-checkbox privacy-checkbox">
+                                                <input type="checkbox" id="blurListsPage" data-area="lists-page" checked>
+                                                <label for="blurListsPage">清单管理</label>
+                                            </div>
+                                            <div class="form-group-checkbox privacy-checkbox">
+                                                <input type="checkbox" id="blurHomePage" data-area="home-page">
+                                                <label for="blurHomePage">首页</label>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="privacy-actions">
-                                        <button id="testBlurBtn" class="privacy-btn privacy-btn-test">
-                                            <i class="fas fa-vial"></i> 测试模糊效果
-                                        </button>
-                                    </div>
                                 </div>
 
                                 <!-- 私密模式设置 -->
