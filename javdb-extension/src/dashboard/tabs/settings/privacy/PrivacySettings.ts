@@ -136,7 +136,10 @@ export class PrivacySettings extends BaseSettingsPanel {
             // 私密模式设置
             if (this.privateModeEnabled) this.privateModeEnabled.checked = privacyConfig.privateMode.enabled;
             if (this.requirePassword) this.requirePassword.checked = privacyConfig.privateMode.requirePassword;
-            if (this.sessionTimeout) this.sessionTimeout.value = privacyConfig.privateMode.sessionTimeout.toString();
+            if (this.sessionTimeout) {
+                const idleTimeout = (privacyConfig.privateMode as any).idleTimeout || 10;
+                this.sessionTimeout.value = idleTimeout.toString();
+            }
             if (this.lockOnTabLeave) this.lockOnTabLeave.checked = privacyConfig.privateMode.lockOnTabLeave;
             if (this.lockOnExtensionClose) this.lockOnExtensionClose.checked = privacyConfig.privateMode.lockOnExtensionClose;
 
@@ -258,6 +261,7 @@ export class PrivacySettings extends BaseSettingsPanel {
         try {
             const privacyManager = getPrivacyManager();
             await privacyManager.updateScreenshotSettings({ blurIntensity: value });
+            showMessage('模糊强度已更新', 'success');
             this.emit('change');
         } catch (error) {
             console.error('Failed to update blur intensity:', error);
@@ -274,6 +278,7 @@ export class PrivacySettings extends BaseSettingsPanel {
         try {
             const privacyManager = getPrivacyManager();
             await privacyManager.updateScreenshotSettings({ autoBlurTrigger: select.value });
+            showMessage('自动模糊触发条件已更新', 'success');
             this.emit('change');
         } catch (error) {
             console.error('Failed to update auto blur trigger:', error);
@@ -300,6 +305,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             await privacyManager.updateScreenshotSettings({
                 blurAreas: enabledAreas as any
             });
+            showMessage('模糊区域已更新', 'success');
             this.emit('change');
         } catch (error) {
             console.error('Failed to update blur areas:', error);
@@ -342,6 +348,8 @@ export class PrivacySettings extends BaseSettingsPanel {
             const privacyManager = getPrivacyManager();
             await privacyManager.updatePrivateModeSettings({ requirePassword: checkbox.checked });
             
+            showMessage(checkbox.checked ? '已启用密码保护' : '已禁用密码保护', 'success');
+            
             // 更新密码按钮状态
             this.updatePasswordButtonsState();
             this.emit('change');
@@ -358,11 +366,15 @@ export class PrivacySettings extends BaseSettingsPanel {
     private async handlePrivateModeSettingsChange(): Promise<void> {
         try {
             const privacyManager = getPrivacyManager();
+            const idleTimeout = parseInt(this.sessionTimeout?.value || '10', 10);
+            
             await privacyManager.updatePrivateModeSettings({
-                sessionTimeout: parseInt(this.sessionTimeout?.value || '30', 10),
+                sessionTimeout: idleTimeout, // 现在sessionTimeout就是无操作超时
+                idleTimeout: idleTimeout,
                 lockOnTabLeave: this.lockOnTabLeave?.checked || false,
                 lockOnExtensionClose: this.lockOnExtensionClose?.checked || false
             });
+            showMessage('私密模式设置已更新', 'success');
             this.emit('change');
         } catch (error) {
             console.error('Failed to update private mode settings:', error);
