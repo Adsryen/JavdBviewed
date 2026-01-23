@@ -117,6 +117,13 @@ export class PrivacyManager implements IPrivacyManager {
         try {
             const settings = await getSettings();
             settings.privacy.screenshotMode.enabled = true;
+            
+            // 根据blurAreas生成protectedElements（如果blurAreas存在）
+            if (settings.privacy.screenshotMode.blurAreas && settings.privacy.screenshotMode.blurAreas.length > 0) {
+                const { getSelectorsForAreas } = await import('./blurAreaMapper');
+                settings.privacy.screenshotMode.protectedElements = getSelectorsForAreas(settings.privacy.screenshotMode.blurAreas);
+            }
+            
             await saveSettings(settings);
 
             log.privacy('Enabling screenshot mode with elements:', settings.privacy.screenshotMode.protectedElements);
@@ -166,6 +173,12 @@ export class PrivacyManager implements IPrivacyManager {
                 return;
             }
 
+            // 根据blurAreas重新生成protectedElements
+            if (settings.privacy.screenshotMode.blurAreas && settings.privacy.screenshotMode.blurAreas.length > 0) {
+                const { getSelectorsForAreas } = await import('./blurAreaMapper');
+                settings.privacy.screenshotMode.protectedElements = getSelectorsForAreas(settings.privacy.screenshotMode.blurAreas);
+            }
+
             log.privacy('Force reapplying screenshot mode...');
             await this.blurController.forceReapplyBlur(settings.privacy.screenshotMode.protectedElements);
 
@@ -188,6 +201,7 @@ export class PrivacyManager implements IPrivacyManager {
         autoBlurTrigger: string;
         showEyeIcon: boolean;
         temporaryViewDuration: number;
+        blurAreas: string[];
     }>): Promise<void> {
         try {
             const settings = await getSettings();
@@ -209,6 +223,13 @@ export class PrivacyManager implements IPrivacyManager {
 
             if (updates.temporaryViewDuration !== undefined) {
                 settings.privacy.screenshotMode.temporaryViewDuration = updates.temporaryViewDuration;
+            }
+
+            if (updates.blurAreas !== undefined) {
+                settings.privacy.screenshotMode.blurAreas = updates.blurAreas as any;
+                // 根据选择的区域更新protectedElements
+                const { getSelectorsForAreas } = await import('./blurAreaMapper');
+                settings.privacy.screenshotMode.protectedElements = getSelectorsForAreas(updates.blurAreas as any);
             }
 
             // 保存设置
@@ -563,16 +584,27 @@ export class PrivacyManager implements IPrivacyManager {
      * 应用初始状态
      */
     private async applyInitialState(): Promise<void> {
-        // 延迟一点时间确保DOM完全加载
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 延迟更长时间确保DOM完全加载，特别是侧边栏的动态内容
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const settings = await getSettings();
+
+        // 确保根据blurAreas生成protectedElements
+        if (settings.privacy.screenshotMode.blurAreas && settings.privacy.screenshotMode.blurAreas.length > 0) {
+            const { getSelectorsForAreas } = await import('./blurAreaMapper');
+            settings.privacy.screenshotMode.protectedElements = getSelectorsForAreas(settings.privacy.screenshotMode.blurAreas);
+            log.privacy('Generated protectedElements from blurAreas:', {
+                blurAreas: settings.privacy.screenshotMode.blurAreas,
+                selectorsCount: settings.privacy.screenshotMode.protectedElements.length
+            });
+        }
 
         log.privacy('Applying initial privacy state:', {
             screenshotModeEnabled: settings.privacy.screenshotMode.enabled,
             privateModeEnabled: settings.privacy.privateMode.enabled,
             requirePassword: settings.privacy.privateMode.requirePassword,
             isAuthenticated: this.currentState.isAuthenticated,
+            blurAreas: settings.privacy.screenshotMode.blurAreas,
             protectedElements: settings.privacy.screenshotMode.protectedElements
         });
 

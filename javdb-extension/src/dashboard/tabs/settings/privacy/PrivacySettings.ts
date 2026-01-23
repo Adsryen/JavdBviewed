@@ -19,8 +19,8 @@ export class PrivacySettings extends BaseSettingsPanel {
     private blurIntensity!: HTMLInputElement;
     private blurIntensityValue!: HTMLSpanElement;
     private autoBlurTrigger!: HTMLSelectElement;
-    private showEyeIcon!: HTMLInputElement;
     private temporaryViewDuration!: HTMLInputElement;
+    private blurAreaCheckboxes!: NodeListOf<HTMLInputElement>;
 
     // 私密模式元素
     private privateModeEnabled!: HTMLInputElement;
@@ -54,8 +54,8 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.blurIntensity = document.getElementById('blurIntensity') as HTMLInputElement;
         this.blurIntensityValue = document.getElementById('blurIntensityValue') as HTMLSpanElement;
         this.autoBlurTrigger = document.getElementById('autoBlurTrigger') as HTMLSelectElement;
-        this.showEyeIcon = document.getElementById('showEyeIcon') as HTMLInputElement;
         this.temporaryViewDuration = document.getElementById('temporaryViewDuration') as HTMLInputElement;
+        this.blurAreaCheckboxes = document.querySelectorAll('[data-area]') as NodeListOf<HTMLInputElement>;
 
         // 私密模式元素
         this.privateModeEnabled = document.getElementById('privateModeEnabled') as HTMLInputElement;
@@ -84,8 +84,12 @@ export class PrivacySettings extends BaseSettingsPanel {
         this.screenshotEnabled?.addEventListener('change', this.handleScreenshotModeToggle.bind(this));
         this.blurIntensity?.addEventListener('input', this.handleBlurIntensityChange.bind(this));
         this.autoBlurTrigger?.addEventListener('change', this.handleAutoBlurTriggerChange.bind(this));
-        this.showEyeIcon?.addEventListener('change', this.handleScreenshotSettingsChange.bind(this));
         this.temporaryViewDuration?.addEventListener('change', this.handleScreenshotSettingsChange.bind(this));
+        
+        // 模糊区域选择事件
+        this.blurAreaCheckboxes?.forEach(checkbox => {
+            checkbox.addEventListener('change', this.handleBlurAreaChange.bind(this));
+        });
 
         // 私密模式事件
         this.privateModeEnabled?.addEventListener('change', this.handlePrivateModeToggle.bind(this));
@@ -125,8 +129,16 @@ export class PrivacySettings extends BaseSettingsPanel {
                 if (this.blurIntensityValue) this.blurIntensityValue.textContent = privacyConfig.screenshotMode.blurIntensity.toString();
             }
             if (this.autoBlurTrigger) this.autoBlurTrigger.value = privacyConfig.screenshotMode.autoBlurTrigger;
-            if (this.showEyeIcon) this.showEyeIcon.checked = privacyConfig.screenshotMode.showEyeIcon;
             if (this.temporaryViewDuration) this.temporaryViewDuration.value = privacyConfig.screenshotMode.temporaryViewDuration.toString();
+            
+            // 加载模糊区域选择
+            const enabledAreas = privacyConfig.screenshotMode.blurAreas || [];
+            this.blurAreaCheckboxes?.forEach(checkbox => {
+                const area = checkbox.getAttribute('data-area');
+                if (area) {
+                    checkbox.checked = enabledAreas.includes(area as any);
+                }
+            });
 
             // 私密模式设置
             if (this.privateModeEnabled) this.privateModeEnabled.checked = privacyConfig.privateMode.enabled;
@@ -291,13 +303,38 @@ export class PrivacySettings extends BaseSettingsPanel {
         try {
             const privacyManager = getPrivacyManager();
             await privacyManager.updateScreenshotSettings({
-                showEyeIcon: this.showEyeIcon?.checked || false,
                 temporaryViewDuration: parseInt(this.temporaryViewDuration?.value || '3', 10)
             });
             this.emit('change');
         } catch (error) {
             console.error('Failed to update screenshot settings:', error);
             showMessage('更新截图设置失败', 'error');
+        }
+    }
+
+    /**
+     * 处理模糊区域变化
+     */
+    private async handleBlurAreaChange(): Promise<void> {
+        try {
+            const enabledAreas: string[] = [];
+            this.blurAreaCheckboxes?.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const area = checkbox.getAttribute('data-area');
+                    if (area) {
+                        enabledAreas.push(area);
+                    }
+                }
+            });
+            
+            const privacyManager = getPrivacyManager();
+            await privacyManager.updateScreenshotSettings({
+                blurAreas: enabledAreas as any
+            });
+            this.emit('change');
+        } catch (error) {
+            console.error('Failed to update blur areas:', error);
+            showMessage('更新模糊区域失败', 'error');
         }
     }
 

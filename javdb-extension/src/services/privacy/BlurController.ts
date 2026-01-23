@@ -12,6 +12,8 @@ export class BlurController implements IBlurController {
     private eyeIcons: Map<HTMLElement, HTMLElement> = new Map();
     private temporaryViewTimeout: number | null = null;
     private eventListeners: Map<PrivacyEventType, ((event: PrivacyEvent) => void)[]> = new Map();
+    private mutationObserver: MutationObserver | null = null;
+    private currentSelectors: string[] = [];
 
     // 默认配置
     private config: BlurEffectConfig = {
@@ -86,6 +88,8 @@ export class BlurController implements IBlurController {
     async applyBlur(elements?: string[]): Promise<void> {
         try {
             const selectors = elements || this.defaultProtectedSelectors;
+            this.currentSelectors = selectors; // 保存当前选择器
+            
             log.privacy('=== Starting blur application ===');
             log.privacy('Applying blur with selectors:', selectors);
             log.verbose('Current blurred elements count:', this.blurredElements.size);
@@ -95,7 +99,6 @@ export class BlurController implements IBlurController {
 
             if (elementsToBlur.length === 0) {
                 console.warn('No layout containers found to blur. This is expected if not on Dashboard.');
-                return;
             }
 
             let successCount = 0;
@@ -104,7 +107,7 @@ export class BlurController implements IBlurController {
             for (const element of elementsToBlur) {
                 try {
                     this.applyBlurToElement(element);
-                    this.addEyeIcon(element);
+                    this.addHoverListener(element);  // 添加悬浮监听器而不是眼睛图标
                     this.blurredElements.add(element);
                     successCount++;
 
@@ -116,6 +119,10 @@ export class BlurController implements IBlurController {
             }
 
             this.isBlurActive = true;
+            
+            // 启动DOM监听，自动模糊新出现的元素
+            this.startMutationObserver();
+            
             this.emitEvent('blur-applied', {
                 elementCount: successCount,
                 errorCount: errorCount,
@@ -141,16 +148,21 @@ export class BlurController implements IBlurController {
      */
     async removeBlur(): Promise<void> {
         try {
+            // 停止DOM监听
+            this.stopMutationObserver();
+            
             // 移除模糊效果
 
             for (const element of this.blurredElements) {
                 this.removeBlurFromElement(element);
-                this.removeEyeIcon(element);
+                this.removeHoverListener(element);  // 移除悬浮监听器
+                this.removeEyeIcon(element);  // 保留以清理旧的眼睛图标
             }
 
             this.blurredElements.clear();
             this.eyeIcons.clear();
             this.isBlurActive = false;
+            this.currentSelectors = [];
 
             // 清除临时查看定时器
             if (this.temporaryViewTimeout) {
@@ -269,7 +281,8 @@ export class BlurController implements IBlurController {
                 found.forEach(el => {
                     if (el instanceof HTMLElement &&
                         !this.blurredElements.has(el) &&
-                        !processedElements.has(el)) {
+                        !processedElements.has(el) &&
+                        !this.isInExcludedArea(el)) {  // 添加排除检查
 
                         elements.push(el);
                         processedElements.add(el);
@@ -286,6 +299,30 @@ export class BlurController implements IBlurController {
 
         // 元素搜索完成
         return elements;
+    }
+
+    /**
+     * 检查元素是否在排除区域内（如设置页面）
+     */
+    private isInExcludedArea(element: HTMLElement): boolean {
+        // 排除设置页面中的元素
+        const excludedSelectors = [
+            '#privacy-settings',           // 隐私设置面板
+            '.privacy-blur-areas',         // 模糊区域选择区域
+            '.blur-areas-grid',            // 模糊区域网格
+            '.settings-panel',             // 所有设置面板
+            '.privacy-card',               // 隐私卡片
+            '#settings-container'          // 设置容器
+        ];
+
+        for (const selector of excludedSelectors) {
+            const excludedArea = document.querySelector(selector);
+            if (excludedArea && excludedArea.contains(element)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -353,7 +390,45 @@ export class BlurController implements IBlurController {
     }
 
     /**
-     * 添加眼睛图标
+     * 添加鼠标悬浮监听器
+     */
+    private addHoverListener(element: HTMLElement): void {
+        // 鼠标进入时移除模糊
+        const handleMouseEnter = () => {
+            element.style.filter = 'none';
+            element.style.transition = 'filter 200ms ease';
+        };
+
+        // 鼠标离开时恢复模糊
+        const handleMouseLeave = () => {
+            element.style.filter = `blur(${this.config.intensity}px)`;
+            element.style.transition = 'filter 200ms ease';
+        };
+
+        element.addEventListener('mouseenter', handleMouseEnter);
+        element.addEventListener('mouseleave', handleMouseLeave);
+
+        // 存储事件监听器以便后续清理
+        (element as any)._blurHoverListeners = {
+            mouseenter: handleMouseEnter,
+            mouseleave: handleMouseLeave
+        };
+    }
+
+    /**
+     * 移除鼠标悬浮监听器
+     */
+    private removeHoverListener(element: HTMLElement): void {
+        const listeners = (element as any)._blurHoverListeners;
+        if (listeners) {
+            element.removeEventListener('mouseenter', listeners.mouseenter);
+            element.removeEventListener('mouseleave', listeners.mouseleave);
+            delete (element as any)._blurHoverListeners;
+        }
+    }
+
+    /**
+     * 添加眼睛图标（已废弃，保留以兼容旧代码）
      */
     private addEyeIcon(element: HTMLElement): void {
         if (this.eyeIcons.has(element)) {
@@ -666,8 +741,82 @@ export class BlurController implements IBlurController {
             });
         }
     }
-}
 
+    /**
+     * 启动DOM变化监听，自动模糊新出现的元素
+     */
+    private startMutationObserver(): void {
+        if (this.mutationObserver) {
+            return; // 已经在监听
+        }
+
+        this.mutationObserver = new MutationObserver((mutations) => {
+            let hasNewElements = false;
+
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    hasNewElements = true;
+                    break;
+                }
+            }
+
+            if (hasNewElements && this.isBlurActive) {
+                // 延迟一点时间，让新元素完全渲染
+                setTimeout(() => {
+                    this.applyBlurToNewElements();
+                }, 100);
+            }
+        });
+
+        // 监听整个document的变化
+        this.mutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        log.privacy('DOM mutation observer started');
+    }
+
+    /**
+     * 停止DOM变化监听
+     */
+    private stopMutationObserver(): void {
+        if (this.mutationObserver) {
+            this.mutationObserver.disconnect();
+            this.mutationObserver = null;
+            log.privacy('DOM mutation observer stopped');
+        }
+    }
+
+    /**
+     * 对新出现的元素应用模糊
+     */
+    private applyBlurToNewElements(): void {
+        if (!this.isBlurActive || this.currentSelectors.length === 0) {
+            return;
+        }
+
+        const newElements = this.findElementsToBlur(this.currentSelectors);
+        let newCount = 0;
+
+        for (const element of newElements) {
+            if (!this.blurredElements.has(element)) {
+                try {
+                    this.applyBlurToElement(element);
+                    this.addHoverListener(element);
+                    this.blurredElements.add(element);
+                    newCount++;
+                } catch (error) {
+                    console.error('Failed to blur new element:', element, error);
+                }
+            }
+        }
+
+        if (newCount > 0) {
+            log.privacy(`Applied blur to ${newCount} new elements`);
+        }
+    }
+}
 /**
  * 获取模糊控制器实例
  */

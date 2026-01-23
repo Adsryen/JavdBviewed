@@ -18,10 +18,14 @@ export interface ScreenshotModeConfig {
   autoBlurTrigger: BlurTrigger;       // 自动模糊触发条件
   blurIntensity: number;              // 模糊强度 (1-10)
   protectedElements: string[];        // 需要保护的元素选择器
+  blurAreas: BlurArea[];              // 启用的模糊区域
   showEyeIcon: boolean;               // 是否显示眼睛图标
   eyeIconPosition: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
   temporaryViewDuration: number;      // 临时查看持续时间(秒)
 }
+
+// 模糊区域类型
+export type BlurArea = 'sidebar' | 'video-library' | 'actor-library' | 'playlist-page';
 
 // 私密模式配置
 export interface PrivateModeConfig {
