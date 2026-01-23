@@ -2,8 +2,18 @@
   <div class="topbar-left" title="Jav 助手">
     <img id="brand-icon" alt="Jav 助手" class="brand-icon" style="display: none;" />
     <span class="brand-text">Jav 助手</span>
+    <!-- 手动锁定按钮 -->
+    <button id="manual-lock-btn" class="manual-lock-btn" style="display: none;" title="手动锁定">
+      <i class="fas fa-lock"></i>
+    </button>
   </div>
   <div class="topbar-right">
+    <!-- 私密模式倒计时 -->
+    <div id="privacy-timer" class="privacy-timer" style="display: none;">
+      <i class="fas fa-lock"></i>
+      <span id="privacy-timer-text">--:--</span>
+    </div>
+    
     <!-- 全局帮助入口：功能说明 -->
     <button id="helpBtn" class="help-btn" title="功能说明">
       <i class="fas fa-question-circle"></i>
