@@ -8,6 +8,7 @@ import { getPrivacyManager } from './PrivacyManager';
 export { PasswordService, getPasswordService } from './PasswordService';
 export { SessionManager, getSessionManager } from './SessionManager';
 export { BlurController, getBlurController } from './BlurController';
+export { LockScreen, getLockScreen } from './LockScreen';
 export { RecoveryService, getRecoveryService } from './RecoveryService';
 
 // 导出工具函数

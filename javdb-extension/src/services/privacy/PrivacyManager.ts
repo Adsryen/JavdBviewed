@@ -14,6 +14,7 @@ import { getSettings, saveSettings } from '../../utils/storage';
 import { getPasswordService } from './PasswordService';
 import { getSessionManager } from './SessionManager';
 import { getBlurController } from './BlurController';
+import { getLockScreen } from './LockScreen';
 import { log } from '../../utils/logController';
 import { getPrivacyStorage } from '../../utils/privacy/storage';
 
@@ -22,6 +23,7 @@ export class PrivacyManager implements IPrivacyManager {
     private passwordService = getPasswordService();
     private sessionManager = getSessionManager();
     private blurController = getBlurController();
+    private lockScreen = getLockScreen();
     private storage = getPrivacyStorage();
     
     private currentState: PrivacyState = {
@@ -276,9 +278,6 @@ export class PrivacyManager implements IPrivacyManager {
             // 如果需要密码验证且未认证，则锁定
             if (settings.privacy.privateMode.requirePassword && !this.currentState.isAuthenticated) {
                 await this.lock();
-            } else {
-                // 启用截图模式
-                await this.enableScreenshotMode();
             }
 
             log.privacy('Private mode enabled');
@@ -297,9 +296,9 @@ export class PrivacyManager implements IPrivacyManager {
             settings.privacy.privateMode.enabled = false;
             await saveSettings(settings);
 
-            // 解锁并移除模糊
+            // 解锁并隐藏锁定屏幕
             this.currentState.isLocked = false;
-            await this.disableScreenshotMode();
+            this.lockScreen.hide();
             await this.savePrivacyState();
 
             this.emitEvent('unlocked', { mode: 'private' });
@@ -315,6 +314,7 @@ export class PrivacyManager implements IPrivacyManager {
      */
     async updatePrivateModeSettings(updates: Partial<{
         sessionTimeout: number;
+        idleTimeout: number;
         lockOnTabLeave: boolean;
         lockOnExtensionClose: boolean;
         requirePassword: boolean;
@@ -325,10 +325,19 @@ export class PrivacyManager implements IPrivacyManager {
             // 更新设置
             if (updates.sessionTimeout !== undefined) {
                 settings.privacy.privateMode.sessionTimeout = updates.sessionTimeout;
-                // 如果会话正在运行，重新启动会话以应用新的超时时间
-                if (this.currentState.isAuthenticated) {
-                    await this.sessionManager.startSession(updates.sessionTimeout);
-                }
+            }
+
+            if (updates.idleTimeout !== undefined) {
+                // 保存无操作超时时间（新增）
+                (settings.privacy.privateMode as any).idleTimeout = updates.idleTimeout;
+            }
+
+            // 如果会话正在运行，重新配置会话管理器
+            if (this.currentState.isAuthenticated && (updates.sessionTimeout !== undefined || updates.idleTimeout !== undefined)) {
+                const sessionTimeout = updates.sessionTimeout || settings.privacy.privateMode.sessionTimeout;
+                const idleTimeout = updates.idleTimeout || (settings.privacy.privateMode as any).idleTimeout || 10;
+                this.sessionManager.configureSession(sessionTimeout, idleTimeout);
+                await this.sessionManager.startSession(sessionTimeout, idleTimeout);
             }
 
             if (updates.lockOnTabLeave !== undefined) {
@@ -375,20 +384,18 @@ export class PrivacyManager implements IPrivacyManager {
             );
 
             if (result.success) {
-                // 启动会话
-                await this.sessionManager.startSession(privateMode.sessionTimeout);
+                // 启动会话（使用无操作超时）
+                const idleTimeout = (privateMode as any).idleTimeout || 10; // 默认10分钟无操作超时
+                await this.sessionManager.startSession(privateMode.sessionTimeout, idleTimeout);
                 
-                this.currentState.isAuthenticated = true;
                 this.currentState.isLocked = false;
+                this.currentState.isAuthenticated = true;
                 this.currentState.sessionStartTime = Date.now();
                 
                 await this.savePrivacyState();
 
-                // 移除模糊效果（如果不是截图模式）
-                if (!settings.privacy.screenshotMode.enabled) {
-                    await this.blurController.removeBlur();
-                    this.currentState.isBlurred = false;
-                }
+                // 隐藏锁定屏幕
+                this.lockScreen.hide();
 
                 this.emitEvent('authenticated', {});
                 log.privacy('Authentication successful');
@@ -408,22 +415,35 @@ export class PrivacyManager implements IPrivacyManager {
      * 锁定
      */
     async lock(): Promise<void> {
+        console.log('[PrivacyManager] lock() called, current state:', {
+            isLocked: this.currentState.isLocked,
+            isAuthenticated: this.currentState.isAuthenticated
+        });
+
+        // 防止重复锁定
+        if (this.currentState.isLocked) {
+            log.privacy('Already locked, skipping duplicate lock');
+            return;
+        }
+
         try {
+            console.log('[PrivacyManager] Ending session...');
             // 结束会话
             await this.sessionManager.endSession();
 
-            // 应用模糊效果
-            await this.blurController.applyBlur();
+            console.log('[PrivacyManager] Showing lock screen...');
+            // 显示锁定屏幕
+            this.lockScreen.show();
 
             this.currentState.isLocked = true;
             this.currentState.isAuthenticated = false;
-            this.currentState.isBlurred = true;
             this.currentState.sessionStartTime = 0;
 
             await this.savePrivacyState();
 
             this.emitEvent('locked', {});
-            // 隐私已锁定
+            log.privacy('Private mode locked');
+            console.log('[PrivacyManager] Lock completed successfully');
         } catch (error) {
             console.error('Failed to lock:', error);
             throw new Error('锁定失败');
@@ -546,8 +566,15 @@ export class PrivacyManager implements IPrivacyManager {
      */
     private setupEventListeners(): void {
         // 监听会话过期
-        this.sessionManager.addEventListener('session-expired', () => {
-            this.lock();
+        this.sessionManager.addEventListener('session-expired', async () => {
+            log.privacy('Session expired event received');
+            // 只有在私密模式启用且需要密码时才锁定
+            const settings = await getSettings();
+            if (settings.privacy.privateMode.enabled && 
+                settings.privacy.privateMode.requirePassword &&
+                !this.currentState.isLocked) {
+                await this.lock();
+            }
         });
 
         // 监听页面可见性变化
@@ -612,10 +639,20 @@ export class PrivacyManager implements IPrivacyManager {
         if (settings.privacy.privateMode.enabled &&
             settings.privacy.privateMode.requirePassword &&
             !this.currentState.isAuthenticated) {
-            log.privacy('Locking due to private mode requirements');
-            await this.lock();
+            
+            // 如果状态已经是锁定的（从持久化存储恢复），直接显示锁定界面
+            if (this.currentState.isLocked) {
+                console.log('[PrivacyManager] State is already locked, showing lock screen directly');
+                log.privacy('State is already locked, showing lock screen directly');
+                this.lockScreen.show();
+            } else {
+                // 否则调用 lock() 方法进行完整的锁定流程
+                console.log('[PrivacyManager] Locking due to private mode requirements');
+                log.privacy('Locking due to private mode requirements');
+                await this.lock();
+            }
         }
-        // 如果启用了截图模式，应用模糊
+        // 如果启用了截图模式，应用模糊（独立于私密模式）
         else if (settings.privacy.screenshotMode.enabled) {
             // 应用初始截图模式
 

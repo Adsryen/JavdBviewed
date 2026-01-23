@@ -33,9 +33,10 @@ export class SessionManager implements ISessionManager {
     /**
      * 开始会话
      */
-    async startSession(timeoutMinutes?: number): Promise<void> {
+    async startSession(timeoutMinutes?: number, idleTimeoutMinutes?: number): Promise<void> {
         try {
             const timeout = timeoutMinutes || this.defaultTimeout;
+            const idleTimeout = idleTimeoutMinutes || this.maxIdleTime;
             const now = Date.now();
 
             this.sessionInfo = {
@@ -46,16 +47,19 @@ export class SessionManager implements ISessionManager {
                 isValid: true
             };
 
+            // 更新无操作超时配置
+            this.maxIdleTime = idleTimeout;
+
             // 保存会话信息
             await this.storage.saveSessionInfo(this.sessionInfo);
 
-            // 设置超时定时器
-            this.setupSessionTimeout();
+            // 设置超时定时器（基于无操作超时）
+            this.setupIdleTimeout();
 
             // 触发会话开始事件
             this.emitEvent('authenticated', { sessionInfo: this.sessionInfo });
 
-            console.log('Session started:', this.sessionInfo);
+            console.log('Session started with idle timeout:', idleTimeout, 'minutes');
         } catch (error) {
             console.error('Failed to start session:', error);
             throw new Error('启动会话失败');
@@ -67,15 +71,17 @@ export class SessionManager implements ISessionManager {
      */
     async endSession(): Promise<void> {
         try {
+            // 防止重复调用
+            if (!this.sessionInfo) {
+                return;
+            }
+
             // 清除定时器
             this.clearTimeouts();
 
             // 清除会话信息
             this.sessionInfo = null;
             await this.storage.saveSessionInfo(null as any);
-
-            // 触发会话结束事件
-            this.emitEvent('session-expired', {});
 
             console.log('Session ended');
         } catch (error) {
@@ -106,15 +112,12 @@ export class SessionManager implements ISessionManager {
         try {
             const now = Date.now();
             this.sessionInfo.lastActivity = now;
-            this.sessionInfo.remainingTime = this.sessionInfo.timeoutDuration - (now - this.sessionInfo.startTime);
+            // 无操作超时模式下，不需要计算剩余时间
 
             // 保存更新的会话信息
             await this.storage.saveSessionInfo(this.sessionInfo);
 
-            // 重新设置超时定时器
-            this.setupSessionTimeout();
-
-            console.log('Session refreshed');
+            console.log('Session activity updated');
         } catch (error) {
             console.error('Failed to refresh session:', error);
             throw new Error('刷新会话失败');
@@ -200,34 +203,64 @@ export class SessionManager implements ISessionManager {
     }
 
     /**
-     * 设置会话超时
+     * 设置会话超时（已废弃，改用无操作超时）
      */
     private setupSessionTimeout(): void {
+        // 不再使用固定时间超时，改用无操作超时
+        this.setupIdleTimeout();
+    }
+
+    /**
+     * 设置无操作超时检查
+     */
+    private setupIdleTimeout(): void {
         this.clearTimeouts();
 
         if (!this.sessionInfo) {
             return;
         }
 
-        const remainingTime = this.sessionInfo.remainingTime;
-        if (remainingTime > 0) {
-            this.timeoutId = window.setTimeout(() => {
+        // 每30秒检查一次是否超过无操作时间
+        this.activityTimeoutId = window.setInterval(() => {
+            // 再次检查会话是否存在，防止已结束的会话继续检查
+            if (!this.sessionInfo) {
+                this.clearTimeouts();
+                return;
+            }
+            
+            if (this.isIdleTooLong()) {
+                console.log('Session idle timeout - no activity detected');
                 this.handleSessionTimeout();
-            }, remainingTime);
-        }
+            }
+        }, 30 * 1000);
     }
 
     /**
      * 处理会话超时
      */
     private async handleSessionTimeout(): Promise<void> {
+        // 防止重复触发
+        if (!this.sessionInfo) {
+            return;
+        }
+
         console.log('Session timeout occurred');
+        
+        // 先清除会话信息，防止循环触发
+        this.sessionInfo = null;
+        
+        // 清除定时器
+        this.clearTimeouts();
         
         // 触发超时事件
         this.emitEvent('session-expired', {});
         
-        // 结束会话
-        await this.endSession();
+        // 清除存储
+        try {
+            await this.storage.saveSessionInfo(null as any);
+        } catch (error) {
+            console.error('Failed to clear session info:', error);
+        }
     }
 
     /**
@@ -245,13 +278,7 @@ export class SessionManager implements ISessionManager {
             document.addEventListener(event, activityHandler, true);
         });
 
-        // 定期检查空闲状态
-        setInterval(() => {
-            if (this.sessionInfo && this.isIdleTooLong()) {
-                console.log('User idle too long, ending session');
-                this.handleSessionTimeout();
-            }
-        }, this.activityCheckInterval);
+        // 无操作超时检查已在 setupIdleTimeout 中实现
     }
 
     /**
