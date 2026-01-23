@@ -251,36 +251,19 @@ export class PasswordService implements IPasswordService {
         this.validator.setLockoutDuration(lockoutDurationMinutes * 60 * 1000);
     }
 
+
     /**
-     * 显示“设置密码”对话流程（最小可用版）
+     * 显示"设置密码"对话流程
      */
     async showSetPasswordDialog(): Promise<boolean> {
         try {
-            const password = prompt('请设置密码（至少6位）：') || '';
-            if (!password) return false;
-
-            const confirmPwd = prompt('请再次输入以确认：') || '';
-            if (password !== confirmPwd) {
-                alert('两次输入不一致');
-                return false;
-            }
-
-            // 基础强度检查
-            const strength = this.validatePasswordStrength(password);
-            if (strength.score < 40) {
-                alert('密码过于简单，请尝试更复杂的密码（增加长度、混合大小写/数字/符号）');
-                return false;
-            }
-
-            // 使用隐私管理器封装的设置逻辑
-            const privacyManager = getPrivacyManager();
-            const ret = await privacyManager.setPassword(password);
-            if (!ret.success) {
-                alert(ret.error || '设置密码失败');
-                return false;
-            }
-
-            return true;
+            const { showSetPasswordModal } = await import('../../dashboard/components/privacy/PasswordSetupModal');
+            return new Promise((resolve) => {
+                showSetPasswordModal({
+                    onSuccess: () => resolve(true),
+                    onCancel: () => resolve(false)
+                });
+            });
         } catch (e) {
             console.error('showSetPasswordDialog error:', e);
             return false;
@@ -288,50 +271,57 @@ export class PasswordService implements IPasswordService {
     }
 
     /**
-     * 显示“修改密码”对话流程（最小可用版）
+     * 显示"修改密码"对话流程
      */
     async showChangePasswordDialog(): Promise<boolean> {
         try {
+            const { showChangePasswordModal } = await import('../../dashboard/components/privacy/PasswordSetupModal');
+            return new Promise((resolve) => {
+                showChangePasswordModal({
+                    onSuccess: () => resolve(true),
+                    onCancel: () => resolve(false)
+                });
+            });
+        } catch (e) {
+            console.error('showChangePasswordDialog error:', e);
+            return false;
+        }
+    }
+
+    /**
+     * 修改密码（带验证）
+     */
+    async changePasswordWithVerification(oldPassword: string, newPassword: string): Promise<{
+        success: boolean;
+        error?: string;
+    }> {
+        try {
             const settings = await getSettings();
             const pm = settings.privacy?.privateMode;
+            
             if (!pm?.passwordHash || !pm?.passwordSalt) {
-                alert('尚未设置密码，请先设置密码');
-                return false;
+                return { success: false, error: '尚未设置密码' };
             }
 
-            const oldPwd = prompt('请输入当前密码：') || '';
-            if (!oldPwd) return false;
-
-            const newPwd = prompt('请输入新密码（至少6位）：') || '';
-            if (!newPwd) return false;
-
-            const confirmPwd = prompt('请再次输入新密码以确认：') || '';
-            if (newPwd !== confirmPwd) {
-                alert('两次输入不一致');
-                return false;
-            }
-
-            const result = await this.changePassword(oldPwd, newPwd, pm.passwordHash, pm.passwordSalt);
+            const result = await this.changePassword(oldPassword, newPassword, pm.passwordHash, pm.passwordSalt);
+            
             if (!result.success || !result.newHash || !result.newSalt) {
-                alert(result.error || '修改密码失败');
-                return false;
+                return { success: false, error: result.error || '修改密码失败' };
             }
 
-            // 持久化新的密码哈希
             settings.privacy.privateMode.passwordHash = result.newHash;
             settings.privacy.privateMode.passwordSalt = result.newSalt;
             await saveSettings(settings);
 
-            // 通知隐私管理器（触发事件）
             try {
                 const privacyManager = getPrivacyManager();
                 (privacyManager as any).emitEvent?.('password-changed');
             } catch {}
 
-            return true;
+            return { success: true };
         } catch (e) {
-            console.error('showChangePasswordDialog error:', e);
-            return false;
+            console.error('changePasswordWithVerification error:', e);
+            return { success: false, error: '修改密码失败' };
         }
     }
 }

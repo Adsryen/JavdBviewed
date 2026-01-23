@@ -332,41 +332,23 @@ export class RecoveryService implements IRecoveryService {
 
     /**
      * 显示安全问题设置对话框
+    /**
+     * 显示安全问题设置对话框
      */
     async showSecurityQuestionsDialog(): Promise<boolean> {
         try {
-            // 最小可用版：使用 prompt 采集2-3个问题和答案
-            const countInput = prompt('设置安全问题数量（建议2或3）：', '2');
-            const count = Math.min(3, Math.max(2, parseInt(countInput || '2', 10)));
-
-            const questions: SecurityQuestion[] = [];
-
-            for (let i = 1; i <= count; i++) {
-                const q = prompt(`请输入第 ${i} 个安全问题（10-200字符）：`, '我最喜欢的电影是什么？') || '';
-                if (!q || !InputValidator.isValidSecurityQuestion(q)) {
-                    alert('安全问题格式无效，请重试');
-                    return false;
-                }
-
-                const a = prompt(`请输入第 ${i} 个问题的答案（2-100字符）：`, '') || '';
-                if (!a || !InputValidator.isValidSecurityAnswer(a)) {
-                    alert('答案格式无效，请重试');
-                    return false;
-                }
-
-                const sq = await this.createSecurityQuestion(q, a);
-                questions.push(sq);
-            }
-
-            await this.setupSecurityQuestions(questions);
-            alert('安全问题设置成功，请牢记答案。');
-            return true;
+            const { showSecurityQuestionsModal } = await import('../../dashboard/components/privacy/PasswordSetupModal');
+            return new Promise((resolve) => {
+                showSecurityQuestionsModal({
+                    onSuccess: () => resolve(true),
+                    onCancel: () => resolve(false)
+                });
+            });
         } catch (error) {
             console.error('Failed to show security questions dialog:', error);
             return false;
         }
     }
-
     /**
      * 获取恢复选项状态
      */

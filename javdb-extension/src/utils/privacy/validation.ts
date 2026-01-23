@@ -259,7 +259,7 @@ export class InputValidator {
      * 验证安全问题
      */
     static isValidSecurityQuestion(question: string): boolean {
-        return question.trim().length >= 10 && question.trim().length <= 200;
+        return question.trim().length > 0;
     }
 
     /**
@@ -267,7 +267,7 @@ export class InputValidator {
      */
     static isValidSecurityAnswer(answer: string): boolean {
         const sanitized = this.sanitizeSecurityAnswer(answer);
-        return sanitized.length >= 2 && sanitized.length <= 100;
+        return sanitized.length > 0;
     }
 }
 
