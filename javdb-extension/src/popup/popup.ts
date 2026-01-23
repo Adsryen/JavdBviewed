@@ -27,6 +27,7 @@ function initTitleLogo() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const dashboardButton = document.getElementById('dashboard-button') as HTMLButtonElement;
+    const popupLockBtn = document.getElementById('popup-lock-btn') as HTMLButtonElement;
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
     const helpPanel = document.getElementById('helpPanel') as HTMLDivElement;
     const toggleWatchedContainer = document.getElementById('toggleWatchedContainer') as HTMLDivElement;
@@ -40,6 +41,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
 
     const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
+
+    // 初始化手动锁定按钮
+    async function initPopupLockButton() {
+        if (!popupLockBtn) return;
+
+        try {
+            const settings = await getSettings();
+            
+            // 只有在私密模式启用时才显示
+            if (settings.privacy?.privateMode?.enabled) {
+                popupLockBtn.style.display = 'inline-flex';
+            }
+
+            // 点击锁定
+            popupLockBtn.addEventListener('click', async () => {
+                try {
+                    // 发送锁定消息到background
+                    chrome.runtime.sendMessage({ type: 'privacy-lock' }, (response) => {
+                        if (response?.success) {
+                            window.close(); // 关闭popup
+                        } else {
+                            alert('锁定失败，请重试');
+                        }
+                    });
+                } catch (error) {
+                    console.error('Failed to lock:', error);
+                    alert('锁定失败，请重试');
+                }
+            });
+        } catch (error) {
+            console.error('Failed to init popup lock button:', error);
+        }
+    }
 
     // Open Dashboard
     if (dashboardButton) {
@@ -243,6 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏');
 
         await setupVolumeControl();
+        await initPopupLockButton();
 
         const manifest = chrome.runtime.getManifest();
         versionAuthorInfo.textContent = `v${manifest.version}`;

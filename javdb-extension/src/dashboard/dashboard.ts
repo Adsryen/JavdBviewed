@@ -194,6 +194,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         await ensureMounted('#app-root', 'layout/skeleton.html');
     } catch {}
 
+    // 监听来自background的锁定消息
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'privacy-lock-trigger') {
+            try {
+                const { getPrivacyManager } = require('../services/privacy');
+                const privacyManager = getPrivacyManager();
+                privacyManager.lock().catch((error: any) => {
+                    console.error('Failed to lock from message:', error);
+                });
+                sendResponse({ success: true });
+            } catch (error) {
+                console.error('Failed to handle lock trigger:', error);
+                sendResponse({ success: false });
+            }
+        }
+        return true;
+    });
+
     // Mount layout fragments and ensure layout styles are present
     try {
         // 顶层 Topbar（品牌横跨整个容器）
@@ -246,6 +264,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 设置 Dashboard 特定的隐私监控
         setupDashboardPrivacyMonitoringModule();
+
+        // 初始化倒计时显示
+        const { initializeIdleTimerDisplay } = await import('./privacy/idleTimer');
+        initializeIdleTimerDisplay();
+
+        // 初始化手动锁定按钮
+        const { initializeManualLockButton } = await import('./privacy/manualLock');
+        await initializeManualLockButton();
     } catch (error) {
         console.error('Failed to initialize privacy system for Dashboard:', error);
     }

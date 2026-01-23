@@ -213,6 +213,10 @@ export function registerMiscRouter(): void {
             sendResponse({ success: false, error: error.message });
           }
           return true;
+        case 'privacy-lock':
+          // 处理手动锁定请求
+          handlePrivacyLock(sendResponse);
+          return true;
         default:
           return false;
       }
@@ -647,6 +651,31 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
   } catch (e) {
     // 抛出错误，交由消息路由返回失败以便前端提示
     throw e instanceof Error ? e : new Error('获取账号信息失败');
+  }
+}
+
+/**
+ * 处理隐私锁定请求
+ */
+async function handlePrivacyLock(sendResponse: (response: any) => void): Promise<void> {
+  try {
+    // 通知所有dashboard页面锁定
+    const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
+    
+    for (const tab of tabs) {
+      if (tab.id) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, { type: 'privacy-lock-trigger' });
+        } catch (error) {
+          console.error('Failed to send lock message to tab:', error);
+        }
+      }
+    }
+    
+    sendResponse({ success: true });
+  } catch (error: any) {
+    console.error('[Background] Failed to handle privacy lock:', error);
+    sendResponse({ success: false, error: error.message });
   }
 }
 
