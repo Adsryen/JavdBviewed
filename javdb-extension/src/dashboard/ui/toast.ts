@@ -1,4 +1,4 @@
-export function showMessage(message: string, type: 'info' | 'warn' | 'error' | 'success' = 'info'): void {
+export function showMessage(message: string, type: 'info' | 'warn' | 'warning' | 'error' | 'success' = 'info'): void {
     const container = document.getElementById('messageContainer');
     if (!container) {
         console.error("Message container not found!");
@@ -6,8 +6,8 @@ export function showMessage(message: string, type: 'info' | 'warn' | 'error' | '
     }
 
     const div = document.createElement('div');
-    // Map 'warn' to 'info' and handle 'success' correctly for CSS classes
-    const displayType = type === 'warn' ? 'info' : type;
+    // Map 'warn' and 'warning' to 'warning' for CSS classes
+    const displayType = (type === 'warn' || type === 'warning') ? 'warning' : type;
     div.className = `toast toast-${displayType}`;
     div.textContent = message;
 
@@ -17,6 +17,8 @@ export function showMessage(message: string, type: 'info' | 'warn' | 'error' | '
         icon.className = 'fas fa-check-circle';
     } else if (type === 'error') {
         icon.className = 'fas fa-exclamation-circle';
+    } else if (type === 'warn' || type === 'warning') {
+        icon.className = 'fas fa-exclamation-triangle';
     } else {
         icon.className = 'fas fa-info-circle';
     }
