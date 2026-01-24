@@ -237,4 +237,9 @@ export function initializeIdleTimerDisplay(): void {
     privacyManager.addEventListener('unlocked', () => {
         display.start();
     });
+
+    // 监听私密模式关闭事件
+    privacyManager.addEventListener('privateModeDisabled', () => {
+        display.stop();
+    });
 }
