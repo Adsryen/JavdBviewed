@@ -674,13 +674,18 @@ export class PasswordSetupModal {
     /**
      * 渲染设置安全问题表单
      */
-    private renderSecurityQuestionsForm(): void {
+    private async renderSecurityQuestionsForm(): Promise<void> {
         const container = this.modal?.querySelector('.modal-form-container') as HTMLElement;
         if (!container) return;
 
+        // 检查是否已有安全问题
+        const recoveryService = getRecoveryService();
+        const hasQuestions = await recoveryService.hasSecurityQuestions();
+        const existingQuestions = hasQuestions ? await recoveryService.getSecurityQuestions() : [];
+
         container.innerHTML = `
-            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 20px; font-weight: 600;">设置安全问题</h3>
-            <p style="margin: 0 0 24px 0; color: #666; font-size: 14px;">设置2-3个安全问题，用于密码找回</p>
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 20px; font-weight: 600;">${hasQuestions ? '修改' : '设置'}安全问题</h3>
+            <p style="margin: 0 0 24px 0; color: #666; font-size: 14px;">${hasQuestions ? '修改您的安全问题，用于密码找回' : '设置2-3个安全问题，用于密码找回'}</p>
             
             <div id="questions-container"></div>
             
@@ -714,13 +719,19 @@ export class PasswordSetupModal {
                     font-size: 14px;
                     font-weight: 500;
                     transition: all 0.3s ease;
-                ">确认设置</button>
+                ">${hasQuestions ? '确认修改' : '确认设置'}</button>
             </div>
         `;
 
-        // 添加2个问题表单
-        this.addQuestionForm(1);
-        this.addQuestionForm(2);
+        // 添加问题表单（如果有现有问题，加载它们；否则添加2个空表单）
+        if (existingQuestions.length > 0) {
+            existingQuestions.forEach((q, index) => {
+                this.addQuestionForm(index + 1, q.question);
+            });
+        } else {
+            this.addQuestionForm(1);
+            this.addQuestionForm(2);
+        }
 
         this.bindSecurityQuestionsEvents();
     }
@@ -728,7 +739,7 @@ export class PasswordSetupModal {
     /**
      * 添加问题表单
      */
-    private addQuestionForm(index: number): void {
+    private addQuestionForm(index: number, existingQuestion?: string): void {
         const questionsContainer = this.modal?.querySelector('#questions-container') as HTMLElement;
         if (!questionsContainer) return;
 
@@ -775,6 +786,14 @@ export class PasswordSetupModal {
         `;
 
         questionsContainer.appendChild(questionDiv);
+        
+        // 如果有现有问题，填充到输入框
+        if (existingQuestion) {
+            const questionInput = questionDiv.querySelector('.question-input') as HTMLTextAreaElement;
+            if (questionInput) {
+                questionInput.value = existingQuestion;
+            }
+        }
     }
 
     /**
@@ -790,10 +809,18 @@ export class PasswordSetupModal {
         newPasswordInput?.addEventListener('input', () => {
             this.updatePasswordStrength(newPasswordInput.value);
             this.clearError();
+            // 如果确认密码已输入，检查是否一致
+            if (confirmPasswordInput?.value) {
+                this.checkPasswordMatch(newPasswordInput.value, confirmPasswordInput.value);
+            }
         });
 
         confirmPasswordInput?.addEventListener('input', () => {
             this.clearError();
+            // 实时检查密码是否一致
+            if (newPasswordInput?.value) {
+                this.checkPasswordMatch(newPasswordInput.value, confirmPasswordInput.value);
+            }
         });
 
         // Enter 键提交
@@ -821,10 +848,20 @@ export class PasswordSetupModal {
         newPasswordInput?.addEventListener('input', () => {
             this.updatePasswordStrength(newPasswordInput.value);
             this.clearError();
+            // 如果确认密码已输入，检查是否一致
+            if (confirmPasswordInput?.value) {
+                this.checkPasswordMatch(newPasswordInput.value, confirmPasswordInput.value);
+            }
         });
 
         [currentPasswordInput, confirmPasswordInput].forEach(input => {
-            input?.addEventListener('input', () => this.clearError());
+            input?.addEventListener('input', () => {
+                this.clearError();
+                // 实时检查密码是否一致
+                if (input === confirmPasswordInput && newPasswordInput?.value) {
+                    this.checkPasswordMatch(newPasswordInput.value, confirmPasswordInput.value);
+                }
+            });
         });
 
         // Enter 键提交
@@ -1071,6 +1108,23 @@ export class PasswordSetupModal {
         const errorElement = this.modal?.querySelector('.error-message') as HTMLElement;
         if (errorElement) {
             errorElement.textContent = '';
+        }
+    }
+
+    /**
+     * 检查两次密码是否一致
+     */
+    private checkPasswordMatch(password: string, confirmPassword: string): void {
+        if (!confirmPassword) {
+            // 确认密码为空时不显示错误
+            this.clearError();
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            this.showError('两次输入的密码不一致');
+        } else {
+            this.clearError();
         }
     }
 
