@@ -263,9 +263,30 @@ export class LockScreen {
     /**
      * 处理忘记密码
      */
-    private handleForgotPassword(): void {
-        showMessage('密码恢复功能开发中，请联系管理员', 'info');
-        // TODO: 实现密码恢复功能
+    private async handleForgotPassword(): Promise<void> {
+        console.log('[LockScreen] Forgot password clicked');
+        try {
+            console.log('[LockScreen] Importing PasswordRecoveryModal...');
+            const { showPasswordRecoveryModal } = await import('../../dashboard/components/privacy/PasswordRecoveryModal');
+            
+            console.log('[LockScreen] Showing password recovery modal...');
+            const result = await showPasswordRecoveryModal();
+            
+            console.log('[LockScreen] Recovery result:', result);
+            if (result.success) {
+                showMessage('密码恢复成功，请设置新密码', 'success');
+                // 隐藏锁定屏幕，允许用户设置新密码
+                this.hide();
+                
+                // 显示设置新密码对话框
+                const { getPasswordService } = await import('./index');
+                const passwordService = getPasswordService();
+                await passwordService.showSetPasswordDialog();
+            }
+        } catch (error) {
+            console.error('[LockScreen] Password recovery failed:', error);
+            showMessage('密码恢复失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
+        }
     }
 
     /**
