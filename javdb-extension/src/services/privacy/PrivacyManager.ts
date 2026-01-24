@@ -386,7 +386,7 @@ export class PrivacyManager implements IPrivacyManager {
             if (result.success) {
                 // 启动会话（使用无操作超时）
                 const idleTimeout = (privateMode as any).idleTimeout || 10; // 默认10分钟无操作超时
-                await this.sessionManager.startSession(privateMode.sessionTimeout, idleTimeout);
+                await this.sessionManager.startSession(idleTimeout, idleTimeout);
                 
                 this.currentState.isLocked = false;
                 this.currentState.isAuthenticated = true;
