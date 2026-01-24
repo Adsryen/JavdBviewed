@@ -42,7 +42,11 @@
 }
 
 .toast-info {
-    background: linear-gradient(to right, #2a9d8f, #264653);
+    background: linear-gradient(to right, #3b82f6, #2563eb);
+}
+
+.toast-warning {
+    background: linear-gradient(to right, #f59e0b, #d97706);
 }
 
 .toast-error {
