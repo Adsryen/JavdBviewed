@@ -323,9 +323,12 @@ export class PrivacySettings extends BaseSettingsPanel {
         const checkbox = event.target as HTMLInputElement;
         
         try {
-            // 如果要开启私密模式，先检查是否设置了密码
+            const settings = await getSettings();
+            const privacyManager = getPrivacyManager();
+            
+            // 如果要开启私密模式
             if (checkbox.checked) {
-                const settings = await getSettings();
+                // 检查是否设置了密码
                 if (!settings.privacy.privateMode.passwordHash) {
                     // 没有设置密码，提示用户先设置
                     checkbox.checked = false;
@@ -337,14 +340,32 @@ export class PrivacySettings extends BaseSettingsPanel {
                     }, 500);
                     return;
                 }
-            }
-            
-            const privacyManager = getPrivacyManager();
-            
-            if (checkbox.checked) {
+                
+                // 已设置密码，需要验证密码
+                const { showPasswordModal } = await import('../../../components/privacy/PasswordModal');
+                const result = await showPasswordModal('verify');
+                
+                if (!result.success) {
+                    checkbox.checked = false;
+                    showMessage('密码验证失败，无法启用私密模式', 'error');
+                    return;
+                }
+                
                 await privacyManager.enablePrivateMode();
                 showMessage('私密模式已启用', 'success');
             } else {
+                // 关闭私密模式，需要验证密码
+                if (settings.privacy.privateMode.passwordHash) {
+                    const { showPasswordModal } = await import('../../../components/privacy/PasswordModal');
+                    const result = await showPasswordModal('verify');
+                    
+                    if (!result.success) {
+                        checkbox.checked = true;
+                        showMessage('密码验证失败，无法关闭私密模式', 'error');
+                        return;
+                    }
+                }
+                
                 await privacyManager.disablePrivateMode();
                 showMessage('私密模式已禁用', 'success');
             }
@@ -736,7 +757,7 @@ export class PrivacySettings extends BaseSettingsPanel {
         const passwordStatus = document.getElementById('passwordStatus');
         if (passwordStatus) {
             passwordStatus.textContent = hasPassword ? '已设置' : '未设置';
-            passwordStatus.className = hasPassword ? 'status-success' : 'status-warning';
+            passwordStatus.className = hasPassword ? 'privacy-status privacy-status-success' : 'privacy-status privacy-status-warning';
         }
         
         this.updatePasswordButtonsState();
@@ -774,16 +795,20 @@ export class PrivacySettings extends BaseSettingsPanel {
             const securityQuestionsStatus = document.getElementById('securityQuestionsStatus');
             if (securityQuestionsStatus) {
                 securityQuestionsStatus.textContent = hasSecurityQuestions ? '已设置' : '未设置';
-                securityQuestionsStatus.className = hasSecurityQuestions ? 'status-success' : 'status-warning';
+                securityQuestionsStatus.className = hasSecurityQuestions ? 'privacy-status privacy-status-success' : 'privacy-status privacy-status-warning';
             }
             
             const backupCodeStatus = document.getElementById('backupCodeStatus');
             if (backupCodeStatus) {
                 backupCodeStatus.textContent = hasBackupCode ? '已生成' : '未生成';
-                backupCodeStatus.className = hasBackupCode ? 'status-success' : 'status-warning';
+                backupCodeStatus.className = hasBackupCode ? 'privacy-status privacy-status-success' : 'privacy-status privacy-status-warning';
             }
 
             // 更新按钮文本
+            if (this.setupSecurityQuestionsBtn) {
+                this.setupSecurityQuestionsBtn.textContent = hasSecurityQuestions ? '修改安全问题' : '设置安全问题';
+            }
+            
             if (this.generateBackupCodeBtn) {
                 this.generateBackupCodeBtn.textContent = hasBackupCode ? '重置备份恢复码' : '生成备份恢复码';
             }

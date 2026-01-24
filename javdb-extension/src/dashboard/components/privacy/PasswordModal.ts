@@ -479,18 +479,31 @@ export class PasswordModal {
 let globalPasswordModal: PasswordModal | null = null;
 
 /**
- * 显示密码验证弹窗
+ * 显示密码验证弹窗（Promise版本）
  */
-export function showPasswordModal(options?: {
-    title?: string;
-    message?: string;
-    onSuccess?: () => void;
-    onCancel?: () => void;
-}): void {
-    if (!globalPasswordModal) {
-        globalPasswordModal = new PasswordModal();
+export function showPasswordModal(
+    mode: 'verify' | 'setup' = 'verify',
+    options?: {
+        title?: string;
+        message?: string;
     }
-    globalPasswordModal.show(options);
+): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+        if (!globalPasswordModal) {
+            globalPasswordModal = new PasswordModal();
+        }
+        
+        globalPasswordModal.show({
+            title: options?.title,
+            message: options?.message,
+            onSuccess: () => {
+                resolve({ success: true });
+            },
+            onCancel: () => {
+                resolve({ success: false, error: '用户取消' });
+            }
+        });
+    });
 }
 
 /**
