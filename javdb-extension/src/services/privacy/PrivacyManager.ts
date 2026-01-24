@@ -304,7 +304,8 @@ export class PrivacyManager implements IPrivacyManager {
             this.lockScreen.hide();
             await this.savePrivacyState();
 
-            this.emitEvent('unlocked', { mode: 'private' });
+            // 触发私密模式禁用事件（而不是 unlocked）
+            this.emitEvent('privateModeDisabled', { mode: 'private' });
             log.privacy('Private mode disabled');
         } catch (error) {
             console.error('Failed to disable private mode:', error);
