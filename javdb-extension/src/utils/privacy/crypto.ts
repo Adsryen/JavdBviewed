@@ -225,7 +225,10 @@ export function encryptData(data: string, key: string): string {
         const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
         result += String.fromCharCode(charCode);
     }
-    return btoa(result);
+    // 使用 encodeURIComponent 和 btoa 来支持中文字符
+    return btoa(encodeURIComponent(result).replace(/%([0-9A-F]{2})/g, (_, p1) => {
+        return String.fromCharCode(parseInt(p1, 16));
+    }));
 }
 
 /**
@@ -233,7 +236,11 @@ export function encryptData(data: string, key: string): string {
  */
 export function decryptData(encryptedData: string, key: string): string {
     try {
-        const data = atob(encryptedData);
+        // 解码 Base64 并处理 UTF-8
+        const data = decodeURIComponent(Array.prototype.map.call(atob(encryptedData), (c: string) => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
         let result = '';
         for (let i = 0; i < data.length; i++) {
             const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
