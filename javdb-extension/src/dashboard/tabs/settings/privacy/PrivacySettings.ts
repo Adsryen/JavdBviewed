@@ -506,15 +506,8 @@ export class PrivacySettings extends BaseSettingsPanel {
             const backupCode = await recoveryService.generateBackupCode();
             
             if (backupCode) {
-                // 一次性展示备份码，并尝试复制到剪贴板
-                try {
-                    await navigator.clipboard.writeText(backupCode);
-                    showMessage('备份码已复制到剪贴板，请妥善保存', 'success');
-                } catch {
-                    // 复制失败则仅提示
-                    showMessage('备份码生成成功，请妥善保存', 'success');
-                }
-                alert(`您的备份恢复码（仅显示一次）：\n\n${backupCode}\n\n请将其保存在安全的地方！`);
+                // 使用自定义弹窗显示备份码
+                this.showBackupCodeModal(backupCode);
 
                 // 刷新状态显示
                 await this.updateRecoveryOptionsStatus();
@@ -523,6 +516,217 @@ export class PrivacySettings extends BaseSettingsPanel {
             console.error('Failed to generate backup code:', error);
             showMessage('生成备份码失败', 'error');
         }
+    }
+
+    /**
+     * 显示备份码弹窗
+     */
+    private showBackupCodeModal(backupCode: string): void {
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                max-width: 580px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            ">
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="
+                        width: 80px;
+                        height: 80px;
+                        margin: 0 auto 24px;
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+                    ">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    
+                    <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 24px; font-weight: 700;">备份恢复码已生成</h3>
+                    <p style="color: #6b7280; margin: 0 0 32px 0; line-height: 1.6; font-size: 15px;">
+                        请妥善保存此恢复码，它只会显示一次
+                    </p>
+                </div>
+
+                <div style="
+                    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+                    border: 2px solid #e5e7eb;
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin-bottom: 24px;
+                ">
+                    <div style="
+                        font-family: 'Courier New', monospace;
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #111827;
+                        text-align: center;
+                        letter-spacing: 4px;
+                        padding: 16px;
+                        background: white;
+                        border-radius: 12px;
+                        border: 2px dashed #d1d5db;
+                        user-select: all;
+                        word-break: break-all;
+                    " id="backup-code-display">${backupCode}</div>
+                    
+                    <button id="copy-backup-code-btn" style="
+                        width: 100%;
+                        margin-top: 16px;
+                        padding: 14px;
+                        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        font-size: 15px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                    ">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <span id="copy-btn-text">复制到剪贴板</span>
+                    </button>
+                </div>
+
+                <div style="
+                    background: #dbeafe;
+                    border-radius: 12px;
+                    padding: 16px 18px;
+                    margin-bottom: 16px;
+                    display: flex;
+                    gap: 12px;
+                ">
+                    <span style="font-size: 18px; flex-shrink: 0; line-height: 1.5;">☁️</span>
+                    <div style="flex: 1;">
+                        <p style="margin: 0 0 4px 0; color: #1e40af; font-size: 14px; font-weight: 600;">自动备份到 WebDAV</p>
+                        <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.6;">
+                            备份码已自动保存到 WebDAV 云端，即使本地丢失也可以从备份文件中恢复
+                        </p>
+                    </div>
+                </div>
+
+                <div style="
+                    background: #fef3c7;
+                    border-radius: 12px;
+                    padding: 16px 18px;
+                    margin-bottom: 24px;
+                    display: flex;
+                    gap: 12px;
+                ">
+                    <span style="font-size: 18px; flex-shrink: 0; line-height: 1.5;">⚠️</span>
+                    <div style="flex: 1;">
+                        <p style="margin: 0 0 8px 0; color: #92400e; font-size: 14px; font-weight: 600;">重要提示</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 13px; line-height: 1.6;">
+                            <li>此恢复码只显示一次，请务必保存</li>
+                            <li>建议将其保存在安全的地方（如密码管理器）</li>
+                            <li>使用后该恢复码将失效，需重新生成</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="confirm-backup-btn" style="
+                        padding: 12px 32px;
+                        border: none;
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                        color: white;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        font-size: 15px;
+                        font-weight: 600;
+                        transition: all 0.2s;
+                        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+                    ">我已保存</button>
+                </div>
+            </div>
+        `;
+
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            #copy-backup-code-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            }
+            #copy-backup-code-btn:active {
+                transform: translateY(0);
+            }
+            .confirm-backup-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            }
+            .confirm-backup-btn:active {
+                transform: translateY(0);
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(overlay);
+
+        // 绑定事件
+        const copyBtn = overlay.querySelector('#copy-backup-code-btn') as HTMLButtonElement;
+        const confirmBtn = overlay.querySelector('.confirm-backup-btn') as HTMLButtonElement;
+        const copyBtnText = overlay.querySelector('#copy-btn-text') as HTMLSpanElement;
+
+        copyBtn?.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(backupCode);
+                copyBtnText.textContent = '✓ 已复制';
+                copyBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                showMessage('备份码已复制到剪贴板', 'success');
+                
+                setTimeout(() => {
+                    copyBtnText.textContent = '复制到剪贴板';
+                    copyBtn.style.background = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+                }, 2000);
+            } catch (error) {
+                showMessage('复制失败，请手动复制', 'error');
+            }
+        });
+
+        confirmBtn?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            document.head.removeChild(style);
+        });
+
+        // 点击遮罩层关闭
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                document.head.removeChild(style);
+            }
+        });
     }
 
     /**
@@ -577,6 +781,11 @@ export class PrivacySettings extends BaseSettingsPanel {
             if (backupCodeStatus) {
                 backupCodeStatus.textContent = hasBackupCode ? '已生成' : '未生成';
                 backupCodeStatus.className = hasBackupCode ? 'status-success' : 'status-warning';
+            }
+
+            // 更新按钮文本
+            if (this.generateBackupCodeBtn) {
+                this.generateBackupCodeBtn.textContent = hasBackupCode ? '重置备份恢复码' : '生成备份恢复码';
             }
         } catch (error) {
             console.error('Failed to update recovery options status:', error);
