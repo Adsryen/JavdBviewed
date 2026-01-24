@@ -22,14 +22,26 @@ export class PasswordSetupModal {
     /**
      * 显示设置密码弹窗
      */
-    showSetPassword(options?: {
+    async showSetPassword(options?: {
         onSuccess?: () => void;
         onCancel?: () => void;
-    }): void {
+    }): Promise<void> {
         this.currentMode = 'set-password';
         this.onSuccess = options?.onSuccess;
         this.onCancel = options?.onCancel;
-        this.renderSetPasswordForm();
+        
+        // 检查是否已设置恢复方式
+        const recoveryService = getRecoveryService();
+        const recoveryOptions = await recoveryService.getRecoveryOptions();
+        
+        if (!recoveryOptions.hasSecurityQuestions && !recoveryOptions.hasBackupCode) {
+            // 没有设置任何恢复方式，强制先设置
+            this.renderRecoverySetupRequired();
+        } else {
+            // 已有恢复方式，可以设置密码
+            this.renderSetPasswordForm();
+        }
+        
         this.show();
     }
 
@@ -117,7 +129,7 @@ export class PasswordSetupModal {
                 background: white;
                 border-radius: 12px;
                 padding: 32px;
-                max-width: 480px;
+                max-width: 580px;
                 width: 90%;
                 max-height: 80vh;
                 overflow-y: auto;
@@ -136,6 +148,359 @@ export class PasswordSetupModal {
         });
 
         document.body.appendChild(this.modal);
+    }
+
+    /**
+     * 渲染需要先设置恢复方式的提示
+     */
+    private renderRecoverySetupRequired(): void {
+        const container = this.modal?.querySelector('.modal-form-container') as HTMLElement;
+        if (!container) return;
+
+        container.innerHTML = `
+            <div style="text-align: center; padding: 24px 0 20px 0;">
+                <div style="
+                    width: 80px;
+                    height: 80px;
+                    margin: 0 auto 20px;
+                    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color: #d97706;">
+                        <path d="M12 2L2 22h20L12 2zm0 3.5L19.5 20h-15L12 5.5zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3 style="margin: 0 0 12px 0; color: #1f2937; font-size: 22px; font-weight: 700;">设置密码前需要先设置恢复方式</h3>
+                <p style="color: #6b7280; margin: 0 0 28px 0; line-height: 1.6; font-size: 15px;">
+                    为了防止忘记密码后无法恢复，请先设置至少一种密码恢复方式
+                </p>
+            </div>
+
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; flex-direction: column; gap: 18px;">
+                    <button class="recovery-option-btn" id="setup-security-questions-btn" style="
+                        width: 100%;
+                        padding: 24px;
+                        background: white;
+                        border: 1.5px solid #e5e7eb;
+                        border-radius: 16px;
+                        cursor: pointer;
+                        text-align: left;
+                        transition: all 0.25s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+                        min-height: 100px;
+                    ">
+                        <div style="
+                            width: 56px;
+                            height: 56px;
+                            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                            border-radius: 14px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                        ">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; color: #111827; margin-bottom: 6px; font-size: 17px;">安全问题</div>
+                            <div style="font-size: 14px; color: #6b7280; line-height: 1.5;">回答2-3个安全问题来保护您的账户</div>
+                        </div>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: #d1d5db; flex-shrink: 0;">
+                            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+
+                    <button class="recovery-option-btn" id="generate-backup-code-btn" style="
+                        width: 100%;
+                        padding: 24px;
+                        background: white;
+                        border: 1.5px solid #e5e7eb;
+                        border-radius: 16px;
+                        cursor: pointer;
+                        text-align: left;
+                        transition: all 0.25s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+                        min-height: 100px;
+                    ">
+                        <div style="
+                            width: 56px;
+                            height: 56px;
+                            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                            border-radius: 14px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                        ">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; color: #111827; margin-bottom: 6px; font-size: 17px;">备份恢复码</div>
+                            <div style="font-size: 14px; color: #6b7280; line-height: 1.5;">生成一次性恢复码，请妥善保存</div>
+                        </div>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: #d1d5db; flex-shrink: 0;">
+                            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div style="
+                background: #fef3c7;
+                border-radius: 12px;
+                padding: 16px 18px;
+                margin-bottom: 24px;
+                display: flex;
+                gap: 12px;
+            ">
+                <span style="font-size: 18px; flex-shrink: 0; line-height: 1.5;">💡</span>
+                <p style="margin: 0; color: #92400e; font-size: 13.5px; line-height: 1.6;">
+                    建议同时设置两种恢复方式，提供双重保障
+                </p>
+            </div>
+            
+            <div class="modal-buttons" style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="cancel-btn" style="
+                    padding: 10px 24px;
+                    border: none;
+                    background: #f3f4f6;
+                    color: #6b7280;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">取消</button>
+            </div>
+        `;
+
+        // 添加按钮悬停效果样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .recovery-option-btn:hover {
+                border-color: #6366f1 !important;
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15) !important;
+                transform: translateY(-2px);
+            }
+            .recovery-option-btn:active {
+                transform: translateY(0);
+            }
+            .cancel-btn:hover {
+                background: #e5e7eb !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        this.bindRecoverySetupEvents();
+    }
+
+    /**
+     * 绑定恢复方式设置事件
+     */
+    private bindRecoverySetupEvents(): void {
+        const securityQuestionsBtn = this.modal?.querySelector('#setup-security-questions-btn') as HTMLButtonElement;
+        const backupCodeBtn = this.modal?.querySelector('#generate-backup-code-btn') as HTMLButtonElement;
+        const cancelBtn = this.modal?.querySelector('.cancel-btn') as HTMLButtonElement;
+
+        securityQuestionsBtn?.addEventListener('click', async () => {
+            // 显示安全问题设置界面
+            this.renderSecurityQuestionsForm();
+        });
+
+        backupCodeBtn?.addEventListener('click', async () => {
+            try {
+                const recoveryService = getRecoveryService();
+                const backupCode = await recoveryService.generateBackupCode();
+                
+                if (backupCode) {
+                    // 显示备份码弹窗
+                    this.showBackupCodeModal(backupCode);
+                }
+            } catch (error) {
+                console.error('Failed to generate backup code:', error);
+                showMessage('生成备份码失败', 'error');
+            }
+        });
+
+        cancelBtn?.addEventListener('click', () => this.handleCancel());
+    }
+
+    /**
+     * 显示备份码弹窗
+     */
+    private showBackupCodeModal(backupCode: string): void {
+        const container = this.modal?.querySelector('.modal-form-container') as HTMLElement;
+        if (!container) return;
+
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px 0;">
+                <div style="
+                    width: 80px;
+                    height: 80px;
+                    margin: 0 auto 24px;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+                ">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </div>
+                
+                <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 24px; font-weight: 700;">备份恢复码已生成</h3>
+                <p style="color: #6b7280; margin: 0 0 32px 0; line-height: 1.6; font-size: 15px;">
+                    请妥善保存此恢复码，它只会显示一次
+                </p>
+            </div>
+
+            <div style="
+                background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+                border: 2px solid #e5e7eb;
+                border-radius: 16px;
+                padding: 24px;
+                margin-bottom: 24px;
+                position: relative;
+            ">
+                <div style="
+                    font-family: 'Courier New', monospace;
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: #111827;
+                    text-align: center;
+                    letter-spacing: 4px;
+                    padding: 16px;
+                    background: white;
+                    border-radius: 12px;
+                    border: 2px dashed #d1d5db;
+                    user-select: all;
+                    word-break: break-all;
+                " id="backup-code-display">${backupCode}</div>
+                
+                <button id="copy-backup-code-btn" style="
+                    width: 100%;
+                    margin-top: 16px;
+                    padding: 14px;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                ">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span id="copy-btn-text">复制到剪贴板</span>
+                </button>
+            </div>
+
+            <div style="
+                background: #fef3c7;
+                border-radius: 12px;
+                padding: 16px 18px;
+                margin-bottom: 24px;
+                display: flex;
+                gap: 12px;
+            ">
+                <span style="font-size: 18px; flex-shrink: 0; line-height: 1.5;">⚠️</span>
+                <div style="flex: 1;">
+                    <p style="margin: 0 0 8px 0; color: #92400e; font-size: 14px; font-weight: 600;">重要提示</p>
+                    <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 13px; line-height: 1.6;">
+                        <li>此恢复码只显示一次，请务必保存</li>
+                        <li>建议将其保存在安全的地方（如密码管理器）</li>
+                        <li>使用后该恢复码将失效，需重新生成</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="modal-buttons" style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="confirm-backup-btn" style="
+                    padding: 12px 32px;
+                    border: none;
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 600;
+                    transition: all 0.2s;
+                    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+                ">我已保存，继续</button>
+            </div>
+        `;
+
+        // 添加按钮悬停效果
+        const style = document.createElement('style');
+        style.textContent = `
+            #copy-backup-code-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            }
+            #copy-backup-code-btn:active {
+                transform: translateY(0);
+            }
+            .confirm-backup-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            }
+            .confirm-backup-btn:active {
+                transform: translateY(0);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 绑定事件
+        const copyBtn = this.modal?.querySelector('#copy-backup-code-btn') as HTMLButtonElement;
+        const confirmBtn = this.modal?.querySelector('.confirm-backup-btn') as HTMLButtonElement;
+        const copyBtnText = this.modal?.querySelector('#copy-btn-text') as HTMLSpanElement;
+
+        copyBtn?.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(backupCode);
+                copyBtnText.textContent = '✓ 已复制';
+                copyBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                showMessage('备份码已复制到剪贴板', 'success');
+                
+                setTimeout(() => {
+                    copyBtnText.textContent = '复制到剪贴板';
+                    copyBtn.style.background = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+                }, 2000);
+            } catch (error) {
+                showMessage('复制失败，请手动复制', 'error');
+            }
+        });
+
+        confirmBtn?.addEventListener('click', () => {
+            // 备份码设置成功，现在可以设置密码了
+            this.renderSetPasswordForm();
+        });
     }
 
     /**
@@ -641,9 +1006,17 @@ export class PasswordSetupModal {
             
             await recoveryService.setupSecurityQuestions(securityQuestions);
 
-            this.hide();
-            this.onSuccess?.();
             showMessage('安全问题设置成功', 'success');
+            
+            // 如果当前模式是设置密码，说明是从"需要先设置恢复方式"来的
+            // 设置完安全问题后，跳转到设置密码界面
+            if (this.currentMode === 'set-password') {
+                this.renderSetPasswordForm();
+            } else {
+                // 否则关闭弹窗
+                this.hide();
+                this.onSuccess?.();
+            }
         } catch (error) {
             console.error('Setup security questions failed:', error);
             this.showError('设置安全问题失败，请重试');
