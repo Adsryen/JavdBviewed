@@ -640,20 +640,45 @@ body.privacy-authenticated {
 }
 
 .privacy-status {
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
     font-weight: 600;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.privacy-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
 }
 
 .privacy-status-warning {
-    background: #fef3c7;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
     color: #d97706;
+    border: 1px solid #fbbf24;
+}
+
+.privacy-status-warning::before {
+    background: #f59e0b;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
 }
 
 .privacy-status-success {
-    background: #d1fae5;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     color: #059669;
+    border: 1px solid #6ee7b7;
+}
+
+.privacy-status-success::before {
+    background: #10b981;
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
 }
 
 .privacy-btn-group {
