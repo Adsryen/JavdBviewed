@@ -5,7 +5,7 @@
 
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { showMessage } from '../../../ui/toast';
-import { getSettings } from '../../../../utils/storage';
+import { getSettings, saveSettings } from '../../../../utils/storage';
 import { getPrivacyManager, getPasswordService, getRecoveryService } from '../../../../services/privacy';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
@@ -31,6 +31,7 @@ export class PrivacySettings extends BaseSettingsPanel {
     // 按钮元素
     private setPasswordBtn!: HTMLButtonElement;
     private changePasswordBtn!: HTMLButtonElement;
+    private removePasswordBtn!: HTMLButtonElement;
     private setupSecurityQuestionsBtn!: HTMLButtonElement;
     private generateBackupCodeBtn!: HTMLButtonElement;
 
@@ -64,6 +65,7 @@ export class PrivacySettings extends BaseSettingsPanel {
         // 按钮元素
         this.setPasswordBtn = document.getElementById('setPasswordBtn') as HTMLButtonElement;
         this.changePasswordBtn = document.getElementById('changePasswordBtn') as HTMLButtonElement;
+        this.removePasswordBtn = document.getElementById('removePasswordBtn') as HTMLButtonElement;
         this.setupSecurityQuestionsBtn = document.getElementById('setupSecurityQuestionsBtn') as HTMLButtonElement;
         this.generateBackupCodeBtn = document.getElementById('generateBackupCodeBtn') as HTMLButtonElement;
 
@@ -96,6 +98,7 @@ export class PrivacySettings extends BaseSettingsPanel {
         // 按钮事件
         this.setPasswordBtn?.addEventListener('click', this.handleSetPassword.bind(this));
         this.changePasswordBtn?.addEventListener('click', this.handleChangePassword.bind(this));
+        this.removePasswordBtn?.addEventListener('click', this.handleRemovePassword.bind(this));
         this.setupSecurityQuestionsBtn?.addEventListener('click', this.handleSetupSecurityQuestions.bind(this));
         this.generateBackupCodeBtn?.addEventListener('click', this.handleGenerateBackupCode.bind(this));
     }
@@ -320,6 +323,22 @@ export class PrivacySettings extends BaseSettingsPanel {
         const checkbox = event.target as HTMLInputElement;
         
         try {
+            // 如果要开启私密模式，先检查是否设置了密码
+            if (checkbox.checked) {
+                const settings = await getSettings();
+                if (!settings.privacy.privateMode.passwordHash) {
+                    // 没有设置密码，提示用户先设置
+                    checkbox.checked = false;
+                    showMessage('请先设置密码才能启用私密模式', 'warning');
+                    
+                    // 自动打开设置密码对话框
+                    setTimeout(() => {
+                        this.handleSetPassword();
+                    }, 500);
+                    return;
+                }
+            }
+            
             const privacyManager = getPrivacyManager();
             
             if (checkbox.checked) {
@@ -418,6 +437,49 @@ export class PrivacySettings extends BaseSettingsPanel {
     }
 
     /**
+     * 处理取消密码
+     */
+    private async handleRemovePassword(): Promise<void> {
+        try {
+            // 确认对话框
+            const confirmed = confirm(
+                '确定要取消密码吗？\n\n' +
+                '取消密码后：\n' +
+                '• 私密模式将自动关闭\n' +
+                '• 所有密码保护功能将失效\n' +
+                '• 恢复方式（安全问题、备份码）将被保留\n\n' +
+                '此操作不可撤销，确定继续吗？'
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            const settings = await getSettings();
+            
+            // 清除密码
+            settings.privacy.privateMode.passwordHash = '';
+            settings.privacy.privateMode.passwordSalt = '';
+            settings.privacy.privateMode.requirePassword = false;
+            settings.privacy.privateMode.enabled = false; // 自动关闭私密模式
+            
+            await saveSettings(settings);
+            
+            // 更新UI
+            this.updatePasswordStatus(false);
+            if (this.privateModeEnabled) {
+                this.privateModeEnabled.checked = false;
+            }
+            
+            showMessage('密码已取消，私密模式已关闭', 'success');
+            this.emit('change');
+        } catch (error) {
+            console.error('Failed to remove password:', error);
+            showMessage('取消密码失败', 'error');
+        }
+    }
+
+    /**
      * 处理设置安全问题
      */
     private async handleSetupSecurityQuestions(): Promise<void> {
@@ -479,15 +541,20 @@ export class PrivacySettings extends BaseSettingsPanel {
     /**
      * 更新密码按钮状态
      */
-    private updatePasswordButtonsState(): void {
-        const requirePassword = this.requirePassword?.checked || false;
+    private async updatePasswordButtonsState(): Promise<void> {
+        const settings = await getSettings();
+        const hasPassword = !!settings.privacy.privateMode.passwordHash;
         
         if (this.setPasswordBtn) {
-            this.setPasswordBtn.style.display = requirePassword ? 'inline-block' : 'none';
+            this.setPasswordBtn.style.display = hasPassword ? 'none' : 'inline-block';
         }
         
         if (this.changePasswordBtn) {
-            this.changePasswordBtn.style.display = requirePassword ? 'inline-block' : 'none';
+            this.changePasswordBtn.style.display = hasPassword ? 'inline-block' : 'none';
+        }
+        
+        if (this.removePasswordBtn) {
+            this.removePasswordBtn.style.display = hasPassword ? 'inline-block' : 'none';
         }
     }
 
