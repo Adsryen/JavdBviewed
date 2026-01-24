@@ -275,8 +275,10 @@ export class PrivacyManager implements IPrivacyManager {
             settings.privacy.privateMode.enabled = true;
             await saveSettings(settings);
 
-            // 如果需要密码验证且未认证，则锁定
-            if (settings.privacy.privateMode.requirePassword && !this.currentState.isAuthenticated) {
+            // 如果需要密码验证，立即锁定要求验证
+            if (settings.privacy.privateMode.requirePassword) {
+                // 清除认证状态，强制重新验证
+                this.currentState.isAuthenticated = false;
                 await this.lock();
             }
 
@@ -298,6 +300,7 @@ export class PrivacyManager implements IPrivacyManager {
 
             // 解锁并隐藏锁定屏幕
             this.currentState.isLocked = false;
+            this.currentState.isAuthenticated = false; // 清除认证状态
             this.lockScreen.hide();
             await this.savePrivacyState();
 
@@ -385,7 +388,8 @@ export class PrivacyManager implements IPrivacyManager {
 
             if (result.success) {
                 // 启动会话（使用无操作超时）
-                const idleTimeout = (privateMode as any).idleTimeout || 10; // 默认10分钟无操作超时
+                // 优先使用 idleTimeout，如果没有则使用 sessionTimeout（向后兼容）
+                const idleTimeout = (privateMode as any).idleTimeout || privateMode.sessionTimeout || 10;
                 await this.sessionManager.startSession(idleTimeout, idleTimeout);
                 
                 this.currentState.isLocked = false;
