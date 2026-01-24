@@ -8,8 +8,9 @@ import { showMessage } from '../../ui/toast';
 
 interface RecoveryResult {
     success: boolean;
-    method?: 'security-questions' | 'backup-code';
+    method?: 'security-questions' | 'backup-code' | 'email' | 'data-reset';
     newBackupCode?: string;
+    error?: string;
 }
 
 /**
@@ -28,7 +29,7 @@ export async function showPasswordRecoveryModal(): Promise<RecoveryResult> {
         if (!options.hasSecurityQuestions && !options.hasBackupCode) {
             console.warn('[PasswordRecoveryModal] No recovery options available');
             
-            // 显示没有恢复选项的提示模态框
+            // 显示没有恢复选项的提示模态框（但仍可通过备份文件恢复）
             showNoRecoveryOptionsModal(resolve);
             return;
         }
@@ -145,7 +146,8 @@ function createRecoveryModal(options: any): HTMLElement {
             <div class="modal-body">
                 <div class="recovery-tabs">
                     ${options.hasSecurityQuestions ? '<button class="recovery-tab active" data-tab="security">安全问题</button>' : ''}
-                    ${options.hasBackupCode ? '<button class="recovery-tab" data-tab="backup">备份码</button>' : ''}
+                    ${options.hasBackupCode ? `<button class="recovery-tab${!options.hasSecurityQuestions ? ' active' : ''}" data-tab="backup">备份码</button>` : ''}
+                    <button class="recovery-tab${!options.hasSecurityQuestions && !options.hasBackupCode ? ' active' : ''}" data-tab="file">备份文件</button>
                 </div>
 
                 ${options.hasSecurityQuestions ? `
@@ -157,7 +159,7 @@ function createRecoveryModal(options: any): HTMLElement {
                 ` : ''}
 
                 ${options.hasBackupCode ? `
-                <div class="recovery-panel" id="backup-panel" style="display: none;">
+                <div class="recovery-panel" id="backup-panel" style="display: ${!options.hasSecurityQuestions ? 'block' : 'none'};">
                     <p class="recovery-description">请输入您的备份恢复码</p>
                     <input 
                         type="text" 
@@ -171,16 +173,77 @@ function createRecoveryModal(options: any): HTMLElement {
                 </div>
                 ` : ''}
 
-                <div class="recovery-warning">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L2 22h20L12 2zm0 3.5L19.5 20h-15L12 5.5zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z" fill="currentColor"/>
-                    </svg>
-                    <span>如果所有恢复方式都无法使用，您可能需要重置所有数据</span>
+                <div class="recovery-panel" id="file-panel" style="display: ${!options.hasSecurityQuestions && !options.hasBackupCode ? 'block' : 'none'};">
+                    <p class="recovery-description">上传包含备份码的 WebDAV 备份文件</p>
+                    
+                    <div class="file-upload-hint">
+                        <p><strong>💡 提示：</strong>备份文件中包含加密的备份码，系统会自动解密并验证。</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <input 
+                            type="file" 
+                            id="backup-file-input" 
+                            accept=".json,.zip"
+                            style="display: none;"
+                        />
+                        <button class="file-select-btn" id="select-backup-file-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            选择备份文件
+                        </button>
+                        <p id="selected-file-name" style="margin-top: 12px; color: #666; font-size: 14px; text-align: center;"></p>
+                    </div>
+                    <button class="btn-primary" id="verify-file-btn" disabled>验证备份文件</button>
+                </div>
+
+                <!-- 无法恢复的帮助区域 -->
+                <div class="recovery-help-section">
+                    <button class="recovery-help-toggle" id="show-reset-option">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        无法通过以上方式恢复？
+                    </button>
+                    
+                    <div class="reset-data-section" id="reset-data-section" style="display: none;">
+                        <div class="reset-warning-box">
+                            <div class="reset-warning-icon">⚠️</div>
+                            <div class="reset-warning-content">
+                                <h4>重置所有数据</h4>
+                                <p>此操作将清除所有扩展数据，包括：</p>
+                                <ul>
+                                    <li>所有观看记录和收藏</li>
+                                    <li>所有设置和配置</li>
+                                    <li>密码和恢复方式</li>
+                                </ul>
+                                <p class="reset-warning-note"><strong>此操作不可逆，请谨慎操作！</strong></p>
+                            </div>
+                        </div>
+                        
+                        <div class="reset-confirm-section">
+                            <label class="reset-confirm-checkbox">
+                                <input type="checkbox" id="reset-confirm-checkbox">
+                                <span>我已了解风险，确认要重置所有数据</span>
+                            </label>
+                            <button class="btn-danger-outline" id="reset-all-data" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                重置所有数据
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" id="recovery-cancel">取消</button>
-                <button class="btn-danger" id="reset-all-data">重置所有数据</button>
             </div>
         </div>
     `;
@@ -264,15 +327,99 @@ function bindRecoveryEvents(modal: HTMLElement, options: any, resolve: (result: 
         });
     }
 
+    // 备份文件验证
+    const fileInput = modal.querySelector('#backup-file-input') as HTMLInputElement;
+    const selectFileBtn = modal.querySelector('#select-backup-file-btn');
+    const verifyFileBtn = modal.querySelector('#verify-file-btn') as HTMLButtonElement;
+    const fileNameDisplay = modal.querySelector('#selected-file-name');
+
+    selectFileBtn?.addEventListener('click', () => {
+        fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = `已选择: ${file.name}`;
+            }
+            verifyFileBtn.disabled = false;
+        } else {
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = '';
+            }
+            verifyFileBtn.disabled = true;
+        }
+    });
+
+    verifyFileBtn?.addEventListener('click', async () => {
+        const file = fileInput?.files?.[0];
+        if (file) {
+            await handleBackupFileVerification(modal, file, resolve);
+        }
+    });
+
+    // 显示/隐藏重置选项
+    const showResetBtn = modal.querySelector('#show-reset-option');
+    const resetSection = modal.querySelector('#reset-data-section');
+    const resetConfirmCheckbox = modal.querySelector('#reset-confirm-checkbox') as HTMLInputElement;
+    const resetBtn = modal.querySelector('#reset-all-data') as HTMLButtonElement;
+
+    showResetBtn?.addEventListener('click', () => {
+        if (resetSection) {
+            const isVisible = (resetSection as HTMLElement).style.display !== 'none';
+            (resetSection as HTMLElement).style.display = isVisible ? 'none' : 'block';
+            
+            // 切换按钮文字
+            if (showResetBtn.textContent?.includes('无法通过')) {
+                showResetBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="18 15 12 9 6 15"/>
+                    </svg>
+                    收起重置选项
+                `;
+            } else {
+                showResetBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    无法通过以上方式恢复？
+                `;
+            }
+        }
+    });
+
+    // 确认复选框控制重置按钮
+    resetConfirmCheckbox?.addEventListener('change', () => {
+        if (resetBtn) {
+            resetBtn.disabled = !resetConfirmCheckbox.checked;
+        }
+    });
+
     // 重置所有数据
-    const resetBtn = modal.querySelector('#reset-all-data');
     resetBtn?.addEventListener('click', async () => {
+        if (!resetConfirmCheckbox?.checked) {
+            showMessage('请先确认了解风险', 'warning');
+            return;
+        }
+
+        // 二次确认
+        const confirmed = confirm('最后确认：您确定要重置所有数据吗？\n\n此操作将清除所有扩展数据且不可恢复！');
+        if (!confirmed) {
+            return;
+        }
+
         try {
+            showMessage('正在重置数据...', 'info');
             await recoveryService.resetAllData();
+            showMessage('数据已重置', 'success');
             modal.remove();
             resolve({ success: false });
         } catch (error) {
             console.error('Reset failed:', error);
+            showMessage('重置失败：' + (error as Error).message, 'error');
         }
     });
 }
@@ -388,6 +535,139 @@ async function handleBackupCodeVerification(
 }
 
 /**
+ * 处理备份文件验证
+ */
+async function handleBackupFileVerification(
+    modal: HTMLElement,
+    file: File,
+    resolve: (result: RecoveryResult) => void
+): Promise<void> {
+    try {
+        showMessage('正在读取备份文件...', 'info');
+        
+        let backupData: any;
+        
+        // 根据文件扩展名判断文件类型
+        const fileName = file.name.toLowerCase();
+        
+        if (fileName.endsWith('.zip')) {
+            // 处理 ZIP 文件
+            try {
+                // 动态导入 JSZip
+                const JSZip = (await import('jszip')).default;
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+                
+                // 查找 JSON 文件
+                let jsonFile: any = null;
+                zipContent.forEach((relativePath, file) => {
+                    if (relativePath.endsWith('.json') && !jsonFile) {
+                        jsonFile = file;
+                    }
+                });
+                
+                if (!jsonFile) {
+                    showMessage('ZIP 文件中未找到 JSON 备份文件', 'error');
+                    return;
+                }
+                
+                // 读取 JSON 内容
+                const jsonContent = await jsonFile.async('string');
+                backupData = JSON.parse(jsonContent);
+            } catch (error) {
+                console.error('Failed to extract ZIP file:', error);
+                showMessage('ZIP 文件解压失败', 'error');
+                return;
+            }
+        } else if (fileName.endsWith('.json')) {
+            // 处理 JSON 文件
+            const fileContent = await readFileAsText(file);
+            backupData = JSON.parse(fileContent);
+        } else {
+            showMessage('不支持的文件格式，请选择 .json 或 .zip 文件', 'error');
+            return;
+        }
+        
+        // 验证备份文件格式
+        if (!backupData.storageAll) {
+            showMessage('备份文件格式不正确', 'error');
+            return;
+        }
+        
+        // 从备份文件中提取加密密钥和备份码配置
+        const encryptionKey = backupData.storageAll['privacy_encryption_key'];
+        const encryptedRecoveryConfig = backupData.storageAll['privacy_config_recovery_config'];
+        
+        if (!encryptionKey || !encryptedRecoveryConfig) {
+            showMessage('备份文件中未找到恢复信息', 'error');
+            return;
+        }
+        
+        // 导入解密函数
+        const { decryptData } = await import('../../../utils/privacy/crypto');
+        
+        // 使用备份文件中的密钥解密备份码配置
+        const decrypted = decryptData(encryptedRecoveryConfig, encryptionKey);
+        if (!decrypted) {
+            showMessage('无法解密备份文件中的恢复信息', 'error');
+            return;
+        }
+        
+        const recoveryConfig = JSON.parse(decrypted);
+        const backupCode = recoveryConfig.backupCode;
+        
+        if (!backupCode) {
+            showMessage('备份文件中未找到备份码', 'error');
+            return;
+        }
+        
+        // 验证备份码是否与当前系统中的匹配
+        const recoveryService = getRecoveryService();
+        const isValid = await recoveryService.verifyBackupCode(backupCode);
+        
+        if (isValid) {
+            showMessage('备份文件验证成功！', 'success');
+            
+            // 执行密码恢复
+            const result = await recoveryService.performPasswordRecovery('backup-code', { code: backupCode });
+            
+            if (result.success) {
+                // 显示新的备份码
+                if (result.newBackupCode) {
+                    alert(`验证成功！\n\n新的备份恢复码：\n${result.newBackupCode}\n\n请妥善保存此备份码！`);
+                }
+                
+                modal.remove();
+                resolve(result);
+            } else {
+                showMessage(result.error || '密码恢复失败', 'error');
+            }
+        } else {
+            showMessage('备份文件中的备份码与当前系统不匹配或已使用', 'error');
+        }
+    } catch (error) {
+        console.error('Backup file verification failed:', error);
+        showMessage('备份文件验证失败：' + (error as Error).message, 'error');
+    }
+}
+
+/**
+ * 读取文件为文本
+ */
+function readFileAsText(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            resolve(e.target?.result as string);
+        };
+        reader.onerror = () => {
+            reject(new Error('文件读取失败'));
+        };
+        reader.readAsText(file);
+    });
+}
+
+/**
  * 注入样式
  */
 function injectRecoveryStyles(): void {
@@ -407,6 +687,7 @@ function injectRecoveryStyles(): void {
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
 
         .password-recovery-modal .modal-overlay {
@@ -415,30 +696,36 @@ function injectRecoveryStyles(): void {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            animation: overlayFadeIn 0.3s ease;
+        }
+
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .password-recovery-modal .modal-content {
             position: relative;
-            background: white;
-            border-radius: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 20px;
             max-width: 600px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35), 0 0 1px rgba(0, 0, 0, 0.1);
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         @keyframes modalSlideIn {
             from {
                 opacity: 0;
-                transform: translateY(-30px);
+                transform: translateY(-40px) scale(0.95);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
 
@@ -446,188 +733,554 @@ function injectRecoveryStyles(): void {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 24px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 28px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .password-recovery-modal .modal-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
         }
 
         .password-recovery-modal .modal-header h2 {
             margin: 0;
-            font-size: 24px;
-            color: #2d3748;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .password-recovery-modal .modal-header h2::before {
+            content: '🔓';
+            font-size: 28px;
         }
 
         .password-recovery-modal .modal-close {
-            background: none;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            font-size: 32px;
-            color: #718096;
+            font-size: 28px;
+            color: white;
             cursor: pointer;
             padding: 0;
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
+            border-radius: 10px;
             transition: all 0.2s;
+            position: relative;
+            z-index: 1;
         }
 
         .password-recovery-modal .modal-close:hover {
-            background: #f7fafc;
-            color: #2d3748;
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
         }
 
         .password-recovery-modal .modal-body {
-            padding: 24px;
+            padding: 32px;
+            max-height: calc(85vh - 200px);
+            overflow-y: auto;
+        }
+
+        .password-recovery-modal .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .password-recovery-modal .modal-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .password-recovery-modal .modal-body::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
         }
 
         .password-recovery-modal .recovery-tabs {
             display: flex;
             gap: 8px;
-            margin-bottom: 24px;
-            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 28px;
+            background: #f8f9fa;
+            padding: 6px;
+            border-radius: 14px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .password-recovery-modal .recovery-tab {
-            padding: 12px 24px;
-            background: none;
+            flex: 1;
+            padding: 14px 20px;
+            background: transparent;
             border: none;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            color: #718096;
-            font-size: 16px;
-            font-weight: 500;
+            color: #6b7280;
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+            position: relative;
         }
 
         .password-recovery-modal .recovery-tab:hover {
             color: #667eea;
+            background: rgba(102, 126, 234, 0.08);
         }
 
         .password-recovery-modal .recovery-tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
         }
 
         .password-recovery-modal .recovery-panel {
-            animation: panelFadeIn 0.3s ease;
+            animation: panelFadeIn 0.4s ease;
         }
 
         @keyframes panelFadeIn {
             from {
                 opacity: 0;
+                transform: translateY(10px);
             }
             to {
                 opacity: 1;
+                transform: translateY(0);
             }
         }
 
         .password-recovery-modal .recovery-description {
-            color: #718096;
-            margin: 0 0 20px 0;
-            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            font-size: 15px;
+            line-height: 1.6;
+            padding: 16px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
         }
 
         .password-recovery-modal .security-question-item {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .password-recovery-modal .security-question-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
         }
 
         .password-recovery-modal .security-question-label {
             display: block;
-            font-weight: 500;
-            color: #2d3748;
-            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 15px;
+            line-height: 1.5;
         }
 
         .password-recovery-modal .recovery-input {
             width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
             outline: none;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             box-sizing: border-box;
+            background: white;
         }
 
         .password-recovery-modal .recovery-input:focus {
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
         }
 
         .password-recovery-modal .recovery-hint {
-            font-size: 12px;
-            color: #a0aec0;
-            margin: 8px 0 16px 0;
-        }
-
-        .password-recovery-modal .recovery-warning {
+            font-size: 13px;
+            color: #9ca3af;
+            margin: 10px 0 20px 0;
             display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 16px;
-            background: #fffaf0;
-            border-left: 3px solid #d69e2e;
-            border-radius: 6px;
-            margin-top: 24px;
-            color: #744210;
-            font-size: 14px;
+            align-items: center;
+            gap: 6px;
         }
 
-        .password-recovery-modal .recovery-warning svg {
+        .password-recovery-modal .recovery-hint::before {
+            content: '💡';
+            font-size: 16px;
+        }
+
+        /* 恢复帮助区域 */
+        .password-recovery-modal .recovery-help-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 2px dashed #e5e7eb;
+        }
+
+        .password-recovery-modal .recovery-help-toggle {
+            width: 100%;
+            padding: 14px 20px;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .password-recovery-modal .recovery-help-toggle:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+
+        .password-recovery-modal .recovery-help-toggle svg {
             flex-shrink: 0;
-            margin-top: 2px;
+        }
+
+        .password-recovery-modal .reset-data-section {
+            margin-top: 20px;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .password-recovery-modal .reset-warning-box {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 2px solid #fca5a5;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .password-recovery-modal .reset-warning-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .password-recovery-modal .reset-warning-content h4 {
+            margin: 0 0 12px 0;
+            color: #991b1b;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .password-recovery-modal .reset-warning-content p {
+            margin: 0 0 10px 0;
+            color: #7f1d1d;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .password-recovery-modal .reset-warning-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+            color: #7f1d1d;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .password-recovery-modal .reset-warning-content ul li {
+            margin-bottom: 6px;
+        }
+
+        .password-recovery-modal .reset-warning-note {
+            margin-top: 12px !important;
+            padding: 10px 14px;
+            background: rgba(127, 29, 29, 0.1);
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .password-recovery-modal .reset-confirm-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .password-recovery-modal .reset-confirm-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .password-recovery-modal .reset-confirm-checkbox:hover {
+            border-color: #d1d5db;
+            background: #fafafa;
+        }
+
+        .password-recovery-modal .reset-confirm-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .password-recovery-modal .reset-confirm-checkbox span {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .password-recovery-modal .btn-danger-outline {
+            width: 100%;
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 700;
+            border: 2px solid #dc2626;
+            background: white;
+            color: #dc2626;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
+        }
+
+        .password-recovery-modal .btn-danger-outline:hover:not(:disabled) {
+            background: #dc2626;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.3);
+        }
+
+        .password-recovery-modal .btn-danger-outline:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .password-recovery-modal .btn-danger-outline:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: #d1d5db;
+            color: #9ca3af;
         }
 
         .password-recovery-modal .modal-footer {
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-            padding: 24px;
-            border-top: 1px solid #e2e8f0;
+            padding: 24px 32px;
+            background: #f8f9fa;
+            border-top: 1px solid #e5e7eb;
         }
 
         .password-recovery-modal .btn-primary,
         .password-recovery-modal .btn-secondary,
         .password-recovery-modal .btn-danger {
-            padding: 10px 20px;
-            font-size: 16px;
-            font-weight: 500;
+            padding: 14px 28px;
+            font-size: 15px;
+            font-weight: 600;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
         }
 
         .password-recovery-modal .btn-primary {
             width: 100%;
-            margin-top: 16px;
+            margin-top: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        .password-recovery-modal .btn-primary:hover {
+        .password-recovery-modal .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .password-recovery-modal .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .password-recovery-modal .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .password-recovery-modal .btn-secondary {
-            background: #e2e8f0;
-            color: #2d3748;
+            background: white !important;
+            color: #1f2937 !important;
+            border: 2px solid #d1d5db !important;
+            font-weight: 600 !important;
         }
 
         .password-recovery-modal .btn-secondary:hover {
-            background: #cbd5e0;
+            background: #f3f4f6 !important;
+            border-color: #9ca3af !important;
+            color: #111827 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .password-recovery-modal .btn-danger {
-            background: #fc8181;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            font-weight: 600;
         }
 
         .password-recovery-modal .btn-danger:hover {
-            background: #f56565;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        /* 文件上传区域样式 */
+        .password-recovery-modal #file-panel {
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            border: 2px dashed #e5e7eb;
+        }
+
+        .password-recovery-modal .file-upload-hint {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            animation: hintFadeIn 0.5s ease;
+        }
+
+        .password-recovery-modal .file-upload-hint p {
+            margin: 0;
+            color: #1565c0;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        @keyframes hintFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .password-recovery-modal .file-select-btn {
+            background: white;
+            border: 2px solid #d1d5db;
+            color: #374151;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            padding: 16px;
+            width: 100%;
+            font-size: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
+            box-sizing: border-box;
+        }
+
+        .password-recovery-modal .file-select-btn:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+            color: #1f2937;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .password-recovery-modal .file-select-btn:active {
+            transform: translateY(0);
+        }
+
+        .password-recovery-modal #selected-file-name {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 640px) {
+            .password-recovery-modal .modal-content {
+                width: 95%;
+                border-radius: 16px;
+            }
+
+            .password-recovery-modal .modal-header {
+                padding: 20px 24px;
+            }
+
+            .password-recovery-modal .modal-header h2 {
+                font-size: 22px;
+            }
+
+            .password-recovery-modal .modal-body {
+                padding: 24px;
+            }
+
+            .password-recovery-modal .recovery-tabs {
+                flex-direction: column;
+            }
+
+            .password-recovery-modal .modal-footer {
+                flex-direction: column;
+                padding: 20px 24px;
+            }
+
+            .password-recovery-modal .btn-secondary,
+            .password-recovery-modal .btn-danger {
+                width: 100%;
+                justify-content: center;
+            }
         }
     `;
     document.head.appendChild(style);
