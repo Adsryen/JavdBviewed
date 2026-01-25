@@ -27,6 +27,7 @@ import { loadPartial } from './loaders/partialsLoader';
 import { applyConsoleSettingsFromStorage_DB, bindConsoleSettingsListener } from './console/settings';
 import { bindInsightsListeners } from './listeners/insights';
 import { initTopbarIcons } from './topbar/icons';
+import { initVersionBadge } from './topbar/versionChecker';
 import { initSidebarActions as initSidebarActionsModule, updateSyncStatus as updateSyncStatusModule } from './sidebar/actions';
 import { setupDashboardPrivacyMonitoring as setupDashboardPrivacyMonitoringModule } from './privacy/dashboardMonitor';
 import { runQASelfCheck as runQASelfCheckModule } from './qa/selfCheck';
@@ -224,6 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             './styles/layout/topbar.css',
             './styles/layout/sidebar.css',
             './styles/layout/tabs-nav.css',
+            './styles/layout/version-badge.css',
         ]);
     } catch {}
 
@@ -277,6 +279,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initTopbarIcons();
+    
+    // 初始化版本检测和显示（异步，不阻塞页面）
+    initVersionBadge().catch(error => {
+        console.error('Failed to initialize version badge:', error);
+    });
 
     // 通过统一路由按需初始化 115 服务
 

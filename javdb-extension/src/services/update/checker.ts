@@ -53,15 +53,96 @@ interface GitHubRelease {
 
 // 从 GitHub 获取最新 release（默认不包含 pre-release）
 export async function fetchLatestRelease(includePrerelease = false): Promise<GitHubRelease | null> {
-  const url = 'https://api.github.com/repos/Adsryen/JavdBviewed/releases/latest';
-  const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
-  if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
-  const data = (await resp.json()) as GitHubRelease;
-  if (data && data.tag_name) {
-    if (!includePrerelease && data.prerelease) return null;
-    return data;
+  try {
+    // 方案1: 尝试通过 jsdelivr 获取 releases 列表
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+    
+    // jsdelivr 可以访问 GitHub releases 的文件
+    // 先尝试获取最新的 release tag
+    const resp = await fetch(
+      'https://api.github.com/repos/Adsryen/JavdBviewed/releases',
+      { 
+        headers: { 
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'Mozilla/5.0' // 添加 User-Agent 可能有助于避免限制
+        },
+        cache: 'no-cache',
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
+    if (!resp.ok) {
+      // 如果 API 失败，尝试备用方案：从 jsdelivr 获取 tags
+      console.warn(`GitHub API ${resp.status}, trying fallback method...`);
+      return await fetchLatestReleaseFromJsDelivr();
+    }
+    
+    const releases = (await resp.json()) as GitHubRelease[];
+    
+    if (!releases || releases.length === 0) return null;
+    
+    // 过滤预发布版本
+    const filteredReleases = includePrerelease 
+      ? releases 
+      : releases.filter(r => !r.prerelease);
+    
+    if (filteredReleases.length === 0) return null;
+    
+    // 返回第一个（最新的）release
+    return filteredReleases[0];
+    
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timeout after 8 seconds');
+    }
+    console.warn('Primary method failed, trying fallback:', err);
+    // 尝试备用方案
+    return await fetchLatestReleaseFromJsDelivr();
   }
-  return null;
+}
+
+// 备用方案：从 jsdelivr 获取版本信息
+async function fetchLatestReleaseFromJsDelivr(): Promise<GitHubRelease | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    // 使用 jsdelivr 的 API 获取所有版本
+    const resp = await fetch(
+      'https://data.jsdelivr.com/v1/packages/gh/Adsryen/JavdBviewed',
+      {
+        signal: controller.signal,
+        cache: 'no-cache'
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
+    if (!resp.ok) throw new Error(`jsdelivr API ${resp.status}`);
+    
+    const data = await resp.json();
+    
+    // jsdelivr 返回的数据包含 tags 数组
+    if (data && data.tags && data.tags.length > 0) {
+      // 获取最新的 tag（通常是第一个）
+      const latestTag = data.tags[0];
+      
+      return {
+        html_url: 'https://github.com/Adsryen/JavdBviewed/releases/latest',
+        tag_name: latestTag,
+        name: latestTag,
+        prerelease: false,
+        body: ''
+      };
+    }
+    
+    throw new Error('No tags found in jsdelivr response');
+  } catch (err: any) {
+    throw new Error(`Fallback method failed: ${err?.message || String(err)}`);
+  }
 }
 
 export async function checkForUpdates(includePrerelease = false): Promise<UpdateCheckResult> {
