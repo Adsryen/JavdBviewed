@@ -2447,25 +2447,62 @@
                                     </div>
                                 </div>
 
-                                <div class="settings-section">
-                                    <h4>自动检查设置</h4>
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="autoUpdateCheck">
-                                        <label for="autoUpdateCheck">启用自动检查更新</label>
+                                <div class="settings-section auto-check-section">
+                                    <div class="section-header">
+                                        <h4>
+                                            <span class="section-icon">⚙️</span>
+                                            自动检查设置
+                                        </h4>
+                                        <p class="section-description">配置自动更新检查的频率和范围</p>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="updateCheckInterval">检查间隔:</label>
-                                        <select id="updateCheckInterval" class="select-input">
-                                            <option value="6">6小时</option>
-                                            <option value="12">12小时</option>
-                                            <option value="24">24小时</option>
-                                            <option value="72">3天</option>
-                                            <option value="168">1周</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="includePrerelease">
-                                        <label for="includePrerelease">包含预发布版本</label>
+                                    
+                                    <div class="auto-check-card">
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <div class="setting-title">
+                                                    <span class="setting-icon">🔔</span>
+                                                    启用自动检查更新
+                                                </div>
+                                                <div class="setting-desc">定期自动检查是否有新版本发布</div>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="autoUpdateCheck">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <div class="setting-title">
+                                                    <span class="setting-icon">⏱️</span>
+                                                    检查间隔
+                                                </div>
+                                                <div class="setting-desc">设置自动检查更新的时间间隔</div>
+                                            </div>
+                                            <div class="setting-control">
+                                                <select id="updateCheckInterval" class="modern-select">
+                                                    <option value="6">每 6 小时</option>
+                                                    <option value="12">每 12 小时</option>
+                                                    <option value="24">每 24 小时</option>
+                                                    <option value="72">每 3 天</option>
+                                                    <option value="168">每周</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="setting-item">
+                                            <div class="setting-info">
+                                                <div class="setting-title">
+                                                    <span class="setting-icon">🧪</span>
+                                                    包含预发布版本
+                                                </div>
+                                                <div class="setting-desc">检查时包含测试版和预览版</div>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="includePrerelease">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
