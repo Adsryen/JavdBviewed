@@ -1939,106 +1939,258 @@
                                 <p class="settings-description">配置扩展程序的日志记录行为。</p>
                             </div>
                             <div class="settings-panel-body">
-                                <!-- 扩展日志（持久化）设置 -->
-                                <div class="logging-section log-config">
-                                    <h4><i class="fas fa-file-alt"></i> 扩展日志（持久化）</h4>
-                                    <p class="section-description">配置扩展自身的持久化日志记录行为，这些日志会保存在本地以便事后审查与排查问题。</p>
+                                <!-- 全局控制 -->
+                                <div class="logging-section log-global">
+                                    <h4><i class="fas fa-sliders-h"></i> 全局控制</h4>
+                                    <p class="section-description">控制所有日志的全局行为和存储设置。</p>
 
-                                    <div class="form-group">
-                                        <label for="maxLogEntries">最大日志记录数:</label>
-                                        <input type="number" id="maxLogEntries" class="number-input" min="100" max="10000">
-                                        <p class="input-description">设置保留在存储中的最大日志条数，以防止占用过多空间。有效范围 100 - 10000。</p>
-                                    </div>
-
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="verboseMode">
-                                        <label for="verboseMode">
-                                            <i class="fas fa-bug"></i>
-                                            详细日志模式
-                                        </label>
-                                        <p class="input-description">启用后会显示更多调试信息，可能会产生大量日志输出。</p>
-                                    </div>
-
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="showPrivacyLogs">
-                                        <label for="showPrivacyLogs">
-                                            <i class="fas fa-shield-alt"></i>
-                                            显示隐私相关日志
-                                        </label>
-                                        <p class="input-description">显示隐私保护功能的详细日志信息。</p>
-                                    </div>
-
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="showStorageLogs">
-                                        <label for="showStorageLogs">
-                                            <i class="fas fa-database"></i>
-                                            显示存储相关日志
-                                        </label>
-                                        <p class="input-description">显示数据存储和读取的详细日志信息。</p>
-                                    </div>
-                                </div>
-
-                                <!-- 控制台输出（即时）设置 -->
-                                <div class="logging-section log-display">
-                                    <h4><i class="fas fa-terminal"></i> 控制台输出（即时）</h4>
-                                    <div class="log-controls">
+                                    <div class="log-controls" style="margin-bottom: 20px;">
                                         <button type="button" id="consoleMuteAll" class="btn btn-secondary">
-                                            <i class="fas fa-bell-slash"></i> 一键静默
+                                            <i class="fas fa-volume-mute"></i> 全部静默
                                         </button>
                                         <button type="button" id="consoleEnableAll" class="btn btn-primary">
-                                            <i class="fas fa-bell"></i> 一键全开
+                                            <i class="fas fa-volume-up"></i> 全部启用
+                                        </button>
+                                        <button type="button" id="consoleResetDefault" class="btn btn-info">
+                                            <i class="fas fa-undo"></i> 恢复默认
                                         </button>
                                     </div>
 
                                     <div class="form-group">
                                         <label for="consoleLevel">日志级别（显示阈值）</label>
                                         <select id="consoleLevel" class="text-input">
-                                            <option value="OFF">OFF</option>
-                                            <option value="ERROR">ERROR</option>
-                                            <option value="WARN">WARN</option>
-                                            <option value="INFO">INFO</option>
-                                            <option value="DEBUG" selected>DEBUG</option>
+                                            <option value="OFF">OFF - 关闭所有日志</option>
+                                            <option value="ERROR">ERROR - 仅错误</option>
+                                            <option value="WARN">WARN - 警告及以上</option>
+                                            <option value="INFO">INFO - 信息及以上</option>
+                                            <option value="DEBUG" selected>DEBUG - 全部显示</option>
                                         </select>
-                                        <p class="input-description">只显示该级别及以上的控制台输出。默认 DEBUG。</p>
-                                    </div>
-
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="consoleShowTimestamp" checked>
-                                        <label for="consoleShowTimestamp"><i class="fas fa-clock"></i> 显示时间戳 (HH:mm:ss)</label>
-                                    </div>
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="consoleShowMilliseconds">
-                                        <label for="consoleShowMilliseconds"><i class="fas fa-stopwatch"></i> 显示毫秒 (ms)</label>
-                                    </div>
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="consoleShowSource" checked>
-                                        <label for="consoleShowSource"><i class="fas fa-tag"></i> 显示来源标签</label>
-                                    </div>
-                                    <div class="form-group-checkbox">
-                                        <input type="checkbox" id="consoleColor" checked>
-                                        <label for="consoleColor"><i class="fas fa-palette"></i> 启用彩色输出</label>
+                                        <p class="input-description">只显示该级别及以上的日志。推荐日常使用 INFO，调试时使用 DEBUG。</p>
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="consoleTimeZone">时区</label>
+                                        <label for="maxLogEntries">最大日志记录数</label>
+                                        <input type="number" id="maxLogEntries" class="number-input" min="100" max="10000" value="1000">
+                                        <p class="input-description">持久化日志的最大保存条数（100-10000），超出后自动清理旧日志。</p>
+                                    </div>
+
+                                    <!-- 旧的日志开关（向后兼容） -->
+                                    <div style="display: none;">
+                                        <input type="checkbox" id="verboseMode">
+                                        <input type="checkbox" id="showPrivacyLogs">
+                                        <input type="checkbox" id="showStorageLogs">
+                                    </div>
+                                </div>
+
+                                <!-- 日志格式设置 -->
+                                <div class="logging-section log-format">
+                                    <h4><i class="fas fa-paint-brush"></i> 显示格式</h4>
+                                    <p class="section-description">自定义控制台日志的显示样式。</p>
+
+                                    <div class="checkbox-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
+                                        <div class="form-group-checkbox">
+                                            <input type="checkbox" id="consoleShowTimestamp" checked>
+                                            <label for="consoleShowTimestamp">
+                                                <i class="fas fa-clock"></i> 显示时间戳
+                                            </label>
+                                        </div>
+                                        <div class="form-group-checkbox">
+                                            <input type="checkbox" id="consoleShowMilliseconds">
+                                            <label for="consoleShowMilliseconds">
+                                                <i class="fas fa-stopwatch"></i> 显示毫秒
+                                            </label>
+                                        </div>
+                                        <div class="form-group-checkbox">
+                                            <input type="checkbox" id="consoleShowSource" checked>
+                                            <label for="consoleShowSource">
+                                                <i class="fas fa-tag"></i> 显示来源标签
+                                            </label>
+                                        </div>
+                                        <div class="form-group-checkbox">
+                                            <input type="checkbox" id="consoleColor" checked>
+                                            <label for="consoleColor">
+                                                <i class="fas fa-palette"></i> 彩色输出
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group" style="margin-top: 15px;">
+                                        <label for="consoleTimeZone">时区设置</label>
                                         <input type="text" id="consoleTimeZone" class="text-input" placeholder="Asia/Shanghai" value="Asia/Shanghai">
                                         <p class="input-description">用于格式化时间戳，默认 Asia/Shanghai。</p>
                                     </div>
+                                </div>
 
-                                    <div class="form-group">
-                                        <label><i class="fas fa-layer-group"></i> 类别开关</label>
-                                        <div class="checkbox-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:6px;">
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryCore" checked> 核心 (core)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryOrchestrator" checked> 编排 (orchestrator)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryDrive115" checked> 115 (drive115)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryPrivacy" checked> 隐私 (privacy)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryMagnet" checked> 磁链 (magnet)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryActor" checked> 演员 (actor)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryStorage" checked> 存储 (storage)</label>
-                                            <label class="checkbox-inline"><input type="checkbox" id="consoleCategoryGeneral" checked> 通用 (general)</label>
+                                <!-- 功能模块日志开关 -->
+                                <div class="logging-section log-modules">
+                                    <h4><i class="fas fa-th-large"></i> 功能模块日志</h4>
+                                    <p class="section-description">按功能模块精细控制日志输出，方便定位问题。勾选后该模块的日志会在控制台显示。</p>
+
+                                    <!-- 树状结构 -->
+                                    <div class="log-tree">
+                                        <!-- 核心功能 -->
+                                        <div class="log-tree-node">
+                                            <div class="log-tree-header">
+                                                <i class="fas fa-cube"></i>
+                                                <span class="log-tree-title">核心功能</span>
+                                                <span class="log-tree-desc">扩展的基础运行模块</span>
+                                            </div>
+                                            <div class="log-tree-children">
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleCore" checked>
+                                                    <label for="logModuleCore">
+                                                        <i class="fas fa-cog"></i>
+                                                        <span class="item-name">核心系统</span>
+                                                        <span class="item-tag">[DB]</span>
+                                                    </label>
+                                                    <span class="item-desc">扩展主程序、初始化、配置加载</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleOrchestrator" checked>
+                                                    <label for="logModuleOrchestrator">
+                                                        <i class="fas fa-project-diagram"></i>
+                                                        <span class="item-name">任务编排</span>
+                                                        <span class="item-tag">[ORCHESTRATOR]</span>
+                                                    </label>
+                                                    <span class="item-desc">任务调度、协调、队列管理</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleStorage" checked>
+                                                    <label for="logModuleStorage">
+                                                        <i class="fas fa-database"></i>
+                                                        <span class="item-name">数据存储</span>
+                                                        <span class="item-tag">[STORAGE]</span>
+                                                    </label>
+                                                    <span class="item-desc">本地数据库读写、缓存操作</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p class="input-description">用于快速按类别启用/禁用扩展自身控制台输出。</p>
+
+                                        <!-- 业务功能 -->
+                                        <div class="log-tree-node">
+                                            <div class="log-tree-header">
+                                                <i class="fas fa-briefcase"></i>
+                                                <span class="log-tree-title">业务功能</span>
+                                                <span class="log-tree-desc">核心业务逻辑模块</span>
+                                            </div>
+                                            <div class="log-tree-children">
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleActor" checked>
+                                                    <label for="logModuleActor">
+                                                        <i class="fas fa-user"></i>
+                                                        <span class="item-name">演员管理</span>
+                                                        <span class="item-tag">[ACTOR]</span>
+                                                    </label>
+                                                    <span class="item-desc">演员数据同步、订阅、收藏</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleMagnet" checked>
+                                                    <label for="logModuleMagnet">
+                                                        <i class="fas fa-magnet"></i>
+                                                        <span class="item-name">磁力搜索</span>
+                                                        <span class="item-tag">[MAGNET]</span>
+                                                    </label>
+                                                    <span class="item-desc">磁力链接搜索、解析、下载</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleSync" checked>
+                                                    <label for="logModuleSync">
+                                                        <i class="fas fa-sync"></i>
+                                                        <span class="item-name">数据同步</span>
+                                                        <span class="item-tag">[SYNC]</span>
+                                                    </label>
+                                                    <span class="item-desc">WebDAV、云端备份与恢复</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 扩展功能 -->
+                                        <div class="log-tree-node">
+                                            <div class="log-tree-header">
+                                                <i class="fas fa-puzzle-piece"></i>
+                                                <span class="log-tree-title">扩展功能</span>
+                                                <span class="log-tree-desc">增强与集成模块</span>
+                                            </div>
+                                            <div class="log-tree-children">
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleDrive115" checked>
+                                                    <label for="logModuleDrive115">
+                                                        <i class="fas fa-cloud"></i>
+                                                        <span class="item-name">115网盘</span>
+                                                        <span class="item-tag">[DRIVE115]</span>
+                                                    </label>
+                                                    <span class="item-desc">115网盘离线下载、文件管理</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModulePrivacy" checked>
+                                                    <label for="logModulePrivacy">
+                                                        <i class="fas fa-shield-alt"></i>
+                                                        <span class="item-name">隐私保护</span>
+                                                        <span class="item-tag">[PRIVACY]</span>
+                                                    </label>
+                                                    <span class="item-desc">隐私模式、密码锁、数据加密</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleAI" checked>
+                                                    <label for="logModuleAI">
+                                                        <i class="fas fa-robot"></i>
+                                                        <span class="item-name">AI功能</span>
+                                                        <span class="item-tag">[AI]</span>
+                                                    </label>
+                                                    <span class="item-desc">AI对话、智能分析、推荐</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 其他 -->
+                                        <div class="log-tree-node">
+                                            <div class="log-tree-header">
+                                                <i class="fas fa-ellipsis-h"></i>
+                                                <span class="log-tree-title">其他</span>
+                                                <span class="log-tree-desc">通用与调试模块</span>
+                                            </div>
+                                            <div class="log-tree-children">
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleGeneral" checked>
+                                                    <label for="logModuleGeneral">
+                                                        <i class="fas fa-list"></i>
+                                                        <span class="item-name">通用日志</span>
+                                                        <span class="item-tag">[GENERAL]</span>
+                                                    </label>
+                                                    <span class="item-desc">未分类的通用日志信息</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleDebug">
+                                                    <label for="logModuleDebug">
+                                                        <i class="fas fa-bug"></i>
+                                                        <span class="item-name">调试模式</span>
+                                                        <span class="item-tag">[DEBUG]</span>
+                                                    </label>
+                                                    <span class="item-desc">详细的调试信息（开发用）</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <!-- 说明提示 -->
+                                    <div class="log-help-box">
+                                        <i class="fas fa-info-circle"></i>
+                                        <div class="log-help-content">
+                                            <strong>如何使用：</strong>
+                                            <ul>
+                                                <li>勾选模块后，该模块的日志会在浏览器控制台（F12）中显示</li>
+                                                <li>日志格式：<code>[时间] [级别] [标签] 消息内容</code></li>
+                                                <li>例如：<code>[14:46:30] [INFO] [DB] 初始化完成</code> 表示核心系统的信息日志</li>
+                                                <li>建议：日常使用保持默认配置，遇到问题时再启用相关模块的日志</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 保存提示 -->
+                                <div class="auto-save-info" style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 8px; padding: 15px; text-align: center; margin-top: 20px;">
+                                    <i class="fas fa-check-circle" style="color: #4caf50; margin-right: 8px;"></i>
+                                    <span style="color: #2e7d32; font-weight: 500;">日志设置修改后自动保存并立即生效</span>
                                 </div>
                             </div>
                         </div>
