@@ -2429,24 +2429,26 @@
                                 <p class="settings-description">管理扩展程序的更新检查设置，获取最新版本信息。</p>
                             </div>
                             <div class="settings-panel-body">
+                                <!-- 版本信息卡片 -->
                                 <div class="settings-section">
                                     <h4>版本信息</h4>
                                     <div class="version-info">
                                         <div class="version-item">
-                                            <span class="version-label">当前版本:</span>
+                                            <span class="version-label">当前版本</span>
                                             <span class="version-value" id="currentVersion">加载中...</span>
                                         </div>
                                         <div class="version-item">
-                                            <span class="version-label">最新版本:</span>
+                                            <span class="version-label">最新版本</span>
                                             <span class="version-value" id="latestVersion">检查中...</span>
                                         </div>
                                         <div class="version-item">
-                                            <span class="version-label">上次检查:</span>
+                                            <span class="version-label">上次检查</span>
                                             <span class="version-value" id="lastUpdateCheck">从未检查</span>
                                         </div>
                                     </div>
                                 </div>
 
+                                <!-- 自动检查设置卡片 -->
                                 <div class="settings-section auto-check-section">
                                     <div class="section-header">
                                         <h4>
@@ -2506,6 +2508,7 @@
                                     </div>
                                 </div>
 
+                                <!-- 手动操作区域 -->
                                 <div class="settings-section">
                                     <h4>手动操作</h4>
                                     <div class="action-buttons-top">
@@ -2513,13 +2516,14 @@
                                         <button id="viewChangelog" class="btn">查看更新日志</button>
                                         <button id="downloadUpdate" class="btn success" style="display: none;">下载更新</button>
                                     </div>
-                                    <p class="input-description">
-                                        <strong>立即检查:</strong> 手动检查是否有新版本可用。<br>
-                                        <strong>查看更新日志:</strong> 查看最新版本的更新内容和修复。<br>
-                                        <strong>下载更新:</strong> 当有新版本时，跳转到下载页面。
+                                    <p class="input-description" style="margin-top: 12px; color: #6b7280; font-size: 13px; line-height: 1.6;">
+                                        <strong style="color: #1f2937;">立即检查:</strong> 手动检查是否有新版本可用<br>
+                                        <strong style="color: #1f2937;">查看更新日志:</strong> 查看最新版本的更新内容和修复<br>
+                                        <strong style="color: #1f2937;">下载更新:</strong> 当有新版本时，跳转到下载页面
                                     </p>
                                 </div>
 
+                                <!-- 更新通知区域 -->
                                 <div class="settings-section" id="updateNotification" style="display: none;">
                                     <h4>更新通知</h4>
                                     <div class="update-notification">

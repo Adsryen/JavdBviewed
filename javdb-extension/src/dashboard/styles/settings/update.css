@@ -18,80 +18,63 @@
 /* 更新设置面板特有样式 */
 #update-settings {
     position: relative;
-    overflow: hidden;
-}
-
-#update-settings::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 200px;
-    background: linear-gradient(135deg,
-        rgba(6, 182, 212, 0.05) 0%,
-        rgba(103, 232, 249, 0.05) 50%,
-        rgba(165, 243, 252, 0.05) 100%);
-    z-index: -1;
-    border-radius: 20px;
 }
 
 #update-settings .settings-panel-header {
     position: relative;
-    padding: 20px 0;
+    padding: 0 0 24px 0;
     text-align: center;
 }
 
 #update-settings .settings-panel-header h3 {
-    color: var(--update-primary);
+    color: #1f2937;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 8px;
 }
 
 #update-settings .settings-panel-header h3::before {
     content: '🔄';
-    font-size: 1.3em;
+    font-size: 1.2em;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 #update-settings .settings-description {
-    color: var(--update-text-muted);
-    font-size: 16px;
+    color: #6b7280;
+    font-size: 14px;
     margin-bottom: 0;
     max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
 }
 
-/* 版本信息区域 - 只在检查更新页面生效 */
+/* 版本信息区域 - 统一卡片风格 */
 #update-settings .version-info {
-    background: linear-gradient(135deg, #fafcff, #f5f9ff);
-    border: 1px solid #e8f2ff;
+    background: white;
     border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.08);
+    padding: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
     transition: all 0.3s ease;
 }
 
 #update-settings .version-info:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 #update-settings .version-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #f0f2f5;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: 10px;
     transition: all 0.2s ease;
+    gap: 20px;
 }
 
 #update-settings .version-item:last-child {
@@ -99,23 +82,28 @@
 }
 
 #update-settings .version-item:hover {
-    background: rgba(0, 123, 255, 0.02);
-    border-radius: 6px;
-    margin: 0 -8px;
-    padding: 12px 8px;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+#update-settings .version-item:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
 }
 
 #update-settings .version-label {
-    font-weight: 600;
-    color: #495057;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+    flex: 1;
+    min-width: 0;
 }
 
 #update-settings .version-label::before {
     content: "📋";
-    font-size: 16px;
+    font-size: 18px;
+    flex-shrink: 0;
 }
 
 #update-settings .version-item:nth-child(2) .version-label::before {
@@ -129,49 +117,50 @@
 #update-settings .version-value {
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-weight: 600;
-    color: #2c3e50;
-    background: linear-gradient(135deg, #ffffff, #f8f9fa);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    color: #1f2937;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 2px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     transition: all 0.2s ease;
-    min-width: 120px;
+    min-width: 140px;
     text-align: center;
+    flex-shrink: 0;
 }
 
 #update-settings .version-value:hover {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    transform: scale(1.02);
+    border-color: #3b82f6;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.1);
 }
 
 /* 当前版本特殊样式 */
 #update-settings .version-item:first-child .version-value {
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-    border-color: #2196f3;
-    color: #1565c0;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #3b82f6;
+    color: #1e40af;
 }
 
 /* 最新版本特殊样式 */
 #update-settings .version-item:nth-child(2) .version-value {
-    background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
-    border-color: #4caf50;
-    color: #2e7d32;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #10b981;
+    color: #065f46;
 }
 
 /* 检查中状态 */
 #update-settings .version-value.checking {
-    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
-    border-color: #ff9800;
-    color: #f57c00;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #f59e0b;
+    color: #92400e;
     animation: pulse 1.5s infinite;
 }
 
 /* 检查失败状态 */
 #update-settings .version-value.error {
-    background: linear-gradient(135deg, #ffebee, #ffcdd2);
-    border-color: #f44336;
-    color: #c62828;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+    color: #991b1b;
 }
 
 @keyframes pulse {
@@ -185,14 +174,13 @@
     }
 }
 
-/* 更新通知区域 - 只在检查更新页面生效 */
+/* 更新通知区域 - 统一卡片风格 */
 #update-settings .update-notification {
-    background: linear-gradient(135deg, #e3f2fd, #e1f5fe);
-    border: 1px solid #42a5f5;
+    background: white;
+    border: 2px solid #3b82f6;
     border-radius: 12px;
     padding: 20px;
-    margin-top: 20px;
-    box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
     animation: slideIn 0.3s ease-out;
 }
 
@@ -214,7 +202,7 @@
     font-size: 15px;
     line-height: 1.6;
     font-weight: 500;
-    color: #1565c0;
+    color: #1f2937;
 }
 
 #update-settings .notification-content i {
@@ -235,19 +223,19 @@
     }
 }
 
-/* 按钮样式增强 - 只在检查更新页面生效 */
+/* 按钮样式增强 - 统一现代化风格 */
 #update-settings .action-buttons-top {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     justify-content: flex-start;
     align-items: center;
 }
 
 /* 立即检查按钮 */
 #checkUpdateNow {
-    background: linear-gradient(135deg, #28a745, #20c997);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -256,7 +244,7 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -268,21 +256,21 @@
 }
 
 #checkUpdateNow:hover:not(:disabled) {
-    background: linear-gradient(135deg, #218838, #1e7e34);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
 #checkUpdateNow:disabled {
-    background: linear-gradient(135deg, #6c757d, #5a6268);
+    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
     cursor: not-allowed;
     transform: none;
-    box-shadow: 0 2px 6px rgba(108, 117, 125, 0.2);
+    box-shadow: 0 2px 6px rgba(156, 163, 175, 0.2);
 }
 
 /* 查看更新日志按钮 */
 #viewChangelog {
-    background: linear-gradient(135deg, #6f42c1, #8e44ad);
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -291,7 +279,7 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -303,14 +291,14 @@
 }
 
 #viewChangelog:hover {
-    background: linear-gradient(135deg, #5a2d91, #7b1fa2);
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(111, 66, 193, 0.4);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
 }
 
 /* 下载更新按钮 */
 #downloadUpdate {
-    background: linear-gradient(135deg, #dc3545, #c82333);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -319,7 +307,7 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -331,9 +319,9 @@
 }
 
 #downloadUpdate:hover {
-    background: linear-gradient(135deg, #bd2130, #a71e2a);
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
 }
 
 .action-buttons-top .btn {
@@ -347,23 +335,23 @@
 }
 
 .action-buttons-top .btn.primary {
-    background: var(--primary-color, #007bff);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: white;
     border: none;
 }
 
 .action-buttons-top .btn.primary:hover {
-    background: var(--primary-hover, #0056b3);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
 .action-buttons-top .btn.success {
-    background: var(--success-color, #28a745);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
     border: none;
 }
 
 .action-buttons-top .btn.success:hover {
-    background: var(--success-hover, #1e7e34);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 
 .action-buttons-top .btn:disabled {
@@ -382,65 +370,55 @@
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
-    color: var(--text-primary, #212529);
+    color: #1f2937;
 }
 
-#update-settings .select-input {
-    width: 100%;
-    max-width: 200px;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color, #ced4da);
-    border-radius: 4px;
-    background: var(--bg-light, #ffffff);
-    font-size: 14px;
-    transition: border-color 0.2s ease;
+#update-settings .input-description {
+    margin-top: 12px;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.6;
 }
 
-#update-settings .select-input:focus {
-    outline: none;
-    border-color: var(--primary-color, #007bff);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+#update-settings .input-description strong {
+    color: #1f2937;
+    font-weight: 600;
 }
 
-/* 复选框样式增强 */
-#update-settings .form-group-checkbox {
-    margin-bottom: 16px;
-}
-
-#update-settings .form-group-checkbox input[type="checkbox"] {
-    margin-right: 8px;
-    transform: scale(1.1);
-}
-
-#update-settings .form-group-checkbox label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    font-weight: 400;
-    margin-bottom: 0;
-}
-
-#update-settings .form-group-checkbox label:hover {
-    color: var(--primary-color, #007bff);
-}
-
-/* 设置区域分隔 */
+/* 设置区域分隔 - 统一风格 */
 #update-settings .settings-section {
-    margin-bottom: 32px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--border-light, #e9ecef);
+    margin-bottom: 24px;
 }
 
 #update-settings .settings-section:last-child {
-    border-bottom: none;
     margin-bottom: 0;
 }
 
-#update-settings .settings-section h4 {
+#update-settings .settings-section > h4 {
     margin-bottom: 16px;
-    color: var(--text-primary, #212529);
-    font-size: 16px;
-    font-weight: 600;
+    color: #1f2937;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#update-settings .settings-section > h4::before {
+    content: "📦";
+    font-size: 20px;
+}
+
+#update-settings .settings-section:nth-of-type(2) > h4::before {
+    content: "⚙️";
+}
+
+#update-settings .settings-section:nth-of-type(3) > h4::before {
+    content: "🎯";
+}
+
+#update-settings .settings-section:nth-of-type(4) > h4::before {
+    content: "📢";
 }
 
 /* 自动检查设置区域美化 */
@@ -580,49 +558,6 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .version-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .action-buttons-top {
-        flex-direction: column;
-    }
-    
-    .action-buttons-top .btn {
-        width: 100%;
-        min-width: auto;
-    }
-    
-    #update-settings .select-input {
-        max-width: 100%;
-    }
-
-    #update-settings .setting-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    #update-settings .setting-control {
-        align-self: flex-start;
-    }
-
-    #update-settings .modern-select {
-        width: 100%;
-        min-width: auto;
-    }
-
-    #update-settings .auto-check-section {
-        padding: 16px;
-    }
-}
-
-
-
-/* 响应式设计 - 只在检查更新页面生效 */
-@media (max-width: 768px) {
     #update-settings .action-buttons-top {
         flex-direction: column;
         align-items: stretch;
@@ -645,39 +580,23 @@
         align-self: stretch;
         text-align: left;
     }
-}
 
-/* 深色主题支持 - 只在检查更新页面生效 */
-@media (prefers-color-scheme: dark) {
-    #update-settings .version-info {
-        background: linear-gradient(135deg, #8db4eb, #84b8e9);
-        border-color: #adcbe4;
+    #update-settings .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
 
-    #update-settings .version-value {
-        background: linear-gradient(135deg, #34495e, #4a5568);
-        border-color: #677691;
-        color: #e2e8f0;
+    #update-settings .setting-control {
+        align-self: flex-start;
     }
 
-    #update-settings .version-item:first-child .version-value {
-        background: linear-gradient(135deg, #2b6cb0, #3182ce);
-        border-color: #7aabd8;
-        color: #bee3f8;
+    #update-settings .modern-select {
+        width: 100%;
+        min-width: auto;
     }
 
-    #update-settings .version-item:nth-child(2) .version-value {
-        background: linear-gradient(135deg, #38a169, #48bb78);
-        border-color: #48bb78;
-        color: #c6f6d5;
-    }
-
-    #update-settings .update-notification {
-        background: linear-gradient(135deg, #1a365d, #2c5282);
-        border-color: #3182ce;
-    }
-
-    #update-settings .notification-content {
-        color: #bee3f8;
+    #update-settings .auto-check-section {
+        padding: 16px;
     }
 }
