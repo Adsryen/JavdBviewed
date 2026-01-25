@@ -75,6 +75,9 @@ export interface ExtensionSettings {
             color?: boolean;
             timeZone?: string;
         };
+        // 新的模块化日志配置
+        logModules?: Record<string, boolean>; // key: 模块名（core/orchestrator/storage/actor/magnet/sync/drive115/privacy/ai/general/debug），value: 是否启用
+        // 旧的控制台分类配置（向后兼容）
         consoleCategories?: Record<string, boolean>; // key: 类别名（core/orchestrator/drive115/privacy/magnet/actor/storage/general），value: 是否启用
     };
 

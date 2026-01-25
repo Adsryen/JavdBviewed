@@ -28,18 +28,24 @@ export class LoggingSettings extends BaseSettingsPanel {
     private consoleShowSource!: HTMLInputElement;
     private consoleColor!: HTMLInputElement;
     private consoleTimeZone!: HTMLInputElement;
-    private consoleCategoryCore!: HTMLInputElement;
-    private consoleCategoryOrchestrator!: HTMLInputElement;
-    private consoleCategoryDrive115!: HTMLInputElement;
-    private consoleCategoryPrivacy!: HTMLInputElement;
-    private consoleCategoryMagnet!: HTMLInputElement;
-    private consoleCategoryActor!: HTMLInputElement;
-    private consoleCategoryStorage!: HTMLInputElement;
-    private consoleCategoryGeneral!: HTMLInputElement;
+    
+    // 新的模块化日志开关
+    private logModuleCore!: HTMLInputElement;
+    private logModuleOrchestrator!: HTMLInputElement;
+    private logModuleStorage!: HTMLInputElement;
+    private logModuleActor!: HTMLInputElement;
+    private logModuleMagnet!: HTMLInputElement;
+    private logModuleSync!: HTMLInputElement;
+    private logModuleDrive115!: HTMLInputElement;
+    private logModulePrivacy!: HTMLInputElement;
+    private logModuleAI!: HTMLInputElement;
+    private logModuleGeneral!: HTMLInputElement;
+    private logModuleDebug!: HTMLInputElement;
 
     // 快捷按钮
     private consoleMuteAllBtn!: HTMLButtonElement;
     private consoleEnableAllBtn!: HTMLButtonElement;
+    private consoleResetDefaultBtn!: HTMLButtonElement;
 
     constructor() {
         super({
@@ -94,18 +100,24 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleShowSource = document.getElementById('consoleShowSource') as HTMLInputElement;
         this.consoleColor = document.getElementById('consoleColor') as HTMLInputElement;
         this.consoleTimeZone = document.getElementById('consoleTimeZone') as HTMLInputElement;
-        this.consoleCategoryCore = document.getElementById('consoleCategoryCore') as HTMLInputElement;
-        this.consoleCategoryOrchestrator = document.getElementById('consoleCategoryOrchestrator') as HTMLInputElement;
-        this.consoleCategoryDrive115 = document.getElementById('consoleCategoryDrive115') as HTMLInputElement;
-        this.consoleCategoryPrivacy = document.getElementById('consoleCategoryPrivacy') as HTMLInputElement;
-        this.consoleCategoryMagnet = document.getElementById('consoleCategoryMagnet') as HTMLInputElement;
-        this.consoleCategoryActor = document.getElementById('consoleCategoryActor') as HTMLInputElement;
-        this.consoleCategoryStorage = document.getElementById('consoleCategoryStorage') as HTMLInputElement;
-        this.consoleCategoryGeneral = document.getElementById('consoleCategoryGeneral') as HTMLInputElement;
+        
+        // 新的模块化日志开关
+        this.logModuleCore = document.getElementById('logModuleCore') as HTMLInputElement;
+        this.logModuleOrchestrator = document.getElementById('logModuleOrchestrator') as HTMLInputElement;
+        this.logModuleStorage = document.getElementById('logModuleStorage') as HTMLInputElement;
+        this.logModuleActor = document.getElementById('logModuleActor') as HTMLInputElement;
+        this.logModuleMagnet = document.getElementById('logModuleMagnet') as HTMLInputElement;
+        this.logModuleSync = document.getElementById('logModuleSync') as HTMLInputElement;
+        this.logModuleDrive115 = document.getElementById('logModuleDrive115') as HTMLInputElement;
+        this.logModulePrivacy = document.getElementById('logModulePrivacy') as HTMLInputElement;
+        this.logModuleAI = document.getElementById('logModuleAI') as HTMLInputElement;
+        this.logModuleGeneral = document.getElementById('logModuleGeneral') as HTMLInputElement;
+        this.logModuleDebug = document.getElementById('logModuleDebug') as HTMLInputElement;
 
         // 快捷按钮
         this.consoleMuteAllBtn = document.getElementById('consoleMuteAll') as HTMLButtonElement;
         this.consoleEnableAllBtn = document.getElementById('consoleEnableAll') as HTMLButtonElement;
+        this.consoleResetDefaultBtn = document.getElementById('consoleResetDefault') as HTMLButtonElement;
 
         // 验证元素是否存在
         if (!this.maxLogEntries) {
@@ -133,14 +145,19 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (!this.consoleShowMilliseconds) console.warn('[LoggingSettings] 找不到 consoleShowMilliseconds 元素');
         if (!this.consoleColor) console.warn('[LoggingSettings] 找不到 consoleColor 元素');
         if (!this.consoleTimeZone) console.warn('[LoggingSettings] 找不到 consoleTimeZone 元素');
-        if (!this.consoleCategoryCore) console.warn('[LoggingSettings] 找不到 consoleCategoryCore 元素');
-        if (!this.consoleCategoryOrchestrator) console.warn('[LoggingSettings] 找不到 consoleCategoryOrchestrator 元素');
-        if (!this.consoleCategoryDrive115) console.warn('[LoggingSettings] 找不到 consoleCategoryDrive115 元素');
-        if (!this.consoleCategoryPrivacy) console.warn('[LoggingSettings] 找不到 consoleCategoryPrivacy 元素');
-        if (!this.consoleCategoryMagnet) console.warn('[LoggingSettings] 找不到 consoleCategoryMagnet 元素');
-        if (!this.consoleCategoryActor) console.warn('[LoggingSettings] 找不到 consoleCategoryActor 元素');
-        if (!this.consoleCategoryStorage) console.warn('[LoggingSettings] 找不到 consoleCategoryStorage 元素');
-        if (!this.consoleCategoryGeneral) console.warn('[LoggingSettings] 找不到 consoleCategoryGeneral 元素');
+        
+        // 新模块化日志开关校验
+        if (!this.logModuleCore) console.warn('[LoggingSettings] 找不到 logModuleCore 元素');
+        if (!this.logModuleOrchestrator) console.warn('[LoggingSettings] 找不到 logModuleOrchestrator 元素');
+        if (!this.logModuleStorage) console.warn('[LoggingSettings] 找不到 logModuleStorage 元素');
+        if (!this.logModuleActor) console.warn('[LoggingSettings] 找不到 logModuleActor 元素');
+        if (!this.logModuleMagnet) console.warn('[LoggingSettings] 找不到 logModuleMagnet 元素');
+        if (!this.logModuleSync) console.warn('[LoggingSettings] 找不到 logModuleSync 元素');
+        if (!this.logModuleDrive115) console.warn('[LoggingSettings] 找不到 logModuleDrive115 元素');
+        if (!this.logModulePrivacy) console.warn('[LoggingSettings] 找不到 logModulePrivacy 元素');
+        if (!this.logModuleAI) console.warn('[LoggingSettings] 找不到 logModuleAI 元素');
+        if (!this.logModuleGeneral) console.warn('[LoggingSettings] 找不到 logModuleGeneral 元素');
+        if (!this.logModuleDebug) console.warn('[LoggingSettings] 找不到 logModuleDebug 元素');
 
         log.verbose('[LoggingSettings] DOM元素初始化完成');
     }
@@ -161,18 +178,24 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleShowMilliseconds?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleColor?.addEventListener('change', this.handleSettingChange.bind(this));
         this.consoleTimeZone?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryCore?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryOrchestrator?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryPrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryMagnet?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryActor?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryStorage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleCategoryGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
+        
+        // 新模块化日志开关事件
+        this.logModuleCore?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleOrchestrator?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleStorage?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleActor?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleMagnet?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleSync?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModulePrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleAI?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleDebug?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 控制台快捷按钮
         this.consoleMuteAllBtn?.addEventListener('click', this.handleConsoleMuteAll.bind(this));
         this.consoleEnableAllBtn?.addEventListener('click', this.handleConsoleEnableAll.bind(this));
+        this.consoleResetDefaultBtn?.addEventListener('click', this.handleConsoleResetDefault.bind(this));
         // 可选：保留天数
         this.retentionDays?.addEventListener('change', this.handleSettingChange.bind(this));
     }
@@ -207,15 +230,21 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.consoleShowMilliseconds) this.consoleShowMilliseconds.checked = fmt.showMilliseconds ?? false;
         if (this.consoleColor) this.consoleColor.checked = fmt.color ?? true;
         if (this.consoleTimeZone) this.consoleTimeZone.value = fmt.timeZone || 'Asia/Shanghai';
-        const cats = (logging as any).consoleCategories || {};
-        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = cats.core ?? true;
-        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = cats.orchestrator ?? true;
-        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = cats.drive115 ?? true;
-        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = cats.privacy ?? true;
-        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = cats.magnet ?? true;
-        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = cats.actor ?? true;
-        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = cats.storage ?? true;
-        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = cats.general ?? true;
+        
+        // 新模块化日志开关加载（兼容旧的consoleCategories配置）
+        const modules = (logging as any).logModules || {};
+        const cats = (logging as any).consoleCategories || {}; // 向后兼容
+        if (this.logModuleCore) this.logModuleCore.checked = modules.core ?? cats.core ?? true;
+        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = modules.orchestrator ?? cats.orchestrator ?? true;
+        if (this.logModuleStorage) this.logModuleStorage.checked = modules.storage ?? cats.storage ?? true;
+        if (this.logModuleActor) this.logModuleActor.checked = modules.actor ?? cats.actor ?? true;
+        if (this.logModuleMagnet) this.logModuleMagnet.checked = modules.magnet ?? cats.magnet ?? true;
+        if (this.logModuleSync) this.logModuleSync.checked = modules.sync ?? true;
+        if (this.logModuleDrive115) this.logModuleDrive115.checked = modules.drive115 ?? cats.drive115 ?? true;
+        if (this.logModulePrivacy) this.logModulePrivacy.checked = modules.privacy ?? cats.privacy ?? true;
+        if (this.logModuleAI) this.logModuleAI.checked = modules.ai ?? true;
+        if (this.logModuleGeneral) this.logModuleGeneral.checked = modules.general ?? cats.general ?? true;
+        if (this.logModuleDebug) this.logModuleDebug.checked = modules.debug ?? false;
     }
 
     /**
@@ -223,35 +252,50 @@ export class LoggingSettings extends BaseSettingsPanel {
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
+            // 构建日志模块配置（安全检查，避免null引用）
+            const logModules: any = {};
+            if (this.logModuleCore) logModules.core = this.logModuleCore.checked;
+            if (this.logModuleOrchestrator) logModules.orchestrator = this.logModuleOrchestrator.checked;
+            if (this.logModuleStorage) logModules.storage = this.logModuleStorage.checked;
+            if (this.logModuleActor) logModules.actor = this.logModuleActor.checked;
+            if (this.logModuleMagnet) logModules.magnet = this.logModuleMagnet.checked;
+            if (this.logModuleSync) logModules.sync = this.logModuleSync.checked;
+            if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
+            if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
+            if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
+            if (this.logModuleGeneral) logModules.general = this.logModuleGeneral.checked;
+            if (this.logModuleDebug) logModules.debug = this.logModuleDebug.checked;
+
+            // 构建控制台分类配置（向后兼容）
+            const consoleCategories: any = {};
+            if (this.logModuleCore) consoleCategories.core = this.logModuleCore.checked;
+            if (this.logModuleOrchestrator) consoleCategories.orchestrator = this.logModuleOrchestrator.checked;
+            if (this.logModuleDrive115) consoleCategories.drive115 = this.logModuleDrive115.checked;
+            if (this.logModulePrivacy) consoleCategories.privacy = this.logModulePrivacy.checked;
+            if (this.logModuleMagnet) consoleCategories.magnet = this.logModuleMagnet.checked;
+            if (this.logModuleActor) consoleCategories.actor = this.logModuleActor.checked;
+            if (this.logModuleStorage) consoleCategories.storage = this.logModuleStorage.checked;
+            if (this.logModuleGeneral) consoleCategories.general = this.logModuleGeneral.checked;
+
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 logging: {
                     ...STATE.settings?.logging,
-                    maxLogEntries: parseInt(this.maxLogEntries.value, 10),
-                    verboseMode: this.verboseMode.checked,
-                    showPrivacyLogs: this.showPrivacyLogs.checked,
-                    showStorageLogs: this.showStorageLogs.checked,
-                    // 日志保留策略（可选）
+                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 1000,
+                    verboseMode: this.verboseMode ? this.verboseMode.checked : false,
+                    showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
+                    showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
                     retentionDays: this.retentionDays ? parseInt(this.retentionDays.value || '0', 10) : (STATE.settings?.logging as any)?.retentionDays,
-                    // 控制台代理设置
                     consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
                     consoleFormat: {
-                        showTimestamp: this.consoleShowTimestamp?.checked ?? true,
-                        showSource: this.consoleShowSource?.checked ?? true,
-                        showMilliseconds: this.consoleShowMilliseconds?.checked ?? false,
-                        color: this.consoleColor?.checked ?? true,
+                        showTimestamp: this.consoleShowTimestamp ? this.consoleShowTimestamp.checked : true,
+                        showSource: this.consoleShowSource ? this.consoleShowSource.checked : true,
+                        showMilliseconds: this.consoleShowMilliseconds ? this.consoleShowMilliseconds.checked : false,
+                        color: this.consoleColor ? this.consoleColor.checked : true,
                         timeZone: this.consoleTimeZone?.value || 'Asia/Shanghai',
                     },
-                    consoleCategories: {
-                        core: this.consoleCategoryCore?.checked ?? true,
-                        orchestrator: this.consoleCategoryOrchestrator?.checked ?? true,
-                        drive115: this.consoleCategoryDrive115?.checked ?? true,
-                        privacy: this.consoleCategoryPrivacy?.checked ?? true,
-                        magnet: this.consoleCategoryMagnet?.checked ?? true,
-                        actor: this.consoleCategoryActor?.checked ?? true,
-                        storage: this.consoleCategoryStorage?.checked ?? true,
-                        general: this.consoleCategoryGeneral?.checked ?? true,
-                    },
+                    logModules: Object.keys(logModules).length > 0 ? logModules : undefined,
+                    consoleCategories: Object.keys(consoleCategories).length > 0 ? consoleCategories : undefined,
                 }
             };
 
@@ -266,6 +310,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                 savedSettings: { logging: newSettings.logging }
             };
         } catch (error) {
+            console.error('[LoggingSettings] 保存设置失败:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : '保存失败'
@@ -303,30 +348,47 @@ export class LoggingSettings extends BaseSettingsPanel {
      * 获取当前设置
      */
     protected doGetSettings(): Partial<ExtensionSettings> {
+        // 构建日志模块配置（安全检查）
+        const logModules: any = {};
+        if (this.logModuleCore) logModules.core = this.logModuleCore.checked;
+        if (this.logModuleOrchestrator) logModules.orchestrator = this.logModuleOrchestrator.checked;
+        if (this.logModuleStorage) logModules.storage = this.logModuleStorage.checked;
+        if (this.logModuleActor) logModules.actor = this.logModuleActor.checked;
+        if (this.logModuleMagnet) logModules.magnet = this.logModuleMagnet.checked;
+        if (this.logModuleSync) logModules.sync = this.logModuleSync.checked;
+        if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
+        if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
+        if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
+        if (this.logModuleGeneral) logModules.general = this.logModuleGeneral.checked;
+        if (this.logModuleDebug) logModules.debug = this.logModuleDebug.checked;
+
+        const consoleCategories: any = {};
+        if (this.logModuleCore) consoleCategories.core = this.logModuleCore.checked;
+        if (this.logModuleOrchestrator) consoleCategories.orchestrator = this.logModuleOrchestrator.checked;
+        if (this.logModuleDrive115) consoleCategories.drive115 = this.logModuleDrive115.checked;
+        if (this.logModulePrivacy) consoleCategories.privacy = this.logModulePrivacy.checked;
+        if (this.logModuleMagnet) consoleCategories.magnet = this.logModuleMagnet.checked;
+        if (this.logModuleActor) consoleCategories.actor = this.logModuleActor.checked;
+        if (this.logModuleStorage) consoleCategories.storage = this.logModuleStorage.checked;
+        if (this.logModuleGeneral) consoleCategories.general = this.logModuleGeneral.checked;
+
         return {
             logging: {
-                maxLogEntries: parseInt(this.maxLogEntries.value, 10),
-                verboseMode: this.verboseMode.checked,
-                showPrivacyLogs: this.showPrivacyLogs.checked,
-                showStorageLogs: this.showStorageLogs.checked,
+                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 1000,
+                verboseMode: this.verboseMode ? this.verboseMode.checked : false,
+                showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
+                showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
                 ...(this.retentionDays ? { retentionDays: parseInt(this.retentionDays.value || '0', 10) } : {}),
                 consoleLevel: (this.consoleLevel?.value as any) || 'DEBUG',
                 consoleFormat: {
-                    showTimestamp: this.consoleShowTimestamp?.checked ?? true,
-                    showSource: this.consoleShowSource?.checked ?? true,
-                    color: this.consoleColor?.checked ?? true,
+                    showTimestamp: this.consoleShowTimestamp ? this.consoleShowTimestamp.checked : true,
+                    showSource: this.consoleShowSource ? this.consoleShowSource.checked : true,
+                    showMilliseconds: this.consoleShowMilliseconds ? this.consoleShowMilliseconds.checked : false,
+                    color: this.consoleColor ? this.consoleColor.checked : true,
                     timeZone: this.consoleTimeZone?.value || 'Asia/Shanghai',
                 },
-                consoleCategories: {
-                    core: this.consoleCategoryCore?.checked ?? true,
-                    orchestrator: this.consoleCategoryOrchestrator?.checked ?? true,
-                    drive115: this.consoleCategoryDrive115?.checked ?? true,
-                    privacy: this.consoleCategoryPrivacy?.checked ?? true,
-                    magnet: this.consoleCategoryMagnet?.checked ?? true,
-                    actor: this.consoleCategoryActor?.checked ?? true,
-                    storage: this.consoleCategoryStorage?.checked ?? true,
-                    general: this.consoleCategoryGeneral?.checked ?? true,
-                },
+                ...(Object.keys(logModules).length > 0 ? { logModules } : {}),
+                ...(Object.keys(consoleCategories).length > 0 ? { consoleCategories } : {}),
             }
         };
     }
@@ -360,15 +422,20 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.consoleShowMilliseconds && fmt.showMilliseconds !== undefined) this.consoleShowMilliseconds.checked = !!fmt.showMilliseconds;
             if (this.consoleColor && fmt.color !== undefined) this.consoleColor.checked = !!fmt.color;
             if (this.consoleTimeZone && fmt.timeZone !== undefined) this.consoleTimeZone.value = fmt.timeZone;
+            
+            const modules = (logging as any).logModules || {};
             const cats = (logging as any).consoleCategories || {};
-            if (this.consoleCategoryCore && cats.core !== undefined) this.consoleCategoryCore.checked = !!cats.core;
-            if (this.consoleCategoryOrchestrator && cats.orchestrator !== undefined) this.consoleCategoryOrchestrator.checked = !!cats.orchestrator;
-            if (this.consoleCategoryDrive115 && cats.drive115 !== undefined) this.consoleCategoryDrive115.checked = !!cats.drive115;
-            if (this.consoleCategoryPrivacy && cats.privacy !== undefined) this.consoleCategoryPrivacy.checked = !!cats.privacy;
-            if (this.consoleCategoryMagnet && cats.magnet !== undefined) this.consoleCategoryMagnet.checked = !!cats.magnet;
-            if (this.consoleCategoryActor && cats.actor !== undefined) this.consoleCategoryActor.checked = !!cats.actor;
-            if (this.consoleCategoryStorage && cats.storage !== undefined) this.consoleCategoryStorage.checked = !!cats.storage;
-            if (this.consoleCategoryGeneral && cats.general !== undefined) this.consoleCategoryGeneral.checked = !!cats.general;
+            if (this.logModuleCore && (modules.core !== undefined || cats.core !== undefined)) this.logModuleCore.checked = !!(modules.core ?? cats.core);
+            if (this.logModuleOrchestrator && (modules.orchestrator !== undefined || cats.orchestrator !== undefined)) this.logModuleOrchestrator.checked = !!(modules.orchestrator ?? cats.orchestrator);
+            if (this.logModuleStorage && (modules.storage !== undefined || cats.storage !== undefined)) this.logModuleStorage.checked = !!(modules.storage ?? cats.storage);
+            if (this.logModuleActor && (modules.actor !== undefined || cats.actor !== undefined)) this.logModuleActor.checked = !!(modules.actor ?? cats.actor);
+            if (this.logModuleMagnet && (modules.magnet !== undefined || cats.magnet !== undefined)) this.logModuleMagnet.checked = !!(modules.magnet ?? cats.magnet);
+            if (this.logModuleSync && modules.sync !== undefined) this.logModuleSync.checked = !!modules.sync;
+            if (this.logModuleDrive115 && (modules.drive115 !== undefined || cats.drive115 !== undefined)) this.logModuleDrive115.checked = !!(modules.drive115 ?? cats.drive115);
+            if (this.logModulePrivacy && (modules.privacy !== undefined || cats.privacy !== undefined)) this.logModulePrivacy.checked = !!(modules.privacy ?? cats.privacy);
+            if (this.logModuleAI && modules.ai !== undefined) this.logModuleAI.checked = !!modules.ai;
+            if (this.logModuleGeneral && (modules.general !== undefined || cats.general !== undefined)) this.logModuleGeneral.checked = !!(modules.general ?? cats.general);
+            if (this.logModuleDebug && modules.debug !== undefined) this.logModuleDebug.checked = !!modules.debug;
         }
     }
 
@@ -394,44 +461,69 @@ export class LoggingSettings extends BaseSettingsPanel {
     }
 
     /**
-     * 一键静默：
-     * - 将控制台级别设为 OFF
-     * - 关闭所有类别开关
+     * 一键静默：将控制台级别设为 OFF，关闭所有模块
      */
     private handleConsoleMuteAll(): void {
         if (this.consoleLevel) this.consoleLevel.value = 'OFF' as any;
-        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = false;
-        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = false;
-        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = false;
-        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = false;
-        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = false;
-        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = false;
-        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = false;
-        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = false;
-        showMessage('控制台输出已静默（OFF）', 'info');
+        if (this.logModuleCore) this.logModuleCore.checked = false;
+        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = false;
+        if (this.logModuleStorage) this.logModuleStorage.checked = false;
+        if (this.logModuleActor) this.logModuleActor.checked = false;
+        if (this.logModuleMagnet) this.logModuleMagnet.checked = false;
+        if (this.logModuleSync) this.logModuleSync.checked = false;
+        if (this.logModuleDrive115) this.logModuleDrive115.checked = false;
+        if (this.logModulePrivacy) this.logModulePrivacy.checked = false;
+        if (this.logModuleAI) this.logModuleAI.checked = false;
+        if (this.logModuleGeneral) this.logModuleGeneral.checked = false;
+        if (this.logModuleDebug) this.logModuleDebug.checked = false;
+        showMessage('所有日志已静默', 'info');
         this.handleSettingChange();
     }
 
     /**
-     * 一键全开：
-     * - 将控制台级别设为 DEBUG（最详细）
-     * - 打开所有类别开关
-     * - 打开时间戳/来源/彩色输出
+     * 一键全开：将控制台级别设为 DEBUG，打开所有模块和格式选项
      */
     private handleConsoleEnableAll(): void {
         if (this.consoleLevel) this.consoleLevel.value = 'DEBUG' as any;
-        if (this.consoleCategoryCore) this.consoleCategoryCore.checked = true;
-        if (this.consoleCategoryOrchestrator) this.consoleCategoryOrchestrator.checked = true;
-        if (this.consoleCategoryDrive115) this.consoleCategoryDrive115.checked = true;
-        if (this.consoleCategoryPrivacy) this.consoleCategoryPrivacy.checked = true;
-        if (this.consoleCategoryMagnet) this.consoleCategoryMagnet.checked = true;
-        if (this.consoleCategoryActor) this.consoleCategoryActor.checked = true;
-        if (this.consoleCategoryStorage) this.consoleCategoryStorage.checked = true;
-        if (this.consoleCategoryGeneral) this.consoleCategoryGeneral.checked = true;
+        if (this.logModuleCore) this.logModuleCore.checked = true;
+        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = true;
+        if (this.logModuleStorage) this.logModuleStorage.checked = true;
+        if (this.logModuleActor) this.logModuleActor.checked = true;
+        if (this.logModuleMagnet) this.logModuleMagnet.checked = true;
+        if (this.logModuleSync) this.logModuleSync.checked = true;
+        if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
+        if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
+        if (this.logModuleAI) this.logModuleAI.checked = true;
+        if (this.logModuleGeneral) this.logModuleGeneral.checked = true;
+        if (this.logModuleDebug) this.logModuleDebug.checked = true;
         if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = true;
         if (this.consoleShowSource) this.consoleShowSource.checked = true;
         if (this.consoleColor) this.consoleColor.checked = true;
-        showMessage('控制台输出已全开（DEBUG，所有类别）', 'success');
+        showMessage('所有日志已启用（DEBUG级别）', 'success');
+        this.handleSettingChange();
+    }
+
+    /**
+     * 恢复默认：恢复推荐的日志配置
+     */
+    private handleConsoleResetDefault(): void {
+        if (this.consoleLevel) this.consoleLevel.value = 'INFO' as any;
+        if (this.logModuleCore) this.logModuleCore.checked = true;
+        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = true;
+        if (this.logModuleStorage) this.logModuleStorage.checked = true;
+        if (this.logModuleActor) this.logModuleActor.checked = true;
+        if (this.logModuleMagnet) this.logModuleMagnet.checked = true;
+        if (this.logModuleSync) this.logModuleSync.checked = true;
+        if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
+        if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
+        if (this.logModuleAI) this.logModuleAI.checked = true;
+        if (this.logModuleGeneral) this.logModuleGeneral.checked = true;
+        if (this.logModuleDebug) this.logModuleDebug.checked = false;
+        if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = true;
+        if (this.consoleShowSource) this.consoleShowSource.checked = true;
+        if (this.consoleShowMilliseconds) this.consoleShowMilliseconds.checked = false;
+        if (this.consoleColor) this.consoleColor.checked = true;
+        showMessage('已恢复默认日志配置（INFO级别）', 'success');
         this.handleSettingChange();
     }
 
