@@ -267,7 +267,7 @@
 #log-settings .logging-section {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
 }
@@ -314,7 +314,7 @@
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 6px;
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.9rem;
@@ -366,9 +366,27 @@
     gap: 0.75rem;
     margin-bottom: 1rem;
     flex-wrap: wrap;
+    align-items: center;
 }
 
-#log-settings .log-controls button,
+#log-settings .log-controls button {
+    padding: 0.5rem 1rem !important;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    line-height: 1.5 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    box-sizing: border-box !important;
+}
+
 #log-settings .log-controls select {
     padding: 0.5rem 1rem;
     border: none;
@@ -377,25 +395,39 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.9rem;
+    height: 36px;
+    line-height: 1.5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 #log-settings .btn-primary {
-    background: var(--primary-color);
-    color: white;
+    background: #28a745 !important;
+    color: white !important;
 }
 
 #log-settings .btn-primary:hover {
-    background: var(--primary-hover-color);
+    background: #218838 !important;
 }
 
 #log-settings .btn-secondary {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    background: #6c757d !important;
+    color: white !important;
 }
 
 #log-settings .btn-secondary:hover {
-    background: var(--bg-primary);
+    background: #5a6268 !important;
+}
+
+#log-settings .btn-info {
+    background: #17a2b8 !important;
+    color: white !important;
+}
+
+#log-settings .btn-info:hover {
+    background: #138496 !important;
 }
 
 #log-settings .btn-danger {

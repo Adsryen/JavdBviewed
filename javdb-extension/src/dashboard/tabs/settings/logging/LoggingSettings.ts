@@ -74,24 +74,18 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (!this.retentionDays) {
             // 旧模板不存在时，动态插入一个字段，避免修改大型 HTML 文件
             try {
-                const panel = document.getElementById('log-settings');
-                const anchorField = this.maxLogEntries ? this.maxLogEntries.closest('.field') : null;
-                const container = (anchorField && anchorField.parentElement) || panel || document.body;
-                const field = document.createElement('div');
-                field.className = 'field';
-                field.innerHTML = `
-                    <label class="label" for="logRetentionDays">日志保留天数（0 = 关闭）</label>
-                    <div class="control">
-                        <input id="logRetentionDays" class="input" type="number" min="0" max="3650" placeholder="0" />
-                    </div>
-                    <p class="help">按天数自动清理旧日志；0 表示不按天清理（仍受最大条数上限限制）。</p>
-                `;
-                if (anchorField && container) {
-                    container.insertBefore(field, anchorField.nextSibling);
-                } else if (container) {
-                    container.appendChild(field);
+                const anchorField = this.maxLogEntries ? this.maxLogEntries.closest('.form-group') : null;
+                if (anchorField && anchorField.parentElement) {
+                    const field = document.createElement('div');
+                    field.className = 'form-group';
+                    field.innerHTML = `
+                        <label for="logRetentionDays">日志保留天数</label>
+                        <input type="number" id="logRetentionDays" class="number-input" min="0" max="3650" value="0">
+                        <p class="input-description">设置为 0 表示不按天数清理，仅受最大条数限制。</p>
+                    `;
+                    anchorField.parentElement.insertBefore(field, anchorField.nextSibling);
+                    this.retentionDays = field.querySelector('#logRetentionDays') as HTMLInputElement;
                 }
-                this.retentionDays = field.querySelector('#logRetentionDays') as HTMLInputElement;
             } catch (e) {
                 console.warn('[LoggingSettings] 动态插入 logRetentionDays 失败：', e);
             }
