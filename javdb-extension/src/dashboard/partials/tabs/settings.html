@@ -2016,8 +2016,42 @@
 
                                     <div class="form-group" style="margin-top: 15px;">
                                         <label for="consoleTimeZone">时区设置</label>
-                                        <input type="text" id="consoleTimeZone" class="text-input" placeholder="Asia/Shanghai" value="Asia/Shanghai">
-                                        <p class="input-description">用于格式化时间戳，默认 Asia/Shanghai。</p>
+                                        <select id="consoleTimeZone" class="text-input">
+                                            <optgroup label="亚洲">
+                                                <option value="Asia/Shanghai" selected>中国标准时间 (UTC+8)</option>
+                                                <option value="Asia/Hong_Kong">香港时间 (UTC+8)</option>
+                                                <option value="Asia/Taipei">台北时间 (UTC+8)</option>
+                                                <option value="Asia/Tokyo">日本标准时间 (UTC+9)</option>
+                                                <option value="Asia/Seoul">韩国标准时间 (UTC+9)</option>
+                                                <option value="Asia/Singapore">新加坡时间 (UTC+8)</option>
+                                                <option value="Asia/Bangkok">曼谷时间 (UTC+7)</option>
+                                                <option value="Asia/Dubai">迪拜时间 (UTC+4)</option>
+                                            </optgroup>
+                                            <optgroup label="欧洲">
+                                                <option value="Europe/London">伦敦时间 (UTC+0/+1)</option>
+                                                <option value="Europe/Paris">巴黎时间 (UTC+1/+2)</option>
+                                                <option value="Europe/Berlin">柏林时间 (UTC+1/+2)</option>
+                                                <option value="Europe/Moscow">莫斯科时间 (UTC+3)</option>
+                                            </optgroup>
+                                            <optgroup label="美洲">
+                                                <option value="America/New_York">纽约时间 (UTC-5/-4)</option>
+                                                <option value="America/Chicago">芝加哥时间 (UTC-6/-5)</option>
+                                                <option value="America/Denver">丹佛时间 (UTC-7/-6)</option>
+                                                <option value="America/Los_Angeles">洛杉矶时间 (UTC-8/-7)</option>
+                                                <option value="America/Toronto">多伦多时间 (UTC-5/-4)</option>
+                                                <option value="America/Vancouver">温哥华时间 (UTC-8/-7)</option>
+                                                <option value="America/Sao_Paulo">圣保罗时间 (UTC-3)</option>
+                                            </optgroup>
+                                            <optgroup label="大洋洲">
+                                                <option value="Australia/Sydney">悉尼时间 (UTC+10/+11)</option>
+                                                <option value="Australia/Melbourne">墨尔本时间 (UTC+10/+11)</option>
+                                                <option value="Pacific/Auckland">奥克兰时间 (UTC+12/+13)</option>
+                                            </optgroup>
+                                            <optgroup label="其他">
+                                                <option value="UTC">协调世界时 (UTC+0)</option>
+                                            </optgroup>
+                                        </select>
+                                        <p class="input-description">选择您所在的时区，用于格式化日志时间戳显示。</p>
                                     </div>
                                 </div>
 
