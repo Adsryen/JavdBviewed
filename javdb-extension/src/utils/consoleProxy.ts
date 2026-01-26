@@ -52,53 +52,92 @@ function toSeverity(level: LogLevel): number {
 // Default categories (extension self logs common tags)
 function buildDefaultCategories(): Record<string, CategoryRule> {
   return {
+    // ========== 核心功能 ==========
     core: {
-      enabled: true,
-      match: /\[(JavDB\s*Ext|JavDB\s*Extension)\]/i,
+      enabled: false,
+      match: /\[(CORE|Extension|LogController|Cache)\]|初始化|Initialized/i,
       label: 'CORE',
       color: '#16a085',
     },
     orchestrator: {
-      enabled: true,
-      match: /\[Orchestrator\]/i,
+      enabled: false,
+      match: /\[Orchestrator\]|任务编排|Task/i,
       label: 'ORCH',
       color: '#8e44ad',
     },
+    storage: {
+      enabled: false,
+      match: /\[(Storage|STORAGE|StorageManager)\]|存储|数据库|IndexedDB/i,
+      label: 'STORAGE',
+      color: '#2c3e50',
+    },
+    
+    // ========== 业务功能 ==========
+    actor: {
+      enabled: false,
+      match: /\[Actor|ActorManager\]|演员|Actor/i,
+      label: 'ACTOR',
+      color: '#2980b9',
+    },
+    magnet: {
+      enabled: false,
+      match: /\[Magnet\]|磁链|磁力|Magnet/i,
+      label: 'MAGNET',
+      color: '#27ae60',
+    },
+    sync: {
+      enabled: false,
+      match: /\[Sync|DataSync\]|同步|WebDAV|Sync/i,
+      label: 'SYNC',
+      color: '#3498db',
+    },
+    
+    // ========== 扩展功能 ==========
     drive115: {
-      enabled: true,
-      match: /\[(Drive115|115V?2?)\]|\bDrive115\b/i,
+      enabled: false,
+      match: /\[(Drive115|115V?2?)\]|115网盘|Drive115/i,
       label: '115',
       color: '#d35400',
     },
     privacy: {
-      enabled: true,
-      match: /Privacy|隐私|\[PRIVACY\]/i,
+      enabled: false,
+      match: /\[(Privacy|PrivacyManager|LockScreen)\]|隐私|Privacy|Lock/i,
       label: 'PRIVACY',
       color: '#c0392b',
     },
-    magnet: {
-      enabled: true,
-      match: /Magnet|磁链|magnet/i,
-      label: 'MAGNET',
-      color: '#27ae60',
+    ai: {
+      enabled: false,
+      match: /\[AI\]|AI功能|人工智能/i,
+      label: 'AI',
+      color: '#9b59b6',
     },
-    actor: {
-      enabled: true,
-      match: /ActorManager/i,
-      label: 'ACTOR',
-      color: '#2980b9',
+    
+    // ========== 系统功能 ==========
+    update: {
+      enabled: false,
+      match: /\[UpdateChecker\]|更新检查|Update/i,
+      label: 'UPDATE',
+      color: '#e67e22',
     },
-    storage: {
-      enabled: true,
-      match: /\[(StorageManager|STORAGE)\]|Storage|存储/i,
-      label: 'STORAGE',
-      color: '#2c3e50',
+    help: {
+      enabled: false,
+      match: /\[Help|HelpPanel|HelpContent\]|帮助|Help/i,
+      label: 'HELP',
+      color: '#1abc9c',
     },
+    settings: {
+      enabled: false,
+      match: /\[Settings\]|设置|Settings/i,
+      label: 'SETTINGS',
+      color: '#34495e',
+    },
+    
+    // ========== 其他 ==========
     general: {
-      enabled: true,
+      enabled: false,
       match: () => true,
       label: 'GENERAL',
-      color: '#7f8c8d',
+      color: '#95a5a6',
     },
   };
 }

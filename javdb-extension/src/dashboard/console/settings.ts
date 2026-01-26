@@ -17,14 +17,15 @@ export async function applyConsoleSettingsFromStorage_DB(): Promise<void> {
         timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
       });
     }
-    if (logging.consoleCategories) {
-      const cfg = ctrl.getConfig();
-      const allKeys = Object.keys(cfg?.categories || {});
-      for (const key of allKeys) {
-        const flag = logging.consoleCategories[key];
-        if (flag === false) ctrl.disable(key);
-        else if (flag === true) ctrl.enable(key);
-      }
+    
+    // 应用日志模块配置（优先使用 logModules，向后兼容 consoleCategories）
+    const modules = logging.logModules || logging.consoleCategories || {};
+    const cfg = ctrl.getConfig();
+    const allKeys = Object.keys(cfg?.categories || {});
+    for (const key of allKeys) {
+      const flag = modules[key];
+      if (flag === false) ctrl.disable(key);
+      else if (flag === true) ctrl.enable(key);
     }
   } catch (e) {
     console.warn('[ConsoleProxy] Failed to apply settings in DB:', e);

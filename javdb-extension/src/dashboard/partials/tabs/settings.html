@@ -2071,25 +2071,25 @@
                                             </div>
                                             <div class="log-tree-children">
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleCore" checked>
+                                                    <input type="checkbox" id="logModuleCore">
                                                     <label for="logModuleCore">
                                                         <i class="fas fa-cog"></i>
                                                         <span class="item-name">核心系统</span>
-                                                        <span class="item-tag">[DB]</span>
+                                                        <span class="item-tag">[CORE]</span>
                                                     </label>
                                                     <span class="item-desc">扩展主程序、初始化、配置加载</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleOrchestrator" checked>
+                                                    <input type="checkbox" id="logModuleOrchestrator">
                                                     <label for="logModuleOrchestrator">
                                                         <i class="fas fa-project-diagram"></i>
                                                         <span class="item-name">任务编排</span>
-                                                        <span class="item-tag">[ORCHESTRATOR]</span>
+                                                        <span class="item-tag">[ORCH]</span>
                                                     </label>
                                                     <span class="item-desc">任务调度、协调、队列管理</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleStorage" checked>
+                                                    <input type="checkbox" id="logModuleStorage">
                                                     <label for="logModuleStorage">
                                                         <i class="fas fa-database"></i>
                                                         <span class="item-name">数据存储</span>
@@ -2109,7 +2109,7 @@
                                             </div>
                                             <div class="log-tree-children">
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleActor" checked>
+                                                    <input type="checkbox" id="logModuleActor">
                                                     <label for="logModuleActor">
                                                         <i class="fas fa-user"></i>
                                                         <span class="item-name">演员管理</span>
@@ -2118,7 +2118,7 @@
                                                     <span class="item-desc">演员数据同步、订阅、收藏</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleMagnet" checked>
+                                                    <input type="checkbox" id="logModuleMagnet">
                                                     <label for="logModuleMagnet">
                                                         <i class="fas fa-magnet"></i>
                                                         <span class="item-name">磁力搜索</span>
@@ -2127,7 +2127,7 @@
                                                     <span class="item-desc">磁力链接搜索、解析、下载</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleSync" checked>
+                                                    <input type="checkbox" id="logModuleSync">
                                                     <label for="logModuleSync">
                                                         <i class="fas fa-sync"></i>
                                                         <span class="item-name">数据同步</span>
@@ -2147,16 +2147,16 @@
                                             </div>
                                             <div class="log-tree-children">
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleDrive115" checked>
+                                                    <input type="checkbox" id="logModuleDrive115">
                                                     <label for="logModuleDrive115">
                                                         <i class="fas fa-cloud"></i>
                                                         <span class="item-name">115网盘</span>
-                                                        <span class="item-tag">[DRIVE115]</span>
+                                                        <span class="item-tag">[115]</span>
                                                     </label>
                                                     <span class="item-desc">115网盘离线下载、文件管理</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModulePrivacy" checked>
+                                                    <input type="checkbox" id="logModulePrivacy">
                                                     <label for="logModulePrivacy">
                                                         <i class="fas fa-shield-alt"></i>
                                                         <span class="item-name">隐私保护</span>
@@ -2165,13 +2165,51 @@
                                                     <span class="item-desc">隐私模式、密码锁、数据加密</span>
                                                 </div>
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleAI" checked>
+                                                    <input type="checkbox" id="logModuleAI">
                                                     <label for="logModuleAI">
                                                         <i class="fas fa-robot"></i>
                                                         <span class="item-name">AI功能</span>
                                                         <span class="item-tag">[AI]</span>
                                                     </label>
                                                     <span class="item-desc">AI对话、智能分析、推荐</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 系统功能 -->
+                                        <div class="log-tree-node">
+                                            <div class="log-tree-header">
+                                                <i class="fas fa-cogs"></i>
+                                                <span class="log-tree-title">系统功能</span>
+                                                <span class="log-tree-desc">系统级功能模块</span>
+                                            </div>
+                                            <div class="log-tree-children">
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleUpdate">
+                                                    <label for="logModuleUpdate">
+                                                        <i class="fas fa-sync-alt"></i>
+                                                        <span class="item-name">更新检查</span>
+                                                        <span class="item-tag">[UPDATE]</span>
+                                                    </label>
+                                                    <span class="item-desc">版本检查、更新提示</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleHelp">
+                                                    <label for="logModuleHelp">
+                                                        <i class="fas fa-question-circle"></i>
+                                                        <span class="item-name">帮助系统</span>
+                                                        <span class="item-tag">[HELP]</span>
+                                                    </label>
+                                                    <span class="item-desc">帮助面板、内容映射</span>
+                                                </div>
+                                                <div class="log-tree-item">
+                                                    <input type="checkbox" id="logModuleSettings">
+                                                    <label for="logModuleSettings">
+                                                        <i class="fas fa-sliders-h"></i>
+                                                        <span class="item-name">设置管理</span>
+                                                        <span class="item-tag">[SETTINGS]</span>
+                                                    </label>
+                                                    <span class="item-desc">设置加载、保存、验证</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2185,7 +2223,7 @@
                                             </div>
                                             <div class="log-tree-children">
                                                 <div class="log-tree-item">
-                                                    <input type="checkbox" id="logModuleGeneral" checked>
+                                                    <input type="checkbox" id="logModuleGeneral">
                                                     <label for="logModuleGeneral">
                                                         <i class="fas fa-list"></i>
                                                         <span class="item-name">通用日志</span>
