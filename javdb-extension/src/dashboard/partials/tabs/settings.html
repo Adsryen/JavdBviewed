@@ -1957,7 +1957,7 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="consoleLevel">日志级别（显示阈值）</label>
+                                        <label for="consoleLevel">日志级别（全局阈值）</label>
                                         <select id="consoleLevel" class="text-input">
                                             <option value="OFF">OFF - 关闭所有日志</option>
                                             <option value="ERROR">ERROR - 仅错误</option>
@@ -1965,7 +1965,7 @@
                                             <option value="INFO">INFO - 信息及以上</option>
                                             <option value="DEBUG" selected>DEBUG - 全部显示</option>
                                         </select>
-                                        <p class="input-description">只显示该级别及以上的日志。推荐日常使用 INFO，调试时使用 DEBUG。</p>
+                                        <p class="input-description">全局过滤：只显示该级别及以上的日志。与下方"功能模块日志"联动生效（两者都满足才显示）。</p>
                                     </div>
 
                                     <div class="form-group">
@@ -2058,7 +2058,7 @@
                                 <!-- 功能模块日志开关 -->
                                 <div class="logging-section log-modules">
                                     <h4><i class="fas fa-th-large"></i> 功能模块日志</h4>
-                                    <p class="section-description">按功能模块精细控制日志输出，方便定位问题。勾选后该模块的日志会在控制台显示。</p>
+                                    <p class="section-description">按功能模块精细控制日志输出。<strong>注意：需同时满足上方"日志级别"阈值才会显示。</strong></p>
 
                                     <!-- 树状结构 -->
                                     <div class="log-tree">
@@ -2257,12 +2257,6 @@
                                             </ul>
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- 保存提示 -->
-                                <div class="auto-save-info" style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 8px; padding: 15px; text-align: center; margin-top: 20px;">
-                                    <i class="fas fa-check-circle" style="color: #4caf50; margin-right: 8px;"></i>
-                                    <span style="color: #2e7d32; font-weight: 500;">日志设置修改后自动保存并立即生效</span>
                                 </div>
                             </div>
                         </div>
