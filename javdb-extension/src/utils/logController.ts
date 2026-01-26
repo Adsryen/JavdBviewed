@@ -230,6 +230,41 @@ export async function updateLogControllerConfig(): Promise<void> {
             showPrivacyLogs: settings.logging?.showPrivacyLogs || false,
             showStorageLogs: settings.logging?.showStorageLogs || false
         });
+        
+        // 同时更新 consoleProxy 的配置
+        try {
+            const g: any = (typeof window !== 'undefined') ? window : (globalThis as any);
+            const consoleControl = g.__JDB_CONSOLE__;
+            if (consoleControl && settings.logging) {
+                // 更新日志级别
+                if ((settings.logging as any).consoleLevel) {
+                    consoleControl.setLevel((settings.logging as any).consoleLevel);
+                }
+                
+                // 更新格式选项
+                if ((settings.logging as any).consoleFormat) {
+                    consoleControl.setFormat((settings.logging as any).consoleFormat);
+                }
+                
+                // 更新模块启用/禁用状态
+                const modules = (settings.logging as any).logModules || {};
+                const categories = (settings.logging as any).consoleCategories || {};
+                
+                // 合并新旧配置（向后兼容）
+                const allModules = { ...categories, ...modules };
+                
+                // 遍历所有模块，更新启用状态
+                for (const [key, enabled] of Object.entries(allModules)) {
+                    if (enabled) {
+                        consoleControl.enable(key);
+                    } else {
+                        consoleControl.disable(key);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[LogController] 更新 consoleProxy 配置失败:', e);
+        }
     } catch (error) {
         console.error('Failed to update log controller config:', error);
     }

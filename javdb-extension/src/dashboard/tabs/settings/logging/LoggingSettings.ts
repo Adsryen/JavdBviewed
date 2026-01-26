@@ -39,6 +39,9 @@ export class LoggingSettings extends BaseSettingsPanel {
     private logModuleDrive115!: HTMLInputElement;
     private logModulePrivacy!: HTMLInputElement;
     private logModuleAI!: HTMLInputElement;
+    private logModuleUpdate!: HTMLInputElement;
+    private logModuleHelp!: HTMLInputElement;
+    private logModuleSettings!: HTMLInputElement;
     private logModuleGeneral!: HTMLInputElement;
     private logModuleDebug!: HTMLInputElement;
 
@@ -111,6 +114,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.logModuleDrive115 = document.getElementById('logModuleDrive115') as HTMLInputElement;
         this.logModulePrivacy = document.getElementById('logModulePrivacy') as HTMLInputElement;
         this.logModuleAI = document.getElementById('logModuleAI') as HTMLInputElement;
+        this.logModuleUpdate = document.getElementById('logModuleUpdate') as HTMLInputElement;
+        this.logModuleHelp = document.getElementById('logModuleHelp') as HTMLInputElement;
+        this.logModuleSettings = document.getElementById('logModuleSettings') as HTMLInputElement;
         this.logModuleGeneral = document.getElementById('logModuleGeneral') as HTMLInputElement;
         this.logModuleDebug = document.getElementById('logModuleDebug') as HTMLInputElement;
 
@@ -156,6 +162,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (!this.logModuleDrive115) console.warn('[LoggingSettings] 找不到 logModuleDrive115 元素');
         if (!this.logModulePrivacy) console.warn('[LoggingSettings] 找不到 logModulePrivacy 元素');
         if (!this.logModuleAI) console.warn('[LoggingSettings] 找不到 logModuleAI 元素');
+        if (!this.logModuleUpdate) console.warn('[LoggingSettings] 找不到 logModuleUpdate 元素');
+        if (!this.logModuleHelp) console.warn('[LoggingSettings] 找不到 logModuleHelp 元素');
+        if (!this.logModuleSettings) console.warn('[LoggingSettings] 找不到 logModuleSettings 元素');
         if (!this.logModuleGeneral) console.warn('[LoggingSettings] 找不到 logModuleGeneral 元素');
         if (!this.logModuleDebug) console.warn('[LoggingSettings] 找不到 logModuleDebug 元素');
 
@@ -189,6 +198,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.logModuleDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModulePrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleAI?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleUpdate?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleHelp?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleSettings?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleDebug?.addEventListener('change', this.handleSettingChange.bind(this));
 
@@ -234,16 +246,19 @@ export class LoggingSettings extends BaseSettingsPanel {
         // 新模块化日志开关加载（兼容旧的consoleCategories配置）
         const modules = (logging as any).logModules || {};
         const cats = (logging as any).consoleCategories || {}; // 向后兼容
-        if (this.logModuleCore) this.logModuleCore.checked = modules.core ?? cats.core ?? true;
-        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = modules.orchestrator ?? cats.orchestrator ?? true;
-        if (this.logModuleStorage) this.logModuleStorage.checked = modules.storage ?? cats.storage ?? true;
-        if (this.logModuleActor) this.logModuleActor.checked = modules.actor ?? cats.actor ?? true;
-        if (this.logModuleMagnet) this.logModuleMagnet.checked = modules.magnet ?? cats.magnet ?? true;
-        if (this.logModuleSync) this.logModuleSync.checked = modules.sync ?? true;
-        if (this.logModuleDrive115) this.logModuleDrive115.checked = modules.drive115 ?? cats.drive115 ?? true;
-        if (this.logModulePrivacy) this.logModulePrivacy.checked = modules.privacy ?? cats.privacy ?? true;
-        if (this.logModuleAI) this.logModuleAI.checked = modules.ai ?? true;
-        if (this.logModuleGeneral) this.logModuleGeneral.checked = modules.general ?? cats.general ?? true;
+        if (this.logModuleCore) this.logModuleCore.checked = modules.core ?? cats.core ?? false;
+        if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = modules.orchestrator ?? cats.orchestrator ?? false;
+        if (this.logModuleStorage) this.logModuleStorage.checked = modules.storage ?? cats.storage ?? false;
+        if (this.logModuleActor) this.logModuleActor.checked = modules.actor ?? cats.actor ?? false;
+        if (this.logModuleMagnet) this.logModuleMagnet.checked = modules.magnet ?? cats.magnet ?? false;
+        if (this.logModuleSync) this.logModuleSync.checked = modules.sync ?? false;
+        if (this.logModuleDrive115) this.logModuleDrive115.checked = modules.drive115 ?? cats.drive115 ?? false;
+        if (this.logModulePrivacy) this.logModulePrivacy.checked = modules.privacy ?? cats.privacy ?? false;
+        if (this.logModuleAI) this.logModuleAI.checked = modules.ai ?? false;
+        if (this.logModuleUpdate) this.logModuleUpdate.checked = modules.update ?? false;
+        if (this.logModuleHelp) this.logModuleHelp.checked = modules.help ?? false;
+        if (this.logModuleSettings) this.logModuleSettings.checked = modules.settings ?? false;
+        if (this.logModuleGeneral) this.logModuleGeneral.checked = modules.general ?? cats.general ?? false;
         if (this.logModuleDebug) this.logModuleDebug.checked = modules.debug ?? false;
     }
 
@@ -263,6 +278,9 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
             if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
             if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
+            if (this.logModuleUpdate) logModules.update = this.logModuleUpdate.checked;
+            if (this.logModuleHelp) logModules.help = this.logModuleHelp.checked;
+            if (this.logModuleSettings) logModules.settings = this.logModuleSettings.checked;
             if (this.logModuleGeneral) logModules.general = this.logModuleGeneral.checked;
             if (this.logModuleDebug) logModules.debug = this.logModuleDebug.checked;
 
@@ -359,6 +377,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
         if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
         if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
+        if (this.logModuleUpdate) logModules.update = this.logModuleUpdate.checked;
+        if (this.logModuleHelp) logModules.help = this.logModuleHelp.checked;
+        if (this.logModuleSettings) logModules.settings = this.logModuleSettings.checked;
         if (this.logModuleGeneral) logModules.general = this.logModuleGeneral.checked;
         if (this.logModuleDebug) logModules.debug = this.logModuleDebug.checked;
 
@@ -434,6 +455,9 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.logModuleDrive115 && (modules.drive115 !== undefined || cats.drive115 !== undefined)) this.logModuleDrive115.checked = !!(modules.drive115 ?? cats.drive115);
             if (this.logModulePrivacy && (modules.privacy !== undefined || cats.privacy !== undefined)) this.logModulePrivacy.checked = !!(modules.privacy ?? cats.privacy);
             if (this.logModuleAI && modules.ai !== undefined) this.logModuleAI.checked = !!modules.ai;
+            if (this.logModuleUpdate && modules.update !== undefined) this.logModuleUpdate.checked = !!modules.update;
+            if (this.logModuleHelp && modules.help !== undefined) this.logModuleHelp.checked = !!modules.help;
+            if (this.logModuleSettings && modules.settings !== undefined) this.logModuleSettings.checked = !!modules.settings;
             if (this.logModuleGeneral && (modules.general !== undefined || cats.general !== undefined)) this.logModuleGeneral.checked = !!(modules.general ?? cats.general);
             if (this.logModuleDebug && modules.debug !== undefined) this.logModuleDebug.checked = !!modules.debug;
         }
@@ -474,6 +498,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleDrive115) this.logModuleDrive115.checked = false;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = false;
         if (this.logModuleAI) this.logModuleAI.checked = false;
+        if (this.logModuleUpdate) this.logModuleUpdate.checked = false;
+        if (this.logModuleHelp) this.logModuleHelp.checked = false;
+        if (this.logModuleSettings) this.logModuleSettings.checked = false;
         if (this.logModuleGeneral) this.logModuleGeneral.checked = false;
         if (this.logModuleDebug) this.logModuleDebug.checked = false;
         showMessage('所有日志已静默', 'info');
@@ -494,6 +521,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
         if (this.logModuleAI) this.logModuleAI.checked = true;
+        if (this.logModuleUpdate) this.logModuleUpdate.checked = true;
+        if (this.logModuleHelp) this.logModuleHelp.checked = true;
+        if (this.logModuleSettings) this.logModuleSettings.checked = true;
         if (this.logModuleGeneral) this.logModuleGeneral.checked = true;
         if (this.logModuleDebug) this.logModuleDebug.checked = true;
         if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = true;
@@ -517,6 +547,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
         if (this.logModuleAI) this.logModuleAI.checked = true;
+        if (this.logModuleUpdate) this.logModuleUpdate.checked = true;
+        if (this.logModuleHelp) this.logModuleHelp.checked = true;
+        if (this.logModuleSettings) this.logModuleSettings.checked = true;
         if (this.logModuleGeneral) this.logModuleGeneral.checked = true;
         if (this.logModuleDebug) this.logModuleDebug.checked = false;
         if (this.consoleShowTimestamp) this.consoleShowTimestamp.checked = true;
