@@ -717,6 +717,113 @@
 }
 
 /* =================================================================
+   =================== 对话参数优化样式 ===========================
+   ================================================================= */
+
+/* 对话参数网格布局 */
+#ai-settings .ai-conversation-params .params-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px 24px;
+    margin-top: 16px;
+}
+
+/* 参数项样式 */
+#ai-settings .ai-conversation-params .param-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 全宽参数项（系统提示词） */
+#ai-settings .ai-conversation-params .param-item.param-full {
+    grid-column: 1 / -1;
+}
+
+/* 复选框参数项 */
+#ai-settings .ai-conversation-params .param-item.param-checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+#ai-settings .ai-conversation-params .param-item.param-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+#ai-settings .ai-conversation-params .param-item.param-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 标签样式 */
+#ai-settings .ai-conversation-params .param-item label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ai-text-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Tooltip图标样式 */
+#ai-settings .ai-conversation-params .param-tooltip {
+    font-size: 13px;
+    color: var(--ai-text-muted);
+    cursor: help;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+#ai-settings .ai-conversation-params .param-tooltip:hover {
+    color: var(--ai-primary-color);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* 输入框样式 */
+#ai-settings .ai-conversation-params .param-item input[type="number"],
+#ai-settings .ai-conversation-params .param-item input[type="range"],
+#ai-settings .ai-conversation-params .param-item textarea {
+    width: 100%;
+}
+
+#ai-settings .ai-conversation-params .param-item input[type="number"] {
+    max-width: 100%;
+}
+
+#ai-settings .ai-conversation-params .param-item textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* 温度值显示 */
+#ai-settings .ai-conversation-params #temperatureValue {
+    font-weight: 700;
+    color: var(--ai-primary-color);
+    margin-left: 4px;
+}
+
+/* 响应式：小屏幕单列 */
+@media (max-width: 768px) {
+    #ai-settings .ai-conversation-params .params-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+/* =================================================================
    =================== AI设置面板补充样式 ===========================
    ================================================================= */
 

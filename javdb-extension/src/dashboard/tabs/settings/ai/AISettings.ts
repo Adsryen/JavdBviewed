@@ -106,38 +106,38 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
             // 1) 自动重试（空回复）复选框
             const grp1 = document.createElement('div');
-            grp1.className = 'form-group-checkbox';
+            grp1.className = 'param-item param-checkbox';
             grp1.innerHTML = `
                 <input type="checkbox" id="aiAutoRetryEmpty">
                 <label for="aiAutoRetryEmpty">
-                    <i class="fas fa-redo-alt"></i>
                     自动重试（空回复）
+                    <i class="fas fa-question-circle param-tooltip" title="当 AI 返回空内容时自动重新请求"></i>
                 </label>
-                <p class="input-description">当 AI 返回空内容时自动重新请求。</p>
             `;
 
             // 2) 最大重试次数输入
             const grp2 = document.createElement('div');
-            grp2.className = 'form-group';
+            grp2.className = 'param-item';
             grp2.innerHTML = `
                 <label for="aiAutoRetryMax">
-                    <i class="fas fa-sync"></i>
-                    最大重试次数:
+                    最大重试次数
+                    <i class="fas fa-question-circle param-tooltip" title="仅在开启自动重试时生效（建议 0-5 次）"></i>
                 </label>
                 <input type="number" id="aiAutoRetryMax" class="number-input" min="0" max="10" value="2">
-                <p class="input-description">仅在开启自动重试时生效（建议 0-5 次）。</p>
             `;
 
-            // 插入到 aiMaxTokens 之后（作为同级块）
-            const maxTokensGroup = maxTokensEl.closest('.form-group');
-            if (maxTokensGroup && maxTokensGroup.parentElement === section) {
-                // 紧随其后插入
-                maxTokensGroup.insertAdjacentElement('afterend', grp1);
-                grp1.insertAdjacentElement('afterend', grp2);
-            } else {
-                // 兜底：直接附加到该 section 尾部
-                section.appendChild(grp1);
-                section.appendChild(grp2);
+            // 插入到 params-grid 中
+            const paramsGrid = section.querySelector('.params-grid');
+            if (paramsGrid) {
+                // 在"启用流式输出"之后插入
+                const streamCheckbox = paramsGrid.querySelector('.param-checkbox');
+                if (streamCheckbox) {
+                    streamCheckbox.insertAdjacentElement('afterend', grp1);
+                    grp1.insertAdjacentElement('afterend', grp2);
+                } else {
+                    paramsGrid.appendChild(grp1);
+                    paramsGrid.appendChild(grp2);
+                }
             }
         } catch {}
     }
@@ -534,34 +534,30 @@ export class AISettingsPanel extends BaseSettingsPanel {
             if (existed) return;
 
             const grp1 = document.createElement('div');
-            grp1.className = 'form-group-checkbox';
+            grp1.className = 'param-item param-checkbox';
             grp1.innerHTML = `
                 <input type="checkbox" id="aiErrorRetryEnabled">
                 <label for="aiErrorRetryEnabled">
-                    <i class="fas fa-redo"></i>
                     错误重试（超时/网络/429/5xx）
+                    <i class="fas fa-question-circle param-tooltip" title="开启后遇到可恢复错误将自动指数退避重试"></i>
                 </label>
-                <p class="input-description">开启后遇到可恢复错误将自动指数退避重试。</p>
             `;
 
             const grp2 = document.createElement('div');
-            grp2.className = 'form-group';
+            grp2.className = 'param-item';
             grp2.innerHTML = `
                 <label for="aiErrorRetryMax">
-                    <i class="fas fa-sync-alt"></i>
-                    错误重试最大次数:
+                    错误重试最大次数
+                    <i class="fas fa-question-circle param-tooltip" title="建议 0-3 次"></i>
                 </label>
                 <input type="number" id="aiErrorRetryMax" class="number-input" min="0" max="10" value="2">
-                <p class="input-description">建议 0-3 次。</p>
             `;
 
-            const anchor = document.getElementById('aiAutoRetryMax')?.closest('.form-group') || maxTokensEl.closest('.form-group');
-            if (anchor && anchor.parentElement === section) {
-                anchor.insertAdjacentElement('afterend', grp1);
-                grp1.insertAdjacentElement('afterend', grp2);
-            } else {
-                section.appendChild(grp1);
-                section.appendChild(grp2);
+            const paramsGrid = section.querySelector('.params-grid');
+            if (paramsGrid) {
+                // 在最后插入
+                paramsGrid.appendChild(grp1);
+                paramsGrid.appendChild(grp2);
             }
         } catch {}
     }
