@@ -24,6 +24,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
     private temperature!: HTMLInputElement;
     private temperatureValue!: HTMLSpanElement;
     private timeoutEl!: HTMLInputElement;
+    private streamEnabled?: HTMLInputElement;
+    private systemPrompt?: HTMLTextAreaElement;
     // 错误重试（网络/超时/429/5xx）可选控件
     private errorRetryEnabledEl?: HTMLInputElement;
     private errorRetryMaxEl?: HTMLInputElement;
@@ -161,6 +163,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
         this.temperature = document.getElementById('aiTemperature') as HTMLInputElement;
         this.temperatureValue = document.getElementById('temperatureValue') as HTMLSpanElement;
         this.timeoutEl = document.getElementById('aiTimeout') as HTMLInputElement;
+        this.streamEnabled = document.getElementById('aiStreamEnabled') as HTMLInputElement || undefined;
+        this.systemPrompt = document.getElementById('aiSystemPrompt') as HTMLTextAreaElement || undefined;
 
         // 功能配置元素 (可选)
         this.enableAutoTranslation = document.getElementById('enableAutoTranslation') as HTMLInputElement || undefined;
@@ -212,6 +216,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
         this.maxTokens?.addEventListener('input', this.handleSettingChange.bind(this));
         this.temperature?.addEventListener('input', this.handleTemperatureChange.bind(this));
         this.timeoutEl?.addEventListener('input', this.handleSettingChange.bind(this));
+        this.streamEnabled?.addEventListener('change', this.handleStreamEnabledChange.bind(this));
+        this.systemPrompt?.addEventListener('blur', this.handleSystemPromptChange.bind(this));
 
         // 功能配置事件
         this.enableAutoTranslation?.addEventListener('change', this.handleFeatureToggle.bind(this));
@@ -471,11 +477,56 @@ export class AISettingsPanel extends BaseSettingsPanel {
     /**
      * 处理温度变化
      */
-    private handleTemperatureChange(): void {
+    private async handleTemperatureChange(): Promise<void> {
         if (this.temperatureValue) {
             this.temperatureValue.textContent = this.temperature.value;
         }
         this.emit('change');
+        
+        // 自动保存温度设置
+        try {
+            const temperature = parseFloat(this.temperature.value);
+            this.aiSettings.temperature = temperature;
+            await aiService.saveSettings({ temperature });
+            showMessage('温度设置已保存', 'success');
+        } catch (error) {
+            console.warn('保存温度设置失败:', error);
+            showMessage('保存温度设置失败', 'error');
+        }
+    }
+
+    /**
+     * 处理流式输出开关变化
+     */
+    private async handleStreamEnabledChange(): Promise<void> {
+        this.emit('change');
+        
+        try {
+            const streamEnabled = this.streamEnabled?.checked ?? true;
+            this.aiSettings.streamEnabled = streamEnabled;
+            await aiService.saveSettings({ streamEnabled });
+            showMessage('流式输出设置已保存', 'success');
+        } catch (error) {
+            console.warn('保存流式输出设置失败:', error);
+            showMessage('保存失败', 'error');
+        }
+    }
+
+    /**
+     * 处理系统提示词变化
+     */
+    private async handleSystemPromptChange(): Promise<void> {
+        this.emit('change');
+        
+        try {
+            const systemPrompt = this.systemPrompt?.value ?? '';
+            this.aiSettings.systemPrompt = systemPrompt;
+            await aiService.saveSettings({ systemPrompt });
+            showMessage('系统提示词已保存', 'success');
+        } catch (error) {
+            console.warn('保存系统提示词失败:', error);
+            showMessage('保存失败', 'error');
+        }
     }
 
     /**
@@ -491,20 +542,40 @@ export class AISettingsPanel extends BaseSettingsPanel {
     private async handleSettingChange(ev?: Event): Promise<void> {
         this.emit('change');
 
+        const target = ev?.target as HTMLElement | undefined;
+        const id = target?.id;
+
         // 若为模型选择变化，立即保存
-        if (this.selectedModel && this.selectedModel.value !== this.aiSettings.selectedModel) {
+        if (id === 'aiSelectedModel' && this.selectedModel && this.selectedModel.value !== this.aiSettings.selectedModel) {
             try {
                 await this.saveModelSelection();
+                showMessage('模型选择已保存', 'success');
             } catch (error) {
                 console.warn('自动保存模型选择失败:', error);
+                showMessage('保存模型选择失败', 'error');
             }
+            return;
         }
 
-        // 若为自动重试或超时相关控件，立即保存
-        try {
-            const target = ev?.target as HTMLElement | undefined;
-            const id = target?.id;
-            if (id === 'aiAutoRetryEmpty' || id === 'aiAutoRetryMax' || id === 'aiTimeout' || id === 'aiErrorRetryEnabled' || id === 'aiErrorRetryMax') {
+        // 对话参数自动保存
+        if (id === 'aiMaxTokens') {
+            try {
+                const maxTokens = parseInt(this.maxTokens.value, 10);
+                if (!isNaN(maxTokens) && maxTokens >= 1 && maxTokens <= 1000000) {
+                    this.aiSettings.maxTokens = maxTokens;
+                    await aiService.saveSettings({ maxTokens });
+                    showMessage('最大回复长度已保存', 'success');
+                }
+            } catch (error) {
+                console.warn('保存最大回复长度失败:', error);
+                showMessage('保存失败', 'error');
+            }
+            return;
+        }
+
+        // 自动重试或超时相关控件，立即保存
+        if (id === 'aiAutoRetryEmpty' || id === 'aiAutoRetryMax' || id === 'aiTimeout' || id === 'aiErrorRetryEnabled' || id === 'aiErrorRetryMax') {
+            try {
                 const partial: Partial<AISettings> = {
                     autoRetryEmpty: this.autoRetryEmptyEl ? this.autoRetryEmptyEl.checked : this.aiSettings.autoRetryEmpty,
                     autoRetryMax: this.autoRetryMaxEl ? (parseInt(this.autoRetryMaxEl.value, 10) || 0) : this.aiSettings.autoRetryMax,
@@ -514,9 +585,11 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 };
                 this.aiSettings = { ...this.aiSettings, ...partial } as AISettings;
                 await aiService.saveSettings(partial);
+                showMessage('设置已保存', 'success');
+            } catch (e) {
+                console.warn('自动保存设置失败:', e);
+                showMessage('保存设置失败', 'error');
             }
-        } catch (e) {
-            console.warn('自动保存自动重试设置失败:', e);
         }
     }
 
