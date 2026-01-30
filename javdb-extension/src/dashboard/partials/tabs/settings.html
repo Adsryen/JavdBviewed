@@ -2375,7 +2375,7 @@
                                     <h4><i class="fas fa-cog"></i> 对话参数</h4>
 
                                     <div class="params-grid">
-                                        <!-- 左列 -->
+                                        <!-- 输入框类型 -->
                                         <div class="param-item">
                                             <label for="aiTemperature">
                                                 创造性: <span id="temperatureValue">0.7</span>
@@ -2402,15 +2402,7 @@
                                                    min="5" max="300" value="30">
                                         </div>
 
-                                        <!-- 右列 -->
-                                        <div class="param-item param-checkbox">
-                                            <input type="checkbox" id="aiStreamEnabled" checked>
-                                            <label for="aiStreamEnabled">
-                                                启用流式输出
-                                                <i class="fas fa-question-circle param-tooltip" title="实时显示AI回复内容，类似ChatGPT的打字效果"></i>
-                                            </label>
-                                        </div>
-
+                                        <!-- 系统提示词（全宽） -->
                                         <div class="param-item param-full">
                                             <label for="aiSystemPrompt">
                                                 系统提示词
@@ -2418,6 +2410,15 @@
                                             </label>
                                             <textarea id="aiSystemPrompt" class="textarea-input" rows="2"
                                                       placeholder="你是一个有用的AI助手，请用中文回答问题。">你是一个有用的AI助手，请用中文回答问题。</textarea>
+                                        </div>
+
+                                        <!-- 复选框类型 -->
+                                        <div class="param-item param-checkbox">
+                                            <input type="checkbox" id="aiStreamEnabled" checked>
+                                            <label for="aiStreamEnabled">
+                                                启用流式输出
+                                                <i class="fas fa-question-circle param-tooltip" title="实时显示AI回复内容，类似ChatGPT的打字效果"></i>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -2428,7 +2429,7 @@
 
                                     <div class="form-group">
                                         <label>
-                                            <i class="fas fa-download"></i>
+                                            <i class="fas fa-cog"></i>
                                             设置管理:
                                         </label>
                                         <div class="form-group-inline">
@@ -2444,20 +2445,12 @@
                                                 <i class="fas fa-trash"></i>
                                                 清除测试结果
                                             </button>
+                                            <button id="resetAiSettings" class="btn btn-reset">
+                                                <i class="fas fa-undo"></i>
+                                                重置为默认
+                                            </button>
                                         </div>
                                         <p class="input-description">导出设置用于备份，导入设置用于恢复配置（不包含API密钥）。</p>
-                                    </div>
-
-
-                                </div>
-
-                                <!-- 操作按钮 -->
-                                <div class="settings-section">
-                                    <div class="action-buttons">
-                                        <button id="resetAiSettings" class="btn btn-reset">
-                                            <i class="fas fa-undo"></i>
-                                            重置为默认
-                                        </button>
                                     </div>
                                 </div>
                             </div>
