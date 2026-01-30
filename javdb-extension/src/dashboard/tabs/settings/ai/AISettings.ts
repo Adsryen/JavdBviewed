@@ -131,14 +131,16 @@ export class AISettingsPanel extends BaseSettingsPanel {
             // 插入到 params-grid 中
             const paramsGrid = section.querySelector('.params-grid');
             if (paramsGrid) {
-                // 在"启用流式输出"之后插入
-                const streamCheckbox = paramsGrid.querySelector('.param-checkbox');
+                // 找到超时时间输入框，在它后面插入最大重试次数
+                const timeoutItem = document.getElementById('aiTimeout')?.closest('.param-item');
+                if (timeoutItem) {
+                    timeoutItem.insertAdjacentElement('afterend', grp2);
+                }
+                
+                // 找到流式输出复选框，在它后面插入自动重试复选框
+                const streamCheckbox = document.getElementById('aiStreamEnabled')?.closest('.param-item');
                 if (streamCheckbox) {
                     streamCheckbox.insertAdjacentElement('afterend', grp1);
-                    grp1.insertAdjacentElement('afterend', grp2);
-                } else {
-                    paramsGrid.appendChild(grp1);
-                    paramsGrid.appendChild(grp2);
                 }
             }
         } catch {}
@@ -628,9 +630,17 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
             const paramsGrid = section.querySelector('.params-grid');
             if (paramsGrid) {
-                // 在最后插入
-                paramsGrid.appendChild(grp1);
-                paramsGrid.appendChild(grp2);
+                // 找到最大重试次数输入框，在它后面插入错误重试最大次数
+                const autoRetryMaxItem = document.getElementById('aiAutoRetryMax')?.closest('.param-item');
+                if (autoRetryMaxItem) {
+                    autoRetryMaxItem.insertAdjacentElement('afterend', grp2);
+                }
+                
+                // 找到自动重试复选框，在它后面插入错误重试复选框
+                const autoRetryCheckbox = document.getElementById('aiAutoRetryEmpty')?.closest('.param-item');
+                if (autoRetryCheckbox) {
+                    autoRetryCheckbox.insertAdjacentElement('afterend', grp1);
+                }
             }
         } catch {}
     }
