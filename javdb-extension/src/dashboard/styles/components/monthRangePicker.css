@@ -1,0 +1,210 @@
+/* 月份范围选择器样式 - 浅色系 */
+
+.month-range-picker {
+  display: inline-block;
+}
+
+.month-range-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-range-separator {
+  color: #94a3b8;
+  font-size: 14px;
+  user-select: none;
+}
+
+.month-picker-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.month-picker-input {
+  width: 120px;
+  height: 32px;
+  padding: 6px 32px 6px 12px;
+  font-size: 13px;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.month-picker-input:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.month-picker-input:focus {
+  border-color: #94a3b8;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.08);
+}
+
+.month-picker-input::placeholder {
+  color: #cbd5e1;
+}
+
+.month-picker-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 14px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.month-picker-wrapper:hover .month-picker-icon {
+  color: #64748b;
+}
+
+/* 下拉面板 */
+.month-picker-dropdown {
+  position: absolute;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.12), 0 2px 4px rgba(148, 163, 184, 0.08);
+  padding: 12px;
+  min-width: 280px;
+  animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 年份选择器 */
+.month-picker-year-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.year-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #475569;
+  user-select: none;
+}
+
+.year-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.year-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+  transform: scale(1.05);
+}
+
+.year-nav-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.year-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 月份网格 */
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.month-btn {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.month-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(148, 163, 184, 0.08);
+}
+
+.month-btn:active {
+  transform: translateY(0);
+}
+
+.month-btn.current {
+  border-color: #94a3b8;
+  color: #475569;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.month-btn.selected {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #475569;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(148, 163, 184, 0.15);
+}
+
+.month-btn.selected:hover {
+  background: #cbd5e1;
+  border-color: #64748b;
+  color: #334155;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .month-picker-dropdown {
+    min-width: 260px;
+  }
+  
+  .month-picker-grid {
+    gap: 6px;
+  }
+  
+  .month-btn {
+    height: 32px;
+    font-size: 12px;
+  }
+}

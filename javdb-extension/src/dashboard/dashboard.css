@@ -13,6 +13,9 @@
 /* Settings related styles */
 @import url('./styles/settings/index.css');
 
+/* Components */
+@import url('./styles/components/monthRangePicker.css');
+
 /* 演员页增强配置样式 */
 .actor-config-container {
     margin-top: 15px;

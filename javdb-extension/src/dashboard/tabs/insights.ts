@@ -10,6 +10,7 @@ import { getLastGenerationTrace, addTrace } from "../../services/insights/genera
 import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
 import type { VideoRecord } from "../../types";
 import { showMessage } from "../ui/toast";
+import { initInsightsMonthPicker } from "../components/MonthRangePickerIntegration";
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -1735,6 +1736,13 @@ export const insightsTab = {
         eEl.value = `${y}-${m}`;
       }
     } catch {}
+
+    // 初始化新的月份选择器（替换原生控件）
+    try {
+      initInsightsMonthPicker();
+    } catch (err) {
+      console.warn('Failed to initialize month picker, fallback to native input:', err);
+    }
 
     // 按钮：查看生成过程
     try {
