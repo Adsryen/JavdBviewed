@@ -1220,7 +1220,8 @@ const O = async (t, e = "ja", n = "zh-CN") => {
     const a = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
         "params.client": "gtx",
         dataTypes: "TRANSLATION",
-        key: "AIzaSyDLEeFI5OtFBwYBIoK_jj5m32rZK5CkCXA",
+        // key: "", 测试zaSyDLEeFI5OtFB是YBIoK_jj5m32rZK5CkCXA
+        key: "",
         "query.sourceLanguage": e,
         "query.targetLanguage": n,
         "query.text": t
