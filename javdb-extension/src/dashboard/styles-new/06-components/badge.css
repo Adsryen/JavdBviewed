@@ -1,0 +1,187 @@
+/* ===================================================================
+   Badge 组件
+   ================================================================ */
+
+/* ===== 基础徽章 ===== */
+.c-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  
+  padding: var(--space-1) var(--space-2);
+  min-width: 20px;
+  height: 20px;
+  
+  background: var(--primary);
+  color: var(--text-inverse);
+  
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  
+  border-radius: var(--radius-full);
+}
+
+/* ===== 徽章颜色 ===== */
+.c-badge--primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+.c-badge--secondary {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.c-badge--success {
+  background: var(--success);
+  color: var(--text-inverse);
+}
+
+.c-badge--warning {
+  background: var(--warning);
+  color: var(--text-inverse);
+}
+
+.c-badge--error {
+  background: var(--error);
+  color: var(--text-inverse);
+}
+
+.c-badge--info {
+  background: var(--info);
+  color: var(--text-inverse);
+}
+
+/* ===== 徽章尺寸 ===== */
+.c-badge--sm {
+  padding: 0 var(--space-1);
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+
+.c-badge--lg {
+  padding: var(--space-1) var(--space-3);
+  min-width: 24px;
+  height: 24px;
+  font-size: var(--font-size-sm);
+}
+
+/* ===== 徽章变体 ===== */
+
+/* 圆点徽章 */
+.c-badge--dot {
+  padding: 0;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+}
+
+/* 轮廓徽章 */
+.c-badge--outline {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+.c-badge--outline.c-badge--primary {
+  color: var(--primary);
+}
+
+.c-badge--outline.c-badge--success {
+  color: var(--success);
+}
+
+.c-badge--outline.c-badge--warning {
+  color: var(--warning);
+}
+
+.c-badge--outline.c-badge--error {
+  color: var(--error);
+}
+
+.c-badge--outline.c-badge--info {
+  color: var(--info);
+}
+
+/* 柔和徽章 */
+.c-badge--soft {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.c-badge--soft.c-badge--success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.c-badge--soft.c-badge--warning {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.c-badge--soft.c-badge--error {
+  background: var(--error-light);
+  color: var(--error);
+}
+
+.c-badge--soft.c-badge--info {
+  background: var(--info-light);
+  color: var(--info);
+}
+
+/* ===== 带图标的徽章 ===== */
+.c-badge__icon {
+  margin-right: var(--space-1);
+  font-size: 1em;
+  line-height: 1;
+}
+
+/* ===== 可关闭徽章 ===== */
+.c-badge--closable {
+  padding-right: var(--space-1);
+}
+
+.c-badge__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  
+  width: 14px;
+  height: 14px;
+  margin-left: var(--space-1);
+  padding: 0;
+  
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: currentColor;
+  
+  font-size: 10px;
+  cursor: pointer;
+  
+  transition: background var(--transition-fast) var(--ease-out);
+}
+
+.c-badge__close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ===== 徽章定位 ===== */
+.c-badge-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.c-badge--positioned {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.c-badge--positioned.c-badge--dot {
+  transform: translate(25%, -25%);
+}

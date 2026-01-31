@@ -1,0 +1,29 @@
+/* ============================================
+   Dashboard 新样式系统入口
+   基于 ITCSS 架构，按优先级从低到高导入
+   ============================================ */
+
+/* 1. Settings - 变量和配置（最低优先级） */
+@import url('./01-settings/variables.css');
+
+/* 2. Generic - 重置和标准化 */
+@import url('./03-generic/reset.css');
+
+/* 3. Elements - 元素默认样式 */
+@import url('./04-elements/base.css');
+
+/* 4. Components - 组件样式 */
+@import url('./06-components/button.css');
+@import url('./06-components/modal.css');
+@import url('./06-components/toast.css');
+@import url('./06-components/card.css');
+@import url('./06-components/form.css');
+@import url('./06-components/tabs.css');
+@import url('./06-components/table.css');
+@import url('./06-components/dropdown.css');
+@import url('./06-components/badge.css');
+@import url('./06-components/alert.css');
+@import url('./06-components/progress.css');
+@import url('./06-components/skeleton.css');
+@import url('./06-components/pagination.css');
+@import url('./06-components/breadcrumb.css');
