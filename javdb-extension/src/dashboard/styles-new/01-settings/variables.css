@@ -175,7 +175,7 @@
   --ring: 0 0 0 var(--ring-width) var(--ring-color);
   
   /* ===== 组件特定变量 ===== */
-  --sidebar-width: 280px;
+  --sidebar-width: 320px;
   --sidebar-width-collapsed: 0px;
   --topbar-height: 60px;
   
@@ -274,10 +274,16 @@
 }
 
 /* ===================================================================
-   平滑过渡
+   平滑过渡 - Smooth Transitions
+   确保主题切换时所有颜色相关属性平滑过渡
    ================================================================ */
+:root,
+[data-theme="dark"] {
+  transition-property: none; /* 根元素不需要过渡 */
+}
+
 * {
-  transition-property: background-color, color, border-color, box-shadow;
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke;
   transition-duration: var(--transition-base);
   transition-timing-function: var(--ease-in-out);
 }
@@ -290,9 +296,21 @@
   a:active,
   input,
   textarea,
-  select
+  select,
+  [role="progressbar"],
+  [class*="spinner"],
+  [class*="loading"]
 ) {
   transition: none;
+}
+
+/* 确保交互元素有快速反馈 */
+button,
+a,
+[role="button"],
+[role="tab"] {
+  transition-property: background-color, color, border-color, box-shadow, transform;
+  transition-duration: var(--transition-fast);
 }
 
 /* ===================================================================

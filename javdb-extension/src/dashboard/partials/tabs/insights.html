@@ -1,46 +1,72 @@
-<section class="tab-section" data-tab-id="insights">
+<section class="tab-section p-insights" data-tab-id="insights">
   <div class="container">
     <h2>观影报告</h2>
-    <div class="alert-banner beta">
-      <span class="icon">⚠</span>
-      <span>测试功能：数据与交互仍在完善中，可能不稳定</span>
+    
+    <!-- 警告提示 -->
+    <div class="c-alert c-alert--warning">
+      <div class="c-alert__icon">⚠</div>
+      <div class="c-alert__content">
+        <div class="c-alert__message">测试功能：数据与交互仍在完善中，可能不稳定</div>
+      </div>
     </div>
 
-    <!-- 顶部工具栏：主动作清晰、分组排列 -->
-    <div class="insights-toolbar">
-      <!-- 第二行：时间范围 + 生成 + 查看生成过程 -->
-      <div class="toolbar-row row-2">
-        <div class="toolbar-left">
-          <div class="field-inline">
-            <label for="insights-month-start">时间范围：</label>
-            <input type="month" id="insights-month-start" />
-            <span style="margin: 0 6px; color: #64748b;">—</span>
-            <input type="month" id="insights-month-end" />
+    <!-- 工具栏 -->
+    <div class="p-insights__toolbar">
+      <div class="p-insights__toolbar-row">
+        <div class="p-insights__toolbar-left">
+          <div class="p-insights__field">
+            <label class="p-insights__field-label" for="insights-month-start">时间范围：</label>
+            <input type="month" id="insights-month-start" class="p-insights__month-input" />
+            <span class="p-insights__separator">—</span>
+            <input type="month" id="insights-month-end" class="p-insights__month-input" />
           </div>
-          <button id="insights-generate" class="btn-primary"><i class="fas fa-magic" aria-hidden="true"></i>&nbsp;生成报告</button>
+          <button id="insights-generate" class="c-button c-button--primary">
+            <i class="fas fa-magic"></i>
+            生成报告
+          </button>
         </div>
-        <div class="toolbar-right" id="insights-toolbar-row2-actions">
-          <!-- 这里将插入“查看生成过程”按钮（由脚本动态注入） -->
+        <div class="p-insights__toolbar-right" id="insights-toolbar-row2-actions">
+          <!-- 这里将插入"查看生成过程"按钮（由脚本动态注入） -->
         </div>
       </div>
     </div>
 
-    <!-- 内容区：左右双栏布局（左：历史；右：预览） -->
-    <div class="insights-grid">
-      <div class="col-left">
-        <div class="section-title">
-          <div class="title-left"><i class="fas fa-history"></i>&nbsp;历史月报（保留 24 个月）</div>
+    <!-- 内容区 -->
+    <div class="p-insights__content">
+      <!-- 历史列表 -->
+      <div class="p-insights__history">
+        <div class="p-insights__history-header">
+          <h3 class="p-insights__history-title">
+            <i class="fas fa-history"></i>
+            历史月报（保留 24 个月）
+          </h3>
         </div>
-        <div class="history-actions">
-          <button id="insights-export" class="btn-secondary"><i class="fas fa-file-export"></i>&nbsp;导出</button>
-          <button id="insights-delete-selected" class="btn-danger" disabled><i class="fas fa-trash-alt"></i>&nbsp;删除所选</button>
-          <button id="insights-refresh-history" class="btn-ghost"><i class="fas fa-sync-alt"></i>&nbsp;刷新历史</button>
+        <div class="p-insights__history-actions">
+          <button id="insights-export" class="c-button c-button--sm c-button--primary">
+            <i class="fas fa-file-export"></i>
+            导出
+          </button>
+          <button id="insights-delete-selected" class="c-button c-button--sm c-button--danger" disabled>
+            <i class="fas fa-trash-alt"></i>
+            删除所选
+          </button>
+          <button id="insights-refresh-history" class="c-button c-button--sm c-button--ghost">
+            <i class="fas fa-sync-alt"></i>
+            刷新历史
+          </button>
         </div>
-        <div id="insights-history-list" class="history-list"></div>
+        <div id="insights-history-list" class="p-insights__history-list"></div>
       </div>
-      <div class="col-right">
-        <div class="section-title"><div class="title-left"><i class="fas fa-eye"></i>&nbsp;预览</div></div>
-        <iframe id="insights-preview" style="width:100%;height:520px;border:1px solid #e5e7eb;border-radius:8px;"></iframe>
+      
+      <!-- 预览区 -->
+      <div class="p-insights__preview">
+        <div class="p-insights__preview-header">
+          <h3 class="p-insights__preview-title">
+            <i class="fas fa-eye"></i>
+            预览
+          </h3>
+        </div>
+        <iframe id="insights-preview" class="p-insights__preview-iframe" style="height:520px;"></iframe>
       </div>
     </div>
   </div>

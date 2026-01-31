@@ -135,7 +135,7 @@
                                 <div id="search-engine-list">
                                     <!-- 搜索引擎列表将由 JS 动态填充 -->
                                 </div>
-                                <button id="add-search-engine" class="button-like">
+                                <button id="add-search-engine" class="c-btn c-btn--primary">
                                     <i class="fas fa-plus"></i> 添加新的搜索引擎
                                 </button>
                             </div>
@@ -414,11 +414,11 @@
                                     <p class="section-description">测试同步配置是否正确。</p>
 
                                     <div class="button-group">
-                                        <button type="button" id="testActorSyncConnection" class="button-like" style="background-color: #17a2b8;">
+                                        <button type="button" id="testActorSyncConnection" class="c-btn c-btn--info" style="background-color: #17a2b8;">
                                             <i class="fas fa-network-wired"></i>
                                             测试演员同步连接
                                         </button>
-                                        <button type="button" id="testActorSyncParsing" class="button-like" style="background-color: #28a745;">
+                                        <button type="button" id="testActorSyncParsing" class="c-btn c-btn--success" style="background-color: #28a745;">
                                             <i class="fas fa-code"></i>
                                             测试演员数据解析
                                         </button>
@@ -430,7 +430,7 @@
                                 <!-- 保存按钮 -->
                                 <div class="form-section">
                                     <div class="button-group">
-                                        <button type="button" id="saveSyncSettings" class="button-like">
+                                        <button type="button" id="saveSyncSettings" class="c-btn c-btn--primary">
                                             <i class="fas fa-save"></i>
                                             保存同步设置
                                         </button>
@@ -663,7 +663,7 @@
                                             <i class="fas fa-link icon"></i>
                                             <input type="text" id="ping-url" placeholder="例如: https://javdb.com" value="https://javdb.com">
                                         </div>
-                                        <button id="start-ping-test" class="button-like">
+                                        <button id="start-ping-test" class="c-btn c-btn--primary">
                                             <span class="button-text">开始测试</span>
                                             <div class="spinner hidden"></div>
                                         </button>
@@ -699,20 +699,20 @@
 
                                     <!-- 批量测试控制按钮 -->
                                     <div class="batch-test-controls">
-                                        <button id="test-all-domains" class="button-like primary">
+                                        <button id="test-all-domains" class="c-btn c-btn--primary">
                                             <i class="fas fa-play"></i>
                                             <span class="button-text">测试所有域名</span>
                                             <div class="spinner hidden"></div>
                                         </button>
-                                        <button id="test-core-domains" class="button-like secondary">
+                                        <button id="test-core-domains" class="c-btn c-btn--secondary">
                                             <i class="fas fa-home"></i>
                                             <span class="button-text">仅测试核心服务</span>
                                         </button>
-                                        <button id="toggle-domain-config" class="button-like secondary">
+                                        <button id="toggle-domain-config" class="c-btn c-btn--secondary">
                                             <i class="fas fa-cog"></i>
                                             <span class="button-text">配置域名</span>
                                         </button>
-                                        <button id="clear-batch-results" class="button-like tertiary">
+                                        <button id="clear-batch-results" class="c-btn c-btn--outline">
                                             <i class="fas fa-trash"></i>
                                             <span class="button-text">清空结果</span>
                                         </button>
@@ -728,9 +728,9 @@
                                             <!-- 动态生成的域名配置项 -->
                                         </div>
                                         <div class="config-actions">
-                                            <button id="select-all-domains" class="button-like small secondary">全选</button>
-                                            <button id="deselect-all-domains" class="button-like small secondary">全不选</button>
-                                            <button id="reset-default-domains" class="button-like small tertiary">恢复默认</button>
+                                            <button id="select-all-domains" class="c-btn c-btn--sm c-btn--secondary">全选</button>
+                                            <button id="deselect-all-domains" class="c-btn c-btn--sm c-btn--secondary">全不选</button>
+                                            <button id="reset-default-domains" class="c-btn c-btn--sm c-btn--outline">恢复默认</button>
                                         </div>
                                     </div>
 
@@ -801,7 +801,7 @@
                                                 <div class="form-group-inline">
                                                     <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
                                                     
-                                                    <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
+                                                    <button id="drive115V2ManualRefresh" class="c-btn c-btn--primary">手动刷新 access_token</button>
                                                 </div>
                                                 <p class="input-description">点击“手动刷新”会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
                                             </div>
@@ -852,7 +852,7 @@
                                                 <p class="input-description">填写 115 目录 ID（wp_path_id/cid）。留空或 0 表示根目录。</p>
                                             </div>
                                             <div class="form-group">
-                                                <button id="drive115V2AddUrlsBtn" class="button-like">添加云下载任务</button>
+                                                <button id="drive115V2AddUrlsBtn" class="c-btn c-btn--primary">添加云下载任务</button>
                                                 <span id="drive115V2AddUrlsStatus" class="input-description" style="margin-left:10px; color:#888;"></span>
                                             </div>
                                             <div id="drive115V2AddUrlsResult" class="test-results" style="margin-top:8px;"></div>
@@ -908,7 +908,7 @@
                                                 <label for="testSearchInput">测试搜索:</label>
                                                 <div class="form-group-inline">
                                                     <input type="text" id="testSearchInput" placeholder="输入番号或关键词">
-                                                    <button id="testDrive115Search" class="button-like">测试搜索</button>
+                                                    <button id="testDrive115Search" class="c-btn c-btn--primary">测试搜索</button>
                                                 </div>
                                                 <p class="input-description">测试115网盘搜索功能是否正常工作。</p>
                                             </div>
@@ -953,7 +953,7 @@
                                     <button type="button" class="subtab-link" data-subtab="video">影片页增强</button>
                                     <button type="button" class="subtab-link" data-subtab="actor">演员页增强</button>
                                     <span style="flex:1"></span>
-                                    <button type="button" id="showOrchestratorBtn" class="button-like" title="查看当前页面功能编排">编排可视化</button>
+                                    <button type="button" id="showOrchestratorBtn" class="c-btn c-btn--secondary" title="查看当前页面功能编排">编排可视化</button>
                                 </div>
 
 

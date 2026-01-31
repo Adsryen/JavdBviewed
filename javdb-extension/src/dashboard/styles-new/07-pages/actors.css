@@ -1,0 +1,115 @@
+/* ===================================================================
+   Actors 页面样式 - 演员库
+   ================================================================ */
+
+.p-actors {
+  /* 使用 c-card 组件 */
+}
+
+.p-actors__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.p-actors__search-group {
+  display: flex;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 300px;
+}
+
+.p-actors__search {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.p-actors__search:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--ring);
+}
+
+.p-actors__filter {
+  min-width: 150px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.p-actors__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.p-actors__item {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.p-actors__item:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+.p-actors__avatar {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+}
+
+.p-actors__info {
+  padding: var(--space-3);
+}
+
+.p-actors__name {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.p-actors__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.p-actors__count {
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
+}
+
+.p-actors__pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-6);
+}

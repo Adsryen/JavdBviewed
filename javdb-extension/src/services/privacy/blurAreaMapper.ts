@@ -117,11 +117,11 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
     
     'home-page': [
         // === 首页统计数字 ===
-        '.stat-value',                     // 统计数值
-        '.home-stats .stat-value',         // 数据概览中的统计数值
-        '#homeRecordsStatsContainer .stat-value',  // 番号库统计数值
-        '#homeActorsStatsContainer .stat-value',   // 演员库统计数值
-        '#homeNewWorksStatsContainer .stat-value', // 新作品统计数值
+        '.p-home__stat-value',                     // 统计数值
+        '.p-home__stats .p-home__stat-value',      // 数据概览中的统计数值
+        '#homeRecordsStatsContainer .p-home__stat-value',  // 番号库统计数值
+        '#homeActorsStatsContainer .p-home__stat-value',   // 演员库统计数值
+        '#homeNewWorksStatsContainer .p-home__stat-value', // 新作品统计数值
         
         // === 标签Top50图表中的标签名称 ===
         // ECharts会在canvas旁边生成SVG或HTML元素显示文本

@@ -680,11 +680,11 @@ export function bindHomeRefreshButton(): void {
   btn.addEventListener('click', async () => {
     try {
       btn.disabled = true;
-      btn.classList.add('loading');
+      btn.classList.add('is-loading');
       await refreshHomeOverview();
     } finally {
       btn.disabled = false;
-      btn.classList.remove('loading');
+      btn.classList.remove('is-loading');
     }
   });
   (btn as any)._bound = true;

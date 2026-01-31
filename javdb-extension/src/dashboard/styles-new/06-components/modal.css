@@ -2,8 +2,8 @@
    Modal 组件
    ================================================================ */
 
-/* 遮罩层 */
-.c-modal-overlay {
+/* 遮罩层 - BEM 命名 */
+.c-modal__overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -28,8 +28,8 @@
   }
 }
 
-/* Modal 容器 */
-.c-modal {
+/* Modal 容器 - BEM 命名 */
+.c-modal__content {
   position: relative;
   z-index: var(--z-modal);
   
@@ -40,6 +40,9 @@
   background: var(--surface-primary);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
+  
+  display: flex;
+  flex-direction: column;
   
   animation: c-modal-slide-up var(--transition-base) var(--ease-out);
 }
@@ -56,19 +59,19 @@
 }
 
 /* Modal 尺寸修饰符 */
-.c-modal--sm {
+.c-modal__content--sm {
   max-width: 400px;
 }
 
-.c-modal--lg {
+.c-modal__content--lg {
   max-width: 700px;
 }
 
-.c-modal--xl {
+.c-modal__content--xl {
   max-width: 900px;
 }
 
-.c-modal--full {
+.c-modal__content--full {
   width: 95%;
   max-width: 1200px;
   max-height: 95vh;
@@ -83,6 +86,7 @@
   
   padding: var(--space-6);
   border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
 }
 
 .c-modal__title {
@@ -105,6 +109,8 @@
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
   
   cursor: pointer;
   transition: all var(--transition-fast) var(--ease-out);
@@ -119,7 +125,8 @@
 .c-modal__body {
   padding: var(--space-6);
   overflow-y: auto;
-  max-height: calc(90vh - 140px);
+  flex: 1;
+  min-height: 0;
 }
 
 /* Modal 底部 */
@@ -130,7 +137,12 @@
   gap: var(--space-3);
   
   padding: var(--space-6);
-  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+/* 隐藏状态 */
+.c-modal__overlay.hidden {
+  display: none;
 }
 
 /* 兼容旧类名 */
@@ -150,6 +162,10 @@
   animation: c-modal-fade-in var(--transition-base) var(--ease-out);
 }
 
+.modal-overlay.hidden {
+  display: none;
+}
+
 .modal-content {
   background: var(--surface-primary);
   padding: var(--space-8);
@@ -160,9 +176,72 @@
   text-align: center;
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: var(--space-4);
+}
+
+.modal-body {
+  padding: var(--space-4) 0;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+  
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-4);
   margin-top: var(--space-6);
+}
+
+/* 特殊 Modal 样式 */
+.c-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-modal-backdrop);
+  display: none;
+}
+
+.c-modal.active {
+  display: block;
 }

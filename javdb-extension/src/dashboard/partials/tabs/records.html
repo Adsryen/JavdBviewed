@@ -1,22 +1,22 @@
-<div class="card">
+<div class="c-card">
     <!-- 番号库统计信息 -->
-    <div class="stats-section">
-        <h4>番号库概览</h4>
-        <div id="recordsStatsContainer" class="stats-grid">
+    <div class="p-records__stats">
+        <h4 class="p-records__title">番号库概览</h4>
+        <div id="recordsStatsContainer" class="p-records__stats-grid">
             <!-- 统计信息将由 JS 动态填充 -->
         </div>
     </div>
 
-    <div class="search-and-filter records-toolbar">
-        <div class="search-row">
-            <select id="filterSelect">
+    <div class="p-records__toolbar">
+        <div class="p-records__toolbar-row">
+            <select id="filterSelect" class="c-form__select">
                 <option value="all">所有状态</option>
                 <option value="untracked">未标记</option>
                 <option value="viewed">已观看</option>
                 <option value="browsed">已浏览</option>
                 <option value="want">我想看</option>
             </select>
-            <select id="sortSelect">
+            <select id="sortSelect" class="c-form__select">
                 <option value="updatedAt_desc">按更新时间排序 (最新)</option>
                 <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
                 <option value="createdAt_desc">按创建时间排序 (最新)</option>
@@ -24,16 +24,16 @@
                 <option value="id_asc">按番号排序 (A-Z)</option>
                 <option value="id_desc">按番号排序 (Z-A)</option>
             </select>
-            <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">高级搜索</button>
-            <button id="toggleCoversBtn" class="button-like" title="显示/隐藏封面">
+            <button id="advancedSearchToggle" class="c-btn c-btn--secondary" title="显示/隐藏高级搜索">高级搜索</button>
+            <button id="toggleCoversBtn" class="c-btn c-btn--secondary" title="显示/隐藏封面">
                 <i class="fas fa-image"></i> 显示封面
             </button>
-            <button id="exportRecordsBtn" class="button-like" title="导出番号数据">
+            <button id="exportRecordsBtn" class="c-btn c-btn--secondary" title="导出番号数据">
                 <i class="fas fa-download"></i> 导出数据
             </button>
-            <div class="records-per-page-selector" style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;">
+            <div class="p-records__page-size" style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;">
                 <label for="recordsPerPageSelect">每页显示:</label>
-                <select id="recordsPerPageSelect">
+                <select id="recordsPerPageSelect" class="c-form__select">
                     <option value="10">10</option>
                     <option value="20">20</option>
                     <option value="50">50</option>
@@ -41,48 +41,49 @@
                 </select>
             </div>
         </div>
-        <div class="filter-row">
-            <div class="tags-filter-container">
-                <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
-                <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
-                    <div class="tags-search-box">
-                        <input type="text" id="tagsSearchInput" placeholder="输入标签名称...">
+        <div class="p-records__filter-row">
+            <div class="p-records__tags-filter">
+                <input type="text" id="tagsFilterInput" class="c-form__input" placeholder="搜索标签..." readonly>
+                <div id="tagsFilterDropdown" class="p-records__tags-dropdown" style="display: none;">
+                    <div class="p-records__tags-search">
+                        <input type="text" id="tagsSearchInput" class="c-form__input" placeholder="输入标签名称...">
                     </div>
-                    <div id="tagsFilterList" class="tags-list">
+                    <div id="tagsFilterList" class="p-records__tags-list">
                         <!-- 标签列表将由 JS 动态填充 -->
                     </div>
                 </div>
-                <div id="selectedTagsContainer" class="selected-tags">
+                <div id="selectedTagsContainer" class="p-records__selected-tags">
                     <!-- 已选择的标签将由 JS 动态填充 -->
                 </div>
             </div>
-            <div class="tags-filter-container">
-                <input type="text" id="listsFilterInput" placeholder="筛选清单..." readonly>
-                <div id="listsFilterDropdown" class="tags-dropdown" style="display: none;">
-                    <div class="tags-search-box">
-                        <input type="text" id="listsSearchInput" placeholder="输入清单名称...">
+            <div class="p-records__tags-filter">
+                <input type="text" id="listsFilterInput" class="c-form__input" placeholder="筛选清单..." readonly>
+                <div id="listsFilterDropdown" class="p-records__tags-dropdown" style="display: none;">
+                    <div class="p-records__tags-search">
+                        <input type="text" id="listsSearchInput" class="c-form__input" placeholder="输入清单名称...">
                     </div>
-                    <div id="listsFilterList" class="tags-list">
+                    <div id="listsFilterList" class="p-records__tags-list">
                         <!-- 清单列表将由 JS 动态填充 -->
                     </div>
                 </div>
-                <div id="selectedListsContainer" class="selected-tags">
+                <div id="selectedListsContainer" class="p-records__selected-tags">
                     <!-- 已选择的清单将由 JS 动态填充 -->
                 </div>
             </div>
-            <div class="search-input-wrapper">
+            <div class="p-records__search-wrapper">
                 <input
                     type="text"
                     id="searchInput"
+                    class="c-form__input"
                     placeholder="搜索番号/标题/标签… 支持标签：tag:/#；多标签用 空格/逗号/分号 分隔。例：tag:中出,素人 #人妻"
                 >
-                <div id="searchSuggest" class="search-suggest" style="display:none"></div>
-                <button type="button" class="search-help" aria-label="高级用法">
+                <div id="searchSuggest" class="p-records__search-suggest" style="display:none"></div>
+                <button type="button" class="p-records__search-help" aria-label="高级用法">
                     <i class="fas fa-question-circle"></i>
                 </button>
-                <div class="search-help-popover" role="tooltip">
-                    <div class="help-title">高级用法</div>
-                    <ul class="help-list">
+                <div class="p-records__help-popover" role="tooltip">
+                    <div class="p-records__help-title">高级用法</div>
+                    <ul class="p-records__help-list">
                         <li>标签：如 <b>tag:中出</b>、<b>tags:中出,素人</b>、<b>#人妻</b></li>
                         <li>清单：如 <b>list:精选</b>、<b>listid:VwR3aD</b>（会自动同步到清单筛选）</li>
                         <li>多标签 AND：空格/逗号/分号 分隔</li>
@@ -96,53 +97,53 @@
     </div>
 
     <!-- 高级搜索面板 -->
-    <div id="advancedSearchPanel" class="advanced-search-panel" style="display:none; margin-top: 10px;">
-        <div class="adv-controls">
-            <button id="addConditionBtn" class="button-like"><i class="fas fa-plus"></i> 添加条件</button>
-            <button id="applyConditionsBtn" class="button-like"><i class="fas fa-check"></i> 应用</button>
-            <button id="resetConditionsBtn" class="button-like"><i class="fas fa-undo"></i> 重置</button>
+    <div id="advancedSearchPanel" class="p-records__advanced-search" style="display:none; margin-top: 10px;">
+        <div class="p-records__adv-controls">
+            <button id="addConditionBtn" class="c-btn c-btn--secondary"><i class="fas fa-plus"></i> 添加条件</button>
+            <button id="applyConditionsBtn" class="c-btn c-btn--primary"><i class="fas fa-check"></i> 应用</button>
+            <button id="resetConditionsBtn" class="c-btn c-btn--secondary"><i class="fas fa-undo"></i> 重置</button>
         </div>
         <!-- 已移除：高级搜索方案（保存/载入/删除）-->
-        <div class="adv-quicktime" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+        <div class="p-records__quicktime" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
             <label>相对时间：</label>
-            <select id="quickTimeField">
+            <select id="quickTimeField" class="c-form__select">
                 <option value="createdAt">创建时间</option>
                 <option value="updatedAt">更新时间</option>
             </select>
             <label>最近</label>
-            <input type="number" id="quickTimeValue" placeholder="N" min="1" value="7" style="width:80px;">
-            <select id="quickTimeUnit">
+            <input type="number" id="quickTimeValue" class="c-form__input" placeholder="N" min="1" value="7" style="width:80px;">
+            <select id="quickTimeUnit" class="c-form__select">
                 <option value="days">天</option>
                 <option value="hours">小时</option>
             </select>
-            <button id="addQuickTimeBtn" class="button-like"><i class="fas fa-plus-circle"></i> 添加快捷条件</button>
-            <span id="quickTimePreview" class="quicktime-preview" title="预览将添加的条件" style="opacity:.8;"></span>
+            <button id="addQuickTimeBtn" class="c-btn c-btn--secondary"><i class="fas fa-plus-circle"></i> 添加快捷条件</button>
+            <span id="quickTimePreview" class="p-records__quicktime-preview" title="预览将添加的条件" style="opacity:.8;"></span>
         </div>
-        <div id="advConditions" class="adv-conditions-list">
+        <div id="advConditions" class="p-records__conditions-list">
             <!-- 条件行将由 JS 动态添加 -->
         </div>
         <div class="adv-hint">提示：可添加多个条件，所有条件将以“并且(AND)”的方式组合。选择“非空/为空”时无需输入比较值。</div>
     </div>
 
     <!-- 批量操作控件 -->
-    <div class="batch-operations" id="batchOperations" style="display: none;">
-        <div class="batch-selection">
-            <label class="batch-select-all">
-                <input type="checkbox" id="selectAllCheckbox">
+    <div class="p-records__batch-ops" id="batchOperations" style="display: none;">
+        <div class="p-records__batch-selection">
+            <label class="p-records__batch-select-all">
+                <input type="checkbox" id="selectAllCheckbox" class="c-form__checkbox">
                 <span>全选</span>
             </label>
-            <span class="selected-count" id="selectedCount">已选择 0 项</span>
+            <span class="p-records__selected-count" id="selectedCount">已选择 0 项</span>
         </div>
-        <div class="batch-actions">
-            <button class="batch-btn refresh-btn" id="batchRefreshBtn" disabled>
+        <div class="p-records__batch-actions">
+            <button class="c-btn c-btn--primary" id="batchRefreshBtn" disabled>
                 <i class="fas fa-sync-alt"></i>
                 批量刷新
             </button>
-            <button class="batch-btn delete-btn" id="batchDeleteBtn" disabled>
+            <button class="c-btn c-btn--danger" id="batchDeleteBtn" disabled>
                 <i class="fas fa-trash"></i>
                 批量删除
             </button>
-            <button class="batch-btn cancel-btn" id="cancelBatchBtn">
+            <button class="c-btn c-btn--secondary" id="cancelBatchBtn">
                 <i class="fas fa-times"></i>
                 取消选择
             </button>
@@ -150,17 +151,17 @@
     </div>
 
     <!-- 搜索结果数量显示 -->
-    <div id="searchResultCount" class="search-result-count" style="display: none;">
+    <div id="searchResultCount" class="p-records__result-count" style="display: none;">
         <!-- 搜索结果数量将由 JS 动态填充 -->
     </div>
 
-    <div class="video-list-container">
-        <ul id="videoList">
+    <div class="p-records__list-container">
+        <ul id="videoList" class="p-records__list">
             <!-- 视频列表将由 JS 动态填充 -->
         </ul>
     </div>
-    <div class="pagination-controls">
-        <div class="pagination">
+    <div class="c-pagination-controls">
+        <div class="c-pagination">
             <!-- 分页控件将由 JS 动态填充 -->
         </div>
     </div>

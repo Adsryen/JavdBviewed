@@ -70,15 +70,15 @@ export async function initHomeSectionsOverview(): Promise<void> {
         const browsed = s.byStatus?.browsed ?? 0;
         const want = s.byStatus?.want ?? 0;
         recordsBox.innerHTML = `
-                    <div class="stat-item" data-stat="total"><span class="stat-label">总记录</span><span class="stat-value">${total}</span></div>
-                    <div class="stat-item" data-stat="viewed"><span class="stat-label">已观看</span><span class="stat-value">${viewed}</span></div>
-                    <div class="stat-item" data-stat="browsed"><span class="stat-label">已浏览</span><span class="stat-value">${browsed}</span></div>
-                    <div class="stat-item" data-stat="want"><span class="stat-label">想看</span><span class="stat-value">${want}</span></div>
-                    <div class="stat-item" data-stat="last7"><span class="stat-label">近7天新增</span><span class="stat-value">${s.last7Days ?? 0}</span></div>
-                    <div class="stat-item" data-stat="last30"><span class="stat-label">近30天新增</span><span class="stat-value">${s.last30Days ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="total"><span class="p-home__stat-label">总记录</span><span class="p-home__stat-value">${total}</span></div>
+                    <div class="p-home__stat-item" data-stat="viewed"><span class="p-home__stat-label">已观看</span><span class="p-home__stat-value">${viewed}</span></div>
+                    <div class="p-home__stat-item" data-stat="browsed"><span class="p-home__stat-label">已浏览</span><span class="p-home__stat-value">${browsed}</span></div>
+                    <div class="p-home__stat-item" data-stat="want"><span class="p-home__stat-label">想看</span><span class="p-home__stat-value">${want}</span></div>
+                    <div class="p-home__stat-item" data-stat="last7"><span class="p-home__stat-label">近7天新增</span><span class="p-home__stat-value">${s.last7Days ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="last30"><span class="p-home__stat-label">近30天新增</span><span class="p-home__stat-value">${s.last30Days ?? 0}</span></div>
                 `;
       } catch (e) {
-        recordsBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+        recordsBox.innerHTML = '<div class="p-home__stat-item"><span class="p-home__stat-label">加载失败</span><span class="p-home__stat-value">-</span></div>';
       }
     }
 
@@ -93,18 +93,18 @@ export async function initHomeSectionsOverview(): Promise<void> {
         const censored = a.byCategory?.censored ?? 0;
         const uncensored = a.byCategory?.uncensored ?? 0;
         actorsBox.innerHTML = `
-                    <div class="stat-item" data-stat="total"><span class="stat-label">总演员数</span><span class="stat-value">${a.total ?? 0}</span></div>
-                    <div class="stat-item" data-stat="female"><span class="stat-label">女性</span><span class="stat-value">${female}</span></div>
-                    <div class="stat-item" data-stat="male"><span class="stat-label">男性</span><span class="stat-value">${male}</span></div>
-                    <div class="stat-item" data-stat="unknown"><span class="stat-label">未知</span><span class="stat-value">${unknown}</span></div>
-                    <div class="stat-item" data-stat="censored"><span class="stat-label">有码</span><span class="stat-value">${censored}</span></div>
-                    <div class="stat-item" data-stat="uncensored"><span class="stat-label">无码</span><span class="stat-value">${uncensored}</span></div>
-                    <div class="stat-item" data-stat="blacklisted"><span class="stat-label">黑名单</span><span class="stat-value">${a.blacklisted ?? 0}</span></div>
-                    <div class="stat-item" data-stat="recentlyAdded"><span class="stat-label">最近新增</span><span class="stat-value">${a.recentlyAdded ?? 0}</span></div>
-                    <div class="stat-item" data-stat="recentlyUpdated"><span class="stat-label">最近更新</span><span class="stat-value">${a.recentlyUpdated ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="total"><span class="p-home__stat-label">总演员数</span><span class="p-home__stat-value">${a.total ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="female"><span class="p-home__stat-label">女性</span><span class="p-home__stat-value">${female}</span></div>
+                    <div class="p-home__stat-item" data-stat="male"><span class="p-home__stat-label">男性</span><span class="p-home__stat-value">${male}</span></div>
+                    <div class="p-home__stat-item" data-stat="unknown"><span class="p-home__stat-label">未知</span><span class="p-home__stat-value">${unknown}</span></div>
+                    <div class="p-home__stat-item" data-stat="censored"><span class="p-home__stat-label">有码</span><span class="p-home__stat-value">${censored}</span></div>
+                    <div class="p-home__stat-item" data-stat="uncensored"><span class="p-home__stat-label">无码</span><span class="p-home__stat-value">${uncensored}</span></div>
+                    <div class="p-home__stat-item" data-stat="blacklisted"><span class="p-home__stat-label">黑名单</span><span class="p-home__stat-value">${a.blacklisted ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="recentlyAdded"><span class="p-home__stat-label">最近新增</span><span class="p-home__stat-value">${a.recentlyAdded ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="recentlyUpdated"><span class="p-home__stat-label">最近更新</span><span class="p-home__stat-value">${a.recentlyUpdated ?? 0}</span></div>
                 `;
       } catch (e) {
-        actorsBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+        actorsBox.innerHTML = '<div class="p-home__stat-item"><span class="p-home__stat-label">加载失败</span><span class="p-home__stat-value">-</span></div>';
       }
     }
 
@@ -114,13 +114,13 @@ export async function initHomeSectionsOverview(): Promise<void> {
       try {
         const w = await dbNewWorksStats();
         worksBox.innerHTML = `
-                    <div class="stat-item" data-stat="total"><span class="stat-label">总记录</span><span class="stat-value">${w.total ?? 0}</span></div>
-                    <div class="stat-item" data-stat="unread"><span class="stat-label">未读</span><span class="stat-value">${w.unread ?? 0}</span></div>
-                    <div class="stat-item" data-stat="today"><span class="stat-label">今日发现</span><span class="stat-value">${w.today ?? 0}</span></div>
-                    <div class="stat-item" data-stat="week"><span class="stat-label">本周发现</span><span class="stat-value">${w.week ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="total"><span class="p-home__stat-label">总记录</span><span class="p-home__stat-value">${w.total ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="unread"><span class="p-home__stat-label">未读</span><span class="p-home__stat-value">${w.unread ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="today"><span class="p-home__stat-label">今日发现</span><span class="p-home__stat-value">${w.today ?? 0}</span></div>
+                    <div class="p-home__stat-item" data-stat="week"><span class="p-home__stat-label">本周发现</span><span class="p-home__stat-value">${w.week ?? 0}</span></div>
                 `;
       } catch (e) {
-        worksBox.innerHTML = '<div class="stat-item"><span class="stat-label">加载失败</span><span class="stat-value">-</span></div>';
+        worksBox.innerHTML = '<div class="p-home__stat-item"><span class="p-home__stat-label">加载失败</span><span class="p-home__stat-value">-</span></div>';
       }
     }
   } catch (e) {

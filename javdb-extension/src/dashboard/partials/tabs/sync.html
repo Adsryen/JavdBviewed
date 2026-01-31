@@ -1,9 +1,9 @@
-<div class="card">
+<div class="c-card">
   <!-- 登录状态提示 -->
-  <div id="sync-login-notice" class="sync-login-notice" style="display: none;">
-    <div class="notice-content">
-      <i class="fas fa-info-circle notice-icon"></i>
-      <div class="notice-text">
+  <div id="sync-login-notice" class="p-sync__login-notice" style="display: none;">
+    <div class="p-sync__notice-content">
+      <i class="fas fa-info-circle p-sync__notice-icon"></i>
+      <div class="p-sync__notice-text">
         <h5>需要登录才能使用数据同步功能</h5>
         <p>请在左侧账号信息区域登录您的 JavDB 账号</p>
       </div>
@@ -11,128 +11,128 @@
   </div>
 
   <!-- 数据同步区域 -->
-  <div id="data-sync-section-main" class="data-sync-section">
-    <h4>数据同步</h4>
-    <p class="section-description">将您在 JavDB 的观看记录、想看列表同步到本地，方便离线管理和搜索。</p>
+  <div id="data-sync-section-main" class="p-sync__section">
+    <h4 class="p-sync__title">数据同步</h4>
+    <p class="p-sync__description">将您在 JavDB 的观看记录、想看列表同步到本地，方便离线管理和搜索。</p>
 
     <!-- 同步选项 -->
-    <div class="sync-options-grid">
-      <div class="sync-option-card" style="--card-index: 0">
-        <div class="sync-option-header">
-          <i class="fas fa-sync-alt sync-option-icon"></i>
-          <h5>同步全部数据</h5>
+    <div class="p-sync__options-grid">
+      <div class="p-sync__option-card" style="--card-index: 0">
+        <div class="p-sync__option-header">
+          <i class="fas fa-sync-alt p-sync__option-icon"></i>
+          <h5 class="p-sync__option-title">同步全部数据</h5>
         </div>
-        <p class="sync-option-description">同步所有观看记录和想看列表到本地</p>
-        <div class="sync-option-actions">
-          <button id="syncAllData" class="sync-btn sync-btn-primary" data-sync-type="all">
+        <p class="p-sync__option-description">同步所有观看记录和想看列表到本地</p>
+        <div class="p-sync__option-actions">
+          <button id="syncAllData" class="c-btn c-btn--primary" data-sync-type="all">
             <i class="fas fa-sync-alt"></i>
             <span>开始同步</span>
           </button>
         </div>
-        <div class="sync-option-stats">
-          <span class="stat-item">已观看 + 想看</span>
+        <div class="p-sync__option-stats">
+          <span class="p-sync__stat-item">已观看 + 想看</span>
         </div>
       </div>
 
-      <div class="sync-option-card" style="--card-index: 1">
-        <div class="sync-option-header">
-          <i class="fas fa-heart sync-option-icon"></i>
-          <h5>同步想看列表</h5>
+      <div class="p-sync__option-card" style="--card-index: 1">
+        <div class="p-sync__option-header">
+          <i class="fas fa-heart p-sync__option-icon"></i>
+          <h5 class="p-sync__option-title">同步想看列表</h5>
         </div>
-        <p class="sync-option-description">仅同步想看列表中的视频</p>
-        <div class="sync-option-actions">
-          <button id="syncWantData" class="sync-btn sync-btn-secondary" data-sync-type="want">
+        <p class="p-sync__option-description">仅同步想看列表中的视频</p>
+        <div class="p-sync__option-actions">
+          <button id="syncWantData" class="c-btn c-btn--secondary" data-sync-type="want">
             <i class="fas fa-heart"></i>
             <span>同步想看</span>
           </button>
         </div>
-        <div class="sync-option-stats">
-          <span class="stat-item">想看列表</span>
+        <div class="p-sync__option-stats">
+          <span class="p-sync__stat-item">想看列表</span>
         </div>
       </div>
 
-      <div class="sync-option-card" style="--card-index: 2">
-        <div class="sync-option-header">
-          <i class="fas fa-eye sync-option-icon"></i>
-          <h5>同步观看记录</h5>
+      <div class="p-sync__option-card" style="--card-index: 2">
+        <div class="p-sync__option-header">
+          <i class="fas fa-eye p-sync__option-icon"></i>
+          <h5 class="p-sync__option-title">同步观看记录</h5>
         </div>
-        <p class="sync-option-description">仅同步已观看的视频记录</p>
-        <div class="sync-option-actions">
-          <button id="syncWatchedData" class="sync-btn sync-btn-secondary" data-sync-type="watched">
+        <p class="p-sync__option-description">仅同步已观看的视频记录</p>
+        <div class="p-sync__option-actions">
+          <button id="syncWatchedData" class="c-btn c-btn--secondary" data-sync-type="watched">
             <i class="fas fa-eye"></i>
             <span>同步已看</span>
           </button>
         </div>
-        <div class="sync-option-stats">
-          <span class="stat-item">观看记录</span>
+        <div class="p-sync__option-stats">
+          <span class="p-sync__stat-item">观看记录</span>
         </div>
       </div>
 
-      <div class="sync-option-card" style="--card-index: 3">
-        <div class="sync-option-header">
-          <i class="fas fa-users sync-option-icon"></i>
-          <h5>同步收藏演员</h5>
+      <div class="p-sync__option-card" style="--card-index: 3">
+        <div class="p-sync__option-header">
+          <i class="fas fa-users p-sync__option-icon"></i>
+          <h5 class="p-sync__option-title">同步收藏演员</h5>
         </div>
-        <p class="sync-option-description">同步您收藏的演员信息到本地演员库</p>
-        <div class="sync-option-actions">
-          <button id="syncActorsData" class="sync-btn sync-btn-secondary" data-sync-type="actors">
+        <p class="p-sync__option-description">同步您收藏的演员信息到本地演员库</p>
+        <div class="p-sync__option-actions">
+          <button id="syncActorsData" class="c-btn c-btn--secondary" data-sync-type="actors">
             <i class="fas fa-users"></i>
             <span>同步演员基本信息</span>
-            <small class="sync-btn-note">快速同步，不包含性别</small>
+            <small class="p-sync__btn-note">快速同步，不包含性别</small>
           </button>
-          <button id="syncActorsGender" class="sync-btn sync-btn-tertiary" data-sync-type="actors-gender">
+          <button id="syncActorsGender" class="c-btn c-btn--tertiary" data-sync-type="actors-gender">
             <i class="fas fa-venus-mars"></i>
             <span>更新演员性别</span>
-            <small class="sync-btn-note">需要额外时间</small>
+            <small class="p-sync__btn-note">需要额外时间</small>
           </button>
         </div>
-        <div class="sync-option-stats">
-          <span class="stat-item">收藏演员</span>
-          <span class="stat-item" id="actorGenderStats">性别待更新</span>
+        <div class="p-sync__option-stats">
+          <span class="p-sync__stat-item">收藏演员</span>
+          <span class="p-sync__stat-item" id="actorGenderStats">性别待更新</span>
         </div>
       </div>
     </div>
 
     <!-- 同步进度 -->
-    <div id="syncProgress" class="sync-progress-container" style="display: none;">
-      <div class="progress-section">
+    <div id="syncProgress" class="p-sync__progress-container" style="display: none;">
+      <div class="p-sync__progress-section">
         <h5>同步进度</h5>
 
         <!-- 页面获取进度 -->
-        <div class="progress-stage" id="pagesProgress" style="display: none;">
-          <div class="progress-header">
-            <div class="progress-label">获取列表页面</div>
-            <div class="progress-percentage" id="pagesProgressPercentage">0%</div>
+        <div class="p-sync__progress-stage" id="pagesProgress" style="display: none;">
+          <div class="p-sync__progress-header">
+            <div class="p-sync__progress-label">获取列表页面</div>
+            <div class="p-sync__progress-percentage" id="pagesProgressPercentage">0%</div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="pagesProgressFill"></div>
+          <div class="c-progress__bar">
+            <div class="c-progress__fill" id="pagesProgressFill"></div>
           </div>
-          <span class="progress-text" id="pagesProgressText">准备获取...</span>
+          <span class="p-sync__progress-text" id="pagesProgressText">准备获取...</span>
         </div>
 
         <!-- 详情获取进度 -->
-        <div class="progress-stage" id="detailsProgress" style="display: none;">
-          <div class="progress-header">
-            <div class="progress-label">获取视频详情</div>
-            <div class="progress-percentage" id="detailsProgressPercentage">0%</div>
+        <div class="p-sync__progress-stage" id="detailsProgress" style="display: none;">
+          <div class="p-sync__progress-header">
+            <div class="p-sync__progress-label">获取视频详情</div>
+            <div class="p-sync__progress-percentage" id="detailsProgressPercentage">0%</div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="detailsProgressFill"></div>
+          <div class="c-progress__bar">
+            <div class="c-progress__fill" id="detailsProgressFill"></div>
           </div>
-          <span class="progress-text" id="detailsProgressText">等待开始...</span>
+          <span class="p-sync__progress-text" id="detailsProgressText">等待开始...</span>
           
           <!-- 已获取影片列表 -->
-          <div class="fetched-videos-container" id="fetchedVideosContainer" style="display: none;">
-            <div class="fetched-videos-header">已获取影片</div>
-            <div class="fetched-videos-list" id="fetchedVideosList">
+          <div class="p-sync__fetched-videos" id="fetchedVideosContainer" style="display: none;">
+            <div class="p-sync__fetched-videos-header">已获取影片</div>
+            <div class="p-sync__fetched-videos-list" id="fetchedVideosList">
               <!-- 动态添加影片项 -->
             </div>
           </div>
         </div>
 
         <!-- 取消按钮 -->
-        <div class="progress-controls">
-          <button class="cancel-sync-btn" id="cancelSyncBtn" title="取消同步">
+        <div class="p-sync__progress-controls">
+          <button class="c-btn c-btn--danger" id="cancelSyncBtn" title="取消同步">
             <i class="fas fa-times"></i> 取消同步
           </button>
         </div>
@@ -140,7 +140,7 @@
     </div>
 
     <!-- 同步结果 -->
-    <div id="syncResult" class="sync-result" style="display: none;">
+    <div id="syncResult" class="p-sync__result" style="display: none;">
       <i class="fas fa-check-circle"></i>
       <span>同步完成</span>
     </div>

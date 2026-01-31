@@ -1,26 +1,26 @@
-<div class="card">
-  <div class="lists-header">
-    <h4>清单</h4>
-    <div class="lists-actions">
-      <button id="listsRefreshBtn" class="button-like" title="刷新清单列表"><i class="fas fa-rotate"></i> 刷新</button>
-      <button id="listsGoSyncBtn" class="button-like" title="前往数据同步"><i class="fas fa-sync-alt"></i> 去同步</button>
+<div class="c-card">
+  <div class="p-lists__header">
+    <h4 class="p-lists__title">清单</h4>
+    <div class="p-lists__actions">
+      <button id="listsRefreshBtn" class="c-btn c-btn--secondary" title="刷新清单列表"><i class="fas fa-rotate"></i> 刷新</button>
+      <button id="listsGoSyncBtn" class="c-btn c-btn--secondary" title="前往数据同步"><i class="fas fa-sync-alt"></i> 去同步</button>
     </div>
   </div>
 
-  <div class="lists-search-row">
-    <input id="listsSearchInput" type="text" placeholder="搜索清单名称/ID…" />
+  <div class="p-lists__search-row">
+    <input id="listsSearchInput" type="text" class="c-form__input" placeholder="搜索清单名称/ID…" />
   </div>
 
-  <div class="lists-sections">
-    <div class="lists-section">
-      <h5>我的清单</h5>
-      <div id="listsMineContainer" class="lists-list"></div>
+  <div class="p-lists__sections">
+    <div class="p-lists__section">
+      <h5 class="p-lists__section-title">我的清单</h5>
+      <div id="listsMineContainer" class="p-lists__list"></div>
     </div>
-    <div class="lists-section">
-      <h5>收藏的清单</h5>
-      <div id="listsFavContainer" class="lists-list"></div>
+    <div class="p-lists__section">
+      <h5 class="p-lists__section-title">收藏的清单</h5>
+      <div id="listsFavContainer" class="p-lists__list"></div>
     </div>
   </div>
 
-  <div id="listsEmptyTip" class="lists-empty-tip"></div>
+  <div id="listsEmptyTip" class="p-lists__empty-tip"></div>
 </div>

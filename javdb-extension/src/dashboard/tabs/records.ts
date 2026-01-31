@@ -18,7 +18,7 @@ export function initRecordsTab(): void {
     const filterSelect = document.getElementById('filterSelect') as HTMLSelectElement;
     const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
     const videoList = document.getElementById('videoList') as HTMLUListElement;
-    const paginationContainer = document.querySelector('.pagination-controls .pagination') as HTMLElement;
+    const paginationContainer = document.querySelector('.c-pagination-controls .c-pagination') as HTMLElement;
     const recordsPerPageSelect = document.getElementById('recordsPerPageSelect') as HTMLSelectElement;
     const searchResultCount = document.getElementById('searchResultCount') as HTMLDivElement;
 
@@ -331,7 +331,7 @@ export function initRecordsTab(): void {
     // 懒加载：创建/销毁 Observer
     function setupCoverObserver(): void {
         if (coverObserver) coverObserver.disconnect();
-        const rootEl = document.querySelector('.video-list-container') as Element | null;
+        const rootEl = document.querySelector('.p-records__list-container') as Element | null;
         coverObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -1756,7 +1756,7 @@ export function initRecordsTab(): void {
                     try { if (listsFilterDropdown) listsFilterDropdown.style.display = 'none'; } catch {}
                     syncDropdownBackdrop();
                 });
-                const host = (document.querySelector('#tab-records .card') as HTMLElement | null) || document.body;
+                const host = (document.querySelector('#tab-records .c-card') as HTMLElement | null) || document.body;
                 host.appendChild(el);
                 dropdownBackdrop = el;
             }

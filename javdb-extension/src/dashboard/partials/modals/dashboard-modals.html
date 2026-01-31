@@ -1,6 +1,6 @@
   <!-- Confirmation Modal -->
-  <div id="confirmationModal" class="modal-overlay">
-      <div class="modal-content">
+  <div id="confirmationModal" class="c-modal__overlay hidden">
+      <div class="c-modal__content">
           <h3 id="modalTitle">确认操作</h3>
           <p id="modalMessage">您确定要继续吗？</p>
 
@@ -19,26 +19,26 @@
           </div>
 
           <div class="modal-actions">
-              <button id="modalCancelBtn" class="button-like">取消</button>
-              <button id="modalConfirmBtn" class="button-like danger">确认</button>
+              <button id="modalCancelBtn" class="c-btn c-btn--secondary">取消</button>
+              <button id="modalConfirmBtn" class="c-btn c-btn--danger">确认</button>
           </div>
       </div>
   </div>
 
   <!-- Orchestrator Visualization Modal -->
-  <div id="orchestratorModal" class="modal-overlay hidden">
-    <div id="orchestratorModalContent" class="modal-content" style="width:94vw; max-width: 1600px; max-height: 88vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
-      <div class="modal-header">
+  <div id="orchestratorModal" class="c-modal__overlay hidden">
+    <div id="orchestratorModalContent" class="c-modal__content" style="width:94vw; max-width: 1600px; max-height: 88vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
+      <div class="c-modal__header">
         <h3>
           <i class="fas fa-project-diagram"></i>
           功能编排可视化
         </h3>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button class="button-like" id="orchestratorFullscreenBtn" title="全屏/退出全屏">全屏</button>
-          <button class="modal-close" id="orchestratorModalClose">&times;</button>
+          <button class="c-btn c-btn--secondary" id="orchestratorFullscreenBtn" title="全屏/退出全屏">全屏</button>
+          <button class="c-modal__close" id="orchestratorModalClose">&times;</button>
         </div>
       </div>
-      <div class="modal-body" style="overflow:auto;">
+      <div class="c-modal__body" style="overflow:auto;">
         <div id="orchestratorSummary" class="settings-description" style="margin-bottom:10px;">正在读取当前页面编排信息...</div>
         <div class="orchestrator-toolbar" style="margin: 6px 0 10px 0;">
           <label>视图
@@ -78,38 +78,38 @@
           <div>
             <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span>已注册任务</span>
-              <button id="orchestratorCopyPhasesBtn" class="button-like" title="复制下方任务清单文本">复制</button>
+              <button id="orchestratorCopyPhasesBtn" class="c-btn c-btn--sm c-btn--secondary" title="复制下方任务清单文本">复制</button>
             </h4>
             <div id="orchestratorPhases" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
           </div>
           <div>
             <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span>事件时间线</span>
-              <button id="orchestratorCopyTimelineBtn" class="button-like" title="复制下方时间线文本">复制</button>
+              <button id="orchestratorCopyTimelineBtn" class="c-btn c-btn--sm c-btn--secondary" title="复制下方时间线文本">复制</button>
             </h4>
             <div id="orchestratorTimeline" class="scrollable" style="max-height:60vh; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px;"></div>
           </div>
         </div>
       </div>
-      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
-        <button id="orchestratorOpenJavdbBtn" class="button-like" title="打开一个 JavDB 标签页用于连接">打开 JavDB</button>
-        <button id="orchestratorRefreshBtn" class="button-like">
+      <div class="c-modal__footer" style="display:flex; justify-content:flex-end; gap:8px;">
+        <button id="orchestratorOpenJavdbBtn" class="c-btn c-btn--secondary" title="打开一个 JavDB 标签页用于连接">打开 JavDB</button>
+        <button id="orchestratorRefreshBtn" class="c-btn c-btn--secondary">
           <i class="fas fa-sync-alt"></i>
           刷新
         </button>
-        <button id="orchestratorCloseBtn" class="button-like">关闭</button>
+        <button id="orchestratorCloseBtn" class="c-btn c-btn--secondary">关闭</button>
       </div>
     </div>
   </div>
 
   <!-- Filter Rule Modal -->
-  <div id="filterRuleModal" class="modal-overlay hidden">
-    <div class="modal-content modal-dialog" style="max-width: 720px; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25);">
-      <div class="modal-header">
+  <div id="filterRuleModal" class="c-modal__overlay hidden">
+    <div class="c-modal__content modal-dialog" style="max-width: 720px; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25);">
+      <div class="c-modal__header">
         <h3 id="filterRuleModalTitle">添加过滤规则</h3>
-        <button class="modal-close" id="filterRuleModalClose" title="关闭">&times;</button>
+        <button class="c-modal__close" id="filterRuleModalClose" title="关闭">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="c-modal__body">
         <div class="form-group">
           <label for="modalInlineRuleName" class="form-label">规则名称</label>
           <input id="modalInlineRuleName" type="text" class="form-control" placeholder="给规则起个名字，便于识别">
@@ -164,25 +164,25 @@
           <textarea id="modalInlineRuleMessage" rows="3" class="form-control" placeholder="为匹配项添加备注或提示文本"></textarea>
         </div>
       </div>
-      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
-        <button id="cancelFilterRuleBtn" class="btn btn-secondary">取消</button>
-        <button id="saveFilterRuleBtn" class="btn btn-primary">保存</button>
+      <div class="c-modal__footer" style="display:flex; justify-content:flex-end; gap:8px;">
+        <button id="cancelFilterRuleBtn" class="c-btn c-btn--secondary">取消</button>
+        <button id="saveFilterRuleBtn" class="c-btn c-btn--primary">保存</button>
       </div>
     </div>
   </div>
 
   <!-- Smart Restore Confirmation Modal -->
-  <div id="smartRestoreModal" class="modal-overlay hidden">
-    <div class="modal-content smart-restore-modal">
-      <div class="modal-header">
+  <div id="smartRestoreModal" class="c-modal__overlay hidden">
+    <div class="c-modal__content smart-restore-modal">
+      <div class="c-modal__header">
         <h3>
           <i class="fas fa-magic"></i>
           确认执行一键智能恢复？
         </h3>
-        <button class="modal-close" id="smartRestoreModalClose">&times;</button>
+        <button class="c-modal__close" id="smartRestoreModalClose">&times;</button>
       </div>
 
-      <div class="modal-body">
+      <div class="c-modal__body">
         <div class="restore-preview">
           <h4>
             <i class="fas fa-eye"></i>
@@ -218,12 +218,12 @@
         </div>
       </div>
 
-      <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
-        <button id="smartRestoreCancel" class="btn btn-secondary">
+      <div class="c-modal__footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
+        <button id="smartRestoreCancel" class="c-btn c-btn--secondary">
           <i class="fas fa-times"></i>
           取消
         </button>
-        <button id="smartRestoreConfirm" class="btn btn-primary">
+        <button id="smartRestoreConfirm" class="c-btn c-btn--primary">
           <i class="fas fa-check"></i>
           确定
         </button>
@@ -234,7 +234,7 @@
 
 
   <!-- Modal for confirmation and choices -->
-  <div id="import-modal" class="import-modal-overlay">
+  <div id="import-modal" class="import-modal-overlay hidden">
       <div class="import-modal-content">
           <header class="import-modal-header">
               <p class="title">导入确认</p>
@@ -249,8 +249,8 @@
   </div>
 
   <!-- Migration/Data Check Modal -->
-  <div id="migration-modal" class="modal-overlay hidden">
-      <div class="modal-content">
+  <div id="migration-modal" class="c-modal__overlay hidden">
+      <div class="c-modal__content">
           <h3 class="modal-title">数据迁移</h3>
           <p id="migration-modal-message">检测到旧版本的数据格式。为了使用最新功能，建议您进行数据迁移。过程可能需要一些时间，请勿关闭此页面。</p>
           <div id="migration-progress-container" class="progress-container hidden">
@@ -258,15 +258,15 @@
               <p id="migration-status-text">正在处理...</p>
           </div>
           <div class="modal-actions" id="migration-modal-actions">
-              <button id="migration-cancel-btn" class="button-like">稍后提醒</button>
-              <button id="migration-confirm-btn" class="button-like primary">开始迁移</button>
+              <button id="migration-cancel-btn" class="c-btn c-btn--secondary">稍后提醒</button>
+              <button id="migration-confirm-btn" class="c-btn c-btn--primary">开始迁移</button>
           </div>
       </div>
   </div>
 
   <!-- Data Structure Check Confirmation Modal -->
-  <div id="data-check-modal" class="modal-overlay hidden">
-      <div class="modal-content">
+  <div id="data-check-modal" class="c-modal__overlay hidden">
+      <div class="c-modal__content">
           <h3 class="modal-title">确认数据结构修复</h3>
           <p id="data-check-modal-message"></p>
           <div class="diff-container">
@@ -280,14 +280,14 @@
               </div>
           </div>
           <div class="modal-actions" id="data-check-modal-actions">
-              <button id="data-check-cancel-btn" class="button-like">取消</button>
-              <button id="data-check-confirm-btn" class="button-like primary">确认修复</button>
+              <button id="data-check-cancel-btn" class="c-btn c-btn--secondary">取消</button>
+              <button id="data-check-confirm-btn" class="c-btn c-btn--primary">确认修复</button>
           </div>
       </div>
   </div>
 
   <!-- Help Panel Modal -->
-  <div id="helpPanel" class="modal-overlay hidden">
+  <div id="helpPanel" class="c-modal__overlay hidden">
       <div class="help-content-wrapper">
           <div class="help-header">
               <h2>Jav 助手 - 功能说明</h2>
@@ -300,17 +300,17 @@
   </div>
 
   <!-- WebDAV 恢复弹窗 -->
-  <div id="webdavRestoreModal" class="modal-overlay hidden">
-      <div class="modal-content webdav-restore-modal">
-          <div class="modal-header">
+  <div id="webdavRestoreModal" class="c-modal__overlay hidden">
+      <div class="c-modal__content webdav-restore-modal">
+          <div class="c-modal__header">
               <h3>
                   <i class="fas fa-cloud-download-alt"></i>
                   从云端恢复数据
               </h3>
-              <button class="modal-close" id="webdavRestoreModalClose">&times;</button>
+              <button class="c-modal__close" id="webdavRestoreModalClose">&times;</button>
           </div>
 
-          <div class="modal-body">
+          <div class="c-modal__body">
               <div id="webdavRestoreLoading" class="restore-loading hidden">
                   <div class="loading-spinner">
                       <i class="fas fa-spinner fa-spin"></i>
@@ -563,14 +563,14 @@
               </div>
           </div>
 
-          <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
-              <button id="webdavRestoreBack" class="btn btn-secondary hidden">
+          <div class="c-modal__footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
+              <button id="webdavRestoreBack" class="c-btn c-btn--secondary hidden">
                   <i class="fas fa-arrow-left"></i>
                   返回
               </button>
-              <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
+              <button id="webdavRestoreCancel" class="c-btn c-btn--secondary">取消</button>
               
-              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
+              <button id="webdavRestoreConfirm" class="c-btn c-btn--primary" disabled>
                   <i class="fas fa-download"></i>
                   开始覆盖式恢复
               </button>
@@ -579,17 +579,17 @@
   </div>
 
   <!-- 冲突解决弹窗 -->
-  <div id="conflictResolutionModal" class="modal-overlay hidden">
-      <div class="modal-content conflict-resolution-modal">
-          <div class="modal-header">
+  <div id="conflictResolutionModal" class="c-modal__overlay hidden">
+      <div class="c-modal__content conflict-resolution-modal">
+          <div class="c-modal__header">
               <h3>
                   <i class="fas fa-exclamation-triangle"></i>
                   解决数据冲突
               </h3>
-              <button class="modal-close" id="conflictResolutionModalClose">&times;</button>
+              <button class="c-modal__close" id="conflictResolutionModalClose">&times;</button>
           </div>
 
-          <div class="modal-body">
+          <div class="c-modal__body">
               <div class="conflict-navigation">
                   <div class="conflict-info">
                       <p>请选择每个冲突项的保留方式，完成后点击确认应用解决方案</p>
@@ -674,7 +674,7 @@
               </div>
           </div>
 
-          <div class="modal-footer conflict-footer">
+          <div class="c-modal__footer conflict-footer">
               <div class="footer-left">
                   <div class="conflict-progress">
                       <span class="progress-text">
@@ -688,11 +688,11 @@
 
               <div class="footer-center">
                   <div class="nav-buttons">
-                      <button id="prevConflict" class="btn btn-nav" title="上一个冲突">
+                      <button id="prevConflict" class="c-btn c-btn--secondary" title="上一个冲突">
                           <i class="fas fa-chevron-left"></i>
                           上一个
                       </button>
-                      <button id="nextConflict" class="btn btn-nav" title="下一个冲突">
+                      <button id="nextConflict" class="c-btn c-btn--secondary" title="下一个冲突">
                           下一个
                           <i class="fas fa-chevron-right"></i>
                       </button>
@@ -700,11 +700,11 @@
               </div>
 
               <div class="footer-right">
-                  <button id="conflictResolutionCancel" class="btn btn-secondary">
+                  <button id="conflictResolutionCancel" class="c-btn c-btn--secondary">
                       <i class="fas fa-times"></i>
                       取消
                   </button>
-                  <button id="conflictResolutionConfirm" class="btn btn-primary">
+                  <button id="conflictResolutionConfirm" class="c-btn c-btn--primary">
                       <i class="fas fa-check"></i>
                       确认解决方案
                   </button>
@@ -714,17 +714,17 @@
   </div>
 
   <!-- 恢复结果摘要弹窗 -->
-  <div id="restoreResultModal" class="modal-overlay hidden">
-      <div class="modal-content restore-result-modal">
-          <div class="modal-header">
+  <div id="restoreResultModal" class="c-modal__overlay hidden">
+      <div class="c-modal__content restore-result-modal">
+          <div class="c-modal__header">
               <h3>
                   <i class="fas fa-check-circle"></i>
                   恢复完成
               </h3>
-              <button class="modal-close" id="restoreResultModalClose">&times;</button>
+              <button class="c-modal__close" id="restoreResultModalClose">&times;</button>
           </div>
 
-          <div class="modal-body">
+          <div class="c-modal__body">
               <div class="result-summary">
                   <div class="result-icon success">
                       <i class="fas fa-check-circle"></i>
@@ -759,9 +759,9 @@
               </div>
       </div>
 
-      <div class="modal-footer" style="position: relative; z-index: 9999; display: flex; justify-content: flex-end; gap: 16px;">
-          <button id="restoreResultViewDetails" class="btn btn-secondary">查看详情</button>
-          <button id="restoreResultConfirm" class="btn btn-primary">
+      <div class="c-modal__footer" style="position: relative; z-index: 9999; display: flex; justify-content: flex-end; gap: 16px;">
+          <button id="restoreResultViewDetails" class="c-btn c-btn--secondary">查看详情</button>
+          <button id="restoreResultConfirm" class="c-btn c-btn--primary">
               <i class="fas fa-check"></i>
               确定
           </button>
@@ -770,21 +770,21 @@
   </div>
 
   <!-- 数据查看弹窗 -->
-  <div id="dataViewModal" class="modal">
-      <div class="modal-overlay">
-          <div class="modal-content data-view-modal">
-              <div class="modal-header">
+  <div id="dataViewModal" class="c-modal">
+      <div class="c-modal__overlay">
+          <div class="c-modal__content data-view-modal">
+              <div class="c-modal__header">
                   <h3 id="dataViewModalTitle">数据查看</h3>
-                  <button class="modal-close" id="dataViewModalClose">&times;</button>
+                  <button class="c-modal__close" id="dataViewModalClose">&times;</button>
               </div>
-              <div class="modal-body">
+              <div class="c-modal__body">
                   <div class="data-view-controls">
                       <div class="control-group">
-                          <button id="dataViewEditBtn" class="btn btn-secondary">编辑</button>
-                          <button id="dataViewSaveBtn" class="btn btn-primary hidden">保存</button>
-                          <button id="dataViewCancelBtn" class="btn btn-secondary hidden">取消</button>
-                          <button id="dataViewCopyBtn" class="btn btn-outline">复制</button>
-                          <button id="dataViewDownloadBtn" class="btn btn-outline">下载</button>
+                          <button id="dataViewEditBtn" class="c-btn c-btn--secondary">编辑</button>
+                          <button id="dataViewSaveBtn" class="c-btn c-btn--primary hidden">保存</button>
+                          <button id="dataViewCancelBtn" class="c-btn c-btn--secondary hidden">取消</button>
+                          <button id="dataViewCopyBtn" class="c-btn c-btn--outline">复制</button>
+                          <button id="dataViewDownloadBtn" class="c-btn c-btn--outline">下载</button>
                       </div>
                       <div class="data-info">
                           <span id="dataViewInfo" class="data-info-text"></span>
@@ -794,8 +794,8 @@
                       <textarea id="dataViewTextarea" readonly></textarea>
                   </div>
               </div>
-              <div class="modal-footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
-                  <button id="dataViewCloseBtn" class="btn btn-secondary">关闭</button>
+              <div class="c-modal__footer" style="position: relative !important; z-index: 9999 !important; display: flex !important; justify-content: flex-end !important; gap: 16px !important;">
+                  <button id="dataViewCloseBtn" class="c-btn c-btn--secondary">关闭</button>
               </div>
           </div>
       </div>

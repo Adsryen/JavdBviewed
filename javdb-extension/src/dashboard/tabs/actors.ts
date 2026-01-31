@@ -305,7 +305,7 @@ export class ActorsTab {
         }
 
         const actorCards = result.actors.map(actor => this.createActorCard(actor, subscribedSet.has(actor.id))).join('');
-        container.innerHTML = `<div class="actor-grid">${actorCards}</div>`;
+        container.innerHTML = `<div class="p-actors__grid">${actorCards}</div>`;
 
         // 为每个演员卡片添加头像和事件监听器
         result.actors.forEach(actor => {
@@ -612,10 +612,10 @@ export class ActorsTab {
      */
     private createPaginationHTML(currentPage: number, totalPages: number, total: number): string {
         return `
-            <div class="pagination-info">
+            <div class="c-pagination__info">
                 共 ${total} 个演员，第 ${currentPage}/${totalPages} 页
             </div>
-            <div class="pagination">
+            <div class="c-pagination">
                 ${this.createPaginationButtons(currentPage, totalPages)}
             </div>
         `;

@@ -1,39 +1,39 @@
-<div class="card">
+<div class="c-card">
   <!-- 新作品统计信息 -->
-  <div class="stats-section">
-    <h4>新作品概览</h4>
-    <div id="newWorksStatsContainer" class="stats-grid">
+  <div class="p-new-works__stats">
+    <h4 class="p-new-works__title">新作品概览</h4>
+    <div id="newWorksStatsContainer" class="p-new-works__stats-grid">
       <!-- 统计信息将由 JS 动态填充 -->
     </div>
   </div>
 
   <!-- 全局配置和订阅管理 -->
-  <div class="new-works-controls">
-    <div class="config-section">
-      <h5>设置</h5>
-      <div class="config-controls">
-        <button id="newWorksGlobalConfigBtn" class="btn-primary">
+  <div class="p-new-works__controls">
+    <div class="p-new-works__config-section">
+      <h5 class="p-new-works__section-title">设置</h5>
+      <div class="p-new-works__config-controls">
+        <button id="newWorksGlobalConfigBtn" class="c-btn c-btn--primary">
           <i class="fas fa-cog"></i> 新作品设置
         </button>
-        <button id="checkNowBtn" class="btn-action">
+        <button id="checkNowBtn" class="c-btn c-btn--secondary">
           <i class="fas fa-search"></i> 立即检查新作品
         </button>
-        <button id="syncStatusBtn" class="btn-info" title="同步新作品状态与番号库记录">
+        <button id="syncStatusBtn" class="c-btn c-btn--info" title="同步新作品状态与番号库记录">
           <i class="fas fa-sync-alt"></i> 同步状态
         </button>
-        <button id="cleanupReadWorksBtn" class="btn-danger" title="清理所有已读的新作品">
+        <button id="cleanupReadWorksBtn" class="c-btn c-btn--danger" title="清理所有已读的新作品">
           <i class="fas fa-broom"></i> 清理已读
         </button>
       </div>
     </div>
 
-    <div class="subscription-section">
-      <h5>演员订阅</h5>
-      <div class="subscription-controls">
-        <button id="addSubscriptionBtn" class="btn-success">
+    <div class="p-new-works__subscription-section">
+      <h5 class="p-new-works__section-title">演员订阅</h5>
+      <div class="p-new-works__subscription-controls">
+        <button id="addSubscriptionBtn" class="c-btn c-btn--success">
           <i class="fas fa-user-plus"></i> 添加演员
         </button>
-        <button id="manageSubscriptionsBtn" class="btn-info">
+        <button id="manageSubscriptionsBtn" class="c-btn c-btn--info">
           <i class="fas fa-list"></i> 管理订阅
         </button>
       </div>
@@ -41,43 +41,43 @@
   </div>
 
   <!-- 新作品列表 -->
-  <div class="new-works-list-section">
-    <div class="list-controls">
-      <input type="text" id="newWorksSearchInput" placeholder="搜索作品或演员...">
-      <select id="newWorksFilterSelect">
+  <div class="p-new-works__list-section">
+    <div class="p-new-works__list-controls">
+      <input type="text" id="newWorksSearchInput" class="c-form__input" placeholder="搜索作品或演员...">
+      <select id="newWorksFilterSelect" class="c-form__select">
         <option value="all">全部作品</option>
         <option value="unread">未读作品</option>
         <option value="today">今日发现</option>
         <option value="week">本周发现</option>
       </select>
-      <select id="newWorksSortSelect">
+      <select id="newWorksSortSelect" class="c-form__select">
         <option value="discoveredAt_desc">按发现时间排序 (最新)</option>
         <option value="releaseDate_desc">按发行时间排序 (最新)</option>
         <option value="actorName_asc">按演员姓名排序</option>
       </select>
-      <button id="batchOpenUnreadBtn" class="btn-action" title="打开当前页所有未读新作品">
+      <button id="batchOpenUnreadBtn" class="c-btn c-btn--secondary" title="打开当前页所有未读新作品">
         <i class="fas fa-external-link-alt"></i> 批量打开未读（当页）
       </button>
-      <button id="selectAllCurrentPageBtn" class="btn-secondary" title="选择当前页的全部作品">
+      <button id="selectAllCurrentPageBtn" class="c-btn c-btn--secondary" title="选择当前页的全部作品">
         <i class="fas fa-check-square"></i> 本页全选
       </button>
-      <button id="clearSelectionBtn" class="btn-secondary" title="清空所有已选择的作品">
+      <button id="clearSelectionBtn" class="c-btn c-btn--secondary" title="清空所有已选择的作品">
         <i class="fas fa-eraser"></i> 清空选择
       </button>
-      <button id="batchOpenSelectedBtn" class="btn-action" disabled title="打开所有已选择的作品">
+      <button id="batchOpenSelectedBtn" class="c-btn c-btn--secondary" disabled title="打开所有已选择的作品">
         <i class="fas fa-external-link-alt"></i> 批量打开（已选）
       </button>
-      <span id="selectedCountLabel" style="margin-left:8px;opacity:.8;">已选 0</span>
+      <span id="selectedCountLabel" class="p-new-works__selected-count" style="margin-left:8px;opacity:.8;">已选 0</span>
     </div>
 
-    <div class="new-works-list-container">
-      <ul id="newWorksList">
+    <div class="p-new-works__list-container">
+      <ul id="newWorksList" class="p-new-works__list">
         <!-- 新作品列表将由 JS 动态填充 -->
       </ul>
     </div>
 
-    <div class="pagination-controls">
-      <div class="pagination" id="newWorksPagination">
+    <div class="c-pagination-controls">
+      <div class="c-pagination" id="newWorksPagination">
         <!-- 分页控件将由 JS 动态填充 -->
       </div>
     </div>

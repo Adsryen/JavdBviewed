@@ -1,0 +1,105 @@
+/* ===================================================================
+   Logs 页面样式 - 日志
+   ================================================================ */
+
+.p-logs {
+  /* 使用 c-card 组件 */
+}
+
+.p-logs__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.p-logs__filters {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.p-logs__filter {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.p-logs__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-logs__action-btn {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.p-logs__action-btn:hover {
+  background: var(--bg-hover);
+}
+
+.p-logs__container {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  max-height: 600px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-xs);
+}
+
+.p-logs__item {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-secondary);
+  line-height: 1.6;
+}
+
+.p-logs__item:last-child {
+  border-bottom: none;
+}
+
+.p-logs__item--error {
+  color: var(--error);
+  background: var(--error-light);
+}
+
+.p-logs__item--warning {
+  color: var(--warning);
+  background: var(--warning-light);
+}
+
+.p-logs__item--info {
+  color: var(--info);
+}
+
+.p-logs__item--debug {
+  color: var(--text-muted);
+}
+
+.p-logs__timestamp {
+  color: var(--text-secondary);
+  margin-right: var(--space-2);
+}
+
+.p-logs__level {
+  font-weight: var(--font-weight-semibold);
+  margin-right: var(--space-2);
+}
+
+.p-logs__message {
+  color: var(--text-primary);
+}

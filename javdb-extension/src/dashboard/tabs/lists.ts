@@ -40,7 +40,7 @@ export class ListsTab {
         const fav = document.getElementById('listsFavContainer');
         const onClick = (e: Event) => {
             const target = e.target as HTMLElement | null;
-            const item = target?.closest('.lists-item') as HTMLElement | null;
+            const item = target?.closest('.p-lists__item') as HTMLElement | null;
             if (!item) return;
             const id = item.getAttribute('data-list-id') || '';
             if (!id) return;
@@ -77,8 +77,8 @@ export class ListsTab {
         const mine = (this.lists || []).filter(l => l && l.type === 'mine' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
         const fav = (this.lists || []).filter(l => l && l.type === 'favorite' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-        mineEl.innerHTML = mine.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
-        favEl.innerHTML = fav.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
+        mineEl.innerHTML = mine.map(l => this.renderItem(l)).join('') || '<div class="p-lists__empty">暂无</div>';
+        favEl.innerHTML = fav.map(l => this.renderItem(l)).join('') || '<div class="p-lists__empty">暂无</div>';
 
         const total = (this.lists || []).length;
         if (emptyTip) {
@@ -98,9 +98,9 @@ export class ListsTab {
         const safeName = this.escapeHtml(String(l.name || l.id));
         const safeMeta = this.escapeHtml(meta);
         return `
-            <div class="lists-item" data-list-id="${this.escapeHtml(String(l.id))}" title="点击筛选番号库：${safeName}">
-                <div class="lists-item-title">${safeName}</div>
-                <div class="lists-item-meta">${safeMeta}</div>
+            <div class="p-lists__item" data-list-id="${this.escapeHtml(String(l.id))}" title="点击筛选番号库：${safeName}">
+                <div class="p-lists__item-title">${safeName}</div>
+                <div class="p-lists__item-meta">${safeMeta}</div>
             </div>
         `;
     }

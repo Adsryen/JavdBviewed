@@ -27,3 +27,14 @@
 @import url('./06-components/skeleton.css');
 @import url('./06-components/pagination.css');
 @import url('./06-components/breadcrumb.css');
+
+/* 5. Pages - 页面样式 */
+@import url('./07-pages/insights.css');
+@import url('./07-pages/home.css');
+@import url('./07-pages/records.css');
+@import url('./07-pages/lists.css');
+@import url('./07-pages/actors.css');
+@import url('./07-pages/new-works.css');
+@import url('./07-pages/sync.css');
+@import url('./07-pages/drive115-tasks.css');
+@import url('./07-pages/logs.css');
