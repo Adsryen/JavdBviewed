@@ -1,0 +1,228 @@
+/* ===================================================================
+   主题变量系统 - Theme Variables System
+   ================================================================ */
+
+/* ===================================================================
+   浅色主题（默认） - Light Theme (Default)
+   ================================================================ */
+:root {
+  /* === 基础颜色 - Base Colors === */
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #fafbfc;
+  --bg-hover: #f8f9fa;
+  
+  /* === 文本颜色 - Text Colors === */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  
+  /* === 边框颜色 - Border Colors === */
+  --border-primary: #e5e7eb;
+  --border-secondary: #f3f4f6;
+  --border-hover: #d1d5db;
+  
+  /* === 表面色 - Surface Colors === */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-elevated: #ffffff;
+  --surface-overlay: rgba(0, 0, 0, 0.6);
+  
+  /* === 主题色 - Primary Colors === */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+  --primary-light: #dbeafe;
+  --primary-600: #2563eb;
+  
+  /* === 状态色 - Status Colors === */
+  --success: #22c55e;
+  --success-light: #dcfce7;
+  --success-hover: #16a34a;
+  
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --warning-hover: #d97706;
+  
+  --error: #ef4444;
+  --error-light: #fee2e2;
+  --error-hover: #dc2626;
+  
+  --info: #14b8a6;
+  --info-light: #ccfbf1;
+  --info-hover: #0d9488;
+  
+  --danger: #ef4444;
+  
+  /* === 特殊颜色 - Special Colors === */
+  --accent-color: #3b82f6;
+  
+  /* === 阴影 - Shadows === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  
+  /* === 圆角 - Border Radius === */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+  
+  /* === 焦点环 - Focus Ring === */
+  --ring: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  
+  /* === 兼容旧变量 - Legacy Variables === */
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --elev-1: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --elev-2: 0 8px 24px rgba(0, 0, 0, 0.08);
+  
+  /* === 组件特定颜色 - Component Specific === */
+  --sidebar-bg: #fafbfc;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #d0d7de;
+  --button-ghost-bg: #f8fafc;
+  --button-ghost-text: #334155;
+  --border-color: #e5e7eb;
+}
+
+/* ===================================================================
+   深色主题 - Dark Theme
+   ================================================================ */
+[data-theme="dark"] {
+  /* === 基础颜色 - Base Colors === */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-hover: #475569;
+  
+  /* === 文本颜色 - Text Colors === */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverse: #0f172a;
+  
+  /* === 边框颜色 - Border Colors === */
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-hover: #64748b;
+  
+  /* === 表面色 - Surface Colors === */
+  --surface-primary: #1e293b;
+  --surface-secondary: #334155;
+  --surface-elevated: #475569;
+  --surface-overlay: rgba(0, 0, 0, 0.8);
+  
+  /* === 主题色 - Primary Colors === */
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-active: #2563eb;
+  --primary-light: #1e3a8a;
+  --primary-600: #3b82f6;
+  
+  /* === 状态色 - Status Colors === */
+  --success: #4ade80;
+  --success-light: #14532d;
+  --success-hover: #22c55e;
+  
+  --warning: #fbbf24;
+  --warning-light: #78350f;
+  --warning-hover: #f59e0b;
+  
+  --error: #f87171;
+  --error-light: #7f1d1d;
+  --error-hover: #ef4444;
+  
+  --info: #2dd4bf;
+  --info-light: #134e4a;
+  --info-hover: #14b8a6;
+  
+  --danger: #f87171;
+  
+  /* === 特殊颜色 - Special Colors === */
+  --accent-color: #60a5fa;
+  
+  /* === 阴影 - Shadows === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+  
+  /* === 圆角保持不变 - Border Radius (unchanged) === */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+  
+  /* === 焦点环 - Focus Ring === */
+  --ring: 0 0 0 3px rgba(96, 165, 250, 0.25);
+  
+  /* === 兼容旧变量 - Legacy Variables === */
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --text: #f1f5f9;
+  --muted: #cbd5e1;
+  --border: #334155;
+  --radius: 12px;
+  --elev-1: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --elev-2: 0 8px 24px rgba(0, 0, 0, 0.4);
+  
+  /* === 组件特定颜色 - Component Specific === */
+  --sidebar-bg: #1e293b;
+  --card-bg: #1e293b;
+  --input-bg: #334155;
+  --input-border: #475569;
+  --button-ghost-bg: #334155;
+  --button-ghost-text: #cbd5e1;
+  --border-color: #334155;
+}
+
+/* ===================================================================
+   平滑过渡 - Smooth Transitions
+   ================================================================ */
+* {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 排除不需要过渡的元素 */
+*:where(
+  [class*="animate"],
+  [class*="transition"],
+  button:active,
+  a:active
+) {
+  transition: none;
+}
+
+/* ===================================================================
+   确保 html 和 body 元素正确应用主题背景色
+   ================================================================ */
+html {
+  background-color: var(--bg-primary) !important;
+  min-height: 100vh;
+}
+
+body {
+  background-color: var(--bg-primary) !important;
+  min-height: 100vh;
+}
+
+html[data-theme="dark"] {
+  background-color: var(--bg-primary) !important;
+}
+
+html[data-theme="dark"] body {
+  background-color: var(--bg-primary) !important;
+}

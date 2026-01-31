@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: #ffffff;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--surface-primary);
   border-radius: 16px 16px 0 0; /* 与容器圆角衔接 */
 }
 
@@ -23,7 +23,7 @@
 
 .brand-text {
   font-weight: 600;
-  color: var(--text-color, #111827);
+  color: var(--text-primary);
 }
 
 /* 窄屏仅保留图标 */
@@ -45,9 +45,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   margin-left: 8px;
@@ -76,14 +76,14 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .help-btn i { font-size: 16px; line-height: 1; }
-.help-btn:hover { background: #eef2ff; border-color: #c7d2fe; color: #374151; }
+.help-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--text-primary); }
 .help-btn:active { transform: scale(0.96); }
 
 /* 私密模式倒计时 */

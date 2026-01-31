@@ -119,7 +119,7 @@
 /* 同步选项卡片 - 精致主题化设计 */
 .sync-option-card {
     position: relative;
-    background: #ffffff;
+    background: var(--surface-primary);
     border-radius: 24px;
     padding: 32px;
     border: 1px solid rgba(241, 245, 249, 0.8);
@@ -1445,8 +1445,8 @@
 }
 
 .stat-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 16px;
     display: flex;
@@ -1649,7 +1649,7 @@
 .fetched-videos-list {
     max-height: 200px;
     overflow-y: auto;
-    background: white;
+    background: var(--surface-primary);
     border: 1px solid #dee2e6;
     border-radius: 4px;
     padding: 8px;

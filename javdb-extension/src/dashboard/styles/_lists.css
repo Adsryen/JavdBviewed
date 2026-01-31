@@ -76,10 +76,10 @@
     border: 1px solid #dee2e6;
     border-radius: 12px;
     font-size: 14px;
-    color: #212529;
-    background: #fff;
+    color: var(--text-primary);
+    background: var(--surface-primary);
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .lists-search-row input:hover {
@@ -89,9 +89,9 @@
 
 .lists-search-row input:focus {
     outline: none;
-    border-color: #74c0fc;
-    box-shadow: 0 0 0 3px rgba(116, 192, 252, 0.15);
-    background: #fff;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+    background: var(--surface-primary);
 }
 
 .lists-search-row input::placeholder {

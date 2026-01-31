@@ -31,7 +31,7 @@
 }
 
 .modal-content {
-    background: white;
+    background: var(--surface-primary);
     border-radius: 16px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     transform: scale(0.95);
@@ -106,7 +106,7 @@
     visibility: visible;
 }
 #helpPanel .help-content-wrapper {
-    background: white;
+    background: var(--surface-primary);
     padding: 0;
     border-radius: 16px;
     max-width: 1200px;
@@ -380,7 +380,7 @@ body.modal-open {
 
 .data-view-modal .data-filter-sidebar .btn-mini {
     border: 1px solid #e5e7eb;
-    background: #fff;
+    background: var(--surface-primary);
     color: #374151;
     padding: 4px 8px;
     border-radius: 6px;
@@ -659,7 +659,7 @@ body.modal-open {
 }
 
 .import-modal-content {
-    background: #ffffff;
+    background: var(--surface-primary);
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0,0,0,0.15);
     width: 90%;
@@ -760,7 +760,7 @@ body.modal-open {
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    background: #ffffff;
+    background: var(--surface-primary);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -948,7 +948,7 @@ body.modal-open {
     border: 2px solid #e1e8ed;
     border-radius: 12px;
     overflow: hidden;
-    background: #ffffff;
+    background: var(--surface-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
@@ -982,7 +982,7 @@ body.modal-open {
     max-height: 240px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: #ffffff;
+    background: var(--surface-primary);
 }
 
 .webdav-file-item {
@@ -993,7 +993,7 @@ body.modal-open {
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
-    background: #ffffff;
+    background: var(--surface-primary);
 }
 
 .webdav-file-item:last-child {
@@ -1722,7 +1722,7 @@ body.modal-open {
 }
 
 .settings-column {
-    background: white !important;
+    background: var(--surface-primary) !important;
     border-radius: 12px !important;
     overflow: hidden !important;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
@@ -2351,7 +2351,7 @@ body.modal-open {
 }
 
 .version-column {
-    background: white !important;
+    background: var(--surface-primary) !important;
     border-radius: 12px !important;
     overflow: hidden !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
@@ -2400,7 +2400,7 @@ body.modal-open {
 }
 
 .resolution-options {
-    background: white !important;
+    background: var(--surface-primary) !important;
     border-radius: 12px !important;
     padding: 20px !important;
     margin-bottom: 20px !important;
@@ -2463,7 +2463,7 @@ body.modal-open {
 }
 
 .batch-operations {
-    background: white !important;
+    background: var(--surface-primary) !important;
     border-radius: 12px !important;
     padding: 20px !important;
     margin-bottom: 20px !important;

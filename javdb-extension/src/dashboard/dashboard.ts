@@ -23,7 +23,7 @@ import { getDrive115V2Service } from '../services/drive115v2';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { ensureMounted } from './loaders/partialsLoader';
 import { ensureStylesLoaded } from './loaders/stylesLoader';
-import { loadPartial } from './loaders/partialsLoader';
+import { loadPartial, initThemeListener } from './loaders/partialsLoader';
 import { applyConsoleSettingsFromStorage_DB, bindConsoleSettingsListener } from './console/settings';
 import { bindInsightsListeners } from './listeners/insights';
 import { initTopbarIcons } from './topbar/icons';
@@ -37,6 +37,21 @@ import { initOrUpdateHomeCharts, bindHomeChartsRangeControls, bindHomeRefreshBut
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
+// 主题系统
+import { themeManager } from './services/themeManager';
+import { ThemeSwitcher } from './components/themeSwitcher';
+
+// 立即初始化主题系统（在 DOM 加载之前）
+// 这样可以避免页面闪烁，并确保 data-theme 属性被正确设置
+(async () => {
+    try {
+        await themeManager.initialize();
+        console.log('[Dashboard] 主题系统已提前初始化');
+    } catch (error) {
+        console.error('[Dashboard] 主题系统提前初始化失败:', error);
+    }
+})();
+
 installConsoleProxy({
     level: 'DEBUG',
     format: { showTimestamp: true, timestampStyle: 'hms', timeZone: 'Asia/Shanghai', showSource: true, color: true },
@@ -190,6 +205,18 @@ function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surpl
 // 首页 ECharts 兜底渲染已迁移到 ./home/charts
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. 首先初始化主题系统（在任何 UI 渲染之前）
+    try {
+        await themeManager.initialize();
+        console.log('[Dashboard] 主题系统已初始化');
+        
+        // 初始化主题监听器，确保动态组件应用主题
+        initThemeListener();
+        console.log('[Dashboard] 主题监听器已初始化');
+    } catch (error) {
+        console.error('[Dashboard] 主题系统初始化失败:', error);
+    }
+
     // Ensure layout skeleton is mounted before any DOM access
     try {
         await ensureMounted('#app-root', 'layout/skeleton.html');
@@ -279,6 +306,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initTopbarIcons();
+    
+    // 初始化主题切换器（挂载到 Topbar）
+    try {
+        const topbarRight = document.querySelector('.topbar-right');
+        if (topbarRight) {
+            const themeSwitcher = new ThemeSwitcher(themeManager);
+            // 在帮助按钮之前插入主题切换器
+            const helpBtn = document.getElementById('helpBtn');
+            if (helpBtn) {
+                topbarRight.insertBefore(themeSwitcher.getElement(), helpBtn);
+            } else {
+                themeSwitcher.mount(topbarRight as HTMLElement);
+            }
+            console.log('[Dashboard] 主题切换器已挂载');
+        } else {
+            console.warn('[Dashboard] 未找到 .topbar-right 容器，主题切换器未挂载');
+        }
+    } catch (error) {
+        console.error('[Dashboard] 主题切换器挂载失败:', error);
+    }
     
     // 初始化版本检测和显示（异步，不阻塞页面）
     initVersionBadge().catch(error => {
