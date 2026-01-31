@@ -1,19 +1,17 @@
 /* ============================================
-   双轨运行：新旧样式并存
-   新样式优先级更高，逐步替代旧样式
+   Dashboard 主样式入口
+   统一使用 CSS 变量系统支持主题切换
    ============================================ */
 
 /* ============================================
    新样式系统（ITCSS 架构）
-   优先加载，确保变量系统统一
    ============================================ */
 @import url('./styles-new/index.css');
 
-/* 旧样式系统（逐步废弃） */
-/* 注意：旧的 variables.css 已被新系统替代，不再导入 */
-/* @import url('./styles/themes/variables.css'); */
+/* ============================================
+   旧样式文件（逐步迁移中）
+   ============================================ */
 @import url('./styles/main.css');
-@import url('./styles/_tabs.css');
 @import url('./styles/_records.css');
 @import url('./styles/_toast.css');
 @import url('./styles/_modal.css');
@@ -21,7 +19,6 @@
 @import url('./styles/_stats.css');
 @import url('./styles/_userProfile.css');
 @import url('./styles/_dataSync.css');
-/* _drive115.css 已迁移到 styles/settings/drive115.css */
 @import url('./styles/_newWorks.css');
 
 /* Settings related styles */
@@ -30,6 +27,11 @@
 /* Components */
 @import url('./styles/components/monthRangePicker.css');
 @import url('./styles/components/themeSwitcher.css');
+
+/* Layout components (使用 CSS 变量) */
+@import url('./styles/layout/tabs-nav.css');
+@import url('./styles/layout/topbar.css');
+@import url('./styles/layout/sidebar.css');
 
 /* 演员页增强配置样式 */
 .actor-config-container {

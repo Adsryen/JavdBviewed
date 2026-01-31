@@ -1,10 +1,12 @@
-/* 顶部导航容器（含品牌 + tabs） */
+/* 顶层导航容器（含品牌 + tabs） */
 .tabs-nav {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  transition: background-color var(--transition-base), border-color var(--transition-base);
 }
 
 /* 品牌区域 */
@@ -15,14 +17,14 @@
   min-width: 0;
 }
 .brand-icon { width: 20px; height: 20px; }
-.brand-text { font-weight: 600; color: var(--text-color, #111827); }
+.brand-text { font-weight: 600; color: var(--text-primary); }
 
 /* 窄屏隐藏品牌文字，仅保留图标 */
 @media (max-width: 960px) {
   .tabs-brand .brand-text { display: none; }
 }
 
-/* 顶部标签导航基础样式 */
+/* 顶部标签导航基础样式 - 统一使用 CSS 变量支持主题切换 */
 .tabs {
   display: flex;
   gap: 8px;
@@ -40,13 +42,19 @@
   border: 1px solid transparent;
   padding: 6px 10px;
   border-radius: 6px;
-  color: inherit;
+  color: var(--text-secondary) !important;
   cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
 }
 .tab-link:hover {
-  background: #f8fafc;
+  background: var(--bg-hover);
+  color: var(--primary) !important;
+  opacity: 1;
 }
 .tab-link.active {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary) !important;
+  opacity: 1;
 }

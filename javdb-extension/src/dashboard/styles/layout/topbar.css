@@ -7,6 +7,7 @@
   border-bottom: 1px solid var(--border-primary);
   background: var(--surface-primary);
   border-radius: 16px 16px 0 0; /* 与容器圆角衔接 */
+  transition: background-color var(--transition-base), border-color var(--transition-base);
 }
 
 .topbar-left {

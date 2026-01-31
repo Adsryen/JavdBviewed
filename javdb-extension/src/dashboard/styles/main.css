@@ -396,7 +396,7 @@ body {
 }
 
 .sidebar {
-    width: var(--sidebar-width, 280px);
+    width: 320px;
     flex-shrink: 0;
     padding: 25px;
     background-color: var(--sidebar-bg);
