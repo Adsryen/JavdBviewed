@@ -27,7 +27,7 @@
     width: 90%;
     max-width: 900px;
     max-height: 90vh;
-    background: #fff;
+    background: var(--surface-primary);
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     display: flex;
@@ -173,7 +173,7 @@
 .verification-iframe-container {
     flex: 1;
     position: relative;
-    background: #fff;
+    background: var(--surface-primary);
     overflow: hidden;
 }
 
@@ -214,7 +214,7 @@
 .verification-footer {
     padding: 16px 24px;
     border-top: 1px solid #e9ecef;
-    background: #fff;
+    background: var(--surface-primary);
     display: flex;
     align-items: center;
     justify-content: flex-end;

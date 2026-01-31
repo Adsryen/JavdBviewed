@@ -73,4 +73,38 @@ export async function ensureMounted(targetSelector: string, name: string, option
   const html = await loadPartial(name);
   if (!html) return;
   await injectPartial(targetSelector, html, options);
+  
+  // 确保动态加载的内容继承当前主题
+  ensureThemeApplied();
+}
+
+/**
+ * 确保动态加载的组件应用当前主题
+ * 动态加载的 HTML 片段会自动继承 document.documentElement 的 data-theme 属性
+ */
+function ensureThemeApplied(): void {
+  // 由于主题是通过 document.documentElement 的 data-theme 属性控制的
+  // 所有动态加载的内容会自动继承该属性，无需额外处理
+  // 这个函数保留用于未来可能的扩展需求
+}
+
+/**
+ * 初始化主题监听
+ * 当主题变更时，确保所有已加载的动态组件正确应用新主题
+ */
+export function initThemeListener(): void {
+  // 监听主题变更（通过 MutationObserver 监听 data-theme 属性变化）
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+        console.log('[partialsLoader] 主题已变更，动态组件自动应用新主题');
+        // CSS 变量会自动更新，无需手动处理
+      }
+    });
+  });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
 }

@@ -27,7 +27,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface-primary);
   top: 3px;
   left: 3px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
@@ -50,9 +50,9 @@
 
 /* CSS变量定义 */
 :root {
-    --text-color: #333;
-    --background-color: #fff;
-    --border-color: #e9ecef;
+    --text-color: var(--text-primary);
+    --background-color: var(--surface-primary);
+    --border-color: var(--border-primary);
     --border-radius: 8px;
     --primary-color: #007bff;
 }
@@ -629,7 +629,7 @@
 }
 
 .modal-content {
-    background: white;
+    background: var(--surface-primary);
     border-radius: 8px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     max-width: 90vw;
@@ -650,16 +650,16 @@
 }
 
 .actor-selector-modal .modal-content {
-    background: #ffffff;
-    color: #212529;
-    border: 1px solid #e9ecef;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
 .actor-selector-modal .modal-header,
 .actor-selector-modal .modal-footer {
-    background-color: #ffffff;
-    border-color: #e9ecef;
+    background-color: var(--surface-primary);
+    border-color: var(--border-primary);
 }
 
 .actor-selector-modal .modal-header h3 {
@@ -703,16 +703,16 @@
 
 .subscription-management-modal .modal-content {
     /* 白底 + 浅边框 + 柔和阴影 */
-    background: #ffffff;
-    color: #212529;
-    border: 1px solid #e9ecef;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
 .subscription-management-modal .modal-header,
 .subscription-management-modal .modal-footer {
-    background-color: #ffffff;
-    border-color: #e9ecef;
+    background-color: var(--surface-primary);
+    border-color: var(--border-primary);
 }
 
 .subscription-management-modal .modal-header h3 {
@@ -729,8 +729,8 @@
 
 /* 列表项与控件在浅色主题下的微调，保证层级对比与可读性 */
 .subscription-management-modal .subscription-item {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
 }
 
 .subscription-management-modal .subscription-name {
