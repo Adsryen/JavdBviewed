@@ -1,0 +1,170 @@
+/* ===================================================================
+   Dropdown 组件
+   ================================================================ */
+
+/* ===== 下拉菜单容器 ===== */
+.c-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* ===== 下拉菜单触发器 ===== */
+.c-dropdown__trigger {
+  cursor: pointer;
+}
+
+/* ===== 下拉菜单内容 ===== */
+.c-dropdown__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-dropdown);
+  
+  min-width: 160px;
+  max-width: 300px;
+  
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: all var(--transition-fast) var(--ease-out);
+  
+  overflow: hidden;
+}
+
+/* 显示状态 */
+.c-dropdown--open .c-dropdown__menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* ===== 下拉菜单位置 ===== */
+.c-dropdown--right .c-dropdown__menu {
+  left: auto;
+  right: 0;
+}
+
+.c-dropdown--top .c-dropdown__menu {
+  top: auto;
+  bottom: calc(100% + var(--space-2));
+  transform: translateY(8px);
+}
+
+.c-dropdown--top.c-dropdown--open .c-dropdown__menu {
+  transform: translateY(0);
+}
+
+/* ===== 下拉菜单项 ===== */
+.c-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  
+  font-size: var(--font-size-sm);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  
+  transition: background var(--transition-fast) var(--ease-out);
+}
+
+.c-dropdown__item:hover {
+  background: var(--bg-hover);
+}
+
+.c-dropdown__item:active {
+  background: var(--bg-tertiary);
+}
+
+/* 禁用项 */
+.c-dropdown__item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.c-dropdown__item:disabled:hover {
+  background: transparent;
+}
+
+/* 危险项 */
+.c-dropdown__item--danger {
+  color: var(--error);
+}
+
+.c-dropdown__item--danger:hover {
+  background: var(--error-light);
+}
+
+/* 选中项 */
+.c-dropdown__item--active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* ===== 下拉菜单图标 ===== */
+.c-dropdown__item-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* ===== 下拉菜单分隔线 ===== */
+.c-dropdown__divider {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--border-primary);
+}
+
+/* ===== 下拉菜单标题 ===== */
+.c-dropdown__header {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ===== 下拉菜单尺寸 ===== */
+.c-dropdown--sm .c-dropdown__menu {
+  min-width: 120px;
+}
+
+.c-dropdown--sm .c-dropdown__item {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.c-dropdown--lg .c-dropdown__menu {
+  min-width: 200px;
+}
+
+.c-dropdown--lg .c-dropdown__item {
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--font-size-md);
+}
+
+/* ===== 下拉菜单快捷键 ===== */
+.c-dropdown__item-shortcut {
+  margin-left: auto;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

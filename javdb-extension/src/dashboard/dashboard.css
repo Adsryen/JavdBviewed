@@ -1,6 +1,10 @@
-/* Theme Variables - Must be imported first */
-@import url('./styles/themes/variables.css');
+/* ============================================
+   双轨运行：新旧样式并存
+   新样式优先级更高，逐步替代旧样式
+   ============================================ */
 
+/* 旧样式系统（逐步废弃） */
+@import url('./styles/themes/variables.css');
 @import url('./styles/main.css');
 @import url('./styles/_tabs.css');
 @import url('./styles/_records.css');
@@ -19,6 +23,12 @@
 /* Components */
 @import url('./styles/components/monthRangePicker.css');
 @import url('./styles/components/themeSwitcher.css');
+
+/* ============================================
+   新样式系统（ITCSS 架构）
+   优先级更高，逐步替代旧样式
+   ============================================ */
+@import url('./styles-new/index.css');
 
 /* 演员页增强配置样式 */
 .actor-config-container {

@@ -1,0 +1,289 @@
+/* ===================================================================
+   Progress 组件
+   ================================================================ */
+
+/* ===== 进度条容器 ===== */
+.c-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== 进度条填充 ===== */
+.c-progress__bar {
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 进度条动画效果 */
+.c-progress__bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: c-progress-shimmer 2s infinite;
+}
+
+@keyframes c-progress-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ===== 进度条颜色 ===== */
+.c-progress--success .c-progress__bar {
+  background: var(--success);
+}
+
+.c-progress--warning .c-progress__bar {
+  background: var(--warning);
+}
+
+.c-progress--error .c-progress__bar {
+  background: var(--error);
+}
+
+.c-progress--info .c-progress__bar {
+  background: var(--info);
+}
+
+/* ===== 进度条尺寸 ===== */
+.c-progress--sm {
+  height: 4px;
+}
+
+.c-progress--md {
+  height: 8px;
+}
+
+.c-progress--lg {
+  height: 12px;
+}
+
+.c-progress--xl {
+  height: 16px;
+}
+
+/* ===== 进度条变体 ===== */
+
+/* 条纹进度条 */
+.c-progress--striped .c-progress__bar {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+}
+
+/* 动画条纹 */
+.c-progress--striped.c-progress--animated .c-progress__bar {
+  animation: c-progress-stripes 1s linear infinite;
+}
+
+@keyframes c-progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 0;
+  }
+}
+
+/* 不确定进度条 */
+.c-progress--indeterminate .c-progress__bar {
+  width: 30% !important;
+  animation: c-progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes c-progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* ===== 带标签的进度条 ===== */
+.c-progress-wrapper {
+  width: 100%;
+}
+
+.c-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.c-progress-label__text {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.c-progress-label__value {
+  font-weight: var(--font-weight-semibold);
+  color: var(--primary);
+}
+
+/* ===== 圆形进度条 ===== */
+.c-progress-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.c-progress-circle__svg {
+  transform: rotate(-90deg);
+}
+
+.c-progress-circle__track {
+  fill: none;
+  stroke: var(--bg-tertiary);
+}
+
+.c-progress-circle__bar {
+  fill: none;
+  stroke: var(--primary);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--transition-slow) var(--ease-out);
+}
+
+.c-progress-circle__content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+/* 圆形进度条尺寸 */
+.c-progress-circle--sm {
+  width: 60px;
+  height: 60px;
+}
+
+.c-progress-circle--sm .c-progress-circle__content {
+  font-size: var(--font-size-sm);
+}
+
+.c-progress-circle--md {
+  width: 80px;
+  height: 80px;
+}
+
+.c-progress-circle--lg {
+  width: 120px;
+  height: 120px;
+}
+
+.c-progress-circle--lg .c-progress-circle__content {
+  font-size: var(--font-size-xl);
+}
+
+/* ===== 步骤进度条 ===== */
+.c-progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.c-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  position: relative;
+}
+
+.c-progress-step__circle {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-primary);
+  border-radius: 50%;
+  color: var(--text-muted);
+  
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  
+  transition: all var(--transition-base) var(--ease-out);
+  z-index: 1;
+}
+
+.c-progress-step__label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* 步骤连接线 */
+.c-progress-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 16px);
+  right: calc(-50% + 16px);
+  height: 2px;
+  background: var(--border-primary);
+  z-index: 0;
+}
+
+/* 完成的步骤 */
+.c-progress-step--completed .c-progress-step__circle {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+
+.c-progress-step--completed::after {
+  background: var(--success);
+}
+
+/* 当前步骤 */
+.c-progress-step--active .c-progress-step__circle {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+.c-progress-step--active .c-progress-step__label {
+  color: var(--primary);
+  font-weight: var(--font-weight-semibold);
+}

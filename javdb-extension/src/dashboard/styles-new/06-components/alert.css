@@ -1,0 +1,235 @@
+/* ===================================================================
+   Alert 组件
+   ================================================================ */
+
+/* ===== 基础警告框 ===== */
+.c-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  
+  animation: c-alert-slide-in var(--transition-base) var(--ease-out);
+}
+
+@keyframes c-alert-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== 警告框图标 ===== */
+.c-alert__icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+/* ===== 警告框内容 ===== */
+.c-alert__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.c-alert__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.c-alert__message {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+/* ===== 警告框关闭按钮 ===== */
+.c-alert__close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  
+  font-size: 16px;
+  cursor: pointer;
+  
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.c-alert__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ===== 警告框类型 ===== */
+.c-alert--success {
+  background: var(--success-light);
+  border-left-color: var(--success);
+}
+
+.c-alert--success .c-alert__icon {
+  color: var(--success);
+}
+
+.c-alert--warning {
+  background: var(--warning-light);
+  border-left-color: var(--warning);
+}
+
+.c-alert--warning .c-alert__icon {
+  color: var(--warning);
+}
+
+.c-alert--error {
+  background: var(--error-light);
+  border-left-color: var(--error);
+}
+
+.c-alert--error .c-alert__icon {
+  color: var(--error);
+}
+
+.c-alert--info {
+  background: var(--info-light);
+  border-left-color: var(--info);
+}
+
+.c-alert--info .c-alert__icon {
+  color: var(--info);
+}
+
+/* ===== 警告框变体 ===== */
+
+/* 填充样式 */
+.c-alert--filled {
+  border: none;
+  color: var(--text-inverse);
+}
+
+.c-alert--filled.c-alert--success {
+  background: var(--success);
+}
+
+.c-alert--filled.c-alert--warning {
+  background: var(--warning);
+}
+
+.c-alert--filled.c-alert--error {
+  background: var(--error);
+}
+
+.c-alert--filled.c-alert--info {
+  background: var(--info);
+}
+
+.c-alert--filled .c-alert__title,
+.c-alert--filled .c-alert__message,
+.c-alert--filled .c-alert__icon,
+.c-alert--filled .c-alert__close {
+  color: var(--text-inverse);
+}
+
+/* 轮廓样式 */
+.c-alert--outline {
+  background: transparent;
+  border-width: 1px;
+}
+
+.c-alert--outline.c-alert--success {
+  border-color: var(--success);
+}
+
+.c-alert--outline.c-alert--warning {
+  border-color: var(--warning);
+}
+
+.c-alert--outline.c-alert--error {
+  border-color: var(--error);
+}
+
+.c-alert--outline.c-alert--info {
+  border-color: var(--info);
+}
+
+/* ===== 警告框尺寸 ===== */
+.c-alert--sm {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.c-alert--sm .c-alert__icon {
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+}
+
+.c-alert--sm .c-alert__title,
+.c-alert--sm .c-alert__message {
+  font-size: var(--font-size-xs);
+}
+
+.c-alert--lg {
+  padding: var(--space-5);
+  gap: var(--space-4);
+}
+
+.c-alert--lg .c-alert__icon {
+  width: 24px;
+  height: 24px;
+  font-size: 22px;
+}
+
+.c-alert--lg .c-alert__title {
+  font-size: var(--font-size-md);
+}
+
+.c-alert--lg .c-alert__message {
+  font-size: var(--font-size-md);
+}
+
+/* ===== 警告框操作 ===== */
+.c-alert__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ===== 关闭动画 ===== */
+.c-alert--closing {
+  animation: c-alert-slide-out var(--transition-base) var(--ease-in);
+}
+
+@keyframes c-alert-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}

@@ -1,0 +1,305 @@
+/* ===================================================================
+   CSS 变量系统 - 优化版
+   基于设计令牌（Design Tokens）的语义化变量体系
+   ================================================================ */
+
+:root {
+  /* ===== 颜色令牌 - Color Tokens ===== */
+  
+  /* 基础色板 */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  
+  --color-green-50: #f0fdf4;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  
+  --color-red-50: #fef2f2;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  
+  --color-yellow-50: #fefce8;
+  --color-yellow-500: #f59e0b;
+  --color-yellow-600: #d97706;
+  
+  --color-teal-50: #f0fdfa;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  
+  /* 语义化颜色 - 背景 */
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #fafbfc;
+  --bg-hover: #f8f9fa;
+  
+  /* 语义化颜色 - 文本 */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  
+  /* 语义化颜色 - 边框 */
+  --border-primary: #e5e7eb;
+  --border-secondary: #f3f4f6;
+  --border-hover: #d1d5db;
+  
+  /* 语义化颜色 - 表面 */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-elevated: #ffffff;
+  --surface-overlay: rgba(0, 0, 0, 0.6);
+  
+  /* 语义化颜色 - 主题色 */
+  --primary: var(--color-blue-500);
+  --primary-hover: var(--color-blue-600);
+  --primary-active: var(--color-blue-700);
+  --primary-light: var(--color-blue-100);
+  
+  /* 语义化颜色 - 状态 */
+  --success: var(--color-green-500);
+  --success-light: var(--color-green-50);
+  --success-hover: var(--color-green-600);
+  
+  --warning: var(--color-yellow-500);
+  --warning-light: var(--color-yellow-50);
+  --warning-hover: var(--color-yellow-600);
+  
+  --error: var(--color-red-500);
+  --error-light: var(--color-red-50);
+  --error-hover: var(--color-red-600);
+  
+  --info: var(--color-teal-500);
+  --info-light: var(--color-teal-50);
+  --info-hover: var(--color-teal-600);
+  
+  /* ===== 尺寸令牌 - Size Tokens ===== */
+  --size-xs: 24px;
+  --size-sm: 32px;
+  --size-md: 40px;
+  --size-lg: 48px;
+  --size-xl: 56px;
+  
+  /* 组件尺寸 - 按钮 */
+  --button-height-sm: var(--size-sm);
+  --button-height-md: var(--size-md);
+  --button-height-lg: var(--size-lg);
+  
+  /* 组件尺寸 - 输入框 */
+  --input-height-sm: var(--size-sm);
+  --input-height-md: var(--size-md);
+  --input-height-lg: var(--size-lg);
+  
+  /* ===== 间距令牌 - Spacing Tokens (8px 基准) ===== */
+  --space-0: 0;
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+  --space-16: 4rem;    /* 64px */
+  
+  /* ===== 字体令牌 - Typography Tokens ===== */
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-md: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* ===== 圆角令牌 - Border Radius Tokens ===== */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 999px;
+  
+  /* ===== 阴影令牌 - Shadow Tokens ===== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
+  
+  /* ===== Z-index 令牌 - Z-index Tokens ===== */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+  --z-toast: 100;
+  
+  /* ===== 过渡令牌 - Transition Tokens ===== */
+  --transition-fast: 150ms;
+  --transition-base: 200ms;
+  --transition-slow: 300ms;
+  --transition-slower: 500ms;
+  
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ===== 焦点环 - Focus Ring ===== */
+  --ring-width: 3px;
+  --ring-color: rgba(59, 130, 246, 0.15);
+  --ring: 0 0 0 var(--ring-width) var(--ring-color);
+  
+  /* ===== 组件特定变量 ===== */
+  --sidebar-width: 280px;
+  --sidebar-width-collapsed: 0px;
+  --topbar-height: 60px;
+  
+  /* ===== 兼容旧变量（逐步废弃） ===== */
+  --bg: var(--bg-primary);
+  --surface: var(--surface-primary);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --border: var(--border-primary);
+  --radius: var(--radius-lg);
+  --elev-1: var(--shadow-sm);
+  --elev-2: var(--shadow-md);
+  --sidebar-bg: var(--bg-tertiary);
+  --card-bg: var(--surface-primary);
+  --input-bg: var(--surface-primary);
+  --input-border: var(--border-primary);
+  --button-ghost-bg: var(--surface-secondary);
+  --button-ghost-text: var(--text-secondary);
+  --border-color: var(--border-primary);
+  --accent-color: var(--primary);
+  --danger: var(--error);
+  --primary-600: var(--primary-hover);
+}
+
+/* ===================================================================
+   深色主题 - Dark Theme
+   ================================================================ */
+[data-theme="dark"] {
+  /* 基础色板（深色模式调整） */
+  --color-gray-50: #1e293b;
+  --color-gray-100: #334155;
+  --color-gray-900: #f1f5f9;
+  
+  /* 语义化颜色 - 背景 */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-hover: #475569;
+  
+  /* 语义化颜色 - 文本 */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverse: #0f172a;
+  
+  /* 语义化颜色 - 边框 */
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-hover: #64748b;
+  
+  /* 语义化颜色 - 表面 */
+  --surface-primary: #1e293b;
+  --surface-secondary: #334155;
+  --surface-elevated: #475569;
+  --surface-overlay: rgba(0, 0, 0, 0.8);
+  
+  /* 语义化颜色 - 主题色 */
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-active: #2563eb;
+  --primary-light: #1e3a8a;
+  
+  /* 语义化颜色 - 状态 */
+  --success: #4ade80;
+  --success-light: #14532d;
+  --success-hover: #22c55e;
+  
+  --warning: #fbbf24;
+  --warning-light: #78350f;
+  --warning-hover: #f59e0b;
+  
+  --error: #f87171;
+  --error-light: #7f1d1d;
+  --error-hover: #ef4444;
+  
+  --info: #2dd4bf;
+  --info-light: #134e4a;
+  --info-hover: #14b8a6;
+  
+  /* 阴影（深色模式加深） */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+  
+  /* 焦点环 */
+  --ring-color: rgba(96, 165, 250, 0.25);
+  
+  /* 兼容旧变量 */
+  --sidebar-bg: var(--bg-secondary);
+  --card-bg: var(--surface-primary);
+  --input-bg: var(--surface-secondary);
+  --input-border: var(--border-primary);
+  --button-ghost-bg: var(--surface-secondary);
+  --button-ghost-text: var(--text-secondary);
+}
+
+/* ===================================================================
+   平滑过渡
+   ================================================================ */
+* {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: var(--transition-base);
+  transition-timing-function: var(--ease-in-out);
+}
+
+/* 排除不需要过渡的元素 */
+*:where(
+  [class*="animate"],
+  [class*="transition"],
+  button:active,
+  a:active,
+  input,
+  textarea,
+  select
+) {
+  transition: none;
+}
+
+/* ===================================================================
+   确保 html 和 body 正确应用主题背景色
+   ================================================================ */
+html,
+body {
+  background-color: var(--bg-primary) !important;
+  min-height: 100vh;
+}
