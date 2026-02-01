@@ -1,0 +1,410 @@
+/* ============================================
+   Insights 页面样式
+   ============================================ */
+
+/* Insights 工具栏 */
+.tab-section[data-tab-id="insights"] .insights-toolbar {
+    position: sticky;
+    top: 0;
+    background: var(--surface-primary);
+    z-index: 2;
+    display: block !important;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 12px;
+    --ins-row2-h: 30px;
+    --ins-row2-btn-h: 44px;
+    --ins-row2-font: 13px;
+    --ins-row2-pad-x: 12px;
+    --ins-row2-input-py: 4px;
+    --ins-row2-radius: 6px;
+}
+
+/* 工具栏行 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    flex: 1 0 100%;
+    margin-top: 6px;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-1 {
+    margin-top: 0;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    column-gap: 12px;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .toolbar-left {
+    display: grid;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+    min-width: 0;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 #insights-model-sep {
+    display: none;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 #insights-model-wrap {
+    margin-left: 0 !important;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .toolbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+    min-width: max-content;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row .toolbar-left {
+    flex: 1 1 520px;
+    min-width: 360px;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row .toolbar-right {
+    flex: 0 0 auto;
+}
+
+.tab-section[data-tab-id="insights"] .toolbar-left,
+.tab-section[data-tab-id="insights"] .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tab-section[data-tab-id="insights"] .field-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tab-section[data-tab-id="insights"] .field-inline label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* 时间范围选择 */
+.tab-section[data-tab-id="insights"] #insights-month,
+.tab-section[data-tab-id="insights"] #insights-month-start,
+.tab-section[data-tab-id="insights"] #insights-month-end,
+.tab-section[data-tab-id="insights"] #insights-model-select {
+    appearance: auto;
+    -webkit-appearance: auto;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-radius: var(--ins-row2-radius);
+    padding: var(--ins-row2-input-py) 10px;
+    height: var(--ins-row2-h);
+    font-size: var(--ins-row2-font);
+    min-width: 150px;
+}
+
+.tab-section[data-tab-id="insights"] #insights-month:focus,
+.tab-section[data-tab-id="insights"] #insights-month-start:focus,
+.tab-section[data-tab-id="insights"] #insights-month-end:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+}
+
+/* 小圆点分隔符 */
+.tab-section[data-tab-id="insights"] .insights-toolbar .dot-sep {
+    color: var(--text-muted);
+    margin: 0 6px;
+    user-select: none;
+}
+
+/* 统一第二行控件 */
+.tab-section[data-tab-id="insights"] #insights-model-select {
+    height: var(--ins-row2-h);
+    line-height: var(--ins-row2-h);
+    border-radius: var(--ins-row2-radius);
+    min-width: 180px;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 button {
+    height: var(--ins-row2-btn-h);
+    min-height: var(--ins-row2-btn-h);
+    padding: 0 var(--ins-row2-pad-x);
+    font-size: var(--ins-row2-font);
+    border-radius: var(--ins-row2-radius);
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 input[type="month"],
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 select {
+    height: var(--ins-row2-h);
+    padding: var(--ins-row2-input-py) 10px;
+    font-size: var(--ins-row2-font);
+    border-radius: var(--ins-row2-radius);
+    box-sizing: border-box;
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 label,
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .dot-sep,
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 .field-inline span {
+    line-height: var(--ins-row2-h);
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 label {
+    font-size: var(--ins-row2-font);
+}
+
+.tab-section[data-tab-id="insights"] .insights-toolbar .toolbar-row.row-2 i {
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* 双栏内容区 */
+.tab-section[data-tab-id="insights"] .insights-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.5fr;
+    gap: 16px;
+}
+
+.tab-section[data-tab-id="insights"] .section-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 8px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-start;
+}
+
+.tab-section[data-tab-id="insights"] .section-title.has-actions {
+    justify-content: space-between;
+}
+
+.tab-section[data-tab-id="insights"] .section-title .title-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tab-section[data-tab-id="insights"] .section-title .section-actions {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 历史标题右侧按钮 */
+.tab-section[data-tab-id="insights"] #insights-export,
+.tab-section[data-tab-id="insights"] #insights-refresh-history,
+.tab-section[data-tab-id="insights"] #insights-delete-selected {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 12px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+.tab-section[data-tab-id="insights"] #insights-export {
+    border-radius: 999px;
+    font-size: 12px;
+    background: var(--primary);
+    border: 1px solid var(--primary-hover);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-section[data-tab-id="insights"] #insights-export:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-active);
+}
+
+.tab-section[data-tab-id="insights"] #insights-export i,
+.tab-section[data-tab-id="insights"] #insights-refresh-history i {
+    line-height: 1;
+    font-size: 13px;
+    display: inline-block;
+}
+
+.tab-section[data-tab-id="insights"] #insights-refresh-history {
+    border-radius: 999px;
+    font-size: 12px;
+    background: var(--button-ghost-bg);
+    border: 1px solid var(--border-primary);
+    color: var(--button-ghost-text);
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-section[data-tab-id="insights"] #insights-refresh-history:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.tab-section[data-tab-id="insights"] #insights-delete-selected {
+    border-radius: 999px;
+    font-size: 12px;
+    background: var(--error);
+    border: 1px solid var(--error-hover);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-section[data-tab-id="insights"] #insights-delete-selected:hover:not(:disabled) {
+    background: var(--error-hover);
+}
+
+.tab-section[data-tab-id="insights"] #insights-delete-selected:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* 预览区右上角动作 */
+.tab-section[data-tab-id="insights"] #insights-preview-actions {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    z-index: 6;
+    display: flex;
+    gap: 8px;
+}
+
+.tab-section[data-tab-id="insights"] .preview-copy-btn,
+.tab-section[data-tab-id="insights"] .preview-save-btn {
+    height: 28px;
+}
+
+.tab-section[data-tab-id="insights"] .preview-copy-btn:hover {
+    background: var(--bg-hover);
+}
+
+/* 历史标题下的动作区 */
+.tab-section[data-tab-id="insights"] .history-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0 10px 0;
+}
+
+/* 生成按钮动画 */
+@keyframes ins-spark {
+    0%, 100% { transform: translateY(0) scale(1); opacity: .9; }
+    50% { transform: translateY(-1px) scale(1.12); opacity: 1; }
+}
+
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    top: -1px;
+}
+
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span {
+    font-size: 12px;
+    line-height: 1;
+    color: #fde047;
+    text-shadow: 0 0 6px rgba(250, 204, 21, 0.8);
+    animation: ins-spark 1.8s ease-in-out infinite;
+}
+
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span:nth-child(2) {
+    animation-delay: .14s;
+}
+
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkles span:nth-child(3) {
+    animation-delay: .28s;
+}
+
+.tab-section[data-tab-id="insights"] #insights-generate .ins-gen-sparkle-tail {
+    margin-left: 6px;
+    font-size: 10px;
+    line-height: 1;
+    color: #fde047;
+    opacity: .9;
+    text-shadow: 0 0 5px rgba(250, 204, 21, 0.7);
+    position: relative;
+    top: -1px;
+    animation: ins-spark 2s ease-in-out infinite;
+    animation-delay: .42s;
+}
+
+/* 导出下拉菜单 */
+#insights-export-menu [data-fmt] {
+    display: block;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+#insights-export-menu [data-fmt]:hover {
+    background: var(--primary-light);
+    color: var(--text-primary);
+}
+
+.tab-section[data-tab-id="insights"] .history-list {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 140px;
+}
+
+/* 历史列表按钮 */
+.tab-section[data-tab-id="insights"] .history-item button {
+    min-width: 72px;
+}
+
+.tab-section[data-tab-id="insights"] .history-item .btn-sm {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 12px;
+    line-height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.tab-section[data-tab-id="insights"] .history-item .btn-sm i {
+    line-height: 1;
+    font-size: 13px;
+}
+
+.tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--button-ghost-text);
+}
+
+.tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm,
+.tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm *,
+.tab-section[data-tab-id="insights"] .history-item .btn-secondary.btn-sm i {
+    color: var(--button-ghost-text) !important;
+    -webkit-text-fill-color: var(--button-ghost-text) !important;
+}
+
+/* 响应式 */
+@media (max-width: 1080px) {
+    .tab-section[data-tab-id="insights"] .insights-grid {
+        grid-template-columns: 1fr;
+    }
+}
