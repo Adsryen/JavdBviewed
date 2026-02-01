@@ -1,0 +1,235 @@
+/* ===================================================================
+   Card 组件
+   ================================================================ */
+
+/* ===== 基础卡片 ===== */
+.c-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base) var(--ease-out);
+  overflow: hidden;
+}
+
+/* ===== 卡片悬停效果 ===== */
+.c-card--hoverable {
+  cursor: pointer;
+}
+
+.c-card--hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+
+/* ===== 卡片头部 ===== */
+.c-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.c-card__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.c-card__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: var(--space-1) 0 0 0;
+}
+
+.c-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ===== 卡片主体 ===== */
+.c-card__body {
+  padding: var(--space-6);
+}
+
+/* 紧凑模式 */
+.c-card__body--compact {
+  padding: var(--space-4);
+}
+
+/* 宽松模式 */
+.c-card__body--relaxed {
+  padding: var(--space-8);
+}
+
+/* ===== 卡片底部 ===== */
+.c-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+/* 底部左右分布 */
+.c-card__footer--split {
+  justify-content: space-between;
+}
+
+/* ===== 卡片变体 ===== */
+
+/* 无边框 */
+.c-card--borderless {
+  border: none;
+}
+
+/* 无阴影 */
+.c-card--flat {
+  box-shadow: none;
+}
+
+/* 高亮卡片 */
+.c-card--elevated {
+  box-shadow: var(--shadow-lg);
+}
+
+/* 带颜色边框的卡片 */
+.c-card--primary {
+  border-left: 4px solid var(--primary);
+}
+
+.c-card--success {
+  border-left: 4px solid var(--success);
+}
+
+.c-card--warning {
+  border-left: 4px solid var(--warning);
+}
+
+.c-card--error {
+  border-left: 4px solid var(--error);
+}
+
+.c-card--info {
+  border-left: 4px solid var(--info);
+}
+
+/* ===== 卡片尺寸 ===== */
+.c-card--sm {
+  border-radius: var(--radius-md);
+}
+
+.c-card--sm .c-card__header,
+.c-card--sm .c-card__footer {
+  padding: var(--space-3) var(--space-4);
+}
+
+.c-card--sm .c-card__body {
+  padding: var(--space-4);
+}
+
+.c-card--lg {
+  border-radius: var(--radius-xl);
+}
+
+.c-card--lg .c-card__header,
+.c-card--lg .c-card__footer {
+  padding: var(--space-6) var(--space-8);
+}
+
+.c-card--lg .c-card__body {
+  padding: var(--space-8);
+}
+
+/* ===== 卡片网格 ===== */
+.c-card-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.c-card-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.c-card-grid--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.c-card-grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .c-card-grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .c-card-grid--2,
+  .c-card-grid--3,
+  .c-card-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 卡片图片 ===== */
+.c-card__image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.c-card__image-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.c-card__image-wrapper--cover {
+  height: 200px;
+}
+
+.c-card__image-wrapper--cover .c-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===== 卡片徽章 ===== */
+.c-card__badge {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--primary);
+  color: var(--text-inverse);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+}
+
+/* ===== 兼容旧类名 ===== */
+.card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base) var(--ease-out),
+              transform var(--transition-fast) var(--ease-out),
+              border-color var(--transition-base) var(--ease-out);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}

@@ -1,0 +1,500 @@
+/* 115任务列表样式 */
+
+/* 任务控制栏 */
+.drive115-tasks-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.task-input-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.task-url-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.task-url-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.task-url-input::placeholder {
+  color: #9ca3af;
+}
+
+.task-action-group {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-action-group .button-like.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.task-action-group .button-like.danger:hover {
+  background: #dc2626;
+}
+
+/* 任务列表容器 */
+.drive115-tasks-wrapper {
+  position: relative;
+  min-height: 200px;
+}
+
+.drive115-tasks-container {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d1d5db;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #ef4444;
+}
+
+.error-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #fca5a5;
+}
+
+.error-state h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.error-state p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* 任务列表 */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 任务项 */
+.task-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px; /* 压缩行内边距，提升信息密度 */
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.task-item:hover {
+  background-color: #f8fafc;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+/* 任务头部 */
+.task-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px; /* 压缩间距 */
+  margin-bottom: 8px; /* 压缩间距 */
+}
+
+.task-icon {
+  flex-shrink: 0;
+  width: 32px; /* 缩小图标容器 */
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0f2fe;
+  border-radius: 6px; /* 稍减圆角 */
+  color: #0284c7;
+}
+
+.task-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-name {
+  font-size: 13px; /* 略微缩小字体 */
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px; /* 压缩间距 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta {
+  display: flex;
+  gap: 12px; /* 压缩间距 */
+  font-size: 11px; /* 略微缩小字体 */
+  color: #6b7280;
+}
+
+.task-status {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  min-width: 60px;
+}
+
+/* 任务状态样式 */
+.status-pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-running {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.status-completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* 进度条 */
+.task-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 压缩间距 */
+  margin-bottom: 8px; /* 压缩间距 */
+}
+
+.progress-bar {
+  flex: 1;
+  height: 5px; /* 略微降低高度 */
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* 任务操作 */
+.task-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; /* 缩小按钮 */
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.task-action-btn.delete-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.task-action-btn.delete-btn:hover {
+  background: #fecaca;
+  transform: scale(1.05);
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 16px;
+}
+
+.page-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.page-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.page-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+/* 分页条数选择器（与 TS 中追加的控件类名一致） */
+.page-size-control .page-size-select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* 统计卡片：点击和高亮效果 */
+.stats-grid .stat-item {
+  cursor: pointer;
+  user-select: none;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+
+.stats-grid .stat-item:hover {
+  background: #f8fafc;
+}
+
+.stats-grid .stat-item.active {
+  outline: 2px solid #3b82f6;
+  background: #eff6ff;
+}
+
+.page-btn.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.page-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* 消息提示 */
+.message-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10000;
+  animation: slideInRight 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-toast.success {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.message-toast.warning {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.message-toast.error {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .drive115-tasks-controls {
+    padding: 12px;
+  }
+  
+  .task-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .task-action-group {
+    justify-content: stretch;
+  }
+  
+  .task-action-group .button-like {
+    flex: 1;
+  }
+  
+  .task-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .task-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .task-progress {
+    margin-bottom: 8px;
+  }
+  
+  .pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
+
+/* 加载指示器 */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.loading-indicator i {
+  font-size: 24px;
+  margin-bottom: 8px;
+  animation: spin 1s linear infinite;
+}
+
+.loading-indicator span {
+  font-size: 14px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 统计信息网格 */
+.stats-grid .stat-item .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.stats-grid .stat-item .stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}

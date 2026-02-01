@@ -1,0 +1,187 @@
+/* ===================================================================
+   Breadcrumb 组件（面包屑导航）
+   ================================================================ */
+
+/* ===== 面包屑容器 ===== */
+.c-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+/* ===== 面包屑项 ===== */
+.c-breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* ===== 面包屑链接 ===== */
+.c-breadcrumb__link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast) var(--ease-out);
+}
+
+.c-breadcrumb__link:hover {
+  color: var(--primary);
+}
+
+/* 当前页面 */
+.c-breadcrumb__item--active .c-breadcrumb__link {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ===== 面包屑分隔符 ===== */
+.c-breadcrumb__separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* ===== 面包屑图标 ===== */
+.c-breadcrumb__icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: var(--space-1);
+  font-size: 14px;
+}
+
+/* ===== 面包屑尺寸 ===== */
+.c-breadcrumb--sm {
+  gap: var(--space-1);
+}
+
+.c-breadcrumb--sm .c-breadcrumb__item {
+  font-size: var(--font-size-xs);
+}
+
+.c-breadcrumb--sm .c-breadcrumb__separator {
+  font-size: 10px;
+}
+
+.c-breadcrumb--lg {
+  gap: var(--space-3);
+}
+
+.c-breadcrumb--lg .c-breadcrumb__item {
+  font-size: var(--font-size-md);
+}
+
+.c-breadcrumb--lg .c-breadcrumb__separator {
+  font-size: 14px;
+}
+
+/* ===== 面包屑变体 ===== */
+
+/* 带背景的面包屑 */
+.c-breadcrumb--contained {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+/* 带分隔线的面包屑 */
+.c-breadcrumb--divided .c-breadcrumb__item:not(:last-child)::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  margin-left: var(--space-2);
+  background: var(--border-primary);
+}
+
+.c-breadcrumb--divided .c-breadcrumb__separator {
+  display: none;
+}
+
+/* ===== 面包屑下拉菜单 ===== */
+.c-breadcrumb__dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.c-breadcrumb__dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.c-breadcrumb__dropdown-trigger:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+.c-breadcrumb__dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: var(--z-dropdown);
+  
+  min-width: 160px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.c-breadcrumb__dropdown--open .c-breadcrumb__dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.c-breadcrumb__dropdown-item {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast) var(--ease-out);
+}
+
+.c-breadcrumb__dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+/* ===== 响应式面包屑 ===== */
+@media (max-width: 768px) {
+  .c-breadcrumb__item:not(:first-child):not(:last-child) {
+    display: none;
+  }
+  
+  .c-breadcrumb__item:nth-last-child(2) .c-breadcrumb__separator {
+    display: none;
+  }
+  
+  /* 显示省略号 */
+  .c-breadcrumb__item:first-child::after {
+    content: '...';
+    margin: 0 var(--space-2);
+    color: var(--text-muted);
+  }
+}

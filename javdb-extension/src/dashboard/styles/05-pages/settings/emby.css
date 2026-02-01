@@ -1,0 +1,487 @@
+/* Emby增强设置样式 */
+
+/* CSS变量定义 */
+:root {
+    --emby-primary: #00a4dc;
+    --emby-secondary: #52c4e8;
+    --emby-bg: #f8fafc;
+    --emby-card-bg: #ffffff;
+    --emby-border: #e2e8f0;
+    --emby-text: #1e293b;
+    --emby-text-muted: #64748b;
+    --emby-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --emby-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Emby设置面板特有样式 */
+#emby-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#emby-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(0, 164, 220, 0.05) 0%,
+        rgba(82, 196, 232, 0.05) 50%,
+        rgba(147, 197, 253, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#emby-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#emby-settings .settings-panel-header h3 {
+    color: var(--emby-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#emby-settings .settings-panel-header h3::before {
+    content: '📺';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#emby-settings .settings-description {
+    color: var(--emby-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* URL列表容器 */
+.url-list-container {
+    margin-top: 10px;
+}
+
+.url-list {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px;
+    background-color: #fafafa;
+    margin-bottom: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.url-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 0;
+    background: none;
+    border: none;
+    transition: none;
+}
+
+/* 移除hover效果，因为已经没有边框了 */
+
+.url-item:last-child {
+    margin-bottom: 0;
+}
+
+#emby-settings .url-input,
+.url-list .url-input,
+div.url-item input.url-input {
+    width: 100% !important;
+    flex: 1 !important;
+    padding: 10px 12px !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    background: white !important;
+    color: #1e293b !important;
+    box-sizing: border-box !important;
+}
+
+#emby-settings .url-input:focus,
+.url-list .url-input:focus,
+div.url-item input.url-input:focus {
+    outline: none !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+}
+
+#emby-settings .url-input:disabled,
+.url-list .url-input:disabled,
+div.url-item input.url-input:disabled {
+    background-color: #ffffff !important; /* 强制白色背景 */
+    color: #333333 !important; /* 深色文字 */
+    border-color: #dddddd !important;
+    opacity: 0.7 !important;
+}
+
+.url-input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.remove-url-btn {
+    padding: 6px 8px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+}
+
+.remove-url-btn:hover {
+    background-color: #d32f2f;
+}
+
+.remove-url-btn:active {
+    transform: scale(0.95);
+}
+
+/* 测试结果样式 */
+.test-result {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.test-success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.test-failure {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.test-error {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffb74d;
+}
+
+/* 帮助内容样式 */
+.help-content {
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.help-content ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.help-content li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.help-content strong {
+    color: #1976d2;
+}
+
+/* 设置选择框样式 - 始终白底黑字 */
+.setting-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white !important;
+    color: #333333 !important;
+    box-sizing: border-box;
+    min-width: 200px;
+    cursor: pointer;
+}
+
+.setting-select:hover {
+    border-color: #cbd5e1;
+    background: white !important;
+    color: #333333 !important;
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    background: white !important;
+    color: #333333 !important;
+}
+
+.setting-select:disabled {
+    background: white !important;
+    color: #666666 !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* 测试功能样式 */
+.test-buttons-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.test-buttons-group .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+.test-result {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.test-results-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.test-case {
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.test-case.test-success {
+    background-color: #f0f9ff;
+    border-left-color: #10b981;
+}
+
+.test-case.test-failure {
+    background-color: #fef2f2;
+    border-left-color: #ef4444;
+}
+
+.test-case-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1e293b;
+}
+
+.test-case-details {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.test-case-details > div {
+    margin-bottom: 4px;
+}
+
+.test-url {
+    font-family: monospace;
+    background: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+.test-summary {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.test-summary.test-success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.test-summary.test-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.test-success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.test-info {
+    background-color: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.test-failure {
+    background-color: #fecaca;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+}
+
+.test-error {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+}
+
+/* 按钮样式 */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #1976d2;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #1565c0;
+}
+
+.btn-secondary {
+    background-color: #757575;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #616161;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .url-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .url-input {
+        margin-bottom: 8px;
+    }
+    
+    .remove-url-btn {
+        align-self: flex-end;
+        width: auto;
+        min-width: auto;
+        padding: 8px 12px;
+    }
+    
+    .setting-select {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+/* 禁用状态样式 */
+.url-list-container:has(input:disabled) .url-list {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.url-list-container:has(input:disabled) .btn {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* 为不支持:has()的浏览器提供备选样式 */
+@supports not selector(:has(*)) {
+    .url-list-container.disabled .url-list {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .url-list-container.disabled .btn {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+}
+
+/* 动画效果 - 只对新添加的元素应用 */
+.url-item.new-item {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 空状态样式 */
+.url-list:empty::before {
+    content: "暂无配置的网址模式，点击下方按钮添加";
+    display: block;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* 滚动条样式 */
+.url-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.url-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.url-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.url-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

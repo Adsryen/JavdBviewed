@@ -1,0 +1,44 @@
+/* ============================================
+   工具类 - Utility Classes
+   ============================================ */
+
+/* 显示/隐藏 */
+.u-hidden {
+  display: none !important;
+}
+
+.u-visible {
+  display: block !important;
+}
+
+/* 文本对齐 */
+.u-text-left {
+  text-align: left !important;
+}
+
+.u-text-center {
+  text-align: center !important;
+}
+
+.u-text-right {
+  text-align: right !important;
+}
+
+/* 间距工具类 */
+.u-mt-0 { margin-top: 0 !important; }
+.u-mt-1 { margin-top: 0.25rem !important; }
+.u-mt-2 { margin-top: 0.5rem !important; }
+.u-mt-3 { margin-top: 0.75rem !important; }
+.u-mt-4 { margin-top: 1rem !important; }
+
+.u-mb-0 { margin-bottom: 0 !important; }
+.u-mb-1 { margin-bottom: 0.25rem !important; }
+.u-mb-2 { margin-bottom: 0.5rem !important; }
+.u-mb-3 { margin-bottom: 0.75rem !important; }
+.u-mb-4 { margin-bottom: 1rem !important; }
+
+.u-p-0 { padding: 0 !important; }
+.u-p-1 { padding: 0.25rem !important; }
+.u-p-2 { padding: 0.5rem !important; }
+.u-p-3 { padding: 0.75rem !important; }
+.u-p-4 { padding: 1rem !important; }

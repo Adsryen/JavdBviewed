@@ -1,0 +1,878 @@
+/* 115网盘设置样式 */
+
+/* CSS变量定义 */
+:root {
+    --drive115-primary: #ff6b35;
+    --drive115-secondary: #ff8a65;
+    --drive115-bg: #fff3e0;
+    --drive115-card-bg: #ffffff;
+    --drive115-border: #ffcc02;
+    --drive115-text: #1e293b;
+    --drive115-text-muted: #64748b;
+    --drive115-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --drive115-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 115网盘设置面板特有样式 */
+#drive115-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#drive115-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(255, 107, 53, 0.05) 0%,
+        rgba(255, 138, 101, 0.05) 50%,
+        rgba(255, 204, 2, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#drive115-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#drive115-settings .settings-panel-header h3 {
+    color: var(--drive115-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .settings-panel-header h3::before {
+    content: '☁️';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#drive115-settings .settings-description {
+    color: var(--drive115-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* 版本分段切换（标题右侧） */
+#drive115-settings .version-toggle {
+    position: absolute;
+    right: 0;
+    top: 20px;
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--drive115-shadow);
+}
+
+#drive115-settings .version-toggle button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    font-size: 12px;
+    line-height: 1;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#drive115-settings .version-toggle button + button {
+    border-left: 1px solid var(--border-color, #e5e7eb);
+}
+
+#drive115-settings .version-toggle button:hover {
+    background: var(--bg-hover, #f3f4f6);
+    color: var(--text-primary, #374151);
+}
+
+#drive115-settings .version-toggle button.active {
+    background: var(--drive115-bg, #fff3e0);
+    color: var(--drive115-primary, #ff6b35);
+    font-weight: 600;
+}
+
+#drive115-settings .version-toggle button:focus-visible {
+    outline: 2px solid var(--drive115-primary, #ff6b35);
+    outline-offset: -2px;
+}
+
+/* 移动端适配：绝对定位改为流式，居中显示 */
+@media (max-width: 768px) {
+    #drive115-settings .version-toggle {
+        position: static;
+        margin: 8px auto 0 auto;
+    }
+}
+
+/* 115设置容器 */
+.drive115-settings-container {
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.drive115-settings-container.disabled {
+    opacity: 0.5;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+/* 醒目的注意提示样式 */
+#drive115-settings .drive115-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #fbbf24; /* amber-400 */
+    background: #fffbeb;        /* amber-50 */
+    color: #92400e;             /* amber-800 */
+    border-radius: 8px;
+    margin-top: 10px;
+}
+#drive115-settings .drive115-alert-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-top: 2px;
+}
+#drive115-settings .drive115-alert-content strong { margin-right: 4px; }
+
+/* 标题小图标 */
+#drive115-settings .settings-panel-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#drive115-settings .drive115-title-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+/* 标题图标默认隐藏，加载成功再显示 */
+#drive115-settings #drive115TitleIcon { display: none; }
+
+/* 现代化滑块开关样式 */
+#drive115-settings .drive115-toggle-wrapper {
+    margin-bottom: 15px;
+}
+
+#drive115-settings .drive115-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: default; /* 仅开关可点 */
+    user-select: none;
+    padding: 12px 0;
+}
+
+#drive115-settings .drive115-toggle-text {
+    font-weight: 500;
+    color: var(--text-primary, #374151);
+    font-size: 14px;
+    cursor: default; /* 仅开关可点击，文字显示默认光标 */
+}
+
+#drive115-settings .drive115-toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+#drive115-settings .drive115-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+#drive115-settings .drive115-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    border-radius: 13px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 2px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:before {
+    transform: translateX(24px);
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#drive115-settings .drive115-toggle-slider:hover {
+    transform: scale(1.02);
+}
+
+#drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+#drive115-settings .drive115-toggle-input:focus + .drive115-toggle-slider {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* 禁用状态 */
+#drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f3f4f6;
+}
+
+#drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider:before {
+    background: #e5e7eb;
+}
+
+/* 设置组样式 */
+#drive115-settings .settings-group {
+    margin-bottom: 25px;
+    padding: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+#drive115-settings .settings-group h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* v2 用户信息区样式 */
+#drive115-settings #drive115V2UserInfoStatus[data-kind="ok"] {
+    color: #2e7d32;
+}
+#drive115-settings #drive115V2UserInfoStatus[data-kind="error"] {
+    color: #c62828;
+}
+#drive115-settings #drive115V2UserInfoStatus[data-kind="info"],
+#drive115-settings #drive115V2UserInfoStatus:not([data-kind]) {
+    color: #888;
+}
+
+#drive115-settings .drive115-user-info-box {
+    background: #fafafa;
+    border: 1px dashed #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+/* 设置项样式 */
+#drive115-settings .setting-item {
+    margin-bottom: 15px;
+}
+
+#drive115-settings .setting-item:last-child {
+    margin-bottom: 0;
+}
+
+#drive115-settings .setting-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #374151;
+}
+
+#drive115-settings .setting-item input[type="text"],
+#drive115-settings .setting-item input[type="number"] {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+/* 禁用态统一灰化（避免主题样式覆盖） */
+#drive115-settings input:disabled,
+#drive115-settings textarea:disabled,
+#drive115-settings select:disabled {
+    background-color: #f5f5f5 !important;
+    color: #888 !important;
+    border-color: #e0e0e0 !important;
+    cursor: not-allowed !important;
+}
+
+/* 针对 v2 token 字段的明确样式（再加一层保险） */
+#drive115V2AccessToken:disabled,
+#drive115V2RefreshToken:disabled {
+    background-color: #f5f5f5 !important;
+    color: #888 !important;
+    border-color: #e0e0e0 !important;
+}
+
+#drive115-settings .setting-item input[type="text"]:focus,
+#drive115-settings .setting-item input[type="number"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#drive115-settings .setting-item input.input-invalid {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+#drive115-settings .setting-item .help-text {
+    margin-top: 5px;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+#drive115-settings .setting-item .error-text {
+    margin-top: 5px;
+    font-size: 13px;
+    color: #ef4444;
+    display: none;
+}
+
+/* 按钮样式 */
+#drive115-settings .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#drive115-settings .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#drive115-settings .btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+#drive115-settings .btn-primary:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+#drive115-settings .btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+#drive115-settings .btn-secondary:hover:not(:disabled) {
+    background: #4b5563;
+}
+
+#drive115-settings .btn-outline {
+    background: transparent;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+#drive115-settings .btn-outline:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+/* ===== 115 面板内专属按钮配色（仅作用于本面板） ===== */
+/* 为没有 .btn 的 .button-like 提供基础外观（仅限 115 设置面板内） */
+#drive115-settings .button-like {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #6b7280; /* 默认次级色，若未被更具体的ID覆盖 */
+    color: #fff;
+}
+
+#drive115-settings .button-like:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 手动刷新 access_token（橙色强调） */
+#drive115-settings #drive115V2ManualRefresh {
+    background: #fb8c00;
+    color: #fff;
+}
+#drive115-settings #drive115V2ManualRefresh:hover:not(:disabled) {
+    background: #ef6c00;
+}
+
+/* 刷新用户信息（蓝色主按钮） */
+#drive115-settings #drive115V2FetchUserInfo {
+    background: #1e88e5;
+    color: #fff;
+}
+#drive115-settings #drive115V2FetchUserInfo:hover:not(:disabled) {
+    background: #1565c0;
+}
+
+/* 日志操作按钮（绿色=刷新，红色=清空，青色=导出） */
+#drive115-settings #refreshDrive115Logs {
+    background: #43a047; /* green-600 */
+    color: #fff;
+}
+#drive115-settings #refreshDrive115Logs:hover:not(:disabled) {
+    background: #2e7d32; /* green-800 */
+}
+
+#drive115-settings #clearDrive115Logs {
+    background: #e53935; /* red-600 */
+    color: #fff;
+}
+#drive115-settings #clearDrive115Logs:hover:not(:disabled) {
+    background: #c62828; /* red-800 */
+}
+
+#drive115-settings #exportDrive115Logs {
+    background: #00897b; /* teal-600 */
+    color: #fff;
+}
+#drive115-settings #exportDrive115Logs:hover:not(:disabled) {
+    background: #00695c; /* teal-800 */
+}
+
+/* “如何获取ID？” 链接式按钮（保持链接外观但更显眼） */
+#drive115-settings #drive115HowToCidToggle {
+    background: transparent;
+    border: none;
+    color: #1e88e5;
+    text-decoration: underline;
+    padding: 0 2px;
+    border-radius: 4px;
+}
+#drive115-settings #drive115HowToCidToggle:hover {
+    color: #1565c0;
+    background: rgba(29, 78, 216, 0.06);
+}
+
+/* 测试功能样式 */
+#drive115-settings .test-section {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+#drive115-settings .test-section .setting-item {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+#drive115-settings .test-section .btn {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+/* 日志容器样式 */
+#drive115-settings .log-container { display: none !important; }
+
+#drive115-settings .log-entry {
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#drive115-settings .log-entry:last-child {
+    border-bottom: none;
+}
+
+#drive115-settings .log-time {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+#drive115-settings .log-level {
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+#drive115-settings .log-message {
+    color: #374151;
+}
+
+#drive115-settings .log-entry.log-error .log-level {
+    color: #ef4444;
+}
+
+#drive115-settings .log-entry.log-warning .log-level {
+    color: #f59e0b;
+}
+
+#drive115-settings .log-entry.log-info .log-level {
+    color: #3b82f6;
+}
+
+#drive115-settings .log-entry.log-debug .log-level {
+    color: #6b7280;
+}
+
+#drive115-settings .no-logs {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+    margin: 20px 0;
+}
+
+/* 日志操作按钮（隐藏） */
+#drive115-settings .log-actions { display: none !important; }
+
+/* 防御性隐藏可能存在的日志相关按钮（若 DOM 中存在这些 ID） */
+#drive115-settings #refreshDrive115Logs,
+#drive115-settings #clearDrive115Logs,
+#drive115-settings #exportDrive115Logs { display: none !important; }
+
+/* 防御性隐藏：统计与列表容器 */
+#drive115-settings #drive115LogStats,
+#drive115-settings #drive115LogsList { display: none !important; }
+
+/* 如果所在分组存在日志列表，则整块隐藏（现代浏览器支持 :has） */
+#drive115-settings .settings-group:has(#drive115LogsList) { display: none !important; }
+
+/* 可能的按钮容器类名 */
+#drive115-settings .action-buttons-top { display: none !important; }
+
+/* 自动保存状态 */
+#drive115-settings .auto-save-status {
+    font-size: 13px;
+    margin-top: 15px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+#drive115-settings .auto-save-status.status-idle {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+#drive115-settings .auto-save-status.status-saving {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+#drive115-settings .auto-save-status.status-saved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+#drive115-settings .auto-save-status.status-error {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* 帮助展开/收起 */
+#drive115-settings .help-toggle {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 13px;
+    padding: 0;
+    margin-left: 8px;
+}
+
+#drive115-settings .help-toggle:hover {
+    color: #2563eb;
+}
+
+#drive115-settings .help-content {
+    margin-top: 10px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    display: none;
+}
+
+#drive115-settings .help-content ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+#drive115-settings .help-content li {
+    margin-bottom: 8px;
+}
+
+#drive115-settings .help-content code {
+    background: #e2e8f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+/* 隐藏旧版的“下载目录ID”控件，避免与 v2 合并字段重复 */
+#drive115DownloadDir,
+#drive115DownloadDirError,
+#drive115HowToCidToggle,
+#drive115HowToCid {
+    display: none !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #drive115-settings .test-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #drive115-settings .test-section .btn {
+        margin-top: 10px;
+    }
+    
+    #drive115-settings .log-actions {
+        flex-wrap: wrap;
+    }
+    
+    #drive115-settings .setting-item input[type="text"],
+    #drive115-settings .setting-item input[type="number"] {
+        max-width: 100%;
+    }
+}
+
+/* 测试结果样式 */
+#drive115-settings .test-results {
+    margin-top: 15px;
+}
+
+#drive115-settings .test-result-header {
+    margin-bottom: 10px;
+}
+
+#drive115-settings .test-result-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#drive115-settings .test-result-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+#drive115-settings .test-result-list {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+#drive115-settings .test-result-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+}
+
+#drive115-settings .test-result-item:last-child {
+    border-bottom: none;
+}
+
+#drive115-settings .test-result-item:hover {
+    background: var(--bg-secondary);
+}
+
+#drive115-settings .test-result-item .file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+#drive115-settings .test-result-item .file-info {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+#drive115-settings .test-result-item .file-size {
+    font-weight: 500;
+}
+
+#drive115-settings .test-result-more {
+    margin: 10px 0 0 0;
+    padding: 8px 15px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* 下载设置：响应式网格与表单细节 */
+#drive115-settings .form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 16px;
+    row-gap: 12px;
+}
+
+/* 仅作用于下载设置网格容器 */
+#drive115-settings .drive115-download-settings > .form-group {
+    grid-column: span 6;
+    min-width: 0;
+}
+
+#drive115-settings .drive115-download-settings > .form-group:first-child {
+    grid-column: span 12; /* 目录ID一行占满，便于显示帮助说明 */
+}
+
+#drive115-settings .drive115-download-settings .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary, #374151);
+}
+
+/* 输入宽度统一 */
+#drive115-settings .drive115-download-settings input[type="text"] {
+    width: 100%;
+}
+
+#drive115-settings .drive115-download-settings input[type="number"] {
+    width: 100%;
+    max-width: 160px; /* 数值输入不宜过宽 */
+}
+
+#drive115-settings .drive115-download-settings .input-description {
+    margin-top: 6px;
+}
+
+/* 复选对齐 */
+#drive115-settings .drive115-download-settings .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 响应式：小屏单列显示 */
+@media (max-width: 768px) {
+    #drive115-settings .drive115-download-settings > .form-group {
+        grid-column: span 12;
+    }
+}
+
+/* ===== 115 账号信息（侧边栏）浅蓝主题容器 ===== */
+.drive115-profile-container {
+    position: relative;
+    padding: 12px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(227, 242, 253, 0.9), rgba(227, 242, 253, 0.7)); /* #e3f2fd */
+    border: 1px solid #bbdefb; /* 浅蓝边框 */
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+}
+
+/* 顶部柔光装饰，模仿外部容器的氛围感 */
+.drive115-profile-container::before {
+    content: '';
+    position: absolute;
+    left: -20%;
+    top: -30%;
+    width: 140%;
+    height: 60%;
+    background: radial-gradient(60% 60% at 50% 50%, rgba(187, 222, 251, 0.65) 0%, rgba(187, 222, 251, 0.15) 60%, rgba(187, 222, 251, 0) 100%);
+    pointer-events: none;
+}
+
+/* 标题行（图标+文案+状态） */
+.drive115-profile-container .stats-title {
+    color: #1e3a8a; /* 深蓝文字 */
+    font-weight: 600;
+}
+
+.drive115-profile-container .stats-title img {
+    filter: drop-shadow(0 1px 2px rgba(2, 132, 199, 0.25));
+}
+
+/* 信息卡片主体（覆盖 TS 内联的通用灰边样式） */
+#drive115-user-box {
+    background: #ffffff;
+    border: 1px solid #bbdefb !important; /* 提升到浅蓝边框 */
+    border-radius: 8px !important;
+    padding: 10px !important;
+    box-shadow: 0 1px 4px rgba(30, 64, 175, 0.08);
+}
+
+/* 状态文字色彩（已在 TS 中通过 style.color 赋色，此处兜底） */
+#drive115-user-status {
+    color: #64748b;
+}
+
+/* 进度条底色更贴合浅蓝主题（如需覆盖 TS 内联背景，可提高选择器权重或使用 !important） */
+.drive115-profile-container .progress-track {
+    height: 8px;
+    background: #e3f2fd;
+    border-radius: 999px;
+}
+
+.drive115-profile-container .progress-fill {
+    background: linear-gradient(90deg, #42a5f5, #1e88e5);
+}
+
+/* 覆盖 TS 内联的进度条样式（选择器基于当前结构） */
+#drive115-user-box > div:nth-of-type(3) > div:nth-of-type(2) {
+    background: #e3f2fd !important; /* track */
+}
+#drive115-user-box > div:nth-of-type(3) > div:nth-of-type(2) > div {
+    background: linear-gradient(90deg, #42a5f5, #1e88e5) !important; /* fill */
+}
