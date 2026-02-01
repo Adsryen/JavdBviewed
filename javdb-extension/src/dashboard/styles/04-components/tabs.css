@@ -1,0 +1,193 @@
+/* ===================================================================
+   Tabs 组件
+   ================================================================ */
+
+/* ===== 标签页容器 ===== */
+.c-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 标签页导航 ===== */
+.c-tabs__nav {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 2px solid var(--border-primary);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 隐藏滚动条 */
+.c-tabs__nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===== 标签页项 ===== */
+.c-tabs__item {
+  position: relative;
+  padding: var(--space-3) var(--space-5);
+  
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.c-tabs__item:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.c-tabs__item--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.c-tabs__item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ===== 标签页内容 ===== */
+.c-tabs__content {
+  padding: var(--space-6) 0;
+}
+
+.c-tabs__panel {
+  display: none;
+}
+
+.c-tabs__panel--active {
+  display: block;
+  animation: c-tabs-fade-in var(--transition-base) var(--ease-out);
+}
+
+@keyframes c-tabs-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== 卡片式标签页 ===== */
+.c-tabs--card .c-tabs__nav {
+  border-bottom: none;
+  gap: var(--space-2);
+}
+
+.c-tabs--card .c-tabs__item {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: none;
+  margin-bottom: -1px;
+}
+
+.c-tabs--card .c-tabs__item--active {
+  background: var(--surface-primary);
+  border-bottom-color: var(--surface-primary);
+}
+
+.c-tabs--card .c-tabs__content {
+  padding: var(--space-6);
+  border: 1px solid var(--border-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+  background: var(--surface-primary);
+}
+
+/* ===== 按钮式标签页 ===== */
+.c-tabs--button .c-tabs__nav {
+  border-bottom: none;
+  gap: var(--space-2);
+  background: var(--bg-tertiary);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+}
+
+.c-tabs--button .c-tabs__item {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+}
+
+.c-tabs--button .c-tabs__item--active {
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== 垂直标签页 ===== */
+.c-tabs--vertical {
+  flex-direction: row;
+  gap: var(--space-4);
+}
+
+.c-tabs--vertical .c-tabs__nav {
+  flex-direction: column;
+  border-bottom: none;
+  border-right: 2px solid var(--border-primary);
+  min-width: 200px;
+}
+
+.c-tabs--vertical .c-tabs__item {
+  border-bottom: none;
+  border-right: 2px solid transparent;
+  text-align: left;
+}
+
+.c-tabs--vertical .c-tabs__item--active {
+  border-right-color: var(--primary);
+  border-bottom-color: transparent;
+}
+
+.c-tabs--vertical .c-tabs__content {
+  flex: 1;
+}
+
+/* ===== 标签页尺寸 ===== */
+.c-tabs--sm .c-tabs__item {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.c-tabs--lg .c-tabs__item {
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--font-size-md);
+}
+
+/* ===== 标签页图标 ===== */
+.c-tabs__item-icon {
+  margin-right: var(--space-2);
+  font-size: 1em;
+}
+
+/* ===== 标签页徽章 ===== */
+.c-tabs__item-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-1);
+  margin-left: var(--space-2);
+  
+  background: var(--error);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+}
+
+.c-tabs__item--active .c-tabs__item-badge {
+  background: var(--primary);
+}

@@ -1,34 +1,65 @@
 /* ============================================
-   双轨运行：新旧样式并存
-   新样式优先级更高，逐步替代旧样式
+   Dashboard 主样式入口
+   基于 ITCSS 架构 + 日夜主题系统
+   合并优化后的单一样式系统
    ============================================ */
 
-/* 旧样式系统（逐步废弃） */
-@import url('./styles/themes/variables.css');
+/* 1. Settings - 主题变量（日夜切换） */
+@import url('./styles/01-settings/variables.css');
+
+/* 2. Generic - 基础重置 */
+@import url('./styles/02-generic/reset.css');
+
+/* 3. Elements - 元素默认样式 */
+@import url('./styles/03-elements/base.css');
+
+/* 4. Components - 组件样式 */
+@import url('./styles/04-components/button.css');
+@import url('./styles/04-components/modal.css');
+@import url('./styles/04-components/toast.css');
+@import url('./styles/04-components/card.css');
+@import url('./styles/04-components/tabs.css');
+@import url('./styles/04-components/table.css');
+@import url('./styles/04-components/form.css');
+@import url('./styles/04-components/dropdown.css');
+@import url('./styles/04-components/badge.css');
+@import url('./styles/04-components/alert.css');
+@import url('./styles/04-components/progress.css');
+@import url('./styles/04-components/skeleton.css');
+@import url('./styles/04-components/pagination.css');
+@import url('./styles/04-components/breadcrumb.css');
+@import url('./styles/04-components/themeSwitcher.css');
+@import url('./styles/04-components/monthRangePicker.css');
+@import url('./styles/04-components/toggle.css');
+
+/* 5. Pages - 页面特定样式 */
+@import url('./styles/05-pages/home.css');
+@import url('./styles/05-pages/records.css');
+@import url('./styles/05-pages/actors.css');
+@import url('./styles/05-pages/lists.css');
+@import url('./styles/05-pages/newWorks.css');
+@import url('./styles/05-pages/logs.css');
+@import url('./styles/05-pages/sync.css');
+@import url('./styles/05-pages/drive115Tasks.css');
+@import url('./styles/05-pages/settings/index.css');
+
+/* 6. Utilities - 工具类 */
+@import url('./styles/06-utilities/helpers.css');
+
+/* ============================================
+   临时保留的旧样式（逐步迁移）
+   ============================================ */
 @import url('./styles/main.css');
 @import url('./styles/_tabs.css');
-@import url('./styles/_records.css');
-@import url('./styles/_toast.css');
 @import url('./styles/_modal.css');
 @import url('./styles/_helpPanel.css');
 @import url('./styles/_stats.css');
 @import url('./styles/_userProfile.css');
-@import url('./styles/_dataSync.css');
-/* _drive115.css 已迁移到 styles/settings/drive115.css */
-@import url('./styles/_newWorks.css');
-
-/* Settings related styles */
-@import url('./styles/settings/index.css');
-
-/* Components */
-@import url('./styles/components/monthRangePicker.css');
-@import url('./styles/components/themeSwitcher.css');
+@import url('./styles/_cloudflare-verification.css');
 
 /* ============================================
-   新样式系统（ITCSS 架构）
-   优先级更高，逐步替代旧样式
+   页面特定样式补充
    ============================================ */
-@import url('./styles-new/index.css');
 
 /* 演员页增强配置样式 */
 .actor-config-container {
@@ -85,7 +116,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    min-height: 0; /* 折叠时避免撑高 */
+    min-height: 0;
     align-items: center;
 }
 
@@ -104,7 +135,7 @@
     font-style: italic;
 }
 
-/* --- Advanced Search (Records Tab) --- */
+/* Advanced Search (Records Tab) */
 .advanced-search-panel {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);

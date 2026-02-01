@@ -1,0 +1,226 @@
+/* ===================================================================
+   Skeleton 组件（骨架屏）
+   ================================================================ */
+
+/* ===== 基础骨架 ===== */
+.c-skeleton {
+  display: block;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 骨架动画 */
+.c-skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: c-skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes c-skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ===== 骨架形状 ===== */
+
+/* 文本骨架 */
+.c-skeleton--text {
+  height: 1em;
+  border-radius: var(--radius-sm);
+}
+
+/* 标题骨架 */
+.c-skeleton--title {
+  height: 1.5em;
+  border-radius: var(--radius-sm);
+}
+
+/* 圆形骨架 */
+.c-skeleton--circle {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+/* 矩形骨架 */
+.c-skeleton--rect {
+  border-radius: var(--radius-md);
+}
+
+/* 圆角矩形骨架 */
+.c-skeleton--rounded {
+  border-radius: var(--radius-lg);
+}
+
+/* ===== 骨架尺寸 ===== */
+.c-skeleton--sm {
+  height: 20px;
+}
+
+.c-skeleton--md {
+  height: 40px;
+}
+
+.c-skeleton--lg {
+  height: 60px;
+}
+
+.c-skeleton--xl {
+  height: 80px;
+}
+
+/* ===== 骨架组合 ===== */
+.c-skeleton-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 头像 + 文本组合 */
+.c-skeleton-avatar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.c-skeleton-avatar__image {
+  flex-shrink: 0;
+}
+
+.c-skeleton-avatar__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 卡片骨架 */
+.c-skeleton-card {
+  padding: var(--space-6);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.c-skeleton-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.c-skeleton-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 列表骨架 */
+.c-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.c-skeleton-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.c-skeleton-list-item__icon {
+  flex-shrink: 0;
+}
+
+.c-skeleton-list-item__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 表格骨架 */
+.c-skeleton-table {
+  width: 100%;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.c-skeleton-table__header {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.c-skeleton-table__row {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.c-skeleton-table__row:last-child {
+  border-bottom: none;
+}
+
+.c-skeleton-table__cell {
+  flex: 1;
+}
+
+/* ===== 骨架变体 ===== */
+
+/* 无动画骨架 */
+.c-skeleton--static::after {
+  display: none;
+}
+
+/* 脉冲动画骨架 */
+.c-skeleton--pulse {
+  animation: c-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.c-skeleton--pulse::after {
+  display: none;
+}
+
+@keyframes c-skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 波浪动画骨架 */
+.c-skeleton--wave::after {
+  animation: c-skeleton-wave 1.5s ease-in-out infinite;
+}
+
+@keyframes c-skeleton-wave {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(100%) skewX(-15deg);
+  }
+}

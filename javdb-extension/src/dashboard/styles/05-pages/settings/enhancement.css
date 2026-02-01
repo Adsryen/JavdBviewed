@@ -1,0 +1,1768 @@
+/**
+ * 功能增强设置面板样式
+ */
+
+/* CSS变量定义 */
+:root {
+    --text-primary: #333;
+    --text-secondary: #666;
+    --bg-primary: #fff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f1f3f4;
+    --border-color: #e9ecef;
+    --primary-color: #007bff;
+    --primary-color-rgb: 0, 123, 255;
+    --warning-color: #ffc107;
+    --warning-bg-color: #fff3cd;
+    
+    --enhancement-primary: #f59e0b;
+    --enhancement-secondary: #fbbf24;
+    --enhancement-bg: #f8fafc;
+    --enhancement-card-bg: #ffffff;
+    --enhancement-border: #e2e8f0;
+    --enhancement-text: #1e293b;
+    --enhancement-text-muted: #64748b;
+    --enhancement-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --enhancement-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    /* 状态徽章配色（available/beta/wip） */
+    --status-available-bg: #dcfce7;
+    --status-available-text: #166534;
+    --status-available-border: #86efac;
+
+    --status-beta-bg: #fef3c7;
+    --status-beta-text: #92400e;
+    --status-beta-border: #fde68a;
+
+    --status-wip-bg: #e2e8f0;
+    --status-wip-text: #334155;
+    --status-wip-border: #cbd5e1;
+
+    /* 状态徽章配色（neutral） */
+    --status-neutral-bg: #f1f5f9;
+    --status-neutral-text: #475569;
+    --status-neutral-border: #e2e8f0;
+}
+
+/* 功能增强设置面板特有样式 */
+#enhancement-settings {
+    position: relative;
+    overflow: hidden;
+}
+
+#enhancement-settings::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: linear-gradient(135deg,
+        rgba(245, 158, 11, 0.05) 0%,
+        rgba(251, 191, 36, 0.05) 50%,
+        rgba(252, 211, 77, 0.05) 100%);
+    z-index: -1;
+    border-radius: 20px;
+}
+
+#enhancement-settings .settings-panel-header {
+    position: relative;
+    padding: 20px 0;
+    text-align: center;
+}
+
+#enhancement-settings .settings-panel-header h3 {
+    color: var(--enhancement-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#enhancement-settings .settings-panel-header h3::before {
+    content: '🚀';
+    font-size: 1.3em;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+#enhancement-settings .settings-description {
+    color: var(--enhancement-text-muted);
+    font-size: 16px;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* 状态徽章：名称与状态并排显示 */
+.enhancement-feature-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.enhancement-feature-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+
+.enhancement-feature-status.available {
+    background: var(--status-available-bg);
+    color: var(--status-available-text);
+    border-color: var(--status-available-border);
+}
+
+.enhancement-feature-status.beta {
+    background: var(--status-beta-bg);
+    color: var(--status-beta-text);
+    border-color: var(--status-beta-border);
+}
+
+.enhancement-feature-status.wip {
+    background: var(--status-wip-bg);
+    color: var(--status-wip-text);
+    border-color: var(--status-wip-border);
+}
+
+.enhancement-feature-status.neutral {
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
+    border-color: var(--status-neutral-border);
+}
+
+#enhancement-settings .enhancement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+#enhancement-settings .enhancement-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+#enhancement-settings .enhancement-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(var(--primary-color-rgb), 0.1);
+}
+
+#enhancement-settings .enhancement-card h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#enhancement-settings .enhancement-card h4 i {
+    color: var(--primary-color);
+}
+
+#enhancement-settings .enhancement-card p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+/* 滑块样式已移动到 settings.css 中统一管理，避免样式冲突 */
+
+#enhancement-settings .enhancement-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#enhancement-settings .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+#enhancement-settings .feature-item .feature-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+#enhancement-settings .feature-item .feature-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+#enhancement-settings .config-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    display: none;
+}
+
+#enhancement-settings .config-section.show {
+    display: block;
+}
+
+#enhancement-settings .config-section h5 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* 子设置区域：默认隐藏，仅在悬浮触发展开（由 TS 添加 .is-open 类） */
+#enhancement-settings .sub-settings {
+    display: block; /* 保持占位用于动画计算 */
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: 0 solid var(--border-color);
+    border-bottom: 0 solid var(--border-color);
+    transition:
+        max-height 0.28s ease,
+        opacity 0.18s ease,
+        padding-top 0.18s ease,
+        padding-bottom 0.18s ease,
+        border-top-width 0.18s ease,
+        border-bottom-width 0.18s ease;
+}
+
+#enhancement-settings .sub-settings.is-open {
+    opacity: 1;
+    max-height: 800px; /* 足够大的值以容纳内容，实际高度由 JS 动态支持 */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+}
+
+/* 子设置内的说明与表单间距优化 */
+#enhancement-settings .sub-settings .input-description {
+    margin-top: 6px;
+}
+
+#enhancement-settings .form-group {
+    margin-bottom: 1rem;
+}
+
+#enhancement-settings .form-group label:not(.checkbox-label) {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+#enhancement-settings .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+#enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+#enhancement-settings .form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+#enhancement-settings .form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+#enhancement-settings .form-group-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+#enhancement-settings .form-group-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#enhancement-settings .input-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+#enhancement-settings .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* 通用：输入说明中的内联提示样式（适用于任意设置面板） */
+.input-description .inline-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
+    border: 1px solid var(--status-neutral-border);
+}
+
+.input-description .inline-note::before {
+    content: "ⓘ";
+    font-weight: 700;
+    color: var(--status-neutral-text);
+}
+
+#enhancement-settings .volume-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#enhancement-settings .volume-control input[type="range"] {
+    flex: 1;
+}
+
+#enhancement-settings .volume-value {
+    min-width: 40px;
+    text-align: center;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#enhancement-settings .magnet-sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* ================= 磁力搜索：并发与限流（内联表单优化） ================= */
+#enhancement-settings .magnet-concurrency-config {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+
+#enhancement-settings .magnet-concurrency-config .form-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap; /* 窄屏自然换行到下一行 */
+    align-items: center;
+}
+
+#enhancement-settings .magnet-concurrency-config .form-group-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap; /* 避免“标签/单位”被拆行 */
+}
+
+#enhancement-settings .magnet-concurrency-config .form-group-inline label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* 覆盖通用 .number-input 默认 100% 宽，改为紧凑数字框 */
+#enhancement-settings .magnet-concurrency-config .number-input {
+    width: 84px;
+    max-width: 84px;
+    text-align: center;
+    padding: 6px 8px;
+}
+
+#enhancement-settings .magnet-concurrency-config .input-suffix {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+@media (max-width: 480px) {
+    #enhancement-settings .magnet-concurrency-config .number-input {
+        width: 72px;
+        max-width: 72px;
+    }
+}
+
+#enhancement-settings .source-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+#enhancement-settings .source-item input[type="checkbox"] {
+    margin: 0;
+}
+
+#enhancement-settings .source-item label {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+#enhancement-settings .development-notice {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--warning-color);
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+#enhancement-settings .development-notice i {
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    #enhancement-settings .enhancement-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    #enhancement-settings .enhancement-features {
+        grid-template-columns: 1fr;
+    }
+    
+    #enhancement-settings .magnet-sources {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 内容过滤规则样式 */
+.filter-rule-item {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+
+.filter-rule-item:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.rule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #f8f9fa;
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.rule-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 16px;
+}
+
+.rule-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.rule-actions .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rule-actions .btn-outline-primary {
+    background: #ffffff;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.rule-actions .btn-outline-primary:hover {
+    background: #007bff;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+.rule-actions .btn-outline-danger {
+    background: #ffffff;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.rule-actions .btn-outline-danger:hover {
+    background: #dc3545;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.rule-details {
+    padding: 15px;
+}
+
+.rule-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.rule-info .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.rule-type,
+.rule-action {
+    font-size: 13px;
+    color: #666;
+    background: #f8f9fa;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.rule-keywords {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.rule-keywords strong {
+    color: #333;
+    margin-right: 8px;
+}
+
+.rule-description {
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.empty-state p {
+    margin-bottom: 8px;
+}
+
+.empty-state .text-muted {
+    font-size: 14px;
+    color: #999;
+}
+
+/* 过滤规则对话框样式 */
+#filterRuleModal .modal-dialog {
+    max-width: 600px;
+}
+
+#filterRuleModal .form-label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+#filterRuleModal .form-control,
+#filterRuleModal .form-select {
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+}
+
+#filterRuleModal .form-control:focus,
+#filterRuleModal .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+#filterRuleModal .form-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+#filterRuleModal .form-check-input {
+    margin-top: 0.25em;
+}
+
+#filterRuleModal .form-check-label {
+    font-weight: normal;
+    color: #333;
+}
+
+/* 过滤规则容器样式 */
+.filter-rules-container {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.filter-rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+    color: #333;
+}
+
+.filter-rules-list {
+    min-height: 100px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.filter-rules-list .filter-rule-item {
+    margin-bottom: 0; /* 使用网格间距，避免重复外边距 */
+}
+
+@media (max-width: 900px) {
+    .filter-rules-list {
+        grid-template-columns: 1fr; /* 小屏回退为单列 */
+    }
+}
+
+/* 添加规则按钮样式 */
+#addFilterRule,
+.btn-secondary.btn-sm {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    color: white !important;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+#addFilterRule:hover,
+.btn-secondary.btn-sm:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    color: white !important;
+}
+
+#addFilterRule:active,
+.btn-secondary.btn-sm:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.2);
+}
+
+#addFilterRule i,
+.btn-secondary.btn-sm i {
+    font-size: 12px;
+}
+
+/* 通用按钮样式 */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #5a6268, #495057);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+/* 内联规则编辑器样式 */
+.inline-rule-editor {
+    background: #ffffff;
+    border: 2px solid #007bff;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.editor-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.editor-header .btn-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.editor-header .btn-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.editor-body {
+    padding: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.form-group.full-width {
+    flex: 1 1 100%;
+}
+
+.form-group.checkbox-group {
+    flex: 1 1 100%;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.form-group select[multiple] {
+    min-height: 80px;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 4px;
+    color: #666;
+    font-size: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-label span {
+    font-size: 14px;
+    color: #333;
+}
+
+.editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-radius: 0 0 10px 10px;
+    border-top: 1px solid #e9ecef;
+}
+
+.editor-footer .btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.editor-footer .btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+}
+
+.editor-footer .btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.editor-footer .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.editor-footer .btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+/* 并排滑块容器样式 */
+.dual-toggle-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .dual-toggle-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}
+
+/* 单个滑块选项样式 */
+.toggle-option {
+    background: #ffffff;
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.toggle-option::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.02) 0%, rgba(0, 123, 255, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.toggle-option:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.toggle-option:hover::before {
+    opacity: 1;
+}
+
+/* 滑块头部样式 */
+.toggle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* 当 toggle-header 内包含默认标签复选框组时，改为上下布局，标题在上，选项在下 */
+.toggle-header:has(#actorDefaultTagsGroup) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.toggle-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 默认标签复选框组布局与样式 */
+#actorDefaultTagsGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#actorDefaultTagsGroup .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1;
+}
+
+#actorDefaultTagsGroup .checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+/* 如果 HTML 中带有 .checkmark 元素，默认隐藏，避免影响排版 */
+#actorDefaultTagsGroup .checkbox-label .checkmark {
+    display: none;
+}
+
+/* 选中态视觉强调 */
+#actorDefaultTagsGroup .checkbox-label:has(input:checked) {
+    border-color: #007bff;
+    background: #f0f8ff;
+    color: #0056b3;
+}
+
+/* 现代化滑块开关样式 */
+.modern-toggle {
+    position: relative;
+    display: inline-block;
+    width: 56px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.modern-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 28px;
+    width: 28px;
+    left: 2px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.modern-toggle input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.modern-toggle input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.modern-toggle:hover .toggle-slider {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(0, 123, 255, 0.1);
+}
+
+.modern-toggle input:focus + .toggle-slider {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(0, 123, 255, 0.2);
+}
+
+/* 滑块描述文字样式 */
+.toggle-description {
+    color: #718096;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* 激活状态的选项样式 */
+.toggle-option:has(input:checked) {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+}
+
+.toggle-option:has(input:checked) .toggle-title {
+    color: #007bff;
+}
+
+.toggle-option:has(input:checked) .toggle-description {
+    color: #4a5568;
+}
+
+/* 禁用状态样式 */
+.toggle-option:has(input:disabled) {
+    opacity: 0.6;
+    background: #f8f9fa;
+    border-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.toggle-option:has(input:disabled):hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e9ecef;
+}
+
+.toggle-option:has(input:disabled) .modern-toggle {
+    cursor: not-allowed;
+}
+
+.toggle-option:has(input:disabled) .toggle-slider {
+    background: #e9ecef;
+}
+
+.toggle-option:has(input:disabled) .toggle-slider:before {
+    background: #f8f9fa;
+}
+
+/* 为不支持:has()的浏览器提供备选样式 */
+@supports not selector(:has(*)) {
+    .toggle-option.active {
+        border-color: #007bff;
+        background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+    }
+
+    .toggle-option.active .toggle-title {
+        color: #007bff;
+    }
+
+    .toggle-option.active .toggle-description {
+        color: #4a5568;
+    }
+
+    .toggle-option.disabled {
+        opacity: 0.6;
+        background: #f8f9fa;
+        border-color: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .toggle-option.disabled:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #e9ecef;
+    }
+}
+
+/* 内联复选框组样式 - 三个选项并列 */
+.form-group.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-group.checkbox-group:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+/* 复选框标签样式 */
+.form-group.checkbox-group .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+    /* 允许文本换行，避免在窄容器溢出 */
+    white-space: normal;
+    /* 避免被压缩到极窄导致逐字换行 */
+    flex: 0 0 auto;
+    /* 让标签至少按内容宽度展开 */
+    min-width: max-content;
+    max-width: 100%;
+    justify-content: flex-start;
+}
+
+.form-group.checkbox-group .checkbox-label:hover {
+    border-color: #007bff;
+    background: #f8fbff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+}
+
+/* 复选框输入框样式 */
+.form-group.checkbox-group .checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 2px solid #dee2e6;
+    border-radius: 3px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.form-group.checkbox-group .checkbox-label input[type="checkbox"]:hover {
+    border-color: #007bff;
+    transform: scale(1.1);
+}
+
+.form-group.checkbox-group .checkbox-label input[type="checkbox"]:checked {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+.form-group.checkbox-group .checkbox-label input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* 选中状态的标签样式 */
+.form-group.checkbox-group .checkbox-label:has(input:checked) {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+    border-color: #007bff;
+    color: #0056b3;
+    font-weight: 600;
+}
+
+/* 文字样式 */
+.form-group.checkbox-group .checkbox-label span {
+    user-select: none;
+    font-size: 13px;
+    line-height: 1.3;
+    /* 避免中文逐字断行，保持水平一行展示 */
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .form-group.checkbox-group {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .form-group.checkbox-group .checkbox-label {
+        flex: none;
+        justify-content: flex-start;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-group.checkbox-group {
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .form-group.checkbox-group .checkbox-label {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .form-group.checkbox-group .checkbox-label span {
+        font-size: 12px;
+    }
+}
+
+/* 为不支持:has()的浏览器提供备选样式 */
+@supports not selector(:has(*)) {
+    .form-group.checkbox-group .checkbox-label.checked {
+        background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+        border-color: #007bff;
+        color: #0056b3;
+        font-weight: 600;
+    }
+}
+
+/* 锚点配置并排容器样式 */
+.anchor-config-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .anchor-config-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}
+
+/* 单个锚点配置选项样式 */
+.anchor-config-option {
+    background: #ffffff;
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.anchor-config-option::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.02) 0%, rgba(0, 123, 255, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.anchor-config-option:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.anchor-config-option:hover::before {
+    opacity: 1;
+}
+
+/* 配置头部样式 */
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.config-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 现代化下拉框样式 */
+.modern-select-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.modern-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: #ffffff;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    outline: none;
+}
+
+.modern-select:hover {
+    border-color: #007bff;
+    background: #f8fbff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.modern-select:focus {
+    border-color: #007bff;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 12px;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.modern-select:focus + .select-arrow {
+    color: #007bff;
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.modern-select:hover + .select-arrow {
+    color: #007bff;
+}
+
+/* 配置描述文字样式 */
+.config-description {
+    color: #718096;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* 激活状态的选项样式 */
+.anchor-config-option:has(.modern-toggle input:checked) {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+}
+
+.anchor-config-option:has(.modern-toggle input:checked) .config-title {
+    color: #007bff;
+}
+
+.anchor-config-option:has(.modern-toggle input:checked) .config-description {
+    color: #4a5568;
+}
+
+/* 选择框选中状态样式 */
+.anchor-config-option:has(.modern-select:focus) {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+}
+
+.anchor-config-option:has(.modern-select:focus) .config-title {
+    color: #007bff;
+}
+
+/* 为不支持:has()的浏览器提供备选样式 */
+@supports not selector(:has(*)) {
+    .anchor-config-option.active {
+        border-color: #007bff;
+        background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+    }
+
+    .anchor-config-option.active .config-title {
+        color: #007bff;
+    }
+
+    .anchor-config-option.active .config-description {
+        color: #4a5568;
+    }
+}
+
+/* 音量控制组样式 */
+.volume-control-group {
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 100%);
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.volume-control-group::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.02) 0%, rgba(0, 123, 255, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.volume-control-group:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.volume-control-group:hover::before {
+    opacity: 1;
+}
+
+/* 音量头部样式 */
+.volume-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.volume-header label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.volume-percentage {
+    font-size: 16px;
+    font-weight: 700;
+    color: #007bff;
+    background: rgba(0, 123, 255, 0.1);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    min-width: 50px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.volume-percentage:hover {
+    background: rgba(0, 123, 255, 0.15);
+    border-color: rgba(0, 123, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* 音量滑块包装器 */
+.volume-slider-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+    z-index: 1;
+}
+
+/* 现代化范围滑块样式 */
+.modern-range {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #e9ecef 0%, #e9ecef 100%);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+}
+
+.modern-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    cursor: pointer;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.modern-range::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.modern-range::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.modern-range::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    cursor: pointer;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.modern-range::-moz-range-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    border: none;
+}
+
+/* 滑块轨道填充效果 */
+.range-track-fill {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    height: 8px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border-radius: 4px;
+    transform: translateY(-50%);
+    width: 20%; /* 默认20%，会通过JavaScript动态更新 */
+    transition: width 0.2s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* 聚焦状态 */
+.modern-range:focus {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+/* 音量控制组的描述文字 */
+.volume-control-group .input-description {
+    color: #718096;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* 激活状态（当滑块被拖动时） */
+.volume-control-group.active {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%);
+}
+
+.volume-control-group.active .volume-header label {
+    color: #007bff;
+}
+
+.volume-control-group.active .input-description {
+    color: #4a5568;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .volume-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .volume-percentage {
+        align-self: flex-end;
+    }
+
+    .modern-range::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+    }
+
+    .modern-range::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .volume-control-group {
+        padding: 16px;
+    }
+
+    .volume-header label {
+        font-size: 15px;
+    }
+
+    .volume-percentage {
+        font-size: 15px;
+        padding: 3px 10px;
+    }
+}
+
+/* ================= 子标签按钮（列表/影片/演员）样式 ================= */
+#enhancementSubTabs.subtabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin: 16px 0 20px;
+}
+
+#enhancementSubTabs .subtab-link {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+/* 覆盖全局 button 悬停效果，避免位移与透明度变化 */
+#enhancementSubTabs .subtab-link:hover:not(:disabled) {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: transparent;
+    transform: none;
+    opacity: 1;
+}
+
+#enhancementSubTabs .subtab-link.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}

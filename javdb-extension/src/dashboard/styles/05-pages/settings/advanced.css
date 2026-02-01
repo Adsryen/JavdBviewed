@@ -1,0 +1,311 @@
+/**
+ * 高级配置设置面板样式
+ */
+
+/* CSS变量定义 */
+:root {
+    --text-primary: #333;
+    --text-secondary: #666;
+    --bg-primary: #fff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f1f3f4;
+    --border-color: #e9ecef;
+    --primary-color: #007bff;
+}
+
+/* 高级配置设置面板特有样式 */
+#advanced-settings {
+    /* 面板特有样式可以在这里定义 */
+}
+
+#advanced-settings .advanced-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+#advanced-settings .advanced-section h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#advanced-settings .advanced-section h4 i {
+    color: var(--primary-color);
+}
+
+#advanced-settings .section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+#advanced-settings .json-editor {
+    border-left: 4px solid var(--primary-color);
+}
+
+#advanced-settings .data-management {
+    border-left: 4px solid var(--info-color);
+}
+
+#advanced-settings .actor-library {
+    border-left: 4px solid var(--success-color);
+}
+
+#advanced-settings .danger-zone {
+    border-left: 4px solid var(--danger-color);
+}
+
+#advanced-settings .danger-zone h4 {
+    color: var(--danger-color);
+}
+
+#advanced-settings .json-config-container {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+#advanced-settings .json-config-textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: #161b22;
+    color: #8b949e;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    resize: vertical;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+#advanced-settings .json-config-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+#advanced-settings .json-config-textarea[readonly] {
+    background: #161b22;
+    color: #8b949e;
+    cursor: default;
+}
+
+#advanced-settings .json-config-textarea:not([readonly]) {
+    background: #0d1117;
+    color: #c9d1d9;
+}
+
+#advanced-settings .raw-data-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    resize: vertical;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+#advanced-settings .raw-data-textarea.hidden {
+    display: none;
+}
+
+#advanced-settings .advanced-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+#advanced-settings .advanced-actions button {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+#advanced-settings .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+#advanced-settings .btn-primary:hover {
+    background: var(--primary-hover-color);
+}
+
+#advanced-settings .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+#advanced-settings .btn-secondary:hover {
+    background: var(--bg-primary);
+}
+
+#advanced-settings .btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+#advanced-settings .btn-success:hover {
+    background: var(--success-hover-color);
+}
+
+#advanced-settings .btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+#advanced-settings .btn-warning:hover {
+    background: var(--warning-hover-color);
+}
+
+#advanced-settings .btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+#advanced-settings .btn-danger:hover {
+    background: var(--danger-hover-color);
+}
+
+#advanced-settings .btn-info {
+    background: var(--info-color);
+    color: white;
+}
+
+#advanced-settings .btn-info:hover {
+    background: var(--info-hover-color);
+}
+
+#advanced-settings button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#advanced-settings .hidden {
+    display: none !important;
+}
+
+#advanced-settings .actor-stats {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+#advanced-settings .actor-stats h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#advanced-settings .actor-stats p {
+    margin: 0.25rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+#advanced-settings .actor-stats strong {
+    color: var(--text-primary);
+}
+
+#advanced-settings .data-structure-result {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: none;
+}
+
+#advanced-settings .data-structure-result pre {
+    margin: 0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+#advanced-settings .error {
+    color: var(--danger-color);
+    font-style: italic;
+}
+
+#advanced-settings .warning-notice {
+    background: var(--warning-bg-color);
+    color: var(--warning-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--warning-color);
+    margin-bottom: 1.5rem;
+}
+
+#advanced-settings .warning-notice h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#advanced-settings .warning-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#advanced-settings .info-notice {
+    background: var(--info-bg-color);
+    color: var(--info-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--info-color);
+    margin-bottom: 1.5rem;
+}
+
+#advanced-settings .info-notice h5 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+}
+
+#advanced-settings .info-notice p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+    #advanced-settings .advanced-actions {
+        flex-direction: column;
+    }
+    
+    #advanced-settings .advanced-actions button {
+        width: 100%;
+    }
+    
+    #advanced-settings .json-config-textarea,
+    #advanced-settings .raw-data-textarea {
+        min-height: 200px;
+        font-size: 0.8rem;
+    }
+}
