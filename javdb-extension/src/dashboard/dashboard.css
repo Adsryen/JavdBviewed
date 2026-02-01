@@ -14,6 +14,7 @@
 @import url('./styles/03-elements/base.css');
 
 /* 4. Components - 组件样式 */
+@import url('./styles/04-components/layout.css');
 @import url('./styles/04-components/button.css');
 @import url('./styles/04-components/modal.css');
 @import url('./styles/04-components/toast.css');
@@ -34,6 +35,7 @@
 
 /* 5. Pages - 页面特定样式 */
 @import url('./styles/05-pages/home.css');
+@import url('./styles/05-pages/insights.css');
 @import url('./styles/05-pages/records.css');
 @import url('./styles/05-pages/actors.css');
 @import url('./styles/05-pages/lists.css');
@@ -49,7 +51,6 @@
 /* ============================================
    临时保留的旧样式（逐步迁移）
    ============================================ */
-@import url('./styles/main.css');
 @import url('./styles/_tabs.css');
 @import url('./styles/_modal.css');
 @import url('./styles/_helpPanel.css');
