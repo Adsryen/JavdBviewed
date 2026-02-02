@@ -369,3 +369,313 @@
 .version-state-unknown {
     color: var(--text-muted);
 }
+
+/* ============================================
+   Topbar - 顶部栏
+   ============================================ */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    border-radius: 16px 16px 0 0;
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.brand-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.brand-text {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+@media (max-width: 960px) {
+    .brand-text {
+        display: none;
+    }
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 手动锁定按钮 */
+.manual-lock-btn {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.manual-lock-btn i {
+    font-size: 12px;
+    line-height: 1;
+}
+
+.manual-lock-btn:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: white;
+}
+
+.manual-lock-btn:active {
+    transform: scale(0.96);
+}
+
+/* 顶栏帮助按钮 */
+.help-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.help-btn i {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.help-btn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.help-btn:active {
+    transform: scale(0.96);
+}
+
+/* 私密模式倒计时 */
+.privacy-timer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.privacy-timer:hover {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+}
+
+.privacy-timer i {
+    font-size: 12px;
+}
+
+.privacy-timer.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+#privacy-timer-text {
+    font-variant-numeric: tabular-nums;
+    min-width: 45px;
+    text-align: center;
+}
+
+/* ============================================
+   Tabs Navigation - 标签导航
+   ============================================ */
+
+.tabs-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.tabs-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+@media (max-width: 960px) {
+    .tabs-brand .brand-text {
+        display: none;
+    }
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+}
+
+.tabs-nav .tabs {
+    padding: 0;
+    border-bottom: none;
+}
+
+.tab-link {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: inherit;
+    cursor: pointer;
+}
+
+.tab-link:hover {
+    background: #f8fafc;
+}
+
+.tab-link.active {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+/* ============================================
+   Sidebar Additional Styles
+   ============================================ */
+
+.sidebar {
+    width: var(--sidebar-width, 280px);
+    min-width: 240px;
+    padding: 12px;
+    border-right: 1px solid var(--border-primary);
+}
+
+.sidebar-section {
+    margin: 12px 0;
+}
+
+.button-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.webdav-sync-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sync-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sync-time-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+}
+
+.sync-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+}
+
+.sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: inline-block;
+}
+
+/* WebDAV 预警横幅 */
+.webdav-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.15), rgba(255, 152, 0, 0.08));
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-left: 4px solid #ff9800;
+    border-radius: 6px;
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+.webdav-warning-banner i {
+    color: #ff9800;
+    font-size: 1.2rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.webdav-warning-banner .warning-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.webdav-warning-banner .warning-title {
+    font-weight: 600;
+    color: #ff9800;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.webdav-warning-banner .warning-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+@keyframes warningPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 8px 2px rgba(255, 152, 0, 0.2);
+    }
+}
+
+.sidebar.collapsed .webdav-warning-banner {
+    display: none;
+}
