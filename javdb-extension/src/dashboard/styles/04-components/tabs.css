@@ -2,13 +2,54 @@
    Tabs 组件
    ================================================================ */
 
-/* ===== 标签页容器 ===== */
+/* ===== 旧版标签页样式（保持兼容） ===== */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 25px;
+}
+
+.tab-link {
+    padding: 12px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 16px;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    margin-bottom: -1px;
+    font-weight: 500;
+}
+
+.tab-link.active,
+.tab-link:hover {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: auto !important;
+    min-height: calc(100vh - 140px) !important;
+}
+
+.tabs-content {
+    padding-top: 20px;
+}
+
+/* ===== 新版标签页样式（BEM命名） ===== */
 .c-tabs {
   display: flex;
   flex-direction: column;
 }
 
-/* ===== 标签页导航 ===== */
 .c-tabs__nav {
   display: flex;
   gap: var(--space-1);
@@ -17,26 +58,21 @@
   overflow-y: hidden;
 }
 
-/* 隐藏滚动条 */
 .c-tabs__nav::-webkit-scrollbar {
   display: none;
 }
 
-/* ===== 标签页项 ===== */
 .c-tabs__item {
   position: relative;
   padding: var(--space-3) var(--space-5);
-  
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-secondary);
-  
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   cursor: pointer;
-  
   transition: all var(--transition-fast) var(--ease-out);
 }
 
