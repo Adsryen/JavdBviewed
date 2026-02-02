@@ -25,7 +25,8 @@
 
 /* Sidebar */
 .sidebar {
-    width: 280px;
+    width: var(--sidebar-width, 320px);
+    min-width: 320px;
     flex-shrink: 0;
     padding: 25px;
     background-color: var(--sidebar-bg);
@@ -34,6 +35,7 @@
     flex-direction: column;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    border-right: 1px solid var(--border-primary);
 }
 
 .sidebar.collapsed {
@@ -576,13 +578,6 @@
 /* ============================================
    Sidebar Additional Styles
    ============================================ */
-
-.sidebar {
-    width: var(--sidebar-width, 280px);
-    min-width: 240px;
-    padding: 12px;
-    border-right: 1px solid var(--border-primary);
-}
 
 .sidebar-section {
     margin: 12px 0;
