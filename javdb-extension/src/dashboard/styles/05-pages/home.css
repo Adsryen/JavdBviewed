@@ -3,6 +3,11 @@
 .home-welcome h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
 .home-subtitle { margin: 0; color: #6b7280; }
 
+/* 趋势概览容器内边距 */
+.home-charts {
+  padding: 20px !important;
+}
+
 /* stats-overview 已在 _stats.css 定义，这里只做容器间距 */
 .home-stats #stats-overview { margin-top: 8px; }
 
@@ -13,6 +18,12 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+/* 数据概览容器内边距 */
+.home-stats {
+  padding: 20px !important;
+}
+
 .home-refresh-btn {
   display: inline-flex;
   align-items: center;
@@ -31,7 +42,13 @@
 .home-refresh-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .home-refresh-btn i { color: var(--primary); }
 
-.home-stats h3 { font-size: 20px; }
+.home-stats h3 { 
+  font-size: 20px;
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .home-stats .stat-item .stat-value { 
     font-size: clamp(18px, 4vw, 26px); 
     font-weight: 800;
@@ -127,7 +144,7 @@
 .home-charts #homeNewTagsTop { grid-area: newtags; }
 
 .home-charts .chart-card {
-  padding-top: 26px;
+  padding: 20px 16px 16px 16px;
   box-sizing: border-box;
 }
 
@@ -299,4 +316,176 @@
 #stats-overview > div[data-stat="want"]::before {
     content: "\f005";
     color: var(--warning);
+}
+
+/* ===================================================================
+   数据概览 - stats-section 样式
+   ================================================================ */
+
+.stats-section {
+  background: var(--bg-secondary);
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+.stats-section:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.stats-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stats-section h4::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    border-radius: 2px;
+}
+
+.stats-section .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* 统计卡片样式 */
+.stats-section .stat-item {
+    background: linear-gradient(135deg, var(--surface-primary), var(--bg-secondary));
+    padding: 20px 16px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-section .stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-hover);
+}
+
+/* 顶部色条 */
+.stats-section .stat-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #7ab8ff, #007bff);
+    opacity: 0.95;
+}
+
+/* 不同统计项的色条配色 */
+.stats-section .stat-item:nth-child(1)::before {
+    background: linear-gradient(90deg, #7ab8ff, #007bff);
+}
+
+.stats-section .stat-item:nth-child(2)::before {
+    background: linear-gradient(90deg, #a8e6b7, #28a745);
+}
+
+.stats-section .stat-item:nth-child(3)::before {
+    background: linear-gradient(90deg, #8be0eb, #17a2b8);
+}
+
+.stats-section .stat-item:nth-child(4)::before {
+    background: linear-gradient(90deg, #ffd0a8, #fd7e14);
+}
+
+.stats-section .stat-item:nth-child(5)::before {
+    background: linear-gradient(90deg, #d6c4f3, #6f42c1);
+}
+
+.stats-section .stat-item:nth-child(6)::before {
+    background: linear-gradient(90deg, #e2e8f0, #6c757d);
+}
+
+.stats-section .stat-item:nth-child(7)::before {
+    background: linear-gradient(90deg, #ffc9d4, #dc3545);
+}
+
+.stats-section .stat-item:nth-child(8)::before {
+    background: linear-gradient(90deg, #b8e0ff, #0d6efd);
+}
+
+.stats-section .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.stats-section .stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* home-sections 容器 */
+.home-sections {
+    display: grid;
+    gap: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+    }
+    
+    .stats-section .stat-item {
+        padding: 12px;
+    }
+    
+    .stats-section .stat-value {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-section .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+        gap: 10px;
+    }
+    
+    .stats-section {
+        padding: 16px;
+    }
+    
+    .stats-section .stat-item {
+        padding: 10px;
+    }
+    
+    .stats-section .stat-value {
+        font-size: 18px;
+    }
+    
+    .stats-section .stat-label {
+        font-size: 11px;
+    }
 }
