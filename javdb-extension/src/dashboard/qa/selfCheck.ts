@@ -3,13 +3,7 @@
 export function runQASelfCheck(): void {
   try {
     const requiredLinks = [
-      './styles/main.css',
-      './styles/_tabs.css',
-      './styles/_modal.css',
-      './styles/_toast.css',
-      './styles/_stats.css',
-      './styles/_userProfile.css',
-      './styles/components/toggle.css',
+      './dashboard.css',
     ];
     const missingHeadCss = requiredLinks.filter(href => !document.querySelector(`link[href$="${href}"]`));
 
