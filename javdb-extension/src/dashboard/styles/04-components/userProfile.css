@@ -153,6 +153,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: 12px;
+    min-width: 0;
 }
 
 .user-server-stats .stat-item {
@@ -162,7 +163,7 @@
     padding: 12px;
     border-radius: 6px;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: transparent !important;
     border: none !important;
@@ -185,8 +186,8 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-    flex: 1;
-    overflow: hidden;
+    flex: 1 1 auto;
+    overflow: visible;
 }
 
 .user-server-stats .stat-label {
@@ -199,7 +200,7 @@
 }
 
 .user-server-stats .stat-value {
-    font-size: clamp(14px, 3vw, 16px);
+    font-size: clamp(12px, 2.5vw, 16px);
     font-weight: 700;
     color: rgba(255, 255, 255, 0.98);
     line-height: 1.2;
@@ -207,9 +208,11 @@
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
     background: transparent !important;
     background-color: transparent !important;
-    word-break: break-all;
-    overflow-wrap: anywhere;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
     min-width: 0;
+    flex-shrink: 1;
 }
 
 .user-server-stats .want-stat {
