@@ -185,6 +185,8 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    flex: 1;
+    overflow: hidden;
 }
 
 .user-server-stats .stat-label {
@@ -197,14 +199,17 @@
 }
 
 .user-server-stats .stat-value {
-    font-size: 16px;
+    font-size: clamp(14px, 3vw, 16px);
     font-weight: 700;
     color: rgba(255, 255, 255, 0.98);
-    line-height: 1;
+    line-height: 1.2;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
     background: transparent !important;
     background-color: transparent !important;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .user-server-stats .want-stat {

@@ -32,7 +32,12 @@
 .home-refresh-btn i { color: var(--primary); }
 
 .home-stats h3 { font-size: 20px; }
-.home-stats .stat-item .stat-value { font-size: 26px; font-weight: 800; }
+.home-stats .stat-item .stat-value { 
+    font-size: clamp(18px, 4vw, 26px); 
+    font-weight: 800;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
 .home-stats .stat-item .stat-label { font-size: 13px; }
 
 .home-quick-links .quick-links-grid {
