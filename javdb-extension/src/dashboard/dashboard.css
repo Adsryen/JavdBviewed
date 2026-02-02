@@ -17,6 +17,7 @@
 @import url('./styles/04-components/layout.css');
 @import url('./styles/04-components/button.css');
 @import url('./styles/04-components/modal.css');
+@import url('./styles/04-components/modalLegacy.css');
 @import url('./styles/04-components/toast.css');
 @import url('./styles/04-components/card.css');
 @import url('./styles/04-components/tabs.css');
@@ -32,6 +33,8 @@
 @import url('./styles/04-components/themeSwitcher.css');
 @import url('./styles/04-components/monthRangePicker.css');
 @import url('./styles/04-components/toggle.css');
+@import url('./styles/04-components/userProfile.css');
+@import url('./styles/04-components/helpPanel.css');
 
 /* 5. Pages - 页面特定样式 */
 @import url('./styles/05-pages/home.css');
@@ -43,20 +46,11 @@
 @import url('./styles/05-pages/logs.css');
 @import url('./styles/05-pages/sync.css');
 @import url('./styles/05-pages/drive115Tasks.css');
+@import url('./styles/05-pages/cloudflareVerification.css');
 @import url('./styles/05-pages/settings/index.css');
 
 /* 6. Utilities - 工具类 */
 @import url('./styles/06-utilities/helpers.css');
-
-/* ============================================
-   临时保留的旧样式（逐步迁移）
-   ============================================ */
-@import url('./styles/_tabs.css');
-@import url('./styles/_modal.css');
-@import url('./styles/_helpPanel.css');
-@import url('./styles/_stats.css');
-@import url('./styles/_userProfile.css');
-@import url('./styles/_cloudflare-verification.css');
 
 /* ============================================
    页面特定样式补充
