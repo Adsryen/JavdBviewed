@@ -282,28 +282,124 @@
   }
 }
 
+/* ===== 通用 button 元素样式 ===== */
+button {
+  height: 36px;
+  padding: 0 14px;
+  color: var(--text-inverse);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary);
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== 特定按钮颜色定义 ===== */
+/* Primary Actions: Blue (save, export, sync) */
+#exportBtn,
+#syncNow,
+#saveWebdavSettings,
+#saveJsonBtn {
+  background-color: #007bff;
+}
+
+#exportBtn:hover:not(:disabled),
+#syncNow:hover:not(:disabled),
+#saveWebdavSettings:hover:not(:disabled),
+#saveJsonBtn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+/* Success Actions: Green (restore) */
+#syncDown {
+  background-color: var(--success);
+  border-color: transparent;
+}
+
+#syncDown:hover:not(:disabled) {
+  background-color: var(--success-hover);
+}
+
+/* Secondary Actions: Gray (test connection) */
+#testWebdavConnection {
+  background-color: #6c757d;
+  border-color: transparent;
+}
+
+#testWebdavConnection:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+/* Info/Toggle Actions: Teal */
+#editJsonBtn,
+#checkDataStructureBtn {
+  background-color: var(--info);
+  border-color: transparent;
+}
+
+#editJsonBtn:hover:not(:disabled),
+#checkDataStructureBtn:hover:not(:disabled) {
+  background-color: var(--info-hover);
+}
+
 /* ===== 兼容旧类名（逐步废弃） ===== */
 .button-like {
   /* 映射到新的 c-button */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: var(--button-height-md);
-  padding: 0 var(--space-4);
+  height: 36px;
+  padding: 0 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  background-color: var(--primary);
+  background-color: #6c757d;
   color: var(--text-inverse);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-base) var(--ease-out);
   box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  text-align: center;
 }
 
 .button-like:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+  background-color: #5a6268;
+}
+
+.button-like:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-sm {
