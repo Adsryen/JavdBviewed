@@ -187,6 +187,9 @@ export const STATUS_PRIORITY = {
 } as const;
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
+    // 主题设置
+    theme: 'light',
+    
     display: {
         hideViewed: false, // Corresponds to VIEWED status
         hideBrowsed: false, // Corresponds to BROWSED status
