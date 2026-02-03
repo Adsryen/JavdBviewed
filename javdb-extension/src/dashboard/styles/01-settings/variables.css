@@ -58,6 +58,35 @@
   /* === 特殊颜色 - Special Colors === */
   --accent-color: #3b82f6;
   
+  /* === 用户资料卡片 - User Profile Card === */
+  --user-profile-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --user-profile-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  --user-profile-text: #ffffff;
+  --user-profile-icon: rgba(255, 255, 255, 0.9);
+  --user-profile-detail-text: rgba(255, 255, 255, 0.95);
+  --user-profile-icon-muted: rgba(255, 255, 255, 0.8);
+  --user-profile-stats-bg: rgba(0, 0, 0, 0.1);
+  --user-profile-stats-border: rgba(255, 255, 255, 0.1);
+  --user-profile-btn-bg: rgba(255, 255, 255, 0.15);
+  --user-profile-btn-border: rgba(255, 255, 255, 0.25);
+  --user-profile-btn-hover-bg: rgba(255, 255, 255, 0.25);
+  --user-profile-btn-hover-border: rgba(255, 255, 255, 0.4);
+  --user-profile-login-icon: rgba(255, 255, 255, 0.7);
+  --user-profile-login-btn-bg: rgba(255, 255, 255, 0.2);
+  --user-profile-login-btn-border: rgba(255, 255, 255, 0.3);
+  
+  /* === 115 信息卡片 - Drive115 Card === */
+  --drive115-bg: linear-gradient(180deg, rgba(227, 242, 253, 0.9), rgba(227, 242, 253, 0.7));
+  --drive115-border: #bbdefb;
+  --drive115-shadow: 0 2px 8px rgba(30, 64, 175, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --drive115-glow: radial-gradient(60% 60% at 50% 50%, rgba(187, 222, 251, 0.65) 0%, rgba(187, 222, 251, 0.15) 60%, rgba(187, 222, 251, 0) 100%);
+  --drive115-title-color: #1e3a8a;
+  --drive115-box-bg: #ffffff;
+  --drive115-box-border: #bbdefb;
+  --drive115-box-shadow: 0 1px 4px rgba(30, 64, 175, 0.08);
+  --drive115-progress-track: #e3f2fd;
+  --drive115-progress-fill: linear-gradient(90deg, #42a5f5, #1e88e5);
+  
   /* === 阴影 - Shadows === */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
@@ -149,6 +178,35 @@
   
   /* === 特殊颜色 - Special Colors === */
   --accent-color: #60a5fa;
+  
+  /* === 用户资料卡片 - User Profile Card === */
+  --user-profile-bg: linear-gradient(135deg, #3b4a9e 0%, #4a2d5e 100%);
+  --user-profile-shadow: 0 4px 15px rgba(59, 74, 158, 0.5);
+  --user-profile-text: #f1f5f9;
+  --user-profile-icon: #60a5fa;
+  --user-profile-detail-text: #cbd5e1;
+  --user-profile-icon-muted: #94a3b8;
+  --user-profile-stats-bg: rgba(255, 255, 255, 0.05);
+  --user-profile-stats-border: rgba(255, 255, 255, 0.1);
+  --user-profile-btn-bg: rgba(255, 255, 255, 0.1);
+  --user-profile-btn-border: rgba(255, 255, 255, 0.2);
+  --user-profile-btn-hover-bg: rgba(255, 255, 255, 0.2);
+  --user-profile-btn-hover-border: rgba(255, 255, 255, 0.3);
+  --user-profile-login-icon: rgba(255, 255, 255, 0.5);
+  --user-profile-login-btn-bg: rgba(255, 255, 255, 0.15);
+  --user-profile-login-btn-border: rgba(255, 255, 255, 0.25);
+  
+  /* === 115 信息卡片 - Drive115 Card === */
+  --drive115-bg: linear-gradient(180deg, rgba(51, 65, 85, 0.6), rgba(51, 65, 85, 0.4));
+  --drive115-border: #475569;
+  --drive115-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --drive115-glow: radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.2) 0%, rgba(96, 165, 250, 0.05) 60%, rgba(96, 165, 250, 0) 100%);
+  --drive115-title-color: #cbd5e1;
+  --drive115-box-bg: #334155;
+  --drive115-box-border: #475569;
+  --drive115-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  --drive115-progress-track: #1e293b;
+  --drive115-progress-fill: linear-gradient(90deg, #60a5fa, #3b82f6);
   
   /* === 阴影 - Shadows === */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
