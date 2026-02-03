@@ -12,6 +12,13 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
       }, timeoutMs);
     } catch {}
 
+    // 检查 runtime 是否可用
+    if (!chrome?.runtime?.id) {
+      if (timer) window.clearTimeout(timer);
+      reject(new Error('Extension context invalidated'));
+      return;
+    }
+
     try {
       chrome.runtime.sendMessage({ type, payload }, (resp) => {
         if (timer) window.clearTimeout(timer);
