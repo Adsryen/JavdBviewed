@@ -1,6 +1,11 @@
 // src/background/background.ts
 // 背景入口：装配与注册各模块
 
+// 确保 Service Worker 上下文已准备好
+if (typeof self === 'undefined' || !self.registration) {
+  console.warn('[Background] Service Worker context not ready, waiting...');
+}
+
 import { installDrive115V2Proxy } from './drive115Proxy';
 import { installConsoleProxyWithSettings } from './consoleConfig';
 import { registerWebDAVRouter } from './webdav';
@@ -120,3 +125,15 @@ try {
   });
 } catch {}
 
+
+// 全局错误处理 - 捕获未处理的 Promise 拒绝
+self.addEventListener('unhandledrejection', (event) => {
+  console.warn('[Background] Unhandled promise rejection:', event.reason);
+  event.preventDefault(); // 阻止错误在控制台显示
+});
+
+// 全局错误处理 - 捕获未捕获的错误
+self.addEventListener('error', (event) => {
+  console.warn('[Background] Uncaught error:', event.error || event.message);
+  event.preventDefault(); // 阻止错误在控制台显示
+});
