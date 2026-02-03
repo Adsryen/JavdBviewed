@@ -42,10 +42,20 @@
 .theme-switcher .theme-icon {
   font-size: 18px;
   line-height: 1;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, color 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 太阳图标 - 金黄色 */
+.theme-switcher .fa-sun {
+  color: #fbbf24;
+}
+
+/* 月亮图标 - 白色 */
+.theme-switcher .fa-moon {
+  color: #f1f5f9;
 }
 
 /* 主题切换动画 */
