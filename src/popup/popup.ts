@@ -1,6 +1,25 @@
 import { getSettings, saveSettings } from '../utils/storage';
 import type { ExtensionSettings } from '../types';
 
+// 安全获取设置，带重试机制
+async function getSettingsSafely(maxRetries = 3): Promise<ExtensionSettings | null> {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            // 等待一小段时间，让 Service Worker 初始化
+            if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
+            }
+            return await getSettings();
+        } catch (error) {
+            console.warn(`[Popup] Failed to get settings (attempt ${i + 1}/${maxRetries}):`, error);
+            if (i === maxRetries - 1) {
+                return null;
+            }
+        }
+    }
+    return null;
+}
+
 // 获取主题
 async function getTheme(): Promise<'light' | 'dark'> {
     try {
@@ -153,10 +172,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!popupLockBtn) return;
 
         try {
-            const settings = await getSettings();
+            const settings = await getSettingsSafely();
             
             // 只有在私密模式启用时才显示
-            if (settings.privacy?.privateMode?.enabled) {
+            if (settings?.privacy?.privateMode?.enabled) {
                 popupLockBtn.style.display = 'inline-flex';
             }
 
@@ -165,6 +184,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     // 发送锁定消息到background
                     chrome.runtime.sendMessage({ type: 'privacy-lock' }, (response) => {
+                        // 检查 lastError
+                        if (chrome.runtime.lastError) {
+                            console.error('Lock message error:', chrome.runtime.lastError);
+                            alert('锁定失败，请重试');
+                            return;
+                        }
                         if (response?.success) {
                             window.close(); // 关闭popup
                         } else {
@@ -207,7 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ) {
         const button = document.createElement('button');
         button.className = 'toggle-button';
-        let settings: ExtensionSettings;
+        let settings: ExtensionSettings | null;
 
         const updateState = (isHiding: boolean) => {
             // isHiding=true means the feature is enabled (hiding content)
@@ -218,11 +243,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             button.classList.toggle('active', isHiding);
         };
 
-        settings = await getSettings();
-        updateState(!!settings.display[key]);
+        settings = await getSettingsSafely();
+        if (settings) {
+            updateState(!!settings.display[key]);
+        }
 
         button.addEventListener('click', async () => {
-            settings = await getSettings();
+            settings = await getSettingsSafely();
+            if (!settings) {
+                console.error('Failed to get settings');
+                return;
+            }
             const current = !!settings.display[key];
             const newState = !current;
             (settings.display[key] as boolean) = newState;
@@ -262,12 +293,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             button.classList.toggle('active', flag);
         };
 
-        let settings = await getSettings();
-        const current = !!(settings.listEnhancement as any)?.[key];
-        updateState(current);
+        let settings = await getSettingsSafely();
+        if (settings) {
+            const current = !!(settings.listEnhancement as any)?.[key];
+            updateState(current);
+        }
 
         button.addEventListener('click', async () => {
-            settings = await getSettings();
+            settings = await getSettingsSafely();
+            if (!settings) {
+                console.error('Failed to get settings');
+                return;
+            }
             if (!settings.listEnhancement) {
                 settings.listEnhancement = {
                     enabled: true,
@@ -329,7 +366,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Volume Control
     async function setupVolumeControl() {
         // 从设置对象中获取当前音量设置
-        const settings = await getSettings();
+        const settings = await getSettingsSafely();
+        if (!settings) {
+            console.error('Failed to get settings for volume control');
+            return;
+        }
         const currentVolumeFloat = settings.listEnhancement?.previewVolume || 0.2;
         const currentVolume = Math.round(currentVolumeFloat * 100);
 
@@ -343,7 +384,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             volumeValue.textContent = `${volume}%`;
 
             // 获取当前设置并更新音量
-            const currentSettings = await getSettings();
+            const currentSettings = await getSettingsSafely();
+            if (!currentSettings) {
+                console.error('Failed to get settings for volume update');
+                return;
+            }
             if (!currentSettings.listEnhancement) {
                 currentSettings.listEnhancement = {
                     enabled: true,
