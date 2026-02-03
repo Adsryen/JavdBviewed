@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Jav 助手](javdb-extension/src/assets/favicon-128x128.png)
+![Jav 助手](src/assets/favicon-128x128.png)
 
 **Jav 视频浏览助手**
 
@@ -174,81 +174,39 @@ Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等Jav视频网
 
 ### 番号库管理
 <div align="center">
-<img src="javdb-extension/assets/1.png" alt="番号库管理" width="800">
+<img src="assets/1.png" alt="番号库管理" width="800">
 <p><em>番号库 - 管理和查看已标记的视频番号</em></p>
 </div>
 
 ### 演员库管理
 <div align="center">
-<img src="javdb-extension/assets/2.png" alt="演员库管理" width="800">
+<img src="assets/2.png" alt="演员库管理" width="800">
 <p><em>演员库 - 演员信息管理和分类功能</em></p>
 </div>
 
 ### 新作品监控
 <div align="center">
-<img src="javdb-extension/assets/3.png" alt="新作品监控" width="800">
+<img src="assets/3.png" alt="新作品监控" width="800">
 <p><em>新作品 - 自动监控和订阅感兴趣的新发布内容</em></p>
 </div>
 
 ### 数据同步功能
 <div align="center">
-<img src="javdb-extension/assets/4.png" alt="数据同步" width="800">
+<img src="assets/4.png" alt="数据同步" width="800">
 <p><em>数据同步 - WebDAV 云端同步，多设备数据一致性保障</em></p>
 </div>
 
 ### 扩展设置面板
 <div align="center">
-<img src="javdb-extension/assets/5.png" alt="设置面板" width="800">
+<img src="assets/5.png" alt="设置面板" width="800">
 <p><em>设置面板 - 完整的配置选项和功能开关</em></p>
 </div>
 
 ### 操作日志记录
 <div align="center">
-<img src="javdb-extension/assets/6.png" alt="日志记录" width="800">
+<img src="assets/6.png" alt="日志记录" width="800">
 <p><em>日志面板 - 详细的操作记录和系统状态信息</em></p>
 </div>
-
-### ✨ 核心功能
-
-- 🎯 **智能标记**: 自动标记已浏览和已观看的视频
-- 🔄 **数据同步**: 支持 WebDAV 云端同步，多设备数据一致
-- 📊 **数据管理**: 完整的数据导入导出功能
-- 💾 **115网盘推送**: 一键推送磁力链接到115网盘离线下载
-- 🎨 **个性化**: 可自定义标记样式和显示选项
-- 🚀 **高性能**: 优化的并发处理和缓存机制
-- 📱 **多平台**: 支持 Chrome、Edge 等主流浏览器
-
-### 🎬 功能特性详解
-
-#### 视频标记系统
-- **已浏览标记**: 自动记录访问过的视频详情页
-- **已观看标记**: 手动标记已观看的视频
-- **想看标记**: 标记感兴趣但未观看的视频
-- **优先级显示**: 智能显示最重要的状态标记
-
-#### 数据同步功能
-- **WebDAV 支持**: 兼容坚果云、TeraCloud、Yandex 等主流服务
-- **自动同步**: 定时自动同步数据到云端
-- **冲突解决**: 智能处理多设备间的数据冲突
-- **备份恢复**: 完整的数据备份和恢复机制
-
-#### 界面增强
-- **列表页标记**: 在视频列表中直观显示观看状态
-- **详情页操作**: 在视频详情页快速标记状态
-- **自定义样式**: 可自定义标记颜色和显示样式
-- **隐藏功能**: 可选择隐藏已观看的视频
-
-#### 115网盘集成
-- **一键推送**: 在视频详情页直接推送磁力链接到115网盘
-- **自动标记**: 推送成功后自动标记视频为已观看
-- **智能验证**: 自动处理115网盘的验证码流程
-- **同源安全**: 使用安全的跨域通信机制
-
-#### 数据管理
-- **导入导出**: 支持 JSON 格式的数据导入导出
-- **统计信息**: 显示观看统计和数据概览
-- **批量操作**: 支持批量标记和管理
-- **数据清理**: 提供数据清理和优化工具
 
 ## 📦 安装方式
 
@@ -302,23 +260,6 @@ Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等Jav视频网
 - **导入数据**: 设置面板 → 数据管理 → 导入数据
 - **查看统计**: 设置面板 → 统计信息
 
-### 高级功能
-
-#### 自定义显示
-- 在设置面板中可以自定义标记颜色
-- 调整标记显示位置和样式
-- 设置隐藏已观看视频的选项
-
-#### 快捷键支持
-- `Ctrl + Shift + M`: 快速标记当前视频为已观看
-- `Ctrl + Shift + W`: 快速标记当前视频为想看
-
-#### 115网盘使用技巧
-- **批量推送**: 可以快速连续点击多个"推送115"按钮
-- **验证处理**: 如遇验证码，会自动弹出验证窗口，完成验证后自动继续
-- **状态同步**: 推送成功的视频会自动在JavDB和扩展中标记为已观看
-- **错误重试**: 推送失败时可以直接重新点击按钮重试
-
 ## 🛠️ 二次开发指南
 
 ### 开发环境准备
@@ -338,17 +279,21 @@ cd JavdBviewed
 
 ```
 JavdBviewed/
-├── javdb-extension/          # 主要开发目录 (TypeScript + Vite)
-│   ├── src/                  # 源代码
-│   │   ├── background/       # Service Worker 后台脚本
-│   │   ├── content/          # 内容脚本 (注入到页面)
-│   │   ├── popup/            # 扩展弹窗界面
-│   │   ├── dashboard/        # 设置面板
-│   │   ├── utils/            # 工具函数
-│   │   └── types/            # TypeScript 类型定义
-│   ├── scripts/              # 构建脚本
-│   └── dist/                 # 编译输出目录
-├── Tampermonkey/             # 油猴脚本版本
+├── src/                      # 源代码
+│   ├── background/           # Service Worker 后台脚本
+│   ├── content/              # 内容脚本 (注入到页面)
+│   ├── popup/                # 扩展弹窗界面
+│   ├── dashboard/            # 设置面板
+│   ├── services/             # 业务服务层
+│   ├── components/           # 可复用组件
+│   ├── utils/                # 工具函数
+│   ├── types/                # TypeScript 类型定义
+│   └── assets/               # 静态资源
+├── scripts/                  # 构建脚本
+├── dist/                     # 编译输出目录
+├── docs/                     # 项目文档
+├── todo/                     # 开发计划和待办事项
+├── Tampermonkey/             # 油猴脚本版本（已停止维护）
 └── reference/                # 参考资料
 ```
 
@@ -356,7 +301,6 @@ JavdBviewed/
 
 #### 1. 安装依赖
 ```bash
-cd javdb-extension
 npm install
 # 或使用 pnpm
 pnpm install
@@ -384,136 +328,62 @@ npm run build
 ```
 打包后的文件位于 `dist-zip/` 目录中。
 
-### 核心模块说明
-
-#### 内容脚本 (Content Scripts)
-- **位置**: `src/content/`
-- **功能**: 注入到 JavDB 页面，处理 DOM 操作和用户交互
-- **主要文件**:
-  - `index.ts`: 主入口文件
-  - `itemProcessor.ts`: 处理视频项目标记
-  - `videoDetail.ts`: 处理视频详情页
-  - `statusManager.ts`: 管理视频状态
-  - `concurrency.ts`: 并发控制
-
-#### 后台脚本 (Background Scripts)
-- **位置**: `src/background/`
-- **功能**: 处理扩展后台任务和数据同步
-- **主要文件**:
-  - `background.ts`: 主后台脚本
-  - `sync.ts`: WebDAV 同步功能
-
-#### 弹窗界面 (Popup)
-- **位置**: `src/popup/`
-- **功能**: 扩展的快速操作界面
-- **文件**: `popup.html`, `popup.ts`, `popup.css`
-
-#### 设置面板 (Dashboard)
-- **位置**: `src/dashboard/`
-- **功能**: 完整的设置和数据管理界面
-- **主要功能**: 数据导入导出、WebDAV 配置、显示设置
-
-#### 工具函数 (Utils)
-- **位置**: `src/utils/`
-- **主要文件**:
-  - `storage.ts`: 数据存储管理
-  - `config.ts`: 配置管理
-  - `statusPriority.ts`: 状态优先级处理
-
-### 开发技巧
-
-#### 1. 调试方法
-```javascript
-// 在内容脚本中使用 console.log
-console.log('Debug info:', data);
-
-// 在后台脚本中调试
-chrome.action.setBadgeText({text: 'DEBUG'});
-```
-
-#### 2. 存储数据
-```typescript
-import { setValue, getValue } from '../utils/storage';
-
-// 保存数据
-await setValue('key', data);
-
-// 读取数据
-const data = await getValue('key', defaultValue);
-```
-
-#### 3. 添加新功能
-1. 在相应模块中添加功能代码
-2. 更新 TypeScript 类型定义 (`src/types/index.ts`)
-3. 如需新的权限，更新 `manifest.json`
-4. 添加相应的测试代码
-
-#### 4. 样式修改
-- 内容脚本样式：直接在 TypeScript 文件中使用 `style` 属性
-- 弹窗样式：修改 `popup.css`
-- 设置面板样式：修改 `dashboard/` 目录下的 CSS 文件
 
 ### 常见问题
 
-#### Q: 修改代码后扩展没有更新？
-A: 确保重新运行了 `npm run build`，然后在扩展管理页面刷新扩展。
+#### Q: 扩展安装后没有反应？
+A: 请确保在扩展管理页面开启了"开发者模式"，并且扩展已启用。刷新 JavDB 页面后即可生效。
 
-#### Q: 如何添加新的 WebDAV 服务支持？
-A: 在 `manifest.json` 的 `host_permissions` 中添加新域名，然后在同步模块中添加相应逻辑。
+#### Q: WebDAV 同步失败怎么办？
+A: 请检查服务器地址、用户名和密码是否正确，建议先点击"测试连接"验证配置。确保 WebDAV 服务器支持 CORS 跨域访问。
 
-#### Q: 如何优化性能？
-A: 查看 `concurrency.ts` 模块，了解现有的并发控制机制，避免过度的 DOM 操作。
+#### Q: 115网盘推送失败？
+A: 请确保已在 https://115.com 登录账号，并在扩展设置中启用了115网盘功能。如遇验证码，请完成验证后重试。
 
-#### Q: 如何添加新的视频状态？
-A: 在 `src/types/index.ts` 中更新 `VideoStatus` 类型，然后在 `statusPriority.ts` 中添加相应的优先级逻辑。
+#### Q: 标记的视频在其他设备上看不到？
+A: 需要配置 WebDAV 同步功能，并在所有设备上启用自动同步。首次同步可能需要几分钟时间。
+
+#### Q: 如何备份我的数据？
+A: 在设置面板的"数据管理"选项卡中，点击"导出数据"按钮，会下载一个 JSON 格式的备份文件。
+
+#### Q: 扩展占用内存太大？
+A: 可以在设置中关闭不需要的功能，或定期清理历史数据。如果数据量很大，建议导出备份后清空部分旧数据。
 
 ### 架构说明
 
-#### 数据流
-1. **用户操作** → 内容脚本捕获
-2. **内容脚本** → 通过 Chrome API 与后台脚本通信
-3. **后台脚本** → 处理数据存储和同步
-4. **存储层** → 本地存储 + WebDAV 云端同步
-
-#### 并发控制
-项目使用了先进的并发控制机制来确保数据一致性：
-- **存储管理器**: 防止同时写入冲突
-- **并发监控**: 实时监控并发操作
-- **队列机制**: 确保操作按顺序执行
-
-#### 性能优化
-- **懒加载**: 只在需要时加载模块
-- **缓存机制**: 减少重复的 DOM 查询
-- **批量操作**: 合并多个存储操作
-- **防抖处理**: 避免频繁的状态更新
-
-### 最佳实践
-
-#### 代码规范
-- 使用 TypeScript 严格模式
-- 遵循 ESLint 规则
-- 保持函数单一职责
-- 添加适当的注释和文档
-
-#### 错误处理
-```typescript
-try {
-    await someAsyncOperation();
-} catch (error) {
-    console.error('Operation failed:', error);
-    // 适当的错误恢复逻辑
-}
+```mermaid
+graph LR
+    A[JavDB 页面] --> B[内容脚本]
+    C[扩展弹窗] --> E[Chrome API]
+    D[设置面板] --> E
+    B --> E
+    E --> F[Service Worker<br/>后台脚本]
+    F --> G[数据处理<br/>任务调度]
+    G --> H[Chrome Storage]
+    G --> I[IndexedDB]
+    H --> J[WebDAV 同步]
+    I --> J
+    J --> K[云端存储]
+    F --> L[115网盘 API]
+    F --> M[磁力搜索]
+    F --> N[数据聚合]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff4e1
+    style C fill:#fff4e1
+    style D fill:#fff4e1
+    style E fill:#ffe1e1
+    style F fill:#ffe1f5
+    style G fill:#ffe1f5
+    style H fill:#e1ffe1
+    style I fill:#e1ffe1
+    style J fill:#f0e1ff
+    style K fill:#f0e1ff
+    style L fill:#ffe8d1
+    style M fill:#ffe8d1
+    style N fill:#ffe8d1
 ```
 
-#### 内存管理
-- 及时清理事件监听器
-- 避免内存泄漏
-- 使用 WeakMap 存储临时数据
-
-#### 测试策略
-- 单元测试：测试核心逻辑
-- 集成测试：测试模块间交互
-- 手动测试：在真实环境中验证功能
 
 ### 贡献指南
 
@@ -537,7 +407,7 @@ try {
 
 ## � 开发计划
 
-查看详细的开发计划和待办事项：[Todo 计划](javdb-extension/todo/todo.md)
+查看详细的开发计划和待办事项：[Todo 计划](todo/todo.md)
 
 ### 近期重点
 
