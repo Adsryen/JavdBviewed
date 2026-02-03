@@ -1,7 +1,7 @@
 .home-page { display: grid; gap: 16px; }
 
 .home-welcome h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-.home-subtitle { margin: 0; color: #6b7280; }
+.home-subtitle { margin: 0; color: var(--text-secondary); }
 
 /* 趋势概览容器内边距 */
 .home-charts {
@@ -97,7 +97,7 @@
 .home-quick-links .quick-link:hover {
   transform: translateY(-2px);
   box-shadow: var(--elev-2);
-  border-color: #d1d5db;
+  border-color: var(--border-hover);
 }
 .home-quick-links .quick-link i { font-size: 18px; color: var(--primary); }
 .home-quick-links .quick-link span { font-weight: 600; }
@@ -253,6 +253,11 @@
     transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
 
+[data-theme="dark"] #stats-overview > div {
+    background: var(--surface-elevated);
+    border-color: var(--border-secondary);
+}
+
 #stats-overview > div:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
@@ -323,12 +328,17 @@
    ================================================================ */
 
 .stats-section {
-  background: var(--bg-secondary);
+  background: var(--bg-secondary) !important;
   padding: 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s ease;
+}
+
+[data-theme="dark"] .stats-section {
+  background: #1e293b !important;
+  border-color: #334155 !important;
 }
 
 .stats-section:hover {
@@ -362,7 +372,7 @@
 
 /* 统计卡片样式 */
 .stats-section .stat-item {
-    background: linear-gradient(135deg, var(--surface-primary), var(--bg-secondary));
+    background: var(--surface-secondary);
     padding: 20px 16px;
     border-radius: 12px;
     text-align: center;
@@ -371,6 +381,11 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+}
+
+[data-theme="dark"] .stats-section .stat-item {
+    background: var(--surface-elevated);
+    border-color: var(--border-secondary);
 }
 
 .stats-section .stat-item:hover {
