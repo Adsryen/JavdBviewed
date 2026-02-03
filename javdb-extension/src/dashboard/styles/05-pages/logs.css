@@ -6,9 +6,9 @@
     gap: 15px;
     margin-bottom: 15px;
     padding: 15px;
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     border-radius: 8px;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-primary);
 }
 
 .log-filters .filter-group {
@@ -20,18 +20,18 @@
 .log-filters label {
     font-size: 12px;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .log-filters select {
     padding: 8px 12px;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background: white;
+    background: var(--surface-primary);
     font-size: 14px;
-    color: #495057;
+    color: var(--text-primary);
     min-width: 120px;
 }
 
@@ -39,24 +39,24 @@
 .log-filters input[type="search"],
 .log-filters input[type="date"] {
     padding: 8px 12px;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background: white;
+    background: var(--surface-primary);
     font-size: 14px;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .log-filters select:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 .log-filters input[type="search"]:focus,
 .log-filters input[type="date"]:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 /* 日志操作按钮 */
@@ -68,18 +68,18 @@
 
 .log-actions button {
     padding: 8px 16px;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background: white;
-    color: #495057;
+    background: var(--surface-primary);
+    color: var(--text-primary);
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .log-actions button:hover {
-    background: #f8f9fa;
-    border-color: #adb5bd;
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
 }
 
 .log-actions button:disabled {
@@ -88,25 +88,25 @@
 }
 
 .log-actions button.primary {
-    background: #007bff;
+    background: var(--primary);
     color: white;
-    border-color: #007bff;
+    border-color: var(--primary);
 }
 
 .log-actions button.primary:hover {
-    background: #0056b3;
-    border-color: #0056b3;
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
 }
 
 .log-actions button.danger {
-    background: #dc3545;
+    background: var(--error);
     color: white;
-    border-color: #dc3545;
+    border-color: var(--error);
 }
 
 .log-actions button.danger:hover {
-    background: #c82333;
-    border-color: #c82333;
+    background: var(--error-hover);
+    border-color: var(--error-hover);
 }
 
 /* 视图切换（扩展日志 vs 控制台日志） */
@@ -118,40 +118,40 @@
 .log-view-switch .switch-btn {
     padding: 6px 12px;
     border-radius: 16px;
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #495057;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     font-size: 13px;
     cursor: pointer;
 }
 .log-view-switch .switch-btn:hover {
-    background: #f6f8fa;
+    background: var(--bg-hover);
 }
 .log-view-switch .switch-btn.active {
-    background: #0d6efd;
+    background: var(--primary);
     color: #fff;
-    border-color: #0d6efd;
+    border-color: var(--primary);
 }
 
 /* ===== 针对日志标签页按钮的显式配色（使用按钮ID，避免影响其它区域） ===== */
 #refresh-logs-button {
-    background: #28a745; /* 绿色 - 刷新 */
+    background: var(--success);
     color: #fff;
-    border-color: #28a745;
+    border-color: var(--success);
 }
 #refresh-logs-button:hover:not(:disabled) {
-    background: #218838;
-    border-color: #218838;
+    background: var(--success-hover);
+    border-color: var(--success-hover);
 }
 
 #clear-logs-button {
-    background: #dc3545; /* 红色 - 清空 */
+    background: var(--error);
     color: #fff;
-    border-color: #dc3545;
+    border-color: var(--error);
 }
 #clear-logs-button:hover:not(:disabled) {
-    background: #c82333;
-    border-color: #c82333;
+    background: var(--error-hover);
+    border-color: var(--error-hover);
 }
 
 #refresh-logs-button:disabled,
@@ -165,8 +165,8 @@
     max-height: 600px;
     overflow-y: auto;
     padding: 5px;
-    background-color: #f7f9fc;
-    border: 1px solid #e8e8e8;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
 }
 
@@ -181,21 +181,21 @@
 .no-logs {
     text-align: center;
     padding: 40px;
-    color: #777;
+    color: var(--text-muted);
     font-size: 16px;
 }
 
 /* 日志条目 */
 .log-entry {
-    background-color: #fff;
+    background-color: var(--surface-primary);
     border-radius: 8px;
-    border-left: 5px solid #ccc; /* Default border color */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-left: 5px solid var(--border-primary);
+    box-shadow: var(--shadow-sm);
     transition: box-shadow 0.3s ease;
 }
 
 .log-entry:hover {
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    box-shadow: var(--shadow-md);
 }
 
 /* 控制台日志容器（深色风格，单独样式，形成强对比） */
@@ -280,40 +280,40 @@
 .log-message {
     flex-grow: 1;
     font-size: 14px;
-    color: #333;
+    color: var(--text-primary);
 }
 
 /* 日志时间戳 */
 .log-timestamp {
     font-size: 12px;
-    color: #888;
+    color: var(--text-muted);
     white-space: nowrap;
 }
 
 /* 日志详细数据 */
 .log-data-details {
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--border-primary);
 }
 
 .log-data-details summary {
     cursor: pointer;
     padding: 8px 15px;
     font-size: 13px;
-    color: #555;
+    color: var(--text-secondary);
     font-weight: 500;
     outline: none;
 }
 
 .log-data-details summary:hover {
-    background-color: #f9f9f9;
+    background-color: var(--bg-hover);
 }
 
 .log-data-details pre {
-    background-color: #fdfdfd;
+    background-color: var(--bg-secondary);
     padding: 15px;
     margin: 0;
     font-size: 12px;
-    color: #444;
+    color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-all;
     border-bottom-left-radius: 8px;
@@ -322,8 +322,8 @@
 
 /* 关键词高亮 */
 .log-highlight {
-    background: #fff3cd;
-    color: #6c757d;
+    background: var(--warning-light);
+    color: var(--warning);
     padding: 0 2px;
     border-radius: 2px;
 }
@@ -391,15 +391,15 @@
 }
 
 .log-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--bg-primary);
     border-radius: 4px;
 }
 
 .log-container::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--border-hover);
     border-radius: 4px;
 }
 
 .log-container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: var(--text-muted);
 }
