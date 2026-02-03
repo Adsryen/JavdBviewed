@@ -14,6 +14,7 @@ export class ThemeManager {
   private currentTheme: Theme = 'light';
   private listeners: ThemeChangeCallback[] = [];
   private initialized = false;
+  private storageListenerBound = false;
 
   /**
    * 初始化主题系统
@@ -40,6 +41,9 @@ export class ThemeManager {
         this.currentTheme = 'light';
       }
       
+      // 4. 设置 storage 监听器，实现跨页面主题同步
+      this.setupStorageListener();
+      
       this.initialized = true;
       console.log(`[ThemeManager] 主题系统已初始化，当前主题: ${this.currentTheme}`);
     } catch (error) {
@@ -49,6 +53,33 @@ export class ThemeManager {
       this.applyTheme(this.currentTheme);
       this.initialized = true;
     }
+  }
+
+  /**
+   * 设置 storage 监听器，监听其他页面的主题变更
+   */
+  private setupStorageListener(): void {
+    if (this.storageListenerBound) {
+      return;
+    }
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.theme_preference) {
+        const newTheme = changes.theme_preference.newValue as Theme;
+        if (newTheme && (newTheme === 'light' || newTheme === 'dark')) {
+          // 只有当主题真的变化时才更新
+          if (newTheme !== this.currentTheme) {
+            console.log(`[ThemeManager] 检测到外部主题变更: ${this.currentTheme} -> ${newTheme}`);
+            this.currentTheme = newTheme;
+            this.applyTheme(newTheme);
+            this.notifyListeners(newTheme);
+          }
+        }
+      }
+    });
+
+    this.storageListenerBound = true;
+    console.log('[ThemeManager] Storage 监听器已设置');
   }
 
   /**
