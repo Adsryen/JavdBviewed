@@ -1,14 +1,21 @@
-# Ignore files from the browser extension project
-javdb-extension/node_modules/
-javdb-extension/dist/
-javdb-extension/.env.local
-javdb-extension/key.pem
-javdb-extension/npm-debug.log*
-javdb-extension/pnpm-debug.log*
-javdb-extension/yarn-debug.log*
-javdb-extension/yarn-error.log*
+# Dependencies
+node_modules/
 
-# General IDE and OS files to ignore globally
+# Build output
+dist/
+dist-*
+*.local
+*.tsbuildinfo
+
+# Local environment variables
+.env.local
+
+# CRX signing key
+key.pem
+*.crx
+*.pem
+
+# IDE and OS files
 .idea/
 .vscode/
 *.suo
@@ -19,11 +26,24 @@ javdb-extension/yarn-error.log*
 *~
 ehthumbs.db
 Thumbs.db
-.DS_Store 
+.DS_Store
 
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backup files
 javdb-backup_*.json
 
+# Markdown files
+*.md
 *av*.md
+# 排除特定文件夹的 md 文件
+!todo/*.md
+!scripts/*.md
+!PRIVACY_POLICY.md
 
 # 测试文件
 **/__tests__/
@@ -32,7 +52,7 @@ javdb-backup_*.json
 *.spec.ts
 *.spec.js
 
-# temp
+# Temp files
 temp/
 *debug*.html
 *test*.html
@@ -41,12 +61,9 @@ temp/
 *temp*.js
 *debug*.js
 
-# windsurf
+# Build scripts
+build.bat
+
+# IDE specific
 .windsurf/
-
-# kiro
 .kiro/
-
-# PRIVACY_POLICY
-!PRIVACY_POLICY.md
-!javdb-extension/PRIVACY_POLICY.md
