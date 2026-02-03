@@ -4,6 +4,9 @@ import type { PrivacyConfig } from "./privacy";
 import type { AISettings } from "./ai";
 
 export interface ExtensionSettings {
+    // 主题设置
+    theme?: 'light' | 'dark';
+    
     display: {
         hideViewed: boolean;
         hideBrowsed: boolean;
