@@ -1,6 +1,111 @@
 import { getSettings, saveSettings } from '../utils/storage';
 import type { ExtensionSettings } from '../types';
 
+// 获取主题
+async function getTheme(): Promise<'light' | 'dark'> {
+    try {
+        const result = await chrome.storage.local.get('theme_preference');
+        const theme = result.theme_preference;
+        if (theme === 'light' || theme === 'dark') {
+            return theme;
+        }
+        return 'light';
+    } catch (error) {
+        console.error('[Popup] Failed to get theme:', error);
+        return 'light';
+    }
+}
+
+// 保存主题
+async function saveTheme(theme: 'light' | 'dark'): Promise<void> {
+    try {
+        await chrome.storage.local.set({ theme_preference: theme });
+        console.log('[Popup] Theme saved:', theme);
+    } catch (error) {
+        console.error('[Popup] Failed to save theme:', error);
+        throw error;
+    }
+}
+
+// 初始化主题
+async function initTheme() {
+    try {
+        const theme = await getTheme();
+        console.log('[Popup] Theme loaded:', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        console.log('[Popup] data-theme attribute set to:', document.documentElement.getAttribute('data-theme'));
+        
+        // 更新主题切换按钮图标
+        updateThemeSwitcherIcon(theme);
+    } catch (error) {
+        console.error('[Popup] Failed to init theme:', error);
+        document.documentElement.setAttribute('data-theme', 'light');
+        updateThemeSwitcherIcon('light');
+    }
+}
+
+// 监听storage变化，实现跨页面主题同步
+function setupThemeSync() {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && changes.theme_preference) {
+            const newTheme = changes.theme_preference.newValue;
+            if (newTheme === 'light' || newTheme === 'dark') {
+                console.log('[Popup] Theme changed from storage:', newTheme);
+                document.documentElement.setAttribute('data-theme', newTheme);
+                updateThemeSwitcherIcon(newTheme);
+            }
+        }
+    });
+}
+
+// 更新主题切换按钮图标
+function updateThemeSwitcherIcon(theme: 'light' | 'dark') {
+    const themeSwitcherBtn = document.getElementById('theme-switcher-btn');
+    const icon = themeSwitcherBtn?.querySelector('.theme-icon');
+    
+    if (icon) {
+        if (theme === 'light') {
+            icon.className = 'fas fa-sun theme-icon';
+            themeSwitcherBtn!.title = '切换到深色模式';
+        } else {
+            icon.className = 'fas fa-moon theme-icon';
+            themeSwitcherBtn!.title = '切换到浅色模式';
+        }
+    }
+}
+
+// 切换主题
+async function toggleTheme() {
+    const themeSwitcherBtn = document.getElementById('theme-switcher-btn');
+    if (!themeSwitcherBtn) return;
+    
+    try {
+        // 添加切换动画
+        themeSwitcherBtn.classList.add('switching');
+        
+        // 获取当前主题
+        const currentTheme = await getTheme();
+        const newTheme: 'light' | 'dark' = currentTheme === 'light' ? 'dark' : 'light';
+        
+        // 保存新主题
+        await saveTheme(newTheme);
+        
+        // 应用新主题
+        document.documentElement.setAttribute('data-theme', newTheme);
+        updateThemeSwitcherIcon(newTheme);
+        
+        console.log('[Popup] Theme switched to:', newTheme);
+        
+        // 移除动画类
+        setTimeout(() => {
+            themeSwitcherBtn.classList.remove('switching');
+        }, 500);
+    } catch (error) {
+        console.error('[Popup] Failed to toggle theme:', error);
+        themeSwitcherBtn.classList.remove('switching');
+    }
+}
+
 function initVersionInfo() {
     const versionContainer = document.getElementById('versionAuthorInfo');
     if (versionContainer) {
@@ -28,6 +133,7 @@ function initTitleLogo() {
 document.addEventListener('DOMContentLoaded', async () => {
     const dashboardButton = document.getElementById('dashboard-button') as HTMLButtonElement;
     const popupLockBtn = document.getElementById('popup-lock-btn') as HTMLButtonElement;
+    const themeSwitcherBtn = document.getElementById('theme-switcher-btn') as HTMLButtonElement;
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
     const helpPanel = document.getElementById('helpPanel') as HTMLDivElement;
     const toggleWatchedContainer = document.getElementById('toggleWatchedContainer') as HTMLDivElement;
@@ -85,6 +191,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.open(chrome.runtime.getURL('dashboard/dashboard.html'));
             }
         });
+    }
+
+    // 主题切换按钮
+    if (themeSwitcherBtn) {
+        themeSwitcherBtn.addEventListener('click', toggleTheme);
     }
 
     // Toggle Buttons
@@ -285,6 +396,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupHelpPanel();
     }
 
+    await initTheme();
+    setupThemeSync(); // 设置主题同步监听
     initialize();
     initVersionInfo();
     initTitleLogo();
