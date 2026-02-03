@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <title>Jav 助手</title>
     <link rel="stylesheet" href="./popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
     <div id="panel">
@@ -16,7 +17,13 @@
                     <i class="fas fa-lock"></i>
                 </button>
             </div>
-            <span id="helpBtn" title="功能说明">❓</span>
+            <div class="title-right">
+                <!-- 主题切换按钮 -->
+                <button id="theme-switcher-btn" class="theme-switcher" title="切换主题">
+                    <i class="fas fa-sun theme-icon"></i>
+                </button>
+                <span id="helpBtn" title="功能说明">❓</span>
+            </div>
         </div>
 
         <div class="main-grid">
