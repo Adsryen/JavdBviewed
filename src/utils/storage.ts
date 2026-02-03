@@ -45,11 +45,20 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
     try {
       timer = setTimeout(() => reject(new Error(`message timeout: ${type}`)), timeoutMs);
     } catch {}
+    
+    // 检查 runtime 是否可用
+    if (!chrome?.runtime?.id) {
+      if (timer) clearTimeout(timer);
+      reject(new Error('Extension context invalidated'));
+      return;
+    }
+    
     try {
       chrome.runtime.sendMessage({ type, payload }, (resp) => {
         if (timer) clearTimeout(timer);
         const lastErr = chrome.runtime.lastError;
         if (lastErr) {
+          // 静默处理连接错误，避免控制台报错
           reject(new Error(lastErr.message || 'runtime error'));
           return;
         }
@@ -197,7 +206,8 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
   }
   return new Promise(resolve => {
     chrome.storage.local.get([key], result => {
-      resolve(result[key] !== undefined ? result[key] : defaultValue);
+      const value = result[key];
+      resolve((value !== undefined && value !== null ? value : defaultValue) as T);
     });
   });
 }
