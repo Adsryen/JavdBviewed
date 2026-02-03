@@ -1,11 +1,20 @@
 /* User Profile Section */
 .user-profile-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--user-profile-bg);
+    background-size: 200% 200%;
     border-radius: 12px;
     padding: 20px;
-    color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    color: var(--user-profile-text);
+    box-shadow: var(--user-profile-shadow);
     margin-bottom: 15px;
+    animation: gradientShift 8s ease infinite;
+    transition: all 0.3s ease;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 /* User Profile Info (when logged in) */
@@ -29,7 +38,7 @@
 
 .user-avatar i {
     font-size: 48px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--user-profile-icon);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -45,7 +54,7 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--user-profile-detail-text);
 }
 
 .user-name {
@@ -64,13 +73,14 @@
     font-size: 12px;
     width: 14px;
     text-align: center;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--user-profile-icon-muted);
 }
 
 .user-email span,
 .user-name span,
 .user-type span {
     font-weight: 500;
+    color: var(--user-profile-text);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -84,9 +94,9 @@
 
 .refresh-btn,
 .logout-btn {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: rgba(255, 255, 255, 0.9);
+    background: var(--user-profile-btn-bg);
+    border: 1px solid var(--user-profile-btn-border);
+    color: var(--user-profile-text);
     padding: 4px;
     border-radius: 4px;
     cursor: pointer;
@@ -103,9 +113,9 @@
 
 .refresh-btn:hover,
 .logout-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.4);
-    color: rgba(255, 255, 255, 1);
+    background: var(--user-profile-btn-hover-bg);
+    border-color: var(--user-profile-btn-hover-border);
+    color: var(--user-profile-text);
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
@@ -119,16 +129,15 @@
 .logout-btn:hover {
     background: rgba(220, 53, 69, 0.2);
     border-color: rgba(220, 53, 69, 0.4);
-    color: rgba(255, 255, 255, 1);
 }
 
 /* User Server Stats */
 .user-server-stats {
     padding: 16px;
     margin-top: 16px;
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--user-profile-stats-bg);
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--user-profile-stats-border);
     backdrop-filter: blur(5px);
 }
 
@@ -139,13 +148,13 @@
     margin-bottom: 10px;
     font-size: 12px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--user-profile-text);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .stats-title i {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--user-profile-icon-muted);
 }
 
 .stats-grid {
@@ -192,7 +201,7 @@
 
 .user-server-stats .stat-label {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--user-profile-icon-muted);
     line-height: 1;
     font-weight: 500;
     text-transform: uppercase;
@@ -202,7 +211,7 @@
 .user-server-stats .stat-value {
     font-size: clamp(12px, 2.5vw, 16px);
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.98);
+    color: var(--user-profile-text);
     line-height: 1.2;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -226,8 +235,11 @@
 }
 
 .user-server-stats .want-stat i {
-    color: #ffd700;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .user-server-stats .want-stat i {
+    color: #fcd34d;
 }
 
 .user-server-stats .watched-stat {
@@ -241,8 +253,11 @@
 }
 
 .user-server-stats .watched-stat i {
+    color: #22c55e;
+}
+
+[data-theme="dark"] .user-server-stats .watched-stat i {
     color: #4ade80;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
 }
 
 .stats-sync-time {
@@ -251,22 +266,23 @@
     justify-content: center;
     gap: 6px;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--user-profile-icon-muted);
     padding: 8px 12px;
     margin-top: 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--user-profile-stats-bg);
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--user-profile-stats-border);
 }
 
 .stats-sync-time i {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--user-profile-icon-muted);
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .stats-sync-time span {
     font-weight: 500;
+    color: var(--user-profile-text);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -284,7 +300,7 @@
 
 .login-icon i {
     font-size: 36px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--user-profile-login-icon);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -295,23 +311,23 @@
 .login-text p {
     margin: 0 0 8px 0;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--user-profile-text);
     font-weight: 500;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .login-notice {
     font-size: 12px !important;
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: var(--user-profile-icon-muted) !important;
     font-weight: 400 !important;
     margin-bottom: 12px !important;
     font-style: italic;
 }
 
 .login-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    background: var(--user-profile-login-btn-bg);
+    border: 1px solid var(--user-profile-login-btn-border);
+    color: var(--user-profile-text);
     padding: 10px 16px;
     border-radius: 8px;
     cursor: pointer;
@@ -323,17 +339,19 @@
     align-items: center;
     gap: 8px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .login-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: var(--user-profile-btn-hover-bg);
+    border-color: var(--user-profile-btn-hover-border);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .login-btn:active {
     transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .login-btn:disabled {
@@ -405,6 +423,10 @@
     transition: all 0.3s ease;
 }
 
+[data-theme="dark"] .user-profile-container:hover {
+    box-shadow: 0 6px 20px rgba(76, 95, 213, 0.5);
+}
+
 /* Focus states for accessibility */
 .login-btn:focus,
 .refresh-btn:focus,
@@ -416,18 +438,7 @@
 /* Text selection styling */
 .user-details span::selection {
     background: rgba(255, 255, 255, 0.3);
-}
-
-/* Gradient animation for enhanced visual appeal */
-.user-profile-container {
-    background-size: 200% 200%;
-    animation: gradientShift 8s ease infinite;
-}
-
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    color: var(--user-profile-text);
 }
 
 /* 强制覆盖通用 stat-item 样式 - 确保服务器数据区域无背景 */
@@ -483,14 +494,20 @@ text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 
 /* 想看的数字着色（星标金色） */
 .user-profile-container .user-server-stats .want-stat .stat-value {
-color: #ffd700 !important;
-text-shadow: 0 0 8px rgba(255, 215, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
+    color: #f59e0b !important;
+}
+
+[data-theme="dark"] .user-profile-container .user-server-stats .want-stat .stat-value {
+    color: #fbbf24 !important;
 }
 
 /* 看过的数字着色（绿色） */
 .user-profile-container .user-server-stats .watched-stat .stat-value {
-color: #4ade80 !important;
-text-shadow: 0 0 8px rgba(74, 222, 128, 0.3), 0 2px 4px rgba(0, 0, 0, 0.4);
+    color: #16a34a !important;
+}
+
+[data-theme="dark"] .user-profile-container .user-server-stats .watched-stat .stat-value {
+    color: #4ade80 !important;
 }
 
 /* 小屏适配：数字稍微缩小，避免拥挤 */

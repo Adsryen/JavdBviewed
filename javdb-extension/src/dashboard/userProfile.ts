@@ -673,28 +673,22 @@ function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
     const updatedText = typeof updatedAtMs === 'number' ? new Date(updatedAtMs).toLocaleString() : '';
     const nowSec = Math.floor(Date.now() / 1000);
     const daysLeft = typeof vipExpireTs === 'number' ? Math.floor((vipExpireTs - nowSec) / 86400) : undefined;
-    const expPillBg = ((): string => {
-        if (typeof daysLeft !== 'number') return '#f5f5f5';
-        if (daysLeft <= 7) return '#fdecea';
-        if (daysLeft <= 30) return '#fff3e0';
-        return '#f5f5f5';
-    })();
-    const expPillColor = ((): string => {
-        if (typeof daysLeft !== 'number') return '#555';
-        if (daysLeft <= 7) return '#c62828';
-        if (daysLeft <= 30) return '#ef6c00';
-        return '#555';
+    const expPillClass = ((): string => {
+        if (typeof daysLeft !== 'number') return 'expire-normal';
+        if (daysLeft <= 7) return 'expire-danger';
+        if (daysLeft <= 30) return 'expire-warning';
+        return 'expire-normal';
     })();
     const expireTitle = vipExpireTs ? `到期：${vipExpireText}（约剩 ${typeof daysLeft === 'number' ? daysLeft : '?'} 天）` : '';
 
     container.innerHTML = `
       <div style="display:flex; align-items:center; gap:10px;">
         ${avatar
-          ? `<img src="${avatar}" alt="avatar" data-sensitive style="width:40px; height:40px; border-radius:50%; object-fit:cover; box-shadow:0 0 0 1px #eee;">`
-          : `<div data-sensitive style=\"width:40px; height:40px; border-radius:50%; background:#e0e0e0; color:#555; display:flex; align-items:center; justify-content:center; font-weight:600; box-shadow:0 0 0 1px #eee;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
+          ? `<img src="${avatar}" alt="avatar" data-sensitive style="width:40px; height:40px; border-radius:50%; object-fit:cover;">`
+          : `<div data-sensitive style=\"width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600;\">${(name||'U').toString().trim().slice(0,2).toUpperCase()}</div>`}
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <div style="font-weight:700; font-size:14px; color:#222;" data-sensitive>${name || '-'}</div>
+            <div style="font-weight:700; font-size:14px;" data-sensitive>${name || '-'}</div>
             ${isVip === '是' ? `
               <span title="${vipLevelName || 'VIP'}" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
                 <i class=\"fas fa-crown\" style=\"color:#fff; font-size:11px;\"></i>
@@ -702,10 +696,10 @@ function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
               </span>
             ` : ''}
           </div>
-          <div style="font-size:12px; color:#666; margin-top:2px;">UID: <span data-sensitive>${uid || '-'}</span></div>
+          <div style="font-size:12px; margin-top:2px;">UID: <span data-sensitive>${uid || '-'}</span></div>
           ${vipExpireText ? `
-            <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:${expPillColor};\" title=\"${expireTitle}\"> 
-              <span style=\"display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:${expPillBg}; color:${expPillColor};\">
+            <div style=\"margin-top:4px; display:inline-flex; align-items:center; gap:6px; font-size:11px;\" title=\"${expireTitle}\"> 
+              <span class=\"drive115-expire-pill ${expPillClass}\">
                 <i class=\"fas fa-calendar-alt\"></i>
                 到期 · <span data-sensitive>${vipExpireText}${typeof daysLeft === 'number' ? `（剩 ${daysLeft} 天）` : ''}</span>
               </span>
@@ -713,7 +707,7 @@ function render115User(u: Drive115V2UserInfo, updatedAtMs?: number) {
           ` : ''}
         </div>
       </div>
-      <div style="margin-top:8px; font-size:12px; color:#444;">
+      <div style="margin-top:8px; font-size:12px;">
         <div>总 <span data-sensitive>${totalText}</span> · 已用 <span data-sensitive>${usedText}</span> · 剩余 <span data-sensitive>${freeText}</span></div>
         ${(u as any).email ? `<div style=\"margin-top:2px;\">邮箱：<span data-sensitive>${(u as any).email}</span></div>` : ''}
         ${(u as any).phone ? `<div style=\"margin-top:2px;\">手机：<span data-sensitive>${(u as any).phone}</span></div>` : ''}
