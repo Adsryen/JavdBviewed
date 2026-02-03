@@ -1,10 +1,78 @@
+/* ============================================
+   Popup 样式 - 使用主题变量系统
+   ============================================ */
+
+/* ===================================================================
+   主题变量系统 - Theme Variables System
+   ================================================================ */
+
+/* 浅色主题（默认） */
+:root {
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #fafbfc;
+  --bg-hover: #f8f9fa;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  --border-primary: #e5e7eb;
+  --border-secondary: #f3f4f6;
+  --border-hover: #d1d5db;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+  --success: #22c55e;
+  --success-hover: #16a34a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+}
+
+/* 深色主题 */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-hover: #475569;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverse: #0f172a;
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-hover: #64748b;
+  --surface-primary: #1e293b;
+  --surface-secondary: #334155;
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-active: #2563eb;
+  --success: #4ade80;
+  --success-hover: #22c55e;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+}
+
+/* 平滑过渡 */
+* {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* General Body and Panel */
 body {
     min-width: 420px;
     max-width: 640px;
     width: max-content;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f7f7f7;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     overflow-x: auto;
     overflow-y: auto;
     max-height: 600px;
@@ -13,7 +81,7 @@ body {
 }
 
 #panel {
-    background: #fff;
+    background: var(--bg-secondary);
     padding: 20px;
     box-sizing: border-box;
 }
@@ -26,8 +94,8 @@ body {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 15px;
-    color: #333;
-    border-bottom: 1px solid #eee;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-primary);
     padding-bottom: 10px;
 }
 
@@ -37,20 +105,116 @@ body {
     gap: 8px;
 }
 
+.title-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
 #titleLogo {
     width: 18px;
     height: 18px;
-    border-radius: 4px; /* 轻微圆角更柔和 */
+    border-radius: 4px;
 }
 
 #helpBtn {
     cursor: pointer;
     font-size: 18px;
     transition: transform 0.2s ease;
+    color: var(--text-secondary);
 }
 
 #helpBtn:hover {
     transform: scale(1.1);
+    color: var(--text-primary);
+}
+
+/* 主题切换按钮 */
+.theme-switcher {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-switcher:hover {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+}
+
+.theme-switcher:active {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-switcher:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+}
+
+.theme-switcher .theme-icon {
+    font-size: 14px;
+    line-height: 1;
+    transition: transform 0.3s ease, opacity 0.3s ease, color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 太阳图标 - 金黄色 */
+.theme-switcher .fa-sun {
+    color: #fbbf24;
+}
+
+/* 月亮图标 - 白色 */
+.theme-switcher .fa-moon {
+    color: #f1f5f9;
+}
+
+/* 主题切换动画 */
+.theme-switcher.switching .theme-icon {
+    animation: rotate-icon 0.5s ease;
+}
+
+@keyframes rotate-icon {
+    0% {
+        transform: rotate(0deg);
+        opacity: 1;
+    }
+    50% {
+        transform: rotate(180deg);
+        opacity: 0;
+    }
+    100% {
+        transform: rotate(360deg);
+        opacity: 1;
+    }
+}
+
+/* 深色主题下的特殊样式 */
+[data-theme="dark"] .theme-switcher {
+    border-color: var(--border-primary);
+    background: var(--surface-primary);
+}
+
+[data-theme="dark"] .theme-switcher:hover {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
 }
 
 /* 手动锁定按钮 */
@@ -61,9 +225,9 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    border: 1px solid #e5e7eb;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    color: #64748b;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 0;
@@ -75,18 +239,17 @@ body {
 }
 
 .popup-lock-btn:hover { 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
-    color: white;
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-inverse);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: var(--shadow-md);
 }
 
 .popup-lock-btn:active { 
     transform: translateY(0); 
-    box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+    box-shadow: var(--shadow-sm);
 }
-
 
 /* Main Controls */
 .main-controls {
@@ -116,6 +279,13 @@ body {
     gap: 12px;
 }
 
+/* Section Title */
+.section-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
 /* Make toggle buttons slightly more compact to fit in narrow columns */
 .filters-left .toggle-button,
 .filters-right .toggle-button {
@@ -125,9 +295,9 @@ body {
 
 /* Volume Control Section */
 .volume-control-section {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
     padding: 15px;
     margin-top: 5px;
 }
@@ -147,13 +317,13 @@ body {
     flex: 1;
     margin-left: 8px;
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .volume-value {
     font-weight: 600;
-    color: #4a9eff;
+    color: var(--primary);
     font-size: 14px;
     min-width: 40px;
     text-align: right;
@@ -168,7 +338,7 @@ body {
     width: 100%;
     height: 6px;
     border-radius: 3px;
-    background: #ddd;
+    background: var(--border-secondary);
     outline: none;
     -webkit-appearance: none;
     appearance: none;
@@ -181,15 +351,15 @@ body {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #4a9eff;
+    background: var(--primary);
     cursor: pointer;
-    border: 2px solid #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
 }
 
 .volume-slider::-webkit-slider-thumb:hover {
-    background: #3d8ae5;
+    background: var(--primary-hover);
     transform: scale(1.1);
 }
 
@@ -197,15 +367,15 @@ body {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #4a9eff;
+    background: var(--primary);
     cursor: pointer;
-    border: 2px solid #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
 }
 
 .volume-slider::-moz-range-thumb:hover {
-    background: #3d8ae5;
+    background: var(--primary-hover);
     transform: scale(1.1);
 }
 
@@ -214,12 +384,12 @@ body {
     justify-content: space-between;
     margin-top: 4px;
     font-size: 11px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 .volume-description {
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     text-align: center;
     margin-top: 8px;
     line-height: 1.3;
@@ -228,9 +398,9 @@ body {
 .toggle-button {
     width: 100%;
     padding: 10px 12px;
-    color: white;
+    color: var(--text-inverse);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
@@ -240,51 +410,54 @@ body {
 }
 
 /* Toggle hover effects */
+.toggle-button.active {
+    background-color: var(--text-muted);
+}
+
 .toggle-button.active:hover {
-    background-color: #6f6f6f; /* 深一点的灰 */
+    background-color: var(--text-secondary);
     transform: translateY(-1px);
 }
 
+.toggle-button:not(.active) {
+    background-color: var(--success);
+}
+
 .toggle-button:not(.active):hover {
-    background-color: #28c76f; /* 深一点的绿色 */
+    background-color: var(--success-hover);
     transform: translateY(-1px);
 }
 
 /* 可访问性：键盘聚焦态 */
 .toggle-button:focus-visible {
-    outline: 2px solid #4a9eff;
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
-}
-
-.toggle-button.active {
-    background-color: #808080; /* Gray for "Hiding" - matches web version */
-}
-
-.toggle-button:not(.active) {
-    background-color: #2ed573; /* Green for "Showing" - matches web version */
 }
 
 /* Dashboard Link */
 .dashboard-link {
     margin-bottom: 15px;
 }
+
 .dashboard-link .button {
     width: 100%;
     padding: 12px;
-    background-color: #4a9eff;
-    color: white;
+    background-color: var(--primary);
+    color: var(--text-inverse);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 15px;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     white-space: nowrap;
 }
+
 .dashboard-link .button:hover {
-    background-color: #3d8ae5;
+    background-color: var(--primary-hover);
     transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 /* Version Info */
@@ -294,8 +467,8 @@ body {
     align-items: center;
     gap: 6px;
     padding-top: 10px;
-    border-top: 1px solid #eee;
-    color: #888;
+    border-top: 1px solid var(--border-primary);
+    color: var(--text-muted);
     font-size: 11px;
     font-family: monospace;
     text-align: center;
@@ -303,47 +476,56 @@ body {
 
 /* Help Panel */
 #helpPanel {
-    display: none; /* Initially hidden */
+    display: none;
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: white;
+    background-color: var(--bg-secondary);
     z-index: 10;
     padding: 20px;
     box-sizing: border-box;
 }
+
 .help-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding-bottom: 10px;
     margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-primary);
 }
+
 .help-header h2 {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
+    color: var(--text-primary);
 }
+
 #closeHelpBtn {
     cursor: pointer;
     font-size: 24px;
     font-weight: bold;
-    color: #999;
+    color: var(--text-muted);
 }
+
 #closeHelpBtn:hover {
-    color: #333;
+    color: var(--text-primary);
 }
+
 .help-body {
     font-size: 14px;
     line-height: 1.6;
-    color: #333;
+    color: var(--text-primary);
 }
+
 .help-body p {
     margin: 0 0 10px;
 }
+
 .help-body strong {
-    color: #111;
+    color: var(--text-primary);
+    font-weight: 600;
 }
