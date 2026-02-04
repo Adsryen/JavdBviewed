@@ -605,39 +605,59 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (recordsTrendEl) {
         if (HC['recordsTrend']?.destroy) { try { HC['recordsTrend'].destroy(); } catch {} }
         const rec = await dbTrendsRecordsRange(r.start, r.end, 'cumulative');
-        const data = ([] as any[]).concat(
+        let data = ([] as any[]).concat(
           rec.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
           rec.map((p: any) => ({ date: p.date, type: '已观看', value: p.viewed })),
           rec.map((p: any) => ({ date: p.date, type: '已浏览', value: p.browsed })),
           rec.map((p: any) => ({ date: p.date, type: '想看', value: p.want }))
         );
         const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
-        if (sum <= 0) { try { recordsTrendEl.style.display = 'none'; } catch {} }
-        else {
-          try { recordsTrendEl.style.display = ''; } catch {}
-          const plot = new Line(recordsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
-            const m: any = { '总记录': COLORS.primary, '已观看': COLORS.success, '已浏览': COLORS.info, '想看': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
-          plot.render();
-          HC['recordsTrend'] = plot;
+        // 若无数据点，构造起止两点的0值基线，确保折线可绘制
+        if (!data.length) {
+          data = [
+            { date: r.start, type: '总记录', value: 0 },
+            { date: r.end,   type: '总记录', value: 0 },
+            { date: r.start, type: '已观看', value: 0 },
+            { date: r.end,   type: '已观看', value: 0 },
+            { date: r.start, type: '已浏览', value: 0 },
+            { date: r.end,   type: '已浏览', value: 0 },
+            { date: r.start, type: '想看',   value: 0 },
+            { date: r.end,   type: '想看',   value: 0 },
+          ];
         }
+        try { recordsTrendEl.style.display = ''; } catch {}
+        const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
+        const plot = new Line(recordsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
+          const m: any = { '总记录': COLORS.primary, '已观看': COLORS.success, '已浏览': COLORS.info, '想看': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
+        plot.render();
+        HC['recordsTrend'] = plot;
       }
       if (actorsTrendEl) {
         if (HC['actorsTrend']?.destroy) { try { HC['actorsTrend'].destroy(); } catch {} }
         const act = await dbTrendsActorsRange(r.start, r.end, 'cumulative');
-        const data = ([] as any[]).concat(
+        let data = ([] as any[]).concat(
           act.map((p: any) => ({ date: p.date, type: '总演员数', value: p.total })),
           act.map((p: any) => ({ date: p.date, type: '女性', value: p.female })),
           act.map((p: any) => ({ date: p.date, type: '男性', value: p.male })),
         );
         const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
-        if (sum <= 0) { try { actorsTrendEl.style.display = 'none'; } catch {} }
-        else {
-          try { actorsTrendEl.style.display = ''; } catch {}
-          const plot = new Line(actorsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: { min: 0, nice: true }, color: (t: any) => {
-            const m: any = { '总演员数': COLORS.primary, '女性': COLORS.success, '男性': COLORS.info }; return m[t?.type] || COLORS.primary; } });
-          plot.render();
-          HC['actorsTrend'] = plot;
+        // 若无数据点，构造起止两点的0值基线，确保折线可绘制
+        if (!data.length) {
+          data = [
+            { date: r.start, type: '总演员数', value: 0 },
+            { date: r.end,   type: '总演员数', value: 0 },
+            { date: r.start, type: '女性',     value: 0 },
+            { date: r.end,   type: '女性',     value: 0 },
+            { date: r.start, type: '男性',     value: 0 },
+            { date: r.end,   type: '男性',     value: 0 },
+          ];
         }
+        try { actorsTrendEl.style.display = ''; } catch {}
+        const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
+        const plot = new Line(actorsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
+          const m: any = { '总演员数': COLORS.primary, '女性': COLORS.success, '男性': COLORS.info }; return m[t?.type] || COLORS.primary; } });
+        plot.render();
+        HC['actorsTrend'] = plot;
       }
       if (newWorksTrendEl) {
         if (HC['newWorksTrend']?.destroy) { try { HC['newWorksTrend'].destroy(); } catch {} }
