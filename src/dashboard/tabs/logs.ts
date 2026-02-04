@@ -677,6 +677,9 @@ export class LogsTab {
             }
         };
 
+        // 获取日志分类（来源）
+        const category = log.source ? String(log.source).toUpperCase() : 'GENERAL';
+
         // 创建详细数据部分
         const dataHtml = log.data ? `
             <details class="log-data-details">
@@ -689,6 +692,7 @@ export class LogsTab {
             <div class="log-entry log-level-${levelClass}">
                 <div class="log-header">
                     <span class="log-level-badge">${level}</span>
+                    <span class="log-category">${this.escapeHtml(category)}</span>
                     <span class="log-message">${highlight(log.message)}</span>
                     <span class="log-timestamp">${timestamp}</span>
                 </div>
@@ -775,14 +779,12 @@ export class LogsTab {
         if (fmt.showSource !== false) {
             headerParts.push(`<span class="console-category">${this.escapeHtml(String(e.category || '').toUpperCase())}</span>`);
         }
-        if (fmt.showTimestamp !== false) {
-            headerParts.push(`<span class="console-timestamp">${this.escapeHtml(tsStr)}</span>`);
-        }
 
         return `
             <div class="console-log-entry console-level-${levelClass}">
                 <div class="console-log-header">${headerParts.join('')}</div>
                 <div class="console-log-message">${highlight(e.message)}</div>
+                ${fmt.showTimestamp !== false ? `<span class="console-timestamp">${this.escapeHtml(tsStr)}</span>` : ''}
             </div>
         `;
     }
