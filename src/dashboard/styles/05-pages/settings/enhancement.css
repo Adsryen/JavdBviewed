@@ -1,8 +1,8 @@
 /**
- * 功能增强设置面板样式
+ * 功能增强设置面板样式 - 支持主题切换
  */
 
-/* CSS变量定义 */
+/* CSS变量定义 - 浅色主题 */
 :root {
     --enhancement-primary: #f59e0b;
     --enhancement-secondary: #fbbf24;
@@ -31,6 +31,37 @@
     --status-neutral-bg: #f1f5f9;
     --status-neutral-text: #475569;
     --status-neutral-border: #e2e8f0;
+}
+
+/* CSS变量定义 - 深色主题 */
+[data-theme="dark"] {
+    --enhancement-primary: #fbbf24;
+    --enhancement-secondary: #f59e0b;
+    --enhancement-bg: #1e293b;
+    --enhancement-card-bg: #334155;
+    --enhancement-border: #475569;
+    --enhancement-text: #f1f5f9;
+    --enhancement-text-muted: #94a3b8;
+    --enhancement-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --enhancement-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+    /* 状态徽章配色（available/beta/wip） - 深色主题 */
+    --status-available-bg: #14532d;
+    --status-available-text: #86efac;
+    --status-available-border: #166534;
+
+    --status-beta-bg: #78350f;
+    --status-beta-text: #fde68a;
+    --status-beta-border: #92400e;
+
+    --status-wip-bg: #334155;
+    --status-wip-text: #cbd5e1;
+    --status-wip-border: #475569;
+
+    /* 状态徽章配色（neutral） - 深色主题 */
+    --status-neutral-bg: #334155;
+    --status-neutral-text: #cbd5e1;
+    --status-neutral-border: #475569;
 }
 
 /* 功能增强设置面板特有样式 */
@@ -234,8 +265,9 @@
     opacity: 0;
     padding-top: 0;
     padding-bottom: 0;
-    border-top: 0 solid var(--border-color);
-    border-bottom: 0 solid var(--border-color);
+    border-top: 0 solid var(--enhancement-border);
+    border-bottom: 0 solid var(--enhancement-border);
+    background: var(--enhancement-bg);
     transition:
         max-height 0.28s ease,
         opacity 0.18s ease,
@@ -580,19 +612,21 @@
     border-radius: 4px;
 }
 
-.empty-state {
+#enhancement-settings .empty-state {
     text-align: center;
     padding: 40px 20px;
-    color: #666;
+    color: var(--enhancement-text-muted);
+    background: transparent;
 }
 
-.empty-state p {
+#enhancement-settings .empty-state p {
     margin-bottom: 8px;
+    color: var(--enhancement-text-muted);
 }
 
-.empty-state .text-muted {
+#enhancement-settings .empty-state .text-muted {
     font-size: 14px;
-    color: #999;
+    color: var(--text-muted);
 }
 
 /* 过滤规则对话框样式 */
@@ -634,10 +668,10 @@
     color: #333;
 }
 
-/* 过滤规则容器样式 */
+/* 过滤规则容器样式 - 支持主题切换 */
 .filter-rules-container {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
+    background: var(--enhancement-card-bg);
+    border: 1px solid var(--enhancement-border);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -647,10 +681,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
+    background: var(--enhancement-bg);
+    border-bottom: 1px solid var(--enhancement-border);
     font-weight: 600;
-    color: #333;
+    color: var(--enhancement-text);
 }
 
 .filter-rules-list {
@@ -884,9 +918,9 @@
     margin: 0;
 }
 
-.checkbox-label span {
+#enhancement-settings .checkbox-label span {
     font-size: 14px;
-    color: #333;
+    color: var(--enhancement-text);
 }
 
 .editor-footer {
@@ -1374,18 +1408,21 @@
 }
 
 /* 配置头部样式 */
-.config-header {
+#enhancement-settings .config-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
-.config-title {
+#enhancement-settings .config-title {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #2d3748;
+    color: var(--enhancement-text);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1754,4 +1791,332 @@
 #enhancementSubTabs .subtab-link.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
+}
+
+
+/* ===============================================
+   深色主题适配 - Dark Theme Overrides
+   =============================================== */
+
+[data-theme="dark"] #enhancement-settings .filter-rule-item {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .filter-rule-item:hover {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-header {
+    background: var(--enhancement-bg);
+    border-bottom-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-name {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-actions .btn-outline-primary {
+    background: var(--enhancement-card-bg);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-actions .btn-outline-primary:hover {
+    background: var(--primary);
+    color: var(--text-inverse);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-actions .btn-outline-danger {
+    background: var(--enhancement-card-bg);
+    color: var(--error);
+    border-color: var(--error);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-actions .btn-outline-danger:hover {
+    background: var(--error);
+    color: var(--text-inverse);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-type,
+[data-theme="dark"] #enhancement-settings .rule-action {
+    color: var(--enhancement-text-muted);
+    background: var(--enhancement-bg);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-keywords strong {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .rule-description {
+    color: var(--enhancement-text-muted);
+    background: var(--enhancement-bg);
+}
+
+[data-theme="dark"] #enhancement-settings .empty-state {
+    color: var(--enhancement-text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .empty-state .text-muted {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .filter-rules-container {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .filter-rules-header {
+    background: var(--enhancement-bg);
+    border-bottom-color: var(--enhancement-border);
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .inline-rule-editor {
+    background: var(--enhancement-card-bg);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .editor-body .form-group label {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .editor-body .form-group input,
+[data-theme="dark"] #enhancement-settings .editor-body .form-group select,
+[data-theme="dark"] #enhancement-settings .editor-body .form-group textarea {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #enhancement-settings .editor-body .form-group input:focus,
+[data-theme="dark"] #enhancement-settings .editor-body .form-group select:focus,
+[data-theme="dark"] #enhancement-settings .editor-body .form-group textarea:focus {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .editor-body .form-group small {
+    color: var(--enhancement-text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .checkbox-label span {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .editor-footer {
+    background: var(--enhancement-bg);
+    border-top-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .toggle-option {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .toggle-option:hover {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .toggle-title {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .toggle-description {
+    color: var(--enhancement-text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .toggle-option:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--surface-secondary);
+}
+
+[data-theme="dark"] #enhancement-settings #actorDefaultTagsGroup .checkbox-label {
+    border-color: var(--enhancement-border);
+    background: var(--enhancement-card-bg);
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings #actorDefaultTagsGroup .checkbox-label:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--surface-secondary);
+    color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group {
+    background: var(--enhancement-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group .checkbox-label {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group .checkbox-label:hover {
+    border-color: var(--primary);
+    background: var(--surface-secondary);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group .checkbox-label input[type="checkbox"] {
+    border-color: var(--enhancement-border);
+    background: var(--enhancement-card-bg);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group .checkbox-label input[type="checkbox"]:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group.checkbox-group .checkbox-label:has(input:checked) {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-control-group {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-control-group:hover {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-header label {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-percentage {
+    background: var(--enhancement-bg);
+    color: var(--primary);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-control-group.active {
+    border-color: var(--primary);
+    background: var(--surface-secondary);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-control-group.active .volume-header label {
+    color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .volume-control-group.active .input-description {
+    color: var(--enhancement-text-muted);
+}
+
+/* 功能卡片标题和描述 */
+[data-theme="dark"] #enhancement-settings .enhancement-feature-name {
+    color: var(--enhancement-text) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .enhancement-feature-name h6 {
+    color: var(--enhancement-text) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .input-description {
+    color: var(--enhancement-text-muted) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .input-description strong {
+    color: var(--enhancement-text) !important;
+}
+
+/* 子设置区域 */
+[data-theme="dark"] #enhancement-settings .sub-settings {
+    border-top-color: var(--enhancement-border);
+    border-bottom-color: var(--enhancement-border);
+    background: var(--enhancement-bg) !important;
+    border-color: var(--enhancement-border) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .sub-settings-header {
+    border-bottom-color: var(--enhancement-border) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .sub-settings-header h5 {
+    color: var(--enhancement-text) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .sub-description {
+    color: var(--enhancement-text-muted) !important;
+}
+
+/* 表单元素 */
+[data-theme="dark"] #enhancement-settings .form-group label:not(.checkbox-label) {
+    color: var(--enhancement-text) !important;
+}
+
+[data-theme="dark"] #enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] #enhancement-settings .form-group select {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+[data-theme="dark"] #enhancement-settings .form-group select:focus {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .form-group-checkbox label {
+    color: var(--enhancement-text) !important;
+}
+
+/* 锚点配置选项 - 深色主题 */
+[data-theme="dark"] #enhancement-settings .anchor-config-option {
+    background: var(--enhancement-card-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .anchor-config-option:hover {
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] #enhancement-settings .config-title {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .config-description {
+    color: var(--enhancement-text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .modern-select {
+    background: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #enhancement-settings .modern-select:hover {
+    border-color: var(--primary);
+    background: var(--surface-secondary);
+}
+
+[data-theme="dark"] #enhancement-settings .modern-select:focus {
+    border-color: var(--primary);
+    background: var(--input-bg);
+}
+
+[data-theme="dark"] #enhancement-settings .select-arrow {
+    color: var(--enhancement-text-muted);
+}
+
+[data-theme="dark"] #enhancement-settings .modern-select:hover + .select-arrow,
+[data-theme="dark"] #enhancement-settings .modern-select:focus + .select-arrow {
+    color: var(--primary);
+}
+
+/* 信息框 - 深色主题 */
+[data-theme="dark"] #enhancement-settings .info-box {
+    background: var(--enhancement-bg);
+    border-color: var(--enhancement-border);
+}
+
+[data-theme="dark"] #enhancement-settings .info-box p {
+    color: var(--enhancement-text);
+}
+
+[data-theme="dark"] #enhancement-settings .info-box li {
+    color: var(--enhancement-text-muted);
 }

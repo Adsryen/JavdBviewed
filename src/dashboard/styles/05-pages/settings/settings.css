@@ -2024,33 +2024,33 @@ textarea.textarea-input {
     }
 }
 
-/* 子设置样式 */
+/* 子设置样式 - 支持主题切换 */
 .sub-settings {
     margin-top: 0 !important; /* 由增强面板局部样式在展开时再添加间距，避免折叠占位 */
     padding: 20px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--primary);
 }
 
 .sub-settings-header {
     margin-bottom: 20px;
     padding-bottom: 12px;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .sub-settings-header h5 {
     margin: 0 0 8px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .sub-description {
     margin: 0;
     font-size: 13px;
-    color: #6c757d;
+    color: var(--text-secondary);
     line-height: 1.5;
 }
 
@@ -2091,21 +2091,21 @@ textarea.textarea-input {
     font-size: 11px;
 }
 
-.filter-rules-list {
+#enhancement-settings .filter-rules-list {
     min-height: 60px;
-    border: 1px dashed #dee2e6;
+    border: 1px dashed var(--enhancement-border);
     border-radius: 6px;
     padding: 15px;
-    background: white;
+    background: var(--enhancement-card-bg);
 }
 
-.empty-state {
+#enhancement-settings .empty-state {
     text-align: center;
-    color: #6c757d;
+    color: var(--enhancement-text-muted);
     font-style: italic;
 }
 
-.empty-state p {
+#enhancement-settings .empty-state p {
     margin: 0;
     font-size: 13px;
 }
@@ -2119,32 +2119,32 @@ textarea.textarea-input {
 }
 
 /* 信息框 */
-.info-box {
-    background: #e7f3ff;
-    border: 1px solid #b3d9ff;
+#enhancement-settings .info-box {
+    background: var(--enhancement-bg);
+    border: 1px solid var(--enhancement-border);
     border-radius: 6px;
     padding: 15px;
     margin-top: 15px;
 }
 
-.info-box p {
+#enhancement-settings .info-box p {
     margin: 0 0 10px 0;
     font-weight: 500;
-    color: #0056b3;
+    color: var(--enhancement-text);
 }
 
-.info-box ul {
+#enhancement-settings .info-box ul {
     margin: 0;
     padding-left: 20px;
 }
 
-.info-box li {
+#enhancement-settings .info-box li {
     margin-bottom: 5px;
     font-size: 13px;
-    color: #495057;
+    color: var(--enhancement-text-muted);
 }
 
-.info-box ol {
+#enhancement-settings .info-box ol {
     margin: 0;
     padding-left: 20px;
 }
@@ -2391,9 +2391,9 @@ input:checked + .toggle-slider:before {
     border-radius: 2px 0 0 2px;
 }
 
-/* 将原有的form-group转换为卡片布局 */
+/* 将原有的form-group转换为卡片布局 - 支持主题切换 */
 #enhancement-settings .form-group {
-    background: #ffffff;
+    background: var(--enhancement-card-bg);
     border: 2px solid var(--enhancement-border);
     border-radius: 12px;
     padding: 20px;
@@ -2425,17 +2425,17 @@ input:checked + .toggle-slider:before {
     opacity: 1;
 }
 
-/* 禁用状态的卡片 */
+/* 禁用状态的卡片 - 支持主题切换 */
 #enhancement-settings .form-group:has(input:disabled) {
     opacity: 0.6;
-    background: #f8f9fa;
-    border-color: #e9ecef;
+    background: var(--bg-tertiary);
+    border-color: var(--border-primary);
 }
 
 #enhancement-settings .form-group:has(input:disabled):hover {
     transform: none;
     box-shadow: none;
-    border-color: #e9ecef;
+    border-color: var(--border-primary);
 }
 
 /* 重新设计checkbox-label为现代化开关 */
@@ -2471,9 +2471,17 @@ input:checked + .toggle-slider:before {
 #enhancement-settings .enhancement-feature-name {
     font-size: 16px;
     font-weight: 600;
-    color: var(--enhancement-dark);
+    color: var(--enhancement-text);
     margin: 0;
     flex: 1;
+}
+
+/* 确保h6标签也使用正确的颜色 */
+#enhancement-settings .enhancement-feature-name h6 {
+    color: var(--enhancement-text);
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
 }
 
 #enhancement-settings .enhancement-feature-status {
@@ -2489,15 +2497,15 @@ input:checked + .toggle-slider:before {
 }
 
 #enhancement-settings .enhancement-feature-status.developing {
-    background: #fff3e0;
-    color: #f57c00;
-    border: 1px solid #ffcc02;
+    background: var(--status-wip-bg);
+    color: var(--status-wip-text);
+    border: 1px solid var(--status-wip-border);
 }
 
 #enhancement-settings .enhancement-feature-status.available {
-    background: #e8f5e8;
-    color: #2e7d32;
-    border: 1px solid #4caf50;
+    background: var(--status-available-bg);
+    color: var(--status-available-text);
+    border: 1px solid var(--status-available-border);
 }
 
 /* 现代化开关样式 */
