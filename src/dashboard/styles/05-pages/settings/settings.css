@@ -5,10 +5,10 @@
     height: 100% !important;
     /* 设置合理的最小高度，确保内容有足够空间 */
     min-height: calc(100vh - 200px) !important;
-    background: #fff;
+    background: var(--surface-primary);
     border-radius: 12px;
     overflow: visible !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-md);
     flex-grow: 1 !important;
     /* 确保子元素能够拉伸 */
     align-items: stretch !important;
@@ -16,12 +16,12 @@
 
 /* 高度传递链条已在主CSS文件中修复 */
 
-/* Settings Sidebar */
+/* Settings Sidebar - 支持主题切换 */
 .settings-sidebar {
     width: 240px;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-right: 1px solid #e8e8e8;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-primary);
     padding: 20px 0;
 }
 
@@ -38,21 +38,21 @@
     padding: 12px 20px;
     cursor: pointer;
     transition: all 0.3s ease;
-    color: #495057;
+    color: var(--text-secondary);
     font-weight: 500;
     border-left: 3px solid transparent;
 }
 
 .settings-nav-item:hover {
-    background: rgba(0, 123, 255, 0.08);
-    color: #007bff;
-    border-left-color: rgba(0, 123, 255, 0.3);
+    background: var(--bg-hover);
+    color: var(--primary);
+    border-left-color: var(--primary);
 }
 
 .settings-nav-item.active {
-    background: rgba(0, 123, 255, 0.12);
-    color: #007bff;
-    border-left-color: #007bff;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-left-color: var(--primary);
     font-weight: 600;
 }
 
@@ -109,7 +109,7 @@
 .settings-panel-header {
     margin-bottom: 25px;
     padding-bottom: 15px;
-    border-bottom: 2px solid #f0f0f0;
+    border-bottom: 2px solid var(--border-secondary);
     /* 确保头部不影响整体高度计算 */
     flex-shrink: 0 !important;
 }
@@ -117,7 +117,7 @@
 .settings-panel-header h3 {
     font-size: 24px;
     margin: 0 0 8px 0;
-    color: #2c3e50;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -137,14 +137,15 @@
 }
 
 /* Mobile Menu Toggle */
+/* Mobile Menu Toggle - 支持主题切换 */
 .settings-menu-toggle {
     display: none;
     align-items: center;
     gap: 8px;
     padding: 10px 15px;
     margin-bottom: 20px;
-    background: #007bff;
-    color: white;
+    background: var(--primary);
+    color: var(--text-inverse);
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -153,7 +154,7 @@
 }
 
 .settings-menu-toggle:hover {
-    background: #0056b3;
+    background: var(--primary-hover);
 }
 
 .settings-menu-toggle i {
@@ -178,7 +179,7 @@
         transition: max-height 0.3s ease;
         padding: 0;
         border-right: none;
-        border-bottom: 1px solid #e8e8e8;
+        border-bottom: 1px solid var(--border-primary);
     }
 
     .settings-sidebar.open {
@@ -601,11 +602,12 @@
 .settings-section h3 {
     font-size: 18px;
     margin: 0 0 8px 0;
+    color: var(--text-primary);
 }
 
 .settings-description {
     font-size: 14px;
-    color: #666;
+    color: var(--text-secondary);
     margin: 0 0 15px 0;
     line-height: 1.5;
 }
@@ -614,10 +616,10 @@
     gap: 10px;
     align-items: center;
     padding: 0 10px 10px 10px;
-    border-bottom: 2px solid #e8e8e8;
+    border-bottom: 2px solid var(--border-primary);
     margin-bottom: 10px;
     font-weight: 600;
-    color: #555;
+    color: var(--text-primary);
 }
 .engine-icon, .engine-name, .engine-url, .engine-icon-url, .engine-actions {
     display: flex;
@@ -665,8 +667,16 @@
 }
 .search-engine-item input {
     padding: 8px 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.search-engine-item input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 .search-engine-item .name-input {
     width: 150px;
@@ -685,14 +695,23 @@
 .search-engine-item .delete-engine {
     background: none;
     border: none;
-    color: #dc3545;
+    color: var(--error);
     cursor: pointer;
     font-size: 16px;
     padding: 5px;
     box-shadow: none;
 }
+
+.search-engine-item .delete-engine:hover {
+    color: var(--error-hover);
+}
+
 #add-search-engine {
-    background-color: #17a2b8;
+    background-color: var(--info);
+}
+
+#add-search-engine:hover {
+    background-color: var(--info-hover);
 }
 #add-search-engine i {
     margin-right: 8px;
@@ -702,25 +721,25 @@
     margin-bottom: 15px;
 }
 
-/* 表单部分样式 */
+/* 表单部分样式 - 支持主题切换 */
 .form-section {
     margin-bottom: 30px;
     padding: 20px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
 }
 
 .form-section h4 {
     margin: 0 0 8px 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 16px;
     font-weight: 600;
 }
 
 .form-section .section-description {
     margin: 0 0 20px 0;
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.4;
 }
@@ -728,6 +747,7 @@
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
+    color: var(--text-primary);
 }
 
 /* Ensure checkbox-style labels render inline and don't occupy full width */
@@ -744,11 +764,11 @@
     width: 100%;
     max-width: 500px;
     padding: 10px 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 8px;
     box-sizing: border-box;
-    color: #333;
-    background-color: #fff;
+    color: var(--text-primary);
+    background-color: var(--input-bg);
 }
 
 /* URL输入框样式 */
@@ -758,8 +778,8 @@
 }
 
 .form-group input[type="url"]:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
     outline: none;
 }
 
@@ -770,23 +790,23 @@
 
 .form-group input.text-input {
     max-width: 600px;
-    color: #333;
-    background-color: #fff;
+    color: var(--text-primary);
+    background-color: var(--input-bg);
 }
 
-/* 全局统一输入框风格：与 AI 设置输入框一致 */
+/* 全局统一输入框风格：支持主题切换 */
 .text-input,
 .select-input,
 .number-input,
 .textarea-input {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid #e2e8f0; /* 与 aiSettings 的 --ai-border-color 接近 */
+    border: 2px solid var(--input-border);
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
-    background: #fff;
-    color: #1e293b; /* 深色文字 */
+    background: var(--input-bg);
+    color: var(--text-primary);
     box-sizing: border-box;
 }
 
@@ -795,8 +815,8 @@
 .number-input:focus,
 .textarea-input:focus {
     outline: none;
-    border-color: #4f46e5; /* 与 AI 面板主色一致 */
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 /* 行为细化 */
@@ -814,10 +834,13 @@ textarea.textarea-input {
     width: 18px;
     height: 18px;
     margin-right: 10px;
+    accent-color: var(--primary);
 }
 .form-group-checkbox label {
     margin-bottom: 0;
     font-weight: normal;
+    color: var(--text-primary);
+    cursor: pointer;
 }
 
 .form-group-horizontal {
@@ -833,19 +856,19 @@ textarea.textarea-input {
     gap: 5px;
 }
 
-/* WebDAV 控件容器样式 */
+/* WebDAV 控件容器样式 - 支持主题切换 */
 .webdav-controls-container {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 1px solid #dee2e6;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
     transition: all 0.3s ease;
 }
 
 .webdav-controls-container:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     transform: translateY(-1px);
 }
 
@@ -859,7 +882,7 @@ textarea.textarea-input {
     margin-bottom: 0;
 }
 
-/* 主开关样式 */
+/* 主开关样式 - 支持主题切换 */
 .webdav-enable-control {
     margin-bottom: 0;
 }
@@ -867,7 +890,7 @@ textarea.textarea-input {
 .webdav-enable-control label {
     font-size: 16px;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -876,21 +899,21 @@ textarea.textarea-input {
 }
 
 .webdav-enable-control label:hover {
-    color: #3498db;
+    color: var(--primary);
 }
 
 .webdav-enable-control label i {
-    color: #3498db;
+    color: var(--primary);
     font-size: 18px;
 }
 
-/* 子控件容器 */
+/* 子控件容器 - 支持主题切换 */
 .webdav-sub-controls {
-    background: rgba(255, 255, 255, 0.7);
+    background: var(--surface-secondary);
     border-radius: 8px;
     padding: 15px;
     margin-left: 20px;
-    border-left: 3px solid #3498db;
+    border-left: 3px solid var(--primary);
     gap: 25px;
     transition: all 0.3s ease;
     opacity: 0.6;
@@ -900,10 +923,9 @@ textarea.textarea-input {
 .webdav-sub-controls.enabled {
     opacity: 1;
     pointer-events: auto;
-    background: rgba(255, 255, 255, 0.9);
 }
 
-/* 自动上传控件 */
+/* 自动上传控件 - 支持主题切换 */
 .webdav-auto-control {
     margin-bottom: 0;
     min-width: 120px;
@@ -912,7 +934,7 @@ textarea.textarea-input {
 .webdav-auto-control label {
     font-size: 14px;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -921,15 +943,15 @@ textarea.textarea-input {
 }
 
 .webdav-auto-control label:hover {
-    color: #28a745;
+    color: var(--success);
 }
 
 .webdav-auto-control label i {
-    color: #28a745;
+    color: var(--success);
     font-size: 14px;
 }
 
-/* 同步间隔控件 */
+/* 同步间隔控件 - 支持主题切换 */
 .webdav-interval-control {
     display: flex;
     align-items: center;
@@ -940,7 +962,7 @@ textarea.textarea-input {
 .webdav-interval-control label {
     font-size: 14px;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -949,44 +971,45 @@ textarea.textarea-input {
 }
 
 .webdav-interval-control label i {
-    color: #ffc107;
+    color: var(--warning);
     font-size: 14px;
 }
 
 .webdav-interval-control .number-input {
     width: 80px;
     height: 36px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--input-border);
     border-radius: 6px;
     text-align: center;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
+    background: var(--input-bg);
     transition: all 0.3s ease;
 }
 
 .webdav-interval-control .number-input:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
     outline: none;
 }
 
 .webdav-interval-control .input-suffix {
     font-size: 14px;
-    color: #6c757d;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
-/* 复选框样式增强 */
+/* 复选框样式增强 - 支持主题切换 */
 .webdav-controls-container input[type="checkbox"] {
     width: 20px;
     height: 20px;
     margin-right: 10px;
-    accent-color: #3498db;
+    accent-color: var(--primary);
     cursor: pointer;
 }
 
 .webdav-auto-control input[type="checkbox"] {
-    accent-color: #28a745;
+    accent-color: var(--success);
 }
 
 /* 响应式设计 */
@@ -1018,16 +1041,17 @@ textarea.textarea-input {
     list-style: none;
     padding: 0;
     margin-top: 10px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     overflow: hidden;
+    background: var(--surface-primary);
 }
 
 .file-item {
     display: flex;
     align-items: center;
     padding: 12px 15px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border-primary);
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
@@ -1037,11 +1061,11 @@ textarea.textarea-input {
 }
 
 .file-item:hover {
-    background-color: #f5f5f5;
+    background-color: var(--bg-hover);
 }
 
 .file-icon {
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 18px;
     margin-right: 15px;
 }
@@ -1049,12 +1073,12 @@ textarea.textarea-input {
 .file-name {
     flex-grow: 1;
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .file-date {
     font-size: 13px;
-    color: #888;
+    color: var(--text-muted);
 }
 
 #search-engine-settings .button-like {
@@ -1095,15 +1119,17 @@ textarea.textarea-input {
 
 .form-group-search-engine input[type="text"] {
     padding: 8px 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     font-size: 14px;
+    background: var(--input-bg);
+    color: var(--text-primary);
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .form-group-search-engine input[type="text"]:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
     outline: none;
 }
 
@@ -1274,7 +1300,7 @@ textarea.textarea-input {
     background-color: #17a2b8; /* Teal for 'Test' */
 }
 
-/* Network Test Styles */
+/* Network Test Styles - 支持主题切换 */
 .input-with-icon {
     position: relative;
     display: flex;
@@ -1286,7 +1312,7 @@ textarea.textarea-input {
 .input-with-icon .icon {
     position: absolute;
     left: 12px;
-    color: #6c757d;
+    color: var(--text-secondary);
     z-index: 1;
 }
 
@@ -1294,9 +1320,17 @@ textarea.textarea-input {
     padding-left: 40px;
     width: 100%;
     padding: 10px 12px 10px 40px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 8px;
     font-size: 14px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 .form-group-inline {
@@ -1311,13 +1345,14 @@ textarea.textarea-input {
 }
 
 #ping-results {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 15px;
     min-height: 100px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 14px;
+    color: var(--text-primary);
     white-space: normal;
     overflow: visible;
     max-height: none;
