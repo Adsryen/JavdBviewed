@@ -1,4 +1,6 @@
-/* 115任务列表样式 */
+/* ===================================================================
+   115任务列表样式 - Drive115 Tasks Styles
+   ================================================================ */
 
 /* 任务控制栏 */
 .drive115-tasks-controls {
@@ -7,9 +9,9 @@
   gap: 12px;
   margin-bottom: 20px;
   padding: 16px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
 }
 
 .task-input-group {
@@ -21,21 +23,22 @@
 .task-url-input {
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  background: white;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: border-color 0.2s ease;
 }
 
 .task-url-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary);
+  box-shadow: var(--ring);
 }
 
 .task-url-input::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .task-action-group {
@@ -45,12 +48,12 @@
 }
 
 .task-action-group .button-like.danger {
-  background: #ef4444;
-  color: white;
+  background: var(--error);
+  color: var(--text-inverse);
 }
 
 .task-action-group .button-like.danger:hover {
-  background: #dc2626;
+  background: var(--error-hover);
 }
 
 /* 任务列表容器 */
@@ -60,9 +63,9 @@
 }
 
 .drive115-tasks-container {
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
   overflow: hidden;
 }
 
@@ -74,25 +77,26 @@
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .empty-state i {
   font-size: 48px;
   margin-bottom: 16px;
-  color: #d1d5db;
+  color: var(--text-muted);
 }
 
 .empty-state h3 {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .empty-state p {
   margin: 0;
   font-size: 14px;
+  color: var(--text-secondary);
 }
 
 /* 错误状态 */
@@ -103,26 +107,27 @@
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: #ef4444;
+  color: var(--error);
 }
 
 .error-state i {
   font-size: 48px;
   margin-bottom: 16px;
-  color: #fca5a5;
+  color: var(--error);
+  opacity: 0.7;
 }
 
 .error-state h3 {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #dc2626;
+  color: var(--error);
 }
 
 .error-state p {
   margin: 0 0 16px 0;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 /* 任务列表 */
@@ -135,13 +140,13 @@
 .task-item {
   display: flex;
   flex-direction: column;
-  padding: 12px; /* 压缩行内边距，提升信息密度 */
-  border-bottom: 1px solid #f1f5f9;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-secondary);
   transition: background-color 0.2s ease;
 }
 
 .task-item:hover {
-  background-color: #f8fafc;
+  background-color: var(--bg-hover);
 }
 
 .task-item:last-child {
@@ -158,14 +163,14 @@
 
 .task-icon {
   flex-shrink: 0;
-  width: 32px; /* 缩小图标容器 */
+  width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e0f2fe;
-  border-radius: 6px; /* 稍减圆角 */
-  color: #0284c7;
+  background: var(--primary-light);
+  border-radius: var(--radius-sm);
+  color: var(--primary);
 }
 
 .task-info {
@@ -174,10 +179,10 @@
 }
 
 .task-name {
-  font-size: 13px; /* 略微缩小字体 */
+  font-size: 13px;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 2px; /* 压缩间距 */
+  color: var(--text-primary);
+  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -185,9 +190,9 @@
 
 .task-meta {
   display: flex;
-  gap: 12px; /* 压缩间距 */
-  font-size: 11px; /* 略微缩小字体 */
-  color: #6b7280;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .task-status {
@@ -202,49 +207,49 @@
 
 /* 任务状态样式 */
 .status-pending {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--warning-light);
+  color: var(--warning);
 }
 
 .status-running {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
 .status-completed {
-  background: #dcfce7;
-  color: #16a34a;
+  background: var(--success-light);
+  color: var(--success);
 }
 
 .status-failed {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--error-light);
+  color: var(--error);
 }
 
 .status-unknown {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
 }
 
 /* 进度条 */
 .task-progress {
   display: flex;
   align-items: center;
-  gap: 8px; /* 压缩间距 */
-  margin-bottom: 8px; /* 压缩间距 */
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .progress-bar {
   flex: 1;
-  height: 5px; /* 略微降低高度 */
-  background: #f1f5f9;
+  height: 5px;
+  background: var(--bg-tertiary);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(90deg, var(--primary), var(--primary-active));
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -252,7 +257,7 @@
 .progress-text {
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-secondary);
   min-width: 35px;
   text-align: right;
 }
@@ -268,22 +273,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px; /* 缩小按钮 */
+  width: 28px;
   height: 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 13px;
 }
 
 .task-action-btn.delete-btn {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--error-light);
+  color: var(--error);
 }
 
 .task-action-btn.delete-btn:hover {
-  background: #fecaca;
+  background: var(--error);
+  color: var(--text-inverse);
   transform: scale(1.05);
 }
 
@@ -304,31 +310,37 @@
   min-width: 36px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid #d1d5db;
-  background: white;
-  color: #374151;
-  border-radius: 6px;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
 }
 
 .page-btn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
 }
 
 .page-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverse);
 }
 
-/* 分页条数选择器（与 TS 中追加的控件类名一致） */
+/* 分页条数选择器 */
+.page-size-control {
+  color: var(--text-secondary);
+}
+
 .page-size-control .page-size-select {
   padding: 4px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
   font-size: 12px;
 }
 
@@ -337,22 +349,22 @@
   cursor: pointer;
   user-select: none;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: background-color 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
 }
 
 .stats-grid .stat-item:hover {
-  background: #f8fafc;
+  background: var(--bg-hover);
 }
 
 .stats-grid .stat-item.active {
-  outline: 2px solid #3b82f6;
-  background: #eff6ff;
+  outline: 2px solid var(--primary);
+  background: var(--primary-light);
 }
 
 .page-btn.active:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .page-ellipsis {
@@ -361,7 +373,7 @@
   justify-content: center;
   min-width: 36px;
   height: 36px;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
@@ -374,30 +386,30 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   z-index: 10000;
   animation: slideInRight 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
 }
 
 .message-toast.success {
-  background: #dcfce7;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
 }
 
 .message-toast.warning {
-  background: #fef3c7;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .message-toast.error {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: var(--error-light);
+  color: var(--error);
+  border: 1px solid var(--error);
 }
 
 @keyframes slideInRight {
@@ -464,12 +476,13 @@
   align-items: center;
   justify-content: center;
   padding: 40px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .loading-indicator i {
   font-size: 24px;
   margin-bottom: 8px;
+  color: var(--primary);
   animation: spin 1s linear infinite;
 }
 
@@ -490,11 +503,11 @@
 .stats-grid .stat-item .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .stats-grid .stat-item .stat-label {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-top: 4px;
 }
