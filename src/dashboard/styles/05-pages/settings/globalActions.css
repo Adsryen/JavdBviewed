@@ -13,16 +13,6 @@
     --global-text-muted: #64748b;
     --global-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --global-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --text-primary: #333;
-    --text-secondary: #666;
-    --bg-primary: #fff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #f1f3f4;
-    --border-color: #e9ecef;
-    --primary-color: #007bff;
-    --primary-hover-color: #0056b3;
-    --warning-color: #ffc107;
-    --warning-hover-color: #e0a800;
 }
 
 /* 全局操作设置面板特有样式 */

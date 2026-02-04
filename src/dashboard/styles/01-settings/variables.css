@@ -277,6 +277,14 @@ body {
   min-height: 100vh;
 }
 
+html[data-theme="light"] {
+  background-color: var(--bg-primary) !important;
+}
+
+html[data-theme="light"] body {
+  background-color: var(--bg-primary) !important;
+}
+
 html[data-theme="dark"] {
   background-color: var(--bg-primary) !important;
 }
