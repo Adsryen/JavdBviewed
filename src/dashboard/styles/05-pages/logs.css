@@ -247,7 +247,6 @@
     background: #0f172a; /* slate-900 */
     border-radius: 8px;
     padding: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     color: #e2e8f0; /* slate-200 */
 }
 .console-log-entry {
@@ -255,35 +254,45 @@
     border-left: 5px solid #475569; /* slate-600 default */
     border-radius: 6px;
     padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 .console-log-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 6px;
+    flex-shrink: 0;
 }
 .console-level-badge {
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #fff;
+    flex-shrink: 0;
 }
 .console-category {
     font-size: 12px;
     color: #a5b4fc; /* indigo-300 */
+    font-weight: 500;
+    flex-shrink: 0;
 }
 .console-timestamp {
     margin-left: auto;
-    font-size: 11px;
+    font-size: 12px;
     color: #94a3b8; /* slate-400 */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .console-log-message {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.5;
     color: #e5e7eb; /* gray-200 */
     white-space: pre-wrap;
     word-break: break-word;
+    text-align: left;
+    flex-grow: 1;
 }
 
 /* 控制台级别配色 */
@@ -303,7 +312,7 @@
 .log-header {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
     padding: 12px 15px;
 }
 
@@ -317,11 +326,19 @@
     flex-shrink: 0;
 }
 
+/* 日志分类（来源） */
+.log-category {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
 /* 日志消息 */
 .log-message {
     flex-grow: 1;
     font-size: 14px;
     color: var(--text-primary);
+    text-align: left;
 }
 
 /* 日志时间戳 */
@@ -329,6 +346,7 @@
     font-size: 12px;
     color: var(--text-muted);
     white-space: nowrap;
+    margin-left: auto;
 }
 
 /* 日志详细数据 */
