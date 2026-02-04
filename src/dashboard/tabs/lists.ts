@@ -62,6 +62,8 @@ export class ListsTab {
     private render(): void {
         const mineEl = document.getElementById('listsMineContainer') as HTMLElement | null;
         const favEl = document.getElementById('listsFavContainer') as HTMLElement | null;
+        const mineCountEl = document.getElementById('listsMineCount') as HTMLElement | null;
+        const favCountEl = document.getElementById('listsFavCount') as HTMLElement | null;
         const emptyTip = document.getElementById('listsEmptyTip') as HTMLElement | null;
         const searchInput = document.getElementById('listsSearchInput') as HTMLInputElement | null;
         if (!mineEl || !favEl) return;
@@ -79,6 +81,10 @@ export class ListsTab {
 
         mineEl.innerHTML = mine.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
         favEl.innerHTML = fav.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
+
+        // 更新胶囊数字统计
+        if (mineCountEl) mineCountEl.textContent = String(mine.length);
+        if (favCountEl) favCountEl.textContent = String(fav.length);
 
         const total = (this.lists || []).length;
         if (emptyTip) {
