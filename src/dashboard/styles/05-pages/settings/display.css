@@ -1,8 +1,9 @@
 /**
- * 显示设置面板样式
+ * 显示设置面板样式 - 支持主题切换
+ * 版本: 2.0 - 强制主题适配
  */
 
-/* CSS变量定义 */
+/* CSS变量定义 - 浅色主题 */
 :root {
     --display-primary: #8b5cf6;
     --display-secondary: #a78bfa;
@@ -13,6 +14,19 @@
     --display-text-muted: #64748b;
     --display-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --display-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* CSS变量定义 - 深色主题 */
+[data-theme="dark"] {
+    --display-primary: #a78bfa;
+    --display-secondary: #8b5cf6;
+    --display-bg: #1e293b;
+    --display-card-bg: #334155;
+    --display-border: #475569;
+    --display-text: #f1f5f9;
+    --display-text-muted: #94a3b8;
+    --display-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --display-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* 显示设置面板特有样式 */
@@ -60,26 +74,155 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-#display-settings .settings-description {
+#display-settings .settings-panel-header .settings-description {
     color: var(--display-text-muted);
     font-size: 16px;
     margin-bottom: 0;
     max-width: 600px;
     margin: 0 auto;
     line-height: 1.6;
+    text-align: center;
 }
 
+/* 面板主体内容左对齐 */
+#display-settings .settings-panel-body {
+    text-align: left;
+}
+
+#display-settings .settings-panel-body .settings-description {
+    text-align: left;
+}
+
+/* 显示设置面板 - 确保所有元素都支持主题切换 */
+#display-settings .settings-panel-body h4 {
+    color: var(--display-text) !important;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* 深色主题下的h4颜色 */
+[data-theme="dark"] #display-settings .settings-panel-body h4 {
+    color: #f1f5f9 !important;
+}
+
+/* 浅色主题下的h4颜色 */
+[data-theme="light"] #display-settings .settings-panel-body h4 {
+    color: #1e293b !important;
+}
+
+/* 第一个h4不需要上边距 */
+#display-settings .settings-panel-body > h4:first-of-type {
+    margin-top: 0.75rem;
+}
+
+/* 复选框容器 - 强制主题适配 */
 #display-settings .form-group-checkbox {
     margin-bottom: 1rem;
+    background: transparent !important;
 }
 
+/* 复选框标签 - 使用!important确保优先级 */
 #display-settings .form-group-checkbox label {
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--display-text) !important;
+    cursor: pointer;
+    background: transparent !important;
 }
 
+/* 深色主题下的标签颜色 */
+[data-theme="dark"] #display-settings .form-group-checkbox label {
+    color: #f1f5f9 !important;
+}
+
+/* 浅色主题下的标签颜色 */
+[data-theme="light"] #display-settings .form-group-checkbox label {
+    color: #1e293b !important;
+}
+
+/* 复选框输入 */
+#display-settings .form-group-checkbox input[type="checkbox"] {
+    accent-color: var(--display-primary);
+    cursor: pointer;
+}
+
+/* 描述文字 - 强制主题适配 */
 #display-settings .settings-description {
-    color: var(--text-secondary);
+    color: var(--display-text-muted) !important;
     font-size: 0.9rem;
     margin-bottom: 1.5rem;
 }
+
+/* 深色主题下的描述文字 */
+[data-theme="dark"] #display-settings .settings-description {
+    color: #94a3b8 !important;
+}
+
+/* 浅色主题下的描述文字 */
+[data-theme="light"] #display-settings .settings-description {
+    color: #64748b !important;
+}
+
+/* 子区域样式 - 强制主题适配 */
+#display-settings .settings-subsection {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--display-border);
+}
+
+/* 深色主题下的子区域边框 */
+[data-theme="dark"] #display-settings .settings-subsection {
+    border-top-color: #475569;
+}
+
+/* 浅色主题下的子区域边框 */
+[data-theme="light"] #display-settings .settings-subsection {
+    border-top-color: #e2e8f0;
+}
+
+#display-settings .settings-subsection h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--display-text) !important;
+}
+
+/* 深色主题下的子区域h4 */
+[data-theme="dark"] #display-settings .settings-subsection h4 {
+    color: #f1f5f9 !important;
+}
+
+/* 浅色主题下的子区域h4 */
+[data-theme="light"] #display-settings .settings-subsection h4 {
+    color: #1e293b !important;
+}
+
+#display-settings .settings-subsection .settings-description {
+    margin-bottom: 1rem;
+    color: var(--display-text-muted) !important;
+}
+
+/* 深色主题下的子区域描述 */
+[data-theme="dark"] #display-settings .settings-subsection .settings-description {
+    color: #94a3b8 !important;
+}
+
+/* 浅色主题下的子区域描述 */
+[data-theme="light"] #display-settings .settings-subsection .settings-description {
+    color: #64748b !important;
+}
+
+#display-settings .settings-subsection .form-group-checkbox label {
+    color: var(--display-text) !important;
+}
+
+/* 深色主题下的子区域复选框标签 */
+[data-theme="dark"] #display-settings .settings-subsection .form-group-checkbox label {
+    color: #f1f5f9 !important;
+}
+
+/* 浅色主题下的子区域复选框标签 */
+[data-theme="light"] #display-settings .settings-subsection .form-group-checkbox label {
+    color: #1e293b !important;
+}
+
