@@ -128,7 +128,22 @@ export function initUserProfileSection(): void {
             </div>
         </div>
         <!-- 115 用户信息独立容器（与 JavDB 并列） -->
-        <div class="drive115-profile-container" style="margin-top:10px;">
+<div class="drive115-profile-container" style="margin-top:10px;">
+            <!-- 未启用/未登录提示 -->
+            <div id="drive115-empty-state" class="user-login-prompt" style="display:none; justify-content:center; text-align:center;">
+                <div class="login-icon">
+                    <img src="../assets/115-logo.svg" alt="115" style="width:32px;height:32px;opacity:0.5;"/>
+                </div>
+                <div class="login-text" style="text-align:center;">
+                    <p style="margin:0 0 8px 0; font-size:14px; color:var(--drive115-title-color); font-weight:500;">未配置 115 网盘账号</p>
+                    <p style="margin:0 0 12px 0; font-size:12px; color:var(--text-secondary); font-weight:400;">配置后可使用一键推送等功能</p>
+                    <button id="drive115-goto-settings" class="login-btn" style="margin:0 auto;">
+                        <i class="fas fa-cog"></i>
+                        前往设置
+                    </button>
+                </div>
+            </div>
+            <!-- 已登录状态 -->
             <div id="drive115-user-info" class="drive115-user-info" style="display:none;">
                 <div class="stats-title" style="display:flex; align-items:center; gap:6px;">
                     <img src="../assets/115-logo.svg" alt="115" style="width:16px;height:16px;"/>
@@ -164,6 +179,7 @@ function bindUserProfileEvents(): void {
     const refreshBtn = document.getElementById('refresh-profile-btn');
     const logoutBtn = document.getElementById('logout-btn');
     const drive115RefreshBtn = document.getElementById('drive115-refresh-btn');
+    const drive115GotoSettingsBtn = document.getElementById('drive115-goto-settings');
 
     if (loginBtn) {
         loginBtn.addEventListener('click', handleLogin);
@@ -180,6 +196,14 @@ function bindUserProfileEvents(): void {
     if (drive115RefreshBtn) {
         drive115RefreshBtn.addEventListener('click', handleDrive115Refresh);
     }
+
+    if (drive115GotoSettingsBtn) {
+        drive115GotoSettingsBtn.addEventListener('click', () => {
+            // 使用 hash 导航到设置页面的 115 网盘设置
+            window.location.hash = '#tab-settings/drive115-settings';
+        });
+    }
+
 }
 
 /**
@@ -194,7 +218,8 @@ async function handleLogin(): Promise<void> {
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 获取中...';
         
         const profile = await fetchUserProfile();
-        if (profile) {
+        if (profile && profile.email && profile.email.trim()) {
+            // 成功获取到邮箱，说明登录成功
             await saveUserProfile(profile);
             displayUserProfile(profile);
             showMessage('账号信息获取成功！', 'success');
@@ -204,6 +229,9 @@ async function handleLogin(): Promise<void> {
                 isLoggedIn: true,
                 profile
             });
+        } else if (profile && (!profile.email || !profile.email.trim())) {
+            // 获取到了 profile 但没有邮箱，说明可能未登录或信息不完整
+            showMessage('未能获取完整账号信息，请确保已在 JavDB 登录', 'warning');
         } else {
             showMessage('获取账号信息失败，请确保已登录 JavDB', 'error');
         }
@@ -228,7 +256,8 @@ async function handleRefresh(): Promise<void> {
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         const profile = await fetchUserProfile();
-        if (profile) {
+        if (profile && profile.email && profile.email.trim()) {
+            // 成功获取到邮箱，说明刷新成功
             await saveUserProfile(profile);
             displayUserProfile(profile);
             showMessage('账号信息已更新', 'success');
@@ -250,6 +279,9 @@ async function handleRefresh(): Promise<void> {
                     } catch {}
                 }, 60_000);
             } catch {}
+        } else if (profile && (!profile.email || !profile.email.trim())) {
+            // 获取到了 profile 但没有邮箱
+            showMessage('未能获取完整账号信息，请确保已在 JavDB 登录', 'warning');
         } else {
             // 可能是未登录或被风控拦截，给出更明确的提示
             showMessage('刷新账号信息失败：请先在 JavDB 登录后再试；如已登录仍失败，可能触发安全防护，请稍后重试', 'error');
@@ -488,8 +520,12 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
     }
     isLoadingDrive115 = true;
     const block = document.getElementById('drive115-user-info') as HTMLDivElement | null;
+    const emptyState = document.getElementById('drive115-empty-state') as HTMLDivElement | null;
     const box = document.getElementById('drive115-user-box') as HTMLDivElement | null;
-    if (!block || !box) return;
+    if (!block || !box || !emptyState) {
+        isLoadingDrive115 = false;
+        return;
+    }
 
     try {
         // 确保基础与配额区域常驻（避免后续 innerHTML 覆盖导致配额块消失）
@@ -513,10 +549,15 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         const enableV2 = !!s.enableV2;
 
         if (!enabled) {
+            // 显示空状态提示
             block.style.display = 'none';
+            emptyState.style.display = 'block';
+            isLoadingDrive115 = false;
             return;
         }
 
+        // 隐藏空状态，显示用户信息
+        emptyState.style.display = 'none';
         block.style.display = 'block';
         // 若存在已缓存的用户信息，先行展示，避免刷新/离线时为空
         const cachedUser = (s as any).v2UserInfo as Drive115V2UserInfo | undefined;
