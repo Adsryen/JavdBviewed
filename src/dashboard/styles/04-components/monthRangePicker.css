@@ -1,4 +1,6 @@
-/* 月份范围选择器样式 - 浅色系 */
+/* ===================================================================
+   月份范围选择器样式 - Month Range Picker Styles
+   ================================================================ */
 
 .month-range-picker {
   display: inline-block;
@@ -11,7 +13,7 @@
 }
 
 .month-range-separator {
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 14px;
   user-select: none;
 }
@@ -26,9 +28,9 @@
   height: 32px;
   padding: 6px 32px 6px 12px;
   font-size: 13px;
-  color: #475569;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -36,18 +38,18 @@
 }
 
 .month-picker-input:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
 }
 
 .month-picker-input:focus {
-  border-color: #94a3b8;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.08);
+  border-color: var(--primary);
+  background: var(--surface-primary);
+  box-shadow: var(--ring);
 }
 
 .month-picker-input::placeholder {
-  color: #cbd5e1;
+  color: var(--text-muted);
 }
 
 .month-picker-icon {
@@ -55,24 +57,24 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 14px;
   pointer-events: none;
   transition: color 0.2s ease;
 }
 
 .month-picker-wrapper:hover .month-picker-icon {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 /* 下拉面板 */
 .month-picker-dropdown {
   position: absolute;
   z-index: 1000;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.12), 0 2px 4px rgba(148, 163, 184, 0.08);
+  box-shadow: var(--shadow-lg);
   padding: 12px;
   min-width: 280px;
   animation: dropdownFadeIn 0.2s ease;
@@ -96,13 +98,13 @@
   justify-content: space-between;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .year-label {
   font-size: 15px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-primary);
   user-select: none;
 }
 
@@ -112,19 +114,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  color: #64748b;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 12px;
 }
 
 .year-nav-btn:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #475569;
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
@@ -149,10 +151,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -161,11 +163,11 @@
 }
 
 .month-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #475569;
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(148, 163, 184, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .month-btn:active {
@@ -173,24 +175,24 @@
 }
 
 .month-btn.current {
-  border-color: #94a3b8;
-  color: #475569;
+  border-color: var(--primary);
+  color: var(--text-primary);
   font-weight: 600;
-  background: #ffffff;
+  background: var(--surface-primary);
 }
 
 .month-btn.selected {
-  background: #e2e8f0;
-  border-color: #94a3b8;
-  color: #475569;
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(148, 163, 184, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .month-btn.selected:hover {
-  background: #cbd5e1;
-  border-color: #64748b;
-  color: #334155;
+  background: var(--primary-light);
+  border-color: var(--primary-hover);
+  color: var(--primary-hover);
 }
 
 /* 响应式 */

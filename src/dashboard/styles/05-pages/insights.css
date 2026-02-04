@@ -221,7 +221,7 @@
     font-size: 12px;
     background: var(--primary);
     border: 1px solid var(--primary-hover);
-    color: #fff;
+    color: var(--text-inverse);
     box-shadow: var(--shadow-sm);
 }
 
@@ -257,7 +257,7 @@
     font-size: 12px;
     background: var(--error);
     border: 1px solid var(--error-hover);
-    color: #fff;
+    color: var(--text-inverse);
     box-shadow: var(--shadow-sm);
 }
 
