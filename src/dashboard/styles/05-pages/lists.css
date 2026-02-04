@@ -1,3 +1,27 @@
+/* 清单页面卡片容器 */
+#tab-lists .card,
+[data-tab-id="lists"] .card {
+    padding: 20px !important;
+}
+
+/* 如果上面的选择器不生效，使用类名选择器 */
+.lists-header,
+.lists-search-row,
+.lists-sections,
+.lists-empty-tip {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.lists-header {
+    padding-top: 20px;
+}
+
+.lists-empty-tip {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 .lists-list{display:flex;flex-direction:column;gap:8px;}
 .lists-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border-primary);border-radius:10px;background:var(--surface-primary);cursor:pointer;transition:transform .08s ease,box-shadow .12s ease,border-color .12s ease;}
 .lists-item:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);border-color:var(--border-hover);}
@@ -105,6 +129,38 @@
     font-weight: 600;
     color: var(--text-primary);
     padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 胶囊数字统计 */
+.lists-section h5 .badge-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 20px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+/* 暗色主题适配 */
+[data-theme="dark"] .lists-section h5 .badge-pill {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+/* 亮色主题适配 */
+[data-theme="light"] .lists-section h5 .badge-pill {
+    background: var(--primary);
+    color: #ffffff;
 }
 
 /* 清单分区容器 */

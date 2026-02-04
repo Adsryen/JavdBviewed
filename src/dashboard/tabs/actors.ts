@@ -724,10 +724,6 @@ export class ActorsTab {
                         <div class="stat-label">无码</div>
                     </div>
                     <div class="stat-card new-works-stat">
-                        <div class="stat-value">${stats.byCategory.western || 0}</div>
-                        <div class="stat-label">欧美</div>
-                    </div>
-                    <div class="stat-card new-works-stat">
                         <div class="stat-value">${stats.blacklisted || 0}</div>
                         <div class="stat-label">已拉黑</div>
                     </div>
