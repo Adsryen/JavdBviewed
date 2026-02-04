@@ -929,3 +929,13 @@
     background: var(--bg-hover) !important;
     color: var(--text-primary) !important;
 }
+
+
+/* ===== 115 空状态按钮样式覆盖 ===== */
+.drive115-profile-container .login-btn {
+    color: var(--drive115-title-color);
+}
+
+.drive115-profile-container .login-btn:hover {
+    color: var(--drive115-title-color);
+}
