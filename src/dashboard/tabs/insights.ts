@@ -11,6 +11,7 @@ import { aggregateCompareFromRecords } from "../../services/insights/compareAggr
 import type { VideoRecord } from "../../types";
 import { showMessage } from "../ui/toast";
 import { initInsightsMonthPicker } from "../components/MonthRangePickerIntegration";
+import { themeManager } from "../services/themeManager";
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -247,6 +248,8 @@ function clearModelErrorBanner(): void {
 let canSaveReport = false;
 // 页面级：AI 模型覆盖，仅作用于本页面（不改全局设置）
 let pageModelOverride: string | undefined = undefined;
+// 保存当前预览的原始 HTML（未经 prepareForPreview 处理）
+let currentPreviewRawHTML: string = '';
 
 // ========== 查看生成过程：按钮与弹窗 ==========
 function ensureTraceButton(): HTMLButtonElement | null {
@@ -801,6 +804,12 @@ function onTraceClick(): void {
 function prepareForPreview(html: string): string {
   try {
     let res = html || '';
+    
+    // 获取当前主题
+    const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+    const bgColor = isDarkMode ? '#1e293b' : '#ffffff';
+    const textColor = isDarkMode ? '#f1f5f9' : '#111827';
+    
     // 1) 移除全部脚本（内联与外链），避免 about:srcdoc 下 CSP 报错
     try { res = res.replace(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi, ''); } catch {}
     // 2) 确保 base 指向扩展根
@@ -813,12 +822,12 @@ function prepareForPreview(html: string): string {
       // 若意外缺少 head，则加一个简单的头部
       res = res.replace(/<html[^>]*>/i, (m) => `${m}\n<head><base href="${base}"></head>`);
     }
-    // 2.0) 预清理：将任何显式白色字体替换为深色，避免白底白字（仅作用于预览）
+    // 2.0) 预清理：将任何显式白色字体替换为主题色，避免白底白字（仅作用于预览）
     try {
       const whiteColorRe = /color\s*:\s*(?:#fff(?:fff)?|white|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)|rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*(?:0?\.\d+|1)\s*\))\s*(!important)?/ig;
-      res = res.replace(whiteColorRe, 'color:#111827$1');
+      res = res.replace(whiteColorRe, `color:${textColor}$1`);
     } catch {}
-    // 2.0.1) 强制为 <body> 注入内联白底深字样式，并确保有唯一 root id（优先级最高）
+    // 2.0.1) 强制为 <body> 注入内联样式，并确保有唯一 root id（优先级最高）
     try {
       res = res.replace(/<body([^>]*)>/i, (m, attrs) => {
         void m;
@@ -831,18 +840,18 @@ function prepareForPreview(html: string): string {
           const quote = m2[1];
           let style = m2[2] || '';
           // 规范化并覆写 color/background
-          if (/color\s*:/i.test(style)) style = style.replace(/color\s*:[^;]*/i, 'color:#111827 !important');
-          else style += '; color:#111827 !important';
-          if (/background\s*:/i.test(style)) style = style.replace(/background\s*:[^;]*/i, 'background:#ffffff !important');
-          else style += '; background:#ffffff !important';
+          if (/color\s*:/i.test(style)) style = style.replace(/color\s*:[^;]*/i, `color:${textColor} !important`);
+          else style += `; color:${textColor} !important`;
+          if (/background\s*:/i.test(style)) style = style.replace(/background\s*:[^;]*/i, `background:${bgColor} !important`);
+          else style += `; background:${bgColor} !important`;
           attrs = attrs.replace(styleRe, `style=${quote}${style}${quote}`);
           return `<body${attrs}${addId}>`;
         } else {
-          return `<body${attrs}${addId} style="background:#ffffff !important; color:#111827 !important">`;
+          return `<body${attrs}${addId} style="background:${bgColor} !important; color:${textColor} !important">`;
         }
       });
     } catch {}
-    // 2.0.2) 进一步清理：移除任意元素内联的 color 声明并统一为深色（防止 inline !important 覆盖）
+    // 2.0.2) 进一步清理：移除任意元素内联的 color 声明并统一为主题色（防止 inline !important 覆盖）
     try {
       res = res.replace(/style=("|')([\s\S]*?)\1/ig, (all, q, style) => {
         void all;
@@ -852,15 +861,19 @@ function prepareForPreview(html: string): string {
         s = s.replace(/(^|;)\s*-webkit-text-fill-color\s*:\s*[^;]*;?/ig, (m0, p1) => { void m0; return (p1 || ''); });
         // 收敛多余分号
         s = s.replace(/;;+/g, ';').replace(/^\s*;|;\s*$/g, '');
-        // 重新追加深色字体
+        // 重新追加主题色字体
         const sep = s ? '; ' : '';
-        return `style=${q}${s}${sep}color:#111827 !important; -webkit-text-fill-color:#111827 !important${q}`;
+        return `style=${q}${s}${sep}color:${textColor} !important; -webkit-text-fill-color:${textColor} !important${q}`;
       });
     } catch {}
-    // 2.1) 注入兜底样式，强制白底深字，避免出现白底白字
+    // 2.1) 注入兜底样式，强制使用主题色，避免出现白底白字
     try {
       const hasFallback = /insights-preview-fallback/i.test(res);
-      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:#111827 !important; -webkit-text-fill-color:#111827 !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:#ffffff !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:#111827 !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:#111827 !important; }\n  .text-white, .text-light, [class*="text-white"] { color:#111827 !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:#111827 !important; }\n</style>`;
+      // 免责声明的主题颜色
+      const noticeColors = isDarkMode 
+        ? { bg: '#422006', border: '#78350f', text: '#fef3c7' }  // 深色模式：深棕背景，浅黄文字
+        : { bg: '#fff7ed', border: '#fdba74', text: '#92400e' }; // 浅色模式：浅橙背景，深棕文字
+      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:${textColor} !important; -webkit-text-fill-color:${textColor} !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:${bgColor} !important; }\n  /* 免责声明主题适配 */\n  .notice { background: ${noticeColors.bg} !important; border-color: ${noticeColors.border} !important; color: ${noticeColors.text} !important; }\n  .notice * { color: ${noticeColors.text} !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:${textColor} !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:${textColor} !important; }\n  .text-white, .text-light, [class*="text-white"] { color:${textColor} !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:${textColor} !important; }\n</style>`;
       if (!hasFallback) {
         if (/<\/body>/i.test(res)) {
           res = res.replace(/<\/body>/i, (m) => `${fallback}\n${m}`);
@@ -1206,6 +1219,7 @@ async function previewSample() {
   } as Record<string, string>;
   const tpl = await loadTemplate();
   const html = renderTemplate({ templateHTML: tpl, fields });
+  currentPreviewRawHTML = html; // 保存原始 HTML
   iframe.srcdoc = prepareForPreview(html);
   // 示例预览不允许保存
   canSaveReport = false;
@@ -1400,6 +1414,7 @@ async function handleGenerate() {
     const html = await generateReportHTML({ templateHTML: tpl, stats: stats as any, baseFields: fields, modelOverride });
     const iframe = getEl<HTMLIFrameElement>('insights-preview');
     if (iframe) {
+      currentPreviewRawHTML = html; // 保存原始 HTML
       iframe.srcdoc = prepareForPreview(html);
     }
     canSaveReport = true;
@@ -1760,6 +1775,19 @@ export const insightsTab = {
 
     // 刷新历史
     try { await this.refreshHistory(); updateDeleteSelectedEnabled(); } catch {}
+
+    // 监听主题切换，自动重新渲染预览
+    try {
+      themeManager.onThemeChange(() => {
+        const iframe = getEl<HTMLIFrameElement>('insights-preview');
+        if (iframe && currentPreviewRawHTML) {
+          // 使用保存的原始 HTML 重新应用主题
+          iframe.srcdoc = prepareForPreview(currentPreviewRawHTML);
+        }
+      });
+    } catch (err) {
+      console.warn('[Insights] 主题切换监听器注册失败:', err);
+    }
   },
 
   async saveCurrentAsMonthly(): Promise<void> {
@@ -1954,6 +1982,7 @@ export const insightsTab = {
         const rec = await dbInsReportsGet(month);
         const iframe = getEl<HTMLIFrameElement>('insights-preview');
         if (iframe && rec?.html) {
+          currentPreviewRawHTML = rec.html; // 保存原始 HTML
           iframe.srcdoc = prepareForPreview(rec.html);
         }
       }
