@@ -78,19 +78,6 @@
     --ai-border-color: #e2e8f0;
     --ai-text-color: #1e293b;
     --ai-text-muted: #64748b;
-
-    /* 补充缺失的通用变量 */
-    --text-primary: #333;
-    --text-secondary: #666;
-    --bg-primary: #fff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #f1f3f4;
-    --border-color: #e9ecef;
-    --primary-color: #007bff;
-    --success-color: #28a745;
-    --warning-color: #ffc107;
-    --info-color: #17a2b8;
-    --info-bg-color: #d1ecf1;
 }
 
 /* 原有的标题样式已在上方重新定义 */

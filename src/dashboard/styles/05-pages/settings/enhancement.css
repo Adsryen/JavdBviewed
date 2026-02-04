@@ -4,17 +4,6 @@
 
 /* CSS变量定义 */
 :root {
-    --text-primary: #333;
-    --text-secondary: #666;
-    --bg-primary: #fff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #f1f3f4;
-    --border-color: #e9ecef;
-    --primary-color: #007bff;
-    --primary-color-rgb: 0, 123, 255;
-    --warning-color: #ffc107;
-    --warning-bg-color: #fff3cd;
-    
     --enhancement-primary: #f59e0b;
     --enhancement-secondary: #fbbf24;
     --enhancement-bg: #f8fafc;
