@@ -103,6 +103,16 @@ export async function initTabs(): Promise<void> {
       try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
     }
 
+    // 如果初始化时就是设置页且有子页面，立即触发切换事件
+    if (mainTab === 'tab-settings' && subSection) {
+      // 延迟触发，确保设置页面已经初始化完成
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
+          detail: { section: subSection }
+        }));
+      }, 100);
+    }
+
     // 监听 URL 变化
     window.addEventListener('hashchange', async () => {
       const newHash = window.location.hash.substring(1) || 'tab-home';
