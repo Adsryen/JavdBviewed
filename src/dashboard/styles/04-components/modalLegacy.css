@@ -839,7 +839,6 @@ body.modal-open {
 
 .webdav-restore-modal .modal-footer {
     padding: 24px 30px;
-    border-top: 1px solid #e1e5e9;
     display: flex;
     justify-content: flex-end;
     gap: 16px;
