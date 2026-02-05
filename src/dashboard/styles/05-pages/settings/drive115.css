@@ -1,5 +1,25 @@
 /* 115网盘设置样式 */
 
+/* CSS变量定义 - 浅色主题（仅用于设置页面） */
+#drive115-settings {
+    --drive115-settings-primary: #ff6b35;
+    --drive115-settings-secondary: #ff8a65;
+    --drive115-settings-bg: #fff3e0;
+    --drive115-settings-border: #ffccbc;
+    --drive115-settings-title-color: #e65100;
+    --drive115-settings-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* CSS变量定义 - 深色主题（仅用于设置页面） */
+[data-theme="dark"] #drive115-settings {
+    --drive115-settings-primary: #ff8a65;
+    --drive115-settings-secondary: #ffab91;
+    --drive115-settings-bg: #2d1f1a;
+    --drive115-settings-border: #4a3228;
+    --drive115-settings-title-color: #ffab91;
+    --drive115-settings-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
 /* 115网盘设置面板特有样式 */
 #drive115-settings {
     position: relative;
@@ -21,6 +41,13 @@
     border-radius: 20px;
 }
 
+[data-theme="dark"] #drive115-settings::before {
+    background: linear-gradient(135deg,
+        rgba(255, 138, 101, 0.08) 0%,
+        rgba(255, 171, 145, 0.08) 50%,
+        rgba(255, 204, 2, 0.08) 100%);
+}
+
 #drive115-settings .settings-panel-header {
     position: relative;
     padding: 20px 0;
@@ -28,7 +55,7 @@
 }
 
 #drive115-settings .settings-panel-header h3 {
-    color: var(--drive115-primary);
+    color: var(--drive115-settings-title-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -36,7 +63,11 @@
     font-size: 28px;
     font-weight: 700;
     margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 2px 4px rgba(255, 107, 53, 0.1);
+}
+
+[data-theme="dark"] #drive115-settings .settings-panel-header h3 {
+    text-shadow: 0 2px 4px rgba(255, 138, 101, 0.2);
 }
 
 #drive115-settings .settings-panel-header h3::before {
@@ -61,8 +92,8 @@
     top: 20px;
     display: inline-flex;
     align-items: center;
-    background: var(--bg-primary, #ffffff);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--drive115-shadow);
@@ -72,7 +103,7 @@
     appearance: none;
     border: none;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 12px;
     line-height: 1;
     padding: 6px 12px;
@@ -81,22 +112,22 @@
 }
 
 #drive115-settings .version-toggle button + button {
-    border-left: 1px solid var(--border-color, #e5e7eb);
+    border-left: 1px solid var(--border-color);
 }
 
 #drive115-settings .version-toggle button:hover {
-    background: var(--bg-hover, #f3f4f6);
-    color: var(--text-primary, #374151);
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 #drive115-settings .version-toggle button.active {
-    background: var(--drive115-bg, #fff3e0);
-    color: var(--drive115-primary, #ff6b35);
+    background: var(--drive115-settings-bg);
+    color: var(--drive115-settings-primary);
     font-weight: 600;
 }
 
 #drive115-settings .version-toggle button:focus-visible {
-    outline: 2px solid var(--drive115-primary, #ff6b35);
+    outline: 2px solid var(--drive115-settings-primary);
     outline-offset: -2px;
 }
 
@@ -124,9 +155,9 @@
     align-items: flex-start;
     gap: 10px;
     padding: 10px 12px;
-    border: 1px solid #fbbf24; /* amber-400 */
-    background: #fffbeb;        /* amber-50 */
-    color: #92400e;             /* amber-800 */
+    border: 1px solid var(--warning);
+    background: var(--warning-light);
+    color: var(--text-primary);
     border-radius: 8px;
     margin-top: 10px;
 }
@@ -167,7 +198,7 @@
 
 #drive115-settings .drive115-toggle-text {
     font-weight: 500;
-    color: var(--text-primary, #374151);
+    color: var(--text-primary);
     font-size: 14px;
     cursor: default; /* 仅开关可点击，文字显示默认光标 */
 }
@@ -193,7 +224,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    background: var(--border-primary);
     border-radius: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -206,21 +237,21 @@
     width: 22px;
     left: 2px;
     bottom: 2px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: var(--surface-primary);
     border-radius: 50%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
 }
 
 #drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(59, 130, 246, 0.2);
+    background: var(--primary);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), var(--ring);
 }
 
 #drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:before {
     transform: translateX(24px);
-    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: var(--surface-primary);
+    box-shadow: var(--shadow-lg);
 }
 
 #drive115-settings .drive115-toggle-slider:hover {
@@ -228,11 +259,11 @@
 }
 
 #drive115-settings .drive115-toggle-input:checked + .drive115-toggle-slider:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    background: var(--primary-hover);
 }
 
 #drive115-settings .drive115-toggle-input:focus + .drive115-toggle-slider {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
 
@@ -240,27 +271,27 @@
 #drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #f3f4f6;
+    background: var(--bg-hover);
 }
 
 #drive115-settings .drive115-toggle-input:disabled + .drive115-toggle-slider:before {
-    background: #e5e7eb;
+    background: var(--border-primary);
 }
 
 /* 设置组样式 */
 #drive115-settings .settings-group {
     margin-bottom: 25px;
     padding: 15px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
-    background: #f9fafb;
+    background: var(--bg-secondary);
 }
 
 #drive115-settings .settings-group h4 {
     margin: 0 0 15px 0;
     font-size: 16px;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-primary);
 }
 
 /* v2 用户信息区样式 */
@@ -276,8 +307,8 @@
 }
 
 #drive115-settings .drive115-user-info-box {
-    background: #fafafa;
-    border: 1px dashed #e5e7eb;
+    background: var(--bg-hover);
+    border: 1px dashed var(--border-primary);
     border-radius: 8px;
     padding: 12px;
 }
@@ -295,7 +326,7 @@
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
-    color: #374151;
+    color: var(--text-primary);
 }
 
 #drive115-settings .setting-item input[type="text"],
@@ -303,53 +334,55 @@
     width: 100%;
     max-width: 300px;
     padding: 8px 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.2s ease;
+    background: var(--surface-primary);
+    color: var(--text-primary);
 }
 
 /* 禁用态统一灰化（避免主题样式覆盖） */
 #drive115-settings input:disabled,
 #drive115-settings textarea:disabled,
 #drive115-settings select:disabled {
-    background-color: #f5f5f5 !important;
-    color: #888 !important;
-    border-color: #e0e0e0 !important;
+    background-color: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-primary) !important;
     cursor: not-allowed !important;
 }
 
 /* 针对 v2 token 字段的明确样式（再加一层保险） */
 #drive115V2AccessToken:disabled,
 #drive115V2RefreshToken:disabled {
-    background-color: #f5f5f5 !important;
-    color: #888 !important;
-    border-color: #e0e0e0 !important;
+    background-color: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-primary) !important;
 }
 
 #drive115-settings .setting-item input[type="text"]:focus,
 #drive115-settings .setting-item input[type="number"]:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 #drive115-settings .setting-item input.input-invalid {
-    border-color: #ef4444;
-    background-color: #fef2f2;
+    border-color: var(--error);
+    background-color: var(--error-light);
 }
 
 #drive115-settings .setting-item .help-text {
     margin-top: 5px;
     font-size: 13px;
-    color: #6b7280;
+    color: var(--text-secondary);
     line-height: 1.4;
 }
 
 #drive115-settings .setting-item .error-text {
     margin-top: 5px;
     font-size: 13px;
-    color: #ef4444;
+    color: var(--error);
     display: none;
 }
 
@@ -374,31 +407,31 @@
 }
 
 #drive115-settings .btn-primary {
-    background: #3b82f6;
-    color: white;
+    background: var(--primary);
+    color: var(--text-inverse);
 }
 
 #drive115-settings .btn-primary:hover:not(:disabled) {
-    background: #2563eb;
+    background: var(--primary-hover);
 }
 
 #drive115-settings .btn-secondary {
-    background: #6b7280;
-    color: white;
+    background: var(--text-secondary);
+    color: var(--text-inverse);
 }
 
 #drive115-settings .btn-secondary:hover:not(:disabled) {
-    background: #4b5563;
+    background: var(--text-primary);
 }
 
 #drive115-settings .btn-outline {
     background: transparent;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
 }
 
 #drive115-settings .btn-outline:hover:not(:disabled) {
-    background: #f3f4f6;
+    background: var(--bg-hover);
 }
 
 /* ===== 115 面板内专属按钮配色（仅作用于本面板） ===== */
@@ -524,23 +557,23 @@
 }
 
 #drive115-settings .log-message {
-    color: #374151;
+    color: var(--text-primary);
 }
 
 #drive115-settings .log-entry.log-error .log-level {
-    color: #ef4444;
+    color: var(--error);
 }
 
 #drive115-settings .log-entry.log-warning .log-level {
-    color: #f59e0b;
+    color: var(--warning);
 }
 
 #drive115-settings .log-entry.log-info .log-level {
-    color: #3b82f6;
+    color: var(--info);
 }
 
 #drive115-settings .log-entry.log-debug .log-level {
-    color: #6b7280;
+    color: var(--text-secondary);
 }
 
 #drive115-settings .no-logs {
@@ -634,7 +667,8 @@
 }
 
 #drive115-settings .help-content code {
-    background: #e2e8f0;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
     padding: 2px 4px;
     border-radius: 3px;
     font-family: 'Consolas', 'Monaco', monospace;

@@ -1,6 +1,6 @@
 /* Emby增强设置样式 */
 
-/* CSS变量定义 */
+/* CSS变量定义 - 浅色主题 */
 :root {
     --emby-primary: #00a4dc;
     --emby-secondary: #52c4e8;
@@ -11,6 +11,19 @@
     --emby-text-muted: #64748b;
     --emby-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --emby-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* CSS变量定义 - 深色主题 */
+[data-theme="dark"] {
+    --emby-primary: #52c4e8;
+    --emby-secondary: #7dd3fc;
+    --emby-bg: #1e293b;
+    --emby-card-bg: #334155;
+    --emby-border: #475569;
+    --emby-text: #f1f5f9;
+    --emby-text-muted: #cbd5e1;
+    --emby-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --emby-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* Emby设置面板特有样式 */
@@ -34,6 +47,13 @@
     border-radius: 20px;
 }
 
+[data-theme="dark"] #emby-settings::before {
+    background: linear-gradient(135deg,
+        rgba(82, 196, 232, 0.08) 0%,
+        rgba(125, 211, 252, 0.08) 50%,
+        rgba(186, 230, 253, 0.08) 100%);
+}
+
 #emby-settings .settings-panel-header {
     position: relative;
     padding: 20px 0;
@@ -49,7 +69,11 @@
     font-size: 28px;
     font-weight: 700;
     margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 2px 4px rgba(0, 164, 220, 0.1);
+}
+
+[data-theme="dark"] #emby-settings .settings-panel-header h3 {
+    text-shadow: 0 2px 4px rgba(82, 196, 232, 0.2);
 }
 
 #emby-settings .settings-panel-header h3::before {
@@ -73,10 +97,10 @@
 }
 
 .url-list {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 10px;
-    background-color: #fafafa;
+    background-color: var(--bg-secondary);
     margin-bottom: 10px;
     max-height: 300px;
     overflow-y: auto;
@@ -105,12 +129,12 @@ div.url-item input.url-input {
     width: 100% !important;
     flex: 1 !important;
     padding: 10px 12px !important;
-    border: 2px solid #e2e8f0 !important;
+    border: 2px solid var(--border-primary) !important;
     border-radius: 8px !important;
     font-size: 14px !important;
     transition: all 0.3s ease !important;
-    background: white !important;
-    color: #1e293b !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
     box-sizing: border-box !important;
 }
 
@@ -118,28 +142,28 @@ div.url-item input.url-input {
 .url-list .url-input:focus,
 div.url-item input.url-input:focus {
     outline: none !important;
-    border-color: #4f46e5 !important;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+    border-color: var(--primary) !important;
+    box-shadow: var(--ring) !important;
 }
 
 #emby-settings .url-input:disabled,
 .url-list .url-input:disabled,
 div.url-item input.url-input:disabled {
-    background-color: #ffffff !important; /* 强制白色背景 */
-    color: #333333 !important; /* 深色文字 */
-    border-color: #dddddd !important;
+    background-color: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-primary) !important;
     opacity: 0.7 !important;
 }
 
 .url-input::placeholder {
-    color: #999;
+    color: var(--text-muted);
     font-style: italic;
 }
 
 .remove-url-btn {
     padding: 6px 8px;
-    background-color: #f44336;
-    color: white;
+    background-color: var(--error);
+    color: var(--text-inverse);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -152,7 +176,7 @@ div.url-item input.url-input:disabled {
 }
 
 .remove-url-btn:hover {
-    background-color: #d32f2f;
+    background-color: var(--error-hover);
 }
 
 .remove-url-btn:active {
@@ -169,27 +193,27 @@ div.url-item input.url-input:disabled {
 }
 
 .test-success {
-    background-color: #e8f5e8;
-    color: #2e7d32;
-    border: 1px solid #c8e6c9;
+    background-color: var(--success-light);
+    color: var(--success);
+    border: 1px solid var(--success);
 }
 
 .test-failure {
-    background-color: #ffebee;
-    color: #c62828;
-    border: 1px solid #ffcdd2;
+    background-color: var(--error-light);
+    color: var(--error);
+    border: 1px solid var(--error);
 }
 
 .test-error {
-    background-color: #fff3e0;
-    color: #ef6c00;
-    border: 1px solid #ffb74d;
+    background-color: var(--warning-light);
+    color: var(--warning);
+    border: 1px solid var(--warning);
 }
 
 /* 帮助内容样式 */
 .help-content {
-    background-color: #f5f5f5;
-    border: 1px solid #e0e0e0;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 15px;
     margin-top: 10px;
@@ -203,44 +227,45 @@ div.url-item input.url-input:disabled {
 .help-content li {
     margin-bottom: 8px;
     line-height: 1.5;
+    color: var(--text-primary);
 }
 
 .help-content strong {
-    color: #1976d2;
+    color: var(--primary);
 }
 
-/* 设置选择框样式 - 始终白底黑字 */
+/* 设置选择框样式 */
 .setting-select {
     width: 100%;
     padding: 10px 12px;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
-    background: white !important;
-    color: #333333 !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
     box-sizing: border-box;
     min-width: 200px;
     cursor: pointer;
 }
 
 .setting-select:hover {
-    border-color: #cbd5e1;
-    background: white !important;
-    color: #333333 !important;
+    border-color: var(--border-hover);
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 .setting-select:focus {
     outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-    background: white !important;
-    color: #333333 !important;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 .setting-select:disabled {
-    background: white !important;
-    color: #666666 !important;
+    background: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
     cursor: not-allowed;
     opacity: 0.7;
 }
@@ -268,9 +293,10 @@ div.url-item input.url-input:disabled {
 .test-results-container {
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 12px;
+    background: var(--bg-secondary);
 }
 
 .test-case {
@@ -281,24 +307,24 @@ div.url-item input.url-input:disabled {
 }
 
 .test-case.test-success {
-    background-color: #f0f9ff;
-    border-left-color: #10b981;
+    background-color: var(--success-light);
+    border-left-color: var(--success);
 }
 
 .test-case.test-failure {
-    background-color: #fef2f2;
-    border-left-color: #ef4444;
+    background-color: var(--error-light);
+    border-left-color: var(--error);
 }
 
 .test-case-header {
     font-weight: 600;
     margin-bottom: 8px;
-    color: #1e293b;
+    color: var(--text-primary);
 }
 
 .test-case-details {
     font-size: 13px;
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .test-case-details > div {
@@ -307,10 +333,11 @@ div.url-item input.url-input:disabled {
 
 .test-url {
     font-family: monospace;
-    background: #f8fafc;
+    background: var(--bg-hover);
     padding: 4px 8px;
     border-radius: 4px;
     word-break: break-all;
+    color: var(--text-primary);
 }
 
 .test-summary {
@@ -322,37 +349,19 @@ div.url-item input.url-input:disabled {
 }
 
 .test-summary.test-success {
-    background-color: #dcfce7;
-    color: #166534;
+    background-color: var(--success-light);
+    color: var(--success);
 }
 
 .test-summary.test-warning {
-    background-color: #fef3c7;
-    color: #92400e;
-}
-
-.test-success {
-    background-color: #dcfce7;
-    color: #166534;
-    border: 1px solid #bbf7d0;
+    background-color: var(--warning-light);
+    color: var(--warning);
 }
 
 .test-info {
-    background-color: #f0f9ff;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
-}
-
-.test-failure {
-    background-color: #fecaca;
-    color: #dc2626;
-    border: 1px solid #fca5a5;
-}
-
-.test-error {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fca5a5;
+    background-color: var(--info-light);
+    color: var(--info);
+    border: 1px solid var(--info);
 }
 
 /* 按钮样式 */
@@ -376,21 +385,21 @@ div.url-item input.url-input:disabled {
 }
 
 .btn-primary {
-    background-color: #1976d2;
-    color: white;
+    background-color: var(--primary);
+    color: var(--text-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background-color: #1565c0;
+    background-color: var(--primary-hover);
 }
 
 .btn-secondary {
-    background-color: #757575;
-    color: white;
+    background-color: var(--text-secondary);
+    color: var(--text-inverse);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background-color: #616161;
+    background-color: var(--text-primary);
 }
 
 /* 响应式设计 */
@@ -462,7 +471,7 @@ div.url-item input.url-input:disabled {
     content: "暂无配置的网址模式，点击下方按钮添加";
     display: block;
     text-align: center;
-    color: #999;
+    color: var(--text-muted);
     font-style: italic;
     padding: 20px;
 }
@@ -473,15 +482,15 @@ div.url-item input.url-input:disabled {
 }
 
 .url-list::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--bg-hover);
     border-radius: 3px;
 }
 
 .url-list::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--border-hover);
     border-radius: 3px;
 }
 
 .url-list::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: var(--text-muted);
 }

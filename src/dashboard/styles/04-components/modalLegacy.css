@@ -1797,7 +1797,7 @@ body.modal-open {
 }
 
 .settings-content code {
-    color: #1a202c !important;
+    color: var(--text-primary) !important;
     background: transparent !important;
 }
 
