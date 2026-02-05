@@ -56,7 +56,7 @@ export async function initializeGlobalState(): Promise<void> {
                 // 2. Correct the icon path for default engines if they are using a remote URL
                 // 只修复使用远程URL的图标，不要覆盖用户的自定义设置
                 if (currentEngine.name === 'JavDB' && currentEngine.icon && currentEngine.icon.startsWith('http')) {
-                    currentEngine.icon = 'assets/favicon-32x32.png';
+                    currentEngine.icon = 'assets/favicons/light/favicon-32x32.png';
                     hasChanged = true;
                 }
                 if (currentEngine.name === 'Javbus' && currentEngine.icon && currentEngine.icon.startsWith('http')) {

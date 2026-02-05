@@ -178,7 +178,7 @@ export class NewWorksScheduler {
 
             await chrome.notifications.create(notificationId, {
                 type: 'basic',
-                iconUrl: chrome.runtime.getURL('assets/favicon-48x48.png'),
+                iconUrl: chrome.runtime.getURL('assets/favicons/light/favicon-48x48.png'),
                 title: 'Jav 助手 - 新作品提醒',
                 message: `发现 ${count} 个新作品，点击查看详情`,
                 priority: 1,
