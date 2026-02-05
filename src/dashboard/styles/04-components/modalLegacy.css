@@ -3337,43 +3337,43 @@ body.modal-open {
 
 .form-group-checkbox {
     position: relative;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
     padding: 16px;
     transition: all 0.3s ease;
-    background: #ffffff;
+    background: var(--surface-primary);
 }
 
 .form-group-checkbox.available:has(input:checked) {
-    border-color: #28a745;
-    background: linear-gradient(135deg, #f8fff8 0%, #f0fff0 100%);
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+    border-color: var(--success);
+    background: var(--success-light);
+    box-shadow: var(--shadow-sm);
 }
 /* 未勾选时灰色基调（不影响 unavailable/warning）*/
 .form-group-checkbox:not(:has(input:checked)):not(.unavailable):not(.warning) {
-    border-color: #e2e8f0;
-    background: #f8fafc;
+    border-color: var(--border-primary);
+    background: var(--bg-secondary);
 }
 
 .form-group-checkbox.available:hover {
-    border-color: #218838;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+    border-color: var(--success-hover);
+    box-shadow: var(--shadow-md);
 }
 
 .form-group-checkbox.warning {
-    border-color: #ffc107;
-    background: linear-gradient(135deg, #fffdf0 0%, #fff8e1 100%);
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+    border-color: var(--warning);
+    background: var(--warning-light);
+    box-shadow: var(--shadow-sm);
 }
 
 .form-group-checkbox.warning:hover {
-    border-color: #e0a800;
-    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+    border-color: var(--warning-hover);
+    box-shadow: var(--shadow-md);
 }
 
 .form-group-checkbox.unavailable {
-    border-color: #dc3545;
-    background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%);
+    border-color: var(--error);
+    background: var(--error-light);
     opacity: 0.7;
     cursor: not-allowed;
 }
@@ -3396,7 +3396,7 @@ body.modal-open {
     display: flex;
     align-items: center;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     cursor: pointer;
     margin-bottom: 8px;
     font-size: 14px;
