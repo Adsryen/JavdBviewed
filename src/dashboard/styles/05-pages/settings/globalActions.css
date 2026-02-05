@@ -15,6 +15,17 @@
     --global-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 深色主题下的全局操作变量 */
+[data-theme="dark"] {
+    --global-bg: #1e293b;
+    --global-card-bg: #334155;
+    --global-border: #475569;
+    --global-text: #f1f5f9;
+    --global-text-muted: #94a3b8;
+    --global-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --global-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* 全局操作设置面板特有样式 */
 #global-actions {
     position: relative;
@@ -29,9 +40,10 @@
     right: 0;
     height: 200px;
     background: linear-gradient(135deg,
-        rgba(16, 185, 129, 0.05) 0%,
-        rgba(52, 211, 153, 0.05) 50%,
-        rgba(167, 243, 208, 0.05) 100%);
+        var(--global-bg) 0%,
+        var(--global-bg) 50%,
+        var(--global-bg) 100%);
+    opacity: 0.5;
     z-index: -1;
     border-radius: 20px;
 }
@@ -43,7 +55,7 @@
 }
 
 #global-actions .settings-panel-header h3 {
-    color: var(--global-primary);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,7 +73,7 @@
 }
 
 #global-actions .settings-description {
-    color: var(--global-text-muted);
+    color: var(--text-secondary);
     font-size: 16px;
     margin-bottom: 0;
     max-width: 600px;
@@ -123,57 +135,57 @@
     gap: 0.5rem;
 }
 
-#global-actions-settings .btn-danger {
-    background: var(--danger-color);
+#global-actions .btn-danger {
+    background: var(--error);
     color: white;
 }
 
-#global-actions-settings .btn-danger:hover {
-    background: var(--danger-hover-color);
+#global-actions .btn-danger:hover {
+    background: var(--error-hover);
 }
 
-#global-actions-settings .btn-primary {
-    background: var(--primary-color);
+#global-actions .btn-primary {
+    background: var(--primary);
     color: white;
 }
 
-#global-actions-settings .btn-primary:hover {
-    background: var(--primary-hover-color);
+#global-actions .btn-primary:hover {
+    background: var(--primary-hover);
 }
 
-#global-actions-settings .btn-secondary {
+#global-actions .btn-secondary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
-#global-actions-settings .btn-secondary:hover {
-    background: var(--bg-primary);
+#global-actions .btn-secondary:hover {
+    background: var(--bg-hover);
 }
 
-#global-actions-settings .btn-warning {
-    background: var(--warning-color);
+#global-actions .btn-warning {
+    background: var(--warning);
     color: white;
 }
 
-#global-actions-settings .btn-warning:hover {
-    background: var(--warning-hover-color);
+#global-actions .btn-warning:hover {
+    background: var(--warning-hover);
 }
 
-#global-actions-settings button:disabled {
+#global-actions button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
-#global-actions-settings .stats-section {
+#global-actions .stats-section {
     background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
 }
 
-#global-actions-settings .stats-section h4 {
+#global-actions .stats-section h4 {
     margin: 0 0 1rem 0;
     color: var(--text-primary);
     font-weight: 600;
@@ -188,15 +200,15 @@
 #global-actions .stat-item {
     text-align: center;
     padding: 1rem;
-    background: var(--bg-primary);
+    background: var(--surface-primary);
     border-radius: 6px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
 #global-actions .stat-number {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary);
     margin-bottom: 0.5rem;
 }
 
@@ -207,11 +219,11 @@
 }
 
 #global-actions .warning-section {
-    background: var(--warning-bg-color);
-    color: var(--warning-color);
+    background: var(--warning-light);
+    color: var(--warning);
     padding: 1rem;
     border-radius: 6px;
-    border-left: 4px solid var(--warning-color);
+    border-left: 4px solid var(--warning);
     margin-bottom: 1.5rem;
 }
 
@@ -237,19 +249,19 @@
 }
 
 #global-actions .data-management {
-    border-left: 4px solid var(--info-color);
+    border-left: 4px solid var(--info);
 }
 
 #global-actions .cache-management {
-    border-left: 4px solid var(--warning-color);
+    border-left: 4px solid var(--warning);
 }
 
 #global-actions .danger-zone {
-    border-left: 4px solid var(--danger-color);
+    border-left: 4px solid var(--error);
 }
 
 #global-actions .danger-zone h4 {
-    color: var(--danger-color);
+    color: var(--error);
 }
 
 @media (max-width: 768px) {

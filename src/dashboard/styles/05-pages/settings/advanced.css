@@ -2,6 +2,50 @@
  * 高级配置设置面板样式
  */
 
+/* CSS变量定义 */
+:root {
+    --bg-code: #f8f9fa;
+    --text-code: #212529;
+    --bg-code-readonly: #e9ecef;
+    --text-code-readonly: #6c757d;
+    --bg-code-editable: #ffffff;
+    --text-code-editable: #212529;
+    --primary-color: #3b82f6;
+    --primary-hover-color: #2563eb;
+    --success-color: #22c55e;
+    --success-hover-color: #16a34a;
+    --warning-color: #f59e0b;
+    --warning-hover-color: #d97706;
+    --danger-color: #ef4444;
+    --danger-hover-color: #dc2626;
+    --info-color: #14b8a6;
+    --info-hover-color: #0d9488;
+    --warning-bg-color: #fef3c7;
+    --info-bg-color: #ccfbf1;
+}
+
+/* 深色主题下的高级配置变量 */
+[data-theme="dark"] {
+    --bg-code: #1e293b;
+    --text-code: #f1f5f9;
+    --bg-code-readonly: #334155;
+    --text-code-readonly: #94a3b8;
+    --bg-code-editable: #1e293b;
+    --text-code-editable: #f1f5f9;
+    --primary-color: #60a5fa;
+    --primary-hover-color: #3b82f6;
+    --success-color: #4ade80;
+    --success-hover-color: #22c55e;
+    --warning-color: #fbbf24;
+    --warning-hover-color: #f59e0b;
+    --danger-color: #f87171;
+    --danger-hover-color: #ef4444;
+    --info-color: #2dd4bf;
+    --info-hover-color: #14b8a6;
+    --warning-bg-color: #78350f;
+    --info-bg-color: #134e4a;
+}
+
 /* 高级配置设置面板特有样式 */
 #advanced-settings {
     /* 面板特有样式可以在这里定义 */
@@ -9,7 +53,7 @@
 
 #advanced-settings .advanced-section {
     background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
@@ -64,10 +108,10 @@
     width: 100%;
     min-height: 300px;
     padding: 1rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
-    background: #161b22;
-    color: #8b949e;
+    background: var(--bg-code);
+    color: var(--text-code);
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 0.85rem;
     line-height: 1.4;
@@ -84,21 +128,21 @@
 }
 
 #advanced-settings .json-config-textarea[readonly] {
-    background: #161b22;
-    color: #8b949e;
+    background: var(--bg-code-readonly);
+    color: var(--text-code-readonly);
     cursor: default;
 }
 
 #advanced-settings .json-config-textarea:not([readonly]) {
-    background: #0d1117;
-    color: #c9d1d9;
+    background: var(--bg-code-editable);
+    color: var(--text-code-editable);
 }
 
 #advanced-settings .raw-data-textarea {
     width: 100%;
     min-height: 200px;
     padding: 1rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
     background: var(--bg-tertiary);
     color: var(--text-primary);
@@ -144,7 +188,7 @@
 #advanced-settings .btn-secondary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
 #advanced-settings .btn-secondary:hover {
@@ -200,7 +244,7 @@
     background: var(--bg-tertiary);
     padding: 1rem;
     border-radius: 6px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
 #advanced-settings .actor-stats h5 {
@@ -221,7 +265,7 @@
 
 #advanced-settings .data-structure-result {
     background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     padding: 1rem;
     margin-top: 1rem;
@@ -245,10 +289,10 @@
 
 #advanced-settings .warning-notice {
     background: var(--warning-bg-color);
-    color: var(--warning-color);
+    color: var(--warning);
     padding: 1rem;
     border-radius: 6px;
-    border-left: 4px solid var(--warning-color);
+    border-left: 4px solid var(--warning);
     margin-bottom: 1.5rem;
 }
 
@@ -265,10 +309,10 @@
 
 #advanced-settings .info-notice {
     background: var(--info-bg-color);
-    color: var(--info-color);
+    color: var(--info);
     padding: 1rem;
     border-radius: 6px;
-    border-left: 4px solid var(--info-color);
+    border-left: 4px solid var(--info);
     margin-bottom: 1.5rem;
 }
 

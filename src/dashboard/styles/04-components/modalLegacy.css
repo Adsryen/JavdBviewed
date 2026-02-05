@@ -50,7 +50,7 @@
     align-items: center;
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #e8e8e8;
+    border-bottom: 1px solid var(--border-primary);
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     color: white;
 }
@@ -262,7 +262,7 @@ body.modal-open {
 }
 
 .modal-content {
-    background: #2c2c2c;
+    background: var(--surface-primary);
     padding: 25px;
     border-radius: 8px;
     width: 90%;
@@ -284,8 +284,8 @@ body.modal-open {
 /* ================= Data View Modal (Light Theme) ================ */
 /* 覆盖默认暗色样式，使“数据查看弹窗”符合整体浅色系 */
 .modal-content.data-view-modal {
-    background: #ffffff !important;
-    color: #2c3e50;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary);
     padding: 0; /* 使用内部结构的头/身/脚布局 */
     width: 95%;
     max-width: 920px;
@@ -295,21 +295,21 @@ body.modal-open {
 }
 
 .data-view-modal .modal-header {
-    background: linear-gradient(135deg, #eef2ff 0%, #e9d5ff 100%) !important; /* 柔和浅色而非深色 */
-    color: #374151 !important;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--primary-light) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .data-view-modal .modal-header h3 {
-    color: #1f2937 !important;
+    color: var(--text-primary) !important;
 }
 
 .data-view-modal .modal-close {
-    color: #4b5563 !important;
+    color: var(--text-secondary) !important;
 }
 
 .data-view-modal .modal-body {
-    background: #ffffff;
+    background: var(--surface-primary);
     padding: 16px 16px 0 16px;
 }
 
@@ -328,7 +328,7 @@ body.modal-open {
 }
 
 .data-view-modal .data-info-text {
-    color: #6b7280;
+    color: var(--text-muted);
     font-size: 12px;
 }
 
@@ -344,8 +344,8 @@ body.modal-open {
 }
 
 .data-view-modal .data-filter-sidebar {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 10px;
     padding: 10px 10px 12px 10px;
 }
@@ -353,7 +353,7 @@ body.modal-open {
 .data-view-modal .data-filter-sidebar .filter-header {
     font-size: 13px;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-primary);
     margin-bottom: 8px;
 }
 
@@ -361,10 +361,12 @@ body.modal-open {
     width: 100%;
     box-sizing: border-box;
     padding: 8px 10px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     font-size: 12px;
     outline: none;
+    background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 .data-view-modal .data-filter-sidebar .filter-search:focus {
@@ -379,9 +381,9 @@ body.modal-open {
 }
 
 .data-view-modal .data-filter-sidebar .btn-mini {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-primary);
     background: var(--surface-primary);
-    color: #374151;
+    color: var(--text-primary);
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 12px;
@@ -389,13 +391,13 @@ body.modal-open {
 }
 
 .data-view-modal .data-filter-sidebar .btn-mini:hover {
-    background: #f9fafb;
+    background: var(--bg-hover);
 }
 
 .data-view-modal .data-filter-sidebar .filter-list {
     max-height: 50vh;
     overflow: auto;
-    border: 1px dashed #e5e7eb;
+    border: 1px dashed var(--border-primary);
     border-radius: 8px;
     padding: 6px;
 }
@@ -411,7 +413,7 @@ body.modal-open {
 }
 
 .data-view-modal .data-filter-sidebar .filter-item:hover {
-    background: #f9fafb;
+    background: var(--bg-hover);
 }
 
 .data-view-modal .data-filter-sidebar .filter-item input[type="checkbox"] {
@@ -423,15 +425,15 @@ body.modal-open {
 .data-view-modal .data-filter-sidebar .filter-hint {
     margin-top: 8px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--text-muted);
 }
 
 .data-view-modal #dataViewTextarea {
     width: 100%;
     min-height: 55vh;
-    background: #ffffff;
-    color: #1f2937;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 10px;
     padding: 14px 12px;
     box-sizing: border-box;
@@ -446,20 +448,20 @@ body.modal-open {
     width: 10px;
 }
 .data-view-modal #dataViewTextarea::-webkit-scrollbar-track {
-    background: #f3f4f6;
+    background: var(--bg-tertiary);
     border-radius: 8px;
 }
 .data-view-modal #dataViewTextarea::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--border-hover);
     border-radius: 8px;
-    border: 2px solid #f3f4f6;
+    border: 2px solid var(--bg-tertiary);
 }
 .data-view-modal #dataViewTextarea::-webkit-scrollbar-thumb:hover {
-    background: #a5b4fc;
+    background: var(--primary);
 }
 
 .data-view-modal #dataViewTextarea:read-only {
-    background: #fafafa;
+    background: var(--bg-tertiary);
 }
 
 .data-view-modal #dataViewTextarea:focus {
@@ -469,19 +471,19 @@ body.modal-open {
 
 .data-view-modal .modal-footer {
     padding: 14px 16px 18px 16px;
-    border-top: 1px solid #f3f4f6;
-    background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+    border-top: 1px solid var(--border-primary);
+    background: var(--surface-secondary);
 }
 
 /* 统一按钮在浅色背景下的观感（不改变全局按钮语义） */
 .data-view-modal .btn.btn-outline {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    color: #374151;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
 }
 
 .data-view-modal .btn.btn-outline:hover {
-    background: #f9fafb;
+    background: var(--bg-hover);
 }
 
 /* 新作品配置弹窗的动画效果 */
@@ -491,14 +493,14 @@ body.modal-open {
 
 .modal-content h3 {
     margin-top: 0;
-    color: #e0e0e0;
-    border-bottom: 1px solid #444;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-primary);
     padding-bottom: 10px;
     margin-bottom: 15px;
 }
 
 .modal-content p {
-    color: #ccc;
+    color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 25px;
     white-space: pre-wrap; /* Allows line breaks like \n to be rendered */
