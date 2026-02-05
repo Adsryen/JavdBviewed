@@ -1,6 +1,6 @@
 /* AI设置页面样式 */
 
-/* CSS变量定义 */
+/* CSS变量定义 - 浅色主题 */
 :root {
     --ai-primary: #8b5cf6;
     --ai-secondary: #a78bfa;
@@ -11,6 +11,19 @@
     --ai-text-muted: #64748b;
     --ai-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --ai-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* CSS变量定义 - 深色主题 */
+[data-theme="dark"] {
+    --ai-primary: #a78bfa;
+    --ai-secondary: #c4b5fd;
+    --ai-bg: #1e1b4b;
+    --ai-card-bg: #312e81;
+    --ai-border: #4c1d95;
+    --ai-text: #e0e7ff;
+    --ai-text-muted: #a5b4fc;
+    --ai-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --ai-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* AI设置面板特有样式 */
@@ -34,6 +47,13 @@
     border-radius: 20px;
 }
 
+[data-theme="dark"] #ai-settings::before {
+    background: linear-gradient(135deg,
+        rgba(167, 139, 250, 0.08) 0%,
+        rgba(196, 181, 253, 0.08) 50%,
+        rgba(221, 214, 254, 0.08) 100%);
+}
+
 #ai-settings .settings-panel-header {
     position: relative;
     padding: 20px 0;
@@ -49,7 +69,11 @@
     font-size: 28px;
     font-weight: 700;
     margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 2px 4px rgba(139, 92, 246, 0.1);
+}
+
+[data-theme="dark"] #ai-settings .settings-panel-header h3 {
+    text-shadow: 0 2px 4px rgba(167, 139, 250, 0.2);
 }
 
 #ai-settings .settings-panel-header h3::before {
@@ -69,15 +93,15 @@
 
 /* AI设置面板 */
 #ai-settings {
-    --ai-primary-color: #4f46e5;
-    --ai-secondary-color: #6366f1;
-    --ai-success-color: #10b981;
-    --ai-warning-color: #f59e0b;
-    --ai-error-color: #ef4444;
-    --ai-bg-color: #f8fafc;
-    --ai-border-color: #e2e8f0;
-    --ai-text-color: #1e293b;
-    --ai-text-muted: #64748b;
+    --ai-primary-color: var(--primary);
+    --ai-secondary-color: var(--primary-hover);
+    --ai-success-color: var(--success);
+    --ai-warning-color: var(--warning);
+    --ai-error-color: var(--error);
+    --ai-bg-color: var(--bg-secondary);
+    --ai-border-color: var(--border-primary);
+    --ai-text-color: var(--text-primary);
+    --ai-text-muted: var(--text-secondary);
 }
 
 /* 原有的标题样式已在上方重新定义 */
@@ -134,8 +158,8 @@
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
-    background: white;
-    color: var(--ai-text-color, #333);
+    background: var(--surface-primary);
+    color: var(--ai-text-color);
     box-sizing: border-box;
 }
 
@@ -145,7 +169,7 @@
 #ai-settings .textarea-input:focus {
     outline: none;
     border-color: var(--ai-primary-color);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: var(--ring);
 }
 
 /* 范围滑块样式 */
@@ -168,7 +192,7 @@
     border-radius: 50%;
     background: var(--ai-primary-color);
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 #ai-settings .range-input::-moz-range-thumb {
@@ -178,7 +202,7 @@
     background: var(--ai-primary-color);
     cursor: pointer;
     border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 /* 内联表单组 */
@@ -231,70 +255,70 @@
 
 #ai-settings .btn-primary {
     background: var(--ai-primary-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #ai-settings .btn-primary:hover {
     background: var(--ai-secondary-color);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 #ai-settings .btn-secondary {
-    background: var(--ai-border-color);
+    background: var(--bg-hover);
     color: var(--ai-text-color);
 }
 
 #ai-settings .btn-secondary:hover {
-    background: #cbd5e1;
+    background: var(--border-hover);
 }
 
 /* 导出按钮 - 绿色 */
 #ai-settings .btn-export {
     background: var(--ai-success-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #ai-settings .btn-export:hover {
-    background: #059669;
+    background: var(--success-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 /* 导入按钮 - 蓝色 */
 #ai-settings .btn-import {
-    background: #3b82f6;
-    color: white;
+    background: var(--primary);
+    color: var(--text-inverse);
 }
 
 #ai-settings .btn-import:hover {
-    background: #2563eb;
+    background: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 /* 清除按钮 - 橙色 */
 #ai-settings .btn-clear {
     background: var(--ai-warning-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #ai-settings .btn-clear:hover {
-    background: #d97706;
+    background: var(--warning-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 /* 重置按钮 - 红色 */
 #ai-settings .btn-reset {
     background: var(--ai-error-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #ai-settings .btn-reset:hover {
-    background: #dc2626;
+    background: var(--error-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 #ai-settings .btn:disabled {
@@ -316,26 +340,26 @@
 }
 
 .connection-status.success {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     border: 1px solid var(--ai-success-color);
     color: var(--ai-success-color);
 }
 
 .connection-status.error {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-light);
     border: 1px solid var(--ai-error-color);
     color: var(--ai-error-color);
 }
 
 .connection-status.loading {
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--warning-light);
     border: 1px solid var(--ai-warning-color);
     color: var(--ai-warning-color);
 }
 
 /* 模型信息 */
 .model-info {
-    background: white;
+    background: var(--surface-primary);
     border: 1px solid var(--ai-border-color);
     border-radius: 8px;
     padding: 15px;
@@ -371,7 +395,7 @@
 
 /* 模型统计 */
 .model-stats {
-    background: white;
+    background: var(--surface-primary);
     border: 1px solid var(--ai-border-color);
     border-radius: 8px;
     padding: 15px;
@@ -412,7 +436,7 @@
 
 /* 测试结果 */
 .test-result {
-    background: white;
+    background: var(--surface-primary);
     border: 1px solid var(--ai-border-color);
     border-radius: 8px;
     padding: 15px;
@@ -429,7 +453,7 @@
 
 .test-result .message.user {
     background: var(--ai-primary-color);
-    color: white;
+    color: var(--text-inverse);
     margin-left: 20%;
 }
 
@@ -441,7 +465,7 @@
 
 .test-result .message.system {
     background: var(--ai-warning-color);
-    color: white;
+    color: var(--text-inverse);
     text-align: center;
     margin: 0;
 }
@@ -477,17 +501,17 @@
 }
 
 .health-indicator.healthy {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     color: var(--ai-success-color);
 }
 
 .health-indicator.unhealthy {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-light);
     color: var(--ai-error-color);
 }
 
 .health-indicator.checking {
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--warning-light);
     color: var(--ai-warning-color);
 }
 
@@ -499,7 +523,7 @@
     font-size: 11px;
     font-weight: 500;
     background: var(--ai-primary-color);
-    color: white;
+    color: var(--text-inverse);
     margin-left: 8px;
 }
 
@@ -517,7 +541,7 @@
 }
 
 .capability-tag.supported {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     color: var(--ai-success-color);
 }
 
@@ -610,19 +634,19 @@
 }
 
 .validation-status.valid {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     color: var(--ai-success-color);
 }
 
 .validation-status.invalid {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-light);
     color: var(--ai-error-color);
 }
 
 /* 自动保存状态 */
 .auto-save-info {
-    background: rgba(79, 70, 229, 0.05);
-    border: 1px solid rgba(79, 70, 229, 0.2);
+    background: var(--primary-light);
+    border: 1px solid var(--ai-primary-color);
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 20px;
@@ -651,22 +675,22 @@
 }
 
 .auto-save-status.saving {
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--warning-light);
     color: var(--ai-warning-color);
 }
 
 .auto-save-status.saved {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     color: var(--ai-success-color);
 }
 
 .auto-save-status.error {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-light);
     color: var(--ai-error-color);
 }
 
 .auto-save-status.idle {
-    background: rgba(16, 185, 129, 0.1);
+    background: var(--success-light);
     color: var(--ai-success-color);
 }
 
