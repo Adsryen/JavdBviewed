@@ -44,7 +44,59 @@
 .task-action-group {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 搜索框组 */
+.task-search-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+/* 按钮组 */
+.task-buttons-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.task-search-input {
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.task-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--ring);
+}
+
+.task-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.task-search-group .button-like.secondary {
+  padding: 8px 10px;
+  min-width: auto;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.task-search-group .button-like.secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .task-action-group .button-like.danger {
