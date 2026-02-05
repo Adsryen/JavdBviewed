@@ -1382,7 +1382,7 @@ textarea.textarea-input {
 .settings-section h4 {
     font-size: 16px;
     margin: 20px 0 10px 0;
-    color: #495057;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -1469,7 +1469,7 @@ textarea.textarea-input {
 
 .ping-summary .stat-label {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     font-weight: 500;
     margin-bottom: 4px;
     text-transform: uppercase;
@@ -1498,7 +1498,7 @@ textarea.textarea-input {
     margin: 8px 0;
     font-size: 14px;
     line-height: 1.5;
-    color: #495057;
+    color: var(--text-secondary);
 }
 
 /* Global Actions Styles */
@@ -1512,7 +1512,7 @@ textarea.textarea-input {
 
 #global-actions .settings-section h4 {
     margin-bottom: 15px;
-    color: #495057;
+    color: var(--text-primary);
     font-weight: 600;
     font-size: 16px;
     display: flex;
@@ -1591,12 +1591,12 @@ textarea.textarea-input {
 #global-actions .input-description {
     font-size: 13px;
     line-height: 1.5;
-    color: #6c757d;
+    color: var(--text-muted);
     margin: 0;
 }
 
 #global-actions .input-description strong {
-    color: #495057;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -1921,7 +1921,7 @@ textarea.textarea-input {
 
 .translation-config h5 {
     margin: 0 0 10px 0;
-    color: #495057;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1961,7 +1961,7 @@ textarea.textarea-input {
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .translation-provider-config .text-input,
@@ -2068,7 +2068,7 @@ textarea.textarea-input {
 
 .filter-rules-header span {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .btn-secondary {
@@ -2152,7 +2152,7 @@ textarea.textarea-input {
 .info-box ol li {
     margin-bottom: 5px;
     font-size: 13px;
-    color: #495057;
+    color: var(--text-secondary);
 }
 
 /* 过滤规则项样式 - 优化紧凑版 */
@@ -2318,7 +2318,7 @@ input:checked + .toggle-slider:before {
     margin-bottom: 3px;
     font-weight: 500;
     font-size: 12px;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .rule-keyword, .rule-action-select {
@@ -2566,7 +2566,7 @@ input:checked + .toggle-slider:before {
 
 /* 功能描述样式 */
 #enhancement-settings .input-description {
-    color: #6c757d;
+    color: var(--text-muted);
     font-size: 14px;
     line-height: 1.5;
     margin: 0;
@@ -2624,7 +2624,7 @@ input:checked + .toggle-slider:before {
     margin: 0 0 5px 0;
     font-size: 14px;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -2633,7 +2633,7 @@ input:checked + .toggle-slider:before {
 #enhancement-settings .sub-description {
     margin: 0;
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     line-height: 1.4;
 }
 
@@ -2758,7 +2758,7 @@ input:checked + .toggle-slider:before {
 }
 
 .logging-section .section-description {
-    color: #6c757d;
+    color: var(--text-muted);
     font-size: 14px;
     line-height: 1.6;
     margin-bottom: 20px;
@@ -2858,7 +2858,7 @@ input:checked + .toggle-slider:before {
     transition: background 0.2s ease;
     border-radius: 6px;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .log-module-group .form-group-checkbox label:hover {
@@ -2879,7 +2879,7 @@ input:checked + .toggle-slider:before {
 .log-desc {
     display: block;
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     font-weight: normal;
     margin-top: 2px;
     margin-left: 26px;
@@ -2928,7 +2928,7 @@ input:checked + .toggle-slider:before {
 .log-tree-desc {
     margin-left: auto;
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     font-weight: normal;
 }
 
@@ -2979,7 +2979,7 @@ input:checked + .toggle-slider:before {
 .log-tree-item .item-name {
     font-weight: 500;
     font-size: 13px;
-    color: #495057;
+    color: var(--text-primary);
     flex-shrink: 0;
 }
 
@@ -2998,7 +2998,7 @@ input:checked + .toggle-slider:before {
 
 .log-tree-item .item-desc {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     margin-left: auto;
     padding-left: 12px;
     text-align: right;
@@ -3042,19 +3042,19 @@ input:checked + .toggle-slider:before {
 
 .log-help-content li {
     font-size: 13px;
-    color: #495057;
+    color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 4px;
 }
 
 .log-help-content code {
-    background: #ffffff;
+    background: var(--bg-secondary);
     padding: 2px 6px;
     border-radius: 3px;
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    color: #d63384;
-    border: 1px solid #dee2e6;
+    color: var(--error);
+    border: 1px solid var(--border-primary);
 }
 
 /* 复选框网格布局 */
@@ -3088,7 +3088,7 @@ input:checked + .toggle-slider:before {
     margin: 0;
     cursor: pointer;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
 }
 
 .log-format .form-group-checkbox input[type="checkbox"] {
@@ -3110,7 +3110,7 @@ input:checked + .toggle-slider:before {
 .logging-section .form-group label {
     display: block;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     margin-bottom: 8px;
     font-size: 14px;
 }
@@ -3135,7 +3135,7 @@ input:checked + .toggle-slider:before {
 
 .logging-section .input-description {
     font-size: 13px;
-    color: #6c757d;
+    color: var(--text-muted);
     margin-top: 6px;
     line-height: 1.5;
 }

@@ -74,8 +74,8 @@
     margin: 0 0 10px 0;
 }
 #log {
-    background: #2b2b2b;
-    color: #f1f1f1;
+    background: var(--bg-code);
+    color: var(--text-code);
     padding: 15px;
     border-radius: 8px;
     max-height: 200px;
@@ -96,14 +96,14 @@
     gap: 15px;
     margin-bottom: 20px;
     padding: 10px;
-    background-color: #f7f9fc;
+    background-color: var(--bg-tertiary);
     border-radius: 8px;
-    border: 1px solid #e8e8e8;
+    border: 1px solid var(--border-primary);
 }
 
 .filters label {
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
     font-size: 14px;
     margin: 0;
 }
@@ -195,7 +195,7 @@
     border-radius: 12px;
     font-size: 12px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-inverse);
     flex-shrink: 0;
 }
 
@@ -418,30 +418,30 @@
 }
 
 #log-settings .btn-primary {
-    background: #28a745 !important;
-    color: white !important;
+    background: var(--success) !important;
+    color: var(--text-inverse) !important;
 }
 
 #log-settings .btn-primary:hover {
-    background: #218838 !important;
+    background: var(--success-hover) !important;
 }
 
 #log-settings .btn-secondary {
-    background: #6c757d !important;
-    color: white !important;
+    background: var(--secondary) !important;
+    color: var(--text-inverse) !important;
 }
 
 #log-settings .btn-secondary:hover {
-    background: #5a6268 !important;
+    background: var(--secondary-hover) !important;
 }
 
 #log-settings .btn-info {
-    background: #17a2b8 !important;
-    color: white !important;
+    background: var(--info) !important;
+    color: var(--text-inverse) !important;
 }
 
 #log-settings .btn-info:hover {
-    background: #138496 !important;
+    background: var(--info-hover) !important;
 }
 
 #log-settings .btn-danger {
@@ -523,26 +523,27 @@
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
+    color: var(--text-inverse);
 }
 
 #log-settings .log-error .log-level {
     background: var(--danger-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #log-settings .log-warn .log-level {
     background: var(--warning-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #log-settings .log-info .log-level {
     background: var(--info-color);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #log-settings .log-debug .log-level {
     background: var(--text-secondary);
-    color: white;
+    color: var(--text-inverse);
 }
 
 #log-settings .log-timestamp {

@@ -2,7 +2,7 @@
  * WebDAV设置面板样式
  */
 
-/* CSS变量定义 */
+/* CSS变量定义 - 浅色主题 */
 :root {
     --webdav-primary: #8b5a2b;
     --webdav-secondary: #a0845c;
@@ -15,6 +15,19 @@
     --webdav-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* CSS变量定义 - 深色主题 */
+[data-theme="dark"] {
+    --webdav-primary: #d4a574;
+    --webdav-secondary: #b8956d;
+    --webdav-bg: #1e293b;
+    --webdav-card-bg: #334155;
+    --webdav-border: #475569;
+    --webdav-text: #f1f5f9;
+    --webdav-text-muted: #cbd5e1;
+    --webdav-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --webdav-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
 /* WebDAV设置面板特有样式 */
 #webdav-settings {
     position: relative;
@@ -23,7 +36,7 @@
 
 /* WebDAV控件容器优化样式 */
 .webdav-controls-container {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: var(--surface-primary);
     border: 1px solid var(--webdav-border);
     border-radius: 12px;
     padding: 20px;
@@ -48,6 +61,10 @@
     border-radius: 12px 12px 0 0;
 }
 
+[data-theme="dark"] .webdav-controls-container::before {
+    opacity: 0.8;
+}
+
 .webdav-controls-container:hover {
     box-shadow: var(--webdav-shadow-hover);
     transform: translateY(-1px);
@@ -68,7 +85,7 @@
 
 .webdav-main-control {
     padding-bottom: 16px;
-    border-bottom: 2px solid rgba(139, 90, 43, 0.1);
+    border-bottom: 2px solid var(--border-primary);
     margin-bottom: 20px;
 }
 
@@ -108,7 +125,7 @@
 
 /* WebDAV子控件样式 */
 .webdav-sub-controls {
-    background: rgba(139, 90, 43, 0.03);
+    background: var(--bg-hover);
     border-radius: 8px;
     padding: 20px;
     margin-top: 0;
@@ -123,21 +140,21 @@
 .webdav-sub-controls.enabled {
     opacity: 1;
     pointer-events: auto;
-    background: rgba(139, 90, 43, 0.05);
+    background: var(--bg-secondary);
 }
 
 /* WebDAV 分区样式 */
 .webdav-section {
-    background: #ffffff;
-    border: 1px solid rgba(139, 90, 43, 0.15);
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 16px;
     transition: all 0.2s ease;
 }
 
 .webdav-section:hover {
-    border-color: rgba(139, 90, 43, 0.3);
-    box-shadow: 0 2px 8px rgba(139, 90, 43, 0.08);
+    border-color: var(--webdav-primary);
+    box-shadow: var(--shadow-sm);
 }
 
 .webdav-section-header {
@@ -149,7 +166,7 @@
     color: var(--webdav-primary);
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(139, 90, 43, 0.1);
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .webdav-section-header i {
@@ -187,13 +204,13 @@
 .webdav-data-range-options .form-group-checkbox {
     margin: 0;
     padding: 8px 12px;
-    background: rgba(139, 90, 43, 0.03);
+    background: var(--bg-hover);
     border-radius: 6px;
     transition: all 0.2s ease;
 }
 
 .webdav-data-range-options .form-group-checkbox:hover {
-    background: rgba(139, 90, 43, 0.08);
+    background: var(--bg-secondary);
 }
 
 .webdav-data-range-options .form-group-checkbox label {
@@ -251,10 +268,10 @@
     align-items: center;
     gap: 8px;
     flex-wrap: nowrap;
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--surface-primary);
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-primary);
     flex: 1;
     min-width: 180px;
 }
@@ -283,10 +300,10 @@
 #webdav-settings .webdav-interval-control input#webdav-sync-interval.number-input {
     width: 60px !important;
     padding: 6px 8px !important;
-    border: 1px solid #d1d5db !important;
+    border: 1px solid var(--border-primary) !important;
     border-radius: 4px !important;
-    background: #ffffff !important;
-    color: #1f2937 !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
     font-size: 14px !important;
     font-weight: 400 !important;
     text-align: center !important;
@@ -299,22 +316,22 @@
 
 #webdav-settings .webdav-interval-control input#webdav-sync-interval.number-input:focus {
     outline: none !important;
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
-    background: #ffffff !important;
-    color: #1f2937 !important;
+    border-color: var(--primary) !important;
+    box-shadow: var(--ring) !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 #webdav-settings .webdav-interval-control input#webdav-sync-interval.number-input:hover {
-    border-color: #9ca3af !important;
-    background: #ffffff !important;
+    border-color: var(--border-hover) !important;
+    background: var(--surface-primary) !important;
 }
 
-/* 确保输入框在任何状态下都保持白底黑字 */
+/* 确保输入框在任何状态下都保持主题色 */
 #webdav-settings .webdav-interval-control input#webdav-sync-interval.number-input:disabled {
-    background: #f9fafb !important;
-    color: #6b7280 !important;
-    border-color: #d1d5db !important;
+    background: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-primary) !important;
 }
 
 .webdav-interval-control .input-suffix,
@@ -340,6 +357,13 @@
     border-radius: 20px;
 }
 
+[data-theme="dark"] #webdav-settings::before {
+    background: linear-gradient(135deg,
+        rgba(212, 165, 116, 0.08) 0%,
+        rgba(184, 149, 109, 0.08) 50%,
+        rgba(160, 132, 92, 0.08) 100%);
+}
+
 #webdav-settings .settings-panel-header {
     position: relative;
     padding: 20px 0;
@@ -355,7 +379,11 @@
     font-size: 28px;
     font-weight: 700;
     margin-bottom: 12px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 2px 4px rgba(139, 90, 43, 0.1);
+}
+
+[data-theme="dark"] #webdav-settings .settings-panel-header h3 {
+    text-shadow: 0 2px 4px rgba(212, 165, 116, 0.2);
 }
 
 #webdav-settings .settings-panel-header h3::before {
@@ -505,12 +533,12 @@
 #webdav-settings .webdav-actions button#diagnoseWebdavConnection,
 #webdav-settings .webdav-actions button#diagnoseWebdavConnection.button-like,
 #webdav-settings button#diagnoseWebdavConnection {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-    color: white !important;
+    background: var(--primary) !important;
+    color: var(--text-inverse) !important;
     border: none !important;
     position: relative !important;
     overflow: hidden !important;
-    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3) !important;
+    box-shadow: var(--shadow-md) !important;
     transition: all 0.3s ease !important;
     opacity: 1 !important;
 }
@@ -531,8 +559,8 @@
 #webdav-settings .webdav-actions button#diagnoseWebdavConnection:hover,
 #webdav-settings .webdav-actions button#diagnoseWebdavConnection.button-like:hover,
 #webdav-settings button#diagnoseWebdavConnection:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4) !important;
+    background: var(--primary-hover) !important;
+    box-shadow: var(--shadow-lg) !important;
     transform: translateY(-1px) !important;
     opacity: 1 !important;
 }
@@ -547,8 +575,8 @@
 #webdav-settings .webdav-actions button#diagnoseWebdavConnection.button-like:active,
 #webdav-settings button#diagnoseWebdavConnection:active {
     transform: translateY(0) !important;
-    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3) !important;
-    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
+    box-shadow: var(--shadow-sm) !important;
+    background: var(--primary-active) !important;
 }
 
 #webdav-settings .webdav-actions #diagnoseWebdavConnection i {
@@ -558,42 +586,42 @@
 
 /* 测试连接按钮优化 */
 #webdav-settings .webdav-actions #testWebdavConnection {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
+    background: var(--success);
+    color: var(--text-inverse);
     border: none;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+    box-shadow: var(--shadow-md);
     transition: all 0.3s ease;
 }
 
 #webdav-settings .webdav-actions #testWebdavConnection:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    background: var(--success-hover);
+    box-shadow: var(--shadow-lg);
     transform: translateY(-1px);
 }
 
 #webdav-settings .webdav-actions #testWebdavConnection:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+    box-shadow: var(--shadow-sm);
 }
 
 /* 保存设置按钮优化 */
 #webdav-settings .webdav-actions #saveWebdavSettings {
-    background: linear-gradient(135deg, var(--webdav-primary) 0%, var(--webdav-secondary) 100%);
-    color: white;
+    background: var(--webdav-primary);
+    color: var(--text-inverse);
     border: none;
-    box-shadow: 0 2px 4px rgba(139, 90, 43, 0.3);
+    box-shadow: var(--shadow-md);
     transition: all 0.3s ease;
 }
 
 #webdav-settings .webdav-actions #saveWebdavSettings:hover {
-    background: linear-gradient(135deg, #6d4423 0%, #8b5a2b 100%);
-    box-shadow: 0 4px 12px rgba(139, 90, 43, 0.4);
+    background: var(--webdav-secondary);
+    box-shadow: var(--shadow-lg);
     transform: translateY(-1px);
 }
 
 #webdav-settings .webdav-actions #saveWebdavSettings:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(139, 90, 43, 0.3);
+    box-shadow: var(--shadow-sm);
 }
 
 #webdav-settings .sync-status {
@@ -643,7 +671,7 @@
     border: none !important;
     cursor: pointer !important;
     padding: 6px !important;
-    color: #64748b !important;
+    color: var(--text-secondary) !important;
     transition: all 0.2s ease !important;
     z-index: 100 !important;
     display: flex !important;
@@ -657,14 +685,14 @@
 }
 
 #webdav-settings #webdav-fields-container .form-group .password-input-container .toggle-password-btn:hover {
-    color: #4a90e2 !important;
-    background-color: rgba(74, 144, 226, 0.1) !important;
+    color: var(--primary) !important;
+    background-color: var(--primary-light) !important;
 }
 
 #webdav-settings #webdav-fields-container .form-group .password-input-container .toggle-password-btn:focus {
     outline: none !important;
-    color: #4a90e2 !important;
-    background-color: rgba(74, 144, 226, 0.15) !important;
+    color: var(--primary) !important;
+    background-color: var(--primary-light) !important;
 }
 
 #webdav-settings #webdav-fields-container .form-group .password-input-container .toggle-password-btn i {
