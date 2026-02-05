@@ -67,7 +67,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
         overlay.id = 'idb-viewer-overlay';
         overlay.style.position = 'fixed';
         overlay.style.inset = '0';
-        overlay.style.background = 'rgba(0,0,0,0.45)';
+        overlay.style.background = 'var(--surface-overlay)';
         overlay.style.zIndex = '9999';
         overlay.style.display = 'none';
 
@@ -79,7 +79,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
         panel.style.width = '90%';
         panel.style.maxWidth = '1100px';
         panel.style.maxHeight = '90%';
-        panel.style.background = '#fff';
+        panel.style.background = 'var(--surface-primary)';
         panel.style.borderRadius = '8px';
         panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
         panel.style.display = 'flex';
@@ -90,7 +90,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
         header.style.alignItems = 'center';
         header.style.justifyContent = 'space-between';
         header.style.padding = '12px 16px';
-        header.style.borderBottom = '1px solid #eee';
+        header.style.borderBottom = '1px solid var(--border-primary)';
         const title = document.createElement('h3');
         title.textContent = '番号源数据（IndexedDB 分页）';
         title.style.margin = '0';
@@ -109,7 +109,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
         toolbar.style.gap = '8px';
         toolbar.style.alignItems = 'center';
         toolbar.style.padding = '8px 16px';
-        toolbar.style.borderBottom = '1px solid #f0f0f0';
+        toolbar.style.borderBottom = '1px solid var(--border-secondary)';
 
         const statusSel = document.createElement('select');
         statusSel.innerHTML = `
@@ -118,18 +118,38 @@ export class AdvancedSettings extends BaseSettingsPanel {
             <option value="${VIDEO_STATUS.WANT}">想看</option>
             <option value="${VIDEO_STATUS.BROWSED}">已浏览</option>
         `;
+        statusSel.style.padding = '6px 10px';
+        statusSel.style.border = '1px solid var(--border-primary)';
+        statusSel.style.borderRadius = '4px';
+        statusSel.style.background = 'var(--input-bg)';
+        statusSel.style.color = 'var(--text-primary)';
         statusSel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
 
         const orderBySel = document.createElement('select');
         orderBySel.innerHTML = `<option value="updatedAt">按更新时间</option><option value="createdAt">按创建时间</option>`;
+        orderBySel.style.padding = '6px 10px';
+        orderBySel.style.border = '1px solid var(--border-primary)';
+        orderBySel.style.borderRadius = '4px';
+        orderBySel.style.background = 'var(--input-bg)';
+        orderBySel.style.color = 'var(--text-primary)';
         orderBySel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
 
         const orderSel = document.createElement('select');
         orderSel.innerHTML = `<option value="desc">倒序</option><option value="asc">正序</option>`;
+        orderSel.style.padding = '6px 10px';
+        orderSel.style.border = '1px solid var(--border-primary)';
+        orderSel.style.borderRadius = '4px';
+        orderSel.style.background = 'var(--input-bg)';
+        orderSel.style.color = 'var(--text-primary)';
         orderSel.addEventListener('change', () => { this.idbCurrentPage = 1; this.loadAndRenderIdbPage(); });
 
         const pageSizeSel = document.createElement('select');
         pageSizeSel.innerHTML = `<option>20</option><option selected>50</option><option>100</option><option>200</option>`;
+        pageSizeSel.style.padding = '6px 10px';
+        pageSizeSel.style.border = '1px solid var(--border-primary)';
+        pageSizeSel.style.borderRadius = '4px';
+        pageSizeSel.style.background = 'var(--input-bg)';
+        pageSizeSel.style.color = 'var(--text-primary)';
         pageSizeSel.addEventListener('change', () => {
             const v = parseInt(pageSizeSel.value, 10);
             this.idbPageSize = Number.isFinite(v) && v > 0 ? v : 50;
@@ -175,7 +195,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
 
         const info = document.createElement('div');
         info.style.marginLeft = 'auto';
-        info.style.color = '#666';
+        info.style.color = 'var(--text-muted)';
 
         toolbar.appendChild(statusSel);
         toolbar.appendChild(orderBySel);
@@ -193,6 +213,12 @@ export class AdvancedSettings extends BaseSettingsPanel {
         textarea.style.width = '100%';
         textarea.style.height = '100%';
         textarea.style.minHeight = '360px';
+        textarea.style.background = 'var(--input-bg)';
+        textarea.style.color = 'var(--text-primary)';
+        textarea.style.border = '1px solid var(--border-primary)';
+        textarea.style.borderRadius = '4px';
+        textarea.style.padding = '8px';
+        textarea.style.fontFamily = 'monospace';
         textarea.readOnly = true;
         content.appendChild(textarea);
 

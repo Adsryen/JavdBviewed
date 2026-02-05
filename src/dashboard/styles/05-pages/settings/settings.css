@@ -245,6 +245,19 @@
     --advanced-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 深色主题下的高级设置变量 */
+[data-theme="dark"] {
+    --advanced-primary: #818cf8;
+    --advanced-secondary: #a78bfa;
+    --advanced-bg: #1e293b;
+    --advanced-card-bg: #334155;
+    --advanced-border: #475569;
+    --advanced-text: #f1f5f9;
+    --advanced-text-muted: #94a3b8;
+    --advanced-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --advanced-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* 高级配置面板整体样式 */
 #advanced-settings {
     position: relative;
@@ -378,7 +391,7 @@
     font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 13px;
     line-height: 1.6;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--advanced-bg);
     color: var(--advanced-text);
     resize: vertical;
     transition: all 0.3s ease;
@@ -391,7 +404,7 @@
 #jsonConfig:read-only,
 #actorsConfig:read-only,
 #rawLogsTextarea:read-only {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    background: var(--advanced-card-bg);
     color: var(--advanced-text-muted);
     border-color: var(--advanced-border);
 }
@@ -400,7 +413,7 @@
 #advanced-settings .actors-stats {
     margin: 20px 0;
     padding: 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--advanced-bg);
     border-radius: 12px;
     border: 2px solid var(--advanced-border);
     box-shadow: var(--advanced-shadow);
@@ -495,7 +508,7 @@
 }
 
 #advanced-settings #actorsConfig:placeholder-shown {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--advanced-bg);
     color: var(--advanced-text-muted);
 }
 
@@ -550,7 +563,7 @@
     top: 0;
     bottom: 0;
     width: 40px;
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    background: var(--advanced-card-bg);
     border-right: 1px solid var(--advanced-border);
     font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
     font-size: 12px;
@@ -574,7 +587,7 @@
     outline: none;
     border-color: var(--advanced-primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    background: #ffffff;
+    background: var(--advanced-card-bg);
     transform: scale(1.01);
 }
 
@@ -1404,16 +1417,16 @@ textarea.textarea-input {
 }
 
 .ping-result-item.success {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border-color: #28a745;
-    color: #155724;
+    background: var(--success-light);
+    border-color: var(--success);
+    color: var(--text-primary);
     box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
 }
 
 .ping-result-item.failure {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-    border-color: #dc3545;
-    color: #721c24;
+    background: var(--error-light);
+    border-color: var(--error);
+    color: var(--text-primary);
     box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
 }
 
@@ -1429,8 +1442,8 @@ textarea.textarea-input {
 }
 
 .ping-summary {
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border: 2px solid #e9ecef;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-primary);
     border-radius: 12px;
     padding: 20px;
     margin: 20px 0;
@@ -1439,7 +1452,7 @@ textarea.textarea-input {
 
 .ping-summary h5 {
     margin: 0 0 15px 0;
-    color: #2c3e50;
+    color: var(--text-primary);
     font-size: 16px;
     font-weight: 600;
     display: flex;
@@ -1479,19 +1492,19 @@ textarea.textarea-input {
 .ping-summary .stat-value {
     font-size: 18px;
     font-weight: 700;
-    color: #2c3e50;
+    color: var(--text-primary);
 }
 
 .ping-summary .stat-value.success {
-    color: #28a745;
+    color: var(--success);
 }
 
 .ping-summary .stat-value.warning {
-    color: #ffc107;
+    color: var(--warning);
 }
 
 .ping-summary .stat-value.danger {
-    color: #dc3545;
+    color: var(--error);
 }
 
 .ping-summary p {
@@ -1505,9 +1518,9 @@ textarea.textarea-input {
 #global-actions .settings-section {
     margin-bottom: 30px;
     padding: 20px;
-    background: #f8f9fa;
+    background: var(--bg-tertiary);
     border-radius: 8px;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-primary);
 }
 
 #global-actions .settings-section h4 {
@@ -1524,7 +1537,7 @@ textarea.textarea-input {
     content: '';
     width: 4px;
     height: 16px;
-    background: #007bff;
+    background: var(--primary);
     border-radius: 2px;
 }
 
@@ -1562,30 +1575,30 @@ textarea.textarea-input {
 
 /* Button variants for global actions */
 #global-actions .btn:not(.danger):not(.warning) {
-    background: #007bff;
-    color: white;
+    background: var(--primary);
+    color: var(--text-inverse);
 }
 
 #global-actions .btn:not(.danger):not(.warning):hover {
-    background: #0056b3;
+    background: var(--primary-hover);
 }
 
 #global-actions .btn.danger {
-    background: #dc3545;
-    color: white;
+    background: var(--error);
+    color: var(--text-inverse);
 }
 
 #global-actions .btn.danger:hover {
-    background: #c82333;
+    background: var(--error-hover);
 }
 
 #global-actions .btn.warning {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning);
+    color: var(--text-primary);
 }
 
 #global-actions .btn.warning:hover {
-    background: #e0a800;
+    background: var(--warning-hover);
 }
 
 #global-actions .input-description {
@@ -1748,7 +1761,7 @@ textarea.textarea-input {
     line-height: 1.5;
     margin: 15px 0 0 0;
     padding: 12px 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--advanced-bg);
     border-radius: 8px;
     border-left: 3px solid var(--advanced-primary);
 }
@@ -1860,7 +1873,7 @@ textarea.textarea-input {
     font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 12px;
     line-height: 1.5;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--advanced-bg);
     color: var(--advanced-text);
     resize: none;
     transition: all 0.3s ease;
@@ -1874,11 +1887,11 @@ textarea.textarea-input {
     outline: none;
     border-color: var(--advanced-primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    background: #ffffff;
+    background: var(--advanced-card-bg);
 }
 
 #dataViewTextarea:read-only {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    background: var(--advanced-bg);
     color: var(--advanced-text-muted);
 }
 
@@ -2820,8 +2833,8 @@ input:checked + .toggle-slider:before {
 
 /* 日志模块分组 */
 .log-module-group {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 10px;
     margin-bottom: 15px;
     overflow: hidden;
@@ -2862,7 +2875,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-module-group .form-group-checkbox label:hover {
-    background: rgba(0, 123, 255, 0.05);
+    background: var(--bg-hover);
 }
 
 .log-module-group .form-group-checkbox input[type="checkbox"] {
@@ -2872,7 +2885,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-module-group .form-group-checkbox label i {
-    color: #007bff;
+    color: var(--primary);
     font-size: 16px;
 }
 
@@ -2894,8 +2907,8 @@ input:checked + .toggle-slider:before {
 }
 
 .log-tree-node {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     overflow: hidden;
     transition: all 0.3s ease;
@@ -2906,23 +2919,23 @@ input:checked + .toggle-slider:before {
 }
 
 .log-tree-header {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: var(--bg-tertiary);
     padding: 12px 16px;
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .log-tree-header i {
-    color: #007bff;
+    color: var(--primary);
     font-size: 16px;
 }
 
 .log-tree-title {
     font-weight: 600;
     font-size: 14px;
-    color: #2c3e50;
+    color: var(--text-primary);
 }
 
 .log-tree-desc {
@@ -2949,7 +2962,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-tree-item:hover {
-    background: #f8f9fa;
+    background: var(--bg-hover);
 }
 
 .log-tree-item input[type="checkbox"] {
@@ -2971,7 +2984,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-tree-item label i {
-    color: #007bff;
+    color: var(--primary);
     font-size: 14px;
     flex-shrink: 0;
 }
@@ -2986,8 +2999,8 @@ input:checked + .toggle-slider:before {
 .log-tree-item .item-tag {
     display: inline-block;
     padding: 2px 8px;
-    background: #e7f3ff;
-    color: #0066cc;
+    background: var(--info-light);
+    color: var(--info);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 600;
@@ -3009,15 +3022,15 @@ input:checked + .toggle-slider:before {
 .log-help-box {
     margin-top: 16px;
     padding: 16px;
-    background: #e7f3ff;
-    border: 1px solid #b3d9ff;
+    background: var(--info-light);
+    border: 1px solid var(--info-border);
     border-radius: 8px;
     display: flex;
     gap: 12px;
 }
 
 .log-help-box i {
-    color: #0066cc;
+    color: var(--info);
     font-size: 20px;
     flex-shrink: 0;
     margin-top: 2px;
@@ -3028,7 +3041,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-help-content strong {
-    color: #004080;
+    color: var(--info-dark);
     font-size: 14px;
     display: block;
     margin-bottom: 8px;
@@ -3069,16 +3082,16 @@ input:checked + .toggle-slider:before {
 }
 
 .log-format .form-group-checkbox {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 12px;
     transition: all 0.2s ease;
 }
 
 .log-format .form-group-checkbox:hover {
-    background: #e9ecef;
-    border-color: #007bff;
+    background: var(--bg-hover);
+    border-color: var(--primary);
 }
 
 .log-format .form-group-checkbox label {
@@ -3098,7 +3111,7 @@ input:checked + .toggle-slider:before {
 }
 
 .log-format .form-group-checkbox label i {
-    color: #007bff;
+    color: var(--primary);
     font-size: 16px;
 }
 

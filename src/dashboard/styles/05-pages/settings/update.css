@@ -15,6 +15,17 @@
     --update-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* 深色主题下的更新设置变量 */
+[data-theme="dark"] {
+    --update-bg: #1e293b;
+    --update-card-bg: #334155;
+    --update-border: #475569;
+    --update-text: #f1f5f9;
+    --update-text-muted: #94a3b8;
+    --update-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --update-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* 更新设置面板特有样式 */
 #update-settings {
     position: relative;
@@ -27,7 +38,7 @@
 }
 
 #update-settings .settings-panel-header h3 {
-    color: #1f2937;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -44,7 +55,7 @@
 }
 
 #update-settings .settings-description {
-    color: #6b7280;
+    color: var(--text-muted);
     font-size: 14px;
     margin-bottom: 0;
     max-width: 600px;
@@ -54,12 +65,12 @@
 
 /* 版本信息区域 - 统一卡片风格 */
 #update-settings .version-info {
-    background: white;
+    background: var(--update-card-bg);
     border-radius: 12px;
     padding: 8px;
     margin-bottom: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--update-border);
     transition: all 0.3s ease;
 }
 
@@ -82,11 +93,11 @@
 }
 
 #update-settings .version-item:hover {
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    background: var(--bg-hover);
 }
 
 #update-settings .version-item:not(:last-child) {
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--update-border);
 }
 
 #update-settings .version-label {
@@ -95,7 +106,7 @@
     gap: 8px;
     font-size: 15px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text-primary);
     flex: 1;
     min-width: 0;
 }
@@ -117,11 +128,11 @@
 #update-settings .version-value {
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-weight: 600;
-    color: #1f2937;
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    color: var(--update-text);
+    background: var(--update-bg);
     padding: 10px 14px;
     border-radius: 10px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--update-border);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     transition: all 0.2s ease;
     min-width: 140px;
@@ -130,8 +141,8 @@
 }
 
 #update-settings .version-value:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 4px 8px var(--shadow-primary);
 }
 
 /* 当前版本特殊样式 */
@@ -176,8 +187,8 @@
 
 /* 更新通知区域 - 统一卡片风格 */
 #update-settings .update-notification {
-    background: white;
-    border: 2px solid #3b82f6;
+    background: var(--surface-primary);
+    border: 2px solid var(--primary);
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
@@ -202,7 +213,7 @@
     font-size: 15px;
     line-height: 1.6;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--update-text);
 }
 
 #update-settings .notification-content i {
@@ -370,18 +381,18 @@
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--update-text);
 }
 
 #update-settings .input-description {
     margin-top: 12px;
-    color: #6b7280;
+    color: var(--update-text-muted);
     font-size: 13px;
     line-height: 1.6;
 }
 
 #update-settings .input-description strong {
-    color: #1f2937;
+    color: var(--update-text);
     font-weight: 600;
 }
 
@@ -396,7 +407,7 @@
 
 #update-settings .settings-section > h4 {
     margin-bottom: 16px;
-    color: #1f2937;
+    color: var(--update-text);
     font-size: 18px;
     font-weight: 700;
     display: flex;
@@ -423,10 +434,10 @@
 
 /* 自动检查设置区域美化 */
 #update-settings .auto-check-section {
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    background: var(--update-bg);
     border-radius: 16px;
     padding: 24px;
-    border: 1px solid #e0e7ff;
+    border: 1px solid var(--update-border);
     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
     transition: all 0.3s ease;
 }
@@ -458,14 +469,14 @@
 }
 
 #update-settings .section-description {
-    color: #6b7280;
+    color: var(--update-text-muted);
     font-size: 14px;
     margin: 0;
     font-weight: 400;
 }
 
 #update-settings .auto-check-card {
-    background: white;
+    background: var(--update-card-bg);
     border-radius: 12px;
     padding: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -482,11 +493,11 @@
 }
 
 #update-settings .setting-item:hover {
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    background: var(--bg-hover);
 }
 
 #update-settings .setting-item:not(:last-child) {
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--update-border);
 }
 
 #update-settings .setting-info {
@@ -500,7 +511,7 @@
     gap: 8px;
     font-size: 15px;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--update-text);
     margin-bottom: 4px;
 }
 
@@ -511,7 +522,7 @@
 
 #update-settings .setting-desc {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--update-text-muted);
     line-height: 1.5;
 }
 
@@ -522,13 +533,13 @@
 /* 现代化下拉选择框 */
 #update-settings .modern-select {
     appearance: none;
-    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-    border: 2px solid #e5e7eb;
+    background: var(--update-card-bg);
+    border: 2px solid var(--update-border);
     border-radius: 10px;
     padding: 10px 36px 10px 14px;
     font-size: 14px;
     font-weight: 500;
-    color: #1f2937;
+    color: var(--update-text);
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 140px;
@@ -551,8 +562,8 @@
 
 #update-settings .modern-select option {
     padding: 10px;
-    background: white;
-    color: #1f2937;
+    background: var(--update-card-bg);
+    color: var(--update-text);
 }
 
 
