@@ -1,4 +1,4 @@
-import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
+﻿import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
 import { getSettings } from '../../utils/storage';
 
 const DISPLAY_PAGE_SIZE_STORAGE_KEY = 'drive115TasksDisplayPageSize';
@@ -19,6 +19,7 @@ export class Drive115TasksManager {
   private pageCount = 0;
   private statusFilter: 'all' | 'running' | 'completed' | 'failed' = 'all';
   private displayPageSize: number = 20;
+  private searchKeyword: string = '';
 
   constructor() {
     this.initializeElements();
@@ -113,6 +114,35 @@ export class Drive115TasksManager {
         this.handleAddTask();
       }
     });
+
+    // 搜索输入框
+    const searchInput = document.getElementById('drive115TaskSearchInput') as HTMLInputElement;
+    const clearSearchBtn = document.getElementById('drive115ClearSearchBtn');
+    
+    searchInput?.addEventListener('input', (e) => {
+      const keyword = (e.target as HTMLInputElement).value.trim();
+      this.searchKeyword = keyword;
+      
+      // 显示/隐藏清除按钮
+      if (clearSearchBtn) {
+        clearSearchBtn.style.display = keyword ? 'inline-flex' : 'none';
+      }
+      
+      // 实时搜索
+      this.renderTasks();
+      this.updateStats();
+    });
+
+    // 清除搜索按钮
+    clearSearchBtn?.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        this.searchKeyword = '';
+        clearSearchBtn.style.display = 'none';
+        this.renderTasks();
+        this.updateStats();
+      }
+    });
   }
 
   /**
@@ -153,9 +183,19 @@ export class Drive115TasksManager {
 
     if (totalElement) totalElement.textContent = this.totalCount.toString();
 
-    const runningCount = this.tasks.filter(task => task.status === 1).length;
-    const completedCount = this.tasks.filter(task => task.status === 2).length;
-    const failedCount = this.tasks.filter(task => task.status === -1).length;
+    // 应用搜索过滤后的任务列表
+    let filteredTasks = this.tasks;
+    if (this.searchKeyword) {
+      const keyword = this.searchKeyword.toLowerCase();
+      filteredTasks = this.tasks.filter(task => {
+        const name = (task.name || '').toLowerCase();
+        return name.includes(keyword);
+      });
+    }
+
+    const runningCount = filteredTasks.filter(task => task.status === 1).length;
+    const completedCount = filteredTasks.filter(task => task.status === 2).length;
+    const failedCount = filteredTasks.filter(task => task.status === -1).length;
 
     if (runningElement) runningElement.textContent = runningCount.toString();
     if (completedElement) completedElement.textContent = completedCount.toString();
@@ -196,13 +236,33 @@ export class Drive115TasksManager {
   }
 
   private applyFilter(tasks: Drive115V2Task[]): Drive115V2Task[] {
+    // 先按状态过滤
+    let filtered = tasks;
     switch (this.statusFilter) {
-      case 'running': return tasks.filter(t => t.status === 1);
-      case 'completed': return tasks.filter(t => t.status === 2);
-      case 'failed': return tasks.filter(t => t.status === -1);
+      case 'running': 
+        filtered = tasks.filter(t => t.status === 1);
+        break;
+      case 'completed': 
+        filtered = tasks.filter(t => t.status === 2);
+        break;
+      case 'failed': 
+        filtered = tasks.filter(t => t.status === -1);
+        break;
       case 'all':
-      default: return tasks;
+      default: 
+        filtered = tasks;
     }
+
+    // 再按搜索关键词过滤
+    if (this.searchKeyword) {
+      const keyword = this.searchKeyword.toLowerCase();
+      filtered = filtered.filter(task => {
+        const name = (task.name || '').toLowerCase();
+        return name.includes(keyword);
+      });
+    }
+
+    return filtered;
   }
 
   /**
