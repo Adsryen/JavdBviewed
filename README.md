@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Jav 助手](src/assets/favicon-128x128.png)
+![Jav 助手](src/assets/favicons/light/favicon-128x128.png)
 
 **Jav 视频浏览助手**
 

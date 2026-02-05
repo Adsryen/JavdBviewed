@@ -56,10 +56,13 @@ async function initTheme() {
         
         // 更新主题切换按钮图标
         updateThemeSwitcherIcon(theme);
+        // 更新标题 logo
+        updateTitleLogo(theme);
     } catch (error) {
         console.error('[Popup] Failed to init theme:', error);
         document.documentElement.setAttribute('data-theme', 'light');
         updateThemeSwitcherIcon('light');
+        updateTitleLogo('light');
     }
 }
 
@@ -72,6 +75,7 @@ function setupThemeSync() {
                 console.log('[Popup] Theme changed from storage:', newTheme);
                 document.documentElement.setAttribute('data-theme', newTheme);
                 updateThemeSwitcherIcon(newTheme);
+                updateTitleLogo(newTheme);
             }
         }
     });
@@ -112,6 +116,7 @@ async function toggleTheme() {
         // 应用新主题
         document.documentElement.setAttribute('data-theme', newTheme);
         updateThemeSwitcherIcon(newTheme);
+        updateTitleLogo(newTheme);
         
         console.log('[Popup] Theme switched to:', newTheme);
         
@@ -142,11 +147,20 @@ function initVersionInfo() {
     }
 }
 
-function initTitleLogo() {
+function updateTitleLogo(theme: 'light' | 'dark') {
     const img = document.getElementById('titleLogo') as HTMLImageElement | null;
     if (img) {
-        img.src = chrome.runtime.getURL('assets/favicon-32x32.png');
+        const faviconPath = theme === 'dark'
+            ? 'assets/favicons/dark/favicon-32x32.png'
+            : 'assets/favicons/light/favicon-32x32.png';
+        
+        img.src = chrome.runtime.getURL(faviconPath);
     }
+}
+
+async function initTitleLogo() {
+    const theme = await getTheme();
+    updateTitleLogo(theme);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -445,5 +459,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupThemeSync(); // 设置主题同步监听
     initialize();
     initVersionInfo();
-    initTitleLogo();
 });

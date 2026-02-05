@@ -110,7 +110,7 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
   const now = Date.now();
   await insReportsPut({ month, period: { start, end }, stats, html, createdAt: now, finalizedAt: now, status: 'final', origin: 'auto', version: '0.0.1' });
   try {
-    const iconUrl = chrome.runtime.getURL('assets/favicon-48x48.png');
+    const iconUrl = chrome.runtime.getURL('assets/favicons/light/favicon-48x48.png');
     const id = `insights-${month}-${now}`;
     chrome.notifications?.create?.(id, { type: 'basic', iconUrl, title: '月报已生成', message: `${month} 的观影标签月报已生成` } as any);
   } catch {}
