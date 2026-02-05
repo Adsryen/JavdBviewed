@@ -33,6 +33,23 @@ const AREA_SELECTORS: Record<BlurArea, string[]> = {
         '[data-area="sidebar-data"]'       // 自定义数据区域标记
     ],
     
+    'navigation': [
+        // === 导航标签文字 ===
+        '.tab-link[data-tab="tab-home"]',      // 首页标签
+        '.tab-link[data-tab="tab-records"]',   // 番号库标签
+        '.tab-link[data-tab="tab-lists"]',     // 清单标签
+        '.tab-link[data-tab="tab-actors"]',    // 演员库标签
+        '.tab-link[data-tab="tab-new-works"]', // 新作品标签
+        '.tab-link[data-tab="tab-sync"]',      // 数据同步标签
+        '.tab-link[data-tab="tab-drive115-tasks"]', // 115任务标签
+        '.tab-link[data-tab="tab-insights"]',  // 报告标签
+        '.tab-link[data-tab="tab-settings"]',  // 设置标签
+        '.tab-link[data-tab="tab-logs"]',      // 日志标签
+        
+        // === 自定义标记 ===
+        '[data-area="navigation"]'
+    ],
+    
     'video-library': [
         // === Dashboard番号库列表 ===
         '.video-id-link',                  // 番号链接
@@ -181,6 +198,7 @@ export function getAllBlurAreas(): BlurArea[] {
 export function getAreaDisplayName(area: BlurArea): string {
     const displayNames: Record<BlurArea, string> = {
         'sidebar': '侧边栏',
+        'navigation': '导航栏',
         'video-library': '番号库',
         'actor-library': '演员库',
         'playlist-page': '新作品',

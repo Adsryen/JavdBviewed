@@ -25,7 +25,7 @@ export interface ScreenshotModeConfig {
 }
 
 // 模糊区域类型
-export type BlurArea = 'sidebar' | 'video-library' | 'actor-library' | 'playlist-page' | 'lists-page' | 'home-page';
+export type BlurArea = 'sidebar' | 'navigation' | 'video-library' | 'actor-library' | 'playlist-page' | 'lists-page' | 'home-page';
 
 // 私密模式配置
 export interface PrivateModeConfig {

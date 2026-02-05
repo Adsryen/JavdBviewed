@@ -92,7 +92,7 @@ export const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
         enabled: false,
         autoBlurTrigger: 'manual',
         blurIntensity: 5,
-        blurAreas: ['video-library', 'actor-library', 'playlist-page', 'lists-page'], // 默认启用番号库、演员库、清单页、清单管理
+        blurAreas: ['sidebar', 'navigation', 'video-library', 'actor-library', 'playlist-page', 'lists-page', 'home-page'], // 默认启用所有区域
         protectedElements: [
             // Dashboard 布局级保护 - 只模糊最外层容器，避免嵌套模糊
             '.video-list-container',          // 番号库整个容器
