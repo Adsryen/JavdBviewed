@@ -261,7 +261,8 @@ export async function dbNewWorksPut(record: NewWorkRecord): Promise<void> {
 }
 
 export async function dbNewWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
-  await sendMessage('DB:NEWWORKS_BULK_PUT', { records });
+  // 批量写入可能需要更长时间，使用 30 秒超时
+  await sendMessage('DB:NEWWORKS_BULK_PUT', { records }, 30000);
 }
 
 export async function dbNewWorksDelete(id: string): Promise<void> {
