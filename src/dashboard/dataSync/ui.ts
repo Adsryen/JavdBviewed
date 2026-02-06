@@ -492,6 +492,12 @@ export class SyncUI {
             throw new Error('Progress container not found');
         }
 
+        // 查找 .progress-section 容器
+        const progressSection = progressContainer.querySelector('.progress-section');
+        if (!progressSection) {
+            throw new Error('Progress section not found');
+        }
+
         const container = document.createElement('div');
         container.id = 'actorSyncStats';
         container.className = 'actor-sync-stats';
@@ -546,8 +552,14 @@ export class SyncUI {
             </div>
         `;
 
-        // 插入到进度容器的开头
-        progressContainer.insertBefore(container, progressContainer.firstChild);
+        // 插入到 .progress-section 的开头（在 h5 之后）
+        const sectionTitle = progressSection.querySelector('h5');
+        if (sectionTitle && sectionTitle.nextSibling) {
+            progressSection.insertBefore(container, sectionTitle.nextSibling);
+        } else {
+            progressSection.insertBefore(container, progressSection.firstChild);
+        }
+        
         return container;
     }
 
