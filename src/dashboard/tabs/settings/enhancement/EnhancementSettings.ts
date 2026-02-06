@@ -2643,6 +2643,18 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 初始化演员页增强事件监听器
      */
     private initializeActorEnhancementEvents(): void {
+        // 默认过滤条件复选框事件监听
+        if (this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0) {
+            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
+                input.addEventListener('change', this.handleSettingChange.bind(this));
+            });
+        }
+
+        // 自动应用过滤器开关事件监听
+        if (this.enableAutoApplyTags) {
+            this.enableAutoApplyTags.addEventListener('change', this.handleSettingChange.bind(this));
+        }
+
         // 清除上次应用标签
         if (this.clearLastAppliedTags) {
             this.clearLastAppliedTags.addEventListener('click', async () => {
