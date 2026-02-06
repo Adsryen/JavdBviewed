@@ -386,6 +386,14 @@ export class NewWorksTab {
                     <div class="stat-label">今日发现</div>
                 </div>
             `;
+            
+            // 更新管理订阅按钮的数量徽章
+            const manageBtn = document.getElementById('manageSubscriptionsBtn');
+            if (manageBtn) {
+                const count = stats.totalSubscriptions || 0;
+                manageBtn.innerHTML = `<i class="fas fa-list"></i> 管理订阅 <span class="badge">${count}</span>`;
+            }
+            
             console.log('统计信息渲染完成');
         } catch (error) {
             console.error('渲染统计信息失败:', error);
