@@ -2120,3 +2120,77 @@
 [data-theme="dark"] #enhancement-settings .info-box li {
     color: var(--enhancement-text-muted);
 }
+
+/* ================= 增强功能提示框样式 ================= */
+.enhancement-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);
+    border: 1px solid #ffc107;
+    border-left: 4px solid #ff9800;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #856404;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.enhancement-notice:hover {
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.enhancement-notice i {
+    color: #ff9800;
+    font-size: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.enhancement-notice span {
+    flex: 1;
+    color: #856404;
+}
+
+.enhancement-notice a {
+    color: #d84315;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.enhancement-notice a:hover {
+    color: #bf360c;
+    border-bottom-color: #bf360c;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .enhancement-notice {
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%);
+    border-color: rgba(255, 193, 7, 0.4);
+    border-left-color: #ff9800;
+    color: #ffb74d;
+}
+
+[data-theme="dark"] .enhancement-notice i {
+    color: #ffa726;
+}
+
+[data-theme="dark"] .enhancement-notice span {
+    color: #ffb74d;
+}
+
+[data-theme="dark"] .enhancement-notice a {
+    color: #ff7043;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .enhancement-notice a:hover {
+    color: #ff5722;
+    border-bottom-color: #ff5722;
+}
