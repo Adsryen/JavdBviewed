@@ -1695,8 +1695,6 @@
                                                             <span class="tag-display-title">📋 上次应用的过滤条件：</span>
                                                             <div class="tag-actions">
                                                                 <button class="btn-small btn-outline" id="clearLastAppliedTags" title="清除记录">🗑️</button>
-                                                                <button class="btn-small btn-outline" id="exportActorConfig" title="导出配置">📤</button>
-                                                                <button class="btn-small btn-outline" id="importActorConfig" title="导入配置">📥</button>
                                                             </div>
                                                         </div>
                                                         <div class="applied-tags-container" id="appliedTagsContainer">
@@ -1708,32 +1706,9 @@
                                                 <div class="toggle-option">
                                                     <div class="toggle-header">
                                                         <span class="toggle-title">🏷️ 默认过滤条件</span>
+                                                        <!-- 动态生成的复选框组 -->
                                                         <div id="actorDefaultTagsGroup" class="checkbox-group">
-                                                            <label class="checkbox-label">
-                                                                <input type="checkbox" name="actorDefaultTag" value="s">
-                                                                <span class="checkmark"></span>
-                                                                单体作品
-                                                            </label>
-                                                            <label class="checkbox-label">
-                                                                <input type="checkbox" name="actorDefaultTag" value="d">
-                                                                <span class="checkmark"></span>
-                                                                含磁鏈
-                                                            </label>
-                                                            <label class="checkbox-label">
-                                                                <input type="checkbox" name="actorDefaultTag" value="c">
-                                                                <span class="checkmark"></span>
-                                                                中文字幕
-                                                            </label>
-                                                            <label class="checkbox-label">
-                                                                <input type="checkbox" name="actorDefaultTag" value="4k">
-                                                                <span class="checkmark"></span>
-                                                                4K
-                                                            </label>
-                                                            <label class="checkbox-label">
-                                                                <input type="checkbox" name="actorDefaultTag" value="uncensored">
-                                                                <span class="checkmark"></span>
-                                                                无码流出
-                                                            </label>
+                                                            <!-- 由 JavaScript 动态生成 -->
                                                         </div>
                                                     </div>
                                                     <p class="toggle-description">当没有保存记录或兼容性检查失败时使用的默认过滤条件</p>
