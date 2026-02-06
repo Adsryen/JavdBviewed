@@ -3,6 +3,10 @@
    ============================================ */
 
 /* 显示/隐藏 */
+.hidden {
+  display: none !important;
+}
+
 .u-hidden {
   display: none !important;
 }
