@@ -2731,8 +2731,6 @@ export function initRecordsTab(): void {
                 
                 const parsed = parseSearchTokens((searchInput?.value || '').trim());
                 const searchTerm = parsed.text;
-                const hasTags = selectedTags.size > 0;
-                const hasLists = selectedListIds.size > 0;
                 const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
                 const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
                 const sort = parseSort();
@@ -2822,8 +2820,6 @@ export function initRecordsTab(): void {
                 
                 const parsed = parseSearchTokens((searchInput?.value || '').trim());
                 const searchTerm = parsed.text;
-                const hasTags = selectedTags.size > 0;
-                const hasLists = selectedListIds.size > 0;
                 const adv = advConditions.length > 0 ? advConditions.map(c => ({ field: c.field, op: c.op, value: c.value })) : [];
                 const statusVal = (filterSelect?.value || 'all') as 'all' | VideoStatus;
                 const sort = parseSort();
