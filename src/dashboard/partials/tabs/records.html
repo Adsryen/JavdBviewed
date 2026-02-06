@@ -9,6 +9,34 @@
 
     <div class="search-and-filter records-toolbar">
         <div class="search-row">
+            <div class="toolbar-left">
+                <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">
+                    <i class="fas fa-search-plus"></i> 高级搜索
+                </button>
+                <button id="exportRecordsBtn" class="button-like" title="导出番号数据">
+                    <i class="fas fa-download"></i> 导出数据
+                </button>
+                <button id="toggleCoversBtn" class="button-like" title="显示/隐藏封面">
+                    <i class="fas fa-image"></i> 显示封面
+                </button>
+                <button id="toggleViewModeBtn" class="button-like view-toggle" title="切换视图模式">
+                    <i class="fas fa-list view-icon"></i>
+                    <span class="view-text">列表视图</span>
+                </button>
+            </div>
+            <div class="toolbar-right">
+                <div class="records-per-page-selector">
+                    <label for="recordsPerPageSelect">每页显示:</label>
+                    <select id="recordsPerPageSelect">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="filter-row">
             <select id="filterSelect">
                 <option value="all">所有状态</option>
                 <option value="untracked">未标记</option>
@@ -24,24 +52,6 @@
                 <option value="id_asc">按番号排序 (A-Z)</option>
                 <option value="id_desc">按番号排序 (Z-A)</option>
             </select>
-            <button id="advancedSearchToggle" class="button-like" title="显示/隐藏高级搜索">高级搜索</button>
-            <button id="toggleCoversBtn" class="button-like" title="显示/隐藏封面">
-                <i class="fas fa-image"></i> 显示封面
-            </button>
-            <button id="exportRecordsBtn" class="button-like" title="导出番号数据">
-                <i class="fas fa-download"></i> 导出数据
-            </button>
-            <div class="records-per-page-selector" style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;">
-                <label for="recordsPerPageSelect">每页显示:</label>
-                <select id="recordsPerPageSelect">
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
-            </div>
-        </div>
-        <div class="filter-row">
             <div class="tags-filter-container">
                 <input type="text" id="tagsFilterInput" placeholder="搜索标签..." readonly>
                 <div id="tagsFilterDropdown" class="tags-dropdown" style="display: none;">
@@ -70,6 +80,8 @@
                     <!-- 已选择的清单将由 JS 动态填充 -->
                 </div>
             </div>
+        </div>
+        <div class="search-row-full">
             <div class="search-input-wrapper">
                 <input
                     type="text"

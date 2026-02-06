@@ -76,6 +76,10 @@ export function initRecordsTab(): void {
 
     const toggleCoversBtn = document.getElementById('toggleCoversBtn') as HTMLButtonElement;
 
+    // 视图模式切换按钮（单按钮循环切换）
+    const toggleViewModeBtn = document.getElementById('toggleViewModeBtn') as HTMLButtonElement;
+    let currentViewMode: 'list' | 'card' = STATE.settings.recordsViewMode || 'list'; // 从设置中读取，默认列表视图
+
     let imageTooltipElement: HTMLDivElement | null = null;
     let coverObserver: IntersectionObserver | null = null;
 
@@ -328,6 +332,38 @@ export function initRecordsTab(): void {
         try { toggleCoversBtn.classList.toggle('toggle-on', enabled); toggleCoversBtn.classList.toggle('toggle-off', !enabled); toggleCoversBtn.title = enabled ? '隐藏封面' : '显示封面'; } catch {}
     }
 
+    // 更新视图模式按钮状态
+    function updateViewModeBtnUI(): void {
+        if (!toggleViewModeBtn) return;
+        
+        const icon = toggleViewModeBtn.querySelector('.view-icon') as HTMLElement;
+        const text = toggleViewModeBtn.querySelector('.view-text') as HTMLElement;
+        
+        if (currentViewMode === 'list') {
+            toggleViewModeBtn.classList.remove('card-mode');
+            toggleViewModeBtn.classList.add('list-mode');
+            if (icon) {
+                icon.className = 'fas fa-list view-icon';
+            }
+            if (text) {
+                text.textContent = '列表视图';
+            }
+            toggleViewModeBtn.title = '切换到卡片视图';
+            videoList.classList.remove('card-view');
+        } else {
+            toggleViewModeBtn.classList.remove('list-mode');
+            toggleViewModeBtn.classList.add('card-mode');
+            if (icon) {
+                icon.className = 'fas fa-th-large view-icon';
+            }
+            if (text) {
+                text.textContent = '卡片视图';
+            }
+            toggleViewModeBtn.title = '切换到列表视图';
+            videoList.classList.add('card-view');
+        }
+    }
+
     // 懒加载：创建/销毁 Observer
     function setupCoverObserver(): void {
         if (coverObserver) coverObserver.disconnect();
@@ -379,6 +415,7 @@ export function initRecordsTab(): void {
     // 立即初始化 Tooltip 容器与按钮状态
     ensureImageTooltipElement();
     updateToggleCoversBtnUI();
+    updateViewModeBtnUI();
 
     // 高级搜索按钮 - 事件委托兜底（避免早期返回导致监听未绑定）
     try {
@@ -901,7 +938,8 @@ export function initRecordsTab(): void {
             const sourceRecords = serverModeActive ? serverPageItems : (Array.isArray(filteredRecords) ? filteredRecords : []);
 
             const coversEnabled = !!STATE.settings.showCoversInRecords;
-            if (coversEnabled) setupCoverObserver(); else teardownCoverObserver();
+            const shouldShowCover = currentViewMode === 'card' || coversEnabled;
+            if (shouldShowCover) setupCoverObserver(); else teardownCoverObserver();
 
             // 更新搜索结果数量显示
             updateSearchResultCount();
@@ -1144,21 +1182,38 @@ export function initRecordsTab(): void {
                         }).join('')}${moreCount > 0 ? `<span class="video-list-more">另有 ${moreCount} 个清单</span>` : ''}</div>`
                         : '';
 
-                    li.innerHTML = `
-                        <div class="video-content-wrapper">
-                            <div class="video-id-container">
-                                ${videoIdHtml}
+                    // 根据视图模式生成不同的 HTML 结构
+                    if (currentViewMode === 'card') {
+                        // 卡片视图：状态标签稍后动态插入到封面层
+                        li.innerHTML = `
+                            <div class="video-content-wrapper">
+                                <div class="video-id-container">
+                                    ${videoIdHtml}
+                                </div>
+                                ${tagsHtml}
+                                ${listsHtml}
+                                <span class="video-title">${record.title}</span>
                             </div>
-                            ${tagsHtml}
-                            ${listsHtml}
-                            <span class="video-title">${record.title}</span>
-                        </div>
-                        <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
-                        <span class="video-status status-${record.status}">${record.status}</span>
-                    `;
+                        `;
+                    } else {
+                        // 列表视图：原有布局
+                        li.innerHTML = `
+                            <div class="video-content-wrapper">
+                                <div class="video-id-container">
+                                    ${videoIdHtml}
+                                </div>
+                                ${tagsHtml}
+                                ${listsHtml}
+                                <span class="video-title">${record.title}</span>
+                            </div>
+                            <span class="video-date" title="${timeDisplay.replace('\n', ' | ')}">${record.createdAt === record.updatedAt ? formattedCreatedDate : formattedUpdatedDate}</span>
+                            <span class="video-status status-${record.status}">${record.status}</span>
+                        `;
+                    }
 
-                    // 如果启用封面：在最左侧插入封面容器，并使用懒加载
-                    if (coversEnabled) {
+                    // 封面处理：卡片视图强制显示封面，列表视图根据设置
+                    const shouldShowCover = currentViewMode === 'card' || coversEnabled;
+                    if (shouldShowCover) {
                         const coverUrl = (record.enhancedData?.coverImage || record.javdbImage || '').trim();
                         const cover = document.createElement('div');
                         cover.className = 'video-cover skeleton';
@@ -1249,7 +1304,7 @@ export function initRecordsTab(): void {
                             cover.addEventListener('mouseenter', onMouseEnter);
                             cover.addEventListener('mouseleave', onMouseLeave);
                         }
-                        // 插入到最左侧
+                        // 插入封面：卡片视图在最顶部，列表视图在最左侧
                         if (li.firstChild) {
                             li.insertBefore(cover, li.firstChild);
                         } else {
@@ -1409,13 +1464,35 @@ export function initRecordsTab(): void {
                         });
                     });
 
-                    // Append the icons container to the list item
-                    li.appendChild(controlsContainer);
+                    // 根据视图模式插入元素
+                    if (currentViewMode === 'card') {
+                        // 卡片视图：搜索图标插入到 content-wrapper 右上角，状态标签和操作按钮在封面层
+                        const contentWrapper = li.querySelector('.video-content-wrapper');
+                        if (contentWrapper) {
+                            contentWrapper.appendChild(iconsContainer);
+                        }
+                        
+                        // 状态标签插入到封面层（li 的直接子元素）
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = `video-status status-${record.status}`;
+                        statusSpan.textContent = record.status;
+                        li.appendChild(statusSpan);
+                        
+                        // 操作按钮容器单独插入
+                        const controlsDiv = document.createElement('div');
+                        controlsDiv.className = 'video-controls';
+                        controlsDiv.appendChild(actionButtonsContainer);
+                        li.appendChild(controlsDiv);
+                    } else {
+                        // 列表视图：保持原有结构
+                        li.appendChild(controlsContainer);
+                    }
+                    
                     li.dataset.recordId = record.id;
                     videoList.appendChild(li);
 
                     // 注册懒加载观察
-                    if (coversEnabled) {
+                    if (shouldShowCover) {
                         const coverImg = li.querySelector('.video-cover-img') as HTMLImageElement | null;
                         if (coverImg && coverImg.getAttribute('data-src')) {
                             coverObserver?.observe(coverImg);
@@ -1781,6 +1858,24 @@ export function initRecordsTab(): void {
             chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
             updateToggleCoversBtnUI();
             // 重新渲染以应用封面开关
+            render();
+        });
+    }
+
+    // 视图模式切换（单按钮循环切换）
+    if (toggleViewModeBtn) {
+        toggleViewModeBtn.addEventListener('click', () => {
+            // 添加切换动画
+            toggleViewModeBtn.classList.add('switching');
+            setTimeout(() => {
+                toggleViewModeBtn.classList.remove('switching');
+            }, 500);
+            
+            // 切换模式
+            currentViewMode = currentViewMode === 'list' ? 'card' : 'list';
+            STATE.settings.recordsViewMode = currentViewMode;
+            chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: STATE.settings });
+            updateViewModeBtnUI();
             render();
         });
     }
