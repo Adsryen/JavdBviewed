@@ -157,8 +157,14 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:NEWWORKS_BULK_PUT') {
         const records = message?.payload?.records || [];
-        idbNewWorksBulkPut(records).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'newWorks bulkPut failed' }));
+        console.log(`[dbRouter] 收到 NEWWORKS_BULK_PUT 请求，records 数量: ${records.length}`);
+        idbNewWorksBulkPut(records).then(() => {
+          console.log(`[dbRouter] NEWWORKS_BULK_PUT 成功`);
+          sendResponse({ success: true });
+        }).catch((e) => {
+          console.error(`[dbRouter] NEWWORKS_BULK_PUT 失败:`, e);
+          sendResponse({ success: false, error: e?.message || 'newWorks bulkPut failed' });
+        });
         return true;
       }
       if (message.type === 'DB:NEWWORKS_DELETE') {
