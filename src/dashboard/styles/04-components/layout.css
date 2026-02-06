@@ -515,33 +515,61 @@
 
 /* 顶栏帮助按钮 */
 .help-btn {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     border: 1px solid var(--border-primary);
-    background: var(--surface-secondary);
-    color: var(--text-secondary);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    box-shadow: var(--shadow-sm);
 }
 
 .help-btn i {
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1;
+    transition: transform 0.3s ease, color 0.3s ease;
 }
 
 .help-btn:hover {
-    background: var(--primary-light);
+    background: var(--surface-secondary);
     border-color: var(--primary);
-    color: var(--text-primary);
+    color: var(--primary);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
 }
 
 .help-btn:active {
-    transform: scale(0.96);
+    transform: scale(0.95);
+    box-shadow: var(--shadow-sm);
 }
+
+.help-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .help-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+    }
+    
+    .help-btn i {
+        font-size: 16px;
+    }
+}
+
 
 /* 私密模式倒计时 */
 .privacy-timer {
