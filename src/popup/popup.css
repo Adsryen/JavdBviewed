@@ -118,15 +118,52 @@ body {
 }
 
 #helpBtn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     cursor: pointer;
-    font-size: 18px;
-    transition: transform 0.2s ease;
-    color: var(--text-secondary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    box-shadow: var(--shadow-sm);
+    font-size: 14px;
+    line-height: 1;
 }
 
 #helpBtn:hover {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
+    color: var(--primary);
     transform: scale(1.1);
-    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+}
+
+#helpBtn:active {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-sm);
+}
+
+#helpBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+}
+
+/* 深色主题下的特殊样式 */
+[data-theme="dark"] #helpBtn {
+    border-color: var(--border-primary);
+    background: var(--surface-primary);
+}
+
+[data-theme="dark"] #helpBtn:hover {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
 }
 
 /* 主题切换按钮 */
