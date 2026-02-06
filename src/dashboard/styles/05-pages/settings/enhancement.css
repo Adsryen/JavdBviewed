@@ -1048,6 +1048,7 @@
     background: linear-gradient(135deg, rgba(0, 123, 255, 0.02) 0%, rgba(0, 123, 255, 0.05) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none; /* 防止阻挡点击事件 */
 }
 
 .toggle-option:hover {
@@ -1066,6 +1067,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    position: relative;
+    z-index: 2; /* 确保在伪元素之上 */
 }
 
 /* 当 toggle-header 内包含默认标签复选框组时，改为上下布局，标题在上，选项在下 */
@@ -1090,6 +1093,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    position: relative;
+    z-index: 3; /* 确保复选框在最上层 */
 }
 
 #actorDefaultTagsGroup .checkbox-label {
@@ -1105,6 +1110,8 @@
     line-height: 1;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 4; /* 确保标签在最上层 */
 }
 
 #actorDefaultTagsGroup .checkbox-label:hover {
@@ -1115,6 +1122,10 @@
 #actorDefaultTagsGroup .checkbox-label input[type="checkbox"] {
     margin: 0;
     cursor: pointer;
+    display: inline-block !important; /* 覆盖父级的 display: none */
+    width: 16px;
+    height: 16px;
+    appearance: auto; /* 使用浏览器默认样式 */
 }
 
 /* 如果 HTML 中带有 .checkmark 元素，默认隐藏，避免影响排版 */
