@@ -100,6 +100,22 @@
   --radius-xl: 16px;
   --radius-full: 999px;
   
+  /* === Z-index 层级 - Z-index Layers === */
+  --z-modal-backdrop: 1000;
+  --z-modal: 1001;
+  --z-toast: 2000;
+  --z-tooltip: 3000;
+  
+  /* === 过渡时间 - Transition Duration === */
+  --transition-fast: 150ms;
+  --transition-base: 250ms;
+  --transition-slow: 350ms;
+  
+  /* === 缓动函数 - Easing Functions === */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  
   /* === 焦点环 - Focus Ring === */
   --ring: 0 0 0 3px rgba(59, 130, 246, 0.15);
   
@@ -220,6 +236,22 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 999px;
+  
+  /* === Z-index 层级 - Z-index Layers === */
+  --z-modal-backdrop: 1000;
+  --z-modal: 1001;
+  --z-toast: 2000;
+  --z-tooltip: 3000;
+  
+  /* === 过渡时间 - Transition Duration === */
+  --transition-fast: 150ms;
+  --transition-base: 250ms;
+  --transition-slow: 350ms;
+  
+  /* === 缓动函数 - Easing Functions === */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   
   /* === 焦点环 - Focus Ring === */
   --ring: 0 0 0 3px rgba(96, 165, 250, 0.25);

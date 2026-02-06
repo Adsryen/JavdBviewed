@@ -17,6 +17,15 @@
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
+/* 通用 modal-footer 样式 - 确保所有弹窗的页脚都有正确的层级和布局 */
+.modal-footer {
+    position: relative !important;
+    z-index: 1 !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 16px !important;
+}
+
 .modal.visible {
     opacity: 1;
     visibility: visible;
@@ -251,9 +260,12 @@ body.modal-open {
     padding: 24px;
     box-sizing: border-box;
     overflow: auto;
-    z-index: 10000;
+    z-index: 10000 !important;
     background-color: rgba(15, 23, 42, 0.55);
     backdrop-filter: blur(2px);
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .modal-overlay.visible {
@@ -473,6 +485,11 @@ body.modal-open {
     padding: 14px 16px 18px 16px;
     border-top: 1px solid var(--border-primary);
     background: var(--surface-secondary);
+    position: relative !important;
+    z-index: 1 !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 16px !important;
 }
 
 /* 统一按钮在浅色背景下的观感（不改变全局按钮语义） */
@@ -836,7 +853,7 @@ body.modal-open {
     padding: 30px;
     flex: 1;
     overflow-y: auto;
-    background: #fafbfc;
+    background: var(--bg-secondary);
 }
 
 .webdav-restore-modal .modal-footer {
@@ -844,7 +861,8 @@ body.modal-open {
     display: flex;
     justify-content: flex-end;
     gap: 16px;
-    background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+    background: var(--surface-primary);
+    border-top: 1px solid var(--border-primary);
     position: relative !important;
     bottom: auto;
     z-index: 2 !important;
@@ -854,9 +872,9 @@ body.modal-open {
 .restore-loading {
     text-align: center;
     padding: 60px 30px;
-    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    background: var(--surface-secondary);
     border-radius: 12px;
-    border: 1px solid #e1e8ed;
+    border: 1px solid var(--border-primary);
 }
 
 @keyframes pulse-fade {
@@ -906,7 +924,7 @@ body.modal-open {
 }
 
 .restore-loading p {
-    color: #2c3e50;
+    color: var(--text-primary);
     font-size: 18px;
     font-weight: 500;
     margin: 0;
@@ -921,8 +939,8 @@ body.modal-open {
 }
 
 .restore-description {
-    background: linear-gradient(135deg, #fff7e6 0%, #fef3e2 100%);
-    border: 1px solid #f0c674;
+    background: var(--warning-light);
+    border: 1px solid var(--warning);
     border-radius: 10px;
     padding: 16px 20px;
     position: relative;
@@ -937,7 +955,7 @@ body.modal-open {
 }
 
 .restore-description p {
-    color: #8b4513;
+    color: var(--text-primary);
     margin: 0 0 0 30px;
     font-size: 15px;
     font-weight: 500;
@@ -946,11 +964,11 @@ body.modal-open {
 
 /* 文件列表容器 - 优化版 */
 .file-list-container {
-    border: 2px solid #e1e8ed;
+    border: 2px solid var(--border-primary);
     border-radius: 12px;
     overflow: hidden;
     background: var(--surface-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-md);
 }
 
 .file-list-header {
@@ -990,7 +1008,7 @@ body.modal-open {
     display: flex;
     align-items: center;
     padding: 18px 24px;
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid var(--border-primary);
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
@@ -1002,7 +1020,7 @@ body.modal-open {
 }
 
 .webdav-file-item:hover {
-    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    background: var(--bg-hover);
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
     margin-left: 4px;
     margin-right: -4px;
@@ -1041,7 +1059,7 @@ body.modal-open {
 
 .webdav-file-item .file-name {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     font-size: 16px;
     line-height: 1.3;
     margin: 0;
@@ -1065,7 +1083,7 @@ body.modal-open {
 
 .webdav-file-item .file-date {
     font-size: 13px;
-    color: #7f8c8d;
+    color: var(--text-secondary);
     font-weight: 500;
     flex: 1;
     overflow: hidden;
@@ -1075,9 +1093,9 @@ body.modal-open {
 
 .webdav-file-item .file-size {
     font-size: 12px;
-    color: #95a5a6;
+    color: var(--text-muted);
     font-weight: 600;
-    background: rgba(149, 165, 166, 0.1);
+    background: var(--bg-hover);
     padding: 2px 8px;
     border-radius: 12px;
     white-space: nowrap;
@@ -1094,8 +1112,8 @@ body.modal-open {
 
 /* 恢复选项 - 优化版 */
 .restore-options {
-    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
-    border: 2px solid #b3d9ff;
+    background: var(--surface-secondary);
+    border: 2px solid var(--border-primary);
     border-radius: 12px;
     padding: 24px;
     margin-top: 8px;
@@ -1105,11 +1123,10 @@ body.modal-open {
     margin: 0 0 20px 0;
     font-size: 18px;
     font-weight: 700;
-    color: #2c3e50;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 10px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .restore-options h4 i {
@@ -1132,8 +1149,8 @@ body.modal-open {
 }
 
 .restore-options .form-group-checkbox {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-    border: 2px solid #d1ecf1;
+    background: var(--surface-primary);
+    border: 2px solid var(--border-primary);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 0;
@@ -1155,10 +1172,10 @@ body.modal-open {
 }
 
 .restore-options .form-group-checkbox:hover {
-    border-color: #667eea;
-    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
+    border-color: var(--primary);
+    background: var(--bg-hover);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+    box-shadow: var(--shadow-md);
 }
 
 .restore-options .form-group-checkbox:hover::before {
@@ -1171,7 +1188,7 @@ body.modal-open {
 
 .restore-options .form-group-checkbox label {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1193,7 +1210,7 @@ body.modal-open {
 }
 
 .restore-options .form-group-checkbox small {
-    color: #5a6c7d;
+    color: var(--text-secondary);
     font-size: 13px;
     line-height: 1.5;
     display: block;
@@ -1205,24 +1222,24 @@ body.modal-open {
 .restore-options .form-group-checkbox label.disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    color: #95a5a6 !important;
+    color: var(--text-muted) !important;
 }
 
 .restore-options .form-group-checkbox label.disabled i {
-    color: #bdc3c7 !important;
+    color: var(--text-muted) !important;
 }
 
 .restore-options .form-group-checkbox:has(input:disabled) {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-color: #dee2e6;
+    background: var(--bg-hover);
+    border-color: var(--border-secondary);
     opacity: 0.7;
 }
 
 .restore-options .form-group-checkbox:has(input:disabled):hover {
     transform: none;
     box-shadow: none;
-    border-color: #dee2e6;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-color: var(--border-secondary);
+    background: var(--bg-hover);
 }
 
 .restore-options .form-group-checkbox:has(input:disabled)::before {
@@ -1233,14 +1250,14 @@ body.modal-open {
 .restore-error {
     text-align: center;
     padding: 50px 30px;
-    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
-    border: 2px solid #feb2b2;
+    background: var(--error-light);
+    border: 2px solid var(--error);
     border-radius: 12px;
 }
 
 .restore-error .error-icon {
     font-size: 56px;
-    color: #e53e3e;
+    color: var(--error);
     margin-bottom: 20px;
     animation: shake 0.5s ease-in-out;
 }
@@ -1252,14 +1269,14 @@ body.modal-open {
 }
 
 .restore-error h4 {
-    color: #c53030;
+    color: var(--error-hover);
     margin: 0 0 12px 0;
     font-size: 20px;
     font-weight: 700;
 }
 
 .restore-error p {
-    color: #744210;
+    color: var(--text-primary);
     margin: 0 0 24px 0;
     font-size: 16px;
     font-weight: 500;
@@ -1268,11 +1285,12 @@ body.modal-open {
 
 /* 强制按钮留在弹窗内 */
 #webdavRestoreModal {
-    contain: layout style paint !important;
+    /* 移除 contain 属性，避免内容被裁剪 */
 }
 
 #webdavRestoreModal .modal-footer {
-    contain: layout style !important;
+    position: relative !important;
+    z-index: 1 !important;
 }
 /* 已废弃：隐藏“影响预览”相关容器，防止任何闪现/残留 */
 #webdavRestoreModal .impact-preview,
@@ -1288,7 +1306,6 @@ body.modal-open {
     position: static !important;
     float: none !important;
     transform: none !important;
-    contain: layout style !important;
 }
 
 /* WebDAV 恢复弹窗按钮可见性兜底：
@@ -1314,8 +1331,8 @@ body.modal-open {
 
 /* ================= 恢复结果摘要（结果页） ================= */
 .restore-results-container {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 18px 18px 12px 18px;
 }
@@ -1326,7 +1343,7 @@ body.modal-open {
 
 .restore-results-container .results-header h4 {
     margin: 0 0 4px 0;
-    color: #16a34a; /* 绿 */
+    color: var(--success);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1334,7 +1351,7 @@ body.modal-open {
 
 .restore-results-container .results-header p {
     margin: 0;
-    color: #475569;
+    color: var(--text-secondary);
     font-size: 14px;
 }
 
@@ -1355,9 +1372,9 @@ body.modal-open {
     align-items: center;
     gap: 12px;
     padding: 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-primary);
     border-radius: 10px;
-    background: #fafafa;
+    background: var(--surface-secondary);
 }
 
 .restore-results-container .result-icon i {
@@ -1370,7 +1387,7 @@ body.modal-open {
 
 .restore-results-container .result-title {
     font-weight: 600;
-    color: #111827;
+    color: var(--text-primary);
     margin-bottom: 4px;
 }
 
@@ -1400,7 +1417,7 @@ body.modal-open {
 
 .restore-results-container .result-details {
     margin-top: 6px;
-    color: #6b7280;
+    color: var(--text-secondary);
     font-size: 12px;
 }
 
@@ -1575,23 +1592,22 @@ body.modal-open {
 
 /* 文件列表优化样式 */
 .webdav-file-item.latest-file {
-    border: 2px solid #667eea;
-    background: linear-gradient(135deg, #f0f3ff 0%, #e8f2ff 100%);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    border: 1px solid var(--primary);
+    background: var(--primary-light);
 }
 
 .webdav-file-item.latest-file:hover {
-    border-color: #5a6fd8;
+    border-color: var(--primary-hover);
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.25);
 }
 
 .webdav-file-item.recent-file {
-    border: 1px solid #28a745;
-    background: linear-gradient(135deg, #f8fff8 0%, #f0fff0 100%);
+    border: 1px solid var(--success);
+    background: var(--success-light);
 }
 
 .webdav-file-item.recent-file:hover {
-    border-color: #218838;
+    border-color: var(--success-hover);
     box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
 }
 
@@ -1625,16 +1641,16 @@ body.modal-open {
 
 .webdav-file-item .file-date {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-secondary);
 }
 
 .webdav-file-item.latest-file .file-date {
-    color: #667eea;
+    color: var(--primary);
     font-weight: 600;
 }
 
 .webdav-file-item.recent-file .file-date {
-    color: #28a745;
+    color: var(--success);
     font-weight: 600;
 }
 
@@ -3012,7 +3028,7 @@ body.modal-open {
 
 /* 智能恢复确认弹窗样式 */
 #smartRestoreModal {
-    z-index: 10001 !important; /* 确保在所有其他弹窗之上 */
+    z-index: 9999 !important; /* 低于webdavRestoreModal */
 }
 
 .smart-restore-modal {
@@ -3025,7 +3041,7 @@ body.modal-open {
     display: flex;
     flex-direction: column;
     position: relative;
-    z-index: 10002 !important; /* 确保弹窗内容在最顶层 */
+    z-index: 1 !important; /* 相对于父容器 */
 }
 
 .smart-restore-modal .modal-header {
@@ -3184,6 +3200,8 @@ body.modal-open {
     justify-content: flex-end;
     gap: 16px;
     background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 .smart-restore-modal .btn {
@@ -3599,17 +3617,17 @@ body.modal-open {
 
 /* 数据预览界面样式 */
 #webdavRestoreModal .data-preview {
-    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 60%);
-    border: 1px solid #e5e7eb;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 20px;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    box-shadow: var(--shadow-lg);
 }
 
 #webdavRestoreModal .data-preview h4 {
     margin: 0 0 20px 0;
-    color: #2c3e50;
+    color: var(--text-primary);
     font-size: 20px;
     font-weight: 600;
     display: flex;
@@ -3619,7 +3637,7 @@ body.modal-open {
 
 #webdavRestoreModal .data-preview h5 {
     margin: 20px 0 12px 0;
-    color: #34495e;
+    color: var(--text-primary);
     font-size: 16px;
     font-weight: 600;
     display: flex;
@@ -3628,11 +3646,11 @@ body.modal-open {
 }
 
 #webdavRestoreModal .restore-summary-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 14px;
     padding: 18px 18px 14px 18px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-md);
     margin-bottom: 16px;
 }
 
@@ -3644,14 +3662,14 @@ body.modal-open {
 }
 
 #webdavRestoreModal .restore-summary-card .summary-header i {
-    color: #667eea;
+    color: var(--primary);
 }
 
 #webdavRestoreModal .restore-summary-card .summary-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: #111827;
+    color: var(--text-primary);
 }
 
 #webdavRestoreModal .restore-summary-card .summary-stats {
@@ -3671,22 +3689,22 @@ body.modal-open {
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 12px;
 }
 
 #webdavRestoreModal .restore-summary-card .summary-stats .stat-number {
     font-size: 20px;
     font-weight: 800;
-    color: #111827;
+    color: var(--text-primary);
     letter-spacing: 0.2px;
 }
 
 #webdavRestoreModal .restore-summary-card .summary-stats .stat-label {
     font-size: 13px;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-secondary);
 }
 
 /* 差异摘要样式 */
@@ -3698,16 +3716,16 @@ body.modal-open {
 }
 
 .diff-category {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     padding: 16px;
     transition: all 0.3s ease;
 }
 
 .diff-category:hover {
-    border-color: #667eea;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
 }
 
 .diff-header {
@@ -3716,12 +3734,12 @@ body.modal-open {
     gap: 8px;
     margin-bottom: 12px;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .diff-header i {
-    color: #667eea;
+    color: var(--primary);
     font-size: 16px;
 }
 
@@ -3748,20 +3766,20 @@ body.modal-open {
 
 .stat-label {
     font-size: 13px;
-    color: #6c757d;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 .stat-value {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
     margin-right: 8px;
 }
 
 .btn-link {
     background: none;
     border: none;
-    color: #667eea;
+    color: var(--primary);
     text-decoration: underline;
     cursor: pointer;
     font-size: 12px;
@@ -3769,7 +3787,7 @@ body.modal-open {
 }
 
 .btn-link:hover {
-    color: #5a6fd8;
+    color: var(--primary-hover);
 }
 
 /* 合并策略选择样式 */
@@ -3861,39 +3879,39 @@ body.modal-open {
 }
 
 #webdavRestoreModal .restore-options-section {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 14px;
     padding: 14px 16px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-md);
 }
 
 #webdavRestoreModal .restore-options-section h5 {
-    color: #0f172a;
+    color: var(--text-primary);
 }
 
 #webdavRestoreModal .restore-options-section h5 i {
-    color: #667eea;
+    color: var(--primary);
 }
 
 #webdavRestoreModal .restore-options-section .form-group-checkbox label {
-    color: #111827;
+    color: var(--text-primary);
 }
 
 #webdavRestoreModal .restore-options-section .form-group-checkbox small {
-    color: #475569;
+    color: var(--text-secondary);
 }
 
 #webdavRestoreModal .restore-options-section .stats-info {
-    color: #166534;
+    color: var(--success);
 }
 
 #webdavRestoreModal .restore-options-section .warning-text {
-    color: #92400e;
+    color: var(--warning);
 }
 
 #webdavRestoreModal .restore-options-section .unavailable-text {
-    color: #b91c1c;
+    color: var(--error);
 }
 
 .restore-options-grid {
@@ -4141,6 +4159,14 @@ body.modal-open {
     width: 90%;
 }
 
+.restore-result-modal .modal-footer {
+    position: relative !important;
+    z-index: 1 !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 16px !important;
+}
+
 .result-summary {
     text-align: center;
     margin-bottom: 24px;
@@ -4178,28 +4204,28 @@ body.modal-open {
 }
 
 .summary-item {
-    background: #f8f9fa;
+    background: var(--surface-secondary);
     padding: 12px;
     border-radius: 6px;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-primary);
     text-align: center;
 }
 
 .summary-item .summary-label {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-secondary);
     margin-bottom: 4px;
 }
 
 .summary-item .summary-value {
     font-size: 18px;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
 }
 
 .backup-info {
-    background: #e8f5e8;
-    border: 1px solid #c3e6c3;
+    background: var(--success-light);
+    border: 1px solid var(--success);
     border-radius: 8px;
     padding: 16px;
 }

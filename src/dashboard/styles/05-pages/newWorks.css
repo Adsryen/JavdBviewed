@@ -643,7 +643,8 @@
     display: none;
 }
 
-.modal-overlay {
+.actor-selector-modal .modal-overlay,
+.subscription-management-modal .modal-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -655,7 +656,8 @@
     justify-content: center;
 }
 
-.modal-content {
+.actor-selector-modal .modal-content,
+.subscription-management-modal .modal-content {
     background: var(--surface-primary);
     border-radius: 8px;
     box-shadow: var(--shadow-xl);
