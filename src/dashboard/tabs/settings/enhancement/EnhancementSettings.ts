@@ -12,6 +12,7 @@ import type { ExtensionSettings, KeywordFilterRule } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
 import { aiService } from '../../../../services/ai/aiService';
+import { ACTOR_FILTER_TAGS, getDefaultTags, getTagByValue } from '../../../config/actorFilterTags';
 
 /**
  * 功能增强设置面板类
@@ -83,9 +84,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private lastAppliedTagsDisplay!: HTMLElement;
     private appliedTagsContainer!: HTMLElement;
     private clearLastAppliedTags!: HTMLButtonElement;
-    private exportActorConfig!: HTMLButtonElement;
-    private importActorConfig!: HTMLButtonElement;
-    private actorConfigFileInput!: HTMLInputElement;
     // 新增：演员页 影片分段显示
     private aeEnableTimeSegmentationDivider!: HTMLInputElement;
     private aeTimeSegmentationMonths!: HTMLInputElement;
@@ -258,9 +256,45 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 动态生成演员页过滤标签复选框
+     */
+    private renderActorFilterTags(): void {
+        const container = document.getElementById('actorDefaultTagsGroup');
+        if (!container) return;
+
+        // 清空容器
+        container.innerHTML = '';
+
+        // 根据配置生成复选框
+        ACTOR_FILTER_TAGS.forEach(tag => {
+            const label = document.createElement('label');
+            label.className = 'checkbox-label';
+            label.title = tag.description || '';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = 'actorDefaultTag';
+            input.value = tag.value;
+
+            const checkmark = document.createElement('span');
+            checkmark.className = 'checkmark';
+
+            const text = document.createTextNode(tag.label);
+
+            label.appendChild(input);
+            label.appendChild(checkmark);
+            label.appendChild(text);
+            container.appendChild(label);
+        });
+    }
+
+    /**
      * 初始化DOM元素
      */
     protected initializeElements(): void {
+        // 先动态生成演员页过滤标签
+        this.renderActorFilterTags();
+
         // 数据增强功能元素
         this.enableTranslation = document.getElementById('enableTranslation') as HTMLInputElement;
         this.cacheExpiration = document.getElementById('cacheExpiration') as HTMLInputElement;
@@ -273,16 +307,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableActorEnhancement = document.getElementById('enableActorEnhancement') as HTMLInputElement;
         this.enableVideoEnhancement = document.getElementById('enableVideoEnhancement') as HTMLInputElement;
 
-        // 演员页增强配置
+        // 演员页增强配置（在动态生成后查询）
         this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
         this.actorDefaultTagInputs = document.querySelectorAll('#actorDefaultTagsGroup input[name="actorDefaultTag"]') as NodeListOf<HTMLInputElement>;
         this.actorEnhancementConfig = document.getElementById('actorEnhancementConfig') as HTMLElement;
         this.lastAppliedTagsDisplay = document.getElementById('lastAppliedTagsDisplay') as HTMLElement;
         this.appliedTagsContainer = document.getElementById('appliedTagsContainer') as HTMLElement;
         this.clearLastAppliedTags = document.getElementById('clearLastAppliedTags') as HTMLButtonElement;
-        this.exportActorConfig = document.getElementById('exportActorConfig') as HTMLButtonElement;
-        this.importActorConfig = document.getElementById('importActorConfig') as HTMLButtonElement;
-        this.actorConfigFileInput = document.getElementById('actorConfigFileInput') as HTMLInputElement;
         // 新增：演员页 影片分段显示元素
         this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
         this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
@@ -587,7 +618,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             s.actorEnhancement = {
                 enabled: true,
                 autoApplyTags: true,
-                defaultTags: ['s','d'],
+                defaultTags: getDefaultTags(),
                 defaultSortType: 0,
             } as any;
         }
@@ -1215,7 +1246,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.previewSourceVBGFL) this.previewSourceVBGFL.checked = preferred === 'vbgfl';
 
         // 演员页增强配置
-        const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: ['s', 'd'], defaultSortType: 0 };
+        const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: getDefaultTags(), defaultSortType: 0 };
         if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
         if (this.actorDefaultTagInputs && actorEnhancement.defaultTags) {
             this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
@@ -1471,7 +1502,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     autoApplyTags: this.enableAutoApplyTags?.checked !== false,
                     defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
                         ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
-                        : ['s', 'd'],
+                        : getDefaultTags(),
                     defaultSortType: 0,
                     // 新增：演员页 影片分段显示
                     enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
@@ -1566,7 +1597,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 autoApplyTags: this.enableAutoApplyTags?.checked !== false,
                 defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
                     ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
-                    : ['s', 'd'],
+                    : getDefaultTags(),
                 defaultSortType: 0,
                 enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                 timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
@@ -1959,7 +1990,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     /**
      * 处理音量变化
-     */
+     
     private handleVolumeChange(e: Event): void {
         const value = (e.target as HTMLInputElement).value;
         const volumeFloat = parseFloat(value);
@@ -1986,11 +2017,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.notifyVolumeChange(volumeFloat);
 
         this.handleSettingChange();
-    }
+    }*/
 
     /**
      * 通知内容脚本音量已更改
-     */
+     
     private notifyVolumeChange(volume: number): void {
         // 通知所有JavDB标签页音量已更改
         if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -2007,7 +2038,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 });
             });
         }
-    }
+    }*/
 
     /**
      * 渲染过滤规则列表
@@ -2622,17 +2653,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         const tags = tagsString.split(',').filter(tag => tag.trim());
-        const tagNames: { [key: string]: string } = {
-            's': '单体作品',
-            'd': '含磁链',
-            'c': '含字幕',
-            'b': '可播放',
-            '4k': '4K',
-            'uncensored': '无码流出'
-        };
 
         const tagElements = tags.map(tag => {
-            const tagName = tagNames[tag] || tag;
+            // 使用配置文件中的标签定义
+            const tagConfig = getTagByValue(tag);
+            const tagName = tagConfig ? tagConfig.label : tag;
             return `<span class="applied-tag">${tagName}</span>`;
         }).join('');
 
@@ -2661,91 +2686,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 await setValue('lastAppliedActorTags', '');
                 this.displayAppliedTags('');
             });
-        }
-
-        // 导出配置
-        if (this.exportActorConfig) {
-            this.exportActorConfig.addEventListener('click', () => {
-                this.exportActorConfiguration();
-            });
-        }
-
-        // 导入配置
-        if (this.importActorConfig) {
-            this.importActorConfig.addEventListener('click', () => {
-                this.actorConfigFileInput?.click();
-            });
-        }
-
-        // 文件选择处理
-        if (this.actorConfigFileInput) {
-            this.actorConfigFileInput.addEventListener('change', (event) => {
-                const file = (event.target as HTMLInputElement).files?.[0];
-                if (file) {
-                    this.importActorConfiguration(file);
-                }
-            });
-        }
-    }
-
-    /**
-     * 导出演员页配置
-     */
-    private async exportActorConfiguration(): Promise<void> {
-        try {
-            const config = {
-                actorTagFilters: await getValue('actorTagFilters', '{}'),
-                lastAppliedActorTags: await getValue('lastAppliedActorTags', ''),
-                actorEnhancement: STATE.settings?.actorEnhancement || {},
-                exportTime: new Date().toISOString()
-            };
-
-            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `javdb-actor-config-${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('[Enhancement] 导出配置失败:', error);
-            alert('导出配置失败，请检查控制台错误信息');
-        }
-    }
-
-    /**
-     * 导入演员页配置
-     */
-    private async importActorConfiguration(file: File): Promise<void> {
-        try {
-            const text = await file.text();
-            const config = JSON.parse(text);
-
-            // 验证配置格式
-            if (!config.actorTagFilters && !config.lastAppliedActorTags && !config.actorEnhancement) {
-                throw new Error('无效的配置文件格式');
-            }
-
-            // 导入数据
-            if (config.actorTagFilters) {
-                await setValue('actorTagFilters', config.actorTagFilters);
-            }
-            if (config.lastAppliedActorTags) {
-                await setValue('lastAppliedActorTags', config.lastAppliedActorTags);
-                this.displayAppliedTags(config.lastAppliedActorTags);
-            }
-            if (config.actorEnhancement) {
-                // 更新设置并重新加载
-                STATE.settings = { ...STATE.settings, actorEnhancement: config.actorEnhancement };
-                await this.doLoadSettings();
-            }
-
-            alert('配置导入成功！');
-        } catch (error) {
-            console.error('[Enhancement] 导入配置失败:', error);
-            alert('导入配置失败：' + (error as Error).message);
         }
     }
 }

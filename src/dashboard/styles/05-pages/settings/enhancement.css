@@ -1012,17 +1012,16 @@
     box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
 }
 
-/* 并排滑块容器样式 */
+/* 并排滑块容器样式 - 改为上下布局 */
 .dual-toggle-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 20px;
     margin-bottom: 20px;
 }
 
 @media (max-width: 768px) {
     .dual-toggle-container {
-        grid-template-columns: 1fr;
         gap: 15px;
     }
 }
