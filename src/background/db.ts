@@ -1153,6 +1153,7 @@ export async function newWorksPut(record: NewWorkRecord): Promise<void> {
 
 export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
   if (!records || records.length === 0) return;
+  console.log(`[IDB] newWorksBulkPut: 准备写入 ${records.length} 个作品到 IndexedDB`);
   const db = await initDB();
   const tx = db.transaction('newWorks', 'readwrite');
   try {
@@ -1160,7 +1161,13 @@ export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
       await tx.store.put(r);
     }
     await tx.done;
+    console.log(`[IDB] newWorksBulkPut: 成功写入 ${records.length} 个作品到 IndexedDB`);
+    
+    // 验证写入：立即读取确认
+    const count = await db.count('newWorks');
+    console.log(`[IDB] newWorksBulkPut: 写入后 IndexedDB 中共有 ${count} 个作品`);
   } catch (e) {
+    console.error(`[IDB] newWorksBulkPut: 写入失败`, e);
     try { await tx.done; } catch {}
     throw e;
   }
@@ -1185,6 +1192,7 @@ export async function newWorksQuery(params: NewWorksQueryParams): Promise<{ item
   const { search = '', filter = 'all', sort = 'discoveredAt', order = 'desc', offset = 0, limit = 20 } = params || {} as any;
   const db = await initDB();
   let items = await db.getAll('newWorks');
+  console.log(`[IDB] newWorksQuery: 从 IndexedDB 获取到 ${items.length} 个作品`, { search, filter, sort, order, offset, limit });
 
   const q = (search || '').trim().toLowerCase();
   if (q) {
@@ -1224,6 +1232,7 @@ export async function newWorksQuery(params: NewWorksQueryParams): Promise<{ item
 export async function newWorksStats(): Promise<{ total: number; unread: number; today: number; week: number; }> {
   const db = await initDB();
   const items = await db.getAll('newWorks');
+  console.log(`[IDB] newWorksStats: 从 IndexedDB 获取到 ${items.length} 个作品`);
   const now = Date.now();
   const todayStart = new Date().setHours(0, 0, 0, 0);
   const weekStart = now - 7 * 24 * 60 * 60 * 1000;
@@ -1231,6 +1240,7 @@ export async function newWorksStats(): Promise<{ total: number; unread: number; 
   const unread = items.filter(w => !w.isRead).length;
   const today = items.filter(w => (w.discoveredAt || 0) >= todayStart).length;
   const week = items.filter(w => (w.discoveredAt || 0) >= weekStart).length;
+  console.log(`[IDB] newWorksStats: 统计结果`, { total, unread, today, week });
   return { total, unread, today, week };
 }
 
