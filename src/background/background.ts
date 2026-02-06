@@ -2,7 +2,7 @@
 // 背景入口：装配与注册各模块
 
 // 确保 Service Worker 上下文已准备好
-if (typeof self === 'undefined' || !self.registration) {
+if (typeof self === 'undefined' || !(self as any).registration) {
   console.warn('[Background] Service Worker context not ready, waiting...');
 }
 
