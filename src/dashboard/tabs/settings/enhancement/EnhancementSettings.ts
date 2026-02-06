@@ -1808,6 +1808,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 仅记录可用状态，不直接控制显示（显示由 hover 行为接管）
         const map: Record<string, string> = {
             'enableTranslation': 'translationConfig',
+            'enableActorEnhancement': 'actorEnhancementConfig',
             'enableAutoApplyTags': 'actorEnhancementConfig',
             'enableContentFilter': 'contentFilterConfig',
             'enableAnchorOptimization': 'anchorOptimizationConfig',
@@ -1815,6 +1816,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'enableMagnetSearch': 'magnetSourcesConfig',
             'enableVideoEnhancement': 'videoEnhancementConfig',
             'veEnableActorRemarks': 'actorRemarksConfig',
+            'enableActorWatermark': 'actorWatermarkConfig',
+            'aeEnableTimeSegmentationDivider': 'actorTimeSegmentationConfig',
         };
         const subSettingsId = map[targetId];
         if (!subSettingsId) return;

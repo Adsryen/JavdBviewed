@@ -259,6 +259,7 @@
 
 /* 子设置区域：默认隐藏，仅在悬浮触发展开（由 TS 添加 .is-open 类） */
 #enhancement-settings .sub-settings {
+    position: relative; /* 为禁用提示定位 */
     display: block; /* 保持占位用于动画计算 */
     overflow: hidden;
     max-height: 0;
@@ -284,6 +285,49 @@
     padding-bottom: 10px;
     border-top-width: 1px;
     border-bottom-width: 1px;
+}
+
+/* 子设置禁用状态：当主功能开关未打开时 */
+#enhancement-settings .sub-settings[data-enabled="0"] {
+    pointer-events: none;
+    opacity: 0.5;
+    filter: grayscale(0.3);
+    position: relative;
+}
+
+#enhancement-settings .sub-settings[data-enabled="0"].is-open {
+    opacity: 0.5;
+    overflow: visible; /* 允许提示信息溢出显示 */
+}
+
+#enhancement-settings .sub-settings[data-enabled="0"] input,
+#enhancement-settings .sub-settings[data-enabled="0"] select,
+#enhancement-settings .sub-settings[data-enabled="0"] button,
+#enhancement-settings .sub-settings[data-enabled="0"] textarea {
+    cursor: not-allowed;
+}
+
+#enhancement-settings .sub-settings[data-enabled="0"]::after {
+    content: '🔒 请先启用主功能开关';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+#enhancement-settings .sub-settings[data-enabled="0"]:hover::after {
+    opacity: 1;
 }
 
 /* 子设置内的说明与表单间距优化 */
@@ -1059,15 +1103,24 @@
     color: #495057;
     font-size: 14px;
     line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#actorDefaultTagsGroup .checkbox-label:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
 }
 
 #actorDefaultTagsGroup .checkbox-label input[type="checkbox"] {
     margin: 0;
+    cursor: pointer;
 }
 
 /* 如果 HTML 中带有 .checkmark 元素，默认隐藏，避免影响排版 */
 #actorDefaultTagsGroup .checkbox-label .checkmark {
     display: none;
+    pointer-events: none;
 }
 
 /* 选中态视觉强调 */
@@ -1934,6 +1987,12 @@
     border-color: var(--enhancement-border);
     background: var(--enhancement-card-bg);
     color: var(--enhancement-text);
+    cursor: pointer;
+}
+
+[data-theme="dark"] #enhancement-settings #actorDefaultTagsGroup .checkbox-label:hover {
+    border-color: var(--primary);
+    background: var(--surface-hover);
 }
 
 [data-theme="dark"] #enhancement-settings #actorDefaultTagsGroup .checkbox-label:has(input:checked) {
@@ -2029,6 +2088,12 @@
     border-bottom-color: var(--enhancement-border);
     background: var(--enhancement-bg) !important;
     border-color: var(--enhancement-border) !important;
+}
+
+/* 子设置禁用状态 - 暗色主题 */
+[data-theme="dark"] #enhancement-settings .sub-settings[data-enabled="0"]::after {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fbbf24;
 }
 
 [data-theme="dark"] #enhancement-settings .sub-settings-header {
