@@ -2,6 +2,41 @@
    Insights 页面样式
    ============================================ */
 
+/* 警告横幅 */
+.tab-section[data-tab-id="insights"] .alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.tab-section[data-tab-id="insights"] .alert-banner .icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.tab-section[data-tab-id="insights"] .alert-banner span:not(.icon) {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+/* Beta 警告样式 */
+.tab-section[data-tab-id="insights"] .alert-banner.beta {
+    background: var(--warning-light);
+    border-left-color: var(--warning);
+}
+
+.tab-section[data-tab-id="insights"] .alert-banner.beta .icon {
+    color: var(--warning);
+}
+
 /* Insights 工具栏 */
 .tab-section[data-tab-id="insights"] .insights-toolbar {
     position: sticky;
