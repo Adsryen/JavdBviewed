@@ -163,7 +163,15 @@ export function registerMiscRouter(): void {
                   effectiveTotal += det.effective;
 
                   if (det.works.length > 0) {
-                    try { await newWorksManager.addNewWorks(det.works); } catch {}
+                    console.log(`准备保存 ${det.works.length} 个新作品到数据库`);
+                    try { 
+                      await newWorksManager.addNewWorks(det.works);
+                      console.log(`成功保存 ${det.works.length} 个新作品`);
+                    } catch (e) {
+                      console.error(`保存新作品失败:`, e);
+                    }
+                  } else {
+                    console.log(`没有新作品需要保存`);
                   }
                   discovered += det.works.length;
                 } catch (e: any) {
