@@ -239,24 +239,26 @@
     box-shadow: var(--shadow-md);
 }
 
-/* 控制台日志容器（深色风格，单独样式，形成强对比） */
+/* 控制台日志容器（适配主题切换） */
 .console-log-container {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: #0f172a; /* slate-900 */
+    background: var(--bg-secondary);
     border-radius: 8px;
     padding: 10px;
-    color: #e2e8f0; /* slate-200 */
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 .console-log-entry {
-    background: #111827; /* gray-900 */
-    border-left: 5px solid #475569; /* slate-600 default */
+    background: var(--surface-primary);
+    border-left: 5px solid var(--border-primary);
     border-radius: 6px;
     padding: 10px 12px;
     display: flex;
     align-items: center;
     gap: 10px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .console-log-header {
     display: flex;
@@ -274,21 +276,21 @@
 }
 .console-category {
     font-size: 12px;
-    color: #a5b4fc; /* indigo-300 */
+    color: var(--text-secondary);
     font-weight: 500;
     flex-shrink: 0;
 }
 .console-timestamp {
     margin-left: auto;
     font-size: 12px;
-    color: #94a3b8; /* slate-400 */
+    color: var(--text-muted);
     white-space: nowrap;
     flex-shrink: 0;
 }
 .console-log-message {
     font-size: 14px;
     line-height: 1.5;
-    color: #e5e7eb; /* gray-200 */
+    color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
     text-align: left;
