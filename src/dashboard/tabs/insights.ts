@@ -48,7 +48,7 @@ async function openPromptsModal(): Promise<void> {
     overlay.id = OVERLAY_ID;
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
-    overlay.style.background = 'rgba(15,23,42,0.42)';
+    overlay.style.background = 'var(--surface-overlay)';
     overlay.style.backdropFilter = 'blur(2px)';
     overlay.style.zIndex = '9999';
     overlay.style.display = 'flex';
@@ -59,11 +59,11 @@ async function openPromptsModal(): Promise<void> {
     modal.style.maxWidth = '95%';
     modal.style.maxHeight = '85%';
     modal.style.overflow = 'auto';
-    modal.style.background = '#ffffff';
+    modal.style.background = 'var(--surface-primary)';
     modal.style.borderRadius = '10px';
-    modal.style.boxShadow = '0 12px 36px rgba(0,0,0,0.22)';
+    modal.style.boxShadow = 'var(--shadow-xl)';
     modal.style.padding = '16px 18px';
-    modal.style.border = '1px solid #e5e7eb';
+    modal.style.border = '1px solid var(--border-primary)';
     const header = document.createElement('div');
     header.style.display = 'flex';
     header.style.alignItems = 'center';
@@ -73,6 +73,7 @@ async function openPromptsModal(): Promise<void> {
     title.textContent = '编辑提示词';
     title.style.fontWeight = '700';
     title.style.fontSize = '14px';
+    title.style.color = 'var(--text-primary)';
     header.appendChild(title);
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
@@ -81,16 +82,16 @@ async function openPromptsModal(): Promise<void> {
     closeBtn.style.background = 'transparent';
     closeBtn.style.border = 'none';
     closeBtn.style.cursor = 'pointer';
-    try { closeBtn.style.setProperty('color', '#0f172a', 'important'); } catch { closeBtn.style.color = '#0f172a'; }
+    try { closeBtn.style.setProperty('color', 'var(--text-secondary)', 'important'); } catch { closeBtn.style.color = 'var(--text-secondary)'; }
     closeBtn.style.opacity = '0.9';
     closeBtn.style.padding = '2px 6px';
     closeBtn.style.borderRadius = '6px';
-    closeBtn.onmouseenter = () => { try { closeBtn.style.setProperty('background', '#f1f5f9', 'important'); } catch { closeBtn.style.background = '#f1f5f9'; } closeBtn.style.opacity = '1'; };
+    closeBtn.onmouseenter = () => { try { closeBtn.style.setProperty('background', 'var(--bg-hover)', 'important'); } catch { closeBtn.style.background = 'var(--bg-hover)'; } closeBtn.style.opacity = '1'; };
     closeBtn.onmouseleave = () => { try { closeBtn.style.setProperty('background', 'transparent', 'important'); } catch { closeBtn.style.background = 'transparent'; } closeBtn.style.opacity = '0.9'; };
     header.appendChild(closeBtn);
     const body = document.createElement('div');
     body.style.fontSize = '12px';
-    body.style.color = '#334155';
+    body.style.color = 'var(--text-primary)';
     body.style.display = 'grid';
     body.style.gridTemplateColumns = '1fr';
     body.style.gap = '12px';
@@ -115,10 +116,11 @@ async function openPromptsModal(): Promise<void> {
     sysTa.style.fontSize = '12px';
     sysTa.style.lineHeight = '1.5';
     sysTa.style.padding = '10px';
-    sysTa.style.background = '#f8fafc';
-    sysTa.style.border = '1px solid #e5e7eb';
+    sysTa.style.background = 'var(--input-bg)';
+    sysTa.style.border = '1px solid var(--border-primary)';
     sysTa.style.borderRadius = '6px';
     sysTa.style.resize = 'vertical';
+    sysTa.style.color = 'var(--text-primary)';
     sysTa.value = (typeof p.systemOverride === 'string' && p.systemOverride.trim()) ? p.systemOverride : defaults.system;
     const rulesWrap = document.createElement('div');
     const rulesLab = document.createElement('div');
@@ -130,14 +132,15 @@ async function openPromptsModal(): Promise<void> {
     rulesTa.style.fontSize = '12px';
     rulesTa.style.lineHeight = '1.5';
     rulesTa.style.padding = '10px';
-    rulesTa.style.background = '#f8fafc';
-    rulesTa.style.border = '1px solid #e5e7eb';
+    rulesTa.style.background = 'var(--input-bg)';
+    rulesTa.style.border = '1px solid var(--border-primary)';
     rulesTa.style.borderRadius = '6px';
     rulesTa.style.resize = 'vertical';
+    rulesTa.style.color = 'var(--text-primary)';
     rulesTa.value = (typeof p.rulesOverride === 'string' && p.rulesOverride.trim()) ? p.rulesOverride : defaults.rules;
     const hint = document.createElement('div');
     hint.textContent = '未勾选“启用自定义”时，将使用系统默认提示词（当前已展示）。勾选后保存才会覆盖默认值。';
-    hint.style.color = '#64748b';
+    hint.style.color = 'var(--text-secondary)';
     hint.style.fontSize = '12px';
     sysWrap.appendChild(sysLab);
     sysWrap.appendChild(sysTa);
@@ -478,7 +481,7 @@ function openTraceModal(): void {
       overlay.id = OVERLAY_ID;
       overlay.style.position = 'fixed';
       overlay.style.inset = '0';
-      overlay.style.background = 'rgba(15,23,42,0.42)';
+      overlay.style.background = 'var(--surface-overlay)';
       overlay.style.backdropFilter = 'blur(2px)';
       overlay.style.zIndex = '9999';
       overlay.style.display = 'flex';
@@ -490,11 +493,11 @@ function openTraceModal(): void {
       modal.style.maxWidth = '95%';
       modal.style.maxHeight = '85%';
       modal.style.overflow = 'auto';
-      modal.style.background = '#fff';
+      modal.style.background = 'var(--surface-primary)';
       modal.style.borderRadius = '8px';
-      modal.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+      modal.style.boxShadow = 'var(--shadow-xl)';
       modal.style.padding = '12px 14px';
-      modal.style.border = '1px solid #e2e8f0';
+      modal.style.border = '1px solid var(--border-primary)';
 
       // 复制文案构建器
       const buildCopyText = (): string => {
@@ -548,12 +551,12 @@ function openTraceModal(): void {
       header.style.position = 'sticky';
       header.style.top = '0';
       header.style.zIndex = '10';
-      header.style.background = 'rgba(255,255,255,0.92)';
+      header.style.background = 'var(--surface-primary)';
       header.style.padding = '10px 0 12px 0';
-      header.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+      header.style.boxShadow = 'var(--shadow-sm)';
       header.style.minHeight = '36px';
       header.style.paddingRight = '120px';
-      header.style.borderBottom = '1px solid #e2e8f0';
+      header.style.borderBottom = '1px solid var(--border-primary)';
       const titleWrap = document.createElement('div');
       titleWrap.style.display = 'flex';
       titleWrap.style.alignItems = 'center';
@@ -561,6 +564,7 @@ function openTraceModal(): void {
       const title = document.createElement('div');
       title.textContent = '本次生成过程';
       title.style.fontWeight = '700';
+      title.style.color = 'var(--text-primary)';
       const status = (trace?.status || '-').toLowerCase();
       const badge = document.createElement('span');
       const badgeCfg: Record<string, {bg: string;color: string;border: string;label: string}> = {
@@ -592,9 +596,9 @@ function openTraceModal(): void {
       copyBtn.textContent = '复制';
       copyBtn.style.padding = '4px 10px';
       copyBtn.style.fontSize = '12px';
-      copyBtn.style.background = '#2563eb';
-      copyBtn.style.border = '1px solid #1d4ed8';
-      copyBtn.style.color = '#fff';
+      copyBtn.style.background = 'var(--primary)';
+      copyBtn.style.border = '1px solid var(--primary-hover)';
+      copyBtn.style.color = 'var(--text-inverse)';
       copyBtn.style.borderRadius = '4px';
       copyBtn.onclick = async () => {
         const text = buildCopyText();
@@ -621,9 +625,9 @@ function openTraceModal(): void {
       close.textContent = '关闭';
       close.style.padding = '4px 10px';
       close.style.fontSize = '12px';
-      close.style.background = '#f1f5f9';
-      close.style.border = '1px solid #cbd5e1';
-      close.style.color = '#334155';
+      close.style.background = 'var(--surface-secondary)';
+      close.style.border = '1px solid var(--border-primary)';
+      close.style.color = 'var(--text-primary)';
       close.style.borderRadius = '4px';
       close.onclick = () => overlay?.remove();
 
@@ -640,7 +644,7 @@ function openTraceModal(): void {
 
       const body = document.createElement('div');
       body.style.fontSize = '12px';
-      body.style.color = '#334155';
+      body.style.color = 'var(--text-primary)';
       body.style.paddingTop = '4px';
       body.style.display = 'block';
 
@@ -1452,7 +1456,7 @@ function confirmDialog(opts: { title?: string; message: string; okText?: string;
       overlay.id = OVERLAY_ID;
       overlay.style.position = 'fixed';
       overlay.style.inset = '0';
-      overlay.style.background = 'rgba(15,23,42,0.42)';
+      overlay.style.background = 'var(--surface-overlay)';
       overlay.style.backdropFilter = 'blur(2px)';
       overlay.style.zIndex = '9999';
       overlay.style.display = 'flex';
@@ -1461,18 +1465,19 @@ function confirmDialog(opts: { title?: string; message: string; okText?: string;
       const modal = document.createElement('div');
       modal.style.width = '520px';
       modal.style.maxWidth = '95%';
-      modal.style.background = '#fff';
+      modal.style.background = 'var(--surface-primary)';
       modal.style.borderRadius = '8px';
-      modal.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
-      modal.style.border = '1px solid #e2e8f0';
+      modal.style.boxShadow = 'var(--shadow-xl)';
+      modal.style.border = '1px solid var(--border-primary)';
       modal.style.padding = '14px 16px';
       const title = document.createElement('div');
       title.textContent = opts.title || '确认';
       title.style.fontWeight = '700';
       title.style.marginBottom = '8px';
+      title.style.color = 'var(--text-primary)';
       const msg = document.createElement('div');
       msg.textContent = opts.message;
-      msg.style.color = '#334155';
+      msg.style.color = 'var(--text-primary)';
       msg.style.fontSize = '13px';
       msg.style.margin = '6px 0 12px';
       const actions = document.createElement('div');
@@ -1483,17 +1488,17 @@ function confirmDialog(opts: { title?: string; message: string; okText?: string;
       cancel.textContent = opts.cancelText || '取消';
       cancel.style.padding = '6px 12px';
       cancel.style.fontSize = '12px';
-      cancel.style.background = '#f1f5f9';
-      cancel.style.border = '1px solid #cbd5e1';
-      cancel.style.color = '#334155';
+      cancel.style.background = 'var(--surface-secondary)';
+      cancel.style.border = '1px solid var(--border-primary)';
+      cancel.style.color = 'var(--text-primary)';
       cancel.style.borderRadius = '4px';
       const ok = document.createElement('button');
       ok.textContent = opts.okText || '确认';
       ok.style.padding = '6px 12px';
       ok.style.fontSize = '12px';
-      ok.style.background = '#2563eb';
-      ok.style.border = '1px solid #1d4ed8';
-      ok.style.color = '#fff';
+      ok.style.background = 'var(--primary)';
+      ok.style.border = '1px solid var(--primary-hover)';
+      ok.style.color = 'var(--text-inverse)';
       ok.style.borderRadius = '4px';
       cancel.onclick = () => { overlay?.remove(); resolve(false); };
       ok.onclick = () => { overlay?.remove(); resolve(true); };
