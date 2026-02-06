@@ -367,6 +367,8 @@ export class NewWorksManager {
             Object.assign(viewedMap, fallback);
         }
 
+        console.log(`[NewWorksManager] 番号库中共有 ${Object.keys(viewedMap).length} 条记录`);
+
         // 从 IDB 获取全部新作品
         let works = [] as NewWorkRecord[];
         try {
@@ -375,6 +377,8 @@ export class NewWorksManager {
             works = Array.from(this.newWorks.values());
         }
 
+        console.log(`[NewWorksManager] 新作品列表中共有 ${works.length} 个作品`);
+
         let updatedCount = 0;
         const updateDetails: Array<{ id: string; oldStatus: string; newStatus: string }> = [];
         const toUpdate: NewWorkRecord[] = [];
@@ -382,7 +386,11 @@ export class NewWorksManager {
         for (const work of works) {
             const id = work.id;
             const videoRecord = viewedMap[id];
-            if (!videoRecord) continue;
+            if (!videoRecord) {
+                console.log(`[NewWorksManager] 作品 ${id} 不在番号库中，跳过`);
+                continue;
+            }
+            console.log(`[NewWorksManager] 作品 ${id} 在番号库中，状态: ${videoRecord.status}`);
             const oldStatus = work.isRead ? 'read' : 'unread';
             let newIsRead = false;
             let newStatus: NewWorkRecord['status'] = 'new';
@@ -392,13 +400,18 @@ export class NewWorksManager {
                 case 'want': newIsRead = false; newStatus = 'want'; break;
             }
             if (work.isRead !== newIsRead || work.status !== newStatus) {
+                console.log(`[NewWorksManager] 作品 ${id} 状态需要更新: ${oldStatus} -> ${newIsRead ? 'read' : 'unread'} (${newStatus})`);
                 const updated = { ...work, isRead: newIsRead, status: newStatus } as NewWorkRecord;
                 toUpdate.push(updated);
                 this.newWorks.set(id, updated);
                 updatedCount++;
                 updateDetails.push({ id, oldStatus, newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})` });
+            } else {
+                console.log(`[NewWorksManager] 作品 ${id} 状态无需更新`);
             }
         }
+
+        console.log(`[NewWorksManager] 共需要更新 ${updatedCount} 个作品的状态`);
 
         if (toUpdate.length > 0) {
             try { await dbNewWorksBulkPut(toUpdate); } catch {}
@@ -487,11 +500,89 @@ export class NewWorksManager {
      */
     async addNewWorks(works: NewWorkRecord[]): Promise<void> {
         await this.initialize();
+        console.log(`[NewWorksManager] 准备添加 ${works.length} 个新作品`);
         let hasChanges = false;
-        works.forEach(work => { if (!this.newWorks.has(work.id)) { this.newWorks.set(work.id, work); hasChanges = true; } });
+        const worksToSync: NewWorkRecord[] = [];
+        
+        works.forEach(work => { 
+            if (!this.newWorks.has(work.id)) { 
+                this.newWorks.set(work.id, work); 
+                hasChanges = true; 
+            }
+            // 无论是否是新作品，都加入同步列表（确保 IDB 同步）
+            worksToSync.push(work);
+        });
+        
+        console.log(`[NewWorksManager] hasChanges: ${hasChanges}, 内存中现有 ${this.newWorks.size} 个作品, 需要同步 ${worksToSync.length} 个作品到 IDB`);
+        
         if (hasChanges) {
             await this.saveNewWorks();
-            try { await dbNewWorksBulkPut(works); } catch {}
+            console.log(`[NewWorksManager] 已保存到 chrome.storage`);
+        }
+        
+        // 无论 hasChanges 是否为 true，都要确保 IndexedDB 同步（逐条写入）
+        if (worksToSync.length > 0) {
+            try {
+                // 检测运行环境：如果在后台脚本中，直接调用 IDB 函数
+                // 通过尝试调用 getManifest() 来判断是否在扩展环境中
+                let isExtensionContext = false;
+                try {
+                    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getManifest === 'function') {
+                        chrome.runtime.getManifest();
+                        isExtensionContext = true;
+                    }
+                } catch {}
+                
+                if (isExtensionContext) {
+                    // 尝试动态导入后台的 db 模块
+                    try {
+                        const { newWorksPut } = await import('../../background/db');
+                        console.log(`[NewWorksManager] 开始逐条写入 ${worksToSync.length} 个作品到 IndexedDB`);
+                        let successCount = 0;
+                        for (const work of worksToSync) {
+                            try {
+                                await newWorksPut(work);
+                                successCount++;
+                                console.log(`[NewWorksManager] 成功写入作品 ${work.id} (${successCount}/${worksToSync.length})`);
+                            } catch (err) {
+                                console.error(`[NewWorksManager] 写入作品 ${work.id} 失败:`, err);
+                            }
+                        }
+                        console.log(`[NewWorksManager] 已保存 ${successCount}/${worksToSync.length} 个作品到 IndexedDB (直接调用)`);
+                    } catch (importErr) {
+                        console.log(`[NewWorksManager] 动态导入失败，尝试消息传递:`, importErr);
+                        // 如果导入失败，说明可能在 dashboard 环境，使用消息传递（逐条）
+                        console.log(`[NewWorksManager] 开始逐条写入 ${worksToSync.length} 个作品到 IndexedDB (消息传递)`);
+                        let successCount = 0;
+                        for (const work of worksToSync) {
+                            try {
+                                await dbNewWorksPut(work);
+                                successCount++;
+                                console.log(`[NewWorksManager] 成功写入作品 ${work.id} (${successCount}/${worksToSync.length})`);
+                            } catch (err) {
+                                console.error(`[NewWorksManager] 写入作品 ${work.id} 失败:`, err);
+                            }
+                        }
+                        console.log(`[NewWorksManager] 已保存 ${successCount}/${worksToSync.length} 个作品到 IndexedDB (消息传递)`);
+                    }
+                } else {
+                    // Dashboard 环境，使用消息传递（逐条）
+                    console.log(`[NewWorksManager] 开始逐条写入 ${worksToSync.length} 个作品到 IndexedDB (消息传递)`);
+                    let successCount = 0;
+                    for (const work of worksToSync) {
+                        try {
+                            await dbNewWorksPut(work);
+                            successCount++;
+                            console.log(`[NewWorksManager] 成功写入作品 ${work.id} (${successCount}/${worksToSync.length})`);
+                        } catch (err) {
+                            console.error(`[NewWorksManager] 写入作品 ${work.id} 失败:`, err);
+                        }
+                    }
+                    console.log(`[NewWorksManager] 已保存 ${successCount}/${worksToSync.length} 个作品到 IndexedDB (消息传递)`);
+                }
+            } catch (e) {
+                console.error(`[NewWorksManager] 保存到 IndexedDB 失败:`, e);
+            }
         }
     }
 }

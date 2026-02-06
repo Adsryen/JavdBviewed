@@ -292,8 +292,10 @@ export class NewWorksCollector {
 
             const newWorks: NewWorkRecord[] = [];
             const now = Date.now();
+            console.log(`开始检查 ${filteredWorks.length} 个过滤后的作品是否已存在`);
             for (const work of filteredWorks.slice(0, globalConfig.maxWorksPerCheck)) {
                 const exists = await this.checkWorkExists(work.id);
+                console.log(`作品 ${work.id} (${work.title}) 存在性检查: ${exists ? '已存在' : '新作品'}`);
                 if (!exists) {
                     newWorks.push({
                         id: work.id,
@@ -310,6 +312,8 @@ export class NewWorksCollector {
                     });
                 }
             }
+            console.log(`检查完成，发现 ${newWorks.length} 个新作品`);
+
 
             return { works: newWorks, identified, effective };
         } catch (error) {
