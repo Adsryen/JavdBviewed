@@ -447,7 +447,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     version: '0.0.0',
     // Dashboard 番号库：是否在列表中显示封面
-    showCoversInRecords: false
+    showCoversInRecords: false,
+    // Dashboard 番号库：视图模式（列表/卡片）
+    recordsViewMode: 'list' as 'list' | 'card'
 };
 
 // WebDAV恢复配置
