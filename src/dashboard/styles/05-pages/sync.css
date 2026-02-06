@@ -1557,8 +1557,66 @@
     border: 1px solid var(--border-primary);
     border-radius: 16px;
     padding: 24px;
-    margin-bottom: 20px;
+    margin: 16px 0 20px 0;
     box-shadow: var(--shadow-md);
+    animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 同步进度容器 */
+.sync-progress-container {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+    box-shadow: var(--shadow-md);
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.sync-progress-container .progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sync-progress-container .progress-section > h5 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 进度阶段容器 */
+.progress-stage {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.progress-stage:last-of-type {
+    margin-bottom: 0;
 }
 
 .actor-stats-header {
