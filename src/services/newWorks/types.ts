@@ -23,6 +23,7 @@ export interface NewWorksGlobalConfig {
     excludeBrowsed: boolean;  // 排除已浏览
     excludeWant: boolean;     // 排除想看
     dateRange: number;        // 时间范围（月数，0表示不限制）
+    categoryFilters?: string[];  // 类别筛选（多选，对应actorFilterTags中的类别ID数组）
   };
 
   // 管理设置

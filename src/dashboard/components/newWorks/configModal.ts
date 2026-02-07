@@ -3,6 +3,7 @@
 
 import { showMessage } from '../../ui/toast';
 import type { NewWorksGlobalConfig } from '../../../services/newWorks/types';
+import { ACTOR_FILTER_TAGS, getTagsByGroup } from '../../config/actorFilterTags';
 
 export class NewWorksConfigModal {
     private modal: HTMLElement | null = null;
@@ -17,6 +18,27 @@ export class NewWorksConfigModal {
             this.createModal(currentConfig);
             this.showModal();
         });
+    }
+
+    /**
+     * 生成类别复选框HTML
+     */
+    private generateCategoryCheckboxes(selectedValues?: string[]): string {
+        // 获取所有标签（basic、quality、category）
+        const allTags = ACTOR_FILTER_TAGS.filter(tag => 
+            tag.group === 'basic' || tag.group === 'quality' || tag.group === 'category'
+        );
+        const selected = selectedValues || [];
+        return allTags.map(tag => {
+            const checked = selected.includes(tag.value) ? 'checked' : '';
+            return `
+                <label class="checkbox-label category-checkbox">
+                    <input type="checkbox" class="category-filter-checkbox" value="${tag.value}" ${checked}>
+                    <span class="checkmark"></span>
+                    ${tag.label}
+                </label>
+            `;
+        }).join('');
     }
 
     /**
@@ -49,15 +71,25 @@ export class NewWorksConfigModal {
                                         启用自动检查
                                     </label>
                                 </div>
-                                <div class="form-group">
-                                    <label for="configCheckInterval">检查间隔 (小时):</label>
-                                    <input type="number" id="configCheckInterval" min="1" max="168" value="${config.checkInterval}">
-                                    <small>建议设置为24小时或更长</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="configRequestInterval">请求间隔 (秒):</label>
-                                    <input type="number" id="configRequestInterval" min="1" max="60" value="${config.requestInterval}">
-                                    <small>避免频繁请求，建议至少3秒</small>
+                                <div class="form-row">
+                                    <div class="form-group form-group-inline">
+                                        <label for="configCheckInterval">
+                                            <span>
+                                                检查间隔 (小时)
+                                                <i class="fas fa-question-circle help-icon" title="建议设置为24小时或更长"></i>
+                                            </span>
+                                            <input type="number" id="configCheckInterval" min="1" max="168" value="${config.checkInterval}">
+                                        </label>
+                                    </div>
+                                    <div class="form-group form-group-inline">
+                                        <label for="configRequestInterval">
+                                            <span>
+                                                请求间隔 (秒)
+                                                <i class="fas fa-question-circle help-icon" title="避免频繁请求，建议至少3秒"></i>
+                                            </span>
+                                            <input type="number" id="configRequestInterval" min="1" max="60" value="${config.requestInterval}">
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -66,59 +98,78 @@ export class NewWorksConfigModal {
                                 <h4><i class="fas fa-filter"></i> 过滤条件</h4>
                                 <p class="section-description">以下条件将应用于所有订阅演员的新作品检查。这些设置始终生效，可随时调整。</p>
                                 
+                                <div class="form-row">
+                                    <div class="form-group form-group-inline">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="configExcludeViewed" ${config.filters.excludeViewed ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            排除已标记"看过"
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-group form-group-inline">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="configExcludeBrowsed" ${config.filters.excludeBrowsed ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            排除已浏览详情页
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-group form-group-inline">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="configExcludeWant" ${config.filters.excludeWant ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            排除已标记"想看"
+                                        </label>
+                                    </div>
+                                </div>
+                                
                                 <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configExcludeViewed" ${config.filters.excludeViewed ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        排除已标记"看过"的作品
+                                    <label for="configDateRange">
+                                        <span>
+                                            时间范围 (月数)
+                                            <i class="fas fa-question-circle help-icon" title="0表示不限制时间范围，建议设置为3-6个月"></i>
+                                        </span>
+                                        <input type="number" id="configDateRange" min="0" max="24" value="${config.filters.dateRange}">
                                     </label>
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configExcludeBrowsed" ${config.filters.excludeBrowsed ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        排除已浏览详情页的作品
-                                    </label>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configExcludeWant" ${config.filters.excludeWant ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        排除已标记"想看"的作品
-                                    </label>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="configDateRange">时间范围 (月数):</label>
-                                    <input type="number" id="configDateRange" min="0" max="24" value="${config.filters.dateRange}">
-                                    <small>0表示不限制时间范围，建议设置为3-6个月</small>
+                                    <label>类别筛选:</label>
+                                    <div class="category-filter-grid">
+                                        <label class="checkbox-label category-all-checkbox">
+                                            <input type="checkbox" id="categoryFilterAll">
+                                            <span class="checkmark"></span>
+                                            不限制
+                                        </label>
+                                        ${this.generateCategoryCheckboxes(config.filters.categoryFilters)}
+                                    </div>
+                                    <small>可多选类别，不选择任何类别则显示所有类别</small>
                                 </div>
                             </div>
 
                             <!-- 清理与限制 -->
                             <div class="config-section">
-                                <h4><i class="fas fa-tasks"></i> 清理与限制</h4>
+                                <h4><i class="fas fa-tasks"></i> 自动清理</h4>
                                 
-                                <div class="form-group">
-                                    <label for="configMaxWorksPerCheck">每次检查最大作品数:</label>
-                                    <input type="number" id="configMaxWorksPerCheck" min="10" max="200" value="${config.maxWorksPerCheck}">
-                                    <small>限制每次检查的作品数量，避免数据过多</small>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configAutoCleanup" ${config.autoCleanup ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        启用自动清理
-                                    </label>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="configCleanupDays">清理天数:</label>
-                                    <input type="number" id="configCleanupDays" min="7" max="365" value="${config.cleanupDays}">
-                                    <small>自动清理已读且超过指定天数的作品</small>
+                                <div class="form-row">
+                                    <div class="form-group form-group-inline">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="configAutoCleanup" ${config.autoCleanup ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            启用自动清理
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-group form-group-inline">
+                                        <label for="configCleanupDays">
+                                            <span>
+                                                清理天数
+                                                <i class="fas fa-question-circle help-icon" title="自动清理已读且超过指定天数的作品"></i>
+                                            </span>
+                                            <input type="number" id="configCleanupDays" min="7" max="365" value="${config.cleanupDays}">
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -187,10 +238,76 @@ export class NewWorksConfigModal {
             }
         });
 
+        // 类别筛选的全选/半选逻辑
+        this.setupCategoryFilterListeners();
+
         // 初始化表单状态
         this.updateFormState(autoCheckCheckbox?.checked || false);
         if (cleanupDaysInput) {
             cleanupDaysInput.disabled = !autoCleanupCheckbox?.checked;
+        }
+    }
+
+    /**
+     * 设置类别筛选的事件监听器
+     */
+    private setupCategoryFilterListeners(): void {
+        if (!this.modal) return;
+
+        const allCheckbox = this.modal.querySelector('#categoryFilterAll') as HTMLInputElement;
+        const categoryCheckboxes = this.modal.querySelectorAll('.category-filter-checkbox') as NodeListOf<HTMLInputElement>;
+
+        if (!allCheckbox || !categoryCheckboxes.length) return;
+
+        // 初始化"不限制"复选框状态
+        this.updateAllCheckboxState();
+
+        // "不限制"复选框点击事件
+        allCheckbox.addEventListener('change', () => {
+            const isChecked = allCheckbox.checked;
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+
+        // 各个类别复选框点击事件
+        categoryCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.updateAllCheckboxState();
+            });
+        });
+    }
+
+    /**
+     * 更新"不限制"复选框的状态（全选/半选/未选）
+     */
+    private updateAllCheckboxState(): void {
+        if (!this.modal) return;
+
+        const allCheckbox = this.modal.querySelector('#categoryFilterAll') as HTMLInputElement;
+        const allCheckmark = this.modal.querySelector('.category-all-checkbox .checkmark') as HTMLElement;
+        const categoryCheckboxes = this.modal.querySelectorAll('.category-filter-checkbox') as NodeListOf<HTMLInputElement>;
+
+        if (!allCheckbox || !allCheckmark || !categoryCheckboxes.length) return;
+
+        const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
+        const totalCount = categoryCheckboxes.length;
+
+        if (checkedCount === 0) {
+            // 全不选
+            allCheckbox.checked = false;
+            allCheckbox.indeterminate = false;
+            allCheckmark.classList.remove('indeterminate');
+        } else if (checkedCount === totalCount) {
+            // 全选
+            allCheckbox.checked = true;
+            allCheckbox.indeterminate = false;
+            allCheckmark.classList.remove('indeterminate');
+        } else {
+            // 半选
+            allCheckbox.checked = false;
+            allCheckbox.indeterminate = true;
+            allCheckmark.classList.add('indeterminate');
         }
     }
 
@@ -201,7 +318,7 @@ export class NewWorksConfigModal {
         if (!this.modal) return;
 
         // 只禁用与自动检查相关的输入框；过滤条件和清理设置始终可用
-        const autoInputs = this.modal.querySelectorAll('#configCheckInterval, #configRequestInterval, #configMaxWorksPerCheck');
+        const autoInputs = this.modal.querySelectorAll('#configCheckInterval, #configRequestInterval');
         autoInputs.forEach(input => {
             (input as HTMLInputElement).disabled = !enabled;
         });
@@ -266,6 +383,10 @@ export class NewWorksConfigModal {
             }
         };
 
+        // 获取类别筛选的复选框值
+        const categoryCheckboxes = this.modal.querySelectorAll('.category-filter-checkbox:checked') as NodeListOf<HTMLInputElement>;
+        const categoryFilters = Array.from(categoryCheckboxes).map(cb => cb.value);
+
         return {
             checkInterval: getValue('configCheckInterval'),
             requestInterval: getValue('configRequestInterval'),
@@ -275,8 +396,9 @@ export class NewWorksConfigModal {
                 excludeBrowsed: getValue('configExcludeBrowsed'),
                 excludeWant: getValue('configExcludeWant'),
                 dateRange: getValue('configDateRange'),
+                categoryFilters: categoryFilters.length > 0 ? categoryFilters : [],
             },
-            maxWorksPerCheck: getValue('configMaxWorksPerCheck'),
+            maxWorksPerCheck: 100, // 固定值，不再通过UI配置
             autoCleanup: getValue('configAutoCleanup'),
             cleanupDays: getValue('configCleanupDays'),
         };
@@ -301,13 +423,8 @@ export class NewWorksConfigModal {
             return false;
         }
 
-        if (config.maxWorksPerCheck < 10 || config.maxWorksPerCheck > 200) {
-            alert('每次检查最大作品数必须在10-200之间');
-            return false;
-        }
-
         if (config.cleanupDays < 7 || config.cleanupDays > 365) {
-            alert('清理天数必须在7-365天之间');
+            showMessage('清理天数必须在7-365天之间', 'warn');
             return false;
         }
 
