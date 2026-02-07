@@ -80,8 +80,9 @@ export const DEFAULT_NEW_WORKS_CONFIG: NewWorksGlobalConfig = {
         excludeBrowsed: true, // 默认排除已浏览
         excludeWant: false, // 默认不排除想看
         dateRange: 3, // 默认近3个月
+        categoryFilters: [], // 默认不限制类别（空数组表示全选）
     },
-    maxWorksPerCheck: 50, // 每次检查最多50个作品
+    maxWorksPerCheck: 100, // 固定值100，不再通过UI配置
     autoCleanup: true, // 默认启用自动清理
     cleanupDays: 30, // 30天后清理
 };
