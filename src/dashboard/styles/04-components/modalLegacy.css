@@ -2668,15 +2668,15 @@ body.modal-open {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
 }
 
-/* 新作品配置弹窗样式 */
+/* 新作品配置弹窗样式 - 支持日夜主题切换 */
 .new-works-config-modal.new-works-config-modal .modal-content {
-    max-width: 700px !important;
+    max-width: 850px !important;
     width: 95% !important;
     max-height: 90vh !important;
-    background: #ffffff !important;
-    color: #333 !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
     border-radius: 16px !important;
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15), 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: var(--shadow-xl) !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
@@ -2685,6 +2685,7 @@ body.modal-open {
     position: relative !important;
     transform: scale(0.95) !important;
     transition: transform 0.3s ease !important;
+    text-align: left !important;
 }
 
 .new-works-config-modal.new-works-config-modal .modal-header {
@@ -2742,7 +2743,8 @@ body.modal-open {
 
 .new-works-config-modal .config-section {
     padding: 24px 30px !important;
-    border-bottom: 1px solid #f0f2f5 !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+    background: var(--surface-primary) !important;
 }
 
 .new-works-config-modal .config-section:last-child {
@@ -2753,7 +2755,7 @@ body.modal-open {
     margin: 0 0 16px 0 !important;
     font-size: 16px !important;
     font-weight: 600 !important;
-    color: #2c3e50 !important;
+    color: var(--text-primary) !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
@@ -2769,66 +2771,83 @@ body.modal-open {
 .new-works-config-modal .section-description {
     margin: 0 0 20px 0 !important;
     font-size: 14px !important;
-    color: #6c757d !important;
+    color: var(--text-secondary) !important;
     line-height: 1.5 !important;
-    background: #f8f9fa !important;
+    background: var(--surface-secondary) !important;
     padding: 12px 16px !important;
     border-radius: 8px !important;
     border-left: 4px solid #667eea !important;
 }
 
-/* 确认弹窗样式 */
+/* 确保所有文字元素都适配主题 */
+.new-works-config-modal p,
+.new-works-config-modal span:not(.checkmark),
+.new-works-config-modal label {
+    color: var(--text-primary) !important;
+}
+
+.new-works-config-modal .modal-body {
+    background: var(--surface-primary) !important;
+}
+
+.new-works-config-modal .form-group {
+    color: var(--text-primary) !important;
+}
+
+/* 确认弹窗样式 - 支持日夜主题切换 */
 .confirm-modal-content {
     max-width: 500px !important;
     width: 90% !important;
-    background: #ffffff !important;
-    color: #333 !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-primary) !important;
     border-radius: 12px !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: var(--shadow-xl) !important;
     overflow: hidden !important;
 }
 
 .confirm-modal .modal-header {
-    background: #f8f9fa !important;
+    background: var(--surface-secondary) !important;
     padding: 20px 24px !important;
-    border-bottom: 1px solid #e9ecef !important;
+    border-bottom: 1px solid var(--border-primary) !important;
 }
 
 .confirm-modal .modal-header h3 {
     margin: 0 !important;
     font-size: 18px !important;
     font-weight: 600 !important;
+    color: var(--text-primary) !important;
 }
 
 .confirm-modal .modal-body {
     padding: 24px !important;
+    background: var(--surface-primary) !important;
 }
 
 .confirm-modal .confirm-message {
     margin: 0 !important;
     font-size: 14px !important;
     line-height: 1.6 !important;
-    color: #495057 !important;
+    color: var(--text-secondary) !important;
 }
 
 .confirm-modal .modal-footer {
     padding: 16px 24px !important;
-    background: #f8f9fa !important;
-    border-top: 1px solid #e9ecef !important;
+    background: var(--surface-secondary) !important;
+    border-top: 1px solid var(--border-primary) !important;
     display: flex !important;
     justify-content: flex-end !important;
     gap: 12px !important;
 }
 
 .confirm-modal .btn-danger {
-    background-color: #dc3545 !important;
-    border-color: #dc3545 !important;
+    background-color: var(--error) !important;
+    border-color: var(--error) !important;
     color: white !important;
 }
 
 .confirm-modal .btn-danger:hover {
-    background-color: #c82333 !important;
-    border-color: #bd2130 !important;
+    background-color: var(--error-hover) !important;
+    border-color: var(--error-hover) !important;
 }
 
 /* 新作品配置弹窗表单样式 */
@@ -2837,26 +2856,81 @@ body.modal-open {
     text-align: left !important;
 }
 
+/* 行内表单组 - 让多个控件在一行显示 */
+.new-works-config-modal .form-row {
+    display: flex !important;
+    gap: 16px !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 20px !important;
+    align-items: flex-start !important;
+}
+
+.new-works-config-modal .form-group-inline {
+    flex: 1 1 auto !important;
+    margin-bottom: 0 !important;
+    min-width: 180px !important;
+}
+
+.new-works-config-modal .form-group-inline .checkbox-label {
+    padding: 8px 0 !important;
+}
+
+.new-works-config-modal .form-group-inline input[type="number"] {
+    width: 100% !important;
+}
+
 .new-works-config-modal .form-group label:not(.checkbox-label) {
-    display: block !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
     margin-bottom: 8px !important;
     font-weight: 500 !important;
-    color: #495057 !important;
+    color: var(--text-primary) !important;
     font-size: 14px !important;
     text-align: left !important;
+    gap: 12px !important;
+}
+
+.new-works-config-modal .form-group label:not(.checkbox-label) > span {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+
+/* 帮助图标样式 */
+.new-works-config-modal .help-icon {
+    display: inline-block !important;
+    margin-left: 6px !important;
+    color: var(--text-muted) !important;
+    font-size: 13px !important;
+    cursor: help !important;
+    transition: all 0.2s ease !important;
+    vertical-align: middle !important;
+}
+
+.new-works-config-modal .help-icon:hover {
+    color: #667eea !important;
+    transform: scale(1.15) !important;
 }
 
 .new-works-config-modal .form-group input[type="number"] {
-    width: 100% !important;
-    padding: 12px 16px !important;
-    border: 2px solid #e9ecef !important;
+    width: auto !important;
+    min-width: 120px !important;
+    flex: 0 0 auto !important;
+    padding: 8px 12px !important;
+    border: 2px solid var(--border-primary) !important;
     border-radius: 8px !important;
     font-size: 14px !important;
     transition: all 0.3s ease !important;
-    background: #ffffff !important;
-    color: #495057 !important;
+    background: var(--input-bg) !important;
+    color: var(--text-primary) !important;
     box-sizing: border-box !important;
     text-align: left !important;
+}
+
+/* 行内表单组的输入框占据剩余空间 */
+.new-works-config-modal .form-group-inline label input[type="number"] {
+    flex: 1 1 auto !important;
+    min-width: 80px !important;
 }
 
 .new-works-config-modal .form-group input[type="number"]:focus {
@@ -2869,7 +2943,7 @@ body.modal-open {
     display: block !important;
     margin-top: 6px !important;
     font-size: 12px !important;
-    color: #6c757d !important;
+    color: var(--text-muted) !important;
     line-height: 1.4 !important;
 }
 
@@ -2883,6 +2957,7 @@ body.modal-open {
     padding: 12px 0 !important;
     text-align: left !important;
     justify-content: flex-start !important;
+    color: var(--text-primary) !important;
 }
 
 .new-works-config-modal .checkbox-label input[type="checkbox"] {
@@ -2892,12 +2967,12 @@ body.modal-open {
 .new-works-config-modal .checkmark {
     width: 20px !important;
     height: 20px !important;
-    border: 2px solid #dee2e6 !important;
+    border: 2px solid var(--border-primary) !important;
     border-radius: 4px !important;
     margin-right: 12px !important;
     position: relative !important;
     transition: all 0.3s ease !important;
-    background: #ffffff !important;
+    background: var(--input-bg) !important;
     flex-shrink: 0 !important;
 }
 
@@ -2921,11 +2996,86 @@ body.modal-open {
     font-weight: bold !important;
 }
 
+/* 半选状态样式 */
+.new-works-config-modal .checkmark.indeterminate {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-color: #667eea !important;
+}
+
+.new-works-config-modal .checkmark.indeterminate::after {
+    content: '−' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    color: white !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+}
+
+/* 类别筛选网格布局 */
+.new-works-config-modal .category-filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 12px !important;
+    padding: 12px !important;
+    background: var(--surface-secondary) !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-primary) !important;
+    max-height: 350px !important;
+    overflow-y: auto !important;
+}
+
+/* 类别复选框样式 */
+.new-works-config-modal .category-checkbox {
+    padding: 8px 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease !important;
+}
+
+.new-works-config-modal .category-checkbox:hover {
+    background: var(--bg-hover) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    z-index: 10 !important;
+    position: relative !important;
+}
+
+/* 确保类别复选框的checkmark可见 */
+.new-works-config-modal .category-checkbox .checkmark {
+    width: 18px !important;
+    height: 18px !important;
+    border: 2px solid var(--border-primary) !important;
+    border-radius: 4px !important;
+    margin-right: 10px !important;
+    position: relative !important;
+    transition: all 0.3s ease !important;
+    background: var(--input-bg) !important;
+    flex-shrink: 0 !important;
+}
+
+.new-works-config-modal .category-checkbox:hover .checkmark {
+    border-color: #667eea !important;
+}
+
+.new-works-config-modal .category-all-checkbox {
+    grid-column: 1 / -1 !important;
+    background: var(--bg-hover) !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    font-weight: 500 !important;
+}
+
 /* 新作品配置弹窗底部样式 */
 .new-works-config-modal .modal-footer {
     padding: 20px 30px !important;
-    background: #f8f9fa !important;
-    border-top: 1px solid #e9ecef !important;
+    background: var(--surface-secondary) !important;
+    border-top: 1px solid var(--border-primary) !important;
     display: flex !important;
     justify-content: flex-end !important;
     gap: 12px !important;
@@ -2934,9 +3084,9 @@ body.modal-open {
 
 .new-works-config-modal .btn-secondary {
     padding: 12px 24px !important;
-    border: 2px solid #6c757d !important;
-    background: #ffffff !important;
-    color: #6c757d !important;
+    border: 2px solid var(--border-hover) !important;
+    background: var(--surface-primary) !important;
+    color: var(--text-secondary) !important;
     border-radius: 8px !important;
     font-size: 14px !important;
     font-weight: 500 !important;
@@ -2949,10 +3099,11 @@ body.modal-open {
 }
 
 .new-works-config-modal .btn-secondary:hover {
-    background: #6c757d !important;
-    color: white !important;
+    background: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-hover) !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .new-works-config-modal .btn-primary {
@@ -2984,21 +3135,24 @@ body.modal-open {
 
 /* 禁用状态的表单元素 */
 .new-works-config-modal .form-group input:disabled {
-    background: #f8f9fa !important;
-    color: #6c757d !important;
-    border-color: #e9ecef !important;
+    background: var(--bg-hover) !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border-secondary) !important;
     cursor: not-allowed !important;
+    opacity: 0.6 !important;
 }
 
 .new-works-config-modal .checkbox-label input:disabled + .checkmark {
-    background: #f8f9fa !important;
-    border-color: #e9ecef !important;
+    background: var(--bg-hover) !important;
+    border-color: var(--border-secondary) !important;
     cursor: not-allowed !important;
+    opacity: 0.6 !important;
 }
 
 .new-works-config-modal .checkbox-label input:disabled:checked + .checkmark {
-    background: #adb5bd !important;
-    border-color: #adb5bd !important;
+    background: var(--text-muted) !important;
+    border-color: var(--text-muted) !important;
+    opacity: 0.6 !important;
 }
 
 /* 响应式设计 */
