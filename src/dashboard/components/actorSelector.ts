@@ -9,6 +9,8 @@ export class ActorSelector {
     private modal: HTMLElement | null = null;
     private selectedActors: Set<string> = new Set();
     private onSelectCallback: ((actors: ActorRecord[]) => void) | null = null;
+    private checkingActors: Map<string, { button: HTMLButtonElement; tooltip: HTMLElement | null }> = new Map();
+    private progressListener: ((message: any) => void) | null = null;
 
     /**
      * 显示演员选择弹窗
@@ -140,6 +142,11 @@ export class ActorSelector {
                         </div>
                     ` : ''}
                 </div>
+                <div class="actor-actions">
+                    <button class="btn-check-single" data-actor-id="${actor.id}" title="立即检查此演员的新作品">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
             </div>
         `).join('');
     }
@@ -176,9 +183,12 @@ export class ActorSelector {
             const actorId = item.getAttribute('data-actor-id');
 
             if (checkbox && actorId) {
-                // 点击整个项目时切换选择状态
+                // 点击整个项目时切换选择状态（排除按钮点击）
                 item.addEventListener('click', (e) => {
-                    if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                    const target = e.target as HTMLElement;
+                    if (target.tagName !== 'INPUT' && 
+                        !target.closest('.btn-check-single') && 
+                        !target.closest('.actor-actions')) {
                         checkbox.checked = !checkbox.checked;
                         this.handleActorToggle(actorId, checkbox.checked, actors);
                     }
@@ -187,6 +197,21 @@ export class ActorSelector {
                 // 复选框变化事件
                 checkbox.addEventListener('change', () => {
                     this.handleActorToggle(actorId, checkbox.checked, actors);
+                });
+            }
+
+            // 单独检查按钮事件
+            const checkBtn = item.querySelector('.btn-check-single') as HTMLButtonElement;
+            if (checkBtn) {
+                checkBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const actorId = checkBtn.getAttribute('data-actor-id');
+                    if (actorId) {
+                        const actor = actors.find(a => a.id === actorId);
+                        if (actor) {
+                            this.handleSingleActorCheck(actor, checkBtn);
+                        }
+                    }
                 });
             }
 
@@ -348,9 +373,12 @@ export class ActorSelector {
                 // 恢复选择状态
                 checkbox.checked = this.selectedActors.has(actorId);
 
-                // 重新绑定事件
+                // 重新绑定事件（排除按钮点击）
                 item.addEventListener('click', (e) => {
-                    if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                    const target = e.target as HTMLElement;
+                    if (target.tagName !== 'INPUT' && 
+                        !target.closest('.btn-check-single') && 
+                        !target.closest('.actor-actions')) {
                         checkbox.checked = !checkbox.checked;
                         this.handleActorToggle(actorId, checkbox.checked, actors);
                     }
@@ -358,6 +386,21 @@ export class ActorSelector {
 
                 checkbox.addEventListener('change', () => {
                     this.handleActorToggle(actorId, checkbox.checked, actors);
+                });
+            }
+
+            // 单独检查按钮事件
+            const checkBtn = item.querySelector('.btn-check-single') as HTMLButtonElement;
+            if (checkBtn) {
+                checkBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const actorId = checkBtn.getAttribute('data-actor-id');
+                    if (actorId) {
+                        const actor = actors.find(a => a.id === actorId);
+                        if (actor) {
+                            this.handleSingleActorCheck(actor, checkBtn);
+                        }
+                    }
                 });
             }
 
@@ -480,6 +523,9 @@ export class ActorSelector {
                 this.removeModal();
             }, 300); // 与CSS transition时间一致
         }
+        
+        // 移除进度监听器
+        this.detachProgressListener();
     }
 
     /**
@@ -514,6 +560,190 @@ export class ActorSelector {
             case 'western': return '欧美';
             default: return '未知';
         }
+    }
+
+    /**
+     * 处理单个演员的检查
+     */
+    private async handleSingleActorCheck(actor: ActorRecord, button: HTMLButtonElement): Promise<void> {
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // 创建进度提示框
+        const tooltip = this.createProgressTooltip(button);
+        this.checkingActors.set(actor.id, { button, tooltip });
+
+        // 附加进度监听器
+        this.attachProgressListener();
+
+        try {
+            console.log(`开始后台检查演员 ${actor.name} 的新作品`);
+
+            // 发送消息到后台脚本
+            chrome.runtime.sendMessage(
+                {
+                    type: 'new-works-check-single-actor',
+                    actorId: actor.id,
+                    actorName: actor.name
+                },
+                (response) => {
+                    // 检查完成，恢复按钮状态
+                    const checkingInfo = this.checkingActors.get(actor.id);
+                    if (checkingInfo) {
+                        checkingInfo.button.disabled = false;
+                        checkingInfo.button.innerHTML = originalHtml;
+                        
+                        // 移除提示框
+                        if (checkingInfo.tooltip && checkingInfo.tooltip.parentElement) {
+                            checkingInfo.tooltip.remove();
+                        }
+                        
+                        this.checkingActors.delete(actor.id);
+                    }
+
+                    if (response && response.success) {
+                        const result = response.result;
+                        const statsParts: string[] = [];
+                        
+                        if (typeof result.identified === 'number') {
+                            statsParts.push(`识别 ${result.identified} 个`);
+                        }
+                        if (typeof result.effective === 'number') {
+                            statsParts.push(`有效 ${result.effective} 个`);
+                        }
+                        statsParts.push(`新增 ${result.discovered} 个`);
+
+                        const message = `${actor.name}: ${statsParts.join('，')}`;
+                        
+                        showMessage(message, result.discovered > 0 ? 'success' : 'info');
+                        console.log(`检查完成: ${message}`);
+                        
+                        // 如果有新作品，触发列表刷新
+                        if (result.discovered > 0) {
+                            this.triggerListRefresh();
+                        }
+                    } else if (response && !response.success) {
+                        console.error(`检查演员 ${actor.name} 失败:`, response.error);
+                        showMessage(`检查 ${actor.name} 失败: ${response.error}`, 'error');
+                    }
+                }
+            );
+
+            // 立即显示提示
+            showMessage(`已开始检查 ${actor.name}`, 'info');
+            console.log(`已触发后台检查任务: ${actor.name}`);
+            
+        } catch (error) {
+            console.error(`触发检查演员 ${actor.name} 失败:`, error);
+            showMessage(`触发检查 ${actor.name} 失败: ${error.message}`, 'error');
+            
+            // 出错时恢复按钮
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+            
+            const checkingInfo = this.checkingActors.get(actor.id);
+            if (checkingInfo && checkingInfo.tooltip && checkingInfo.tooltip.parentElement) {
+                checkingInfo.tooltip.remove();
+            }
+            this.checkingActors.delete(actor.id);
+        }
+    }
+
+    /**
+     * 创建进度提示框
+     */
+    private createProgressTooltip(button: HTMLButtonElement): HTMLElement {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'actor-check-progress-tooltip';
+        tooltip.innerHTML = '<div class="progress-text">准备中...</div>';
+        
+        // 定位到按钮旁边
+        const updatePosition = () => {
+            if (!button.parentElement) return;
+            const rect = button.getBoundingClientRect();
+            tooltip.style.position = 'fixed';
+            tooltip.style.left = `${rect.right + 10}px`;
+            tooltip.style.top = `${rect.top}px`;
+            tooltip.style.zIndex = '10001';
+        };
+        
+        updatePosition();
+        document.body.appendChild(tooltip);
+        
+        // 监听滚动和窗口大小变化
+        const scrollHandler = () => updatePosition();
+        window.addEventListener('scroll', scrollHandler, true);
+        window.addEventListener('resize', scrollHandler);
+        
+        // 保存清理函数
+        (tooltip as any)._cleanup = () => {
+            window.removeEventListener('scroll', scrollHandler, true);
+            window.removeEventListener('resize', scrollHandler);
+        };
+        
+        return tooltip;
+    }
+
+    /**
+     * 附加进度监听器
+     */
+    private attachProgressListener(): void {
+        if (this.progressListener) return;
+
+        this.progressListener = (message: any) => {
+            if (message.type === 'new-works-single-progress') {
+                const { actorId, identified, effective } = message.payload;
+                const checkingInfo = this.checkingActors.get(actorId);
+                
+                if (checkingInfo && checkingInfo.tooltip) {
+                    const parts: string[] = [];
+                    if (typeof identified === 'number') {
+                        parts.push(`识别: ${identified}`);
+                    }
+                    if (typeof effective === 'number') {
+                        parts.push(`有效: ${effective}`);
+                    }
+                    
+                    const progressText = checkingInfo.tooltip.querySelector('.progress-text');
+                    if (progressText) {
+                        progressText.textContent = parts.length > 0 ? parts.join(' | ') : '检查中...';
+                    }
+                }
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(this.progressListener);
+    }
+
+    /**
+     * 移除进度监听器
+     */
+    private detachProgressListener(): void {
+        if (this.progressListener) {
+            chrome.runtime.onMessage.removeListener(this.progressListener);
+            this.progressListener = null;
+        }
+        
+        // 清理所有提示框
+        this.checkingActors.forEach(({ tooltip }) => {
+            if (tooltip && tooltip.parentElement) {
+                if ((tooltip as any)._cleanup) {
+                    (tooltip as any)._cleanup();
+                }
+                tooltip.remove();
+            }
+        });
+        this.checkingActors.clear();
+    }
+
+    /**
+     * 触发新作品列表刷新
+     */
+    private triggerListRefresh(): void {
+        console.log('触发新作品列表刷新');
+        // 发送自定义事件通知新作品页面刷新
+        window.dispatchEvent(new CustomEvent('newworks-refresh'));
     }
 }
 
