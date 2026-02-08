@@ -13,6 +13,25 @@ export class NewWorksCollector {
     private readonly BASE_DELAY = 3000; // 基础延迟3秒
 
     /**
+     * 构建演员作品页面URL，应用类别筛选
+     */
+    private buildActorWorksUrl(actorId: string, categoryFilters?: string[]): string {
+        let url = `https://javdb.com/actors/${actorId}`;
+        
+        // 如果有类别筛选，添加到URL参数
+        // JavDB格式: ?t=s,d&sort_type=0 (用逗号分隔)
+        if (categoryFilters && categoryFilters.length > 0) {
+            const filterParam = categoryFilters.join(',');
+            url += `?t=${filterParam}&sort_type=0`;
+            console.log(`应用类别筛选: t=${filterParam}`);
+        } else {
+            console.log(`未应用类别筛选（显示所有类别）`);
+        }
+        
+        return url;
+    }
+
+    /**
      * 检查单个演员的新作品
      */
     async checkActorNewWorks(
@@ -22,8 +41,8 @@ export class NewWorksCollector {
         try {
             console.log(`开始检查演员 ${subscription.actorName} 的新作品`);
             
-            // 构建演员作品页面URL
-            const actorWorksUrl = `https://javdb.com/actors/${subscription.actorId}`;
+            // 构建演员作品页面URL，应用类别筛选
+            const actorWorksUrl = this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
             
             // 获取演员作品页面数据
             const works = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
@@ -247,16 +266,25 @@ export class NewWorksCollector {
             if (!shouldExclude) {
                 const localRecord = recordMap.get(work.id);
                 if (localRecord) {
+                    console.log(`作品 ${work.id} 在番号库中找到，状态: ${localRecord.status}，过滤设置: viewed=${filters.excludeViewed}, browsed=${filters.excludeBrowsed}, want=${filters.excludeWant}`);
+                    
                     if (filters.excludeViewed && localRecord.status === 'viewed') {
                         shouldExclude = true;
                         excludeReason = 'viewed';
+                        console.log(`  -> 排除原因: 已看过`);
                     } else if (filters.excludeBrowsed && localRecord.status === 'browsed') {
                         shouldExclude = true;
                         excludeReason = 'browsed';
+                        console.log(`  -> 排除原因: 已浏览`);
                     } else if (filters.excludeWant && localRecord.status === 'want') {
                         shouldExclude = true;
                         excludeReason = 'want';
+                        console.log(`  -> 排除原因: 想看`);
+                    } else {
+                        console.log(`  -> 不排除（状态不匹配或未启用对应过滤）`);
                     }
+                } else {
+                    console.log(`作品 ${work.id} 不在番号库中，不过滤`);
                 }
             }
 
@@ -283,7 +311,8 @@ export class NewWorksCollector {
         try {
             console.log(`开始(详细)检查演员 ${subscription.actorName} 的新作品`);
 
-            const actorWorksUrl = `https://javdb.com/actors/${subscription.actorId}`;
+            // 构建演员作品页面URL，应用类别筛选
+            const actorWorksUrl = this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
             const worksRaw = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
             const identified = worksRaw.length;
 
@@ -348,7 +377,16 @@ export class NewWorksCollector {
         console.log(`开始分页解析演员作品，时间阈值: ${dateThreshold?.toISOString() || '无限制'}`);
 
         while (shouldContinue) {
-            const pageUrl = currentPage === 1 ? baseUrl : `${baseUrl}?page=${currentPage}`;
+            // 构建分页URL，保留已有的查询参数
+            let pageUrl: string;
+            if (currentPage === 1) {
+                pageUrl = baseUrl;
+            } else {
+                // 检查baseUrl是否已有查询参数
+                const separator = baseUrl.includes('?') ? '&' : '?';
+                pageUrl = `${baseUrl}${separator}page=${currentPage}`;
+            }
+            
             console.log(`解析第 ${currentPage} 页: ${pageUrl}`);
 
             try {
@@ -453,6 +491,17 @@ export class NewWorksCollector {
                                         const titleElement = item.querySelector('.video-title, .title');
                                         const title = titleElement?.textContent?.trim() || '';
 
+                                        // 从标题中提取番号作为ID（用于与番号库匹配）
+                                        // 标题格式通常是: "MIAB-608 【FANZA限定】..."
+                                        let actualId = videoId; // 默认使用JavDB ID
+                                        const codeMatch = title.match(/^([A-Z]+-\d+)/);
+                                        if (codeMatch) {
+                                            actualId = codeMatch[1]; // 使用番号作为ID
+                                            console.log(`提取番号: ${actualId} (JavDB ID: ${videoId})`);
+                                        } else {
+                                            console.log(`未能从标题提取番号，使用JavDB ID: ${videoId}, 标题: ${title}`);
+                                        }
+
                                         // 获取封面图
                                         const imgElement = item.querySelector('img');
                                         const coverImage = imgElement?.getAttribute('data-src') || imgElement?.getAttribute('src') || '';
@@ -477,7 +526,8 @@ export class NewWorksCollector {
                                         });
 
                                         works.push({
-                                            id: videoId,
+                                            id: actualId, // 使用提取的番号或JavDB ID
+                                            javdbId: videoId, // 保留JavDB ID用于链接
                                             title,
                                             url: `https://javdb.com${href}`,
                                             coverImage,

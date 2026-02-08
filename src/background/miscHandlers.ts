@@ -200,6 +200,88 @@ export function registerMiscRouter(): void {
             }
           })();
           return true;
+        
+        case 'new-works-check-single-actor':
+          (async () => {
+            try {
+              const { actorId, actorName } = message;
+              if (!actorId || !actorName) {
+                sendResponse({ success: false, error: '缺少演员信息' });
+                return;
+              }
+
+              console.log(`开始检查单个演员: ${actorName} (${actorId})`);
+
+              const config = await newWorksManager.getGlobalConfig();
+              
+              // 覆盖过滤条件：排除本地番号库中任意状态的记录
+              const cfg = {
+                ...config,
+                filters: {
+                  ...config.filters,
+                  excludeViewed: true,
+                  excludeBrowsed: true,
+                  excludeWant: true,
+                },
+              } as any;
+
+              // 构建订阅对象
+              const subscription = {
+                actorId,
+                actorName,
+                enabled: true,
+                subscribedAt: Date.now()
+              };
+
+              // 检查演员新作品
+              const det = await newWorksCollector.checkActorNewWorksDetailed(subscription, cfg);
+              
+              console.log(`演员 ${actorName} 检查结果:`, {
+                identified: det.identified,
+                effective: det.effective,
+                newWorks: det.works.length
+              });
+
+              // 发送进度更新
+              try {
+                chrome.runtime.sendMessage({
+                  type: 'new-works-single-progress',
+                  payload: {
+                    actorId,
+                    actorName,
+                    identified: det.identified,
+                    effective: det.effective
+                  }
+                });
+              } catch (e) {
+                console.warn('发送进度消息失败:', e);
+              }
+
+              // 保存新作品
+              if (det.works.length > 0) {
+                console.log(`准备保存 ${det.works.length} 个新作品`);
+                await newWorksManager.addNewWorks(det.works);
+                console.log(`成功保存 ${det.works.length} 个新作品`);
+              }
+
+              sendResponse({
+                success: true,
+                result: {
+                  discovered: det.works.length,
+                  identified: det.identified,
+                  effective: det.effective
+                }
+              });
+            } catch (error: any) {
+              console.error('检查单个演员失败:', error);
+              sendResponse({ 
+                success: false, 
+                error: error?.message || '检查失败' 
+              });
+            }
+          })();
+          return true;
+        
         case 'new-works-manual-cancel':
           try {
             manualCheckCancel.cancelled = true;

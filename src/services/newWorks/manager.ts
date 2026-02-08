@@ -384,13 +384,22 @@ export class NewWorksManager {
         const toUpdate: NewWorkRecord[] = [];
 
         for (const work of works) {
-            const id = work.id;
-            const videoRecord = viewedMap[id];
+            // 尝试从标题提取番号作为匹配ID
+            let matchId = work.id;
+            if (work.title) {
+                const codeMatch = work.title.match(/^([A-Z]+-\d+)/);
+                if (codeMatch) {
+                    matchId = codeMatch[1];
+                    console.log(`[NewWorksManager] 从标题提取番号: ${matchId} (原ID: ${work.id})`);
+                }
+            }
+            
+            const videoRecord = viewedMap[matchId];
             if (!videoRecord) {
-                console.log(`[NewWorksManager] 作品 ${id} 不在番号库中，跳过`);
+                console.log(`[NewWorksManager] 作品 ${work.id} (匹配ID: ${matchId}) 不在番号库中，跳过`);
                 continue;
             }
-            console.log(`[NewWorksManager] 作品 ${id} 在番号库中，状态: ${videoRecord.status}`);
+            console.log(`[NewWorksManager] 作品 ${work.id} (匹配ID: ${matchId}) 在番号库中，状态: ${videoRecord.status}`);
             const oldStatus = work.isRead ? 'read' : 'unread';
             let newIsRead = false;
             let newStatus: NewWorkRecord['status'] = 'new';
@@ -400,14 +409,14 @@ export class NewWorksManager {
                 case 'want': newIsRead = false; newStatus = 'want'; break;
             }
             if (work.isRead !== newIsRead || work.status !== newStatus) {
-                console.log(`[NewWorksManager] 作品 ${id} 状态需要更新: ${oldStatus} -> ${newIsRead ? 'read' : 'unread'} (${newStatus})`);
+                console.log(`[NewWorksManager] 作品 ${work.id} 状态需要更新: ${oldStatus} -> ${newIsRead ? 'read' : 'unread'} (${newStatus})`);
                 const updated = { ...work, isRead: newIsRead, status: newStatus } as NewWorkRecord;
                 toUpdate.push(updated);
-                this.newWorks.set(id, updated);
+                this.newWorks.set(work.id, updated);
                 updatedCount++;
-                updateDetails.push({ id, oldStatus, newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})` });
+                updateDetails.push({ id: work.id, oldStatus, newStatus: newIsRead ? `read (${newStatus})` : `unread (${newStatus})` });
             } else {
-                console.log(`[NewWorksManager] 作品 ${id} 状态无需更新`);
+                console.log(`[NewWorksManager] 作品 ${work.id} 状态无需更新`);
             }
         }
 
