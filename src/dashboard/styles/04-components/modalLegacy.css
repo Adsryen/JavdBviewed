@@ -1284,10 +1284,6 @@ body.modal-open {
 }
 
 /* 强制按钮留在弹窗内 */
-#webdavRestoreModal {
-    /* 移除 contain 属性，避免内容被裁剪 */
-}
-
 #webdavRestoreModal .modal-footer {
     position: relative !important;
     z-index: 1 !important;
