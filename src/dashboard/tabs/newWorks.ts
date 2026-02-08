@@ -37,6 +37,12 @@ export class NewWorksTab {
             // 设置事件监听器
             await this.setupEventListeners();
 
+            // 监听刷新事件
+            window.addEventListener('newworks-refresh', () => {
+                console.log('收到刷新事件，重新渲染列表');
+                this.render();
+            });
+
             // 渲染页面
             await this.render();
 
@@ -192,6 +198,9 @@ export class NewWorksTab {
                 await this.syncNewWorksStatus();
             });
             console.log('同步状态按钮事件已绑定');
+            
+            // 设置帮助图标的提示
+            this.setupHelpIcon();
         } else {
             console.warn('未找到同步状态按钮');
         }
@@ -270,8 +279,11 @@ export class NewWorksTab {
         // 清空选择按钮
         const clearSelectionBtn = document.getElementById('clearSelectionBtn');
         if (clearSelectionBtn) {
+            console.log('找到清空选择按钮，准备绑定事件');
             clearSelectionBtn.addEventListener('click', (e) => {
+                console.log('清空选择按钮被点击');
                 e.preventDefault();
+                e.stopPropagation();
                 this.clearSelection();
             });
         } else {
@@ -287,6 +299,17 @@ export class NewWorksTab {
             });
         } else {
             console.warn('未找到批量打开（已选）按钮');
+        }
+
+        // 批量删除（已选）按钮
+        const batchDeleteSelectedBtn = document.getElementById('batchDeleteSelectedBtn');
+        if (batchDeleteSelectedBtn) {
+            batchDeleteSelectedBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await this.batchDeleteSelected();
+            });
+        } else {
+            console.warn('未找到批量删除（已选）按钮');
         }
     }
 
@@ -683,9 +706,15 @@ export class NewWorksTab {
     private async syncNewWorksStatus(): Promise<void> {
         try {
             const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
+            const btnContent = syncBtn?.querySelector('.btn-content');
+            
             if (syncBtn) {
                 syncBtn.disabled = true;
-                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+                if (btnContent) {
+                    btnContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+                } else {
+                    syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
+                }
             }
 
             console.log('开始同步新作品状态...');
@@ -718,9 +747,15 @@ export class NewWorksTab {
             showMessage('同步状态失败，请重试', 'error');
         } finally {
             const syncBtn = document.getElementById('syncStatusBtn') as HTMLButtonElement;
+            const btnContent = syncBtn?.querySelector('.btn-content');
+            
             if (syncBtn) {
                 syncBtn.disabled = false;
-                syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
+                if (btnContent) {
+                    btnContent.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
+                } else {
+                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 同步状态';
+                }
             }
         }
     }
@@ -750,6 +785,68 @@ export class NewWorksTab {
     }
 
     /**
+     * 设置帮助图标的自定义tooltip
+     */
+    private setupHelpIcon(): void {
+        const helpIcon = document.getElementById('syncStatusHelpIcon');
+        if (!helpIcon) return;
+
+        const helpText = '将新作品列表中的作品状态与番号库同步。\n\n例如：如果某个新作品在番号库中被标记为"已看"或"已浏览"，点击此按钮后会自动更新新作品列表中的状态。\n\n建议在浏览完作品后点击此按钮，保持状态一致。';
+        
+        let tooltip: HTMLDivElement | null = null;
+
+        const showTooltip = (e: MouseEvent) => {
+            // 移除旧的tooltip
+            if (tooltip) {
+                tooltip.remove();
+            }
+
+            // 创建新的tooltip
+            tooltip = document.createElement('div');
+            tooltip.className = 'help-tooltip';
+            tooltip.textContent = helpText;
+            document.body.appendChild(tooltip);
+
+            // 计算位置
+            const iconRect = helpIcon.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            // 默认显示在图标上方居中
+            let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
+            let top = iconRect.top - tooltipRect.height - 10;
+
+            // 边界检查
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            if (top < 10) {
+                // 如果上方空间不够，显示在下方
+                top = iconRect.bottom + 10;
+            }
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.opacity = '1';
+        };
+
+        const hideTooltip = () => {
+            if (tooltip) {
+                tooltip.style.opacity = '0';
+                setTimeout(() => {
+                    if (tooltip) {
+                        tooltip.remove();
+                        tooltip = null;
+                    }
+                }, 200);
+            }
+        };
+
+        helpIcon.addEventListener('mouseenter', showTooltip);
+        helpIcon.addEventListener('mouseleave', hideTooltip);
+    }
+
+    /**
      * 更新批量操作状态
      */
     private updateBatchOperations(): void {
@@ -760,6 +857,18 @@ export class NewWorksTab {
         const batchOpenSelectedBtn = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
         if (batchOpenSelectedBtn) {
             batchOpenSelectedBtn.disabled = count === 0;
+        }
+        
+        const batchDeleteSelectedBtn = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
+        if (batchDeleteSelectedBtn) {
+            batchDeleteSelectedBtn.disabled = count === 0;
+        }
+        
+        // 确保清空选择按钮始终可用
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn') as HTMLButtonElement | null;
+        if (clearSelectionBtn) {
+            clearSelectionBtn.disabled = false;
+            console.log('清空选择按钮状态已更新，disabled:', clearSelectionBtn.disabled);
         }
     }
 
@@ -782,11 +891,14 @@ export class NewWorksTab {
      * 清空选择
      */
     private clearSelection(): void {
+        console.log('执行清空选择，当前选中数量:', this.selectedWorks.size);
         this.selectedWorks.clear();
         // 反选 DOM
         const items = Array.from(document.querySelectorAll('.new-work-item input[type="checkbox"]')) as HTMLInputElement[];
+        console.log('找到复选框数量:', items.length);
         items.forEach(cb => { cb.checked = false; });
         this.updateBatchOperations();
+        console.log('清空选择完成');
     }
 
     /**
@@ -874,6 +986,45 @@ export class NewWorksTab {
         } finally {
             const btn2 = document.getElementById('batchOpenSelectedBtn') as HTMLButtonElement | null;
             if (btn2) { btn2.disabled = this.selectedWorks.size === 0; btn2.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开（已选）'; }
+            this.updateBatchOperations();
+        }
+    }
+
+    /**
+     * 批量删除（已选）
+     */
+    private async batchDeleteSelected(): Promise<void> {
+        const ids = Array.from(this.selectedWorks);
+        if (ids.length === 0) {
+            showMessage('未选择任何作品', 'info');
+            return;
+        }
+
+        // 使用确认弹窗
+        const confirmed = await showConfirm({
+            title: '批量删除',
+            message: `确定要删除 ${ids.length} 个已选作品吗？\n\n此操作不可恢复！`,
+            confirmText: '删除',
+            cancelText: '取消',
+            type: 'danger'
+        });
+        
+        if (!confirmed) return;
+
+        const btn = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...'; }
+
+        try {
+            await newWorksManager.deleteWorks(ids);
+            this.selectedWorks.clear();
+            showMessage(`已删除 ${ids.length} 个作品`, 'success');
+            await this.render();
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            showMessage('批量删除失败', 'error');
+        } finally {
+            const btn2 = document.getElementById('batchDeleteSelectedBtn') as HTMLButtonElement | null;
+            if (btn2) { btn2.disabled = this.selectedWorks.size === 0; btn2.innerHTML = '<i class="fas fa-trash-alt"></i> 删除已选'; }
             this.updateBatchOperations();
         }
     }
