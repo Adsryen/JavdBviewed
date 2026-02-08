@@ -1367,3 +1367,186 @@ input:checked + .toggle-slider:before {
 .btn-danger:hover {
     background-color: var(--error-hover);
 }
+
+/* 演员单独检查按钮样式 */
+.actor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+}
+
+.btn-check-single {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    color: var(--text-inverse);
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+    min-width: 32px;
+    height: 32px;
+}
+
+.btn-check-single:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-check-single:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.btn-check-single:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-check-single i {
+    font-size: 14px;
+}
+
+.btn-check-single .fa-spinner {
+    animation: fa-spin 1s infinite linear;
+}
+
+/* 演员检查进度提示框 */
+.actor-check-progress-tooltip {
+    position: fixed;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+    white-space: nowrap;
+    z-index: 10001;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease;
+}
+
+.actor-check-progress-tooltip .progress-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.actor-check-progress-tooltip .progress-text::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+/* 带帮助图标的按钮 */
+.btn-with-help {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-with-help .btn-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-with-help .help-icon {
+    font-size: 14px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    cursor: help;
+}
+
+.btn-with-help .help-icon:hover {
+    opacity: 1;
+}
+
+.btn-with-help:hover .help-icon {
+    opacity: 0.9;
+}
+
+/* 自定义tooltip */
+.help-icon[data-tooltip] {
+    position: relative;
+}
+
+.help-icon[data-tooltip]:hover::after {
+    content: attr(data-tooltip-text);
+    position: fixed;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    max-width: 320px;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.6;
+    pointer-events: none;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 10px);
+}
+
+.help-icon[data-tooltip="sync-status-help"]:hover::after {
+    content: "将新作品列表中的作品状态与番号库同步。\A\A例如：如果某个新作品在番号库中被标记为"已看"或"已浏览"，点击此按钮后会自动更新新作品列表中的状态。\A\A建议在浏览完作品后点击此按钮，保持状态一致。";
+}
+
+/* 自定义帮助tooltip */
+.help-tooltip {
+    position: fixed;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    max-width: 320px;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.6;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
