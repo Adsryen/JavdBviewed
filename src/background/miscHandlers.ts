@@ -437,12 +437,20 @@ async function handleFetchJavDBPreview(message: any, sendResponse: (response: an
 async function handleDrive115Push(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-    if (!tabs.length) { sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '未找到 115.com 标签页' }); return; }
-    chrome.tabs.sendMessage(tabs[0].id!, message, (response) => {
+    if (!tabs.length) { 
+      sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '未找到 115.com 标签页' }); 
+      return; 
+    }
+    const tabId = tabs[0].id;
+    if (!tabId) {
+      sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '标签页ID无效' });
+      return;
+    }
+    chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
         sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: chrome.runtime.lastError.message });
       } else {
-        sendResponse(response);
+        sendResponse(response || { type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: true });
       }
     });
   } catch (error: any) {
@@ -454,8 +462,16 @@ async function handleDrive115Push(message: any, sendResponse: (response: any) =>
 async function handleDrive115Verify(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-    if (!tabs.length) { sendResponse({ success: false, error: '未找到 115.com 标签页' }); return; }
-    chrome.tabs.sendMessage(tabs[0].id!, message, (response) => {
+    if (!tabs.length) { 
+      sendResponse({ success: false, error: '未找到 115.com 标签页' }); 
+      return; 
+    }
+    const tabId = tabs[0].id;
+    if (!tabId) {
+      sendResponse({ success: false, error: '标签页ID无效' });
+      return;
+    }
+    chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {

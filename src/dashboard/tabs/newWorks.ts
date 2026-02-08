@@ -1158,7 +1158,11 @@ export class NewWorksTab {
                             ${subscriptions.map(sub => `
                                 <div class="subscription-item" data-actor-id="${sub.actorId}">
                                     <div class="subscription-info">
-                                        ${sub.avatarUrl ? `<img src="${sub.avatarUrl}" alt="${sub.actorName}" class="subscription-avatar">` : '<div class="subscription-avatar-placeholder"><i class="fas fa-user"></i></div>'}
+                                        ${sub.avatarUrl ? `
+                                            <div class="subscription-avatar-wrapper">
+                                                <img src="${sub.avatarUrl}" alt="${sub.actorName}" class="subscription-avatar">
+                                            </div>
+                                        ` : '<div class="subscription-avatar-placeholder"><i class="fas fa-user"></i></div>'}
                                         <div class="subscription-details">
                                             <div class="subscription-name">${sub.actorName}</div>
                                             <div class="subscription-meta">
@@ -1230,6 +1234,45 @@ export class NewWorksTab {
         modal.querySelectorAll('.subscription-item').forEach(item => {
             const actorId = item.getAttribute('data-actor-id');
             if (!actorId) return;
+
+            // 头像悬浮大图定位
+            const avatarWrapper = item.querySelector('.subscription-avatar-wrapper') as HTMLElement;
+            const avatarImg = avatarWrapper?.querySelector('.subscription-avatar') as HTMLImageElement;
+            const avatarUrl = avatarImg?.src;
+            
+            if (avatarWrapper && avatarUrl) {
+                let preview: HTMLElement | null = null;
+                let isHovering = false;
+                
+                const showPreview = () => {
+                    isHovering = true;
+                    
+                    // 创建预览元素并添加到body
+                    preview = document.createElement('div');
+                    preview.className = 'subscription-avatar-preview show';
+                    preview.innerHTML = `<img src="${avatarUrl}" alt="预览" />`;
+                    document.body.appendChild(preview);
+                    
+                    const rect = avatarWrapper.getBoundingClientRect();
+                    const top = rect.top + rect.height / 2 - 100;
+                    const left = rect.right + 15;
+                    preview.style.top = `${top}px`;
+                    preview.style.left = `${left}px`;
+                };
+                
+                const hidePreview = () => {
+                    isHovering = false;
+                    setTimeout(() => {
+                        if (!isHovering && preview) {
+                            preview.remove();
+                            preview = null;
+                        }
+                    }, 100);
+                };
+                
+                avatarWrapper.addEventListener('mouseenter', showPreview);
+                avatarWrapper.addEventListener('mouseleave', hidePreview);
+            }
 
             // 切换启用状态
             const toggleSwitch = item.querySelector('[data-action="toggle"]') as HTMLInputElement;

@@ -977,12 +977,42 @@
     margin-right: 12px;
     border-radius: 50%;
     overflow: hidden;
+    position: relative;
 }
 
 .actor-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* 头像悬浮大图预览 - 使用fixed定位避免被overflow裁剪 */
+.actor-avatar-preview {
+    position: fixed !important;
+    z-index: 99999 !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid var(--border-primary);
+    background: var(--surface-primary);
+    display: none;
+}
+
+.actor-avatar-preview.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+.actor-avatar-preview img {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    display: block;
 }
 
 .avatar-placeholder {
@@ -1203,12 +1233,46 @@
     flex: 1;
 }
 
+.subscription-avatar-wrapper {
+    position: relative;
+    margin-right: 12px;
+}
+
 .subscription-avatar {
     width: 48px;
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
-    margin-right: 12px;
+    display: block;
+}
+
+/* 订阅管理弹窗头像悬浮大图预览 - 使用fixed定位避免被overflow裁剪 */
+.subscription-avatar-preview {
+    position: fixed !important;
+    z-index: 99999 !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid var(--border-primary);
+    background: var(--surface-primary);
+    display: none;
+}
+
+.subscription-avatar-preview.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+.subscription-avatar-preview img {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    display: block;
 }
 
 .subscription-avatar-placeholder {
