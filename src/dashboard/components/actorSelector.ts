@@ -120,7 +120,7 @@ export class ActorSelector {
                 <div class="actor-checkbox">
                     <input type="checkbox" id="actor-${actor.id}" />
                 </div>
-                <div class="actor-avatar">
+                <div class="actor-avatar" data-avatar-url="${actor.avatarUrl || ''}">
                     ${actor.avatarUrl 
                         ? `<img src="${actor.avatarUrl}" alt="${actor.name}" />`
                         : `<div class="avatar-placeholder"><i class="fas fa-user"></i></div>`
@@ -188,6 +188,44 @@ export class ActorSelector {
                 checkbox.addEventListener('change', () => {
                     this.handleActorToggle(actorId, checkbox.checked, actors);
                 });
+            }
+
+            // 头像悬浮大图定位
+            const avatar = item.querySelector('.actor-avatar') as HTMLElement;
+            const avatarUrl = avatar?.getAttribute('data-avatar-url');
+            
+            if (avatar && avatarUrl) {
+                let preview: HTMLElement | null = null;
+                let isHovering = false;
+                
+                const showPreview = () => {
+                    isHovering = true;
+                    
+                    // 创建预览元素并添加到body
+                    preview = document.createElement('div');
+                    preview.className = 'actor-avatar-preview show';
+                    preview.innerHTML = `<img src="${avatarUrl}" alt="预览" />`;
+                    document.body.appendChild(preview);
+                    
+                    const rect = avatar.getBoundingClientRect();
+                    const top = rect.top + rect.height / 2 - 100;
+                    const left = rect.right + 15;
+                    preview.style.top = `${top}px`;
+                    preview.style.left = `${left}px`;
+                };
+                
+                const hidePreview = () => {
+                    isHovering = false;
+                    setTimeout(() => {
+                        if (!isHovering && preview) {
+                            preview.remove();
+                            preview = null;
+                        }
+                    }, 100);
+                };
+                
+                avatar.addEventListener('mouseenter', showPreview);
+                avatar.addEventListener('mouseleave', hidePreview);
             }
         });
 
@@ -321,6 +359,44 @@ export class ActorSelector {
                 checkbox.addEventListener('change', () => {
                     this.handleActorToggle(actorId, checkbox.checked, actors);
                 });
+            }
+
+            // 头像悬浮大图定位（搜索后）
+            const avatar = item.querySelector('.actor-avatar') as HTMLElement;
+            const avatarUrl = avatar?.getAttribute('data-avatar-url');
+            
+            if (avatar && avatarUrl) {
+                let preview: HTMLElement | null = null;
+                let isHovering = false;
+                
+                const showPreview = () => {
+                    isHovering = true;
+                    
+                    // 创建预览元素并添加到body
+                    preview = document.createElement('div');
+                    preview.className = 'actor-avatar-preview show';
+                    preview.innerHTML = `<img src="${avatarUrl}" alt="预览" />`;
+                    document.body.appendChild(preview);
+                    
+                    const rect = avatar.getBoundingClientRect();
+                    const top = rect.top + rect.height / 2 - 100;
+                    const left = rect.right + 15;
+                    preview.style.top = `${top}px`;
+                    preview.style.left = `${left}px`;
+                };
+                
+                const hidePreview = () => {
+                    isHovering = false;
+                    setTimeout(() => {
+                        if (!isHovering && preview) {
+                            preview.remove();
+                            preview = null;
+                        }
+                    }, 100);
+                };
+                
+                avatar.addEventListener('mouseenter', showPreview);
+                avatar.addEventListener('mouseleave', hidePreview);
             }
         });
     }
