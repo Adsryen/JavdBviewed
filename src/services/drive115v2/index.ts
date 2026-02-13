@@ -403,6 +403,19 @@ class Drive115V2Service {
     try {
       const rt = (refreshToken || '').trim();
       if (!rt) return { success: false, message: '缺少 refresh_token' };
+      
+      // 检查 refresh_token 状态
+      const settings = await getSettings();
+      const drv = (settings?.drive115 || {}) as any;
+      const rtStatus = drv.v2RefreshTokenStatus;
+      
+      // 如果 refresh_token 已标记为永久失效，直接返回错误
+      if (rtStatus === 'invalid' || rtStatus === 'expired') {
+        const lastError = drv.v2RefreshTokenLastError || 'refresh_token 已失效';
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `跳过刷新：${lastError}` });
+        return { success: false, message: `${lastError}，请重新授权` };
+      }
+      
       await addLogV2({ timestamp: Date.now(), level: 'info', message: '开始刷新 access_token（v2）' });
 
       // 优先通过后台代理，避免内容脚本 CORS
@@ -426,6 +439,10 @@ class Drive115V2Service {
             if (!bgResp.success) {
               const msg = bgResp.message || '后台刷新失败';
               await addLogV2({ timestamp: Date.now(), level: 'warn', message: `后台刷新失败：${msg}` });
+              
+              // 更新 refresh_token 状态
+              await this.updateRefreshTokenStatus(bgResp.raw);
+              
               return { success: false, message: msg, raw: bgResp.raw };
             }
             json = bgResp.raw || {};
@@ -465,6 +482,10 @@ class Drive115V2Service {
       if (!ok || !at) {
         const msg = describe115Error(json) || json?.message || json?.error || '刷新失败';
         await addLogV2({ timestamp: Date.now(), level: 'error', message: `刷新 access_token 失败：${msg}` });
+        
+        // 更新 refresh_token 状态
+        await this.updateRefreshTokenStatus(json);
+        
         return { success: false, message: msg, raw: json };
       }
 
@@ -474,14 +495,19 @@ class Drive115V2Service {
         refresh_token: newRt || rt,
         expires_at: expiresIn && !isNaN(expiresIn) ? nowSec + Math.max(0, expiresIn) : null,
       };
+      
       // 立刻持久化：确保任何入口刷新都会保存
       try {
-        const settings = await getSettings();
-        const newSettings: any = { ...(settings || {}) };
-        newSettings.drive115 = { ...(settings as any)?.drive115 };
+        const currentSettings = await getSettings();
+        const newSettings: any = { ...(currentSettings || {}) };
+        newSettings.drive115 = { ...(currentSettings as any)?.drive115 };
         newSettings.drive115.v2AccessToken = token.access_token;
         newSettings.drive115.v2RefreshToken = token.refresh_token;
         newSettings.drive115.v2TokenExpiresAt = token.expires_at ?? null;
+        // 刷新成功，标记 refresh_token 为有效
+        newSettings.drive115.v2RefreshTokenStatus = 'valid';
+        newSettings.drive115.v2RefreshTokenLastError = undefined;
+        newSettings.drive115.v2RefreshTokenLastErrorCode = undefined;
         // 记录最近刷新时间戳，便于限频逻辑协同
         newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
         await saveSettings(newSettings);
@@ -496,6 +522,43 @@ class Drive115V2Service {
   }
 
   /**
+   * 更新 refresh_token 状态（根据错误响应）
+   */
+  private async updateRefreshTokenStatus(errorResponse: any): Promise<void> {
+    try {
+      const code = Number(errorResponse?.code ?? errorResponse?.errNo ?? errorResponse?.errno ?? NaN);
+      if (!Number.isFinite(code)) return;
+
+      const settings = await getSettings();
+      const newSettings: any = { ...(settings || {}) };
+      newSettings.drive115 = { ...(settings?.drive115 || {}) };
+
+      const { is115RefreshTokenPermanentlyInvalidCode, is115RefreshRateLimitCode } = await import('./errorCodes');
+      
+      if (is115RefreshTokenPermanentlyInvalidCode(code)) {
+        // refresh_token 永久失效
+        newSettings.drive115.v2RefreshTokenStatus = code === 40140119 ? 'expired' : 'invalid';
+        newSettings.drive115.v2RefreshTokenLastError = describe115Error(errorResponse) || '需要重新授权';
+        newSettings.drive115.v2RefreshTokenLastErrorCode = code;
+        await addLogV2({ timestamp: Date.now(), level: 'error', message: `refresh_token 已失效（错误码：${code}），需要重新授权` });
+      } else if (is115RefreshRateLimitCode(code)) {
+        // 刷新频率限制，不改变状态
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `刷新频率受限（错误码：${code}），请稍后再试` });
+        return; // 不保存状态
+      } else {
+        // 其他错误，标记为 unknown
+        newSettings.drive115.v2RefreshTokenStatus = 'unknown';
+        newSettings.drive115.v2RefreshTokenLastError = describe115Error(errorResponse);
+        newSettings.drive115.v2RefreshTokenLastErrorCode = code;
+      }
+
+      await saveSettings(newSettings);
+    } catch (e) {
+      // 静默失败，不影响主流程
+    }
+  }
+
+  /**
    * 获取有效的 access_token。若已过期且允许自动刷新，将使用 refresh_token 刷新并持久化。
    */
   async getValidAccessToken(opts?: { forceAutoRefresh?: boolean }): Promise<{ success: true; accessToken: string } | { success: false; message: string }>{
@@ -504,6 +567,7 @@ class Drive115V2Service {
     const accessToken: string = (drv.v2AccessToken || '').trim();
     const refreshToken: string = (drv.v2RefreshToken || '').trim();
     const expiresAt: number | null | undefined = drv.v2TokenExpiresAt;
+    const rtStatus: string = drv.v2RefreshTokenStatus || 'unknown';
     const autoRefreshSetting: boolean = drv.v2AutoRefresh !== false; // 默认开启
     const autoRefresh: boolean = (opts?.forceAutoRefresh !== undefined) ? !!opts.forceAutoRefresh : autoRefreshSetting;
     const skewSec: number = Math.max(0, Number(drv.v2AutoRefreshSkewSec ?? 60) || 0);
@@ -515,10 +579,35 @@ class Drive115V2Service {
     if (!accessToken && !refreshToken) return { success: false, message: '缺少 access_token/refresh_token' };
 
     const now = Math.floor(Date.now() / 1000);
-    // 仅当存在明确的过期时间且尚未接近过期时，才视为仍然有效
-    const stillValid = !!accessToken && (typeof expiresAt === 'number' && expiresAt - skewSec > now);
-    if (stillValid) {
-      await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 仍在有效期内（v2）' });
+    
+    // 优化：如果有 access_token 且过期时间未知或未过期，先尝试使用
+    if (accessToken) {
+      // 情况1：有明确的过期时间且未过期
+      if (typeof expiresAt === 'number' && expiresAt - skewSec > now) {
+        await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 仍在有效期内（v2）' });
+        return { success: true, accessToken };
+      }
+      
+      // 情况2：过期时间未知，但 token 存在（可能是手动填入的）
+      if (expiresAt === null || expiresAt === undefined) {
+        await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 过期时间未知，尝试直接使用（v2）' });
+        // 不直接返回，而是继续检查是否需要刷新
+        // 如果不需要自动刷新，就直接使用
+        if (!autoRefresh) {
+          return { success: true, accessToken };
+        }
+        // 如果需要自动刷新但没有 refresh_token，也直接使用
+        if (!refreshToken) {
+          return { success: true, accessToken };
+        }
+        // 有 refresh_token 且开启自动刷新，继续往下走尝试刷新
+      }
+    }
+
+    // 检查是否需要刷新
+    const needRefresh = !accessToken || (typeof expiresAt === 'number' && expiresAt - skewSec <= now);
+    
+    if (!needRefresh) {
       return { success: true, accessToken };
     }
 
@@ -527,7 +616,15 @@ class Drive115V2Service {
       await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
       return { success: false, message: msg };
     }
+    
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
+
+    // 检查 refresh_token 状态
+    if (rtStatus === 'invalid' || rtStatus === 'expired') {
+      const lastError = drv.v2RefreshTokenLastError || 'refresh_token 已失效';
+      await addLogV2({ timestamp: Date.now(), level: 'warn', message: `无法自动刷新：${lastError}` });
+      return { success: false, message: `${lastError}，请重新授权` };
+    }
 
     // 2小时滑动窗口刷新次数限制（固定最多3次，不可配置），仅限制通过接口的自动刷新
     const nowSec = Math.floor(Date.now() / 1000);
@@ -560,13 +657,18 @@ class Drive115V2Service {
       ret = await this.refreshingPromise;
     } else {
       await addLogV2({ timestamp: Date.now(), level: 'info', message: 'access_token 已过期，开始自动刷新（v2）' });
-      this.refreshingPromise = this.refreshToken(refreshToken);
+      // 重新读取最新的 refresh_token（可能已被其他地方更新）
+      const latestSettings = await getSettings();
+      const latestRt = ((latestSettings?.drive115 as any)?.v2RefreshToken || '').trim() || refreshToken;
+      
+      this.refreshingPromise = this.refreshToken(latestRt);
       try {
         ret = await this.refreshingPromise;
       } finally {
         this.refreshingPromise = null;
       }
     }
+    
     if (!ret.success || !ret.token) {
       const msg = ret.message || '刷新失败';
       await addLogV2({ timestamp: Date.now(), level: 'error', message: `自动刷新 access_token 失败：${msg}` });

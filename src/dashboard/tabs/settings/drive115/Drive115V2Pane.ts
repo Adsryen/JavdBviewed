@@ -198,11 +198,22 @@ export class Drive115V2Pane implements IDrive115Pane {
     const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as (HTMLInputElement | HTMLTextAreaElement | null);
     v2RefreshTokenInput?.addEventListener('input', () => {
       const val = (v2RefreshTokenInput as any).value || '';
-      this.ctx?.update({ v2RefreshToken: (val as string).trim() });
+      this.ctx?.update({ 
+        v2RefreshToken: (val as string).trim(),
+        // 手动修改 refresh_token 时，重置状态为 unknown
+        v2RefreshTokenStatus: 'unknown',
+        v2RefreshTokenLastError: undefined,
+        v2RefreshTokenLastErrorCode: undefined,
+      });
       this.ctx?.save?.();
+      // 更新状态显示
+      this.updateRefreshTokenStatusUI();
       if (v2RefreshTokenInput && 'rows' in v2RefreshTokenInput) this.autoResize(v2RefreshTokenInput as HTMLTextAreaElement);
     });
     if (v2RefreshTokenInput && 'rows' in v2RefreshTokenInput) this.autoResize(v2RefreshTokenInput as HTMLTextAreaElement);
+    
+    // 初始化时显示 refresh_token 状态
+    this.updateRefreshTokenStatusUI();
 
     // 绑定后调度多次自适应，覆盖异步填充值
     this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
@@ -280,6 +291,8 @@ export class Drive115V2Pane implements IDrive115Pane {
         this.ctx?.updateUI?.();
         // 自适应高度
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
+        // 更新 refresh_token 状态显示
+        this.updateRefreshTokenStatusUI();
         this.setUserInfoStatus('已刷新 access_token', 'ok');
         showToast('已刷新 access_token', 'success');
       } catch (err: any) {
@@ -473,6 +486,70 @@ export class Drive115V2Pane implements IDrive115Pane {
       this.hideLegacyDownloadDirByText();
       // 同步刷新限频UI显示
       this.updateRefreshIntervalUIFromStorage();
+      // 更新 refresh_token 状态显示
+      this.updateRefreshTokenStatusUI();
+    }
+  }
+
+  /**
+   * 更新 refresh_token 状态显示
+   */
+  private async updateRefreshTokenStatusUI(): Promise<void> {
+    try {
+      const settings = await getSettings();
+      const drv = (settings?.drive115 || {}) as any;
+      const status = drv.v2RefreshTokenStatus || 'unknown';
+      const lastError = drv.v2RefreshTokenLastError;
+      const lastErrorCode = drv.v2RefreshTokenLastErrorCode;
+      
+      // 查找或创建状态显示元素
+      const rtInput = document.getElementById('drive115V2RefreshToken');
+      if (!rtInput) return;
+      
+      let statusEl = document.getElementById('drive115V2RefreshTokenStatus') as HTMLSpanElement | null;
+      if (!statusEl) {
+        // 创建状态显示元素
+        statusEl = document.createElement('span');
+        statusEl.id = 'drive115V2RefreshTokenStatus';
+        statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px;';
+        
+        // 插入到 refresh_token 输入框的父容器中
+        const parent = rtInput.parentElement;
+        if (parent) {
+          // 尝试找到 label 元素
+          const label = parent.querySelector('label');
+          if (label) {
+            label.appendChild(statusEl);
+          } else {
+            parent.insertBefore(statusEl, rtInput);
+          }
+        }
+      }
+      
+      // 根据状态设置样式和文本
+      if (status === 'valid') {
+        statusEl.textContent = '✓ 有效';
+        statusEl.style.color = '#2e7d32';
+        statusEl.style.background = '#e8f5e9';
+        statusEl.title = '刷新令牌状态正常';
+      } else if (status === 'invalid') {
+        statusEl.textContent = '✗ 已失效';
+        statusEl.style.color = '#c62828';
+        statusEl.style.background = '#ffebee';
+        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : '需要重新授权';
+      } else if (status === 'expired') {
+        statusEl.textContent = '⏱ 已过期';
+        statusEl.style.color = '#d84315';
+        statusEl.style.background = '#fbe9e7';
+        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : '需要重新授权';
+      } else {
+        statusEl.textContent = '? 未知';
+        statusEl.style.color = '#757575';
+        statusEl.style.background = '#f5f5f5';
+        statusEl.title = '尚未验证刷新令牌状态';
+      }
+    } catch (e) {
+      // 静默失败
     }
   }
 

@@ -593,6 +593,17 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
             return;
         }
 
+        // 检查 refresh_token 状态
+        const rtStatus = drv?.v2RefreshTokenStatus;
+        const rtLastError = drv?.v2RefreshTokenLastError;
+        if (rtStatus === 'invalid' || rtStatus === 'expired') {
+            set115Status('refresh_token 已失效', 'error');
+            const statusText = rtStatus === 'expired' ? '已过期' : '已失效';
+            const errorMsg = rtLastError || '需要重新授权';
+            if (basic) basic.innerHTML = `<p style="margin:0; color:#d00;">refresh_token ${statusText}：${errorMsg}</p>`;
+            return;
+        }
+
         const svc = getDrive115V2Service();
         // 仅在允许网络时才真实获取 115 用户信息
         console.debug('[drive115v2-ui] 调用 fetchUserInfoAuto() 获取 115 用户信息（手动）');

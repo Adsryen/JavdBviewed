@@ -15,6 +15,9 @@ export interface Drive115Settings {
   v2AccessToken?: string;     // 新版 access_token
   v2RefreshToken?: string;    // 新版 refresh_token
   v2TokenExpiresAt?: number | null; // access_token 过期时间（时间戳，秒）
+  v2RefreshTokenStatus?: 'valid' | 'invalid' | 'expired' | 'unknown'; // refresh_token 状态
+  v2RefreshTokenLastError?: string; // refresh_token 最后一次错误信息
+  v2RefreshTokenLastErrorCode?: number; // refresh_token 最后一次错误码
   v2ApiBaseUrl?: string;      // 新版 API 基础域名（例如：https://proapi.115.com）
   v2AutoRefresh?: boolean;    // 是否在过期时自动刷新 access_token
   v2AutoRefreshSkewSec?: number; // 提前刷新的阈值（秒），如 60 表示提前 60 秒刷新
