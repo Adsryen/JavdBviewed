@@ -973,3 +973,28 @@
 .drive115-profile-container .login-btn:hover {
     color: var(--drive115-title-color);
 }
+
+/* 115 设置中的超链接样式 - 支持日夜主题 */
+#drive115-settings .input-description a,
+#drive115-settings a#drive115V2HelpLink {
+    color: var(--link-color, #2196F3);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+#drive115-settings .input-description a:hover,
+#drive115-settings a#drive115V2HelpLink:hover {
+    color: var(--link-hover-color, #1976D2);
+    text-decoration: underline;
+}
+
+/* 深色主题下的超链接颜色 */
+[data-theme="dark"] #drive115-settings .input-description a,
+[data-theme="dark"] #drive115-settings a#drive115V2HelpLink {
+    color: var(--link-color, #64B5F6);
+}
+
+[data-theme="dark"] #drive115-settings .input-description a:hover,
+[data-theme="dark"] #drive115-settings a#drive115V2HelpLink:hover {
+    color: var(--link-hover-color, #90CAF9);
+}
