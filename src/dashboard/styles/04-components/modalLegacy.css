@@ -2791,6 +2791,15 @@ body.modal-open {
 }
 
 /* 确认弹窗样式 - 支持日夜主题切换 */
+.confirm-modal {
+    z-index: 10001 !important; /* 高于 webdavRestoreModal (10000) */
+}
+
+.confirm-modal .modal-overlay {
+    z-index: 10001 !important; /* 确保遮罩层也在最上层 */
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
 .confirm-modal-content {
     max-width: 500px !important;
     width: 90% !important;
@@ -2814,6 +2823,19 @@ body.modal-open {
     color: var(--text-primary) !important;
 }
 
+/* 根据类型设置标题颜色 */
+.confirm-modal[data-type="info"] .modal-header h3 {
+    color: var(--primary, #2196F3) !important;
+}
+
+.confirm-modal[data-type="warning"] .modal-header h3 {
+    color: var(--warning, #FF9800) !important;
+}
+
+.confirm-modal[data-type="danger"] .modal-header h3 {
+    color: var(--error, #F44336) !important;
+}
+
 .confirm-modal .modal-body {
     padding: 24px !important;
     background: var(--surface-primary) !important;
@@ -2835,15 +2857,81 @@ body.modal-open {
     gap: 12px !important;
 }
 
+/* 按钮样式 */
+.confirm-modal .btn-secondary {
+    background-color: var(--surface-tertiary, #e0e0e0) !important;
+    border-color: var(--border-primary, #ccc) !important;
+    color: var(--text-primary) !important;
+}
+
+.confirm-modal .btn-secondary:hover {
+    background-color: var(--surface-hover, #d0d0d0) !important;
+    border-color: var(--border-secondary, #bbb) !important;
+}
+
+.confirm-modal .btn-primary {
+    background-color: var(--primary, #2196F3) !important;
+    border-color: var(--primary, #2196F3) !important;
+    color: white !important;
+}
+
+.confirm-modal .btn-primary:hover {
+    background-color: var(--primary-hover, #1976D2) !important;
+    border-color: var(--primary-hover, #1976D2) !important;
+}
+
 .confirm-modal .btn-danger {
-    background-color: var(--error) !important;
-    border-color: var(--error) !important;
+    background-color: var(--error, #F44336) !important;
+    border-color: var(--error, #F44336) !important;
     color: white !important;
 }
 
 .confirm-modal .btn-danger:hover {
-    background-color: var(--error-hover) !important;
-    border-color: var(--error-hover) !important;
+    background-color: var(--error-hover, #D32F2F) !important;
+    border-color: var(--error-hover, #D32F2F) !important;
+}
+
+/* 确认弹窗内的提示框样式 */
+.confirm-modal .alert-success {
+    padding: 12px;
+    background: var(--success-bg, rgba(76, 175, 80, 0.1));
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border-left: 4px solid var(--success, #4caf50);
+}
+
+.confirm-modal .alert-success p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--success-text, #2e7d32);
+}
+
+.confirm-modal .alert-warning {
+    padding: 12px;
+    background: var(--warning-bg, rgba(255, 152, 0, 0.1));
+    border-radius: 4px;
+    margin-bottom: 16px;
+    border-left: 4px solid var(--warning, #ff9800);
+}
+
+.confirm-modal .alert-warning p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--warning-text, #e65100);
+}
+
+.confirm-modal .alert-error {
+    padding: 16px;
+    background: var(--error-bg, rgba(244, 67, 54, 0.1));
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid var(--error, #f44336);
+}
+
+.confirm-modal .alert-error p {
+    margin: 0 0 12px 0;
+    font-weight: 600;
+    color: var(--error-text, #c62828);
 }
 
 /* 新作品配置弹窗表单样式 */
