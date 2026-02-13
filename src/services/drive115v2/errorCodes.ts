@@ -84,3 +84,22 @@ export function is115TokenInvalidCode(code?: number): boolean {
   if (!Number.isFinite(code)) return false;
   return [40140125, 40140126].includes(code as number) || (code as number) === 401 || (code as number) === 401001;
 }
+
+/**
+ * 判定：refresh_token 是否永久失效（需要重新授权）
+ */
+export function is115RefreshTokenPermanentlyInvalidCode(code?: number): boolean {
+  if (!Number.isFinite(code)) return false;
+  // 40140114-40140116: refresh_token 格式/签名/授权问题
+  // 40140119: refresh_token 已过期
+  // 40140120: refresh_token 检验失败（可能是未更新本地值）
+  return [40140114, 40140115, 40140116, 40140119, 40140120].includes(code as number);
+}
+
+/**
+ * 判定：是否为刷新频率限制错误
+ */
+export function is115RefreshRateLimitCode(code?: number): boolean {
+  if (!Number.isFinite(code)) return false;
+  return code === 40140117; // access_token 刷新太频繁
+}

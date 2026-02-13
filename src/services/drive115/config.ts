@@ -30,6 +30,9 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
+  v2RefreshTokenStatus: 'unknown',
+  v2RefreshTokenLastError: undefined,
+  v2RefreshTokenLastErrorCode: undefined,
   v2AutoRefresh: true,         // 默认开启自动刷新
   v2AutoRefreshSkewSec: 60,    // 默认提前60秒刷新
   // v2: 接口基础域名（可在设置中修改）
