@@ -498,13 +498,26 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const settings = await getSettings();
       const drv = (settings?.drive115 || {}) as any;
-      const status = drv.v2RefreshTokenStatus || 'unknown';
+      let status = drv.v2RefreshTokenStatus || 'unknown';
       const lastError = drv.v2RefreshTokenLastError;
       const lastErrorCode = drv.v2RefreshTokenLastErrorCode;
+      const accessToken = (drv.v2AccessToken || '').trim();
+      const refreshToken = (drv.v2RefreshToken || '').trim();
+      const expiresAt = drv.v2TokenExpiresAt;
       
-      // 查找或创建状态显示元素
-      const rtInput = document.getElementById('drive115V2RefreshToken');
-      if (!rtInput) return;
+      // 智能推断：如果 access_token 已过期但有 refresh_token，且状态为 unknown，则提示可能需要刷新
+      const nowSec = Math.floor(Date.now() / 1000);
+      const isAccessTokenExpired = typeof expiresAt === 'number' && expiresAt < nowSec;
+      
+      // 如果 access_token 已过期，refresh_token 存在，但状态是 unknown，则显示警告
+      if (status === 'unknown' && isAccessTokenExpired && refreshToken) {
+        status = 'needs-refresh';
+      }
+      
+      // 查找 label 元素
+      const formGroup = document.getElementById('drive115V2RefreshToken')?.closest('.form-group');
+      const label = formGroup?.querySelector('label[for="drive115V2RefreshToken"]');
+      if (!label) return;
       
       let statusEl = document.getElementById('drive115V2RefreshTokenStatus') as HTMLSpanElement | null;
       if (!statusEl) {
@@ -513,17 +526,8 @@ export class Drive115V2Pane implements IDrive115Pane {
         statusEl.id = 'drive115V2RefreshTokenStatus';
         statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px;';
         
-        // 插入到 refresh_token 输入框的父容器中
-        const parent = rtInput.parentElement;
-        if (parent) {
-          // 尝试找到 label 元素
-          const label = parent.querySelector('label');
-          if (label) {
-            label.appendChild(statusEl);
-          } else {
-            parent.insertBefore(statusEl, rtInput);
-          }
-        }
+        // 插入到 label 的末尾
+        label.appendChild(statusEl);
       }
       
       // 根据状态设置样式和文本
@@ -542,6 +546,11 @@ export class Drive115V2Pane implements IDrive115Pane {
         statusEl.style.color = '#d84315';
         statusEl.style.background = '#fbe9e7';
         statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : '需要重新授权';
+      } else if (status === 'needs-refresh') {
+        statusEl.textContent = '⚠ 需要刷新';
+        statusEl.style.color = '#e65100';
+        statusEl.style.background = '#fff3e0';
+        statusEl.title = 'access_token 已过期，请点击"手动刷新"按钮刷新令牌';
       } else {
         statusEl.textContent = '? 未知';
         statusEl.style.color = '#757575';
