@@ -1624,6 +1624,151 @@
     background-color: #545b62;
 }
 
+/* ===============================================
+   深色主题适配 - Dark Theme Overrides
+   =============================================== */
+
+/* 卡片视图操作按钮 - 确保在白天和夜晚模式下都清晰可见 */
+#videoList.card-view .action-button.edit-button {
+    background-color: #007bff;
+    color: white;
+}
+
+#videoList.card-view .action-button.edit-button:hover {
+    background-color: #0056b3;
+}
+
+#videoList.card-view .action-button.sync-button {
+    background-color: #17a2b8;
+    color: white;
+}
+
+#videoList.card-view .action-button.sync-button:hover {
+    background-color: #138496;
+}
+
+#videoList.card-view .action-button.delete-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+#videoList.card-view .action-button.delete-button:hover {
+    background-color: #c82333;
+}
+
+/* 深色主题下的卡片操作按钮 */
+[data-theme="dark"] #videoList.card-view .action-button.edit-button {
+    background-color: #3b82f6;
+    color: white;
+}
+
+[data-theme="dark"] #videoList.card-view .action-button.edit-button:hover {
+    background-color: #2563eb;
+}
+
+[data-theme="dark"] #videoList.card-view .action-button.sync-button {
+    background-color: #14b8a6;
+    color: white;
+}
+
+[data-theme="dark"] #videoList.card-view .action-button.sync-button:hover {
+    background-color: #0d9488;
+}
+
+[data-theme="dark"] #videoList.card-view .action-button.delete-button {
+    background-color: #ef4444;
+    color: white;
+}
+
+[data-theme="dark"] #videoList.card-view .action-button.delete-button:hover {
+    background-color: #dc2626;
+}
+
+/* 编辑弹窗深色主题适配 */
+[data-theme="dark"] .edit-modal-content {
+    background: var(--surface-primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .edit-modal-header {
+    background-color: var(--bg-secondary);
+    border-bottom-color: var(--border-primary);
+}
+
+[data-theme="dark"] .edit-modal-header h3 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .edit-modal-close {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .edit-modal-close:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-group label {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+[data-theme="dark"] .form-hint {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .json-editor label {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .json-editor textarea {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .json-editor textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+[data-theme="dark"] .edit-modal-footer {
+    background-color: var(--bg-secondary);
+    border-top-color: var(--border-primary);
+}
+
+[data-theme="dark"] .btn-primary {
+    background-color: var(--primary);
+    color: var(--text-inverse);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+[data-theme="dark"] .btn-secondary {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background-color: var(--surface-elevated);
+    border-color: var(--border-hover);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .edit-modal-content {
