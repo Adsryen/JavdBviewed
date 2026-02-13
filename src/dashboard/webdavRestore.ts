@@ -9,6 +9,7 @@ import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../services/privacy';
 import { dbActorsBulkPut } from './dbClient';
+import { showConfirm } from './components/confirmModal';
 
 interface WebDAVFile {
     path: string;
@@ -425,7 +426,7 @@ function initializeWizardMode(diffResult: DataDiffResult): void {
 /**
  * 开始快捷恢复
  */
-function startQuickRestore(): void {
+async function startQuickRestore(): Promise<void> {
     logAsync('INFO', '开始快捷恢复');
 
     // 强制要求预览为必经步骤
@@ -477,20 +478,35 @@ function startQuickRestore(): void {
         console.error('Failed to load smart restore modal:', error);
         // 降级到原来的confirm方式
         const confirmMessage = `
-确认执行一键智能恢复？
+            <div style="line-height: 1.8;">
+                <p style="margin: 0 0 16px 0; font-weight: 600;">确认执行一键智能恢复？</p>
+                
+                <div style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--text-primary);">📊 操作预览：</p>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                        <li>保留本地视频记录：<strong>${currentDiffResult.videoRecords.summary.totalLocal.toLocaleString()}</strong> 条</li>
+                        <li>保留本地演员收藏：<strong>${currentDiffResult.actorRecords.summary.totalLocal.toLocaleString()}</strong> 个</li>
+                        <li>添加云端新增数据：<strong>${currentDiffResult.videoRecords.summary.cloudOnlyCount + currentDiffResult.actorRecords.summary.cloudOnlyCount}</strong> 项</li>
+                        <li>自动处理冲突：<strong>${totalConflicts}</strong> 个（保留最新数据）</li>
+                    </ul>
+                </div>
+                
+                <div class="alert-warning">
+                    <p>⚠️ 注意：此操作将修改您的本地数据，建议在操作前确保已备份重要信息。</p>
+                </div>
+            </div>
+        `;
 
-📊 操作预览：
-• 保留本地视频记录：${currentDiffResult.videoRecords.summary.totalLocal.toLocaleString()} 条
-• 保留本地演员收藏：${currentDiffResult.actorRecords.summary.totalLocal.toLocaleString()} 个
-• 添加云端新增数据：${currentDiffResult.videoRecords.summary.cloudOnlyCount + currentDiffResult.actorRecords.summary.cloudOnlyCount} 项
-• 自动处理冲突：${totalConflicts} 个（保留最新数据）
+        const confirmed = await showConfirm({
+            title: '确认一键智能恢复',
+            message: confirmMessage,
+            confirmText: '开始恢复',
+            cancelText: '取消',
+            type: 'warning',
+            isHtml: true
+        });
 
-⚠️ 注意：此操作将修改您的本地数据，建议在操作前确保已备份重要信息。
-
-点击"确定"开始恢复，点击"取消"返回。
-        `.trim();
-
-        if (confirm(confirmMessage)) {
+        if (confirmed) {
             // 用户确认后执行恢复
             logAsync('INFO', '用户确认执行快捷恢复');
 
@@ -912,9 +928,39 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             importStats: '导入统计',
             magnets: '磁链缓存'
         };
-        const confirmMessage = `⚠️ 警告：替换式恢复将清空现有数据！\n\n将要恢复的类别：\n${selectedCategories.map(cat => `• ${categoryNames[cat] || cat}`).join('\n')}\n\n${autoBackupBeforeRestore ? '✓ 恢复前将自动备份当前数据' : '✗ 未启用自动备份'}\n\n此操作不可撤销，确定要继续吗？`;
+        const confirmMessage = `
+            <div style="line-height: 1.8;">
+                <div class="alert-error">
+                    <p>⚠️ 警告：替换式恢复将清空现有数据！</p>
+                </div>
+                
+                <div style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--text-primary);">将要恢复的类别：</p>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+                        ${selectedCategories.map(cat => `<li>${categoryNames[cat] || cat}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div class="${autoBackupBeforeRestore ? 'alert-success' : 'alert-warning'}">
+                    <p>${autoBackupBeforeRestore ? '✓ 恢复前将自动备份当前数据' : '✗ 未启用自动备份'}</p>
+                </div>
+                
+                <p style="margin: 0; font-weight: 600; color: var(--error-text, #c62828); text-align: center;">
+                    此操作不可撤销，确定要继续吗？
+                </p>
+            </div>
+        `;
         
-        if (!confirm(confirmMessage)) {
+        const confirmed = await showConfirm({
+            title: '⚠️ 确认覆盖式恢复',
+            message: confirmMessage,
+            confirmText: '确定恢复',
+            cancelText: '取消',
+            type: 'danger',
+            isHtml: true
+        });
+
+        if (!confirmed) {
             showMessage('已取消恢复操作', 'info');
             return;
         }
@@ -1194,7 +1240,23 @@ function showRestoreResults(summary: any): void {
     // 隐藏默认底部按钮，只显示结果页自带的按钮
     const modalEl = getRestoreModal();
     const modalFooter = modalEl?.querySelector('.modal-footer') as HTMLElement | null;
-    if (modalFooter) modalFooter.style.display = 'none';
+    if (modalFooter) {
+        modalFooter.style.display = 'none';
+    }
+    
+    // 额外隐藏所有可能的底部按钮（防止重复显示）
+    const allFooters = modalEl?.querySelectorAll('.modal-footer');
+    allFooters?.forEach((footer) => {
+        (footer as HTMLElement).style.display = 'none';
+    });
+    
+    // 隐藏具体的按钮元素
+    const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+    const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
+    const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    if (backBtn) backBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
 
     // 绑定结果页按钮事件
     const resultsBackBtn = resultsContainer.querySelector('#resultsBackBtn') as HTMLButtonElement | null;
@@ -1223,11 +1285,25 @@ function showRestoreResults(summary: any): void {
 
             const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
             const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
-            if (confirmBtn) confirmBtn.disabled = true;
-            if (backBtn) backBtn.classList.add('hidden');
+            const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.style.display = '';
+            }
+            if (backBtn) {
+                backBtn.classList.add('hidden');
+                backBtn.style.display = '';
+            }
+            if (cancelBtn) {
+                cancelBtn.style.display = '';
+            }
 
             // 恢复默认底部按钮可见
             if (modalFooter) modalFooter.style.display = '';
+            const allFooters = modal?.querySelectorAll('.modal-footer');
+            allFooters?.forEach((footer) => {
+                (footer as HTMLElement).style.display = '';
+            });
         };
     }
     if (resultsDoneBtn) {
@@ -1236,6 +1312,16 @@ function showRestoreResults(summary: any): void {
             try { closeModal(); } catch {}
             // 恢复默认底部按钮可见（下次打开弹窗时可用）
             if (modalFooter) modalFooter.style.display = '';
+            const allFooters = modalEl?.querySelectorAll('.modal-footer');
+            allFooters?.forEach((footer) => {
+                (footer as HTMLElement).style.display = '';
+            });
+            const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
+            const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
+            const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
+            if (confirmBtn) confirmBtn.style.display = '';
+            if (backBtn) backBtn.style.display = '';
+            if (cancelBtn) cancelBtn.style.display = '';
         };
     }
 }

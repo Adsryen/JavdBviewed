@@ -8,6 +8,7 @@ export interface ConfirmOptions {
     confirmText?: string;
     cancelText?: string;
     type?: 'info' | 'warning' | 'danger';
+    isHtml?: boolean; // 是否将 message 作为 HTML 渲染
 }
 
 export class ConfirmModal {
@@ -39,26 +40,25 @@ export class ConfirmModal {
             message,
             confirmText = '确认',
             cancelText = '取消',
-            type = 'info'
+            type = 'info',
+            isHtml = false
         } = options;
-
-        // 根据类型设置颜色
-        const typeColors = {
-            info: '#2196F3',
-            warning: '#FF9800',
-            danger: '#F44336'
-        };
 
         this.modal = document.createElement('div');
         this.modal.className = 'confirm-modal';
+        this.modal.setAttribute('data-type', type); // 添加类型属性用于 CSS 选择
+        
+        // 根据 isHtml 决定如何渲染消息
+        const messageContent = isHtml ? message : `<p class="confirm-message">${message}</p>`;
+        
         this.modal.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content confirm-modal-content">
                     <div class="modal-header">
-                        <h3 style="color: ${typeColors[type]};">${title}</h3>
+                        <h3>${title}</h3>
                     </div>
                     <div class="modal-body">
-                        <p class="confirm-message">${message}</p>
+                        ${messageContent}
                     </div>
                     <div class="modal-footer">
                         <button class="btn-secondary" id="confirmCancel">${cancelText}</button>
