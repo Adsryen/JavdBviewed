@@ -52,40 +52,40 @@ Jav 助手是一个功能强大的浏览器扩展，专为 JavDB 等Jav视频网
 
 ## 🖼️ 界面预览（以实际为准，不会及时更新）
 
+### 首页数据图表
+<div align="center">
+<img src="assets/1.png" alt="首页数据图表" width="800">
+<p><em>首页 - 数据统计和可视化图表，一目了然查看观看记录</em></p>
+</div>
+
 ### 番号库管理
 <div align="center">
-<img src="assets/1.png" alt="番号库管理" width="800">
+<img src="assets/2.png" alt="番号库管理" width="800">
 <p><em>番号库 - 管理和查看已标记的视频番号</em></p>
 </div>
 
 ### 演员库管理
 <div align="center">
-<img src="assets/2.png" alt="演员库管理" width="800">
+<img src="assets/3.png" alt="演员库管理" width="800">
 <p><em>演员库 - 演员信息管理和分类功能</em></p>
 </div>
 
 ### 新作品监控
 <div align="center">
-<img src="assets/3.png" alt="新作品监控" width="800">
+<img src="assets/4.png" alt="新作品监控" width="800">
 <p><em>新作品 - 自动监控和订阅感兴趣的新发布内容</em></p>
 </div>
 
-### 数据同步功能
+### 115网盘任务
 <div align="center">
-<img src="assets/4.png" alt="数据同步" width="800">
-<p><em>数据同步 - WebDAV 云端同步，多设备数据一致性保障</em></p>
+<img src="assets/5.png" alt="115网盘任务" width="800">
+<p><em>115任务 - 磁力推送任务管理和状态监控</em></p>
 </div>
 
 ### 扩展设置面板
 <div align="center">
-<img src="assets/5.png" alt="设置面板" width="800">
+<img src="assets/6.png" alt="扩展设置面板" width="800">
 <p><em>设置面板 - 完整的配置选项和功能开关</em></p>
-</div>
-
-### 操作日志记录
-<div align="center">
-<img src="assets/6.png" alt="日志记录" width="800">
-<p><em>日志面板 - 详细的操作记录和系统状态信息</em></p>
 </div>
 
 ## 📦 安装方式
