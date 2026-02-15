@@ -384,32 +384,77 @@ export class FC2BreakerService {
       padding: 20px;
     `;
 
-    const content = document.createElement('div');
-    content.className = 'box';
-    content.style.cssText = `
+    const container = document.createElement('div');
+    container.style.cssText = `
       max-width: 1200px;
       width: 100%;
       max-height: 90vh;
-      overflow-y: auto;
-      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: transparent;
     `;
 
-    // 关闭按钮（使用Bulma的delete按钮）
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'delete is-large';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      z-index: 1;
+    // 固定顶栏
+    const header = document.createElement('div');
+    header.className = 'box';
+    header.style.cssText = `
+      margin-bottom: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
     `;
+
+    const headerLeft = document.createElement('div');
+    headerLeft.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    `;
+
+    const carNumBadge = document.createElement('span');
+    carNumBadge.className = 'tag is-info is-medium';
+    carNumBadge.textContent = videoInfo.carNum;
+
+    const titleText = document.createElement('span');
+    titleText.className = 'is-size-6';
+    titleText.style.cssText = `
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    `;
+    titleText.textContent = videoInfo.title;
+
+    headerLeft.appendChild(carNumBadge);
+    headerLeft.appendChild(titleText);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'delete is-medium';
     closeBtn.onclick = () => modal.remove();
 
-    // 标题
+    header.appendChild(headerLeft);
+    header.appendChild(closeBtn);
+
+    // 内容区域（可滚动）
+    const content = document.createElement('div');
+    content.className = 'box';
+    content.style.cssText = `
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    `;
+
+    // 标题区域
+    const titleSection = document.createElement('div');
+    titleSection.style.cssText = `margin-bottom: 20px;`;
+    
     const title = document.createElement('h2');
-    title.className = 'title is-4';
-    title.style.cssText = `margin-bottom: 20px; padding-right: 40px;`;
+    title.className = 'title is-5';
     title.textContent = videoInfo.title;
+    titleSection.appendChild(title);
 
     // 封面图片（如果有）
     let coverSection: HTMLElement | null = null;
@@ -501,8 +546,7 @@ export class FC2BreakerService {
     actionButtons.appendChild(subtitleBtn);
 
     // 组装基础部分
-    content.appendChild(closeBtn);
-    content.appendChild(title);
+    content.appendChild(titleSection);
     if (coverSection) content.appendChild(coverSection);
     content.appendChild(infoSection);
     content.appendChild(actionButtons);
@@ -656,8 +700,53 @@ export class FC2BreakerService {
         openBtn.className = 'button is-success is-small';
         openBtn.textContent = '打开';
         
+        // 115离线下载按钮
+        const push115Btn = document.createElement('button');
+        push115Btn.className = 'button is-warning is-small';
+        push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
+        push115Btn.title = '推送到115网盘离线下载';
+        push115Btn.onclick = async () => {
+          const magnetLink = `magnet:?xt=urn:btih:${magnet.hash}`;
+          push115Btn.disabled = true;
+          push115Btn.className = 'button is-warning is-small is-loading';
+          
+          try {
+            // 动态导入115功能
+            const { isDrive115Enabled, addTaskUrlsV2 } = await import('../../services/drive115Router');
+            
+            if (!isDrive115Enabled()) {
+              alert('115网盘功能未启用，请在设置中启用');
+              return;
+            }
+            
+            const result = await addTaskUrlsV2({ 
+              urls: magnetLink, // urls是字符串类型
+              wp_path_id: '' // 使用默认目录
+            });
+            
+            if (result.success) {
+              push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-check"></i></span><span>已推送</span>';
+              push115Btn.className = 'button is-success is-small';
+              setTimeout(() => {
+                push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
+                push115Btn.className = 'button is-warning is-small';
+                push115Btn.disabled = false;
+              }, 2000);
+            } else {
+              throw new Error(result.message || '推送失败');
+            }
+          } catch (error) {
+            console.error('[FC2Breaker] 115推送失败:', error);
+            alert(`115推送失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
+            push115Btn.className = 'button is-warning is-small';
+            push115Btn.disabled = false;
+          }
+        };
+        
         buttons.appendChild(copyBtn);
         buttons.appendChild(openBtn);
+        buttons.appendChild(push115Btn);
         buttonsCol.appendChild(buttons);
         
         item.appendChild(infoCol);
@@ -722,7 +811,10 @@ export class FC2BreakerService {
       content.appendChild(reviewsSection);
     }
 
-    modal.appendChild(content);
+    // 组装容器
+    container.appendChild(header);
+    container.appendChild(content);
+    modal.appendChild(container);
 
     // 点击背景关闭
     modal.onclick = (e) => {
