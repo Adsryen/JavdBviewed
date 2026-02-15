@@ -1385,31 +1385,6 @@ export class ApiClient {
         let errorCount = 0;
         let newRecords = 0;
         let updatedRecords = 0;
-        
-        // 检查是否有保存的进度
-        let startListIndex = 0;
-        let startPage = 1;
-        let startVideoIndex = 0;
-        
-        if (_config.resumeFromProgress) {
-            const savedProgress = await getSavedSyncProgress('lists', userProfile.email);
-            if (savedProgress && savedProgress.currentListIndex !== undefined) {
-                startListIndex = savedProgress.currentListIndex;
-                startPage = savedProgress.currentPage;
-                startVideoIndex = savedProgress.currentVideoIndex;
-                syncedCount = savedProgress.syncedCount;
-                errorCount = savedProgress.errorCount;
-                newRecords = savedProgress.newRecords;
-                updatedRecords = savedProgress.updatedRecords;
-                
-                logAsync('INFO', '从上次进度继续清单同步', {
-                    startListIndex,
-                    startPage,
-                    startVideoIndex,
-                    syncedCount
-                });
-            }
-        }
 
         const migrated = await this.isIDBMigrated();
         const videoToLists = new Map<string, Set<string>>();
@@ -1473,9 +1448,129 @@ export class ApiClient {
         await fetchListIndex('mine', `${origin}/users/lists`);
         await fetchListIndex('favorite', `${origin}/users/favorite_lists`);
 
-        // 写入 lists store（最佳努力）
+        // === 恢复进度检查（必须在获取清单列表之后） ===
+        let startListIndex = 0;
+        let startPage = 1;
+        let startVideoIndex = 0;
+        
+        if (_config.resumeFromProgress) {
+            const savedProgress = await getSavedSyncProgress('lists', userProfile.email);
+            if (savedProgress && savedProgress.currentListIndex !== undefined) {
+                // 使用清单 ID 而不是索引来恢复进度
+                const savedListId = savedProgress.currentListId;
+                if (savedListId) {
+                    // 在新的清单列表中查找保存的清单 ID
+                    const foundIndex = listIndex.findIndex(l => l.id === savedListId);
+                    if (foundIndex >= 0) {
+                        // 找到了，从这个清单继续
+                        startListIndex = foundIndex;
+                        startPage = savedProgress.currentPage;
+                        startVideoIndex = savedProgress.currentVideoIndex;
+                        syncedCount = savedProgress.syncedCount;
+                        errorCount = savedProgress.errorCount;
+                        newRecords = savedProgress.newRecords;
+                        updatedRecords = savedProgress.updatedRecords;
+                        
+                        logAsync('INFO', '从上次进度继续清单同步', {
+                            savedListId,
+                            foundIndex,
+                            startPage,
+                            startVideoIndex,
+                            syncedCount
+                        });
+                    } else {
+                        // 清单已被删除，清除进度，从头开始
+                        logAsync('WARN', '保存的清单已不存在，清除进度从头开始', { savedListId });
+                        await clearSyncProgress();
+                    }
+                } else {
+                    // 旧版本的进度数据，没有 currentListId，清除进度
+                    logAsync('WARN', '进度数据格式过旧，清除进度从头开始');
+                    await clearSyncProgress();
+                }
+            }
+        }
+
+        // === 预检查：比对本地和远程清单 ===
+        let oldLists: ListRecord[] = [];
         try {
+            const resp = await this.sendDbMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL', {});
+            oldLists = ((resp as any).records || []);
+        } catch (e: any) {
+            logAsync('WARN', '获取旧清单列表失败', { error: e?.message });
+        }
+
+        const oldListMap = new Map(oldLists.map(l => [l.id, l]));
+        const newListMap = new Map(listRecords.map(l => [l.id, l]));
+
+        // 分类清单
+        const listsToAdd: ListRecord[] = [];      // 新增的清单
+        const listsToUpdate: ListRecord[] = [];   // 已存在的清单
+        const listsToDelete: ListRecord[] = [];   // 要删除的清单
+
+        for (const newList of listRecords) {
+            if (!oldListMap.has(newList.id)) {
+                listsToAdd.push(newList);
+            } else {
+                listsToUpdate.push(newList);
+            }
+        }
+
+        for (const oldList of oldLists) {
+            if (!newListMap.has(oldList.id)) {
+                listsToDelete.push(oldList);
+            }
+        }
+
+        // === 用户确认：显示变更详情 ===
+        if (!_config.resumeFromProgress && (listsToAdd.length > 0 || listsToDelete.length > 0)) {
+            const changeDetails = this.buildListChangeDetails(listsToAdd, listsToUpdate, listsToDelete);
+            
+            // 动态导入 confirmModal
+            const { showConfirm } = await import('../components/confirmModal');
+            
+            const confirmed = await showConfirm({
+                title: '清单同步确认',
+                message: changeDetails,
+                confirmText: '确认同步',
+                cancelText: '取消',
+                type: listsToDelete.length > 0 ? 'warning' : 'info',
+                isHtml: true
+            });
+
+            if (!confirmed) {
+                logAsync('INFO', '用户取消了清单同步');
+                return {
+                    success: false,
+                    syncedCount: 0,
+                    skippedCount: 0,
+                    errorCount: 0,
+                    newRecords: 0,
+                    updatedRecords: 0,
+                    message: '用户取消了同步操作'
+                };
+            }
+        }
+
+        // === 执行清单更新 ===
+        try {
+            // 删除已移除的清单
+            if (listsToDelete.length > 0) {
+                logAsync('INFO', `准备删除 ${listsToDelete.length} 个清单`, { 
+                    listIds: listsToDelete.map(l => l.id) 
+                });
+                await this.sendDbMessage('DB:LISTS_CLEAR', {});
+            }
+            
+            // 写入所有清单（新增+更新）
             await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: listRecords });
+            
+            logAsync('INFO', `清单列表已更新`, {
+                added: listsToAdd.length,
+                updated: listsToUpdate.length,
+                deleted: listsToDelete.length,
+                total: listRecords.length
+            });
         } catch (e: any) {
             logAsync('WARN', '写入 lists 表失败（不阻断清单影片同步）', { error: e?.message });
         }
@@ -1671,12 +1766,22 @@ export class ApiClient {
                         // 通知UI添加到已获取列表
                         this.notifyVideoFetched(syncedCount, videoDetail.title || realVideoId, true);
 
+                        // 构建详细的进度消息
+                        const actionType = !existed ? '新增' : '更新';
+                        const progressMessage = `${actionType} ${syncedCount} 部影片 (新增: ${newRecords}, 更新: ${updatedRecords})`;
+
                         onProgress?.({
                             current: syncedCount,
                             total: syncedCount,
                             percentage: 0,
-                            message: `已处理 ${syncedCount} 部影片...`,
-                            stage: 'details'
+                            message: progressMessage,
+                            stage: 'details',
+                            actionType,  // 传递操作类型
+                            stats: {
+                                new: newRecords,
+                                updated: updatedRecords,
+                                error: errorCount
+                            }
                         });
                     } catch (e: any) {
                         errorCount++;
@@ -1719,6 +1824,64 @@ export class ApiClient {
             }
         }
 
+        // === 清理孤儿影片的 listIds ===
+        // 获取所有有 listIds 的影片，清空那些不在本次同步中的影片的 listIds
+        try {
+            onProgress?.({
+                percentage: 95,
+                message: '清理已移除的清单关联...',
+                stage: 'cleanup'
+            });
+
+            let allRecords: VideoRecord[] = [];
+            if (migrated) {
+                const resp = await this.sendDbMessage<{ success: true; records: VideoRecord[] }>('DB:VIEWED_GET_ALL', {});
+                allRecords = ((resp as any).records || []);
+            } else {
+                const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+                allRecords = Object.values(all);
+            }
+
+            // 找出有 listIds 但不在本次同步中的影片（孤儿影片）
+            const syncedVideoIds = new Set(videoToLists.keys());
+            const orphanRecords = allRecords.filter(r => 
+                r.listIds && r.listIds.length > 0 && !syncedVideoIds.has(r.id)
+            );
+
+            if (orphanRecords.length > 0) {
+                logAsync('INFO', `检测到 ${orphanRecords.length} 个影片不再属于任何清单，清空其 listIds`);
+                
+                let cleanedCount = 0;
+                for (const record of orphanRecords) {
+                    if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+                    try {
+                        record.listIds = [];
+                        record.updatedAt = Date.now();
+                        await dbViewedPut(record);
+                        cleanedCount++;
+                        
+                        // 更新清理进度
+                        onProgress?.({
+                            percentage: 95 + Math.round((cleanedCount / orphanRecords.length) * 5),
+                            message: `清理清单关联 ${cleanedCount}/${orphanRecords.length}...`,
+                            stage: 'cleanup',
+                            actionType: '清理',
+                            stats: {
+                                cleaned: cleanedCount,
+                                total: orphanRecords.length
+                            }
+                        });
+                    } catch (e: any) {
+                        logAsync('WARN', '清空影片 listIds 失败', { videoId: record.id, error: e?.message });
+                    }
+                }
+                
+                logAsync('INFO', `已清空 ${cleanedCount} 个影片的清单关联`);
+            }
+        } catch (e: any) {
+            logAsync('WARN', '清理孤儿影片失败（不阻断同步）', { error: e?.message });
+        }
+
         // 同步完成，清除保存的进度
         await clearSyncProgress();
         logAsync('INFO', '清单同步完成，已清除保存的进度');
@@ -1733,6 +1896,69 @@ export class ApiClient {
             message: `清单同步完成：影片 ${syncedCount}，清单 ${listIndex.length}`
         };
     }
+    /**
+     * 构建清单变更详情HTML
+     */
+    private buildListChangeDetails(
+        listsToAdd: ListRecord[],
+        listsToUpdate: ListRecord[],
+        listsToDelete: ListRecord[]
+    ): string {
+        const parts: string[] = [];
+        
+        parts.push('<div class="list-sync-changes">');
+        
+        if (listsToAdd.length > 0) {
+            parts.push(`<div class="change-section add-section">`);
+            parts.push(`<h4>🆕 新增清单 (${listsToAdd.length})</h4>`);
+            parts.push(`<ul class="list-items">`);
+            for (const list of listsToAdd.slice(0, 5)) {
+                const count = list.moviesCount !== undefined ? ` (${list.moviesCount}部)` : '';
+                parts.push(`<li>• ${this.escapeHtml(list.name)}${count}</li>`);
+            }
+            if (listsToAdd.length > 5) {
+                parts.push(`<li>... 还有 ${listsToAdd.length - 5} 个清单</li>`);
+            }
+            parts.push(`</ul></div>`);
+        }
+        
+        if (listsToUpdate.length > 0) {
+            parts.push(`<div class="change-section update-section">`);
+            parts.push(`<h4>🔄 更新清单 (${listsToUpdate.length})</h4>`);
+            parts.push(`<p>将刷新这些清单的影片信息并同步新增影片</p>`);
+            parts.push(`</div>`);
+        }
+        
+        if (listsToDelete.length > 0) {
+            parts.push(`<div class="change-section delete-section">`);
+            parts.push(`<h4>🗑️ 删除清单 (${listsToDelete.length})</h4>`);
+            parts.push(`<ul class="list-items">`);
+            for (const list of listsToDelete.slice(0, 5)) {
+                const count = list.moviesCount !== undefined ? ` (${list.moviesCount}部)` : '';
+                parts.push(`<li>• ${this.escapeHtml(list.name)}${count}</li>`);
+            }
+            if (listsToDelete.length > 5) {
+                parts.push(`<li>... 还有 ${listsToDelete.length - 5} 个清单</li>`);
+            }
+            parts.push(`</ul>`);
+            parts.push(`<p class="warning-text">⚠️ 这些清单下的影片将被移除清单关联</p>`);
+            parts.push(`</div>`);
+        }
+        
+        parts.push('</div>');
+        
+        return parts.join('');
+    }
+
+    /**
+     * HTML转义
+     */
+    private escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     /**
      * 通知UI已获取影片
      */

@@ -484,6 +484,16 @@ export async function listsGetAll(): Promise<ListRecord[]> {
   return db.getAll('lists');
 }
 
+export async function listsClear(): Promise<void> {
+  const db = await initDB();
+  await db.clear('lists');
+}
+
+export async function listsDelete(id: string): Promise<void> {
+  const db = await initDB();
+  await db.delete('lists', id);
+}
+
 // ----- viewedRecords API -----
 
 export async function viewedPut(record: VideoRecord): Promise<void> {
