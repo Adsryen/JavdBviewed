@@ -2,23 +2,46 @@
 // FC2拦截破解功能 - 基于JAV-JHS的实现
 
 import { log } from '../../content/state';
-import { bgFetchText } from '../../utils/net';
+import { bgFetchJSON } from '../../utils/net';
+import { ReviewBreakerService } from '../reviewBreaker';
 
 export interface FC2VideoInfo {
-  id: string;
+  movieId: string;
   title: string;
-  publishDate: string;
-  moviePoster: string;
-  actors?: FC2ActorInfo[];
-  seller?: string;
-  sellerUrl?: string;
-  previewUrl?: string;
-  images?: string[];
+  carNum: string;
+  releaseDate: string;
+  score: string;
+  duration: number;
+  actors: FC2ActorInfo[];
+  images: string[];
+  watchedCount: number;
+  magnets?: FC2MagnetInfo[];
+  reviews?: FC2ReviewInfo[];
+  coverUrl?: string;
 }
 
 export interface FC2ActorInfo {
+  id: string;
   name: string;
-  profileUrl?: string;
+  gender: number; // 0=女, 1=男
+}
+
+export interface FC2MagnetInfo {
+  hash: string;
+  name: string;
+  size: number; // 单位：MB
+  files_count: number;
+  created_at: string;
+  hd: boolean;
+  cnsub: boolean;
+}
+
+export interface FC2ReviewInfo {
+  id: string;
+  content: string;
+  score: number;
+  created_at: string;
+  user_name: string;
 }
 
 export interface FC2Response {
@@ -29,44 +52,16 @@ export interface FC2Response {
 
 /**
  * FC2拦截破解服务
- * 整合123av和fc2ppvdb数据源
+ * 使用JavDB API获取FC2视频信息
  */
 export class FC2BreakerService {
-  private static readonly AV123_BASE = 'https://123av.com';
-  private static readonly FC2PPVDB_BASE = 'https://fc2ppvdb.com';
+  private static readonly API_BASE = 'https://jdforrepam.com/api';
 
   /**
-   * 从文档中稳健提取发布日期（避免使用非标准选择器）
+   * 更新图片服务器URL（与JAV-JHS保持一致）
    */
-  private static extractPublishDate(doc: Document): string {
-    // 方案1：直接在同一元素文本中匹配
-    const candidates = Array.from(doc.querySelectorAll('span,div,p,li,td,th,dt,dd')) as HTMLElement[];
-    for (const el of candidates) {
-      const t = (el.textContent || '').trim();
-      if (!t) continue;
-      const m = t.match(/リリース日[:：]?\s*([\d]{4}[\/\.-][\d]{1,2}[\/\.-][\d]{1,2}|[\d]{4}年[\d]{1,2}月[\d]{1,2}日)/);
-      if (m && m[1]) {
-        return m[1].replace(/年|月/g, '-').replace(/日/g, '').replace(/\./g, '-').replace(/\//g, '-');
-      }
-    }
-
-    // 方案2：找到包含关键词的元素，取其后续兄弟或下一个值节点
-    for (const el of candidates) {
-      const t = (el.textContent || '').trim();
-      if (t.includes('リリース日')) {
-        // 尝试下一个兄弟元素
-        const next = el.nextElementSibling as HTMLElement | null;
-        const text = (next?.textContent || '').trim();
-        if (text) {
-          const m = text.match(/([\d]{4}[\/\.-][\d]{1,2}[\/\.-][\d]{1,2}|[\d]{4}年[\d]{1,2}月[\d]{1,2}日)/);
-          if (m && m[1]) {
-            return m[1].replace(/年|月/g, '-').replace(/日/g, '').replace(/[\.\/]/g, '-');
-          }
-        }
-      }
-    }
-
-    return '';
+  private static updateImgServer(originalUrl: string): string {
+    return originalUrl.replace(/https:\/\/.*?\/rhe951l4q/g, 'https://c0.jdbstatic.com');
   }
 
   /**
@@ -78,235 +73,144 @@ export class FC2BreakerService {
   }
 
   /**
-   * 从123av获取FC2视频信息
+   * 从JavDB API获取评论信息
    */
-  private static async getVideoInfoFrom123av(videoUrl: string): Promise<Partial<FC2VideoInfo>> {
+  private static async getReviewsFromJavDB(movieId: string): Promise<FC2ReviewInfo[]> {
+    const url = `${this.API_BASE}/v1/movies/${movieId}/reviews`;
+    const signature = await ReviewBreakerService.generateSignature();
+    
+    log(`[FC2Breaker] Fetching reviews from JavDB API: ${url}`);
+
     try {
-      log(`[FC2Breaker] Fetching video info from 123av: ${videoUrl}`);
-
-      const { success, status, text, error } = await bgFetchText({ url: videoUrl, method: 'GET', timeoutMs: 15000 });
-      if (!success || !text) {
-        throw new Error(error || `HTTP ${status}`);
-      }
-
-      const html = text;
-      
-      // 解析视频ID
-      const idMatch = html.match(/v-scope="Movie\({id:\s*(\d+),/);
-      const id = idMatch ? idMatch[1] : null;
-
-      // 创建DOM解析器
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 提取信息
-      const title = doc.querySelector('h1')?.textContent?.trim() || '';
-      const publishDate = this.extractPublishDate(doc);
-      const moviePoster = doc.querySelector('#player')?.getAttribute('data-poster') || '';
-
-      return {
-        id: id || '',
-        title,
-        publishDate,
-        moviePoster,
-      };
-    } catch (error) {
-      log(`[FC2Breaker] Error fetching from 123av:`, error);
-      return {};
-    }
-  }
-
-  /**
-   * 从fc2ppvdb获取演员和販売者信息
-   */
-  private static async getActorInfoFromFC2PPVDB(fc2Id: string): Promise<{ actors: FC2ActorInfo[], seller?: string, sellerUrl?: string }> {
-    try {
-      const cleanId = fc2Id.replace(/^FC2-?/i, '');
-      const url = `${this.FC2PPVDB_BASE}/articles/${cleanId}`;
-      
-      log(`[FC2Breaker] Fetching actor info from fc2ppvdb: ${url}`);
-
-      const { success, status, text, error } = await bgFetchText({ url, method: 'GET', timeoutMs: 15000 });
-      if (!success || !text) {
-        throw new Error(error || `HTTP ${status}`);
-      }
-
-      const html = text;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 查找女優信息
-      const actors: FC2ActorInfo[] = [];
-      const actorDivs = Array.from(doc.querySelectorAll('div')).filter(div => 
-        div.textContent?.trim().startsWith('女優：')
-      );
-
-      if (actorDivs.length === 1) {
-        const actorLinks = actorDivs[0].querySelectorAll('a');
-        actorLinks.forEach(link => {
-          const name = link.textContent?.trim();
-          const href = link.getAttribute('href');
-          if (name) {
-            actors.push({
-              name,
-              profileUrl: href ? `${this.FC2PPVDB_BASE}${href}` : undefined,
-            });
-          }
-        });
-      }
-
-      // 查找販売者信息
-      let seller: string | undefined;
-      let sellerUrl: string | undefined;
-      const sellerDivs = Array.from(doc.querySelectorAll('div')).filter(div => 
-        div.textContent?.trim().startsWith('販売者：')
-      );
-
-      if (sellerDivs.length > 0) {
-        const sellerLink = sellerDivs[0].querySelector('a');
-        if (sellerLink) {
-          seller = sellerLink.textContent?.trim();
-          const href = sellerLink.getAttribute('href');
-          if (href) {
-            sellerUrl = `${this.FC2PPVDB_BASE}${href}`;
-          }
-        }
-      }
-
-      return { actors, seller, sellerUrl };
-    } catch (error) {
-      log(`[FC2Breaker] Error fetching from fc2ppvdb:`, error);
-      return { actors: [] };
-    }
-  }
-
-  /**
-   * 从adult.contents.fc2.com获取预览图片列表
-   */
-  private static async getPreviewImagesFromFC2(fc2Id: string): Promise<string[]> {
-    try {
-      const cleanId = fc2Id.replace(/^FC2-?/i, '');
-      const url = `https://adult.contents.fc2.com/article/${cleanId}/`;
-      
-      log(`[FC2Breaker] Fetching preview images from fc2: ${url}`);
-
-      const { success, status, text, error } = await bgFetchText({ 
-        url, 
-        method: 'GET', 
+      const { success, status, data, error } = await bgFetchJSON({
+        url: `${url}?page=1&sort_by=hotly&limit=10`,
+        method: 'GET',
         timeoutMs: 15000,
-        headers: { 'Referer': url }
-      });
-      
-      if (!success || !text) {
-        throw new Error(error || `HTTP ${status}`);
-      }
-
-      const html = text;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 查找预览图片
-      const images: string[] = [];
-      const imgElements = doc.querySelectorAll('.items_article_SampleImagesArea img');
-      
-      imgElements.forEach(img => {
-        const src = img.getAttribute('src');
-        if (src) {
-          images.push(src);
+        headers: {
+          'jdSignature': signature,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
         }
       });
 
-      log(`[FC2Breaker] Found ${images.length} preview images`);
-      return images;
+      if (!success || !data) {
+        log(`[FC2Breaker] Failed to fetch reviews: ${error || `HTTP ${status}`}`);
+        return [];
+      }
+
+      const apiResponse = data as any;
+      return apiResponse.data?.reviews || [];
     } catch (error) {
-      log(`[FC2Breaker] Error fetching preview images from fc2:`, error);
+      log(`[FC2Breaker] Error fetching reviews:`, error);
       return [];
     }
   }
 
   /**
-   * 搜索123av中的FC2视频
+   * 从JavDB API获取磁链信息
    */
-  private static async searchFC2Video(fc2Id: string): Promise<string | null> {
+  private static async getMagnetsFromJavDB(movieId: string): Promise<FC2MagnetInfo[]> {
+    const url = `${this.API_BASE}/v1/movies/${movieId}/magnets`;
+    const signature = await ReviewBreakerService.generateSignature();
+    
+    log(`[FC2Breaker] Fetching magnets from JavDB API: ${url}`);
+
     try {
-      const cleanId = fc2Id.replace(/^FC2-?/i, '');
-      const searchUrl = `${this.AV123_BASE}/search?q=FC2-${cleanId}`;
-      
-      log(`[FC2Breaker] Searching FC2 video on 123av: ${searchUrl}`);
-
-      const { success, text } = await bgFetchText({ url: searchUrl, method: 'GET', timeoutMs: 15000 });
-      if (!success || !text) return null;
-
-      const html = text;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      // 查找匹配的视频链接
-      const videoLinks = doc.querySelectorAll('a[href*="/video/"]');
-      for (let i = 0; i < videoLinks.length; i++) {
-        const link = videoLinks[i];
-        const title = link.querySelector('img')?.getAttribute('title') || '';
-        if (title.includes(cleanId)) {
-          const href = link.getAttribute('href');
-          if (href) {
-            return href.startsWith('/') ? `${this.AV123_BASE}${href}` : href;
-          }
+      const { success, status, data, error } = await bgFetchJSON({
+        url,
+        method: 'GET',
+        timeoutMs: 15000,
+        headers: {
+          'jdSignature': signature,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
         }
+      });
+
+      if (!success || !data) {
+        log(`[FC2Breaker] Failed to fetch magnets: ${error || `HTTP ${status}`}`);
+        return [];
       }
 
-      return null;
+      const apiResponse = data as any;
+      return apiResponse.data?.magnets || [];
     } catch (error) {
-      log(`[FC2Breaker] Error searching FC2 video:`, error);
-      return null;
+      log(`[FC2Breaker] Error fetching magnets:`, error);
+      return [];
     }
+  }
+  private static async getMovieDetailFromJavDB(movieId: string): Promise<FC2VideoInfo> {
+    const url = `${this.API_BASE}/v4/movies/${movieId}`;
+    const signature = await ReviewBreakerService.generateSignature();
+    
+    log(`[FC2Breaker] Fetching movie detail from JavDB API: ${url}`);
+
+    const { success, status, data, error } = await bgFetchJSON({
+      url,
+      method: 'GET',
+      timeoutMs: 15000,
+      headers: {
+        'jdSignature': signature,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      }
+    });
+
+    if (!success || !data) {
+      throw new Error(error || `HTTP ${status}`);
+    }
+
+    const apiResponse = data as any;
+    
+    if (!apiResponse.data) {
+      throw new Error(apiResponse.message || '获取视频详情失败');
+    }
+
+    const movie = apiResponse.data.movie;
+    const previewImages = movie.preview_images || [];
+    const imgList: string[] = [];
+
+    previewImages.forEach((item: any) => {
+      const newSrc = this.updateImgServer(item.large_url);
+      imgList.push(newSrc);
+    });
+
+    return {
+      movieId: movie.id,
+      actors: movie.actors || [],
+      duration: movie.duration || 0,
+      title: movie.origin_title || movie.title || '',
+      carNum: movie.number || '',
+      score: movie.score || '',
+      releaseDate: movie.release_date || '',
+      watchedCount: movie.watched_count || 0,
+      images: imgList,
+      coverUrl: movie.cover_url ? this.updateImgServer(movie.cover_url) : undefined,
+    };
   }
 
   /**
-   * 获取FC2视频完整信息
+   * 获取FC2视频完整信息（使用JavDB API）
    */
-  static async getFC2VideoInfo(fc2Id: string): Promise<FC2Response> {
+  static async getFC2VideoInfo(movieId: string): Promise<FC2Response> {
     try {
-      if (!this.isFC2Video(fc2Id)) {
-        return {
-          success: false,
-          error: '不是FC2视频',
-        };
-      }
+      log(`[FC2Breaker] Getting FC2 video info for movieId: ${movieId}`);
 
-      log(`[FC2Breaker] Getting FC2 video info for: ${fc2Id}`);
+      const videoInfo = await this.getMovieDetailFromJavDB(movieId);
+      
+      // 获取磁链信息
+      const magnets = await this.getMagnetsFromJavDB(movieId);
+      videoInfo.magnets = magnets;
+      
+      // 获取评论信息
+      const reviews = await this.getReviewsFromJavDB(movieId);
+      videoInfo.reviews = reviews;
 
-      // 搜索123av中的视频
-      const videoUrl = await this.searchFC2Video(fc2Id);
-      let videoInfo: Partial<FC2VideoInfo> = {};
-
-      if (videoUrl) {
-        videoInfo = await this.getVideoInfoFrom123av(videoUrl);
-        videoInfo.previewUrl = videoUrl;
-      }
-
-      // 从fc2ppvdb获取演员信息
-      const { actors, seller, sellerUrl } = await this.getActorInfoFromFC2PPVDB(fc2Id);
-
-      // 从adult.contents.fc2.com获取预览图片
-      const images = await this.getPreviewImagesFromFC2(fc2Id);
-
-      const result: FC2VideoInfo = {
-        id: fc2Id,
-        title: videoInfo.title || fc2Id,
-        publishDate: videoInfo.publishDate || '',
-        moviePoster: videoInfo.moviePoster || '',
-        actors,
-        seller,
-        sellerUrl,
-        previewUrl: videoInfo.previewUrl,
-        images,
-      };
-
-      log(`[FC2Breaker] Successfully got FC2 video info`);
+      log(`[FC2Breaker] Successfully got FC2 video info with ${magnets.length} magnets and ${reviews.length} reviews`);
 
       return {
         success: true,
-        data: result,
+        data: videoInfo,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '未知错误';
@@ -320,11 +224,49 @@ export class FC2BreakerService {
   }
 
   /**
-   * 创建FC2视频预览弹窗
+   * 显示FC2视频弹窗（公开方法，供列表页调用）
    */
-  static createFC2PreviewModal(videoInfo: FC2VideoInfo): HTMLElement {
+  static async showFC2Dialog(movieId: string, carNum: string, _url: string): Promise<void> {
+    try {
+      log(`[FC2Breaker] Opening FC2 dialog for ${carNum} (movieId: ${movieId})`);
+      
+      // 显示加载提示
+      const loadingModal = this.createLoadingModal(carNum);
+      document.body.appendChild(loadingModal);
+      
+      // 使用movieId从JavDB API获取FC2视频信息
+      const response = await this.getFC2VideoInfo(movieId);
+      
+      // 移除加载提示
+      loadingModal.remove();
+      
+      if (!response.success || !response.data) {
+        throw new Error(response.error || '获取FC2视频信息失败');
+      }
+      
+      // 显示FC2预览弹窗
+      const modal = this.createFC2PreviewModal(response.data);
+      document.body.appendChild(modal);
+      
+    } catch (error) {
+      log(`[FC2Breaker] Error showing FC2 dialog:`, error);
+      
+      // 显示错误提示
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      const errorModal = this.createErrorModal(errorMsg);
+      document.body.appendChild(errorModal);
+      
+      // 3秒后自动关闭错误提示
+      setTimeout(() => errorModal.remove(), 3000);
+    }
+  }
+
+  /**
+   * 创建加载提示弹窗
+   */
+  private static createLoadingModal(carNum: string): HTMLElement {
     const modal = document.createElement('div');
-    modal.className = 'fc2-preview-modal';
+    modal.className = 'fc2-loading-modal';
     modal.style.cssText = `
       position: fixed;
       top: 0;
@@ -342,131 +284,444 @@ export class FC2BreakerService {
     content.style.cssText = `
       background: var(--bg-secondary, white);
       border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      color: var(--text-primary, #333);
+    `;
+
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--bg-tertiary, #f0f0f0);
+      border-top-color: var(--primary, #007bff);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    `;
+
+    const text = document.createElement('div');
+    text.textContent = `正在加载 ${carNum} 的信息...`;
+    text.style.cssText = `font-size: 16px;`;
+
+    // 添加旋转动画
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    content.appendChild(spinner);
+    content.appendChild(text);
+    modal.appendChild(content);
+
+    return modal;
+  }
+
+  /**
+   * 创建错误提示弹窗
+   */
+  private static createErrorModal(errorMsg: string): HTMLElement {
+    const modal = document.createElement('div');
+    modal.className = 'fc2-error-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-secondary, white);
+      border-radius: 12px;
       padding: 24px;
-      max-width: 800px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 10001;
+      max-width: 400px;
+    `;
+
+    const title = document.createElement('div');
+    title.textContent = '❌ 加载失败';
+    title.style.cssText = `
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--danger, #dc3545);
+      margin-bottom: 12px;
+    `;
+
+    const message = document.createElement('div');
+    message.textContent = errorMsg;
+    message.style.cssText = `
+      color: var(--text-primary, #333);
+      line-height: 1.5;
+    `;
+
+    modal.appendChild(title);
+    modal.appendChild(message);
+
+    // 点击关闭
+    modal.onclick = () => modal.remove();
+
+    return modal;
+  }
+
+  /**
+   * 创建FC2视频预览弹窗（使用JavDB原生Bulma样式）
+   */
+  static createFC2PreviewModal(videoInfo: FC2VideoInfo): HTMLElement {
+    const modal = document.createElement('div');
+    modal.className = 'fc2-preview-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      padding: 20px;
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'box';
+    content.style.cssText = `
+      max-width: 1200px;
+      width: 100%;
       max-height: 90vh;
       overflow-y: auto;
       position: relative;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     `;
 
-    // 关闭按钮
+    // 关闭按钮（使用Bulma的delete按钮）
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = '×';
+    closeBtn.className = 'delete is-large';
     closeBtn.style.cssText = `
       position: absolute;
-      top: 12px;
+      top: 16px;
       right: 16px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: var(--text-secondary, #666);
-      transition: color 0.2s;
+      z-index: 1;
     `;
-    closeBtn.onmouseenter = () => closeBtn.style.color = 'var(--text-primary, #333)';
-    closeBtn.onmouseleave = () => closeBtn.style.color = 'var(--text-secondary, #666)';
     closeBtn.onclick = () => modal.remove();
 
     // 标题
     const title = document.createElement('h2');
+    title.className = 'title is-4';
+    title.style.cssText = `margin-bottom: 20px; padding-right: 40px;`;
     title.textContent = videoInfo.title;
-    title.style.cssText = `
-      margin: 0 0 16px 0;
-      color: var(--text-primary, #333);
-      font-size: 20px;
-      padding-right: 40px;
-    `;
 
-    // 基本信息
-    const info = document.createElement('div');
-    info.style.cssText = `
-      margin-bottom: 20px;
-      line-height: 1.6;
-      color: var(--text-primary, #333);
+    // 封面图片（如果有）
+    let coverSection: HTMLElement | null = null;
+    if (videoInfo.coverUrl) {
+      coverSection = document.createElement('div');
+      coverSection.style.cssText = `margin-bottom: 20px;`;
+      
+      const figure = document.createElement('figure');
+      figure.className = 'image';
+      figure.style.cssText = `max-width: 400px; margin: 0 auto;`;
+      
+      const img = document.createElement('img');
+      img.src = videoInfo.coverUrl;
+      img.alt = videoInfo.title;
+      img.style.cssText = `border-radius: 8px; cursor: pointer;`;
+      img.onclick = () => window.open(videoInfo.coverUrl, '_blank');
+      
+      figure.appendChild(img);
+      coverSection.appendChild(figure);
+    }
+
+    // 基本信息（使用Bulma的columns）
+    const infoSection = document.createElement('div');
+    infoSection.className = 'content';
+    infoSection.style.cssText = `margin-bottom: 20px;`;
+    
+    let infoHTML = `
+      <div class="columns is-mobile is-multiline">
+        <div class="column is-half-mobile is-one-third-tablet">
+          <strong>番号:</strong> ${videoInfo.carNum}
+        </div>
     `;
     
-    let infoHTML = `<p><strong>视频ID:</strong> ${videoInfo.id}</p>`;
-    if (videoInfo.publishDate) {
-      infoHTML += `<p><strong>发布日期:</strong> ${videoInfo.publishDate}</p>`;
-    }
-    if (videoInfo.seller) {
-      const sellerLink = videoInfo.sellerUrl ? 
-        `<a href="${videoInfo.sellerUrl}" target="_blank" style="color: var(--primary, #007bff); text-decoration: none;">${videoInfo.seller}</a>` : 
-        videoInfo.seller;
-      infoHTML += `<p><strong>販売者:</strong> ${sellerLink}</p>`;
-    }
-    info.innerHTML = infoHTML;
-
-    // 演员信息
-    if (videoInfo.actors && videoInfo.actors.length > 0) {
-      const actorsDiv = document.createElement('div');
-      actorsDiv.style.cssText = `margin-bottom: 20px;`;
-      
-      const actorsTitle = document.createElement('h3');
-      actorsTitle.textContent = '主演演员';
-      actorsTitle.style.cssText = `margin: 0 0 10px 0; color: var(--text-primary, #333);`;
-      
-      const actorsList = document.createElement('div');
-      actorsList.style.cssText = `
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+    if (videoInfo.releaseDate) {
+      infoHTML += `
+        <div class="column is-half-mobile is-one-third-tablet">
+          <strong>发布日期:</strong> ${videoInfo.releaseDate}
+        </div>
       `;
-      
-      videoInfo.actors.forEach(actor => {
-        const actorTag = document.createElement('span');
-        actorTag.style.cssText = `
-          background: var(--bg-tertiary, #f0f0f0);
-          padding: 4px 8px;
-          border-radius: 12px;
-          font-size: 14px;
-          color: var(--text-primary, #333);
-        `;
-        
-        if (actor.profileUrl) {
-          const link = document.createElement('a');
-          link.href = actor.profileUrl;
-          link.target = '_blank';
-          link.textContent = actor.name;
-          link.style.cssText = `color: inherit; text-decoration: none;`;
-          actorTag.appendChild(link);
-        } else {
-          actorTag.textContent = actor.name;
-        }
-        
-        actorsList.appendChild(actorTag);
-      });
-      
-      actorsDiv.appendChild(actorsTitle);
-      actorsDiv.appendChild(actorsList);
-      content.appendChild(actorsDiv);
     }
-
-    // 预览链接
-    if (videoInfo.previewUrl) {
-      const previewBtn = document.createElement('a');
-      previewBtn.href = videoInfo.previewUrl;
-      previewBtn.target = '_blank';
-      previewBtn.textContent = '在123av中查看';
-      previewBtn.style.cssText = `
-        display: inline-block;
-        background: var(--primary, #007bff);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 6px;
-        text-decoration: none;
-        margin-top: 16px;
-        transition: opacity 0.2s;
+    
+    if (videoInfo.score) {
+      infoHTML += `
+        <div class="column is-half-mobile is-one-third-tablet">
+          <strong>评分:</strong> ${videoInfo.score}
+        </div>
       `;
-      previewBtn.onmouseenter = () => previewBtn.style.opacity = '0.9';
-      previewBtn.onmouseleave = () => previewBtn.style.opacity = '1';
-      content.appendChild(previewBtn);
     }
+    
+    if (videoInfo.duration) {
+      infoHTML += `
+        <div class="column is-half-mobile is-one-third-tablet">
+          <strong>时长:</strong> ${videoInfo.duration} 分钟
+        </div>
+      `;
+    }
+    
+    if (videoInfo.watchedCount) {
+      infoHTML += `
+        <div class="column is-half-mobile is-one-third-tablet">
+          <strong>观看:</strong> ${videoInfo.watchedCount}
+        </div>
+      `;
+    }
+    
+    const cleanId = videoInfo.carNum.replace(/^FC2-?/i, '');
+    infoHTML += `
+        <div class="column is-full">
+          <strong>站点:</strong> 
+          <a href="https://fc2ppvdb.com/articles/${cleanId}" target="_blank" class="has-text-link">fc2ppvdb</a>
+          <span style="margin: 0 8px;">|</span>
+          <a href="https://adult.contents.fc2.com/article/${cleanId}/" target="_blank" class="has-text-link">fc2电子市场</a>
+        </div>
+      </div>
+    `;
+    
+    infoSection.innerHTML = infoHTML;
 
+    // 操作按钮区（使用Bulma的buttons）
+    const actionButtons = document.createElement('div');
+    actionButtons.className = 'buttons';
+    actionButtons.style.cssText = `margin-bottom: 20px;`;
+    
+    const subtitleBtn = document.createElement('a');
+    subtitleBtn.href = `https://subtitlecat.com/index.php?search=${videoInfo.carNum}`;
+    subtitleBtn.target = '_blank';
+    subtitleBtn.className = 'button is-info is-small';
+    subtitleBtn.innerHTML = '<span class="icon"><i class="fas fa-search"></i></span><span>字幕搜索</span>';
+    actionButtons.appendChild(subtitleBtn);
+
+    // 组装基础部分
     content.appendChild(closeBtn);
     content.appendChild(title);
-    content.appendChild(info);
+    if (coverSection) content.appendChild(coverSection);
+    content.appendChild(infoSection);
+    content.appendChild(actionButtons);
+
+    // 演员信息（使用Bulma的tags）
+    if (videoInfo.actors && videoInfo.actors.length > 0) {
+      const actorsSection = document.createElement('div');
+      actorsSection.style.cssText = `margin-bottom: 20px;`;
+      
+      const actorsTitle = document.createElement('h3');
+      actorsTitle.className = 'title is-6';
+      actorsTitle.textContent = '主演演员';
+      
+      const actorsTags = document.createElement('div');
+      actorsTags.className = 'tags';
+      
+      videoInfo.actors.forEach(actor => {
+        const tag = document.createElement('span');
+        tag.className = 'tag is-info is-light';
+        tag.textContent = actor.name;
+        actorsTags.appendChild(tag);
+      });
+      
+      actorsSection.appendChild(actorsTitle);
+      actorsSection.appendChild(actorsTags);
+      content.appendChild(actorsSection);
+    }
+
+    // 剧照预览（使用Bulma的columns）
+    if (videoInfo.images && videoInfo.images.length > 0) {
+      const imagesSection = document.createElement('div');
+      imagesSection.style.cssText = `margin-bottom: 20px;`;
+      
+      const imagesTitle = document.createElement('h3');
+      imagesTitle.className = 'title is-6';
+      imagesTitle.textContent = '剧照预览';
+      
+      const imagesGrid = document.createElement('div');
+      imagesGrid.className = 'columns is-multiline is-mobile';
+      
+      videoInfo.images.forEach((imgUrl) => {
+        const col = document.createElement('div');
+        col.className = 'column is-one-quarter-desktop is-one-third-tablet is-half-mobile';
+        
+        const figure = document.createElement('figure');
+        figure.className = 'image is-16by9';
+        figure.style.cssText = `cursor: pointer; border-radius: 4px; overflow: hidden;`;
+        
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.style.cssText = `object-fit: cover; width: 100%; height: 100%;`;
+        img.onclick = () => window.open(imgUrl, '_blank');
+        
+        figure.appendChild(img);
+        col.appendChild(figure);
+        imagesGrid.appendChild(col);
+      });
+      
+      imagesSection.appendChild(imagesTitle);
+      imagesSection.appendChild(imagesGrid);
+      content.appendChild(imagesSection);
+    }
+
+    // 磁链信息（使用Bulma的message和columns）
+    if (videoInfo.magnets && videoInfo.magnets.length > 0) {
+      const magnetsSection = document.createElement('div');
+      magnetsSection.style.cssText = `margin-bottom: 20px;`;
+      
+      const magnetsTitle = document.createElement('h3');
+      magnetsTitle.className = 'title is-6';
+      magnetsTitle.textContent = `磁力链接 (${videoInfo.magnets.length})`;
+      
+      const messageBox = document.createElement('div');
+      messageBox.className = 'message is-info';
+      
+      const messageBody = document.createElement('div');
+      messageBody.className = 'message-body';
+      messageBody.style.cssText = `padding: 0;`;
+      
+      videoInfo.magnets.forEach((magnet, index) => {
+        const item = document.createElement('div');
+        item.className = 'columns is-mobile is-vcentered';
+        item.style.cssText = `
+          padding: 12px;
+          border-bottom: 1px solid rgba(0,0,0,0.05);
+          ${index % 2 === 0 ? 'background: rgba(0,0,0,0.02);' : ''}
+        `;
+        
+        const infoCol = document.createElement('div');
+        infoCol.className = 'column';
+        
+        const magnetName = document.createElement('div');
+        magnetName.style.cssText = `font-weight: 500; margin-bottom: 4px; word-break: break-all;`;
+        magnetName.textContent = magnet.name;
+        
+        const magnetMeta = document.createElement('div');
+        magnetMeta.className = 'is-size-7 has-text-grey';
+        magnetMeta.textContent = `${(magnet.size / 1024).toFixed(2)}GB · ${magnet.files_count}個文件`;
+        
+        const magnetTags = document.createElement('div');
+        magnetTags.className = 'tags';
+        magnetTags.style.cssText = `margin-top: 4px; margin-bottom: 0;`;
+        
+        if (magnet.hd) {
+          const hdTag = document.createElement('span');
+          hdTag.className = 'tag is-primary is-small is-light';
+          hdTag.textContent = '高清';
+          magnetTags.appendChild(hdTag);
+        }
+        
+        if (magnet.cnsub) {
+          const subTag = document.createElement('span');
+          subTag.className = 'tag is-warning is-small is-light';
+          subTag.textContent = '字幕';
+          magnetTags.appendChild(subTag);
+        }
+        
+        const dateTag = document.createElement('span');
+        dateTag.className = 'tag is-light is-small';
+        dateTag.textContent = magnet.created_at;
+        magnetTags.appendChild(dateTag);
+        
+        infoCol.appendChild(magnetName);
+        infoCol.appendChild(magnetMeta);
+        infoCol.appendChild(magnetTags);
+        
+        const buttonsCol = document.createElement('div');
+        buttonsCol.className = 'column is-narrow';
+        
+        const buttons = document.createElement('div');
+        buttons.className = 'buttons';
+        buttons.style.cssText = `margin-bottom: 0;`;
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'button is-info is-small';
+        copyBtn.textContent = '复制';
+        copyBtn.onclick = () => {
+          const magnetLink = `magnet:?xt=urn:btih:${magnet.hash}`;
+          navigator.clipboard.writeText(magnetLink).then(() => {
+            copyBtn.textContent = '已复制!';
+            copyBtn.className = 'button is-success is-small';
+            setTimeout(() => {
+              copyBtn.textContent = '复制';
+              copyBtn.className = 'button is-info is-small';
+            }, 2000);
+          });
+        };
+        
+        const openBtn = document.createElement('a');
+        openBtn.href = `magnet:?xt=urn:btih:${magnet.hash}`;
+        openBtn.className = 'button is-success is-small';
+        openBtn.textContent = '打开';
+        
+        buttons.appendChild(copyBtn);
+        buttons.appendChild(openBtn);
+        buttonsCol.appendChild(buttons);
+        
+        item.appendChild(infoCol);
+        item.appendChild(buttonsCol);
+        messageBody.appendChild(item);
+      });
+      
+      messageBox.appendChild(messageBody);
+      magnetsSection.appendChild(magnetsTitle);
+      magnetsSection.appendChild(messageBox);
+      content.appendChild(magnetsSection);
+    }
+
+    // 评论区（使用Bulma的message组件）
+    if (videoInfo.reviews && videoInfo.reviews.length > 0) {
+      const reviewsSection = document.createElement('div');
+      reviewsSection.style.cssText = `margin-bottom: 20px;`;
+      
+      const reviewsTitle = document.createElement('h3');
+      reviewsTitle.className = 'title is-6';
+      reviewsTitle.textContent = `用户评论 (${videoInfo.reviews.length})`;
+      
+      const reviewsList = document.createElement('div');
+      
+      videoInfo.reviews.forEach((review) => {
+        const reviewBox = document.createElement('article');
+        reviewBox.className = 'message';
+        reviewBox.style.cssText = `margin-bottom: 12px;`;
+        
+        const reviewHeader = document.createElement('div');
+        reviewHeader.className = 'message-header';
+        
+        const userName = document.createElement('span');
+        userName.textContent = review.user_name || '匿名用户';
+        
+        const reviewMeta = document.createElement('span');
+        reviewMeta.className = 'is-size-7';
+        
+        if (review.score) {
+          const scoreSpan = document.createElement('span');
+          scoreSpan.textContent = `⭐ ${review.score}`;
+          reviewMeta.appendChild(scoreSpan);
+          reviewMeta.appendChild(document.createTextNode(' · '));
+        }
+        
+        reviewMeta.appendChild(document.createTextNode(review.created_at));
+        
+        reviewHeader.appendChild(userName);
+        reviewHeader.appendChild(reviewMeta);
+        
+        const reviewBody = document.createElement('div');
+        reviewBody.className = 'message-body';
+        reviewBody.textContent = review.content;
+        
+        reviewBox.appendChild(reviewHeader);
+        reviewBox.appendChild(reviewBody);
+        reviewsList.appendChild(reviewBox);
+      });
+      
+      reviewsSection.appendChild(reviewsTitle);
+      reviewsSection.appendChild(reviewsList);
+      content.appendChild(reviewsSection);
+    }
+
     modal.appendChild(content);
 
     // 点击背景关闭

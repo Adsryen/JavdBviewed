@@ -16,7 +16,8 @@ interface NetFetchPayload {
 function sanitizeHeaders(headers: Record<string, string> | undefined): Record<string, string> | undefined {
   if (!headers) return headers;
   const blocked = new Set([
-    'user-agent', 'referer', 'origin', 'host', 'cookie',
+    'origin', 'host', 'cookie',
+    // 允许 referer 和 user-agent，用于绕过反爬虫
     // 允许自定义签名头等，其余危险头部默认拦截
   ]);
   const out: Record<string, string> = {};
@@ -32,7 +33,13 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit & { 
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), init.timeoutMs || 30000);
   try {
-    const res = await fetch(input, { ...init, signal: controller.signal });
+    const res = await fetch(input, { 
+      ...init, 
+      signal: controller.signal,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
+    });
     return res;
   } finally {
     clearTimeout(id);

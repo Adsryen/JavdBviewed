@@ -34,7 +34,7 @@ export class VideoDetailEnhancer {
       enableActorInfo: true,
       showLoadingIndicator: true,
       enableReviewBreaker: true,
-      enableFC2Breaker: false,
+      enableFC2Breaker: true,
       ...options,
     };
   }
@@ -1651,14 +1651,19 @@ export class VideoDetailEnhancer {
     `;
 
     // 基本信息
-    if (fc2Info.publishDate) {
-      const dateInfo = this.createInfoItem('发布日期', fc2Info.publishDate);
+    if (fc2Info.releaseDate) {
+      const dateInfo = this.createInfoItem('发布日期', fc2Info.releaseDate);
       infoGrid.appendChild(dateInfo);
     }
 
-    if (fc2Info.seller) {
-      const sellerInfo = this.createInfoItem('販売者', fc2Info.seller, fc2Info.sellerUrl);
-      infoGrid.appendChild(sellerInfo);
+    if (fc2Info.score) {
+      const scoreInfo = this.createInfoItem('评分', fc2Info.score);
+      infoGrid.appendChild(scoreInfo);
+    }
+
+    if (fc2Info.duration) {
+      const durationInfo = this.createInfoItem('时长', `${fc2Info.duration} 分钟`);
+      infoGrid.appendChild(durationInfo);
     }
 
     // 演员信息
@@ -1686,18 +1691,7 @@ export class VideoDetailEnhancer {
           font-size: 14px;
           color: var(--text-primary, #333);
         `;
-        
-        if (actor.profileUrl) {
-          const link = document.createElement('a');
-          link.href = actor.profileUrl;
-          link.target = '_blank';
-          link.textContent = actor.name;
-          link.style.cssText = `color: inherit; text-decoration: none;`;
-          actorTag.appendChild(link);
-        } else {
-          actorTag.textContent = actor.name;
-        }
-        
+        actorTag.textContent = actor.name;
         actorsList.appendChild(actorTag);
       });
       
@@ -1753,33 +1747,6 @@ export class VideoDetailEnhancer {
       imagesDiv.appendChild(imagesTitle);
       imagesDiv.appendChild(imagesList);
       container.appendChild(imagesDiv);
-    }
-
-    // 预览按钮
-    if (fc2Info.previewUrl) {
-      const previewBtn = document.createElement('button');
-      previewBtn.textContent = '在123av中预览';
-      previewBtn.style.cssText = `
-        background: var(--warning, #ff9800);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-top: 10px;
-        transition: opacity 0.2s;
-      `;
-      
-      previewBtn.onmouseenter = () => previewBtn.style.opacity = '0.9';
-      previewBtn.onmouseleave = () => previewBtn.style.opacity = '1';
-      
-      previewBtn.onclick = () => {
-        const modal = fc2BreakerService.createFC2PreviewModal(fc2Info);
-        document.body.appendChild(modal);
-      };
-      
-      container.appendChild(previewBtn);
     }
 
     container.appendChild(title);

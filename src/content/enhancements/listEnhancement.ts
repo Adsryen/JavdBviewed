@@ -592,11 +592,35 @@ class ListEnhancementManager {
     if (!linkElement) return;
 
     // 左键点击增强
-    linkElement.addEventListener('click', (e) => {
+    linkElement.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
       
-      // 直接跳转
+      // 检查是否为FC2视频
+      if (videoInfo.code.toUpperCase().includes('FC2')) {
+        log(`[ListEnhancement] FC2 video detected: ${videoInfo.code}, opening FC2 dialog instead of navigating`);
+        
+        // 提取movieId
+        const movieIdMatch = videoInfo.url.match(/\/v\/([^/?#]+)/);
+        if (movieIdMatch && movieIdMatch[1]) {
+          const movieId = movieIdMatch[1];
+          
+          // 动态导入FC2破解服务
+          try {
+            const { fc2BreakerService } = await import('../../services/fc2Breaker');
+            await fc2BreakerService.showFC2Dialog(movieId, videoInfo.code, videoInfo.url);
+          } catch (error) {
+            log('[ListEnhancement] Failed to open FC2 dialog:', error);
+            showToast('FC2视频加载失败', 'error');
+          }
+        } else {
+          log('[ListEnhancement] Failed to extract movieId from URL:', videoInfo.url);
+          showToast('无法解析FC2视频ID', 'error');
+        }
+        return;
+      }
+      
+      // 非FC2视频，直接跳转
       window.location.href = videoInfo.url;
     });
 
