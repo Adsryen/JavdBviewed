@@ -4,6 +4,8 @@
 import { log } from '../../content/state';
 import { bgFetchJSON } from '../../utils/net';
 import { ReviewBreakerService } from '../reviewBreaker';
+import { dbViewedPut } from '../../content/dbClient';
+import type { VideoRecord } from '../../types';
 
 export interface FC2VideoInfo {
   movieId: string;
@@ -226,7 +228,7 @@ export class FC2BreakerService {
   /**
    * 显示FC2视频弹窗（公开方法，供列表页调用）
    */
-  static async showFC2Dialog(movieId: string, carNum: string, _url: string): Promise<void> {
+  static async showFC2Dialog(movieId: string, carNum: string, url: string): Promise<void> {
     try {
       log(`[FC2Breaker] Opening FC2 dialog for ${carNum} (movieId: ${movieId})`);
       
@@ -244,8 +246,11 @@ export class FC2BreakerService {
         throw new Error(response.error || '获取FC2视频信息失败');
       }
       
+      // 记录到番号库（状态为browsed）
+      await this.recordToDatabase(carNum, response.data, url);
+      
       // 显示FC2预览弹窗
-      const modal = this.createFC2PreviewModal(response.data);
+      const modal = this.createFC2PreviewModal(response.data, url);
       document.body.appendChild(modal);
       
     } catch (error) {
@@ -258,6 +263,65 @@ export class FC2BreakerService {
       
       // 3秒后自动关闭错误提示
       setTimeout(() => errorModal.remove(), 3000);
+    }
+  }
+
+  /**
+   * 记录FC2视频到番号库
+   */
+  private static async recordToDatabase(carNum: string, videoInfo: FC2VideoInfo, url: string): Promise<void> {
+    try {
+      const now = Date.now();
+      
+      // 构建视频记录
+      const record: VideoRecord = {
+        id: carNum,
+        title: videoInfo.title,
+        status: 'browsed', // 点击查看时标记为已浏览
+        tags: videoInfo.actors.map(actor => actor.name),
+        createdAt: now,
+        updatedAt: now,
+        releaseDate: videoInfo.releaseDate,
+        javdbUrl: url,
+        javdbImage: videoInfo.coverUrl
+      };
+      
+      // 保存到数据库
+      await dbViewedPut(record);
+      log(`[FC2Breaker] Recorded ${carNum} to database with status: browsed`);
+      
+    } catch (error) {
+      log(`[FC2Breaker] Failed to record to database:`, error);
+      // 不抛出错误，避免影响弹窗显示
+    }
+  }
+
+  /**
+   * 标记视频为已观看
+   */
+  private static async markAsViewed(carNum: string, videoInfo: FC2VideoInfo, url: string): Promise<void> {
+    try {
+      const now = Date.now();
+      
+      // 构建视频记录
+      const record: VideoRecord = {
+        id: carNum,
+        title: videoInfo.title,
+        status: 'viewed', // 115推送成功后标记为已观看
+        tags: videoInfo.actors.map(actor => actor.name),
+        createdAt: now,
+        updatedAt: now,
+        releaseDate: videoInfo.releaseDate,
+        javdbUrl: url,
+        javdbImage: videoInfo.coverUrl
+      };
+      
+      // 保存到数据库
+      await dbViewedPut(record);
+      log(`[FC2Breaker] Marked ${carNum} as viewed after 115 push`);
+      
+    } catch (error) {
+      log(`[FC2Breaker] Failed to mark as viewed:`, error);
     }
   }
 
@@ -367,7 +431,7 @@ export class FC2BreakerService {
   /**
    * 创建FC2视频预览弹窗（使用JavDB原生Bulma样式）
    */
-  static createFC2PreviewModal(videoInfo: FC2VideoInfo): HTMLElement {
+  static createFC2PreviewModal(videoInfo: FC2VideoInfo, url?: string): HTMLElement {
     const modal = document.createElement('div');
     modal.className = 'fc2-preview-modal';
     modal.style.cssText = `
@@ -382,6 +446,7 @@ export class FC2BreakerService {
       align-items: center;
       z-index: 10000;
       padding: 20px;
+      cursor: default;
     `;
 
     const container = document.createElement('div');
@@ -392,7 +457,13 @@ export class FC2BreakerService {
       display: flex;
       flex-direction: column;
       background: transparent;
+      cursor: default;
     `;
+    
+    // 阻止容器内的点击事件冒泡到modal
+    container.onclick = (e) => {
+      e.stopPropagation();
+    };
 
     // 固定顶栏
     const header = document.createElement('div');
@@ -445,6 +516,7 @@ export class FC2BreakerService {
       flex: 1;
       overflow-y: auto;
       min-height: 0;
+      cursor: default;
     `;
 
     // 标题区域
@@ -707,40 +779,78 @@ export class FC2BreakerService {
         push115Btn.title = '推送到115网盘离线下载';
         push115Btn.onclick = async () => {
           const magnetLink = `magnet:?xt=urn:btih:${magnet.hash}`;
+          const originalHTML = push115Btn.innerHTML;
           push115Btn.disabled = true;
-          push115Btn.className = 'button is-warning is-small is-loading';
+          push115Btn.classList.add('is-loading');
           
           try {
-            // 动态导入115功能
+            // 动态导入115功能和toast
             const { isDrive115Enabled, addTaskUrlsV2 } = await import('../../services/drive115Router');
+            const { showToast } = await import('../../content/toast');
+            const { getSettings } = await import('../../utils/storage');
             
+            // 检查115功能是否启用
             if (!isDrive115Enabled()) {
-              alert('115网盘功能未启用，请在设置中启用');
+              showToast('115网盘功能未启用，请先在设置中启用', 'error');
+              push115Btn.classList.remove('is-loading');
+              push115Btn.disabled = false;
               return;
             }
             
+            // 推送到115
             const result = await addTaskUrlsV2({ 
-              urls: magnetLink, // urls是字符串类型
-              wp_path_id: '' // 使用默认目录
+              urls: magnetLink,
+              wp_path_id: ''
             });
             
             if (result.success) {
+              // 成功状态
+              push115Btn.classList.remove('is-loading');
               push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-check"></i></span><span>已推送</span>';
               push115Btn.className = 'button is-success is-small';
+              showToast(`${magnet.name} 推送到115网盘成功`, 'success');
+              
+              // 推送成功后自动标记为已看（受设置控制）
+              try {
+                const settings = await getSettings();
+                const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
+                if (autoMark && url) {
+                  await FC2BreakerService.markAsViewed(videoInfo.carNum, videoInfo, url);
+                  log(`[FC2Breaker] Auto-marked ${videoInfo.carNum} as viewed after 115 push`);
+                  // 不显示额外的toast，因为已经有推送成功的提示了
+                }
+              } catch (error) {
+                console.warn('[FC2Breaker] 自动标记已看失败:', error);
+                const errMsg = error instanceof Error ? error.message : String(error);
+                showToast(`已推送到115。自动标记已看：${errMsg || '已关闭'}`, 'info');
+              }
+              
+              // 3秒后恢复原状态
               setTimeout(() => {
-                push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
+                push115Btn.innerHTML = originalHTML;
                 push115Btn.className = 'button is-warning is-small';
                 push115Btn.disabled = false;
-              }, 2000);
+              }, 3000);
             } else {
               throw new Error(result.message || '推送失败');
             }
           } catch (error) {
-            console.error('[FC2Breaker] 115推送失败:', error);
-            alert(`115推送失败: ${error instanceof Error ? error.message : '未知错误'}`);
-            push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-cloud-download-alt"></i></span><span>推送115</span>';
-            push115Btn.className = 'button is-warning is-small';
-            push115Btn.disabled = false;
+            console.error('[FC2Breaker] 推送到115网盘失败:', error);
+            const { showToast } = await import('../../content/toast');
+            const errorMsg = error instanceof Error ? error.message : '未知错误';
+            
+            // 错误状态
+            push115Btn.classList.remove('is-loading');
+            push115Btn.innerHTML = '<span class="icon is-small"><i class="fas fa-times"></i></span><span>推送失败</span>';
+            push115Btn.className = 'button is-danger is-small';
+            showToast(`推送失败: ${errorMsg}`, 'error');
+            
+            // 3秒后恢复原状态
+            setTimeout(() => {
+              push115Btn.innerHTML = originalHTML;
+              push115Btn.className = 'button is-warning is-small';
+              push115Btn.disabled = false;
+            }, 3000);
           }
         };
         
