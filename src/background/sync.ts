@@ -3,6 +3,8 @@
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import type { VideoRecord } from '../types';
+import { viewedPut as idbViewedPut } from './db';
+import { md5Hex } from '../utils/md5';
 
 const log = (...args: any[]) => console.log('[JavDB Sync]', ...args);
 const error = (...args: any[]) => console.error('[JavDB Sync]', ...args);
@@ -342,6 +344,121 @@ function parseDetailPage(html: string): { releaseDate?: string; tags: string[]; 
 }
 
 /**
+ * 检查是否为FC2视频
+ */
+function isFC2Video(videoId: string): boolean {
+    return videoId.toUpperCase().startsWith('FC2-') || 
+           videoId.toUpperCase().includes('FC2PPV');
+}
+
+/**
+ * 从JavDB API刷新FC2视频记录
+ */
+async function refreshFC2RecordById(videoId: string): Promise<VideoRecord> {
+    log(`[refreshFC2RecordById] Starting FC2 refresh for: ${videoId}`);
+    
+    // 获取现有记录
+    const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
+    const existingRecord = allRecords[videoId];
+    
+    // 需要movieId来调用API
+    let movieId: string | undefined;
+    
+    // 尝试从javdbUrl中提取movieId
+    if (existingRecord?.javdbUrl) {
+        const match = existingRecord.javdbUrl.match(/\/v\/([a-zA-Z0-9]+)/);
+        if (match) {
+            movieId = match[1];
+        }
+    }
+    
+    // 如果没有movieId，需要先搜索获取
+    if (!movieId) {
+        log(`[refreshFC2RecordById] No movieId found, searching for ${videoId}`);
+        const searchUrl = `https://javdb.com/search?q=${encodeURIComponent(videoId)}&f=all`;
+        const searchHtml = await fetchHtml(searchUrl);
+        const searchResult = parseSearchResults(searchHtml, videoId);
+        
+        if (!searchResult) {
+            throw new Error(`无法找到FC2视频: ${videoId}`);
+        }
+        
+        const match = searchResult.href.match(/\/v\/([a-zA-Z0-9]+)/);
+        if (match) {
+            movieId = match[1];
+        } else {
+            throw new Error(`无法从URL中提取movieId: ${searchResult.href}`);
+        }
+    }
+    
+    log(`[refreshFC2RecordById] Using movieId: ${movieId}`);
+    
+    // 直接调用JavDB API获取FC2数据（不导入FC2BreakerService以避免document依赖）
+    const apiUrl = `https://jdforrepam.com/api/v4/movies/${movieId}`;
+    
+    // 生成签名（与ReviewBreakerService保持一致）
+    const timestamp = Math.floor(Date.now() / 1000);
+    const salt = '71cf27bb3c0bcdf207b64abecddc970098c7421ee7203b9cdae54478478a199e7d5a6e1a57691123c1a931c057842fb73ba3b3c83bcd69c17ccf174081e3d8aa';
+    const signature = `${timestamp}.lpw6vgqzsp.${md5Hex(`${timestamp}${salt}`)}`;
+    
+    log(`[refreshFC2RecordById] Fetching from API: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+            'jdSignature': signature,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+    }
+    
+    const apiData = await response.json();
+    
+    if (!apiData.data || !apiData.data.movie) {
+        throw new Error(apiData.message || '获取FC2视频信息失败');
+    }
+    
+    const movie = apiData.data.movie;
+    const now = Date.now();
+    
+    // 更新图片URL
+    const updateImgServer = (url: string) => {
+        return url.replace(/https:\/\/.*?\/rhe951l4q/g, 'https://c0.jdbstatic.com');
+    };
+    
+    // 构建更新后的记录
+    const updatedRecord: VideoRecord = {
+        id: videoId,
+        title: movie.origin_title || movie.title || '',
+        status: existingRecord?.status || 'browsed',
+        tags: (movie.actors || []).map((actor: any) => actor.name),
+        createdAt: existingRecord?.createdAt || now,
+        updatedAt: now,
+        releaseDate: movie.release_date || '',
+        javdbUrl: `https://javdb.com/v/${movieId}`,
+        javdbImage: movie.cover_url ? updateImgServer(movie.cover_url) : undefined
+    };
+    
+    // 保存到存储
+    allRecords[videoId] = updatedRecord;
+    await setValue(STORAGE_KEYS.VIEWED_RECORDS, allRecords);
+    
+    // 同时保存到IndexedDB
+    try {
+        await idbViewedPut(updatedRecord);
+    } catch (e: any) {
+        log('WARN', '写入 IndexedDB 失败', { videoId, error: e?.message });
+    }
+    
+    log(`[refreshFC2RecordById] Successfully refreshed FC2 record for ${videoId}`);
+    return updatedRecord;
+}
+
+/**
  * Refreshes a single video record by scraping the latest data from JavDB.
  * @param videoId The ID of the video to refresh.
  * @returns The updated video record.
@@ -349,6 +466,12 @@ function parseDetailPage(html: string): { releaseDate?: string; tags: string[]; 
 export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
     console.log(`[refreshRecordById] Function called with videoId: ${videoId}`);
     log(`[refreshRecordById] Starting refresh for: ${videoId}`);
+    
+    // 检查是否为FC2视频
+    if (isFC2Video(videoId)) {
+        log(`[refreshRecordById] Detected FC2 video, using FC2 API`);
+        return await refreshFC2RecordById(videoId);
+    }
 
     // 先尝试从存储中获取现有记录，看是否有javdbUrl
     const allRecords = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
