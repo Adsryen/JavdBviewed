@@ -166,3 +166,64 @@
   gap: var(--space-4);
   margin-top: var(--space-6);
 }
+
+
+/* 清单同步变更确认样式 - 支持日夜主题 */
+.list-sync-changes {
+  text-align: left;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.list-sync-changes .change-section {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+}
+
+.list-sync-changes .change-section h4 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.list-sync-changes .add-section {
+  border-left: 3px solid var(--color-success, #4CAF50);
+}
+
+.list-sync-changes .update-section {
+  border-left: 3px solid var(--color-info, #2196F3);
+}
+
+.list-sync-changes .delete-section {
+  border-left: 3px solid var(--color-danger, #F44336);
+}
+
+.list-sync-changes .list-items {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0 0 0;
+}
+
+.list-sync-changes .list-items li {
+  padding: var(--space-2) 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.list-sync-changes .warning-text {
+  margin: var(--space-3) 0 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-bg, rgba(244, 67, 54, 0.1));
+  color: var(--color-danger, #F44336);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.list-sync-changes .change-section p {
+  margin: var(--space-2) 0 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
