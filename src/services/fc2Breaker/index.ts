@@ -181,6 +181,50 @@ export class FC2BreakerService {
   }
 
   /**
+   * 从adult.contents.fc2.com获取预览图片列表
+   */
+  private static async getPreviewImagesFromFC2(fc2Id: string): Promise<string[]> {
+    try {
+      const cleanId = fc2Id.replace(/^FC2-?/i, '');
+      const url = `https://adult.contents.fc2.com/article/${cleanId}/`;
+      
+      log(`[FC2Breaker] Fetching preview images from fc2: ${url}`);
+
+      const { success, status, text, error } = await bgFetchText({ 
+        url, 
+        method: 'GET', 
+        timeoutMs: 15000,
+        headers: { 'Referer': url }
+      });
+      
+      if (!success || !text) {
+        throw new Error(error || `HTTP ${status}`);
+      }
+
+      const html = text;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 查找预览图片
+      const images: string[] = [];
+      const imgElements = doc.querySelectorAll('.items_article_SampleImagesArea img');
+      
+      imgElements.forEach(img => {
+        const src = img.getAttribute('src');
+        if (src) {
+          images.push(src);
+        }
+      });
+
+      log(`[FC2Breaker] Found ${images.length} preview images`);
+      return images;
+    } catch (error) {
+      log(`[FC2Breaker] Error fetching preview images from fc2:`, error);
+      return [];
+    }
+  }
+
+  /**
    * 搜索123av中的FC2视频
    */
   private static async searchFC2Video(fc2Id: string): Promise<string | null> {
@@ -243,6 +287,9 @@ export class FC2BreakerService {
       // 从fc2ppvdb获取演员信息
       const { actors, seller, sellerUrl } = await this.getActorInfoFromFC2PPVDB(fc2Id);
 
+      // 从adult.contents.fc2.com获取预览图片
+      const images = await this.getPreviewImagesFromFC2(fc2Id);
+
       const result: FC2VideoInfo = {
         id: fc2Id,
         title: videoInfo.title || fc2Id,
@@ -252,7 +299,7 @@ export class FC2BreakerService {
         seller,
         sellerUrl,
         previewUrl: videoInfo.previewUrl,
-        images: [],
+        images,
       };
 
       log(`[FC2Breaker] Successfully got FC2 video info`);
@@ -293,13 +340,14 @@ export class FC2BreakerService {
 
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white;
+      background: var(--bg-secondary, white);
       border-radius: 12px;
       padding: 24px;
       max-width: 800px;
       max-height: 90vh;
       overflow-y: auto;
       position: relative;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     `;
 
     // 关闭按钮
@@ -313,8 +361,11 @@ export class FC2BreakerService {
       border: none;
       font-size: 24px;
       cursor: pointer;
-      color: #666;
+      color: var(--text-secondary, #666);
+      transition: color 0.2s;
     `;
+    closeBtn.onmouseenter = () => closeBtn.style.color = 'var(--text-primary, #333)';
+    closeBtn.onmouseleave = () => closeBtn.style.color = 'var(--text-secondary, #666)';
     closeBtn.onclick = () => modal.remove();
 
     // 标题
@@ -322,7 +373,7 @@ export class FC2BreakerService {
     title.textContent = videoInfo.title;
     title.style.cssText = `
       margin: 0 0 16px 0;
-      color: #333;
+      color: var(--text-primary, #333);
       font-size: 20px;
       padding-right: 40px;
     `;
@@ -332,6 +383,7 @@ export class FC2BreakerService {
     info.style.cssText = `
       margin-bottom: 20px;
       line-height: 1.6;
+      color: var(--text-primary, #333);
     `;
     
     let infoHTML = `<p><strong>视频ID:</strong> ${videoInfo.id}</p>`;
@@ -340,7 +392,7 @@ export class FC2BreakerService {
     }
     if (videoInfo.seller) {
       const sellerLink = videoInfo.sellerUrl ? 
-        `<a href="${videoInfo.sellerUrl}" target="_blank">${videoInfo.seller}</a>` : 
+        `<a href="${videoInfo.sellerUrl}" target="_blank" style="color: var(--primary, #007bff); text-decoration: none;">${videoInfo.seller}</a>` : 
         videoInfo.seller;
       infoHTML += `<p><strong>販売者:</strong> ${sellerLink}</p>`;
     }
@@ -353,7 +405,7 @@ export class FC2BreakerService {
       
       const actorsTitle = document.createElement('h3');
       actorsTitle.textContent = '主演演员';
-      actorsTitle.style.cssText = `margin: 0 0 10px 0; color: #333;`;
+      actorsTitle.style.cssText = `margin: 0 0 10px 0; color: var(--text-primary, #333);`;
       
       const actorsList = document.createElement('div');
       actorsList.style.cssText = `
@@ -365,10 +417,11 @@ export class FC2BreakerService {
       videoInfo.actors.forEach(actor => {
         const actorTag = document.createElement('span');
         actorTag.style.cssText = `
-          background: #f0f0f0;
+          background: var(--bg-tertiary, #f0f0f0);
           padding: 4px 8px;
           border-radius: 12px;
           font-size: 14px;
+          color: var(--text-primary, #333);
         `;
         
         if (actor.profileUrl) {
@@ -398,13 +451,16 @@ export class FC2BreakerService {
       previewBtn.textContent = '在123av中查看';
       previewBtn.style.cssText = `
         display: inline-block;
-        background: #007bff;
+        background: var(--primary, #007bff);
         color: white;
         padding: 10px 20px;
         border-radius: 6px;
         text-decoration: none;
         margin-top: 16px;
+        transition: opacity 0.2s;
       `;
+      previewBtn.onmouseenter = () => previewBtn.style.opacity = '0.9';
+      previewBtn.onmouseleave = () => previewBtn.style.opacity = '1';
       content.appendChild(previewBtn);
     }
 
