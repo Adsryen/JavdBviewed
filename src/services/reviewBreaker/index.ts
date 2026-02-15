@@ -27,42 +27,45 @@ export interface ReviewResponse {
  */
 export class ReviewBreakerService {
   private static readonly API_BASE = 'https://jdforrepam.com/api';
-  private static readonly SIGNATURE_KEY = 'jhs_review_sign';
-  private static readonly TIMESTAMP_KEY = 'jhs_review_ts';
+  private static readonly SIGNATURE_KEY = 'jhs_jdsignature'; // 与JAV-JHS保持一致
   private static readonly SIGNATURE_SALT = '71cf27bb3c0bcdf207b64abecddc970098c7421ee7203b9cdae54478478a199e7d5a6e1a57691123c1a931c057842fb73ba3b3c83bcd69c17ccf174081e3d8aa';
 
   /**
-   * 生成API签名
+   * 生成API签名（与JAV-JHS完全一致）
    */
-  private static computeSignature(ts: number): string {
-    const signatureData = `${ts}${this.SIGNATURE_SALT}`;
-    return `${ts}.lpw6vgqzsp.${md5Hex(signatureData)}`;
-  }
-
   private static async generateSignature(): Promise<string> {
-    // 与 JAV-JHS 保持一致：20s 内复用签名
-    const now = Math.floor(Date.now() / 1000);
+    const curr = Math.floor(Date.now() / 1000);
+    
+    // 检查缓存的签名是否仍然有效（300秒内，与JAV-JHS保持一致）
     try {
-      const lastTsRaw = localStorage.getItem(this.TIMESTAMP_KEY) || '0';
-      const lastTs = parseInt(lastTsRaw, 10) || 0;
-      if (now - lastTs <= 20) {
-        const cached = localStorage.getItem(this.SIGNATURE_KEY);
-        if (cached) return cached;
+      const storedSign = localStorage.getItem(this.SIGNATURE_KEY);
+      if (storedSign) {
+        const parts = storedSign.split('.');
+        if (parts.length === 3) {
+          const timestamp = parseInt(parts[0], 10);
+          if (!isNaN(timestamp) && curr - timestamp <= 300) {
+            log(`[ReviewBreaker] Using cached signature: ${storedSign.substring(0, 30)}...`);
+            return storedSign;
+          }
+        }
       }
     } catch {}
-    const signature = this.computeSignature(now);
+
+    // 生成新签名（注意：md5计算时timestamp和salt直接拼接，没有分隔符）
+    const sign = `${curr}.lpw6vgqzsp.${md5Hex(`${curr}${this.SIGNATURE_SALT}`)}`;
+    log(`[ReviewBreaker] Generated new signature: ${sign.substring(0, 30)}...`);
+    
     try {
-      localStorage.setItem(this.TIMESTAMP_KEY, String(now));
-      localStorage.setItem(this.SIGNATURE_KEY, signature);
+      localStorage.setItem(this.SIGNATURE_KEY, sign);
     } catch {}
-    return signature;
+    
+    return sign;
   }
 
   /**
    * 发送HTTP请求
    */
   private static async makeRequest(url: string, params: Record<string, any> = {}): Promise<any> {
-    // 与 JAV-JHS 保持一致：仅传 page/sort_by/limit 等必要参数
     const queryString = new URLSearchParams(params).toString();
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
@@ -72,10 +75,7 @@ export class ReviewBreakerService {
       url: fullUrl,
       method: 'GET',
       headers: {
-        // 关键：JHS 使用驼峰 jdSignature
         'jdSignature': signature,
-        'jdsignature': signature,
-        'accept': 'application/json',
       },
       timeoutMs: 15000,
     });

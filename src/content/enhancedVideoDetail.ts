@@ -33,7 +33,7 @@ export class VideoDetailEnhancer {
       enableRating: true,
       enableActorInfo: true,
       showLoadingIndicator: true,
-      enableReviewBreaker: false,
+      enableReviewBreaker: true,
       enableFC2Breaker: false,
       ...options,
     };
@@ -439,34 +439,189 @@ export class VideoDetailEnhancer {
   /**
    * 增强评论区功能
    */
-  private async enhanceReviews(videoId: string): Promise<void> {
+  private async enhanceReviews(_videoId: string): Promise<void> {
     try {
-      const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
-      if (!reviewsRoot) {
-        log('[ReviewBreaker] Native #reviews container not found, skip.');
+      // 从URL中提取movieId（例如：https://javdb.com/v/NQ6pPb -> NQ6pPb）
+      const movieId = window.location.pathname.split('/').pop()?.split(/[?#]/)[0];
+      if (!movieId) {
+        log('[ReviewBreaker] Failed to extract movieId from URL');
         return;
       }
+      log(`[ReviewBreaker] Extracted movieId from URL: ${movieId}`);
 
-      // 若页面已存在原生评论项，则直接使用原生内容，跳过第三方 API。
-      // 为应对晚于容器出现的懒加载，最多等待 ~1.25s（5 * 250ms）
-      try {
-        const hasNative = () => (
-          reviewsRoot.querySelector("[id^='review-item-']")
-          || reviewsRoot.querySelector('dl.review-items dd')
-          || reviewsRoot.querySelector('dl.review-items .review-item')
-        );
-        if (hasNative()) {
-          log('[ReviewBreaker] Native review items detected, skip API fetch.');
-          return;
-        }
-        for (let i = 0; i < 5; i++) {
-          await new Promise(r => setTimeout(r, 250));
-          if (hasNative()) {
-            log('[ReviewBreaker] Native review items detected after delay, skip API fetch.');
+      // 先监听短评标签的点击事件，点击时立即显示加载提示
+      const reviewTab = document.querySelector('.movie-panel-info a[data-movie-tab-target="reviews"]') as HTMLElement | null;
+      
+      if (reviewTab) {
+        log('[ReviewBreaker] Found review tab, adding click listener');
+        
+        // 添加点击监听
+        reviewTab.addEventListener('click', async () => {
+          log('[ReviewBreaker] Review tab clicked, showing loading indicator immediately');
+          
+          // 立即显示加载提示（在页面中心）
+          const earlyLoadingIndicator = this.createEarlyLoadingIndicator();
+          document.body.appendChild(earlyLoadingIndicator);
+          
+          // 等待评论区DOM加载
+          const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
+          
+          // 移除早期加载提示
+          earlyLoadingIndicator.remove();
+          
+          if (!reviewsRoot) {
+            log('[ReviewBreaker] Native #reviews container not found, skip.');
             return;
           }
+
+          // 继续原有的破解逻辑
+          await this.processReviewBreaking(reviewsRoot, movieId);
+        }, { once: true }); // 只监听一次点击
+      } else {
+        log('[ReviewBreaker] Review tab not found, will try alternative selectors');
+        // 尝试其他可能的选择器
+        const altReviewTab = document.querySelector('a[href*="reviews"], .review-tab, [data-tab="reviews"]') as HTMLElement | null;
+        if (altReviewTab) {
+          log('[ReviewBreaker] Found alternative review tab');
+          altReviewTab.addEventListener('click', async () => {
+            log('[ReviewBreaker] Alternative review tab clicked');
+            const earlyLoadingIndicator = this.createEarlyLoadingIndicator();
+            document.body.appendChild(earlyLoadingIndicator);
+            
+            const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
+            earlyLoadingIndicator.remove();
+            
+            if (reviewsRoot) {
+              await this.processReviewBreaking(reviewsRoot, movieId);
+            }
+          }, { once: true });
         }
-      } catch {}
+      }
+
+      // 如果用户直接访问带有评论区的页面（不是通过点击标签），也要处理
+      const reviewsRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews') as HTMLElement | null;
+      if (reviewsRoot && reviewsRoot.offsetParent !== null) {
+        // 评论区已经可见，直接处理
+        log('[ReviewBreaker] Reviews section already visible, processing immediately');
+        await this.processReviewBreaking(reviewsRoot, movieId);
+      }
+    } catch (error) {
+      log('[ReviewBreaker] Error enhancing reviews:', error);
+      showToast('评论区增强失败', 'error');
+    }
+  }
+
+  /**
+   * 创建早期加载提示（在点击标签时立即显示）
+   */
+  private createEarlyLoadingIndicator(): HTMLElement {
+    const indicator = document.createElement('div');
+    indicator.id = 'jhs-early-loading';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10000;
+      padding: 24px 32px;
+      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      animation: fadeIn 0.3s ease-out;
+    `;
+
+    // 加载动画
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+      width: 32px;
+      height: 32px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    `;
+
+    // 文字内容
+    const text = document.createElement('div');
+    text.style.cssText = `
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+    `;
+    text.textContent = '🔓 正在解锁评论...';
+
+    indicator.appendChild(spinner);
+    indicator.appendChild(text);
+
+    // 添加动画样式
+    if (!document.getElementById('jhs-early-loading-animations')) {
+      const style = document.createElement('style');
+      style.id = 'jhs-early-loading-animations';
+      style.textContent = `
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    return indicator;
+  }
+
+  /**
+   * 处理评论破解逻辑
+   */
+  private async processReviewBreaking(reviewsRoot: HTMLElement, movieId: string): Promise<void> {
+    try {
+      // 检查是否需要破解：
+      // 1. 查找评论总数（从tab标签中提取）
+      // 2. 查找实际显示的评论数量
+      // 3. 检查是否有VIP提示
+      const reviewTab = document.querySelector('.review-tab span') as HTMLElement | null;
+      const totalCountMatch = reviewTab?.textContent?.match(/短評\((\d+)\)/);
+      const totalCount = totalCountMatch ? parseInt(totalCountMatch[1], 10) : 0;
+      
+      const nativeReviewItems = reviewsRoot.querySelectorAll('.review-item:not(.more)');
+      const displayedCount = nativeReviewItems.length;
+      
+      const hasVipPrompt = reviewsRoot.querySelector('.review-item.more');
+      
+      log(`[ReviewBreaker] Review stats: total=${totalCount}, displayed=${displayedCount}, hasVipPrompt=${!!hasVipPrompt}`);
+      
+      // 如果显示的评论数量等于总数，且没有VIP提示，说明已经全部显示，跳过
+      if (displayedCount >= totalCount && !hasVipPrompt) {
+        log('[ReviewBreaker] All reviews are already displayed, skip API fetch.');
+        return;
+      }
+      
+      // 如果评论数量<=3且有VIP提示，说明需要破解
+      if (displayedCount <= 3 && hasVipPrompt) {
+        log('[ReviewBreaker] VIP-locked reviews detected, fetching from API...');
+      } else if (displayedCount < totalCount) {
+        log('[ReviewBreaker] Partial reviews displayed, fetching complete list from API...');
+      } else {
+        log('[ReviewBreaker] No need to fetch, all reviews visible.');
+        return;
+      }
 
       const ensureList = (): HTMLElement => {
         let dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
@@ -482,6 +637,14 @@ export class VideoDetailEnhancer {
       };
 
       const listEl = ensureList();
+      
+      // 移除VIP提示
+      const vipPrompt = listEl.querySelector('.review-item.more');
+      if (vipPrompt) {
+        vipPrompt.remove();
+        log('[ReviewBreaker] Removed VIP prompt');
+      }
+      
       const hideLoadingPlaceholders = () => {
         const nodes = Array.from(reviewsRoot.querySelectorAll('.message .message-body, .message-body, p, div, span')) as HTMLElement[];
         for (const el of nodes) {
@@ -492,6 +655,7 @@ export class VideoDetailEnhancer {
           }
         }
       };
+      
       const getErrorHost = (): HTMLElement => {
         let host = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
         if (!host) {
@@ -503,10 +667,50 @@ export class VideoDetailEnhancer {
       };
 
       const injectOnce = async () => {
+        // 显示加载提示
+        const loadingIndicator = this.createLoadingIndicator();
+        const messageBody = reviewsRoot.querySelector('.message-body') as HTMLElement | null;
+        const insertTarget = messageBody || reviewsRoot;
+        
+        // 插入到评论列表之前
+        if (listEl.parentElement) {
+          listEl.parentElement.insertBefore(loadingIndicator, listEl);
+        } else {
+          insertTarget.insertBefore(loadingIndicator, insertTarget.firstChild);
+        }
+        
+        // 确保加载提示至少显示500ms，让用户看到
+        const minDisplayTime = 500;
+        const startTime = Date.now();
+        
         try {
-          const resp = await reviewBreakerService.getReviews(videoId, 1, 20);
+          const resp = await reviewBreakerService.getReviews(movieId, 1, 100); // 使用movieId而不是videoId
+          
+          // 等待最小显示时间
+          const elapsed = Date.now() - startTime;
+          if (elapsed < minDisplayTime) {
+            await new Promise(resolve => setTimeout(resolve, minDisplayTime - elapsed));
+          }
+          
+          // 移除加载提示
+          loadingIndicator.remove();
+          
           hideLoadingPlaceholders();
           if (resp.success && resp.data) {
+            // 隐藏原生评论（保留DOM结构但不显示）
+            const nativeReviews = listEl.querySelectorAll('.review-item:not(.jhs-review-item)');
+            nativeReviews.forEach(el => {
+              (el as HTMLElement).style.display = 'none';
+            });
+            
+            // 移除所有VIP提示（包括在reviewsRoot中的所有位置）
+            const vipPrompts = reviewsRoot.querySelectorAll('.review-item.more');
+            vipPrompts.forEach(el => el.remove());
+            log('[ReviewBreaker] Removed VIP prompts and hidden native reviews');
+            
+            // 添加提示横幅（插入到listEl之前）
+            this.addReviewBreakerBanner(listEl, resp.data.length, totalCount);
+            
             this.displayNativeReviews(resp.data, listEl);
             const err = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
             if (err) err.remove();
@@ -520,6 +724,15 @@ export class VideoDetailEnhancer {
             log('[ReviewBreaker] Failed to fetch reviews for native mount:', resp.error);
           }
         } catch (e) {
+          // 等待最小显示时间
+          const elapsed = Date.now() - startTime;
+          if (elapsed < minDisplayTime) {
+            await new Promise(resolve => setTimeout(resolve, minDisplayTime - elapsed));
+          }
+          
+          // 移除加载提示
+          loadingIndicator.remove();
+          
           hideLoadingPlaceholders();
           const host = getErrorHost();
           this.renderRetryBlock(host, `评论获取失败：${e instanceof Error ? e.message : String(e)}`, '重试获取', async () => {
@@ -932,13 +1145,18 @@ export class VideoDetailEnhancer {
    */
   private renderRetryBlock(container: HTMLElement, message: string, retryText: string, onRetry: () => Promise<void>): void {
     container.innerHTML = `
-      <div style="text-align: center; padding: 16px; color: #666;">
+      <div style="text-align: center; padding: 16px; color: var(--text-secondary, #666);">
         <div style="margin-bottom: 8px;">${message}</div>
-        <button class="enhance-retry-btn" style="background: #eee; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">${retryText}</button>
+        <button class="enhance-retry-btn" style="background: var(--bg-tertiary, #eee); border: 1px solid var(--border-primary, #ddd); padding: 6px 12px; border-radius: 4px; cursor: pointer; color: var(--text-primary, #333); transition: background 0.2s;">${retryText}</button>
       </div>
     `;
     const btn = container.querySelector('.enhance-retry-btn') as HTMLButtonElement | null;
     if (!btn) return;
+    
+    // 添加悬停效果
+    btn.onmouseenter = () => btn.style.background = 'var(--bg-hover, #e0e0e0)';
+    btn.onmouseleave = () => btn.style.background = 'var(--bg-tertiary, #eee)';
+    
     btn.onclick = async () => {
       const old = btn.textContent || '重试';
       btn.disabled = true;
@@ -955,299 +1173,211 @@ export class VideoDetailEnhancer {
   }
 
   /**
-   * 创建评论区容器
+   * 创建加载提示
    */
-  private createReviewsContainer(): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'enhanced-reviews-section';
-    container.style.cssText = `
-      margin: 20px 0;
+  private createLoadingIndicator(): HTMLElement {
+    const indicator = document.createElement('div');
+    indicator.id = 'jhs-review-loading';
+    indicator.style.cssText = `
+      margin: 0 0 16px 0;
       padding: 20px;
-      background: #fff;
+      background: linear-gradient(135deg, var(--info, #2196f3) 0%, var(--primary, #1976d2) 100%);
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 1px solid #e0e0e0;
-    `;
-
-    const header = document.createElement('div');
-    header.style.cssText = `
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #4CAF50;
+      gap: 16px;
+      animation: slideInDown 0.3s ease-out;
     `;
 
-    const title = document.createElement('h3');
-    title.textContent = '评论区 (增强版)';
-    title.style.cssText = `
-      margin: 0;
-      color: #333;
-      font-size: 18px;
+    // 加载动画
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
     `;
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = '展开';
-    toggleBtn.className = 'reviews-toggle-btn';
-    toggleBtn.style.cssText = `
-      background: #4CAF50;
+    // 文字内容
+    const textContent = document.createElement('div');
+    textContent.style.cssText = `
+      flex: 1;
       color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
     `;
 
-    header.appendChild(title);
-    header.appendChild(toggleBtn);
-
-    const content = document.createElement('div');
-    content.className = 'reviews-content';
-    content.style.cssText = `
-      display: none;
-      min-height: 100px;
+    const mainText = document.createElement('div');
+    mainText.style.cssText = `
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 4px;
     `;
+    mainText.textContent = '🔓 正在解锁全部评论...';
 
-    container.appendChild(header);
-    container.appendChild(content);
+    const subText = document.createElement('div');
+    subText.style.cssText = `
+      font-size: 13px;
+      opacity: 0.9;
+    `;
+    subText.textContent = 'JavDB 助手正在为您获取完整评论内容';
 
-    return container;
-  }
+    textContent.appendChild(mainText);
+    textContent.appendChild(subText);
 
-  /**
-   * 加载评论数据
-   */
-  private async loadReviews(videoId: string, container: HTMLElement): Promise<void> {
-    const contentDiv = container.querySelector('.reviews-content') as HTMLElement;
-    const toggleBtn = container.querySelector('.reviews-toggle-btn') as HTMLButtonElement;
-    
-    if (!contentDiv || !toggleBtn) return;
+    indicator.appendChild(spinner);
+    indicator.appendChild(textContent);
 
-    let isLoaded = false;
-    let currentPage = 1;
-    const reviewsPerPage = 20;
-
-    toggleBtn.onclick = async () => {
-      if (contentDiv.style.display === 'none') {
-        contentDiv.style.display = 'block';
-        toggleBtn.textContent = '折叠';
-        
-        if (!isLoaded) {
-          contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;">正在加载评论...</div>';
-          
-          try {
-            const response = await reviewBreakerService.getReviews(videoId, currentPage, reviewsPerPage);
-            
-            if (response.success && response.data) {
-              this.displayReviews(response.data, contentDiv, videoId);
-              isLoaded = true;
-            } else {
-              this.renderRetryBlock(
-                contentDiv,
-                `获取评论失败：${response.error || '未知错误'}`,
-                '重试加载',
-                async () => {
-                  contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;">正在加载评论...</div>';
-                  const resp2 = await reviewBreakerService.getReviews(videoId, currentPage, reviewsPerPage);
-                  if (resp2.success && resp2.data) {
-                    this.displayReviews(resp2.data, contentDiv, videoId);
-                    isLoaded = true;
-                  } else {
-                    this.renderRetryBlock(contentDiv, `获取评论失败：${resp2.error || '未知错误'}`, '重试加载', async () => {});
-                  }
-                }
-              );
-            }
-          } catch (error) {
-            this.renderRetryBlock(
-              contentDiv,
-              '获取评论失败',
-              '重试加载',
-              async () => {
-                contentDiv.innerHTML = '<div style="text-align: center; padding: 20px;">正在加载评论...</div>';
-                try {
-                  const resp3 = await reviewBreakerService.getReviews(videoId, currentPage, reviewsPerPage);
-                  if (resp3.success && resp3.data) {
-                    this.displayReviews(resp3.data, contentDiv, videoId);
-                    isLoaded = true;
-                  } else {
-                    this.renderRetryBlock(contentDiv, `获取评论失败：${resp3.error || '未知错误'}`, '重试加载', async () => {});
-                  }
-                } catch {
-                  this.renderRetryBlock(contentDiv, '获取评论失败', '重试加载', async () => {});
-                }
-              }
-            );
+    // 添加旋转动画样式
+    if (!document.getElementById('jhs-loading-animations')) {
+      const style = document.createElement('style');
+      style.id = 'jhs-loading-animations';
+      style.textContent = `
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
           }
         }
-      } else {
-        contentDiv.style.display = 'none';
-        toggleBtn.textContent = '展开';
-      }
-    };
-  }
-
-  /**
-   * 显示评论列表
-   */
-  private displayReviews(reviews: ReviewData[], container: HTMLElement, videoId: string): void {
-    const filterKeywords = reviewBreakerService.getFilterKeywords();
-    
-    container.innerHTML = '';
-    
-    const filteredReviews = reviews.filter(review => 
-      !reviewBreakerService.shouldFilterReview(review, filterKeywords)
-    );
-
-    if (filteredReviews.length === 0) {
-      container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">暂无评论</div>';
-      return;
-    }
-
-    filteredReviews.forEach(review => {
-      const reviewElement = this.createReviewElement(review);
-      container.appendChild(reviewElement);
-    });
-
-    // 添加加载更多按钮
-    if (reviews.length >= 20) {
-      const loadMoreBtn = document.createElement('button');
-      loadMoreBtn.textContent = '加载更多评论';
-      loadMoreBtn.style.cssText = `
-        width: 100%;
-        background: #e1f5fe;
-        border: none;
-        padding: 10px;
-        margin-top: 10px;
-        cursor: pointer;
-        color: #0277bd;
-        font-weight: bold;
-        border-radius: 4px;
       `;
-      
-      loadMoreBtn.onclick = async () => {
-        loadMoreBtn.textContent = '加载中...';
-        loadMoreBtn.disabled = true;
-        
-        try {
-          const response = await reviewBreakerService.getReviews(videoId, 2, 20);
-          if (response.success && response.data) {
-            const moreFiltered = response.data.filter(review => 
-              !reviewBreakerService.shouldFilterReview(review, filterKeywords)
-            );
-            
-            moreFiltered.forEach(review => {
-              const reviewElement = this.createReviewElement(review);
-              container.insertBefore(reviewElement, loadMoreBtn);
-            });
-            
-            if (response.data.length < 20) {
-              loadMoreBtn.remove();
-            } else {
-              loadMoreBtn.textContent = '加载更多评论';
-              loadMoreBtn.disabled = false;
-            }
-          } else {
-            loadMoreBtn.textContent = '加载失败，点击重试';
-            loadMoreBtn.disabled = false;
-          }
-        } catch (error) {
-          loadMoreBtn.textContent = '加载失败，点击重试';
-          loadMoreBtn.disabled = false;
-        }
-      };
-      
-      container.appendChild(loadMoreBtn);
+      document.head.appendChild(style);
     }
+
+    return indicator;
   }
 
   /**
-   * 创建单个评论元素
+   * 添加评论破解提示横幅
    */
-  private createReviewElement(review: ReviewData): HTMLElement {
-    const element = document.createElement('div');
-    element.className = 'review-item';
-    element.style.cssText = `
-      margin-bottom: 15px;
-      padding: 15px;
-      background: #f9f9f9;
-      border-radius: 6px;
-      border-left: 4px solid #4CAF50;
+  private addReviewBreakerBanner(listEl: HTMLElement, fetchedCount: number, totalCount: number): void {
+    // 检查是否已存在横幅
+    const existingBanner = document.querySelector('#jhs-review-banner');
+    if (existingBanner) {
+      existingBanner.remove();
+    }
+
+    const banner = document.createElement('div');
+    banner.id = 'jhs-review-banner';
+    banner.style.cssText = `
+      margin: 0 0 16px 0;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #4caf50 0%, #2196f3 100%);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideInDown 0.3s ease-out;
     `;
 
-    const header = document.createElement('div');
-    header.style.cssText = `
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+    // 图标
+    const icon = document.createElement('span');
+    icon.innerHTML = '✨';
+    icon.style.cssText = `
+      font-size: 20px;
+      flex-shrink: 0;
+    `;
+
+    // 文字内容
+    const textContent = document.createElement('div');
+    textContent.style.cssText = `
+      flex: 1;
+      color: white;
       font-size: 14px;
-      color: #666;
-    `;
-
-    const author = document.createElement('span');
-    author.textContent = review.author;
-    author.style.fontWeight = 'bold';
-
-    const date = document.createElement('span');
-    date.textContent = new Date(review.date).toLocaleDateString();
-
-    header.appendChild(author);
-    header.appendChild(date);
-
-    const content = document.createElement('div');
-    content.className = 'review-content';
-    content.textContent = review.content;
-    content.style.cssText = `
       line-height: 1.5;
-      color: #333;
-      margin-bottom: 8px;
     `;
 
-    // 右键菜单功能
-    content.addEventListener('contextmenu', (e) => {
-      const selection = window.getSelection()?.toString();
-      if (selection) {
-        e.preventDefault();
-        if (confirm(`是否将 '${selection}' 加入评论区过滤关键词?`)) {
-          reviewBreakerService.addFilterKeyword(selection);
-          showToast('关键词已添加，刷新页面后生效', 'success');
-        }
-      }
-    });
+    const mainText = document.createElement('div');
+    mainText.style.fontWeight = 'bold';
+    mainText.textContent = `🎉 已为您解锁全部 ${fetchedCount} 条评论`;
 
-    const footer = document.createElement('div');
-    footer.style.cssText = `
+    const subText = document.createElement('div');
+    subText.style.cssText = `
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 2px;
+    `;
+    subText.textContent = `由 JavDB 助手提供 · 原本仅显示 ${Math.min(3, totalCount)} 条`;
+
+    textContent.appendChild(mainText);
+    textContent.appendChild(subText);
+
+    // 关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      font-size: 20px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 15px;
-      font-size: 12px;
-      color: #888;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
     `;
+    closeBtn.onmouseover = () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.3)';
+    };
+    closeBtn.onmouseout = () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.2)';
+    };
+    closeBtn.onclick = () => {
+      banner.style.animation = 'slideOutUp 0.3s ease-out';
+      setTimeout(() => banner.remove(), 300);
+    };
 
-    if (review.rating) {
-      const rating = document.createElement('span');
-      rating.textContent = `评分: ${review.rating}/10`;
-      footer.appendChild(rating);
+    banner.appendChild(icon);
+    banner.appendChild(textContent);
+    banner.appendChild(closeBtn);
+
+    // 添加动画样式
+    if (!document.getElementById('jhs-banner-animations')) {
+      const style = document.createElement('style');
+      style.id = 'jhs-banner-animations';
+      style.textContent = `
+        @keyframes slideInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes slideOutUp {
+          from {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+        }
+      `;
+      document.head.appendChild(style);
     }
 
-    if (review.likes) {
-      const likes = document.createElement('span');
-      likes.textContent = `👍 ${review.likes}`;
-      footer.appendChild(likes);
+    // 插入到评论列表之前
+    if (listEl.parentElement) {
+      listEl.parentElement.insertBefore(banner, listEl);
     }
-
-    element.appendChild(header);
-    element.appendChild(content);
-    element.appendChild(footer);
-
-    return element;
+    
+    log('[ReviewBreaker] Banner added before review list');
   }
 
   /**
-   * 将评论渲染为原生样式并挂载到 <dl class="review-items">
+   * 将评论渲染为原生样式并挂载到 <dl class="review-items">，支持分页
    */
   private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement): void {
     const filterKeywords = reviewBreakerService.getFilterKeywords();
@@ -1256,11 +1386,158 @@ export class VideoDetailEnhancer {
     // 缓存供重渲染复用
     try { (window as any).__JHS_REVIEWS_CACHE__ = filtered; } catch {}
 
-    filtered.forEach(review => {
-      const id = `jhs-review-${review.id}`;
-      if (document.getElementById(id)) return; // 去重
-      dl.appendChild(this.createNativeReviewElement(review));
-    });
+    // 分页配置
+    const pageSize = 10;
+    const totalPages = Math.ceil(filtered.length / pageSize);
+    let currentPage = 1;
+
+    // 隐藏所有原生评论（一次性处理，不在分页时重复）
+    const hideNativeReviews = () => {
+      const nativeReviews = dl.querySelectorAll('.review-item:not(.jhs-review-item)');
+      nativeReviews.forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+      });
+    };
+
+    // 清空现有JHS评论
+    const clearJhsReviews = () => {
+      const existingJhsReviews = dl.querySelectorAll('.jhs-review-item');
+      existingJhsReviews.forEach(el => el.remove());
+    };
+
+    // 渲染指定页的评论
+    const renderPage = (page: number) => {
+      // 清空JHS评论
+      clearJhsReviews();
+
+      // 确保原生评论始终隐藏
+      hideNativeReviews();
+
+      // 计算当前页的评论范围
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, filtered.length);
+      const pageReviews = filtered.slice(startIndex, endIndex);
+
+      // 渲染当前页评论
+      pageReviews.forEach(review => {
+        dl.appendChild(this.createNativeReviewElement(review));
+      });
+
+      // 更新分页器状态
+      updatePagination(page);
+    };
+
+    // 创建分页器
+    const createPagination = (): HTMLElement => {
+      const pagination = document.createElement('div');
+      pagination.id = 'jhs-review-pagination';
+      pagination.className = 'message-body'; // 使用JavDB的message-body类来继承主题样式
+      
+      pagination.style.cssText = `
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 8px;
+        opacity: 0.95;
+      `;
+
+      // 上一页按钮
+      const prevBtn = document.createElement('button');
+      prevBtn.id = 'jhs-prev-page';
+      prevBtn.className = 'button is-small is-info'; // 使用Bulma的按钮样式
+      prevBtn.textContent = '‹ 上一页';
+      prevBtn.style.cssText = `
+        margin: 0 4px;
+        font-size: 14px;
+      `;
+      prevBtn.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage(currentPage);
+          scrollToReviews();
+        }
+      };
+
+      // 页码信息
+      const pageInfo = document.createElement('span');
+      pageInfo.id = 'jhs-page-info';
+      pageInfo.style.cssText = `
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+      `;
+
+      // 下一页按钮
+      const nextBtn = document.createElement('button');
+      nextBtn.id = 'jhs-next-page';
+      nextBtn.className = 'button is-small is-info'; // 使用Bulma的按钮样式
+      nextBtn.textContent = '下一页 ›';
+      nextBtn.style.cssText = `
+        margin: 0 4px;
+        font-size: 14px;
+      `;
+      nextBtn.onclick = () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderPage(currentPage);
+          scrollToReviews();
+        }
+      };
+
+      pagination.appendChild(prevBtn);
+      pagination.appendChild(pageInfo);
+      pagination.appendChild(nextBtn);
+
+      return pagination;
+    };
+
+    // 更新分页器状态
+    const updatePagination = (page: number) => {
+      const prevBtn = document.getElementById('jhs-prev-page') as HTMLButtonElement | null;
+      const nextBtn = document.getElementById('jhs-next-page') as HTMLButtonElement | null;
+      const pageInfo = document.getElementById('jhs-page-info');
+
+      if (prevBtn) {
+        prevBtn.disabled = page <= 1;
+        prevBtn.style.opacity = page <= 1 ? '0.5' : '1';
+        prevBtn.style.cursor = page <= 1 ? 'not-allowed' : 'pointer';
+      }
+
+      if (nextBtn) {
+        nextBtn.disabled = page >= totalPages;
+        nextBtn.style.opacity = page >= totalPages ? '0.5' : '1';
+        nextBtn.style.cursor = page >= totalPages ? 'not-allowed' : 'pointer';
+      }
+
+      if (pageInfo) {
+        pageInfo.textContent = `第 ${page} / ${totalPages} 页 (共 ${filtered.length} 条评论)`;
+      }
+    };
+
+    // 滚动到评论区
+    const scrollToReviews = () => {
+      const reviewsRoot = dl.closest('[data-movie-tab-target="reviews"], #reviews');
+      if (reviewsRoot) {
+        reviewsRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    // 如果评论数量超过10条，添加分页器
+    if (filtered.length > pageSize) {
+      // 移除旧的分页器
+      const oldPagination = document.getElementById('jhs-review-pagination');
+      if (oldPagination) oldPagination.remove();
+
+      // 添加新的分页器
+      const pagination = createPagination();
+      dl.parentElement?.appendChild(pagination);
+    }
+
+    // 渲染第一页
+    renderPage(1);
   }
 
   /**
@@ -1348,20 +1625,20 @@ export class VideoDetailEnhancer {
     container.style.cssText = `
       margin: 20px 0;
       padding: 20px;
-      background: #fff;
+      background: var(--bg-secondary, #fff);
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 1px solid #e0e0e0;
-      border-left: 4px solid #ff9800;
+      border: 1px solid var(--border-primary, #e0e0e0);
+      border-left: 4px solid var(--warning, #ff9800);
     `;
 
     const title = document.createElement('h3');
     title.textContent = 'FC2 增强信息';
     title.style.cssText = `
       margin: 0 0 15px 0;
-      color: #333;
+      color: var(--text-primary, #333);
       font-size: 18px;
-      border-bottom: 2px solid #ff9800;
+      border-bottom: 2px solid var(--warning, #ff9800);
       padding-bottom: 5px;
     `;
 
@@ -1391,7 +1668,7 @@ export class VideoDetailEnhancer {
       
       const actorsTitle = document.createElement('h4');
       actorsTitle.textContent = '主演演员';
-      actorsTitle.style.cssText = `margin: 0 0 10px 0; color: #333;`;
+      actorsTitle.style.cssText = `margin: 0 0 10px 0; color: var(--text-primary, #333);`;
       
       const actorsList = document.createElement('div');
       actorsList.style.cssText = `
@@ -1403,10 +1680,11 @@ export class VideoDetailEnhancer {
       fc2Info.actors.forEach(actor => {
         const actorTag = document.createElement('span');
         actorTag.style.cssText = `
-          background: #f0f0f0;
+          background: var(--bg-tertiary, #f0f0f0);
           padding: 4px 8px;
           border-radius: 12px;
           font-size: 14px;
+          color: var(--text-primary, #333);
         `;
         
         if (actor.profileUrl) {
@@ -1428,12 +1706,61 @@ export class VideoDetailEnhancer {
       container.appendChild(actorsDiv);
     }
 
+    // 预览图片
+    if (fc2Info.images && fc2Info.images.length > 0) {
+      const imagesDiv = document.createElement('div');
+      imagesDiv.style.cssText = `margin-bottom: 15px;`;
+      
+      const imagesTitle = document.createElement('h4');
+      imagesTitle.textContent = '预览图片';
+      imagesTitle.style.cssText = `margin: 0 0 10px 0; color: var(--text-primary, #333);`;
+      
+      const imagesList = document.createElement('div');
+      imagesList.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+      `;
+      
+      fc2Info.images.forEach((imgSrc, index) => {
+        const imgWrapper = document.createElement('a');
+        imgWrapper.href = imgSrc;
+        imgWrapper.target = '_blank';
+        imgWrapper.style.cssText = `
+          display: block;
+          border-radius: 4px;
+          overflow: hidden;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          transition: transform 0.2s;
+          border: 1px solid var(--border-primary, #e0e0e0);
+        `;
+        imgWrapper.onmouseenter = () => imgWrapper.style.transform = 'scale(1.05)';
+        imgWrapper.onmouseleave = () => imgWrapper.style.transform = 'scale(1)';
+        
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = `预览图 ${index + 1}`;
+        img.style.cssText = `
+          width: 100%;
+          height: auto;
+          display: block;
+        `;
+        
+        imgWrapper.appendChild(img);
+        imagesList.appendChild(imgWrapper);
+      });
+      
+      imagesDiv.appendChild(imagesTitle);
+      imagesDiv.appendChild(imagesList);
+      container.appendChild(imagesDiv);
+    }
+
     // 预览按钮
     if (fc2Info.previewUrl) {
       const previewBtn = document.createElement('button');
       previewBtn.textContent = '在123av中预览';
       previewBtn.style.cssText = `
-        background: #ff9800;
+        background: var(--warning, #ff9800);
         color: white;
         border: none;
         padding: 10px 20px;
@@ -1441,7 +1768,11 @@ export class VideoDetailEnhancer {
         cursor: pointer;
         font-size: 14px;
         margin-top: 10px;
+        transition: opacity 0.2s;
       `;
+      
+      previewBtn.onmouseenter = () => previewBtn.style.opacity = '0.9';
+      previewBtn.onmouseleave = () => previewBtn.style.opacity = '1';
       
       previewBtn.onclick = () => {
         const modal = fc2BreakerService.createFC2PreviewModal(fc2Info);
@@ -1464,15 +1795,16 @@ export class VideoDetailEnhancer {
     const item = document.createElement('div');
     item.style.cssText = `
       padding: 10px;
-      background: #f9f9f9;
+      background: var(--bg-tertiary, #f9f9f9);
       border-radius: 4px;
+      border: 1px solid var(--border-primary, transparent);
     `;
 
     const labelEl = document.createElement('div');
     labelEl.textContent = label;
     labelEl.style.cssText = `
       font-size: 12px;
-      color: #666;
+      color: var(--text-secondary, #666);
       margin-bottom: 4px;
       font-weight: bold;
     `;
@@ -1480,7 +1812,7 @@ export class VideoDetailEnhancer {
     const valueEl = document.createElement('div');
     valueEl.style.cssText = `
       font-size: 14px;
-      color: #333;
+      color: var(--text-primary, #333);
     `;
 
     if (url) {
@@ -1488,7 +1820,7 @@ export class VideoDetailEnhancer {
       link.href = url;
       link.target = '_blank';
       link.textContent = value;
-      link.style.cssText = `color: #007bff; text-decoration: none;`;
+      link.style.cssText = `color: var(--primary, #007bff); text-decoration: none;`;
       valueEl.appendChild(link);
     } else {
       valueEl.textContent = value;

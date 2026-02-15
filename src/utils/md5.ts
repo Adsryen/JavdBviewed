@@ -63,11 +63,11 @@ function toWordArray(str: string) {
 
   // 附加长度（位长度，低位在前）
   const bitLen = utf8.length * 8;
-  lWordCount[((bitLen >>> 5) + 2) * 16 - 2] = bitLen & 0xffffffff;
-  lWordCount[((bitLen >>> 5) + 2) * 16 - 1] = (bitLen / 0x100000000) | 0;
+  const lengthIndex = ((((utf8.length + 8) >> 6) + 1) << 4) - 2;
+  while (lWordCount.length <= lengthIndex + 1) lWordCount.push(0);
+  lWordCount[lengthIndex] = bitLen & 0xffffffff;
+  lWordCount[lengthIndex + 1] = (bitLen / 0x100000000) | 0;
 
-  // 调整长度为 16n
-  while (lWordCount.length % 16 !== 0) lWordCount.push(0);
   return lWordCount;
 }
 
