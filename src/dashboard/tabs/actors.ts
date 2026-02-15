@@ -1,4 +1,4 @@
-// src/dashboard/tabs/actors.ts
+﻿// src/dashboard/tabs/actors.ts
 // 演员库标签页
 
 import { actorManager } from '../../services/actorManager';
@@ -939,12 +939,8 @@ export class ActorsTab {
                         </div>
                     </div>
                     <div class="json-editor">
-                        <label for="edit-actor-json">原始JSON数据:</label>
-                        <textarea id="edit-actor-json" rows="12">${JSON.stringify(actor, null, 2)}</textarea>
-                        <div class="json-editor-buttons">
-                            <button id="actor-form-to-json" class="btn-secondary">表单 → JSON</button>
-                            <button id="actor-json-to-form" class="btn-secondary">JSON → 表单</button>
-                        </div>
+                        <label for="edit-actor-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
+                        <textarea id="edit-actor-json" rows="24">${JSON.stringify(actor, null, 2)}</textarea>
                     </div>
                 </div>
                 <div class="edit-modal-footer">
@@ -966,8 +962,15 @@ export class ActorsTab {
         const blacklistedCheckbox = modal.querySelector('#edit-actor-blacklisted') as HTMLInputElement;
         const jsonTextarea = modal.querySelector('#edit-actor-json') as HTMLTextAreaElement;
 
-        // 表单到JSON的转换
+        // 防止循环更新的标志
+        let isUpdatingFromForm = false;
+        let isUpdatingFromJson = false;
+
+        // 表单到JSON的自动同步
         const formToJson = () => {
+            if (isUpdatingFromJson) return; // 防止循环更新
+            isUpdatingFromForm = true;
+            
             const formData = {
                 id: idInput.value.trim(),
                 name: nameInput.value.trim(),
@@ -984,10 +987,15 @@ export class ActorsTab {
                 updatedAt: Date.now()
             };
             jsonTextarea.value = JSON.stringify(formData, null, 2);
+            
+            isUpdatingFromForm = false;
         };
 
-        // JSON到表单的转换
+        // JSON到表单的自动同步
         const jsonToForm = () => {
+            if (isUpdatingFromForm) return; // 防止循环更新
+            isUpdatingFromJson = true;
+            
             try {
                 const jsonData = JSON.parse(jsonTextarea.value);
                 idInput.value = jsonData.id || '';
@@ -997,14 +1005,27 @@ export class ActorsTab {
                 categorySelect.value = jsonData.category || 'unknown';
                 avatarInput.value = jsonData.avatarUrl || '';
                 if (blacklistedCheckbox) blacklistedCheckbox.checked = !!jsonData.blacklisted;
+                
+                // 清除错误提示
+                jsonTextarea.style.borderColor = '';
+                jsonTextarea.title = '';
             } catch (error) {
-                showMessage('JSON格式错误，无法解析', 'error');
+                // JSON格式错误时显示视觉提示
+                jsonTextarea.style.borderColor = '#ff4444';
+                jsonTextarea.title = 'JSON格式错误';
             }
+            
+            isUpdatingFromJson = false;
         };
 
-        // 事件监听器
-        modal.querySelector('#actor-form-to-json')?.addEventListener('click', formToJson);
-        modal.querySelector('#actor-json-to-form')?.addEventListener('click', jsonToForm);
+        // 监听所有表单字段的变化，自动同步到JSON
+        [idInput, nameInput, aliasesInput, genderSelect, categorySelect, avatarInput, blacklistedCheckbox].forEach(element => {
+            element.addEventListener('input', formToJson);
+            element.addEventListener('change', formToJson);
+        });
+
+        // 监听JSON文本框的变化，自动同步到表单
+        jsonTextarea.addEventListener('input', jsonToForm);
 
         // 关闭modal
         const closeModal = () => {
@@ -1025,12 +1046,9 @@ export class ActorsTab {
         modal.querySelector('#save-actor')?.addEventListener('click', async () => {
             try {
                 // 先将当前表单内容同步到 JSON，防止用户未点击“表单 → JSON”时修改丢失
-                formToJson();
-
-                // 再从 JSON 文本解析
+                // 从 JSON 文本解析（已经通过自动同步保持最新）
                 const updatedActor = JSON.parse(jsonTextarea.value);
 
-                // 验证必要字段
                 if (!updatedActor.id || !updatedActor.name) {
                     showMessage('ID和姓名是必填字段', 'error');
                     return;

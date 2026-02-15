@@ -2201,12 +2201,8 @@ export function initRecordsTab(): void {
                         </div>
                     </div>
                     <div class="json-editor">
-                        <label for="edit-json">原始JSON数据:</label>
-                        <textarea id="edit-json" rows="10">${JSON.stringify(record, null, 2)}</textarea>
-                        <div class="json-editor-buttons">
-                            <button id="form-to-json" class="btn-secondary">表单 → JSON</button>
-                            <button id="json-to-form" class="btn-secondary">JSON → 表单</button>
-                        </div>
+                        <label for="edit-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
+                        <textarea id="edit-json" rows="20">${JSON.stringify(record, null, 2)}</textarea>
                     </div>
                 </div>
                 <div class="edit-modal-footer">
@@ -2228,8 +2224,15 @@ export function initRecordsTab(): void {
         const tagsInput = modal.querySelector('#edit-tags') as HTMLInputElement;
         const jsonTextarea = modal.querySelector('#edit-json') as HTMLTextAreaElement;
 
-        // 表单到JSON的转换
+        // 防止循环更新的标志
+        let isUpdatingFromForm = false;
+        let isUpdatingFromJson = false;
+
+        // 表单到JSON的自动同步
         const formToJson = () => {
+            if (isUpdatingFromJson) return; // 防止循环更新
+            isUpdatingFromForm = true;
+            
             const formData = {
                 ...record,
                 id: idInput.value.trim(),
@@ -2242,10 +2245,15 @@ export function initRecordsTab(): void {
                 updatedAt: Date.now()
             };
             jsonTextarea.value = JSON.stringify(formData, null, 2);
+            
+            isUpdatingFromForm = false;
         };
 
-        // JSON到表单的转换
+        // JSON到表单的自动同步
         const jsonToForm = () => {
+            if (isUpdatingFromForm) return; // 防止循环更新
+            isUpdatingFromJson = true;
+            
             try {
                 const jsonData = JSON.parse(jsonTextarea.value);
                 idInput.value = jsonData.id || '';
@@ -2255,14 +2263,27 @@ export function initRecordsTab(): void {
                 javdbUrlInput.value = jsonData.javdbUrl || '';
                 javdbImageInput.value = jsonData.javdbImage || '';
                 tagsInput.value = jsonData.tags ? jsonData.tags.join(', ') : '';
+                
+                // 清除错误提示
+                jsonTextarea.style.borderColor = '';
+                jsonTextarea.title = '';
             } catch (error) {
-                showMessage('JSON格式错误，无法解析', 'error');
+                // JSON格式错误时显示视觉提示
+                jsonTextarea.style.borderColor = '#ff4444';
+                jsonTextarea.title = 'JSON格式错误';
             }
+            
+            isUpdatingFromJson = false;
         };
 
-        // 事件监听器
-        modal.querySelector('#form-to-json')?.addEventListener('click', formToJson);
-        modal.querySelector('#json-to-form')?.addEventListener('click', jsonToForm);
+        // 监听所有表单字段的变化，自动同步到JSON
+        [idInput, titleInput, statusSelect, releaseDateInput, javdbUrlInput, javdbImageInput, tagsInput].forEach(element => {
+            element.addEventListener('input', formToJson);
+            element.addEventListener('change', formToJson);
+        });
+
+        // 监听JSON文本框的变化，自动同步到表单
+        jsonTextarea.addEventListener('input', jsonToForm);
 
         // 关闭modal
         const closeModal = () => {
