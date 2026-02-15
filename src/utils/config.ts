@@ -331,7 +331,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableActorInfo: true,
         showLoadingIndicator: true,
         enableReviewBreaker: true,
-        enableFC2Breaker: false,
+        enableFC2Breaker: true,
         // 新增：默认开启“想看同步”和“115推送后自动已看”（保持旧行为）
         enableWantSync: true,
         autoMarkWatchedAfter115: true,

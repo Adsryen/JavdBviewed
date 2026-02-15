@@ -33,7 +33,7 @@ export class ReviewBreakerService {
   /**
    * 生成API签名（与JAV-JHS完全一致）
    */
-  private static async generateSignature(): Promise<string> {
+  static async generateSignature(): Promise<string> {
     const curr = Math.floor(Date.now() / 1000);
     
     // 检查缓存的签名是否仍然有效（300秒内，与JAV-JHS保持一致）
