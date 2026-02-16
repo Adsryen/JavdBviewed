@@ -149,11 +149,20 @@ export class MagnetSearchManager {
       // 添加搜索源标签
       this.addSearchSourceTags();
 
-      // 自动搜索
-      if (this.config.autoSearch) {
-        setTimeout(() => {
-          this.searchMagnets(this.currentVideoId!);
-        }, 2000);
+      // 检查影片是否已看
+      const isViewed = await this.checkIfVideoViewed();
+      
+      if (isViewed) {
+        // 如果已看，显示手动搜索按钮而不是自动搜索
+        log('Video is viewed, showing manual search button instead of auto-search');
+        this.showManualSearchButton();
+      } else {
+        // 未看状态，按原逻辑自动搜索
+        if (this.config.autoSearch) {
+          setTimeout(() => {
+            this.searchMagnets(this.currentVideoId!);
+          }, 2000);
+        }
       }
 
       this.isInitialized = true;
@@ -999,6 +1008,84 @@ export class MagnetSearchManager {
     item.appendChild(dateColumn);
 
     return item;
+  }
+
+  /**
+   * 检查影片是否已看
+   */
+  private async checkIfVideoViewed(): Promise<boolean> {
+    try {
+      const { STATE } = await import('./state');
+      const videoId = this.currentVideoId;
+      if (!videoId) return false;
+      
+      const record = STATE.records[videoId];
+      const { VIDEO_STATUS } = await import('../utils/config');
+      
+      return record?.status === VIDEO_STATUS.VIEWED;
+    } catch (error) {
+      log('Error checking video viewed status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 显示手动搜索按钮
+   */
+  private showManualSearchButton(): void {
+    try {
+      const topMeta = document.querySelector('.top-meta');
+      if (!topMeta) return;
+
+      // 检查是否已经添加过按钮
+      if (document.getElementById('manual-magnet-search-btn')) return;
+
+      // 创建按钮容器
+      const buttonContainer = document.createElement('div');
+      buttonContainer.style.cssText = 'margin-top: 10px; margin-bottom: 10px;';
+
+      // 创建搜索按钮
+      const searchButton = document.createElement('button');
+      searchButton.id = 'manual-magnet-search-btn';
+      searchButton.className = 'button is-info is-small';
+      searchButton.innerHTML = '🧲 加载磁力资源';
+      searchButton.style.cssText = 'margin-right: 8px;';
+      
+      searchButton.addEventListener('click', async () => {
+        searchButton.disabled = true;
+        searchButton.innerHTML = '🔄 搜索中...';
+        
+        try {
+          await this.searchMagnets(this.currentVideoId!);
+          // 搜索完成后移除按钮
+          buttonContainer.remove();
+        } catch (error) {
+          searchButton.disabled = false;
+          searchButton.innerHTML = '🧲 加载磁力资源';
+          showToast('搜索失败，请重试', 'error');
+        }
+      });
+
+      // 创建提示文本
+      const hintText = document.createElement('span');
+      hintText.className = 'has-text-grey is-size-7';
+      hintText.textContent = '（影片已看，点击按钮加载磁力资源）';
+
+      buttonContainer.appendChild(searchButton);
+      buttonContainer.appendChild(hintText);
+
+      // 插入到磁力内容区域之前
+      const magnetContent = document.querySelector('#magnets-content');
+      if (magnetContent && magnetContent.parentElement) {
+        magnetContent.parentElement.insertBefore(buttonContainer, magnetContent);
+      } else {
+        topMeta.appendChild(buttonContainer);
+      }
+
+      log('Manual search button added for viewed video');
+    } catch (error) {
+      log('Error showing manual search button:', error);
+    }
   }
 
   /**
