@@ -4,6 +4,7 @@ import { getSettings, saveSettings } from '../../../../utils/storage';
 import { addTaskUrlsV2 } from '../../../../services/drive115Router';
 import { describe115Error } from '../../../../services/drive115v2/errorCodes';
 import { showToast } from '../../../../content/toast';
+import { addLogV2 } from '../../../../services/drive115v2/logs';
 
 type Drive115PaneContext = {
   update: (patch: Partial<any>) => void;
@@ -568,24 +569,205 @@ export class Drive115V2Pane implements IDrive115Pane {
   }
 
   // 优先渲染缓存，并在后台尝试刷新 + 持久化
+  private refreshing = false; // 防止并发刷新
+  
   private async renderCachedAndMaybeRefresh() {
     try {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
       const enabled = !!s.enabled;
+      const enableV2 = !!s.enableV2;
+      const autoRefresh = s.v2AutoRefresh !== false; // 默认开启
       const cachedUser: Drive115V2UserInfo | undefined = s.v2UserInfo;
       const expired: boolean = !!s.v2UserInfoExpired;
+      const tokenExpiresAt = s.v2TokenExpiresAt || 0;
+      const skewSec = Math.max(0, Number(s.v2AutoRefreshSkewSec ?? 60) || 0);
 
-      if (!enabled) return;
+      if (!enabled || !enableV2) return;
+      
       // 先渲染缓存
       if (cachedUser && Object.keys(cachedUser).length > 0) {
         this.renderUserInfo(cachedUser);
         this.setUserInfoStatus(expired ? '已过期（缓存）' : '已缓存', 'info');
+        await addLogV2({ 
+          timestamp: Date.now(), 
+          level: 'debug', 
+          message: `设置页已渲染缓存的用户信息（过期=${expired}）` 
+        });
       }
-      // 禁止自动刷新：仅渲染缓存，直接返回
-      return;
-    } catch (e) {
+      
+      // 如果开启了自动刷新，在后台尝试刷新
+      if (autoRefresh) {
+        // 防止并发刷新
+        if (this.refreshing) {
+          await addLogV2({ 
+            timestamp: Date.now(), 
+            level: 'debug', 
+            message: '设置页跳过刷新：已有刷新任务在进行中' 
+          });
+          return;
+        }
+        
+        // 检查是否需要刷新：只在token即将过期或已过期时刷新
+        const nowSec = Math.floor(Date.now() / 1000);
+        const needRefresh = expired || 
+                           (typeof tokenExpiresAt === 'number' && tokenExpiresAt > 0 && tokenExpiresAt - skewSec <= nowSec);
+        
+        if (!needRefresh) {
+          // token仍有效且未过期，跳过刷新
+          const remainSec = typeof tokenExpiresAt === 'number' && tokenExpiresAt > 0 
+            ? tokenExpiresAt - nowSec 
+            : 0;
+          const remainMin = remainSec > 0 ? Math.floor(remainSec / 60) : 0;
+          await addLogV2({ 
+            timestamp: Date.now(), 
+            level: 'debug', 
+            message: `设置页跳过刷新：token仍有效（剩余约 ${remainMin} 分钟）` 
+          });
+          return;
+        }
+        
+        // 需要刷新，依赖 getValidAccessToken 内部的官方限制（60-120分钟间隔、2小时3次）
+        // 不在这里额外限制，避免时间戳不同步导致绕过官方限制
+        this.refreshing = true;
+        await addLogV2({ 
+          timestamp: Date.now(), 
+          level: 'info', 
+          message: '设置页开始后台刷新用户信息（token即将过期或已过期）' 
+        });
+        
+        try {
+          const svc = getDrive115V2Service();
+          
+          // 重试机制：最多重试2次（共3次尝试）
+          let userAuto: any = null;
+          let lastError: string = '';
+          const maxRetries = 2;
+          
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+              // 重试前等待，使用指数退避：1秒、2秒
+              const delayMs = Math.pow(2, attempt - 1) * 1000;
+              await addLogV2({ 
+                timestamp: Date.now(), 
+                level: 'info', 
+                message: `设置页第 ${attempt + 1} 次尝试刷新用户信息（等待 ${delayMs}ms）` 
+              });
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            
+            try {
+              userAuto = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
+              
+              if (userAuto.success && userAuto.data) {
+                await addLogV2({ 
+                  timestamp: Date.now(), 
+                  level: 'info', 
+                  message: `设置页用户信息刷新成功（尝试次数=${attempt + 1}）` 
+                });
+                break; // 成功，跳出重试循环
+              } else {
+                lastError = userAuto.message || '未知错误';
+                await addLogV2({ 
+                  timestamp: Date.now(), 
+                  level: 'warn', 
+                  message: `设置页第 ${attempt + 1} 次刷新失败：${lastError}` 
+                });
+                
+                // 如果是官方限制（频率限制、次数限制），立即停止重试
+                if (lastError.includes('间隔') || lastError.includes('上限') || lastError.includes('频率')) {
+                  await addLogV2({ 
+                    timestamp: Date.now(), 
+                    level: 'info', 
+                    message: '设置页检测到官方限制，停止重试' 
+                  });
+                  break;
+                }
+                
+                // 如果是token失效或权限问题，也停止重试
+                if (lastError.includes('token') || lastError.includes('授权') || lastError.includes('权限')) {
+                  await addLogV2({ 
+                    timestamp: Date.now(), 
+                    level: 'info', 
+                    message: '设置页检测到认证问题，停止重试' 
+                  });
+                  break;
+                }
+              }
+            } catch (err: any) {
+              lastError = err?.message || '网络异常';
+              await addLogV2({ 
+                timestamp: Date.now(), 
+                level: 'error', 
+                message: `设置页第 ${attempt + 1} 次刷新异常：${lastError}` 
+              });
+              
+              // 最后一次尝试也失败了
+              if (attempt === maxRetries) {
+                userAuto = { success: false, message: lastError };
+              }
+            }
+          }
+          
+          if (userAuto && userAuto.success && userAuto.data) {
+            // 刷新成功，更新显示和缓存
+            this.renderUserInfo(userAuto.data);
+            this.setUserInfoStatus('已更新', 'ok');
+            await addLogV2({ 
+              timestamp: Date.now(), 
+              level: 'info', 
+              message: '设置页用户信息已更新到UI' 
+            });
+            
+            // 重新读取最新的 settings，避免覆盖 fetchUserInfoAuto 内部的 token 更新
+            const latestSettings: any = await getSettings();
+            const newSettings: any = { ...latestSettings };
+            newSettings.drive115 = {
+              ...(latestSettings.drive115 || {}),
+              v2UserInfo: userAuto.data,
+              v2UserInfoUpdatedAt: Date.now(),
+              v2UserInfoExpired: false,
+            };
+            await saveSettings(newSettings);
+            await addLogV2({ 
+              timestamp: Date.now(), 
+              level: 'info', 
+              message: '设置页用户信息已持久化到存储' 
+            });
+          } else if (expired) {
+            // 刷新失败且缓存已过期，保持显示缓存但标记为过期
+            const msg = lastError || '刷新失败';
+            this.setUserInfoStatus(`刷新失败（${msg}）`, 'error');
+            await addLogV2({ 
+              timestamp: Date.now(), 
+              level: 'error', 
+              message: `设置页刷新失败且缓存已过期：${msg}` 
+            });
+          } else {
+            // 刷新失败但缓存未过期，静默失败
+            await addLogV2({ 
+              timestamp: Date.now(), 
+              level: 'warn', 
+              message: `设置页刷新失败但缓存仍有效，继续使用缓存：${lastError}` 
+            });
+          }
+        } finally {
+          this.refreshing = false;
+          await addLogV2({ 
+            timestamp: Date.now(), 
+            level: 'debug', 
+            message: '设置页刷新任务结束' 
+          });
+        }
+      }
+    } catch (e: any) {
       // 静默失败（不打断设置页操作）
+      await addLogV2({ 
+        timestamp: Date.now(), 
+        level: 'error', 
+        message: `设置页 renderCachedAndMaybeRefresh 异常：${e?.message || '未知错误'}` 
+      });
+      this.refreshing = false;
     }
   }
 
@@ -656,19 +838,23 @@ export class Drive115V2Pane implements IDrive115Pane {
         ${avatar ? `<img src="${avatar}" alt="avatar" style="width:48px; height:48px; border-radius:50%; object-fit:cover; box-shadow:0 1px 3px rgba(0,0,0,.15);">` : ''}
         <div style="flex:1; min-width:0;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <div style="font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(name)}</div>
-            ${vipLevelName ? `<span style="font-size:11px; color:#ab47bc; background:#f3e5f5; padding:2px 6px; border-radius:10px;">${this.escapeHtml(vipLevelName)}</span>` : ''}
-            <span style="font-size:11px; color:${isVip === '是' ? '#2e7d32' : '#888'};">VIP: ${isVip}</span>
+            <div style="font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-primary);">${this.escapeHtml(name)}</div>
+            ${isVip === '是' ? `
+              <span title="${this.escapeHtml(vipLevelName || 'VIP')}" style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:11px; color:#fff; background: linear-gradient(135deg,#f2b01e,#e89f0e); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;">
+                <i class="fas fa-crown" style="color:#fff; font-size:11px;"></i>
+                ${this.escapeHtml(vipLevelName || 'VIP')}
+              </span>
+            ` : ''}
           </div>
-          <div style="font-size:12px; color:#666; margin-top:2px;">UID: ${this.escapeHtml(String(uid))}${vipExpireText ? ` · 到期：${this.escapeHtml(String(vipExpireText))}` : ''}</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">UID: ${this.escapeHtml(String(uid))}${vipExpireText ? ` · 到期：${this.escapeHtml(String(vipExpireText))}` : ''}</div>
         </div>
       </div>
 
       <div style="margin-top:10px;">
-        <div style="height:8px; background:#eee; border-radius:6px; overflow:hidden;">
+        <div style="height:8px; background:var(--bg-secondary); border-radius:6px; overflow:hidden;">
           <div style="width:${percent}%; height:100%; background:linear-gradient(90deg, #42a5f5, #1e88e5);"></div>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:#444; margin-top:6px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-top:6px;">
           <span>已用：${this.escapeHtml(usedText)}</span>
           <span>剩余：${this.escapeHtml(freeText)}</span>
           <span>总计：${this.escapeHtml(totalText)}</span>
