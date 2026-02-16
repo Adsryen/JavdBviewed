@@ -10,7 +10,6 @@ import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
 import { globalCache } from '../utils/cache';
 import { defaultDataAggregator } from '../services/dataAggregator';
-import { quickCopyManager } from './quickCopy';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
@@ -390,17 +389,6 @@ async function initialize(): Promise<void> {
     } catch {}
 
     // 初始化用户体验优化功能（通过编排器注册到合适阶段）
-    if (settings.userExperience.enableQuickCopy) {
-        quickCopyManager.updateConfig({
-            enabled: true,
-            showButtons: true,
-            showTooltips: settings.userExperience.showEnhancedTooltips,
-            enableKeyboardShortcuts: settings.userExperience.enableKeyboardShortcuts,
-            items: ['video-id', 'title', 'url', 'magnet', 'actor'],
-        });
-        initOrchestrator.add('high', () => quickCopyManager.initialize(), { label: 'ux:quickCopy:init' });
-    }
-
     if (settings.userExperience.enableKeyboardShortcuts) {
         keyboardShortcutsManager.updateConfig({
             enabled: true,
@@ -882,11 +870,6 @@ window.addEventListener('beforeunload', () => {
         // 清理内容过滤器
         if (contentFilterManager) {
             contentFilterManager.destroy();
-        }
-
-        // 清理快捷复制管理器
-        if (quickCopyManager) {
-            quickCopyManager.destroy?.();
         }
 
         // 清理键盘快捷键管理器

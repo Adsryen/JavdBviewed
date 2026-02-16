@@ -3,7 +3,6 @@
 
 import { log } from './state';
 import { showToast } from './toast';
-import { quickCopyManager } from './quickCopy';
 import { contentFilterManager } from './contentFilter';
 
 export interface ShortcutAction {
@@ -148,15 +147,6 @@ export class KeyboardShortcutsManager {
         description: '复制当前页面链接',
         keys: ['Ctrl', 'Shift', 'u'],
         handler: () => this.copyUrl(),
-        enabled: true,
-        category: 'copy',
-      },
-      {
-        id: 'show-copy-panel',
-        name: '显示复制面板',
-        description: '显示/隐藏快捷复制面板',
-        keys: ['Ctrl', 'Shift', 'c'],
-        handler: () => this.toggleCopyPanel(),
         enabled: true,
         category: 'copy',
       },
@@ -397,7 +387,6 @@ export class KeyboardShortcutsManager {
   }
 
   private async copyVideoId(): Promise<void> {
-    // 这里会调用quickCopyManager的功能
     const videoId = this.extractVideoId();
     if (videoId) {
       await this.copyToClipboard(videoId);
@@ -420,13 +409,6 @@ export class KeyboardShortcutsManager {
   private async copyUrl(): Promise<void> {
     await this.copyToClipboard(window.location.href);
     showToast('已复制链接', 'success');
-  }
-
-  private toggleCopyPanel(): void {
-    // 调用quickCopyManager的面板切换功能
-    if (quickCopyManager) {
-      (quickCopyManager as any).togglePanel();
-    }
   }
 
   private toggleViewedFilter(): void {
