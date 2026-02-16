@@ -11,6 +11,7 @@ export interface ListEnhancementConfig {
   enableVideoPreview: boolean;
   enableListOptimization: boolean;
   enableScrollPaging: boolean;
+  enableHighQualityCover: boolean; // 高质量封面
   previewDelay: number;
   previewVolume: number;
   enableRightClickBackground: boolean;
@@ -37,6 +38,7 @@ class ListEnhancementManager {
     enableVideoPreview: true,
     enableListOptimization: true,
     enableScrollPaging: false,
+    enableHighQualityCover: true,
     previewDelay: 1000,
     previewVolume: 0.2,
     enableRightClickBackground: true,
@@ -65,6 +67,18 @@ class ListEnhancementManager {
   private loadingSubscriptions = false;
   // 演员水印样式注入标记
   private watermarkStylesInjected = false;
+
+  // 高质量封面URL替换规则（参考油猴脚本）
+  private imageReplaceRules = [
+    {
+      regex: /\/thumbs?\//i,
+      replace: (url: string) => url.replace(/\/thumbs?\//g, '/cover/').replace('.jpg', '_b.jpg'),
+    },
+    {
+      regex: /pics\.dmm\.co\.jp/i,
+      replace: (url: string) => url.replace('ps.jpg', 'pl.jpg'),
+    },
+  ];
 
   updateConfig(newConfig: Partial<ListEnhancementConfig>): void {
     const oldConfig = { ...this.config };
@@ -463,6 +477,11 @@ class ListEnhancementManager {
     const videoInfo = this.extractVideoInfo(item);
     if (!videoInfo) return;
 
+    // 高质量封面（已弃用 - JavDB 现已默认使用高质量封面）
+    // if (this.config.enableHighQualityCover) {
+    //   this.enhanceItemCover(item);
+    // }
+
     // 应用各种增强功能
     if (this.config.enableClickEnhancement) {
       this.enhanceClicks(item, videoInfo);
@@ -676,6 +695,47 @@ class ListEnhancementManager {
 
       this.hidePreview(coverElement);
     });
+  }
+
+  /**
+   * 增强列表项封面（高质量URL替换）
+   */
+  /**
+   * 高质量封面增强（已弃用）
+   * JavDB 现已默认使用高质量封面，此功能无需启用
+   */
+  private enhanceItemCover(item: HTMLElement): void {
+    const coverImg = item.querySelector('.cover img') as HTMLImageElement;
+    if (!coverImg) return;
+
+    const originalSrc = coverImg.src;
+    const enhancedUrl = this.getEnhancedImageUrl(originalSrc);
+
+    if (enhancedUrl !== originalSrc) {
+      const coverElement = item.querySelector('.cover') as HTMLElement;
+      if (coverElement) {
+        coverElement.classList.add('x-cover-enhanced');
+      }
+
+      coverImg.src = enhancedUrl;
+
+      coverImg.onerror = () => {
+        coverImg.src = originalSrc;
+        coverImg.onerror = null;
+      };
+    }
+  }
+
+  /**
+   * 通过规则获取增强的图片URL（已弃用）
+   */
+  private getEnhancedImageUrl(originalUrl: string): string {
+    for (const rule of this.imageReplaceRules) {
+      if (rule.regex.test(originalUrl)) {
+        return rule.replace(originalUrl);
+      }
+    }
+    return originalUrl;
   }
 
   private showPreview(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }): void {
