@@ -966,13 +966,13 @@
                                     <input type="checkbox" id="enableAnchorOptimization">
                                     <input type="checkbox" id="enableListEnhancement">
                                     <input type="checkbox" id="enableVideoPreview">
+                                    <input type="checkbox" id="enableHighQualityCover">
                                     <input type="checkbox" id="enableClickEnhancement">
                                     <input type="checkbox" id="enableScrollPaging">
                                     <input type="checkbox" id="enableActorWatermark">
                                     <input type="checkbox" id="enableActorEnhancement">
                                     <input type="checkbox" id="enableVideoEnhancement">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
-                                    <input type="checkbox" id="veEnableCoverImage">
                                     <input type="checkbox" id="veEnableRating">
                                     <input type="checkbox" id="veEnableActorInfo">
                                     <input type="checkbox" id="veShowLoadingIndicator">
@@ -1380,6 +1380,25 @@
                                         </p>
                                     </div>
 
+                                    <!-- 新：🖼️ 高质量封面 -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label" style="opacity: 0.6;">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🖼️ 高质量封面</h6>
+                                                    <span class="enhancement-feature-status deprecated">已弃用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableHighQualityCover" disabled></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页自动将缩略图URL替换为高质量封面URL<br>
+                                            <strong>说明：</strong>JavDB 现已默认使用高质量封面，此功能无需启用
+                                        </p>
+                                    </div>
+
                                     <!-- 新：🖍️ 演员水印（订阅/黑名单） -->
                                     <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label">
@@ -1428,27 +1447,6 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- 新：🖼️ 高质量封面（独立区块，右侧通用开关） -->
-                                    <div class="form-group" data-subtab="video">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">🖼️ 高质量封面</h6>
-                                                    <span class="enhancement-feature-status beta">测试中</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableCoverImage"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>效果：</strong>在视频详情页替换或补充为更高质量的封面图。<br>
-                                            <strong>说明：</strong>优先使用外部数据源；加载失败时回退站内资源。
-                                        </p>
-                                    </div>
-
-                                    
 
                                     <!-- 新：⭐ 评分信息（独立区块） -->
                                     <div class="form-group" data-subtab="video">

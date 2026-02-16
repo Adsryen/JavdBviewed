@@ -109,6 +109,9 @@ export function registerMiscRouter(): void {
         case 'FETCH_AVPREVIEW_PREVIEW':
           handleFetchAVPreviewPreview(message, sendResponse);
           return true;
+        case 'FETCH_EXTERNAL_COVER':
+          handleFetchExternalCover(message, sendResponse);
+          return true;
         case 'DRIVE115_PUSH':
           handleDrive115Push(message, sendResponse);
           return true;
@@ -512,6 +515,63 @@ async function handleFetchJavDBPreview(message: any, sendResponse: (response: an
     else { sendResponse({ success: false, error: 'Preview video not found' }); }
   } catch (error: any) {
     console.error('[Background] Failed to fetch JavDB preview:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+async function handleFetchExternalCover(message: any, sendResponse: (response: any) => void): Promise<void> {
+  try {
+    const { code } = message || {};
+    if (!code) { 
+      sendResponse({ success: false, error: 'No code provided' }); 
+      return; 
+    }
+
+    // 尝试从 BlogJav 获取高质量封面
+    const searchUrl = `https://blogjav.net/search?q=${encodeURIComponent(code)}`;
+    const res = await fetch(searchUrl);
+    
+    if (!res.ok) { 
+      sendResponse({ success: false, error: `Failed to fetch BlogJav: ${res.status}` }); 
+      return; 
+    }
+
+    const html = await res.text();
+    
+    // 解析HTML查找封面图片
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // 查找搜索结果中的图片
+    const resultItems = doc.querySelectorAll('.post-item, .search-result-item, .video-item');
+    
+    for (const item of resultItems) {
+      const titleElement = item.querySelector('.title, .post-title, h2, h3');
+      const title = titleElement?.textContent?.trim().toUpperCase() || '';
+      
+      // 检查标题是否包含视频代码
+      if (title.includes(code.toUpperCase().replace(/[-\s]/g, ''))) {
+        const img = item.querySelector('img');
+        const imgSrc = img?.getAttribute('src') || img?.getAttribute('data-src');
+        
+        if (imgSrc) {
+          // 解析相对URL
+          let imageUrl = imgSrc;
+          if (imgSrc.startsWith('//')) {
+            imageUrl = 'https:' + imgSrc;
+          } else if (imgSrc.startsWith('/')) {
+            imageUrl = 'https://blogjav.net' + imgSrc;
+          }
+          
+          sendResponse({ success: true, imageUrl });
+          return;
+        }
+      }
+    }
+    
+    sendResponse({ success: false, error: 'Cover image not found' });
+  } catch (error: any) {
+    console.error('[Background] Failed to fetch external cover:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
