@@ -50,6 +50,7 @@ class ListEnhancementManager {
   };
 
   private previewTimer: number | null = null;
+  private currentPlayingVideo: HTMLVideoElement | null = null; // 追踪当前播放的视频
   private isScrolling = false;
   private scrollTimer: number | null = null;
   private isLoadingNextPage = false;
@@ -657,7 +658,7 @@ class ListEnhancementManager {
     if (!coverElement) return;
 
     // 添加预览样式类
-    coverElement.classList.add('x-cover');
+    coverElement.classList.add('x-cover', 'x-preview');
 
     // 鼠标悬浮事件
     coverElement.addEventListener('mouseenter', () => {
@@ -678,18 +679,33 @@ class ListEnhancementManager {
   }
 
   private showPreview(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }): void {
-    coverElement.classList.add('x-preview', 'x-holding');
+    coverElement.classList.add('x-holding');
+    
     // 预览延迟：0 表示禁用悬停预览
     const delay = Number(this.config.previewDelay || 0);
     if (delay <= 0) {
-      // 禁用：直接移除加载中的标记并返回
       coverElement.classList.remove('x-holding');
+      return;
+    }
+
+    // 暂停之前正在播放的视频
+    if (this.currentPlayingVideo && this.currentPlayingVideo.parentElement) {
+      this.currentPlayingVideo.pause();
+      this.currentPlayingVideo.style.opacity = '0';
+    }
+
+    // 如果已有视频，直接显示
+    const existingVideo = coverElement.querySelector('video');
+    if (existingVideo) {
+      existingVideo.style.opacity = '1';
+      existingVideo.play().catch(() => {});
+      this.currentPlayingVideo = existingVideo;
       return;
     }
 
     this.previewTimer = window.setTimeout(() => {
       this.loadVideoPreview(coverElement, videoInfo);
-    }, delay);
+    }, delay < 100 ? 100 : delay); // 最小延迟100ms
   }
 
   private hidePreview(coverElement: HTMLElement): void {
@@ -701,34 +717,78 @@ class ListEnhancementManager {
     }
 
     const video = coverElement.querySelector('video');
-    if (video) {
-      video.classList.remove('x-in');
-      setTimeout(() => {
-        if (video.parentNode) {
-          video.remove();
-        }
-      }, 250);
+    if (!video) return;
+
+    // 立即暂停视频
+    video.pause();
+    
+    // 淡出效果
+    video.style.opacity = '0';
+    
+    // 清除当前播放视频的引用
+    if (this.currentPlayingVideo === video) {
+      this.currentPlayingVideo = null;
     }
   }
 
   private async loadVideoPreview(coverElement: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
+    // 检查是否还在悬停状态
+    if (!coverElement.classList.contains('x-holding')) {
+      return;
+    }
+
+    // 检查是否已有视频
+    const existingVideo = coverElement.querySelector('video');
+    if (existingVideo) {
+      existingVideo.style.opacity = '1';
+      existingVideo.play().catch(() => {});
+      this.currentPlayingVideo = existingVideo;
+      return;
+    }
+
+    // 检查localStorage缓存
+    const cacheKey = `video_preview_${videoInfo.code}`;
+    let cachedUrl = null;
+    try {
+      cachedUrl = localStorage.getItem(cacheKey);
+    } catch (e) {
+      log(`Failed to read from localStorage:`, e);
+    }
+
+    if (cachedUrl) {
+      log(`Using cached video URL for ${videoInfo.code}: ${cachedUrl}`);
+      const video = this.createVideoElement([{ url: cachedUrl, type: 'video/mp4' }]);
+      coverElement.appendChild(video);
+      video.load();
+      return;
+    }
+
     try {
       // 获取视频预览源
       const videoSources = await this.fetchVideoPreview(videoInfo);
+      
+      // 再次检查是否还在悬停状态
+      if (!coverElement.classList.contains('x-holding')) {
+        return;
+      }
       
       if (videoSources.length === 0) {
         log(`No preview sources found for ${videoInfo.code}`);
         return;
       }
 
+      // 缓存URL到localStorage
+      try {
+        localStorage.setItem(cacheKey, videoSources[0].url);
+      } catch (e) {
+        log(`Failed to cache video URL:`, e);
+      }
+
       // 创建视频元素
       const video = this.createVideoElement(videoSources);
       coverElement.appendChild(video);
-
-      // 添加淡入效果
-      setTimeout(() => {
-        video.classList.add('x-in');
-      }, 50);
+      this.currentPlayingVideo = video;
+      video.load();
 
     } catch (error) {
       log(`Failed to load video preview for ${videoInfo.code}:`, error);
@@ -755,9 +815,10 @@ class ListEnhancementManager {
       }
 
       // 依据首选来源确定顺序
-      const autoOrder = ['javspyl', 'avpreview', 'vbgfl', 'javdb'] as const;
+      const autoOrder = ['javdb', 'vbgfl', 'javspyl', 'avpreview'] as const;
       const preferred = this.config.preferredPreviewSource || 'auto';
       const order = preferred === 'auto' ? autoOrder : ([preferred, ...autoOrder.filter(x => x !== preferred)] as const);
+      
       const fetchMethods = order.map((key) => {
         switch (key) {
           case 'javspyl':
@@ -779,19 +840,11 @@ class ListEnhancementManager {
 
           if (url) {
             log(`${name} returned URL: ${url}`);
-
-            // 验证URL是否真的可用
-            const isValid = await this.validateVideoUrl(url);
-            if (isValid) {
-              log(`${name} URL validated successfully: ${url}`);
-              sources.push({
-                url: url,
-                type: 'video/mp4'
-              });
-              break; // 找到可用的源就停止
-            } else {
-              log(`${name} URL validation failed: ${url}`);
-            }
+            sources.push({
+              url: url,
+              type: 'video/mp4'
+            });
+            break; // 找到可用的源就停止
           } else {
             log(`${name} returned no URL for ${videoInfo.code}`);
           }
@@ -811,26 +864,6 @@ class ListEnhancementManager {
     }
 
     return sources;
-  }
-
-  // 验证视频URL是否可用
-  private async validateVideoUrl(url: string): Promise<boolean> {
-    try {
-      log(`Validating video URL: ${url}`);
-
-      // 通过background script验证URL
-      const response = await chrome.runtime.sendMessage({
-        type: 'CHECK_VIDEO_URL',
-        url: url
-      });
-
-      const isValid = response?.success && response?.available;
-      log(`URL validation result for ${url}: ${isValid}`);
-      return isValid;
-    } catch (error) {
-      log(`URL validation error for ${url}:`, error);
-      return false;
-    }
   }
 
   // 获取测试视频URL（仅用于TEST-开头的代码）
@@ -871,8 +904,8 @@ class ListEnhancementManager {
       // 1Pondo (格式: 123456_789)
       if (code.includes('_') || code.includes('-')) {
         const pondo = code.replace('-', '_').toLowerCase();
-        urls.push(`http://smovie.1pondo.tv/sample/movies/${pondo}/1080p.mp4`);
-        urls.push(`http://smovie.1pondo.tv/sample/movies/${pondo}/720p.mp4`);
+        urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/1080p.mp4`);
+        urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/720p.mp4`);
       }
 
       // Heyzo
@@ -895,30 +928,11 @@ class ListEnhancementManager {
 
       log(`VBGFL: Generated ${urls.length} URLs for ${code}:`, urls);
 
-      // 尝试每个URL，但要真正验证可用性
-      for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-        try {
-          log(`VBGFL: Checking URL ${i + 1}/${urls.length}: ${url}`);
-
-          // 确保使用HTTPS
-          const httpsUrl = url.replace('http://', 'https://');
-
-          // 通过background script验证URL
-          const response = await chrome.runtime.sendMessage({
-            type: 'CHECK_VIDEO_URL',
-            url: httpsUrl
-          });
-
-          if (response?.success && response?.available) {
-            log(`VBGFL: URL verified and available: ${httpsUrl}`);
-            return httpsUrl;
-          } else {
-            log(`VBGFL: URL not available: ${httpsUrl}`);
-          }
-        } catch (err) {
-          log(`VBGFL: Error checking URL ${url}:`, err);
-        }
+      // 直接返回第一个匹配的URL，不进行验证（让浏览器自己处理）
+      if (urls.length > 0) {
+        const url = urls[0];
+        log(`VBGFL: Returning first URL: ${url}`);
+        return url;
       }
 
       log(`VBGFL: No suitable URLs found for ${code}`);
@@ -987,23 +1001,36 @@ class ListEnhancementManager {
   private createVideoElement(sources: VideoPreviewSource[]): HTMLVideoElement {
     const video = document.createElement('video');
 
-    // 设置视频属性
+    // 基础属性
     video.autoplay = true;
-    video.muted = true;
+    video.muted = false; // 改为不静音，使用音量控制系统
     video.loop = true;
     video.playsInline = true;
-    video.controls = false; // 预览时不显示控制条
-    video.volume = this.config.previewVolume;
+    video.controls = true; // 启用控制条
+    video.preload = 'metadata';
+    video.volume = 0.5; // 默认音量，会被音量控制系统覆盖
     video.disablePictureInPicture = true;
-    video.style.opacity = '0';
-    video.style.transition = 'opacity 0.25s ease-in-out';
-    video.style.position = 'absolute';
-    video.style.top = '0';
-    video.style.left = '0';
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.objectFit = 'cover';
-    video.style.zIndex = '2';
+    video.disableRemotePlayback = true;
+    
+    // 设置 controlsList（使用 setAttribute 避免 TypeScript 类型错误）
+    video.setAttribute('controlsList', 'nodownload noremoteplayback'); // 保留全屏按钮，移除下载和投屏
+    
+    // 添加类名，让音量控制系统能识别
+    video.className = 'fancybox-video x-preview-video';
+    
+    // 样式设置
+    video.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.25s ease-in;
+      background-color: inherit;
+    `;
 
     // 添加视频源
     sources.forEach(source => {
@@ -1013,46 +1040,43 @@ class ListEnhancementManager {
       video.appendChild(sourceElement);
     });
 
-    // 添加事件监听器
+    // 事件监听器
     video.addEventListener('loadeddata', () => {
       log(`Video loaded successfully: ${sources[0]?.url}`);
-      video.style.opacity = '1';
-      // 尝试从第3秒开始播放
-      if (video.duration > 3) {
-        video.currentTime = 3;
-      }
+      // 从0秒开始播放
     });
 
     video.addEventListener('canplay', () => {
       log(`Video can play: ${sources[0]?.url}`);
-      video.play().catch(err => {
-        log(`Video play failed: ${err.message}`);
-      });
+      // 检查视频是否还在DOM中
+      if (video.parentElement) {
+        video.style.opacity = '1';
+        video.play().catch(err => {
+          log(`Video play failed: ${err.message}`);
+        });
+      }
     });
 
     video.addEventListener('error', (e) => {
-      log(`Video error: ${e.message || 'Unknown error'} for ${sources[0]?.url}`);
+      const target = e.target as HTMLVideoElement;
+      log(`Video error for ${sources[0]?.url}:`, target.error?.message || 'Unknown error');
       // 如果视频加载失败，移除元素
       if (video.parentNode) {
         video.remove();
       }
     });
 
+    // 键盘控制
     video.addEventListener('keyup', (e) => {
       if (e.code === 'KeyM') {
         video.muted = !video.muted;
       }
-    });
-
-    // 设置加载超时
-    setTimeout(() => {
-      if (video.readyState === 0) {
-        log(`Video loading timeout for ${sources[0]?.url}`);
-        if (video.parentNode) {
-          video.remove();
+      if (e.code === 'Enter') {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
         }
       }
-    }, 10000); // 10秒超时
+    });
 
     return video;
   }
@@ -1268,24 +1292,64 @@ function injectStyles(): void {
       overflow: hidden;
     }
 
-    .x-cover.x-preview {
-      z-index: 10;
+    .x-preview {
+      position: relative;
+      display: block;
+      overflow: hidden;
     }
 
-    .x-cover video {
+    .x-preview video {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      z-index: 10;
+      background-color: inherit;
       opacity: 0;
-      transition: opacity 0.25s ease-in-out;
-      z-index: 2;
+      transition: opacity 0.25s ease-in !important;
     }
 
-    .x-cover video.x-in {
-      opacity: 1;
+    /* 视频控制条样式优化 */
+    .x-preview video::-webkit-media-controls-panel {
+      background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.7));
+    }
+
+    .x-preview video::-webkit-media-controls-play-button,
+    .x-preview video::-webkit-media-controls-timeline,
+    .x-preview video::-webkit-media-controls-current-time-display,
+    .x-preview video::-webkit-media-controls-time-remaining-display,
+    .x-preview video::-webkit-media-controls-mute-button,
+    .x-preview video::-webkit-media-controls-volume-slider,
+    .x-preview video::-webkit-media-controls-fullscreen-button {
+      filter: brightness(1.2);
+    }
+
+    /* 加载状态 */
+    .x-loading .cover::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 8;
+      width: 60px;
+      height: 60px;
+      background: transparent;
+      border: 6px solid rgba(0, 0, 0, 0.8);
+      border-bottom-color: #ff9800 !important;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% { 
+        transform: translate(-50%, -50%) rotate(0deg); 
+      }
+      100% { 
+        transform: translate(-50%, -50%) rotate(360deg); 
+      }
     }
 
     /* 标题优化样式 */
