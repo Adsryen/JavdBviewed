@@ -772,9 +772,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'system:init',
             'list:observe:init',
         ];
-        // B) 高优先（快捷复制/快捷键、核心初始化等）
+        // B) 高优先（快捷键、核心初始化等）
         const high: string[] = [
-            'quickCopy:init',
             'keyboardShortcuts:init',
             'videoEnhancement:initCore',
         ];
@@ -843,7 +842,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const map: Record<string, string> = {
             'system:init': '系统：全局初始化（图标/日志/状态等）',
             'list:observe:init': '列表页：初始化可见项处理与观察器（首屏必要）',
-            'quickCopy:init': '快捷复制：初始化（按钮/事件）',
             'keyboardShortcuts:init': '快捷键：注册键位与处理器',
             'list:preview:init': '列表页：悬浮预览/延迟加载初始化',
             'list:optimization:init': '列表页：结构与性能优化',
@@ -1467,7 +1465,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     }
                 },
                 userExperience: {
-                    enableQuickCopy: false, // 开发中，强制禁用
                     enableContentFilter: this.enableContentFilter.checked,
                     enableKeyboardShortcuts: false, // 开发中，强制禁用
                     enableMagnetSearch: this.enableMagnetSearch.checked,
@@ -1549,7 +1546,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
     protected doGetSettings(): Partial<ExtensionSettings> {
         return {
             userExperience: {
-                enableQuickCopy: false,
                 enableContentFilter: this.enableContentFilter.checked,
                 enableKeyboardShortcuts: false,
                 enableMagnetSearch: this.enableMagnetSearch.checked,
@@ -1661,14 +1657,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         log.verbose('[Enhancement] 初始化功能增强开关...');
 
-        // 获取所有功能增强页面的开关按钮
-        const enhancementToggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle');
+        // 获取所有功能增强页面的开关按钮（只选择有 data-target 属性的，排除过滤规则的开关）
+        const enhancementToggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle[data-target]');
         log.verbose(`[Enhancement] 找到 ${enhancementToggles.length} 个开关按钮`);
 
         enhancementToggles.forEach((toggle, index) => {
             const targetId = toggle.getAttribute('data-target');
             if (!targetId) {
-                console.warn(`[Enhancement] 开关 ${index + 1} 缺少 data-target 属性`);
+                if (STATE.settings?.logging?.verboseMode) {
+                    console.warn(`[Enhancement] 开关 ${index + 1} 缺少 data-target 属性`);
+                }
                 return;
             }
 
@@ -1681,7 +1679,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
             // 根据隐藏的checkbox状态设置开关状态
             const updateToggleState = () => {
                 const isChecked = hiddenCheckbox.checked;
-                console.log(`[Enhancement] 更新滑块状态 ${targetId}: ${isChecked}`);
+                if (STATE.settings?.logging?.verboseMode) {
+                    console.log(`[Enhancement] 更新滑块状态 ${targetId}: ${isChecked}`);
+                }
 
                 if (isChecked) {
                     toggle.classList.add('active');
@@ -2140,11 +2140,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         if (editBtn) {
-            console.log(`[Enhancement] 绑定编辑按钮事件，规则索引: ${index}`);
+            if (STATE.settings?.logging?.verboseMode) {
+                console.log(`[Enhancement] 绑定编辑按钮事件，规则索引: ${index}`);
+            }
             editBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`[Enhancement] 编辑按钮被点击，规则索引: ${index}`);
+                if (STATE.settings?.logging?.verboseMode) {
+                    console.log(`[Enhancement] 编辑按钮被点击，规则索引: ${index}`);
+                }
                 this.editFilterRule(index);
             });
         } else {
@@ -2152,11 +2156,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         if (deleteBtn) {
-            console.log(`[Enhancement] 绑定删除按钮事件，规则索引: ${index}`);
+            if (STATE.settings?.logging?.verboseMode) {
+                console.log(`[Enhancement] 绑定删除按钮事件，规则索引: ${index}`);
+            }
             deleteBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`[Enhancement] 删除按钮被点击，规则索引: ${index}`);
+                if (STATE.settings?.logging?.verboseMode) {
+                    console.log(`[Enhancement] 删除按钮被点击，规则索引: ${index}`);
+                }
 
                 // 直接调用删除方法，添加更多调试信息
                 try {

@@ -293,7 +293,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
     // 新增：用户体验默认配置
     userExperience: {
-        enableQuickCopy: false,
         enableContentFilter: false,
         enableKeyboardShortcuts: false, // 开发中，暂时关闭
         enableMagnetSearch: false,

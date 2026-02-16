@@ -119,7 +119,6 @@ export interface ExtensionSettings {
 
     // 新增：用户体验配置
     userExperience: {
-        enableQuickCopy: boolean; // 启用快捷复制
         enableContentFilter: boolean; // 启用内容过滤
         enableKeyboardShortcuts: boolean; // 启用键盘快捷键
         enableMagnetSearch: boolean; // 启用磁力搜索
