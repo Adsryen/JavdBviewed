@@ -2070,10 +2070,43 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private createFilterRuleElement(rule: KeywordFilterRule, index: number): HTMLElement {
         const ruleDiv = document.createElement('div');
         ruleDiv.className = 'filter-rule-item';
+        
+        // 生成关键词或日期范围的显示文本
+        let keywordDisplay = '';
+        if (rule.keyword) {
+            keywordDisplay = `<div class="rule-keywords"><strong>关键词:</strong> ${rule.keyword}</div>`;
+        }
+        
+        // 如果有发行日期配置,显示日期范围信息
+        if (rule.releaseDateRange && rule.fields.includes('release-date')) {
+            const dateRange = rule.releaseDateRange;
+            let dateText = '';
+            
+            switch (dateRange.comparison) {
+                case 'between':
+                    dateText = `${dateRange.startDate || '?'} 至 ${dateRange.endDate || '?'}`;
+                    break;
+                case 'before':
+                    dateText = `早于 ${dateRange.exactDate || '?'}`;
+                    break;
+                case 'after':
+                    dateText = `晚于 ${dateRange.exactDate || '?'}`;
+                    break;
+                case 'exact':
+                    dateText = `精确匹配 ${dateRange.exactDate || '?'}`;
+                    break;
+            }
+            
+            keywordDisplay += `<div class="rule-keywords"><strong>发行日期:</strong> ${dateText}</div>`;
+        }
+        
         ruleDiv.innerHTML = `
             <div class="rule-header">
                 <span class="rule-name">${rule.name}</span>
                 <div class="rule-actions">
+                    <div class="enhancement-toggle-wrapper">
+                        <button class="enhancement-toggle ${rule.enabled ? 'active' : ''}" data-index="${index}" data-enabled="${rule.enabled !== false}" title="${rule.enabled ? '点击禁用' : '点击启用'}"></button>
+                    </div>
                     <button type="button" class="btn btn-sm btn-outline-primary edit-rule" data-index="${index}">
                         编辑
                     </button>
@@ -2084,22 +2117,27 @@ export class EnhancementSettings extends BaseSettingsPanel {
             </div>
             <div class="rule-details">
                 <div class="rule-info">
-                    <span class="badge ${rule.enabled ? 'badge-success' : 'badge-secondary'}">
-                        ${rule.enabled ? '启用' : '禁用'}
-                    </span>
                     <span class="rule-type">字段: ${this.getFilterFieldsText(rule.fields)}</span>
                     <span class="rule-action">动作: ${this.getFilterActionText(rule.action)}</span>
                 </div>
-                <div class="rule-keywords">
-                    <strong>关键词:</strong> ${rule.keyword}
-                </div>
+                ${keywordDisplay}
                 ${rule.message ? `<div class="rule-description">${rule.message}</div>` : ''}
             </div>
         `;
 
         // 绑定事件
+        const toggleBtn = ruleDiv.querySelector('.enhancement-toggle') as HTMLButtonElement;
         const editBtn = ruleDiv.querySelector('.edit-rule') as HTMLButtonElement;
         const deleteBtn = ruleDiv.querySelector('.delete-rule') as HTMLButtonElement;
+
+        // 绑定快速开关事件
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleFilterRuleEnabled(index);
+            });
+        }
 
         if (editBtn) {
             console.log(`[Enhancement] 绑定编辑按钮事件，规则索引: ${index}`);
@@ -2145,7 +2183,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'studio': '厂商',
             'genre': '类型',
             'tag': '标签',
-            'video-id': '番号'
+            'video-id': '番号',
+            'release-date': '发行日期'
         };
         return fields.map(field => fieldMap[field] || field).join(', ');
     }
@@ -2224,8 +2263,86 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked = !!rule?.isRegex;
         (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked = !!rule?.caseSensitive;
-        (document.getElementById('modalInlineRuleEnabled') as HTMLInputElement).checked = rule?.enabled !== false;
+        
+        // 设置启用开关状态
+        const enableToggle = document.getElementById('modalInlineRuleEnabled') as HTMLButtonElement;
+        const isEnabled = rule?.enabled !== false;
+        if (enableToggle) {
+            enableToggle.classList.toggle('active', isEnabled);
+            enableToggle.setAttribute('data-enabled', isEnabled.toString());
+        }
+        
         (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value = rule?.message || '';
+
+        // 字段设置
+        const keywordSettings = document.getElementById('keywordSettings') as HTMLElement;
+        const releaseDateSettings = document.getElementById('releaseDateSettings') as HTMLElement;
+        const dateComparison = document.getElementById('modalInlineRuleDateComparison') as HTMLSelectElement;
+        const dateRangeInputs = document.getElementById('dateRangeInputs') as HTMLElement;
+        const singleDateInput = document.getElementById('singleDateInput') as HTMLElement;
+        const startDateInput = document.getElementById('modalInlineRuleStartDate') as HTMLInputElement;
+        const endDateInput = document.getElementById('modalInlineRuleEndDate') as HTMLInputElement;
+        const singleDate = document.getElementById('modalInlineRuleSingleDate') as HTMLInputElement;
+
+        // 检查选择的字段，决定显示哪个设置盒子
+        const updateFieldSettings = () => {
+            const selectedFields = Array.from(fieldsSel.selectedOptions).map(opt => opt.value);
+            const hasReleaseDate = selectedFields.includes('release-date');
+            const hasOtherFields = selectedFields.some(f => f !== 'release-date');
+            
+            // 如果只选择了发行日期，只显示发行日期设置
+            // 如果选择了其他字段（无论是否包含发行日期），显示关键词设置
+            if (hasReleaseDate && !hasOtherFields) {
+                keywordSettings.style.display = 'none';
+                releaseDateSettings.style.display = 'block';
+            } else if (hasOtherFields) {
+                keywordSettings.style.display = 'block';
+                releaseDateSettings.style.display = hasReleaseDate ? 'block' : 'none';
+            } else {
+                // 没有选择任何字段
+                keywordSettings.style.display = 'block';
+                releaseDateSettings.style.display = 'none';
+            }
+        };
+
+        // 初始化发行日期设置
+        if (rule?.releaseDateRange) {
+            const dateRange = rule.releaseDateRange;
+            dateComparison.value = dateRange.comparison || 'between';
+            startDateInput.value = dateRange.startDate || '';
+            endDateInput.value = dateRange.endDate || '';
+            singleDate.value = dateRange.exactDate || '';
+        }
+
+        // 根据对比方式显示不同的输入框
+        const updateDateInputs = () => {
+            const comparison = dateComparison.value;
+            if (comparison === 'between') {
+                dateRangeInputs.style.display = 'flex';
+                singleDateInput.style.display = 'none';
+            } else {
+                dateRangeInputs.style.display = 'none';
+                singleDateInput.style.display = 'block';
+            }
+        };
+
+        // 初始化显示状态
+        updateFieldSettings();
+        updateDateInputs();
+
+        // 监听字段选择变化
+        fieldsSel.addEventListener('change', updateFieldSettings);
+
+        // 监听对比方式变化
+        dateComparison?.addEventListener('change', updateDateInputs);
+
+        // 绑定启用开关点击事件
+        const toggleHandler = () => {
+            const isActive = enableToggle.classList.contains('active');
+            enableToggle.classList.toggle('active', !isActive);
+            enableToggle.setAttribute('data-enabled', (!isActive).toString());
+        };
+        enableToggle?.addEventListener('click', toggleHandler);
 
         // 事件绑定（先移除旧的）
         const closeBtn = document.getElementById('filterRuleModalClose');
@@ -2254,20 +2371,33 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const keyword = (document.getElementById('modalInlineRuleKeyword') as HTMLInputElement).value.trim();
         const isRegex = (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked;
         const caseSensitive = (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked;
-        const enabled = (document.getElementById('modalInlineRuleEnabled') as HTMLInputElement).checked;
+        
+        // 从button获取启用状态
+        const enableToggle = document.getElementById('modalInlineRuleEnabled') as HTMLButtonElement;
+        const enabled = enableToggle?.classList.contains('active') ?? true;
+        
         const message = (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value.trim();
 
         if (!name) { showMessage('请输入规则名称', 'error'); return; }
-        if (!keyword) { showMessage('请输入关键词', 'error'); return; }
         if (!action) { showMessage('请选择过滤动作', 'error'); return; }
 
-        const selectedFields = Array.from(fieldsSelect.selectedOptions).map(option => option.value) as ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
+        const selectedFields = Array.from(fieldsSelect.selectedOptions).map(option => option.value) as ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
         if (selectedFields.length === 0) { showMessage('请至少选择一个过滤字段', 'error'); return; }
+
+        // 检查是否只选择了发行日期
+        const hasReleaseDate = selectedFields.includes('release-date');
+        const hasOtherFields = selectedFields.some(f => f !== 'release-date');
+
+        // 如果选择了非发行日期的字段，必须输入关键词
+        if (hasOtherFields && !keyword) {
+            showMessage('请输入关键词', 'error');
+            return;
+        }
 
         const rule: KeywordFilterRule = {
             id: typeof index === 'number' ? this.currentFilterRules[index].id : Date.now().toString(),
             name,
-            keyword,
+            keyword: keyword || '', // 如果只选择发行日期，关键词可以为空
             fields: selectedFields,
             action: action as 'hide' | 'highlight' | 'blur' | 'mark',
             isRegex,
@@ -2275,6 +2405,31 @@ export class EnhancementSettings extends BaseSettingsPanel {
             enabled,
             message: message || undefined
         };
+
+        // 如果选择了发行日期字段，添加日期范围配置
+        if (hasReleaseDate) {
+            const dateComparison = (document.getElementById('modalInlineRuleDateComparison') as HTMLSelectElement).value;
+            const startDate = (document.getElementById('modalInlineRuleStartDate') as HTMLInputElement).value;
+            const endDate = (document.getElementById('modalInlineRuleEndDate') as HTMLInputElement).value;
+            const singleDate = (document.getElementById('modalInlineRuleSingleDate') as HTMLInputElement).value;
+
+            rule.releaseDateRange = {
+                enabled: true,
+                comparison: dateComparison as 'between' | 'before' | 'after' | 'exact'
+            };
+            
+            // 根据对比方式设置日期
+            if (dateComparison === 'between') {
+                rule.releaseDateRange.startDate = startDate || undefined;
+                rule.releaseDateRange.endDate = endDate || undefined;
+            } else if (dateComparison === 'exact') {
+                rule.releaseDateRange.exactDate = singleDate || undefined;
+            } else if (dateComparison === 'before') {
+                rule.releaseDateRange.exactDate = singleDate || undefined;
+            } else if (dateComparison === 'after') {
+                rule.releaseDateRange.exactDate = singleDate || undefined;
+            }
+        }
 
         if (typeof index === 'number') {
             this.currentFilterRules[index] = rule;
@@ -2343,6 +2498,34 @@ export class EnhancementSettings extends BaseSettingsPanel {
         } else {
             console.log(`[Enhancement] 用户取消删除规则: ${rule.name}`);
         }
+    }
+
+    /**
+     * 快速切换过滤规则的启用状态
+     */
+    private toggleFilterRuleEnabled(index: number): void {
+        const rule = this.currentFilterRules[index];
+        if (!rule) {
+            console.error(`[Enhancement] 未找到索引为 ${index} 的规则`);
+            return;
+        }
+
+        // 切换启用状态
+        rule.enabled = !rule.enabled;
+        
+        // 只更新对应的滑块状态,不重新渲染整个列表
+        const toggleBtn = this.filterRulesList?.querySelector(`.enhancement-toggle[data-index="${index}"]`) as HTMLButtonElement;
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('active', rule.enabled);
+            toggleBtn.setAttribute('data-enabled', rule.enabled.toString());
+            toggleBtn.title = rule.enabled ? '点击禁用' : '点击启用';
+        }
+        
+        // 保存设置
+        this.handleSettingChange();
+        
+        // 显示提示
+        showMessage(`规则 "${rule.name}" 已${rule.enabled ? '启用' : '禁用'}`, 'success');
     }
 
     /**

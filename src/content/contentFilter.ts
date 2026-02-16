@@ -13,7 +13,7 @@ export interface KeywordFilterRule {
   caseSensitive: boolean;
   action: 'hide' | 'highlight' | 'blur' | 'mark';
   enabled: boolean;
-  fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
+  fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
   style?: {
     backgroundColor?: string;
     color?: string;
@@ -22,6 +22,14 @@ export interface KeywordFilterRule {
     filter?: string;
   };
   message?: string;
+  // 发行日期范围过滤
+  releaseDateRange?: {
+    enabled: boolean;
+    comparison?: 'between' | 'before' | 'after' | 'exact'; // 对比方式
+    startDate?: string; // YYYY-MM-DD 格式，用于 between 和 after
+    endDate?: string;   // YYYY-MM-DD 格式，用于 between 和 before
+    exactDate?: string; // YYYY-MM-DD 格式，用于 exact
+  };
 }
 
 export interface ContentFilterConfig {
@@ -460,6 +468,31 @@ export class ContentFilterManager {
           .join(', ');
       }
 
+      // 提取发行日期
+      const dateSelectors = [
+        '.meta',
+        '.date',
+        '.release-date',
+        '.video-meta-panel .value'
+      ];
+
+      for (const selector of dateSelectors) {
+        const dateElement = item.querySelector(selector);
+        if (dateElement) {
+          const dateText = dateElement.textContent?.trim() || '';
+          // 匹配日期格式：YYYY-MM-DD 或 YYYY/MM/DD
+          const dateMatch = dateText.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+          if (dateMatch) {
+            // 标准化为 YYYY-MM-DD 格式
+            const year = dateMatch[1];
+            const month = dateMatch[2].padStart(2, '0');
+            const day = dateMatch[3].padStart(2, '0');
+            data['release-date'] = `${year}-${month}-${day}`;
+            break;
+          }
+        }
+      }
+
     } catch (error) {
       log('Error extracting item data:', error);
     }
@@ -515,6 +548,28 @@ export class ContentFilterManager {
    */
   private evaluateKeywordRule(rule: KeywordFilterRule, itemData: Record<string, string>): boolean {
     try {
+      // 首先检查发行日期范围（如果启用）
+      if (rule.releaseDateRange?.enabled) {
+        const releaseDate = itemData['release-date'];
+        if (releaseDate) {
+          const isInDateRange = this.checkDateRange(
+            releaseDate,
+            rule.releaseDateRange
+          );
+          
+          if (!isInDateRange) {
+            // 如果不在日期范围内，直接返回 false
+            return false;
+          }
+          
+          // 如果在日期范围内，继续检查其他字段
+          log(`✓ Rule "${rule.name}" date range matched: ${releaseDate}`);
+        } else {
+          // 如果没有发行日期信息，且启用了日期过滤，则不匹配
+          return false;
+        }
+      }
+
       // 检查指定字段中是否有匹配的关键字
       for (const field of rule.fields) {
         const fieldValue = itemData[field] || '';
@@ -532,6 +587,75 @@ export class ContentFilterManager {
       return false;
     } catch (error) {
       log('Error evaluating keyword rule:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 检查日期是否在指定范围内
+   */
+  private checkDateRange(dateStr: string, dateRange: NonNullable<KeywordFilterRule['releaseDateRange']>): boolean {
+    try {
+      const date = new Date(dateStr);
+      
+      if (isNaN(date.getTime())) {
+        return false;
+      }
+
+      const comparison = dateRange.comparison || 'between';
+
+      switch (comparison) {
+        case 'between':
+          // 在范围内（包含边界）
+          if (dateRange.startDate) {
+            const start = new Date(dateRange.startDate);
+            if (date < start) {
+              return false;
+            }
+          }
+          if (dateRange.endDate) {
+            const end = new Date(dateRange.endDate);
+            if (date > end) {
+              return false;
+            }
+          }
+          return true;
+
+        case 'before':
+          // 早于指定日期
+          if (dateRange.exactDate) {
+            const target = new Date(dateRange.exactDate);
+            return date < target;
+          } else if (dateRange.endDate) {
+            const target = new Date(dateRange.endDate);
+            return date < target;
+          }
+          return false;
+
+        case 'after':
+          // 晚于指定日期
+          if (dateRange.exactDate) {
+            const target = new Date(dateRange.exactDate);
+            return date > target;
+          } else if (dateRange.startDate) {
+            const target = new Date(dateRange.startDate);
+            return date > target;
+          }
+          return false;
+
+        case 'exact':
+          // 精确匹配日期
+          if (dateRange.exactDate) {
+            const target = new Date(dateRange.exactDate);
+            return date.toDateString() === target.toDateString();
+          }
+          return false;
+
+        default:
+          return false;
+      }
+    } catch (error) {
+      log('Error checking date range:', error);
       return false;
     }
   }

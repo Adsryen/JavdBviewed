@@ -286,7 +286,7 @@ export interface KeywordFilterRule {
     caseSensitive: boolean;
     action: 'hide' | 'highlight' | 'blur' | 'mark';
     enabled: boolean;
-    fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id')[];
+    fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
     style?: {
         backgroundColor?: string;
         color?: string;
@@ -296,6 +296,14 @@ export interface KeywordFilterRule {
     };
     message?: string;
     createdAt?: number;
+    // 发行日期范围过滤
+    releaseDateRange?: {
+        enabled: boolean;
+        comparison?: 'between' | 'before' | 'after' | 'exact'; // 对比方式
+        startDate?: string; // YYYY-MM-DD 格式，用于 between 和 after
+        endDate?: string;   // YYYY-MM-DD 格式，用于 between 和 before
+        exactDate?: string; // YYYY-MM-DD 格式，用于 exact
+    };
 }
 
 export type VideoStatus = 'viewed' | 'browsed' | 'want' | 'untracked';

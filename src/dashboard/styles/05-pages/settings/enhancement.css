@@ -571,6 +571,62 @@
     gap: 8px;
 }
 
+.rule-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.rule-actions .enhancement-toggle-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.rule-actions .enhancement-toggle {
+    position: relative;
+    width: 44px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 11px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    outline: none;
+    display: block;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.rule-actions .enhancement-toggle:hover {
+    background: #bbb;
+}
+
+.rule-actions .enhancement-toggle::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.rule-actions .enhancement-toggle.active {
+    background: #28a745;
+    box-shadow: inset 0 1px 2px rgba(40, 167, 69, 0.2);
+}
+
+.rule-actions .enhancement-toggle.active:hover {
+    background: #218838;
+}
+
+.rule-actions .enhancement-toggle.active::before {
+    transform: translateX(22px);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
 .rule-actions .btn {
     padding: 6px 12px;
     font-size: 12px;
@@ -675,41 +731,499 @@
 
 /* 过滤规则对话框样式 */
 #filterRuleModal .modal-dialog {
-    max-width: 600px;
+    max-width: 960px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+}
+
+#filterRuleModal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: var(--surface-primary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+#filterRuleModal .modal-header-left {
+    display: flex;
+    align-items: center;
+}
+
+#filterRuleModal .modal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#filterRuleModal .toggle-label {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+/* 弹窗中的 enhancement-toggle 样式 */
+#filterRuleModal .enhancement-toggle-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+#filterRuleModal .enhancement-toggle {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    outline: none;
+    display: block;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+#filterRuleModal .enhancement-toggle:hover {
+    background: #bbb;
+}
+
+#filterRuleModal .enhancement-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+#filterRuleModal .enhancement-toggle::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: #ffffff;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#filterRuleModal .enhancement-toggle.active {
+    background: #28a745;
+    box-shadow: inset 0 1px 2px rgba(40, 167, 69, 0.2);
+}
+
+#filterRuleModal .enhancement-toggle.active:hover {
+    background: #218838;
+}
+
+#filterRuleModal .enhancement-toggle.active::before {
+    transform: translateX(24px);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] #filterRuleModal .enhancement-toggle {
+    background: #475569;
+}
+
+[data-theme="dark"] #filterRuleModal .enhancement-toggle:hover {
+    background: #5a6a7a;
+}
+
+[data-theme="dark"] #filterRuleModal .enhancement-toggle.active {
+    background: #28a745;
+}
+
+[data-theme="dark"] #filterRuleModal .enhancement-toggle.active:hover {
+    background: #218838;
+}
+
+#filterRuleModal .modal-close {
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+#filterRuleModal .modal-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+#filterRuleModal .modal-body {
+    padding: 24px;
+    background: var(--surface-primary);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* 自定义滚动条样式 */
+#filterRuleModal .modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+#filterRuleModal .modal-body::-webkit-scrollbar-track {
+    background: var(--surface-secondary);
+    border-radius: 4px;
+}
+
+#filterRuleModal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 4px;
+}
+
+#filterRuleModal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+#filterRuleModal .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    background: var(--surface-primary);
+    border-top: 1px solid var(--border-primary);
+}
+
+/* 表单分区 */
+#filterRuleModal .form-section {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+#filterRuleModal .form-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+#filterRuleModal .form-group {
+    margin-bottom: 16px;
+}
+
+#filterRuleModal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+#filterRuleModal .form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 0;
+}
+
+#filterRuleModal .form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* 三列布局 */
+#filterRuleModal .form-row-three {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1.5fr;
+    gap: 16px;
+    margin-bottom: 0;
+}
+
+#filterRuleModal .form-row-three .form-group {
+    margin-bottom: 0;
+}
+
+/* 选项行 */
+#filterRuleModal .form-options-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
 }
 
 #filterRuleModal .form-label {
+    display: block;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 8px;
+    font-size: 14px;
+}
+
+#filterRuleModal .form-label-small {
+    display: block;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-size: 13px;
 }
 
 #filterRuleModal .form-control,
 #filterRuleModal .form-select {
+    width: 100%;
+    max-width: none; /* 覆盖通用样式的 max-width 限制 */
     border-radius: 6px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--input-border);
     padding: 8px 12px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+#filterRuleModal .form-control-small,
+#filterRuleModal .form-select-small {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid var(--input-border);
+    padding: 6px 10px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#filterRuleModal .form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 #filterRuleModal .form-control:focus,
-#filterRuleModal .form-select:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+#filterRuleModal .form-select:focus,
+#filterRuleModal .form-control-small:focus,
+#filterRuleModal .form-select-small:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#filterRuleModal .form-select,
+#filterRuleModal .form-select-small {
+    cursor: pointer;
+}
+
+#filterRuleModal .form-select[multiple] {
+    min-height: 140px;
+}
+
+#filterRuleModal .form-select option {
+    padding: 6px 8px;
 }
 
 #filterRuleModal .form-text {
+    display: block;
     font-size: 12px;
-    color: #666;
+    color: var(--text-muted);
     margin-top: 4px;
-}
-
-#filterRuleModal .form-check-input {
-    margin-top: 0.25em;
+    line-height: 1.4;
 }
 
 #filterRuleModal .form-check-label {
+    display: flex;
+    align-items: center;
     font-weight: normal;
-    color: #333;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+}
+
+#filterRuleModal .form-check-label.section-toggle {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+#filterRuleModal .form-check-input {
+    margin-right: 8px;
+    margin-top: 0;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+#filterRuleModal textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+/* 发行日期设置盒子 */
+#filterRuleModal .field-settings-container {
+    position: relative;
+}
+
+#filterRuleModal .field-settings-box {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+#filterRuleModal .field-settings-box .form-label {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#filterRuleModal .form-group-compact {
+    margin-bottom: 10px;
+}
+
+#filterRuleModal .form-group-compact:last-child {
+    margin-bottom: 0;
+}
+
+#filterRuleModal .form-text-small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    line-height: 1.3;
+}
+
+#filterRuleModal .form-options-compact {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+#filterRuleModal .form-check-label-small {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+}
+
+#filterRuleModal .form-check-input-small {
+    margin-right: 6px;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+#filterRuleModal .date-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] #filterRuleModal .modal-dialog {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] #filterRuleModal .form-control:focus,
+[data-theme="dark"] #filterRuleModal .form-select:focus,
+[data-theme="dark"] #filterRuleModal .form-control-small:focus,
+[data-theme="dark"] #filterRuleModal .form-select-small:focus {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+[data-theme="dark"] #filterRuleModal .field-settings-box {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] #filterRuleModal .modal-body::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] #filterRuleModal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+}
+
+[data-theme="dark"] #filterRuleModal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover);
+}
+
+/* 按钮样式 */
+#filterRuleModal .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+#filterRuleModal .btn-primary {
+    background: var(--primary);
+    color: var(--text-inverse);
+}
+
+#filterRuleModal .btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+#filterRuleModal .btn-primary:active {
+    transform: translateY(0);
+}
+
+#filterRuleModal .btn-secondary {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+#filterRuleModal .btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+/* 响应式适配 */
+@media (max-width: 1024px) {
+    #filterRuleModal .modal-dialog {
+        max-width: 95%;
+    }
+
+    #filterRuleModal .form-row-three {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    #filterRuleModal .form-row-three .form-group {
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    #filterRuleModal .modal-dialog {
+        max-width: 95%;
+        margin: 20px auto;
+    }
+
+    #filterRuleModal .modal-header,
+    #filterRuleModal .modal-body,
+    #filterRuleModal .modal-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    #filterRuleModal .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    #filterRuleModal .form-row .form-group {
+        margin-bottom: 16px;
+    }
+
+    #filterRuleModal .form-row .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    #filterRuleModal .form-options-row {
+        flex-direction: column;
+        gap: 8px;
+    }
 }
 
 /* 过滤规则容器样式 - 支持主题切换 */
