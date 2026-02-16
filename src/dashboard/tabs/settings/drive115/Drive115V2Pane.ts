@@ -502,7 +502,6 @@ export class Drive115V2Pane implements IDrive115Pane {
       let status = drv.v2RefreshTokenStatus || 'unknown';
       const lastError = drv.v2RefreshTokenLastError;
       const lastErrorCode = drv.v2RefreshTokenLastErrorCode;
-      const accessToken = (drv.v2AccessToken || '').trim();
       const refreshToken = (drv.v2RefreshToken || '').trim();
       const expiresAt = drv.v2TokenExpiresAt;
       
