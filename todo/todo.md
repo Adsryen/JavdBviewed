@@ -18,8 +18,6 @@
 ### � 开发中/测试中的功能
 
 #### 数据增强
-- [ ] 评分聚合（enableRatingAggregation）- 开发中，暂时关闭
-- [ ] 演员信息增强（enableActorInfo）- 开发中，暂时关闭
 
 #### 用户体验增强
 - [ ] 快速复制（enableQuickCopy）- 开发中，强制禁用

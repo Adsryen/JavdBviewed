@@ -92,8 +92,6 @@ export interface ExtensionSettings {
         enableImageCache: boolean; // 启用图片缓存
         enableVideoPreview: boolean; // 启用视频预览
         enableTranslation: boolean; // 启用标题翻译
-        enableRatingAggregation: boolean; // 启用评分聚合
-        enableActorInfo: boolean; // 启用演员信息获取
         cacheExpiration: number; // 缓存过期时间（小时）
     };
 
@@ -157,8 +155,6 @@ export interface ExtensionSettings {
         enabled: boolean; // 启用影片页增强
         enableCoverImage: boolean; // 启用高质量封面
         enableTranslation: boolean; // 启用标题定点翻译
-        enableRating: boolean; // 启用评分信息
-        enableActorInfo: boolean; // 启用演员信息
         showLoadingIndicator: boolean; // 显示加载指示器
         enableReviewBreaker: boolean; // 启用破解评论区
         enableFC2Breaker: boolean; // 启用破解FC2拦截
@@ -343,8 +339,6 @@ export interface VideoRecord {
     coverImage?: string; // 高质量封面图
     previewVideo?: string; // 预览视频链接
     translatedTitle?: string; // 翻译后的标题
-    ratings?: EnhancedRating[]; // 多源评分数据
-    actors?: EnhancedActor[]; // 演员信息
     studio?: string; // 制作商
     series?: string; // 系列
     genre?: string[]; // 类别标签
@@ -444,23 +438,6 @@ export interface ActorSyncResult {
   updatedActors: number;
   errors: string[];
   duration: number; // 同步耗时 (毫秒)
-}
-
-// 新增：增强评分接口
-export interface EnhancedRating {
-  source: string; // 评分来源 (JavDB, JavLibrary, DMM等)
-  score: number; // 评分
-  total: number; // 总分
-  count?: number; // 评分人数
-  url?: string; // 评分页面链接
-}
-
-// 新增：增强演员接口
-export interface EnhancedActor {
-  name: string; // 演员姓名
-  avatar?: string; // 头像链接
-  profileUrl?: string; // 个人页面链接
-  aliases?: string[]; // 别名
 }
 
 // 新增：增强磁力链接接口

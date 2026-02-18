@@ -32,8 +32,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 影片页增强子项
     private veEnableCoverImage!: HTMLInputElement;
-    private veEnableRating!: HTMLInputElement;
-    private veEnableActorInfo!: HTMLInputElement;
     private veShowLoadingIndicator!: HTMLInputElement;
     private veEnableReviewBreaker!: HTMLInputElement;
     private veEnableFC2Breaker!: HTMLInputElement;
@@ -346,8 +344,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         
         // 影片页增强子项
         this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
-        this.veEnableRating = document.getElementById('veEnableRating') as HTMLInputElement;
-        this.veEnableActorInfo = document.getElementById('veEnableActorInfo') as HTMLInputElement;
         this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
         this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
         this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
@@ -461,8 +457,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 影片页增强子项事件监听（已移除“影片页翻译”独立开关，统一由全局翻译控制）
         this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableRating?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableActorInfo?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -610,8 +604,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enabled: false,
                 enableCoverImage: true,
                 enableTranslation: true,
-                enableRating: true,
-                enableActorInfo: true,
                 showLoadingIndicator: true,
             } as any;
         } else if (section === 'actor') {
@@ -785,8 +777,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             // 影片页增强
             'videoEnhancement:runCover',
             'videoEnhancement:runTitle',
-            'videoEnhancement:runRating',
-            'videoEnhancement:runActors',
             'videoEnhancement:finish',
             // 其他增强
             'ux:contentFilter',
@@ -848,8 +838,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'videoEnhancement:initCore': '影片页：核心初始化（定点翻译、数据准备等）',
             'videoEnhancement:runCover': '影片页：封面增强（更清晰/多源展示）',
             'videoEnhancement:runTitle': '影片页：标题增强与翻译（AI/传统服务）',
-            'videoEnhancement:runRating': '影片页：评分/评分源整合展示',
-            'videoEnhancement:runActors': '影片页：演员信息增强（标识、标签等）',
             'videoEnhancement:finish': '影片页：增强完成，收起加载指示',
             'ux:contentFilter': '内容过滤：隐藏/高亮/模糊等',
             'ux:anchorOptimization': '链接锚点：定位/跳转优化',
@@ -1293,8 +1281,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             enabled: false, 
             enableCoverImage: true, 
             enableTranslation: true, 
-            enableRating: true, 
-            enableActorInfo: true, 
             showLoadingIndicator: true,
             enableReviewBreaker: false,
             enableFC2Breaker: false
@@ -1306,8 +1292,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 同步滑块状态与翻译配置可见性
         try { this.updateAllToggleStates(); } catch {}
         this.updateTranslationConfigVisibility();
-        if (this.veEnableRating) this.veEnableRating.checked = videoEnhancement.enableRating !== false;
-        if (this.veEnableActorInfo) this.veEnableActorInfo.checked = videoEnhancement.enableActorInfo !== false;
         if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
         if (this.veEnableReviewBreaker) this.veEnableReviewBreaker.checked = videoEnhancement.enableReviewBreaker === true;
         if (this.veEnableFC2Breaker) this.veEnableFC2Breaker.checked = videoEnhancement.enableFC2Breaker === true;
@@ -1417,8 +1401,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 将"视频预览增强"与列表增强的预览开关保持一致
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableTranslation: this.enableTranslation.checked,
-                    enableRatingAggregation: false, // 开发中，暂不启用
-                    enableActorInfo: false, // 开发中，暂不启用
                     cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
                 },
                 // 影片页增强配置保存（启用状态由任一子项或"标题翻译"开启决定）
@@ -1426,8 +1408,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enabled: (
                         this.veEnableCoverImage?.checked === true ||
                         this.enableTranslation?.checked === true ||
-                        this.veEnableRating?.checked === true ||
-                        this.veEnableActorInfo?.checked === true ||
                         this.veShowLoadingIndicator?.checked === true ||
                         this.veEnableReviewBreaker?.checked === true ||
                         this.veEnableFC2Breaker?.checked === true
@@ -1435,8 +1415,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
                     // 与"翻译"总开关保持一致，避免两处状态不一致
                     enableTranslation: this.enableTranslation?.checked === true,
-                    enableRating: this.veEnableRating?.checked !== false,
-                    enableActorInfo: this.veEnableActorInfo?.checked !== false,
                     showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
                     enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
                     enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
@@ -1577,8 +1555,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enabled: this.enableVideoEnhancement?.checked === true,
                 enableCoverImage: this.veEnableCoverImage?.checked !== false,
                 enableTranslation: this.enableTranslation?.checked === true,
-                enableRating: this.veEnableRating?.checked !== false,
-                enableActorInfo: this.veEnableActorInfo?.checked !== false,
                 showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
                 enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
                 enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
@@ -1961,8 +1937,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const enabled = (
                 this.veEnableCoverImage?.checked === true ||
                 this.enableTranslation?.checked === true ||
-                this.veEnableRating?.checked === true ||
-                this.veEnableActorInfo?.checked === true ||
                 this.veShowLoadingIndicator?.checked === true
             );
             this.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');

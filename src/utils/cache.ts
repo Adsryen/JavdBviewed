@@ -21,8 +21,6 @@ export interface VideoDetail {
   translatedTitle?: string;
   coverImage?: string;
   previewVideo?: string;
-  ratings?: Rating[];
-  actors?: Actor[];
   studio?: string;
   series?: string;
   genre?: string[];

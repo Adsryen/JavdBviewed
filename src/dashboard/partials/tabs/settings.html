@@ -1,4 +1,4 @@
-                <div class="settings-container">
+﻿                <div class="settings-container">
                     <!-- 移动端菜单切换按钮 -->
                     <button class="settings-menu-toggle" id="settingsMenuToggle">
                         <i class="fas fa-bars"></i>
@@ -973,8 +973,6 @@
                                     <input type="checkbox" id="enableActorEnhancement">
                                     <input type="checkbox" id="enableVideoEnhancement">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
-                                    <input type="checkbox" id="veEnableRating">
-                                    <input type="checkbox" id="veEnableActorInfo">
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewBreaker">
                                     <input type="checkbox" id="veEnableFC2Breaker">
@@ -988,18 +986,6 @@
 
                                 <!-- 数据增强 -->
                                 <div class="settings-section" data-subtab="video">
-                                    <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="enableMultiSource" disabled>
-                                            <span class="checkmark"></span>
-                                            🌐 多数据源聚合 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
-                                        </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>自动从BlogJav、JavLibrary等多个网站获取高清封面、详细评分、演员信息<br>
-                                            <strong>使用：</strong>启用后，在视频详情页会自动显示增强信息，包括高质量封面图片和多站点评分对比<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
-                                        </p>
-                                    </div>
 
                                     <div class="form-group">
                                         <label class="checkbox-label" style="opacity: 0.6;">
@@ -1135,32 +1121,6 @@
                                                 </select>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="enableRatingAggregation" disabled>
-                                            <span class="checkmark"></span>
-                                            ⭐ 多站点评分聚合 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
-                                        </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>聚合JavLibrary、DMM等多个网站的评分数据，提供更全面的评价参考<br>
-                                            <strong>使用：</strong>在视频详情页显示评分对比卡片，包含评分来源、分数和评价人数<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
-                                        </p>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="checkbox-label" style="opacity: 0.6;">
-                                            <input type="checkbox" id="enableActorInfo" disabled>
-                                            <span class="checkmark"></span>
-                                            👤 演员信息增强 <span style="color: #ff9800; font-size: 12px; font-weight: bold; background: #fff3e0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">开发中</span>
-                                        </label>
-                                        <p class="input-description" style="opacity: 0.7;">
-                                            <strong>效果：</strong>获取演员详细信息、高清头像、个人资料和作品列表<br>
-                                            <strong>使用：</strong>在视频详情页显示演员信息卡片，点击可查看演员详细资料<br>
-                                            <strong style="color: #ff9800;">状态：</strong>功能正在开发完善中，暂时不可用
-                                        </p>
                                     </div>
 
                                     <!-- 状态标记增强 主开关与子设置（显示在“影片页增强”子标签内） -->
@@ -1433,44 +1393,6 @@
                                                 <p class="input-description">降低透明度以减少干扰，0为全透明，1为不透明。</p>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <!-- 新：⭐ 评分信息（独立区块） -->
-                                    <div class="form-group" data-subtab="video">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">⭐ 评分信息</h6>
-                                                    <span class="enhancement-feature-status beta">测试中</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableRating"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>效果：</strong>汇总展示多站评分与统计信息。<br>
-                                            <strong>说明：</strong>可能依赖外部数据源，加载耗时略有增加。
-                                        </p>
-                                    </div>
-
-                                    <!-- 新：👤 演员信息（独立区块） -->
-                                    <div class="form-group" data-subtab="video">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">👤 演员信息</h6>
-                                                    <span class="enhancement-feature-status beta">测试中</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableActorInfo"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>效果：</strong>展示演员基本资料与作品条目。<br>
-                                            <strong>说明：</strong>仅展示可匹配到的数据，加载失败时自动隐藏。
-                                        </p>
                                     </div>
 
                                     <!-- 新：📝 演员备注（Wiki/xslist）（独立区块） -->

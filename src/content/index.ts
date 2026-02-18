@@ -315,9 +315,9 @@ async function initialize(): Promise<void> {
                 timeout: 8000,
                 maxRetries: 1,
             },
-            // 仅当需要评分/演员信息时启用 JavLibrary，设置更保守的超时与重试
+            // JavLibrary 已不再使用，禁用
             javLibrary: {
-                enabled: (settings.dataEnhancement.enableRatingAggregation === true) || (settings.dataEnhancement.enableActorInfo === true),
+                enabled: false,
                 baseUrl: 'https://www.javlibrary.com',
                 timeout: 12000,
                 maxRetries: 1,

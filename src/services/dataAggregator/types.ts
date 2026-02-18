@@ -98,8 +98,6 @@ export interface VideoMetadata {
   description?: string;
   images?: ImageData[];
   videos?: VideoData[];
-  ratings?: RatingData[];
-  actors?: ActorData[];
   lastUpdated?: number;
 }
 
