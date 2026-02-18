@@ -2,10 +2,9 @@
 
 export function runQASelfCheck(): void {
   try {
-    const requiredLinks = [
-      './dashboard.css',
-    ];
-    const missingHeadCss = requiredLinks.filter(href => !document.querySelector(`link[href$="${href}"]`));
+    // 检查是否有任何样式表被加载（不检查具体文件名，因为构建后会带 hash）
+    const hasAnyStylesheet = document.querySelector('link[rel="stylesheet"]');
+    const missingHeadCss = hasAnyStylesheet ? [] : ['样式表'];
 
     const modalsRoot = document.getElementById('dashboard-modals-root');
     const modalIds = [
