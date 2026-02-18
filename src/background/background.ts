@@ -129,14 +129,14 @@ try {
 } catch {}
 
 
-// 全局错误处理 - 捕获未处理的 Promise 拒绝
+// 全局错误处理 - 捕获未处理的 Promise 拒绝（仅 DEBUG 模式输出）
 self.addEventListener('unhandledrejection', (event) => {
-  console.warn('[Background] Unhandled promise rejection:', event.reason);
+  console.debug('[Background] Unhandled promise rejection:', event.reason);
   event.preventDefault(); // 阻止错误在控制台显示
 });
 
-// 全局错误处理 - 捕获未捕获的错误
+// 全局错误处理 - 捕获未捕获的错误（仅 DEBUG 模式输出）
 self.addEventListener('error', (event) => {
-  console.warn('[Background] Uncaught error:', event.error || event.message);
+  console.debug('[Background] Uncaught error:', event.error || event.message);
   event.preventDefault(); // 阻止错误在控制台显示
 });

@@ -249,10 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await ensureMounted('#layout-tabs-nav-root', 'layout/tabs-nav.html');
         // 注入对应样式
         await ensureStylesLoaded([
-            './styles/layout/topbar.css',
-            './styles/layout/sidebar.css',
-            './styles/layout/tabs-nav.css',
-            './styles/layout/version-badge.css',
+            './styles/04-components/layout.css',
         ]);
     } catch {}
 

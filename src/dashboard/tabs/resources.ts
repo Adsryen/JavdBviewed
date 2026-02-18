@@ -9,50 +9,49 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
   'tab-home': {
     name: 'tabs/home.html',
     styles: [
-      './styles/_home.css',
-      './styles/_stats.css',
+      './styles/05-pages/home.css',
     ],
   },
   // 号码库
   'tab-records': {
     name: 'tabs/records.html',
     styles: [
-      './styles/_records.css',
+      './styles/05-pages/records.css',
     ],
   },
   // 清单
   'tab-lists': {
     name: 'tabs/lists.html',
     styles: [
-      './styles/_lists.css',
+      './styles/05-pages/lists.css',
     ],
   },
   // 演员库
   'tab-actors': {
     name: 'tabs/actors.html',
     styles: [
-      './actors.css',
+      './styles/05-pages/actors.css',
     ],
   },
   // 新作品
   'tab-new-works': {
     name: 'tabs/new-works.html',
     styles: [
-      './styles/_newWorks.css',
+      './styles/05-pages/newWorks.css',
     ],
   },
   // 数据同步
   'tab-sync': {
     name: 'tabs/sync.html',
     styles: [
-      './styles/_dataSync.css',
+      './styles/05-pages/sync.css',
     ],
   },
   // 115 任务
   'tab-drive115-tasks': {
     name: 'tabs/drive115-tasks.html',
     styles: [
-      './styles/drive115Tasks.css',
+      './styles/05-pages/drive115Tasks.css',
     ],
   },
   'tab-insights': {
@@ -72,8 +71,7 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
   'tab-logs': {
     name: 'tabs/logs.html',
     styles: [
-      './styles/logs.css',
-      './styles/settings/logs.css',
+      './styles/05-pages/logs.css',
     ],
   },
 };

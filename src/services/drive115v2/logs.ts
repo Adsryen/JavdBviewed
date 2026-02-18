@@ -6,16 +6,6 @@ export interface V2LogEntry {
   message: string;
 }
 
-// 发送到后台统一日志系统
-function mapLevel(level: V2LogEntry['level']): 'INFO' | 'WARN' | 'ERROR' | 'DEBUG' {
-  switch (level) {
-    case 'info': return 'INFO';
-    case 'warn': return 'WARN';
-    case 'error': return 'ERROR';
-    case 'debug': default: return 'DEBUG';
-  }
-}
-
 export async function addLogV2(entry: V2LogEntry): Promise<void> {
   try {
     // 直接使用 console 输出，让 consoleProxy 处理格式化
