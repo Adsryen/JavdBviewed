@@ -6,8 +6,12 @@ if (typeof self === 'undefined' || !(self as any).registration) {
   console.warn('[Background] Service Worker context not ready, waiting...');
 }
 
-import { installDrive115V2Proxy } from './drive115Proxy';
+// 先导入并安装 consoleProxy，确保后续所有日志都能被正确格式化
 import { installConsoleProxyWithSettings } from './consoleConfig';
+installConsoleProxyWithSettings();
+
+// 然后再导入其他模块
+import { installDrive115V2Proxy } from './drive115Proxy';
 import { registerWebDAVRouter } from './webdav';
 import { registerDbMessageRouter } from './dbRouter';
 import { registerMiscRouter } from './miscHandlers';
@@ -19,7 +23,6 @@ import { getSettings } from '../utils/storage';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
-installConsoleProxyWithSettings();
 ensureMigrationsStart();
 
 // 安装 DNR 规则：为 jdbstatic 封面请求补充 Referer
