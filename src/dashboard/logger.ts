@@ -5,9 +5,9 @@ export function logAsync(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: st
             type: 'log-message',
             payload: { level, message, data }
         }, (response) => {
+            // 静默处理错误，避免在 background script 未准备好时产生大量警告
             if (chrome.runtime.lastError) {
-                console.error(`logAsync failed: ${chrome.runtime.lastError.message}`);
-                // Resolve anyway to not break the flow
+                // 不输出错误，直接 resolve
             }
             resolve();
         });

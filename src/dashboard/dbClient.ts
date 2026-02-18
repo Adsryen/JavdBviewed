@@ -55,6 +55,10 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
           try { setTimeout(run, delay); } catch { run(); }
           return;
         }
+        // 只在最后一次失败时输出警告
+        if (attempt >= maxAttempts && msg.includes('receiving end does not exist')) {
+          console.warn(`[DB] Background script not responding after ${maxAttempts} attempts for: ${type}`);
+        }
         reject(err);
       });
     };

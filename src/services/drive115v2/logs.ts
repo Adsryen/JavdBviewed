@@ -18,31 +18,11 @@ function mapLevel(level: V2LogEntry['level']): 'INFO' | 'WARN' | 'ERROR' | 'DEBU
 
 export async function addLogV2(entry: V2LogEntry): Promise<void> {
   try {
-    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-      await new Promise<void>((resolve) => {
-        try {
-          chrome.runtime.sendMessage(
-            {
-              type: 'log-message',
-              payload: {
-                level: mapLevel(entry.level),
-                message: `[115V2] ${entry.message}`,
-                data: { timestamp: entry.timestamp }
-              }
-            },
-            () => resolve()
-          );
-        } catch {
-          resolve();
-        }
-      });
-    } else {
-      // 非扩展环境回退到控制台
-      const lvl = mapLevel(entry.level);
-      const prefix = `[${lvl}]`;
-      // eslint-disable-next-line no-console
-      console.log(prefix, `[115V2] ${entry.message}`, { timestamp: entry.timestamp });
-    }
+    // 直接使用 console 输出，让 consoleProxy 处理格式化
+    // 无论在哪个环境（background/dashboard/content），都使用统一的方式
+    const method = entry.level === 'error' ? 'error' : entry.level === 'warn' ? 'warn' : 'info';
+    // eslint-disable-next-line no-console
+    console[method](`[115V2] ${entry.message}`, { timestamp: entry.timestamp });
   } catch (e) {
     // 静默失败，避免影响主流程
     // eslint-disable-next-line no-console
