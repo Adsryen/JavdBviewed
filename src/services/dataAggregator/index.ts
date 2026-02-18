@@ -10,8 +10,6 @@ import { JavLibrarySource, DEFAULT_JAVLIBRARY_CONFIG } from './sources/javLibrar
 import {
   VideoMetadata,
   ImageData,
-  RatingData,
-  ActorData,
   TranslationResult,
   ApiResponse,
   BatchResult,
@@ -87,17 +85,11 @@ export class DataAggregator {
       );
     }
 
-    // 获取评分和演员信息
+    // 获取封面图片等其他信息
     if (this.config.sources.javLibrary.enabled) {
       promises.push(
         this.javLibrary.getVideoInfo(videoId).then(result => {
           if (result.success && result.data) {
-            if (result.data.ratings) {
-              metadata.ratings = result.data.ratings;
-            }
-            if (result.data.actors) {
-              metadata.actors = result.data.actors;
-            }
             if (result.data.title) {
               metadata.title = result.data.title;
               metadata.originalTitle = result.data.title;
@@ -205,56 +197,6 @@ export class DataAggregator {
     console.log('[DataAggregator] AI translation result:', result);
 
     return result;
-  }
-
-  /**
-   * 获取视频评分
-   */
-  async getVideoRating(videoId: string): Promise<ApiResponse<RatingData[]>> {
-    const ratings: RatingData[] = [];
-
-    if (this.config.sources.javLibrary.enabled) {
-      try {
-        const result = await this.javLibrary.getRating(videoId);
-        if (result.success && result.data) {
-          ratings.push(result.data);
-        }
-      } catch {
-        // 忽略错误
-      }
-    }
-
-    return {
-      success: ratings.length > 0,
-      data: ratings,
-      source: 'DataAggregator',
-      timestamp: Date.now(),
-    };
-  }
-
-  /**
-   * 获取演员信息
-   */
-  async getActorInfo(videoId: string): Promise<ApiResponse<ActorData[]>> {
-    const actors: ActorData[] = [];
-
-    if (this.config.sources.javLibrary.enabled) {
-      try {
-        const result = await this.javLibrary.getActors(videoId);
-        if (result.success && result.data) {
-          actors.push(...result.data);
-        }
-      } catch {
-        // 忽略错误
-      }
-    }
-
-    return {
-      success: actors.length > 0,
-      data: actors,
-      source: 'DataAggregator',
-      timestamp: Date.now(),
-    };
   }
 
   /**

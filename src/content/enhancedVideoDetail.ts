@@ -4,7 +4,7 @@
 import { defaultDataAggregator } from '../services/dataAggregator';
 import { aiService } from '../services/ai/aiService';
 import { showToast } from './toast';
-import { VideoMetadata, ImageData, RatingData, ActorData } from '../services/dataAggregator/types';
+import { VideoMetadata, ImageData } from '../services/dataAggregator/types';
 import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
@@ -13,8 +13,6 @@ import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
 export interface EnhancementOptions {
   enableCoverImage: boolean;
   enableTranslation: boolean;
-  enableRating: boolean;
-  enableActorInfo: boolean;
   showLoadingIndicator: boolean;
   enableReviewBreaker: boolean;
   enableFC2Breaker: boolean;
@@ -30,8 +28,6 @@ export class VideoDetailEnhancer {
     this.options = {
       enableCoverImage: true,
       enableTranslation: true,
-      enableRating: true,
-      enableActorInfo: true,
       showLoadingIndicator: true,
       enableReviewBreaker: true,
       enableFC2Breaker: true,
@@ -48,8 +44,6 @@ export class VideoDetailEnhancer {
       if (!cfg) return;
       this.options.enableCoverImage = cfg.enableCoverImage !== false;
       this.options.enableTranslation = cfg.enableTranslation !== false;
-      this.options.enableRating = cfg.enableRating !== false;
-      this.options.enableActorInfo = cfg.enableActorInfo !== false;
       this.options.showLoadingIndicator = cfg.showLoadingIndicator !== false;
       this.options.enableReviewBreaker = cfg.enableReviewBreaker === true;
       this.options.enableFC2Breaker = cfg.enableFC2Breaker === true;
@@ -235,26 +229,6 @@ export class VideoDetailEnhancer {
   }
 
   /**
-   * 单独运行评分增强
-   */
-  async runRating(): Promise<void> {
-    if (!this.enhancedData) return;
-    if (this.options.enableRating && this.enhancedData.ratings) {
-      await this.enhanceRating(this.enhancedData.ratings);
-    }
-  }
-
-  /**
-   * 单独运行演员信息增强
-   */
-  async runActors(): Promise<void> {
-    if (!this.enhancedData) return;
-    if (this.options.enableActorInfo && this.enhancedData.actors) {
-      await this.enhanceActorInfo(this.enhancedData.actors);
-    }
-  }
-
-  /**
    * 单独运行破解评论区功能
    */
   async runReviewBreaker(): Promise<void> {
@@ -316,14 +290,6 @@ export class VideoDetailEnhancer {
       }
     }
 
-    if (this.options.enableRating && this.enhancedData.ratings) {
-      promises.push(this.enhanceRating(this.enhancedData.ratings));
-    }
-
-    if (this.options.enableActorInfo && this.enhancedData.actors) {
-      promises.push(this.enhanceActorInfo(this.enhancedData.actors));
-    }
-
     await Promise.all(promises);
   }
 
@@ -382,57 +348,6 @@ export class VideoDetailEnhancer {
       log('Title translation enhanced');
     } catch (error) {
       log('Error enhancing title translation:', error);
-    }
-  }
-
-  /**
-   * 增强评分信息
-   */
-  private async enhanceRating(ratings: RatingData[]): Promise<void> {
-    try {
-      if (ratings.length === 0) return;
-
-      // 查找合适的位置插入评分
-      const infoContainer = document.querySelector('.video-info, .movie-info, .details, .metadata') ||
-                           document.querySelector('.container, .content, main');
-
-      if (!infoContainer) return;
-
-      const ratingContainer = this.createRatingContainer(ratings);
-      
-      // 插入评分信息
-      const firstChild = infoContainer.firstElementChild;
-      if (firstChild) {
-        infoContainer.insertBefore(ratingContainer, firstChild);
-      } else {
-        infoContainer.appendChild(ratingContainer);
-      }
-
-      log('Rating information enhanced');
-    } catch (error) {
-      log('Error enhancing rating:', error);
-    }
-  }
-
-  /**
-   * 增强演员信息
-   */
-  private async enhanceActorInfo(actors: ActorData[]): Promise<void> {
-    try {
-      if (actors.length === 0) return;
-
-      // 查找演员区域
-      const actorSection = document.querySelector('.actors, .cast, .performers, .stars') ||
-                          document.querySelector('.video-info, .movie-info, .details');
-
-      if (!actorSection) return;
-
-      const actorContainer = this.createActorContainer(actors);
-      actorSection.appendChild(actorContainer);
-
-      log('Actor information enhanced');
-    } catch (error) {
-      log('Error enhancing actor info:', error);
     }
   }
 
@@ -961,151 +876,6 @@ export class VideoDetailEnhancer {
 
     container.appendChild(label);
     container.appendChild(translation);
-    return container;
-  }
-
-  /**
-   * 创建评分容器
-   */
-  private createRatingContainer(ratings: RatingData[]): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'enhanced-ratings';
-    container.style.cssText = `
-      margin: 20px 0;
-      padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 1px solid #e0e0e0;
-    `;
-
-    const title = document.createElement('h3');
-    title.textContent = '评分信息';
-    title.style.cssText = `
-      margin: 0 0 15px 0;
-      color: #333;
-      font-size: 18px;
-      border-bottom: 2px solid #4CAF50;
-      padding-bottom: 5px;
-    `;
-
-    container.appendChild(title);
-
-    ratings.forEach(rating => {
-      const ratingItem = document.createElement('div');
-      ratingItem.style.cssText = `
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        padding: 8px;
-        background: #f9f9f9;
-        border-radius: 4px;
-      `;
-
-      const source = document.createElement('span');
-      source.textContent = rating.source;
-      source.style.cssText = `
-        font-weight: bold;
-        color: #555;
-      `;
-
-      const score = document.createElement('span');
-      score.textContent = `${rating.score}/${rating.total}`;
-      score.style.cssText = `
-        font-size: 18px;
-        font-weight: bold;
-        color: #4CAF50;
-      `;
-
-      if (rating.count) {
-        const count = document.createElement('span');
-        count.textContent = `(${rating.count}人评价)`;
-        count.style.cssText = `
-          font-size: 12px;
-          color: #888;
-          margin-left: 5px;
-        `;
-        score.appendChild(count);
-      }
-
-      ratingItem.appendChild(source);
-      ratingItem.appendChild(score);
-      container.appendChild(ratingItem);
-    });
-
-    return container;
-  }
-
-  /**
-   * 创建演员容器
-   */
-  private createActorContainer(actors: ActorData[]): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'enhanced-actors';
-    container.style.cssText = `
-      margin: 20px 0;
-      padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    `;
-
-    const title = document.createElement('h3');
-    title.textContent = '演员信息';
-    title.style.cssText = `
-      margin: 0 0 15px 0;
-      color: #333;
-      font-size: 18px;
-    `;
-
-    const actorList = document.createElement('div');
-    actorList.style.cssText = `
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    `;
-
-    actors.forEach(actor => {
-      const actorItem = document.createElement('div');
-      actorItem.style.cssText = `
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        background: #f0f0f0;
-        border-radius: 20px;
-        font-size: 14px;
-        color: #333;
-        text-decoration: none;
-        transition: background-color 0.3s ease;
-      `;
-
-      if (actor.profileUrl) {
-        const link = document.createElement('a');
-        link.href = actor.profileUrl;
-        link.target = '_blank';
-        link.textContent = actor.name;
-        link.style.cssText = `
-          color: inherit;
-          text-decoration: none;
-        `;
-        actorItem.appendChild(link);
-        
-        actorItem.addEventListener('mouseenter', () => {
-          actorItem.style.backgroundColor = '#e0e0e0';
-        });
-        actorItem.addEventListener('mouseleave', () => {
-          actorItem.style.backgroundColor = '#f0f0f0';
-        });
-      } else {
-        actorItem.textContent = actor.name;
-      }
-
-      actorList.appendChild(actorItem);
-    });
-
-    container.appendChild(title);
-    container.appendChild(actorList);
     return container;
   }
 

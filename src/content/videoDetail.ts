@@ -374,13 +374,7 @@ async function runActorRemarksQuick(): Promise<void> {
                     await videoDetailEnhancer.runTitle();
                 }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1000 });
 
-                initOrchestrator.add('deferred', async () => {
-                    await videoDetailEnhancer.runRating();
-                }, { label: 'videoEnhancement:runRating', idle: true, idleTimeout: 5000, delayMs: 1200 });
 
-                initOrchestrator.add('deferred', async () => {
-                    await videoDetailEnhancer.runActors();
-                }, { label: 'videoEnhancement:runActors', idle: true, idleTimeout: 5000, delayMs: 1400 });
 
                 initOrchestrator.add('deferred', async () => {
                     await videoDetailEnhancer.runReviewBreaker();

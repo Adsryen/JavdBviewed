@@ -273,8 +273,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableImageCache: false,  // 仍未启用
         enableVideoPreview: true, // 启用：视频预览增强
         enableTranslation: false,
-        enableRatingAggregation: false, // 开发中，暂时关闭
-        enableActorInfo: false, // 开发中，暂时关闭
         cacheExpiration: 24, // 24小时
     },
 
@@ -326,8 +324,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enabled: false,
         enableCoverImage: true,
         enableTranslation: true,
-        enableRating: true,
-        enableActorInfo: true,
         showLoadingIndicator: true,
         enableReviewBreaker: true,
         enableFC2Breaker: true,
