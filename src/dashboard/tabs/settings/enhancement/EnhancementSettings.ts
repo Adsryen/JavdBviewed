@@ -20,7 +20,6 @@ import { ACTOR_FILTER_TAGS, getDefaultTags, getTagByValue } from '../../../confi
 export class EnhancementSettings extends BaseSettingsPanel {
     // 数据增强功能元素
     private enableTranslation!: HTMLInputElement;
-    private cacheExpiration!: HTMLInputElement;
 
     // 用户体验增强元素
     private enableContentFilter!: HTMLInputElement;
@@ -295,7 +294,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 数据增强功能元素
         this.enableTranslation = document.getElementById('enableTranslation') as HTMLInputElement;
-        this.cacheExpiration = document.getElementById('cacheExpiration') as HTMLInputElement;
 
         // 用户体验增强元素
         this.enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
@@ -469,9 +467,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
         this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
-
-        // 缓存过期时间
-        this.cacheExpiration?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 内容过滤规则事件监听
         if (this.addFilterRuleBtn) {
@@ -1147,7 +1142,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 数据增强设置（翻译主开关）
         this.enableTranslation.checked = dataEnhancement?.enableTranslation || false;
-        this.cacheExpiration.value = String(dataEnhancement?.cacheExpiration || 24);
 
         // 翻译配置 - 仅支持 Google 与 AI
         const defaultTranslation = {
@@ -1397,11 +1391,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 },
                 dataEnhancement: {
                     enableMultiSource: false, // 仍未启用
-                    enableImageCache: false,  // 仍未启用
                     // 将"视频预览增强"与列表增强的预览开关保持一致
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableTranslation: this.enableTranslation.checked,
-                    cacheExpiration: parseInt(this.cacheExpiration.value, 10) || 24,
                 },
                 // 影片页增强配置保存（启用状态由任一子项或"标题翻译"开启决定）
                 videoEnhancement: {

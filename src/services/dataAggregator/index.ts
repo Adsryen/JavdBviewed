@@ -17,8 +17,6 @@ import {
 } from './types';
 
 export interface DataAggregatorConfig {
-  enableCache: boolean;
-  cacheExpiration: number; // 小时
   sources: DataSourceConfig;
   concurrency: number;
   timeout: number;
@@ -33,8 +31,6 @@ export class DataAggregator {
 
   constructor(config: Partial<DataAggregatorConfig> = {}) {
     this.config = {
-      enableCache: true,
-      cacheExpiration: 24,
       concurrency: 3,
       timeout: 15000,
       sources: {
@@ -121,12 +117,6 @@ export class DataAggregator {
       } catch {
         // 翻译失败，忽略错误
       }
-    }
-
-    // 缓存结果
-    if (this.config.enableCache) {
-      const ttl = this.config.cacheExpiration * 60 * 60 * 1000; // 转换为毫秒
-      await globalCache.setVideoDetail(cacheKey, metadata as any, ttl);
     }
 
     return metadata;

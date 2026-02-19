@@ -289,13 +289,6 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('deferred', () => initInsightsCollector(), { label: 'insights:collector', delayMs: 1200 });
     }
 
-    // 初始化缓存系统
-    if (settings.dataEnhancement.enableImageCache) {
-        log('Cache system initialized');
-        // 启动缓存清理
-        globalCache.cleanup().catch(err => log('Cache cleanup error:', err));
-    }
-
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
     const magnetCfg = (settings as any).magnetSearch || {};
     const pageMaxConcurrentRequests = (magnetCfg.concurrency?.pageMaxConcurrentRequests ?? 2) as number;
@@ -305,8 +298,6 @@ async function initialize(): Promise<void> {
     // 初始化/更新数据聚合器（无论是否启用多源，都严格按设置开启/关闭各来源，避免默认配置引发不必要的网络请求）
     log('Data aggregator configured according to settings');
     defaultDataAggregator.updateConfig({
-        enableCache: settings.dataEnhancement.enableImageCache,
-        cacheExpiration: settings.dataEnhancement.cacheExpiration,
         sources: {
             // 仅当启用了多源增强时才启用 BlogJav，且降低超时与重试，避免长时间阻塞
             blogJav: {

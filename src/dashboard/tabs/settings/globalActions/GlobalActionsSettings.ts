@@ -367,7 +367,7 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
      */
     private async handleClearCache(): Promise<void> {
         try {
-            // 清除图片缓存等
+            // 缓存清除功能正在开发中
             showMessage('缓存清除功能正在开发中', 'info');
             logAsync('INFO', '用户尝试清除缓存');
         } catch (error) {

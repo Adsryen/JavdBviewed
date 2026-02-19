@@ -89,10 +89,8 @@ export interface ExtensionSettings {
     // 新增：数据增强配置
     dataEnhancement: {
         enableMultiSource: boolean; // 启用多数据源获取
-        enableImageCache: boolean; // 启用图片缓存
         enableVideoPreview: boolean; // 启用视频预览
         enableTranslation: boolean; // 启用标题翻译
-        cacheExpiration: number; // 缓存过期时间（小时）
     };
 
     // 新增：翻译服务配置
