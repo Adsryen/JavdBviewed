@@ -2650,23 +2650,6 @@ input:checked + .toggle-slider:before {
     line-height: 1.4;
 }
 
-/* 子设置中的缓存过期时间输入框样式 */
-#enhancement-settings .sub-settings .form-group:has(#cacheExpiration) .number-input {
-    width: 120px;
-    padding: 8px 12px;
-    border: 2px solid var(--enhancement-border);
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    transition: border-color 0.3s ease;
-}
-
-#enhancement-settings .sub-settings .form-group:has(#cacheExpiration) .number-input:focus {
-    outline: none;
-    border-color: var(--enhancement-primary);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
 /* 自动保存提示区域优化 */
 #enhancement-settings .auto-save-info {
     background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%) !important;

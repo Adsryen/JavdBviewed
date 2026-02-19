@@ -270,10 +270,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     // 新增：数据增强默认配置
     dataEnhancement: {
         enableMultiSource: false, // 仍未启用
-        enableImageCache: false,  // 仍未启用
         enableVideoPreview: true, // 启用：视频预览增强
         enableTranslation: false,
-        cacheExpiration: 24, // 24小时
     },
 
     // 新增：翻译服务默认配置
