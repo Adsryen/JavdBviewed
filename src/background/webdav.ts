@@ -308,6 +308,88 @@ interface WebDAVFile {
   size?: number;
 }
 
+/**
+ * 确保 WebDAV 目录存在，如果不存在则尝试创建
+ */
+async function ensureWebDAVDirectoryExists(dirUrl: string, username: string, password: string): Promise<void> {
+  try {
+    // 先检查目录是否存在
+    const checkResponse = await fetch(dirUrl, {
+      method: 'PROPFIND',
+      headers: {
+        Authorization: 'Basic ' + btoa(`${username}:${password}`),
+        Depth: '0',
+      },
+    });
+
+    // 如果目录存在，直接返回
+    if (checkResponse.ok) {
+      bgLog('DEBUG', 'WebDAV directory exists', { dirUrl });
+      return;
+    }
+
+    // 如果是 404，尝试创建目录
+    if (checkResponse.status === 404) {
+      bgLog('INFO', 'WebDAV directory not found, attempting to create', { dirUrl });
+      
+      // 解析 URL，逐级创建目录
+      const url = new URL(dirUrl);
+      const pathParts = url.pathname.split('/').filter(p => p);
+      
+      // 从根路径开始，逐级检查和创建目录
+      let currentPath = '';
+      for (const part of pathParts) {
+        currentPath += '/' + part;
+        const currentUrl = `${url.origin}${currentPath}/`;
+        
+        // 检查当前路径是否存在
+        const existsResponse = await fetch(currentUrl, {
+          method: 'PROPFIND',
+          headers: {
+            Authorization: 'Basic ' + btoa(`${username}:${password}`),
+            Depth: '0',
+          },
+        });
+
+        // 如果不存在，创建目录
+        if (existsResponse.status === 404) {
+          const mkcolResponse = await fetch(currentUrl, {
+            method: 'MKCOL',
+            headers: {
+              Authorization: 'Basic ' + btoa(`${username}:${password}`),
+            },
+          });
+
+          if (mkcolResponse.ok || mkcolResponse.status === 201) {
+            bgLog('INFO', 'Created WebDAV directory', { path: currentUrl });
+          } else if (mkcolResponse.status === 405) {
+            // 405 Method Not Allowed 可能表示目录已存在
+            bgLog('DEBUG', 'Directory might already exist (405)', { path: currentUrl });
+          } else {
+            bgLog('WARN', 'Failed to create directory', { 
+              path: currentUrl, 
+              status: mkcolResponse.status 
+            });
+          }
+        }
+      }
+      
+      bgLog('INFO', 'WebDAV directory structure ensured', { dirUrl });
+    } else {
+      bgLog('WARN', 'Unexpected response when checking directory', { 
+        dirUrl, 
+        status: checkResponse.status 
+      });
+    }
+  } catch (error: any) {
+    bgLog('ERROR', 'Failed to ensure WebDAV directory exists', { 
+      dirUrl, 
+      error: error.message 
+    });
+    throw error;
+  }
+}
+
 async function performUpload(): Promise<{ success: boolean; error?: string }> {
   bgLog('INFO', 'Attempting to perform WebDAV upload.');
   const settings = await getSettings();
@@ -331,6 +413,14 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
 
     let fileUrl = settings.webdav.url;
     if (!fileUrl.endsWith('/')) fileUrl += '/';
+    
+    // 确保目录存在
+    try {
+      await ensureWebDAVDirectoryExists(fileUrl, settings.webdav.username, settings.webdav.password);
+    } catch (dirError: any) {
+      bgLog('WARN', 'Failed to ensure directory exists, will try upload anyway', { error: dirError.message });
+    }
+    
     fileUrl += filename.startsWith('/') ? filename.substring(1) : filename;
 
     const zip = new JSZip();
@@ -354,6 +444,16 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
 
     const updatedSettings = await getSettings();
     updatedSettings.webdav.lastSync = new Date().toISOString();
+    
+    // 同时更新当前激活配置的 lastSync
+    const activeConfigId = updatedSettings.webdav.activeConfigId;
+    if (activeConfigId && updatedSettings.webdav.configs) {
+      const configIndex = updatedSettings.webdav.configs.findIndex(c => c.id === activeConfigId);
+      if (configIndex !== -1) {
+        updatedSettings.webdav.configs[configIndex].lastSync = updatedSettings.webdav.lastSync;
+      }
+    }
+    
     await saveSettings(updatedSettings);
     bgLog('INFO', 'WebDAV upload successful, updated last sync time.');
 
@@ -928,6 +1028,61 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
   }
 }
 
+async function testWebDAVConnectionWithConfig(config: { url: string; username: string; password: string }): Promise<{ success: boolean; error?: string }> {
+  bgLog('INFO', 'Testing WebDAV connection with temporary config.');
+  
+  if (!config.url || !config.username || !config.password) {
+    const errorMsg = 'WebDAV connection details are not fully configured.';
+    bgLog('WARN', errorMsg);
+    return { success: false, error: errorMsg };
+  }
+  
+  try {
+    let url = config.url;
+    if (!url.endsWith('/')) url += '/';
+    bgLog('INFO', `Testing connection to: ${url}`);
+    
+    const headers: Record<string, string> = {
+      Authorization: 'Basic ' + btoa(`${config.username}:${config.password}`),
+      Depth: '0',
+      'Content-Type': 'application/xml; charset=utf-8',
+      'User-Agent': 'JavDB-Extension/1.0',
+    };
+    
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>\n<D:propfind xmlns:D="DAV:">\n    <D:prop>\n        <D:resourcetype/>\n        <D:getcontentlength/>\n        <D:getlastmodified/>\n    </D:prop>\n</D:propfind>`;
+    
+    const response = await fetch(url, { method: 'PROPFIND', headers, body: xmlBody });
+    bgLog('INFO', `Test response: ${response.status} ${response.statusText}`);
+    
+    if (response.ok) {
+      const responseText = await response.text();
+      bgLog('DEBUG', 'Test response content:', { length: responseText.length, preview: responseText.substring(0, 200) });
+      
+      if (responseText.includes('<?xml') || responseText.includes('<multistatus') || responseText.includes('<response')) {
+        bgLog('INFO', 'WebDAV connection test successful - server supports WebDAV protocol');
+        return { success: true };
+      } else {
+        bgLog('WARN', 'Server responded but may not support WebDAV properly');
+        return { success: false, error: '服务器响应成功但可能不支持WebDAV协议，请检查URL是否正确' };
+      }
+    } else {
+      let errorMsg = `Connection test failed with status: ${response.status} ${response.statusText}`;
+      if (response.status === 401) errorMsg += ' - 认证失败，请检查用户名和密码';
+      else if (response.status === 403) errorMsg += ' - 访问被拒绝，请检查账户权限';
+      else if (response.status === 404) errorMsg += ' - WebDAV路径不存在，请检查URL';
+      else if (response.status === 405) errorMsg += ' - 服务器不支持WebDAV';
+      bgLog('WARN', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  } catch (error: any) {
+    let errorMsg = error.message;
+    if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) errorMsg = '网络连接失败，请检查网络连接和服务器地址';
+    else if (errorMsg.includes('CORS')) errorMsg = 'CORS错误，可能是服务器配置问题';
+    bgLog('ERROR', 'WebDAV connection test failed.', { error: errorMsg, originalError: error.message, url: config.url });
+    return { success: false, error: errorMsg };
+  }
+}
+
 async function diagnoseWebDAVConnection(): Promise<{ success: boolean; error?: string; diagnostic?: DiagnosticResult }> {
   bgLog('INFO', 'Starting WebDAV diagnostic.');
   const settings = await getSettings();
@@ -976,6 +1131,10 @@ export function registerWebDAVRouter(): void {
         }
         case 'webdav-test':
           testWebDAVConnection().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-test-temp':
+          // 使用临时配置测试连接
+          testWebDAVConnectionWithConfig(message.config).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
         case 'webdav-diagnose':
           diagnoseWebDAVConnection().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));

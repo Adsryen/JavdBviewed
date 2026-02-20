@@ -629,8 +629,8 @@
 /* 配置操作按钮 */
 .config-actions {
     padding: 15px 20px;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-primary);
     display: flex;
     gap: 10px;
     justify-content: flex-end;
