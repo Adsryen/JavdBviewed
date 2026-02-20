@@ -1069,15 +1069,23 @@
 
 .config-manager-header {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
     padding-bottom: 0;
     border-bottom: none;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .config-manager-header h4 {
     display: none;
+}
+
+.config-test-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .webdav-config-list {
@@ -1194,6 +1202,22 @@
 
 .config-action-btn i {
     font-size: 12px;
+}
+
+/* 深色主题下的配置操作按钮优化 */
+[data-theme="dark"] .config-action-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .config-action-btn:hover {
+    background: rgba(212, 165, 116, 0.15);
+    border-color: var(--webdav-primary);
+}
+
+[data-theme="dark"] .config-action-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--error);
 }
 
 .webdav-config-empty {
@@ -1397,6 +1421,26 @@
 .button-secondary:hover {
     background: var(--bg-hover);
     border-color: var(--border-hover);
+}
+
+.button-test {
+    background: var(--success);
+    border: 1px solid var(--success);
+    color: white;
+}
+
+.button-test:hover {
+    background: var(--success-hover);
+    border-color: var(--success-hover);
+}
+
+.button-test:active {
+    transform: scale(0.98);
+}
+
+.button-test:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .button-primary {
