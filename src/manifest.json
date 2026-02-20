@@ -83,6 +83,16 @@
                 "content/drive115-verify.ts"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content/passwordHelper-standalone.ts"
+            ],
+            "run_at": "document_idle",
+            "all_frames": false
         }
     ],
     "action": {
