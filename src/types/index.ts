@@ -38,6 +38,9 @@ export interface ExtensionSettings {
             systemConfig: boolean;  // 系统配置：拓展设置、域名配置、搜索引擎等
             logsData: boolean;      // 日志数据：操作日志
         };
+        // 新增：多配置支持
+        configs?: WebDAVConfig[];  // 存储的多个配置
+        activeConfigId?: string;   // 当前激活的配置ID
     };
     dataSync: {
         requestInterval: number;
@@ -488,3 +491,17 @@ export type {
   NewWorksStats,
   NewWorksSearchResult
 } from '../services/newWorks/types';
+
+
+// WebDAV 配置项接口
+export interface WebDAVConfig {
+  id: string;                    // 配置唯一标识
+  name: string;                  // 配置名称（用户自定义）
+  url: string;                   // WebDAV 服务器地址
+  username: string;              // 用户名
+  password: string;              // 密码
+  provider?: 'jianguoyun' | 'teracloud' | 'custom'; // 厂商类型
+  createdAt: number;             // 创建时间
+  updatedAt: number;             // 更新时间
+  lastSync?: string | null;      // 最后同步时间
+}

@@ -378,7 +378,7 @@ interface JavdbDB extends DBSchema {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -445,6 +445,10 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
             ls.createIndex('by_type', 'type');
             ls.createIndex('by_updatedAt', 'updatedAt');
           } catch {}
+        }
+        // v6 -> 预留版本（无结构变更）
+        if (oldVersion < 6) {
+          // 无需操作，仅版本号升级
         }
       }
     });
