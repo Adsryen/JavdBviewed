@@ -7,7 +7,7 @@ import { STATE } from '../../../state';
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { logAsync } from '../../../logger';
 import { showMessage } from '../../../ui/toast';
-import type { ExtensionSettings, WebDAVConfig } from '../../../../types';
+import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
 
@@ -15,73 +15,65 @@ import { saveSettings } from '../../../../utils/storage';
  * WebDAV设置面板类
  */
 export class WebDAVSettings extends BaseSettingsPanel {
-    // 全局设置元素
     private webdavEnabled!: HTMLInputElement;
     private webdavAutoSync!: HTMLInputElement;
     private webdavSyncInterval!: HTMLInputElement;
     private webdavRetentionDays!: HTMLInputElement;
     private webdavWarningDays!: HTMLInputElement;
-    
     // 数据范围选择
     private webdavBackupCoreData!: HTMLInputElement;
     private webdavBackupActorData!: HTMLInputElement;
     private webdavBackupNewWorksData!: HTMLInputElement;
     private webdavBackupSystemConfig!: HTMLInputElement;
     private webdavBackupLogsData!: HTMLInputElement;
-    
-    // 按钮
     private saveWebdavSettingsBtn!: HTMLButtonElement;
     private testWebdavConnectionBtn!: HTMLButtonElement;
     private diagnoseWebdavConnectionBtn!: HTMLButtonElement;
     private lastSyncTime!: HTMLSpanElement;
-    
     // 配置管理
     private addWebdavConfigBtn!: HTMLButtonElement;
     private webdavConfigList!: HTMLDivElement;
-    
+    private webdavCurrentConfigHint!: HTMLDivElement;
+    private webdavCurrentConfigText!: HTMLSpanElement;
     // 弹窗元素
-    private webdavConfigModal!: HTMLDivElement;
-    private webdavConfigModalTitle!: HTMLHeadingElement;
-    private closeWebdavConfigModalBtn!: HTMLButtonElement;
-    private cancelWebdavConfigModalBtn!: HTMLButtonElement;
-    private saveWebdavConfigModalBtn!: HTMLButtonElement;
+    private configModal!: HTMLDivElement;
+    private configModalTitle!: HTMLHeadingElement;
+    private closeConfigModalBtn!: HTMLButtonElement;
+    private cancelConfigModalBtn!: HTMLButtonElement;
+    private saveConfigModalBtn!: HTMLButtonElement;
     private modalConfigName!: HTMLInputElement;
     private modalWebdavProvider!: HTMLSelectElement;
     private modalWebdavUrl!: HTMLInputElement;
     private modalWebdavFolder!: HTMLInputElement;
     private modalWebdavUser!: HTMLInputElement;
     private modalWebdavPass!: HTMLInputElement;
-    private modalToggleWebdavPasswordVisibilityBtn!: HTMLButtonElement;
-    private modalCopyWebdavFullUrlBtn!: HTMLButtonElement;
-    private modalCopyWebdavUserBtn!: HTMLButtonElement;
-    private modalCopyWebdavPassBtn!: HTMLButtonElement;
+    private modalTogglePasswordBtn!: HTMLButtonElement;
+    private modalCopyFullUrlBtn!: HTMLButtonElement;
+    private modalCopyUserBtn!: HTMLButtonElement;
+    private modalCopyPassBtn!: HTMLButtonElement;
     
-    // 当前编辑的配置ID（null 表示添加模式）
-    private currentEditingConfigId: string | null = null;
+    // 当前编辑的配置ID（用于区分添加/编辑模式）
+    private editingConfigId: string | null = null;
 
-    // 事件处理器
     private readonly onSaveClick = () => { this.handleSaveSettings().catch(() => {}); };
     private readonly onWebdavEnabledChange = () => { this.handleWebDAVEnabledChange(); };
     private readonly onWebdavAutoSyncChange = () => { this.handleWebDAVAutoSyncChange(); };
     private readonly onBackupRangeChange = () => { this.handleBackupRangeChange(); };
     private readonly onInputChange = () => { this.handleInputChange(); };
+    private readonly onProviderChange = () => { this.handleProviderChange(); };
     private readonly onTestClick = () => { this.handleTestWebDAV().catch(() => {}); };
     private readonly onDiagnoseClick = () => { this.handleDiagnoseWebDAV().catch(() => {}); };
-    private readonly onAddConfigClick = () => { this.openConfigModal('add'); };
-    private readonly onModalProviderChange = () => { this.handleModalProviderChange(); };
-    private readonly onModalTogglePasswordClick = () => { this.handleModalTogglePasswordVisibility(); };
-    private readonly onModalCopyFullUrlClick = () => { this.handleModalCopyFullUrl(); };
-    private readonly onModalCopyUserClick = () => { this.handleModalCopyUser(); };
-    private readonly onModalCopyPassClick = () => { this.handleModalCopyPass(); };
-    private readonly onCloseModalClick = () => { this.closeConfigModal(); };
-    private readonly onCancelModalClick = () => { this.closeConfigModal(); };
-    private readonly onSaveModalClick = () => { this.handleSaveConfigModal(); };
+    private readonly onTogglePasswordClick = () => { this.handleTogglePasswordVisibility(); };
+    private readonly onCopyFullUrlClick = () => { this.handleCopyFullUrl(); };
+    private readonly onCopyUserClick = () => { this.handleCopyUser(); };
+    private readonly onCopyPassClick = () => { this.handleCopyPass(); };
+    private readonly onAddConfigClick = () => { this.handleAddConfig(); };
 
     constructor() {
         super({
             panelId: 'webdav-settings',
             panelName: 'WebDAV设置',
-            autoSave: false,
+            autoSave: false, // WebDAV设置需要手动保存
             requireValidation: true
         });
     }
@@ -90,51 +82,42 @@ export class WebDAVSettings extends BaseSettingsPanel {
      * 初始化DOM元素
      */
     protected initializeElements(): void {
-        // 全局设置元素
         this.webdavEnabled = document.getElementById('webdavEnabled') as HTMLInputElement;
+        this.webdavProvider = document.getElementById('webdavProvider') as HTMLSelectElement;
+        this.webdavUrl = document.getElementById('webdavUrl') as HTMLInputElement;
+        this.webdavFolder = document.getElementById('webdavFolder') as HTMLInputElement;
+        this.webdavUser = document.getElementById('webdavUser') as HTMLInputElement;
+        this.webdavPass = document.getElementById('webdavPass') as HTMLInputElement;
         this.webdavAutoSync = document.getElementById('webdavAutoSync') as HTMLInputElement;
         this.webdavSyncInterval = document.getElementById('webdav-sync-interval') as HTMLInputElement;
         this.webdavRetentionDays = document.getElementById('webdav-retention-days') as HTMLInputElement;
         this.webdavWarningDays = document.getElementById('webdav-warning-days') as HTMLInputElement;
-        
         // 数据范围选择
         this.webdavBackupCoreData = document.getElementById('webdavBackupCoreData') as HTMLInputElement;
         this.webdavBackupActorData = document.getElementById('webdavBackupActorData') as HTMLInputElement;
         this.webdavBackupNewWorksData = document.getElementById('webdavBackupNewWorksData') as HTMLInputElement;
         this.webdavBackupSystemConfig = document.getElementById('webdavBackupSystemConfig') as HTMLInputElement;
         this.webdavBackupLogsData = document.getElementById('webdavBackupLogsData') as HTMLInputElement;
-        
-        // 按钮
         this.saveWebdavSettingsBtn = document.getElementById('saveWebdavSettings') as HTMLButtonElement;
         this.testWebdavConnectionBtn = document.getElementById('testWebdavConnection') as HTMLButtonElement;
         this.diagnoseWebdavConnectionBtn = document.getElementById('diagnoseWebdavConnection') as HTMLButtonElement;
+        this.toggleWebdavPasswordVisibilityBtn = document.getElementById('toggleWebdavPasswordVisibility') as HTMLButtonElement;
+        this.copyWebdavFullUrlBtn = document.getElementById('copyWebdavFullUrl') as HTMLButtonElement;
+        this.copyWebdavUserBtn = document.getElementById('copyWebdavUser') as HTMLButtonElement;
+        this.copyWebdavPassBtn = document.getElementById('copyWebdavPass') as HTMLButtonElement;
         this.lastSyncTime = document.getElementById('last-sync-time') as HTMLSpanElement;
-        
-        // 配置管理
         this.addWebdavConfigBtn = document.getElementById('addWebdavConfig') as HTMLButtonElement;
         this.webdavConfigList = document.getElementById('webdavConfigList') as HTMLDivElement;
-        
-        // 弹窗元素
-        this.webdavConfigModal = document.getElementById('webdavConfigModal') as HTMLDivElement;
-        this.webdavConfigModalTitle = document.getElementById('webdavConfigModalTitle') as HTMLHeadingElement;
-        this.closeWebdavConfigModalBtn = document.getElementById('closeWebdavConfigModal') as HTMLButtonElement;
-        this.cancelWebdavConfigModalBtn = document.getElementById('cancelWebdavConfigModal') as HTMLButtonElement;
-        this.saveWebdavConfigModalBtn = document.getElementById('saveWebdavConfigModal') as HTMLButtonElement;
-        this.modalConfigName = document.getElementById('modalConfigName') as HTMLInputElement;
-        this.modalWebdavProvider = document.getElementById('modalWebdavProvider') as HTMLSelectElement;
-        this.modalWebdavUrl = document.getElementById('modalWebdavUrl') as HTMLInputElement;
-        this.modalWebdavFolder = document.getElementById('modalWebdavFolder') as HTMLInputElement;
-        this.modalWebdavUser = document.getElementById('modalWebdavUser') as HTMLInputElement;
-        this.modalWebdavPass = document.getElementById('modalWebdavPass') as HTMLInputElement;
-        this.modalToggleWebdavPasswordVisibilityBtn = document.getElementById('modalToggleWebdavPasswordVisibility') as HTMLButtonElement;
-        this.modalCopyWebdavFullUrlBtn = document.getElementById('modalCopyWebdavFullUrl') as HTMLButtonElement;
-        this.modalCopyWebdavUserBtn = document.getElementById('modalCopyWebdavUser') as HTMLButtonElement;
-        this.modalCopyWebdavPassBtn = document.getElementById('modalCopyWebdavPass') as HTMLButtonElement;
+        this.webdavCurrentConfigHint = document.getElementById('webdavCurrentConfigHint') as HTMLDivElement;
+        this.webdavCurrentConfigText = document.getElementById('webdavCurrentConfigText') as HTMLSpanElement;
 
-        if (!this.webdavEnabled || !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || 
-            !this.diagnoseWebdavConnectionBtn || !this.addWebdavConfigBtn || !this.webdavConfigList ||
-            !this.webdavConfigModal || !this.modalConfigName || !this.modalWebdavProvider || 
-            !this.modalWebdavUrl || !this.modalWebdavFolder || !this.modalWebdavUser || !this.modalWebdavPass) {
+        if (!this.webdavEnabled || !this.webdavProvider || !this.webdavUrl || !this.webdavFolder || !this.webdavUser || !this.webdavPass ||
+            !this.saveWebdavSettingsBtn || !this.testWebdavConnectionBtn || !this.diagnoseWebdavConnectionBtn ||
+            !this.toggleWebdavPasswordVisibilityBtn || !this.copyWebdavFullUrlBtn || !this.copyWebdavUserBtn || !this.copyWebdavPassBtn ||
+            !this.webdavRetentionDays || !this.webdavWarningDays ||
+            !this.webdavBackupCoreData || !this.webdavBackupActorData || !this.webdavBackupNewWorksData ||
+            !this.webdavBackupSystemConfig || !this.webdavBackupLogsData || !this.addWebdavConfigBtn || !this.webdavConfigList ||
+            !this.webdavCurrentConfigHint || !this.webdavCurrentConfigText) {
             throw new Error('WebDAV设置相关的DOM元素未找到');
         }
     }
@@ -146,6 +129,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.saveWebdavSettingsBtn.addEventListener('click', this.onSaveClick);
         this.webdavEnabled.addEventListener('change', this.onWebdavEnabledChange);
         this.webdavAutoSync.addEventListener('change', this.onWebdavAutoSyncChange);
+        this.webdavProvider.addEventListener('change', this.onProviderChange);
         
         // 绑定输入框的自动保存
         this.webdavSyncInterval.addEventListener('change', this.onInputChange);
@@ -161,24 +145,11 @@ export class WebDAVSettings extends BaseSettingsPanel {
         
         this.testWebdavConnectionBtn.addEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn.addEventListener('click', this.onDiagnoseClick);
+        this.toggleWebdavPasswordVisibilityBtn.addEventListener('click', this.onTogglePasswordClick);
+        this.copyWebdavFullUrlBtn.addEventListener('click', this.onCopyFullUrlClick);
+        this.copyWebdavUserBtn.addEventListener('click', this.onCopyUserClick);
+        this.copyWebdavPassBtn.addEventListener('click', this.onCopyPassClick);
         this.addWebdavConfigBtn.addEventListener('click', this.onAddConfigClick);
-        
-        // 弹窗事件
-        this.modalWebdavProvider.addEventListener('change', this.onModalProviderChange);
-        this.modalToggleWebdavPasswordVisibilityBtn.addEventListener('click', this.onModalTogglePasswordClick);
-        this.modalCopyWebdavFullUrlBtn.addEventListener('click', this.onModalCopyFullUrlClick);
-        this.modalCopyWebdavUserBtn.addEventListener('click', this.onModalCopyUserClick);
-        this.modalCopyWebdavPassBtn.addEventListener('click', this.onModalCopyPassClick);
-        this.closeWebdavConfigModalBtn.addEventListener('click', this.onCloseModalClick);
-        this.cancelWebdavConfigModalBtn.addEventListener('click', this.onCancelModalClick);
-        this.saveWebdavConfigModalBtn.addEventListener('click', this.onSaveModalClick);
-        
-        // 点击遮罩层关闭弹窗
-        this.webdavConfigModal.addEventListener('click', (e) => {
-            if (e.target === this.webdavConfigModal) {
-                this.closeConfigModal();
-            }
-        });
     }
 
     /**
@@ -188,31 +159,26 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.saveWebdavSettingsBtn?.removeEventListener('click', this.onSaveClick);
         this.webdavEnabled?.removeEventListener('change', this.onWebdavEnabledChange);
         this.webdavAutoSync?.removeEventListener('change', this.onWebdavAutoSyncChange);
+        this.webdavProvider?.removeEventListener('change', this.onProviderChange);
         
+        // 解绑输入框
         this.webdavSyncInterval?.removeEventListener('change', this.onInputChange);
         this.webdavRetentionDays?.removeEventListener('change', this.onInputChange);
         this.webdavWarningDays?.removeEventListener('change', this.onInputChange);
         
+        // 解绑数据范围复选框
         this.webdavBackupCoreData?.removeEventListener('change', this.onBackupRangeChange);
         this.webdavBackupActorData?.removeEventListener('change', this.onBackupRangeChange);
         this.webdavBackupNewWorksData?.removeEventListener('change', this.onBackupRangeChange);
         this.webdavBackupSystemConfig?.removeEventListener('change', this.onBackupRangeChange);
         this.webdavBackupLogsData?.removeEventListener('change', this.onBackupRangeChange);
-        
         this.testWebdavConnectionBtn?.removeEventListener('click', this.onTestClick);
         this.diagnoseWebdavConnectionBtn?.removeEventListener('click', this.onDiagnoseClick);
-        this.addWebdavConfigBtn?.removeEventListener('click', this.onAddConfigClick);
-        
-        this.modalWebdavProvider?.removeEventListener('change', this.onModalProviderChange);
-        this.modalToggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.onModalTogglePasswordClick);
-        this.modalCopyWebdavFullUrlBtn?.removeEventListener('click', this.onModalCopyFullUrlClick);
-        this.modalCopyWebdavUserBtn?.removeEventListener('click', this.onModalCopyUserClick);
-        this.modalCopyWebdavPassBtn?.removeEventListener('click', this.onModalCopyPassClick);
-        this.closeWebdavConfigModalBtn?.removeEventListener('click', this.onCloseModalClick);
-        this.cancelWebdavConfigModalBtn?.removeEventListener('click', this.onCancelModalClick);
-        this.saveWebdavConfigModalBtn?.removeEventListener('click', this.onSaveModalClick);
+        this.toggleWebdavPasswordVisibilityBtn?.removeEventListener('click', this.onTogglePasswordClick);
+        this.copyWebdavFullUrlBtn?.removeEventListener('click', this.onCopyFullUrlClick);
+        this.copyWebdavUserBtn?.removeEventListener('click', this.onCopyUserClick);
+        this.copyWebdavPassBtn?.removeEventListener('click', this.onCopyPassClick);
     }
-
 
     /**
      * 加载设置到UI
@@ -224,18 +190,31 @@ export class WebDAVSettings extends BaseSettingsPanel {
         // 兼容旧版本：如果有旧配置但没有 configs，自动迁移
         if (webdav.url && webdav.username && (!webdav.configs || webdav.configs.length === 0)) {
             await this.migrateOldConfig();
-            return;
+            return; // 迁移后重新加载
         }
 
         // 渲染配置列表
         this.renderConfigList();
+        
+        // 更新当前配置提示
+        this.updateCurrentConfigHint();
 
         this.webdavEnabled.checked = webdav.enabled || false;
+        
+        // 平滑迁移：拆分现有 URL 为基础地址和文件夹
+        const { baseUrl, folder } = this.splitUrl(webdav.url || '');
+        this.webdavUrl.value = baseUrl;
+        this.webdavFolder.value = folder;
+        
+        // 根据 URL 自动识别厂商
+        this.detectProviderFromUrl(baseUrl);
+        
+        this.webdavUser.value = webdav.username || '';
+        this.webdavPass.value = webdav.password || '';
         this.webdavAutoSync.checked = webdav.autoSync || false;
         this.webdavSyncInterval.value = String(webdav.syncInterval || 30);
         this.webdavRetentionDays.value = String(webdav.retentionDays ?? 7);
         this.webdavWarningDays.value = String(webdav.warningDays ?? 7);
-        
         // 加载数据范围设置
         const backupRange = webdav.backupRange || {
             coreData: true,
@@ -249,41 +228,120 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavBackupNewWorksData.checked = backupRange.newWorksData || false;
         this.webdavBackupSystemConfig.checked = backupRange.systemConfig !== false;
         this.webdavBackupLogsData.checked = backupRange.logsData || false;
-        
-        this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : '从未';
+        this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
 
         // 更新UI状态
         this.updateWebDAVControlsState();
+        this.updateFieldsVisibility();
     }
 
     /**
-     * 保存全局设置（不包括配置的增删改）
+     * 保存设置
+     * 如果有激活的配置，更新该配置；如果没有激活配置但填写了信息，创建新配置
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
+            // 合并基础地址和文件夹为完整 URL
+            const fullUrl = this.combineUrl(this.webdavUrl.value.trim(), this.webdavFolder.value.trim());
+            
             const settings = STATE.settings;
+            const configs = settings?.webdav?.configs || [];
+            const activeConfigId = settings?.webdav?.activeConfigId;
+
+            // 如果有激活的配置，更新它
+            if (activeConfigId) {
+                const configIndex = configs.findIndex(c => c.id === activeConfigId);
+                if (configIndex !== -1) {
+                    configs[configIndex] = {
+                        ...configs[configIndex],
+                        url: fullUrl,
+                        username: this.webdavUser.value.trim(),
+                        password: this.webdavPass.value,
+                        provider: this.webdavProvider.value as any,
+                        updatedAt: Date.now()
+                    };
+                }
+            } else if (fullUrl && this.webdavUser.value.trim() && this.webdavPass.value) {
+                // 如果没有激活配置但填写了完整信息，创建新配置
+                const newConfig: import('../../../../types').WebDAVConfig = {
+                    id: `config_${Date.now()}`,
+                    name: '默认配置',
+                    url: fullUrl,
+                    username: this.webdavUser.value.trim(),
+                    password: this.webdavPass.value,
+                    provider: this.webdavProvider.value as any,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    lastSync: null
+                };
+                configs.push(newConfig);
+                
+                const newSettings: ExtensionSettings = {
+                    ...STATE.settings,
+                    webdav: {
+                        enabled: this.webdavEnabled.checked,
+                        url: fullUrl,
+                        username: this.webdavUser.value.trim(),
+                        password: this.webdavPass.value,
+                        autoSync: this.webdavAutoSync.checked,
+                        syncInterval: parseInt(this.webdavSyncInterval.value, 10),
+                        retentionDays: parseInt(this.webdavRetentionDays.value, 10),
+                        warningDays: parseInt(this.webdavWarningDays.value, 10),
+                        lastSync: STATE.settings?.webdav?.lastSync || null,
+                        backupRange: {
+                            coreData: this.webdavBackupCoreData.checked,
+                            actorData: this.webdavBackupActorData.checked,
+                            newWorksData: this.webdavBackupNewWorksData.checked,
+                            systemConfig: this.webdavBackupSystemConfig.checked,
+                            logsData: this.webdavBackupLogsData.checked
+                        },
+                        configs,
+                        activeConfigId: newConfig.id
+                    }
+                };
+
+                await saveSettings(newSettings);
+                STATE.settings = newSettings;
+                this.renderConfigList();
+                this.updateCurrentConfigHint();
+
+                // 设置定时器
+                chrome.runtime.sendMessage({ type: 'setup-alarms' });
+
+                return {
+                    success: true,
+                    savedSettings: { webdav: newSettings.webdav }
+                };
+            }
             
             const newSettings: ExtensionSettings = {
-                ...settings,
+                ...STATE.settings,
                 webdav: {
-                    ...settings.webdav,
                     enabled: this.webdavEnabled.checked,
+                    url: fullUrl,
+                    username: this.webdavUser.value.trim(),
+                    password: this.webdavPass.value,
                     autoSync: this.webdavAutoSync.checked,
                     syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                     retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                     warningDays: parseInt(this.webdavWarningDays.value, 10),
+                    lastSync: STATE.settings?.webdav?.lastSync || null,
                     backupRange: {
                         coreData: this.webdavBackupCoreData.checked,
                         actorData: this.webdavBackupActorData.checked,
                         newWorksData: this.webdavBackupNewWorksData.checked,
                         systemConfig: this.webdavBackupSystemConfig.checked,
                         logsData: this.webdavBackupLogsData.checked
-                    }
+                    },
+                    configs,
+                    activeConfigId
                 }
             };
 
             await saveSettings(newSettings);
             STATE.settings = newSettings;
+            this.renderConfigList();
+            this.updateCurrentConfigHint();
 
             // 设置定时器
             chrome.runtime.sendMessage({ type: 'setup-alarms' });
@@ -305,13 +363,21 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     protected doValidateSettings(): SettingsValidationResult {
         const errors: string[] = [];
+        const warnings: string[] = [];
 
         if (this.webdavEnabled.checked) {
-            const settings = STATE.settings;
-            const activeConfigId = settings?.webdav?.activeConfigId;
-            
-            if (!activeConfigId) {
-                errors.push('请先添加并选择一个 WebDAV 配置');
+            if (!this.webdavUrl.value.trim()) {
+                errors.push('WebDAV服务器地址不能为空');
+            } else if (!this.webdavUrl.value.startsWith('http')) {
+                errors.push('WebDAV服务器地址必须以http://或https://开头');
+            }
+
+            if (!this.webdavUser.value.trim()) {
+                errors.push('WebDAV用户名不能为空');
+            }
+
+            if (!this.webdavPass.value) {
+                errors.push('WebDAV密码不能为空');
             }
 
             const syncInterval = parseInt(this.webdavSyncInterval.value, 10);
@@ -329,6 +395,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 errors.push('未备份预警阈值必须在0-3650之间');
             }
 
+            // 验证至少选择一项备份内容
             const hasBackupContent = this.webdavBackupCoreData.checked ||
                                     this.webdavBackupActorData.checked ||
                                     this.webdavBackupNewWorksData.checked ||
@@ -342,7 +409,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
         return {
             isValid: errors.length === 0,
-            errors: errors.length > 0 ? errors : undefined
+            errors: errors.length > 0 ? errors : undefined,
+            warnings: warnings.length > 0 ? warnings : undefined
         };
     }
 
@@ -350,14 +418,20 @@ export class WebDAVSettings extends BaseSettingsPanel {
      * 获取当前设置
      */
     protected doGetSettings(): Partial<ExtensionSettings> {
+        // 合并基础地址和文件夹为完整 URL
+        const fullUrl = this.combineUrl(this.webdavUrl.value.trim(), this.webdavFolder.value.trim());
+        
         return {
             webdav: {
-                ...STATE.settings.webdav,
                 enabled: this.webdavEnabled.checked,
+                url: fullUrl,
+                username: this.webdavUser.value.trim(),
+                password: this.webdavPass.value,
                 autoSync: this.webdavAutoSync.checked,
                 syncInterval: parseInt(this.webdavSyncInterval.value, 10),
                 retentionDays: parseInt(this.webdavRetentionDays.value, 10),
                 warningDays: parseInt(this.webdavWarningDays.value, 10),
+                lastSync: STATE.settings?.webdav?.lastSync || '',
                 backupRange: {
                     coreData: this.webdavBackupCoreData.checked,
                     actorData: this.webdavBackupActorData.checked,
@@ -377,6 +451,19 @@ export class WebDAVSettings extends BaseSettingsPanel {
         if (webdav) {
             if (webdav.enabled !== undefined) {
                 this.webdavEnabled.checked = webdav.enabled;
+            }
+            if (webdav.url !== undefined) {
+                // 拆分 URL 为基础地址和文件夹
+                const { baseUrl, folder } = this.splitUrl(webdav.url);
+                this.webdavUrl.value = baseUrl;
+                this.webdavFolder.value = folder;
+                this.detectProviderFromUrl(baseUrl);
+            }
+            if (webdav.username !== undefined) {
+                this.webdavUser.value = webdav.username;
+            }
+            if (webdav.password !== undefined) {
+                this.webdavPass.value = webdav.password;
             }
             if (webdav.autoSync !== undefined) {
                 this.webdavAutoSync.checked = webdav.autoSync;
@@ -399,13 +486,13 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 this.webdavBackupLogsData.checked = range.logsData || false;
             }
             if (webdav.lastSync !== undefined) {
-                this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : '从未';
+                this.lastSyncTime.textContent = webdav.lastSync ? new Date(webdav.lastSync).toLocaleString() : 'Never';
             }
 
             this.updateWebDAVControlsState();
+            this.updateFieldsVisibility();
         }
     }
-
 
     /**
      * 处理保存设置按钮点击
@@ -413,6 +500,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
     private async handleSaveSettings(): Promise<void> {
         try {
             await this.saveSettings();
+            // 基类的 saveSettings 方法会自动显示成功消息，这里不需要重复显示
         } catch (error) {
             console.error('保存WebDAV设置失败:', error);
             showMessage('保存失败，请重试', 'error');
@@ -424,6 +512,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     private handleWebDAVEnabledChange(): void {
         this.updateWebDAVControlsState();
+        this.updateFieldsVisibility();
         this.emit('change');
 
         if (!this.webdavEnabled.checked) {
@@ -431,9 +520,6 @@ export class WebDAVSettings extends BaseSettingsPanel {
         }
     }
 
-    /**
-     * 处理自动同步状态变化
-     */
     private handleWebDAVAutoSyncChange(): void {
         this.emit('change');
         this.saveSettings().catch(() => {});
@@ -443,14 +529,6 @@ export class WebDAVSettings extends BaseSettingsPanel {
      * 处理备份数据范围变化
      */
     private handleBackupRangeChange(): void {
-        this.emit('change');
-        this.saveSettings().catch(() => {});
-    }
-
-    /**
-     * 处理输入框变化
-     */
-    private handleInputChange(): void {
         this.emit('change');
         this.saveSettings().catch(() => {});
     }
@@ -470,33 +548,42 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 更新字段显示/隐藏
+     */
+    private updateFieldsVisibility(): void {
+        const fieldsContainer = document.getElementById('webdav-fields-container') as HTMLDivElement;
+        if (fieldsContainer) {
+            fieldsContainer.style.display = this.webdavEnabled.checked ? 'block' : 'none';
+        }
+    }
+
+    /**
      * 处理测试WebDAV连接
      */
     private async handleTestWebDAV(): Promise<void> {
-        logAsync('INFO', '用户点击了"测试 WebDAV 连接"按钮');
+        logAsync('INFO', '用户点击了"测试 WebDAV 连接"按钮。');
         
         try {
-            const settings = STATE.settings;
-            const activeConfigId = settings?.webdav?.activeConfigId;
-            
-            if (!activeConfigId) {
-                showMessage('请先选择一个配置', 'warn');
-                return;
-            }
-
+            await this.saveSettings();
+            logAsync('INFO', '用户开始测试WebDAV连接');
             showMessage('正在测试连接...', 'info');
             this.testWebdavConnectionBtn.textContent = '连接测试中...';
             this.testWebdavConnectionBtn.disabled = true;
 
+            logAsync('INFO', '正在向后台发送WebDAV连接测试请求');
+
             chrome.runtime.sendMessage({ type: 'webdav-test' }, response => {
                 if (response && response.success) {
                     showMessage('🎉 WebDAV连接测试成功！服务器响应正常', 'success');
-                    logAsync('INFO', 'WebDAV连接测试成功');
+                    logAsync('INFO', 'WebDAV连接测试成功，服务器认证通过');
                 } else {
                     const errorMsg = response?.error || '未知错误';
                     const userFriendlyMsg = this.getErrorMessage(errorMsg);
                     showMessage(userFriendlyMsg, 'error');
-                    logAsync('ERROR', `WebDAV连接测试失败：${errorMsg}`);
+                    logAsync('ERROR', `WebDAV连接测试失败：${errorMsg}`, {
+                        originalError: errorMsg,
+                        userMessage: userFriendlyMsg
+                    });
                 }
 
                 this.testWebdavConnectionBtn.textContent = '测试连接';
@@ -514,20 +601,16 @@ export class WebDAVSettings extends BaseSettingsPanel {
      * 处理诊断WebDAV连接
      */
     private async handleDiagnoseWebDAV(): Promise<void> {
-        logAsync('INFO', '用户点击了"诊断 WebDAV 连接"按钮');
+        logAsync('INFO', '用户点击了"诊断 WebDAV 连接"按钮。');
         
         try {
-            const settings = STATE.settings;
-            const activeConfigId = settings?.webdav?.activeConfigId;
-            
-            if (!activeConfigId) {
-                showMessage('请先选择一个配置', 'warn');
-                return;
-            }
-
+            await this.saveSettings();
+            logAsync('INFO', '用户开始诊断WebDAV连接');
             showMessage('正在进行详细诊断...', 'info');
             this.diagnoseWebdavConnectionBtn.textContent = '诊断中...';
             this.diagnoseWebdavConnectionBtn.disabled = true;
+
+            logAsync('INFO', '正在向后台发送WebDAV诊断请求');
 
             chrome.runtime.sendMessage({ type: 'webdav-diagnose' }, response => {
                 if (response && response.success) {
@@ -612,6 +695,221 @@ export class WebDAVSettings extends BaseSettingsPanel {
         return resultMessage;
     }
 
+    /**
+     * 处理密码可见性切换
+     */
+    private handleTogglePasswordVisibility(): void {
+        const isPassword = this.webdavPass.type === 'password';
+        this.webdavPass.type = isPassword ? 'text' : 'password';
+
+        const icon = this.toggleWebdavPasswordVisibilityBtn.querySelector('i');
+        if (icon) {
+            icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+        }
+
+        // 更新按钮标题
+        this.toggleWebdavPasswordVisibilityBtn.title = isPassword ? '隐藏密码' : '显示密码';
+    }
+
+    /**
+     * 处理输入框变化（同步间隔、保留天数、预警阈值）
+     */
+    private handleInputChange(): void {
+        this.emit('change');
+        this.saveSettings().catch(() => {});
+    }
+
+    /**
+     * 复制完整 WebDAV 地址
+     */
+    private handleCopyFullUrl(): void {
+        const fullUrl = this.combineUrl(this.webdavUrl.value.trim(), this.webdavFolder.value.trim());
+        if (!fullUrl) {
+            showMessage('地址为空，无法复制', 'warn');
+            return;
+        }
+
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            showMessage('✓ 已复制完整地址', 'success');
+            logAsync('INFO', '用户复制了 WebDAV 完整地址');
+        }).catch(() => {
+            showMessage('复制失败，请手动复制', 'error');
+        });
+    }
+
+    /**
+     * 复制用户名
+     */
+    private handleCopyUser(): void {
+        const username = this.webdavUser.value.trim();
+        if (!username) {
+            showMessage('用户名为空，无法复制', 'warn');
+            return;
+        }
+
+        navigator.clipboard.writeText(username).then(() => {
+            showMessage('✓ 已复制用户名', 'success');
+            logAsync('INFO', '用户复制了 WebDAV 用户名');
+        }).catch(() => {
+            showMessage('复制失败，请手动复制', 'error');
+        });
+    }
+
+    /**
+     * 复制密码
+     */
+    private handleCopyPass(): void {
+        const password = this.webdavPass.value;
+        if (!password) {
+            showMessage('密码为空，无法复制', 'warn');
+            return;
+        }
+
+        navigator.clipboard.writeText(password).then(() => {
+            showMessage('✓ 已复制密码', 'success');
+            logAsync('INFO', '用户复制了 WebDAV 密码');
+        }).catch(() => {
+            showMessage('复制失败，请手动复制', 'error');
+        });
+    }
+
+    /**
+     * 处理厂商选择变化
+     */
+    private handleProviderChange(): void {
+        const provider = this.webdavProvider.value;
+        
+        // 根据厂商预设 URL
+        switch (provider) {
+            case 'jianguoyun':
+                this.webdavUrl.value = 'https://dav.jianguoyun.com/dav/';
+                showMessage('已自动填充坚果云服务器地址', 'info');
+                break;
+            case 'teracloud':
+                this.webdavUrl.value = 'https://ogi.teracloud.jp/dav/';
+                showMessage('已自动填充 TeraCloud 服务器地址', 'info');
+                break;
+            case 'custom':
+                // 自定义模式，不修改 URL
+                break;
+        }
+        
+        this.emit('change');
+    }
+
+    /**
+     * 根据 URL 自动识别厂商
+     */
+    private detectProviderFromUrl(url: string): void {
+        if (!url) {
+            this.webdavProvider.value = 'custom';
+            return;
+        }
+
+        if (url.includes('jianguoyun.com')) {
+            this.webdavProvider.value = 'jianguoyun';
+        } else if (url.includes('teracloud.jp')) {
+            this.webdavProvider.value = 'teracloud';
+        } else {
+            this.webdavProvider.value = 'custom';
+        }
+    }
+
+    /**
+     * 拆分完整 URL 为基础地址和文件夹
+     * 例如: https://ogi.teracloud.jp/dav/javjav -> { baseUrl: 'https://ogi.teracloud.jp/dav/', folder: 'javjav' }
+     */
+    private splitUrl(fullUrl: string): { baseUrl: string; folder: string } {
+        if (!fullUrl) {
+            return { baseUrl: '', folder: '' };
+        }
+
+        // 识别已知厂商的基础路径
+        const knownBases = [
+            'https://dav.jianguoyun.com/dav/',
+            'https://ogi.teracloud.jp/dav/'
+        ];
+
+        for (const base of knownBases) {
+            if (fullUrl.startsWith(base)) {
+                const folder = fullUrl.substring(base.length).replace(/\/$/, ''); // 移除末尾斜杠
+                return { baseUrl: base, folder };
+            }
+        }
+
+        // 自定义 URL：尝试智能拆分
+        // 如果 URL 以 /dav/ 结尾，认为是基础地址
+        if (fullUrl.endsWith('/dav/')) {
+            return { baseUrl: fullUrl, folder: '' };
+        }
+
+        // 查找最后一个 /dav/ 的位置
+        const davIndex = fullUrl.lastIndexOf('/dav/');
+        if (davIndex !== -1) {
+            const baseUrl = fullUrl.substring(0, davIndex + 5); // 包含 /dav/
+            const folder = fullUrl.substring(davIndex + 5).replace(/\/$/, '');
+            return { baseUrl, folder };
+        }
+
+        // 如果没有 /dav/，尝试找最后一个目录分隔符
+        const lastSlashIndex = fullUrl.lastIndexOf('/');
+        if (lastSlashIndex > 8) { // 确保不是协议部分的斜杠
+            const possibleBase = fullUrl.substring(0, lastSlashIndex + 1);
+            const possibleFolder = fullUrl.substring(lastSlashIndex + 1);
+            
+            // 如果可能的文件夹部分不包含点（不像是域名），则拆分
+            if (possibleFolder && !possibleFolder.includes('.')) {
+                return { baseUrl: possibleBase, folder: possibleFolder };
+            }
+        }
+
+        // 无法拆分，全部作为基础地址
+        return { baseUrl: fullUrl, folder: '' };
+    }
+
+    /**
+     * 合并基础地址和文件夹为完整 URL
+     */
+    private combineUrl(baseUrl: string, folder: string): string {
+        if (!baseUrl) {
+            return '';
+        }
+
+        if (!folder) {
+            return baseUrl;
+        }
+
+        // 确保基础地址以斜杠结尾
+        const normalizedBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+        // 移除文件夹开头和结尾的斜杠
+        const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
+        
+        return normalizedBase + normalizedFolder;
+    }
+
+    /**
+     * 更新当前配置提示
+     */
+    private updateCurrentConfigHint(): void {
+        const settings = STATE.settings;
+        const activeConfigId = settings?.webdav?.activeConfigId;
+        const configs = settings?.webdav?.configs || [];
+        const activeConfig = configs.find(c => c.id === activeConfigId);
+
+        if (activeConfig) {
+            this.webdavCurrentConfigHint.style.display = 'flex';
+            this.webdavCurrentConfigText.textContent = `当前编辑：${activeConfig.name}`;
+            
+            // 更新保存按钮文案
+            this.saveWebdavSettingsBtn.innerHTML = `<i class="fas fa-save"></i> 保存并更新：${activeConfig.name}`;
+        } else {
+            this.webdavCurrentConfigHint.style.display = 'none';
+            this.webdavCurrentConfigText.textContent = '当前编辑：无配置';
+            
+            // 恢复默认按钮文案
+            this.saveWebdavSettingsBtn.innerHTML = '<i class="fas fa-save"></i> 保存设置';
+        }
+    }
 
     /**
      * 渲染配置列表
@@ -688,7 +986,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
                 const configId = configItem?.dataset.configId;
                 
                 if (action === 'edit' && configId) {
-                    this.openConfigModal('edit', configId);
+                    this.handleEditConfig(configId);
                 } else if (action === 'delete' && configId) {
                     this.handleDeleteConfig(configId);
                 }
@@ -697,121 +995,47 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     /**
-     * 打开配置弹窗
+     * 添加新配置
+     * 使用当前表单的数据创建新配置并切换到该配置
      */
-    private openConfigModal(mode: 'add' | 'edit', configId?: string): void {
-        this.currentEditingConfigId = mode === 'edit' && configId ? configId : null;
-        
-        // 设置标题
-        this.webdavConfigModalTitle.textContent = mode === 'add' ? '添加配置' : '编辑配置';
-        
-        // 清空或填充表单
-        if (mode === 'add') {
-            this.modalConfigName.value = '';
-            this.modalWebdavUrl.value = '';
-            this.modalWebdavFolder.value = '';
-            this.modalWebdavUser.value = '';
-            this.modalWebdavPass.value = '';
-            this.modalWebdavProvider.value = 'custom';
-        } else if (mode === 'edit' && configId) {
-            const settings = STATE.settings;
-            const configs = settings?.webdav?.configs || [];
-            const config = configs.find(c => c.id === configId);
-            
-            if (config) {
-                this.modalConfigName.value = config.name;
-                const { baseUrl, folder } = this.splitUrl(config.url);
-                this.modalWebdavUrl.value = baseUrl;
-                this.modalWebdavFolder.value = folder;
-                this.modalWebdavUser.value = config.username;
-                this.modalWebdavPass.value = config.password;
-                this.modalWebdavProvider.value = config.provider || 'custom';
-            }
-        }
-        
-        // 显示弹窗
-        this.webdavConfigModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
+    private handleAddConfig(): void {
+        const fullUrl = this.combineUrl(this.webdavUrl.value.trim(), this.webdavFolder.value.trim());
+        const username = this.webdavUser.value.trim();
+        const password = this.webdavPass.value;
 
-    /**
-     * 关闭配置弹窗
-     */
-    private closeConfigModal(): void {
-        this.webdavConfigModal.style.display = 'none';
-        document.body.style.overflow = '';
-        this.currentEditingConfigId = null;
-    }
+        if (!fullUrl || !username || !password) {
+            showMessage('请先填写完整的 WebDAV 配置信息（地址、用户名、密码）', 'warn');
+            return;
+        }
 
-    /**
-     * 保存配置弹窗
-     */
-    private handleSaveConfigModal(): void {
-        const name = this.modalConfigName.value.trim();
-        const fullUrl = this.combineUrl(this.modalWebdavUrl.value.trim(), this.modalWebdavFolder.value.trim());
-        const username = this.modalWebdavUser.value.trim();
-        const password = this.modalWebdavPass.value;
-        const provider = this.modalWebdavProvider.value as 'jianguoyun' | 'teracloud' | 'custom';
+        const name = prompt('请输入配置名称：', '新配置');
+        if (!name || !name.trim()) {
+            return;
+        }
 
-        // 验证
-        if (!name) {
-            showMessage('请输入配置名称', 'warn');
-            return;
-        }
-        if (!fullUrl) {
-            showMessage('请输入 WebDAV 地址', 'warn');
-            return;
-        }
-        if (!username) {
-            showMessage('请输入用户名', 'warn');
-            return;
-        }
-        if (!password) {
-            showMessage('请输入密码', 'warn');
-            return;
-        }
+        const newConfig: import('../../../../types').WebDAVConfig = {
+            id: `config_${Date.now()}`,
+            name: name.trim(),
+            url: fullUrl,
+            username,
+            password,
+            provider: this.webdavProvider.value as any,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            lastSync: null
+        };
 
         const settings = STATE.settings;
         const configs = settings?.webdav?.configs || [];
-
-        if (this.currentEditingConfigId) {
-            // 编辑模式
-            const configIndex = configs.findIndex(c => c.id === this.currentEditingConfigId);
-            if (configIndex !== -1) {
-                configs[configIndex] = {
-                    ...configs[configIndex],
-                    name,
-                    url: fullUrl,
-                    username,
-                    password,
-                    provider,
-                    updatedAt: Date.now()
-                };
-            }
-        } else {
-            // 添加模式
-            const newConfig: WebDAVConfig = {
-                id: `config_${Date.now()}`,
-                name,
-                url: fullUrl,
-                username,
-                password,
-                provider,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                lastSync: null
-            };
-            configs.push(newConfig);
-        }
+        configs.push(newConfig);
 
         const newSettings: ExtensionSettings = {
             ...settings,
             webdav: {
                 ...settings.webdav,
                 configs,
-                // 如果是添加新配置，自动激活它
-                activeConfigId: this.currentEditingConfigId || `config_${Date.now()}`,
-                // 更新主配置
+                activeConfigId: newConfig.id,
+                // 同步更新主配置
                 url: fullUrl,
                 username,
                 password
@@ -821,12 +1045,74 @@ export class WebDAVSettings extends BaseSettingsPanel {
         saveSettings(newSettings).then(() => {
             STATE.settings = newSettings;
             this.renderConfigList();
-            this.closeConfigModal();
-            showMessage(this.currentEditingConfigId ? '✓ 配置已更新' : '✓ 配置已添加', 'success');
-            logAsync('INFO', this.currentEditingConfigId ? '用户更新了 WebDAV 配置' : '用户添加了 WebDAV 配置', { name });
+            this.updateCurrentConfigHint();
+            showMessage(`✓ 配置"${newConfig.name}"已创建并激活`, 'success');
+            logAsync('INFO', '用户添加了新的 WebDAV 配置', { name: newConfig.name });
         }).catch(() => {
             showMessage('保存配置失败', 'error');
         });
+    }
+
+    /**
+     * 迁移旧版本配置
+     */
+    private async migrateOldConfig(): Promise<void> {
+        const settings = STATE.settings;
+        const webdav = settings?.webdav;
+
+        if (!webdav || !webdav.url || !webdav.username) {
+            return;
+        }
+
+        logAsync('INFO', '检测到旧版本 WebDAV 配置，开始迁移');
+
+        const oldConfig: import('../../../../types').WebDAVConfig = {
+            id: `config_${Date.now()}`,
+            name: '默认配置',
+            url: webdav.url,
+            username: webdav.username,
+            password: webdav.password || '',
+            provider: this.detectProviderType(webdav.url),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            lastSync: webdav.lastSync || null
+        };
+
+        const newSettings = {
+            ...settings,
+            webdav: {
+                ...webdav,
+                configs: [oldConfig],
+                activeConfigId: oldConfig.id
+            }
+        };
+
+        try {
+            await saveSettings(newSettings);
+            STATE.settings = newSettings;
+            this.renderConfigList();
+            this.updateCurrentConfigHint();
+            logAsync('INFO', '旧版本 WebDAV 配置迁移成功');
+            showMessage('✓ 已自动迁移旧配置', 'success');
+            
+            // 重新加载设置
+            await this.loadSettings();
+        } catch (error) {
+            logAsync('ERROR', '旧版本 WebDAV 配置迁移失败', { error });
+            showMessage('配置迁移失败', 'error');
+        }
+    }
+
+    /**
+     * 根据 URL 检测厂商类型
+     */
+    private detectProviderType(url: string): 'jianguoyun' | 'teracloud' | 'custom' {
+        if (url.includes('jianguoyun.com')) {
+            return 'jianguoyun';
+        } else if (url.includes('teracloud.jp')) {
+            return 'teracloud';
+        }
+        return 'custom';
     }
 
     /**
@@ -842,7 +1128,16 @@ export class WebDAVSettings extends BaseSettingsPanel {
             return;
         }
 
-        const newSettings: ExtensionSettings = {
+        // 更新当前表单
+        const { baseUrl, folder } = this.splitUrl(config.url);
+        this.webdavUrl.value = baseUrl;
+        this.webdavFolder.value = folder;
+        this.webdavUser.value = config.username;
+        this.webdavPass.value = config.password;
+        this.detectProviderFromUrl(baseUrl);
+
+        // 保存激活的配置ID和当前配置到主配置
+        const newSettings = {
             ...settings,
             webdav: {
                 ...settings.webdav,
@@ -857,10 +1152,51 @@ export class WebDAVSettings extends BaseSettingsPanel {
         saveSettings(newSettings).then(() => {
             STATE.settings = newSettings;
             this.renderConfigList();
+            this.updateCurrentConfigHint();
             showMessage('✓ 已切换到配置：' + config.name, 'success');
             logAsync('INFO', '用户切换了 WebDAV 配置', { name: config.name });
         }).catch(() => {
             showMessage('切换配置失败', 'error');
+        });
+    }
+
+    /**
+     * 编辑配置
+     */
+    private handleEditConfig(configId: string): void {
+        const settings = STATE.settings;
+        const configs = settings?.webdav?.configs || [];
+        const config = configs.find(c => c.id === configId);
+
+        if (!config) {
+            showMessage('配置不存在', 'error');
+            return;
+        }
+
+        const newName = prompt('请输入新的配置名称：', config.name);
+        if (!newName || !newName.trim()) {
+            return;
+        }
+
+        config.name = newName.trim();
+        config.updatedAt = Date.now();
+
+        const newSettings = {
+            ...settings,
+            webdav: {
+                ...settings.webdav,
+                configs: [...configs]
+            }
+        };
+
+        saveSettings(newSettings).then(() => {
+            STATE.settings = newSettings;
+            this.renderConfigList();
+            this.updateCurrentConfigHint();
+            showMessage('✓ 配置已更新', 'success');
+            logAsync('INFO', '用户编辑了 WebDAV 配置', { name: config.name });
+        }).catch(() => {
+            showMessage('更新配置失败', 'error');
         });
     }
 
@@ -887,9 +1223,27 @@ export class WebDAVSettings extends BaseSettingsPanel {
         // 如果删除的是当前激活的配置，切换到第一个配置
         if (configId === newActiveConfigId) {
             newActiveConfigId = newConfigs.length > 0 ? newConfigs[0].id : undefined;
+            
+            // 更新表单为新的激活配置
+            if (newConfigs.length > 0) {
+                const newActiveConfig = newConfigs[0];
+                const { baseUrl, folder } = this.splitUrl(newActiveConfig.url);
+                this.webdavUrl.value = baseUrl;
+                this.webdavFolder.value = folder;
+                this.webdavUser.value = newActiveConfig.username;
+                this.webdavPass.value = newActiveConfig.password;
+                this.detectProviderFromUrl(baseUrl);
+            } else {
+                // 清空表单
+                this.webdavUrl.value = '';
+                this.webdavFolder.value = '';
+                this.webdavUser.value = '';
+                this.webdavPass.value = '';
+                this.webdavProvider.value = 'custom';
+            }
         }
 
-        const newSettings: ExtensionSettings = {
+        const newSettings = {
             ...settings,
             webdav: {
                 ...settings.webdav,
@@ -904,220 +1258,12 @@ export class WebDAVSettings extends BaseSettingsPanel {
         saveSettings(newSettings).then(() => {
             STATE.settings = newSettings;
             this.renderConfigList();
+            this.updateCurrentConfigHint();
             showMessage('✓ 配置已删除', 'success');
             logAsync('INFO', '用户删除了 WebDAV 配置', { name: config.name });
         }).catch(() => {
             showMessage('删除配置失败', 'error');
         });
-    }
-
-    /**
-     * 迁移旧版本配置
-     */
-    private async migrateOldConfig(): Promise<void> {
-        const settings = STATE.settings;
-        const webdav = settings?.webdav;
-
-        if (!webdav || !webdav.url || !webdav.username) {
-            return;
-        }
-
-        logAsync('INFO', '检测到旧版本 WebDAV 配置，开始迁移');
-
-        const oldConfig: WebDAVConfig = {
-            id: `config_${Date.now()}`,
-            name: '默认配置',
-            url: webdav.url,
-            username: webdav.username,
-            password: webdav.password || '',
-            provider: this.detectProviderType(webdav.url),
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            lastSync: webdav.lastSync || null
-        };
-
-        const newSettings: ExtensionSettings = {
-            ...settings,
-            webdav: {
-                ...webdav,
-                configs: [oldConfig],
-                activeConfigId: oldConfig.id
-            }
-        };
-
-        try {
-            await saveSettings(newSettings);
-            STATE.settings = newSettings;
-            this.renderConfigList();
-            logAsync('INFO', '旧版本 WebDAV 配置迁移成功');
-            showMessage('✓ 已自动迁移旧配置', 'success');
-            
-            await this.loadSettings();
-        } catch (error) {
-            logAsync('ERROR', '旧版本 WebDAV 配置迁移失败', { error });
-            showMessage('配置迁移失败', 'error');
-        }
-    }
-
-    /**
-     * 根据 URL 检测厂商类型
-     */
-    private detectProviderType(url: string): 'jianguoyun' | 'teracloud' | 'custom' {
-        if (url.includes('jianguoyun.com')) {
-            return 'jianguoyun';
-        } else if (url.includes('teracloud.jp')) {
-            return 'teracloud';
-        }
-        return 'custom';
-    }
-
-
-    /**
-     * 处理弹窗内厂商选择变化
-     */
-    private handleModalProviderChange(): void {
-        const provider = this.modalWebdavProvider.value;
-        
-        switch (provider) {
-            case 'jianguoyun':
-                this.modalWebdavUrl.value = 'https://dav.jianguoyun.com/dav/';
-                showMessage('已自动填充坚果云服务器地址', 'info');
-                break;
-            case 'teracloud':
-                this.modalWebdavUrl.value = 'https://ogi.teracloud.jp/dav/';
-                showMessage('已自动填充 TeraCloud 服务器地址', 'info');
-                break;
-            case 'custom':
-                break;
-        }
-    }
-
-    /**
-     * 处理弹窗内密码可见性切换
-     */
-    private handleModalTogglePasswordVisibility(): void {
-        const isPassword = this.modalWebdavPass.type === 'password';
-        this.modalWebdavPass.type = isPassword ? 'text' : 'password';
-
-        const icon = this.modalToggleWebdavPasswordVisibilityBtn.querySelector('i');
-        if (icon) {
-            icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
-        }
-
-        this.modalToggleWebdavPasswordVisibilityBtn.title = isPassword ? '隐藏密码' : '显示密码';
-    }
-
-    /**
-     * 复制弹窗内的完整 WebDAV 地址
-     */
-    private handleModalCopyFullUrl(): void {
-        const fullUrl = this.combineUrl(this.modalWebdavUrl.value.trim(), this.modalWebdavFolder.value.trim());
-        if (!fullUrl) {
-            showMessage('地址为空，无法复制', 'warn');
-            return;
-        }
-
-        navigator.clipboard.writeText(fullUrl).then(() => {
-            showMessage('✓ 已复制完整地址', 'success');
-        }).catch(() => {
-            showMessage('复制失败，请手动复制', 'error');
-        });
-    }
-
-    /**
-     * 复制弹窗内的用户名
-     */
-    private handleModalCopyUser(): void {
-        const username = this.modalWebdavUser.value.trim();
-        if (!username) {
-            showMessage('用户名为空，无法复制', 'warn');
-            return;
-        }
-
-        navigator.clipboard.writeText(username).then(() => {
-            showMessage('✓ 已复制用户名', 'success');
-        }).catch(() => {
-            showMessage('复制失败，请手动复制', 'error');
-        });
-    }
-
-    /**
-     * 复制弹窗内的密码
-     */
-    private handleModalCopyPass(): void {
-        const password = this.modalWebdavPass.value;
-        if (!password) {
-            showMessage('密码为空，无法复制', 'warn');
-            return;
-        }
-
-        navigator.clipboard.writeText(password).then(() => {
-            showMessage('✓ 已复制密码', 'success');
-        }).catch(() => {
-            showMessage('复制失败，请手动复制', 'error');
-        });
-    }
-
-    /**
-     * 拆分完整 URL 为基础地址和文件夹
-     */
-    private splitUrl(fullUrl: string): { baseUrl: string; folder: string } {
-        if (!fullUrl) {
-            return { baseUrl: '', folder: '' };
-        }
-
-        const knownBases = [
-            'https://dav.jianguoyun.com/dav/',
-            'https://ogi.teracloud.jp/dav/'
-        ];
-
-        for (const base of knownBases) {
-            if (fullUrl.startsWith(base)) {
-                const folder = fullUrl.substring(base.length).replace(/\/$/, '');
-                return { baseUrl: base, folder };
-            }
-        }
-
-        if (fullUrl.endsWith('/dav/')) {
-            return { baseUrl: fullUrl, folder: '' };
-        }
-
-        const davIndex = fullUrl.lastIndexOf('/dav/');
-        if (davIndex !== -1) {
-            const baseUrl = fullUrl.substring(0, davIndex + 5);
-            const folder = fullUrl.substring(davIndex + 5).replace(/\/$/, '');
-            return { baseUrl, folder };
-        }
-
-        const lastSlashIndex = fullUrl.lastIndexOf('/');
-        if (lastSlashIndex > 8) {
-            const possibleBase = fullUrl.substring(0, lastSlashIndex + 1);
-            const possibleFolder = fullUrl.substring(lastSlashIndex + 1);
-            
-            if (possibleFolder && !possibleFolder.includes('.')) {
-                return { baseUrl: possibleBase, folder: possibleFolder };
-            }
-        }
-
-        return { baseUrl: fullUrl, folder: '' };
-    }
-
-    /**
-     * 合并基础地址和文件夹为完整 URL
-     */
-    private combineUrl(baseUrl: string, folder: string): string {
-        if (!baseUrl) {
-            return '';
-        }
-
-        if (!folder) {
-            return baseUrl;
-        }
-
-        const normalizedBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-        const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
-        
-        return normalizedBase + normalizedFolder;
     }
 
     /**
