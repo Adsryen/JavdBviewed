@@ -1019,6 +1019,7 @@
                                     <button type="button" class="subtab-link" data-subtab="list">列表页增强</button>
                                     <button type="button" class="subtab-link" data-subtab="video">影片页增强</button>
                                     <button type="button" class="subtab-link" data-subtab="actor">演员页增强</button>
+                                    <button type="button" class="subtab-link" data-subtab="other">其他增强</button>
                                     <span style="flex:1"></span>
                                     <button type="button" id="showOrchestratorBtn" class="button-like" title="查看当前页面功能编排">编排可视化</button>
                                 </div>
@@ -1040,6 +1041,7 @@
                                     <input type="checkbox" id="enableActorWatermark">
                                     <input type="checkbox" id="enableActorEnhancement">
                                     <input type="checkbox" id="enableVideoEnhancement">
+                                    <input type="checkbox" id="enablePasswordHelper">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewBreaker">
@@ -1758,6 +1760,63 @@
                                     </div>
 
                                     
+                                </div>
+
+                                <!-- 其他增强 -->
+                                <div class="settings-section">
+                                    <!-- 密码显示助手 -->
+                                    <div class="form-group" data-subtab="other">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🔑 密码显示助手</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enablePasswordHelper"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在所有网站的密码框上显示星号密码，避免忘记或输错密码<br>
+                                            <strong>使用：</strong>根据设置的显示方式（悬浮/单击/双击/Ctrl+单击）查看密码框中的内容
+                                        </p>
+
+                                        <!-- 密码显示助手详细配置 -->
+                                        <div class="sub-settings" id="passwordHelperConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🔑 密码显示配置</h5>
+                                                <p class="sub-description">自定义密码显示的触发方式和等待时间。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="passwordShowMethod">显示密码方式：</label>
+                                                <select id="passwordShowMethod" class="select-input">
+                                                    <option value="0">鼠标悬浮在密码框上时</option>
+                                                    <option value="1">双击密码框时</option>
+                                                    <option value="2">单击密码框时</option>
+                                                    <option value="3">按下Ctrl并单击密码框时</option>
+                                                </select>
+                                                <p class="input-description">选择触发密码显示的方式，默认为鼠标悬浮。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="passwordWaitTime">等待时间 (毫秒)：</label>
+                                                <input type="number" id="passwordWaitTime" class="number-input" min="0" max="2000" step="50" value="300">
+                                                <p class="input-description">鼠标悬浮模式下，悬停多久后显示密码（仅悬浮模式有效）。</p>
+                                            </div>
+
+                                            <div class="info-box">
+                                                <p><strong>功能说明：</strong></p>
+                                                <ul>
+                                                    <li>🔒 <strong>安全提示：</strong>此功能会在页面上显示密码明文，请注意使用环境</li>
+                                                    <li>⌨️ <strong>快捷键：</strong>在密码框中按 Enter 键可快速隐藏密码</li>
+                                                    <li>🌐 <strong>全局生效：</strong>此功能在所有网站的密码输入框上生效</li>
+                                                    <li>🔄 <strong>自动隐藏：</strong>失去焦点或鼠标移开时自动隐藏密码</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- 开发中 -->

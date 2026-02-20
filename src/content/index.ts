@@ -25,6 +25,7 @@ import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
 import { actorExtraInfoService } from '../services/actorRemarks';
 import { waitForElement } from './utils';
+import { PasswordHelper } from './passwordHelper';
 
 // 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
 let currentVolume: number = 0.2;
@@ -499,6 +500,19 @@ async function initialize(): Promise<void> {
                 log('Failed to initialize Emby enhancement:', error as any);
             }
         }, { label: 'embyEnhancement:init', idle: true, delayMs: 3000 });
+    }
+
+    // 初始化密码显示助手（全局生效）
+    if (settings.userExperience.enablePasswordHelper) {
+        const passwordHelperConfig = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
+        const passwordHelper = new PasswordHelper(
+            passwordHelperConfig.showMethod || 0,
+            passwordHelperConfig.waitTime || 300
+        );
+        initOrchestrator.add('deferred', () => {
+            passwordHelper.init();
+            log('Password helper initialized');
+        }, { label: 'passwordHelper:init', idle: true, delayMs: 1000 });
     }
 
     // 隐私保护功能已通过编排器在 high 阶段初始化

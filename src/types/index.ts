@@ -125,6 +125,13 @@ export interface ExtensionSettings {
         enableListEnhancement: boolean; // 启用列表增强
         enableActorEnhancement: boolean; // 启用演员页增强
         showEnhancedTooltips: boolean; // 显示增强提示
+        enablePasswordHelper: boolean; // 启用密码显示助手
+    };
+
+    // 新增：密码助手配置
+    passwordHelper?: {
+        showMethod: number; // 显示方式：0=悬浮, 1=双击, 2=单击, 3=Ctrl+单击
+        waitTime: number; // 等待时间（毫秒）
     };
 
     // 磁力资源搜索配置

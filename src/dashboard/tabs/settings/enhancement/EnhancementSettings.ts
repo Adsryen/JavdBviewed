@@ -28,6 +28,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableListEnhancement!: HTMLInputElement;
     private enableActorEnhancement!: HTMLInputElement;
     private enableVideoEnhancement!: HTMLInputElement;
+    private enablePasswordHelper!: HTMLInputElement;
+
+    // 密码助手配置元素
+    private passwordShowMethod!: HTMLSelectElement;
+    private passwordWaitTime!: HTMLInputElement;
 
     // 影片页增强子项
     private veEnableCoverImage!: HTMLInputElement;
@@ -302,6 +307,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableListEnhancement = document.getElementById('enableListEnhancement') as HTMLInputElement;
         this.enableActorEnhancement = document.getElementById('enableActorEnhancement') as HTMLInputElement;
         this.enableVideoEnhancement = document.getElementById('enableVideoEnhancement') as HTMLInputElement;
+        this.enablePasswordHelper = document.getElementById('enablePasswordHelper') as HTMLInputElement;
+
+        // 密码助手配置元素
+        this.passwordShowMethod = document.getElementById('passwordShowMethod') as HTMLSelectElement;
+        this.passwordWaitTime = document.getElementById('passwordWaitTime') as HTMLInputElement;
 
         // 演员页增强配置（在动态生成后查询）
         this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
@@ -1185,6 +1195,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (userExperience.enableActorEnhancement !== undefined) {
             this.enableActorEnhancement.checked = userExperience.enableActorEnhancement;
         }
+        if (userExperience.enablePasswordHelper !== undefined) {
+            this.enablePasswordHelper.checked = userExperience.enablePasswordHelper;
+        }
+
+        // 密码助手配置
+        const passwordHelper = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
+        if (this.passwordShowMethod) this.passwordShowMethod.value = String(passwordHelper.showMethod || 0);
+        if (this.passwordWaitTime) this.passwordWaitTime.value = String(passwordHelper.waitTime || 300);
 
         // 磁力搜索配置
         const magnetSearch = (settings as any).magnetSearch || {};
@@ -1443,6 +1461,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 与派生的演员页增强状态保持一致
                     enableActorEnhancement: actorEnabledDerived,
                     showEnhancedTooltips: false, // 开发中，强制禁用
+                    enablePasswordHelper: this.enablePasswordHelper?.checked === true,
+                },
+                passwordHelper: {
+                    showMethod: parseInt(this.passwordShowMethod?.value || '0', 10),
+                    waitTime: parseInt(this.passwordWaitTime?.value || '300', 10),
                 },
                 anchorOptimization: {
                     enabled: this.enableAnchorOptimization.checked,
@@ -1523,6 +1546,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableListEnhancement: this.enableListEnhancement.checked,
                 enableActorEnhancement: this.enableActorEnhancement.checked,
                 showEnhancedTooltips: false,
+                enablePasswordHelper: this.enablePasswordHelper?.checked === true,
+            },
+            passwordHelper: {
+                showMethod: parseInt(this.passwordShowMethod?.value || '0', 10),
+                waitTime: parseInt(this.passwordWaitTime?.value || '300', 10),
             },
             listEnhancement: {
                 enabled: this.enableListEnhancement.checked,
@@ -2534,8 +2562,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 切换子标签显示
      */
-    private switchSubtab(sub: 'list' | 'video' | 'actor'): void {
-        this.currentSubtab = sub;
+    private switchSubtab(sub: 'list' | 'video' | 'actor' | 'other'): void {
+        this.currentSubtab = sub as any;
         try { localStorage.setItem('enhancementSubtab', sub); } catch {}
 
         // 更新按钮状态
