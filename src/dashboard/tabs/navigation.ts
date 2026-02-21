@@ -89,14 +89,19 @@ export async function initTabs(): Promise<void> {
     // 解析当前 hash，支持二级路径
     const fullHash = window.location.hash.substring(1) || 'tab-home';
     const [mainTab, subSection] = fullHash.split('/');
+    
+    // 如果是设置页的子页面，激活设置标签并加载对应页面
+    if (mainTab === 'tab-settings' && subSection) {
+      const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
+      switchTab(settingsTab);
+      await mountTabIfNeeded('tab-settings');
+      await initializeTabById('tab-settings');
+      return;
+    }
+    
     const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
     switchTab(targetTab || ((tabs && tabs.length > 0) ? tabs[0] : null));
     await mountTabIfNeeded(mainTab);
-
-    // 如果是设置页且有子页面，保存子页面信息供设置页初始化时使用
-    if (mainTab === 'tab-settings' && subSection) {
-      (window as any).initialSettingsSection = subSection;
-    }
 
     await initializeTabById(mainTab);
     if (mainTab === 'tab-home') {
@@ -118,6 +123,18 @@ export async function initTabs(): Promise<void> {
       const newHash = window.location.hash.substring(1) || 'tab-home';
       const [newMainTab, newSubSection] = newHash.split('/');
 
+      // 如果是设置页（无论是否有子页面），激活设置标签并加载对应页面
+      if (newMainTab === 'tab-settings') {
+        const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
+        const currentActiveTab = document.querySelector('.tab-link.active');
+        if (currentActiveTab !== settingsTab) {
+          switchTab(settingsTab);
+        }
+        await mountTabIfNeeded('tab-settings');
+        await initializeTabById('tab-settings');
+        return;
+      }
+
       const currentActiveTab = document.querySelector('.tab-link.active');
       const currentTabId = currentActiveTab?.getAttribute('data-tab');
 
@@ -132,12 +149,6 @@ export async function initTabs(): Promise<void> {
       await initializeTabById(newMainTab);
       if (newMainTab === 'tab-home') {
         try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
-      }
-
-      if (newMainTab === 'tab-settings' && newSubSection) {
-        window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
-          detail: { section: newSubSection }
-        }));
       }
     });
   } catch (error) {
