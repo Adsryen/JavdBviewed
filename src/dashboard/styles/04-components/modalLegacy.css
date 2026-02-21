@@ -298,45 +298,103 @@ body.modal-open {
 .modal-content.data-view-modal {
     background: var(--surface-primary) !important;
     color: var(--text-primary);
-    padding: 0; /* 使用内部结构的头/身/脚布局 */
+    padding: 0;
     width: 95%;
-    max-width: 920px;
+    max-width: 1400px;
+    height: 90vh;
+    max-height: 90vh;
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .data-view-modal .modal-header {
-    background: var(--primary-light) !important;
-    color: var(--text-primary) !important;
-    border-bottom: 1px solid var(--border-primary);
-}
-
-.data-view-modal .modal-header h3 {
-    color: var(--text-primary) !important;
-}
-
-.data-view-modal .modal-close {
-    color: var(--text-secondary) !important;
-}
-
-.data-view-modal .modal-body {
-    background: var(--surface-primary);
-    padding: 16px 16px 0 16px;
-}
-
-.data-view-modal .data-view-controls {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 8px 8px 12px 8px;
-    border-bottom: 1px solid #f3f4f6;
+    background: var(--primary-light) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary);
+    padding: 16px 20px;
+    flex-shrink: 0;
 }
 
-.data-view-modal .data-view-controls .control-group {
+.data-view-modal .modal-header h3 {
+    margin: 0;
+    color: var(--text-primary) !important;
+    font-size: 16px;
+}
+
+.data-view-modal .modal-header .header-controls {
     display: flex;
+    align-items: center;
     gap: 8px;
+}
+
+.data-view-modal .modal-header .header-controls .header-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 0 4px;
+}
+
+.data-view-modal .modal-header .header-controls .btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+}
+
+.data-view-modal .modal-close {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--text-secondary) !important;
+    font-size: 24px !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    transition: all 0.2s !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+
+.data-view-modal .modal-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.data-view-modal .modal-body {
+    flex: 1;
+    min-height: 0;
+    background: var(--surface-primary);
+    padding: 16px 16px 0 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.data-view-modal .modal-footer {
+    flex-shrink: 0;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-primary);
+    background: var(--surface-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .data-view-modal .data-info-text {
@@ -345,14 +403,23 @@ body.modal-open {
 }
 
 .data-view-modal .data-view-container {
+    flex: 1;
+    min-height: 0;
     padding: 12px 0 16px 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .data-view-modal .data-view-container.layout-split {
     display: grid;
     grid-template-columns: 260px 1fr;
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
+}
+
+.data-view-modal .data-view-container.layout-split #dataViewTextarea {
+    height: 100%;
 }
 
 .data-view-modal .data-filter-sidebar {
@@ -441,8 +508,10 @@ body.modal-open {
 }
 
 .data-view-modal #dataViewTextarea {
+    flex: 1;
     width: 100%;
-    min-height: 55vh;
+    min-height: 0;
+    height: 100%;
     background: var(--surface-primary);
     color: var(--text-primary);
     border: 1px solid var(--border-primary);
@@ -453,7 +522,8 @@ body.modal-open {
     font-size: 13px;
     line-height: 1.6;
     outline: none;
-    resize: vertical;
+    resize: none;
+    overflow: auto;
 }
 
 .data-view-modal #dataViewTextarea::-webkit-scrollbar {
@@ -482,14 +552,13 @@ body.modal-open {
 }
 
 .data-view-modal .modal-footer {
-    padding: 14px 16px 18px 16px;
+    flex-shrink: 0;
+    padding: 12px 20px;
     border-top: 1px solid var(--border-primary);
     background: var(--surface-secondary);
-    position: relative !important;
-    z-index: 1 !important;
-    display: flex !important;
-    justify-content: flex-end !important;
-    gap: 16px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 /* 统一按钮在浅色背景下的观感（不改变全局按钮语义） */

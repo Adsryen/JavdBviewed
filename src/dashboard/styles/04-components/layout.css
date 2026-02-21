@@ -6,14 +6,14 @@
 .dashboard-container {
     display: flex;
     flex-direction: column;
-    width: 100%;
-    max-width: 1600px;
-    margin: 20px auto;
+    width: calc(100% - 32px);
+    max-width: 1800px;
+    margin: 16px auto;
     background: var(--surface-primary);
     border-radius: 16px;
     box-shadow: var(--shadow-lg);
     height: auto !important;
-    min-height: calc(100vh - 40px) !important;
+    min-height: calc(100vh - 32px) !important;
 }
 
 /* Dashboard Body */
@@ -25,8 +25,8 @@
 
 /* Sidebar */
 .sidebar {
-    width: var(--sidebar-width, 320px);
-    min-width: 320px;
+    width: var(--sidebar-width, 350px);
+    min-width: 330px;
     flex-shrink: 0;
     padding: 25px;
     background-color: var(--sidebar-bg);
@@ -625,7 +625,6 @@
     align-items: center;
     gap: 12px;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
 .tabs-brand {
