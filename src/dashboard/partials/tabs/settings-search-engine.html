@@ -1,0 +1,24 @@
+<div class="settings-page" id="search-engine-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>搜索引擎设置</h2>
+        <p class="settings-description">自定义点击番号后跳转的搜索网站。使用 <code>{{ID}}</code> 作为番号占位符。</p>
+    </div>
+    <div class="settings-page-body">
+        <div class="search-engine-header">
+            <div class="engine-icon">图标</div>
+            <div class="engine-name">搜索引擎名称</div>
+            <div class="engine-url">URL模板</div>
+            <div class="engine-icon-url">图标地址</div>
+            <div class="engine-actions">操作</div>
+        </div>
+        <div id="search-engine-list">
+            <!-- 搜索引擎列表将由 JS 动态填充 -->
+        </div>
+        <button id="add-search-engine" class="button-like">
+            <i class="fas fa-plus"></i> 添加新的搜索引擎
+        </button>
+    </div>
+</div>

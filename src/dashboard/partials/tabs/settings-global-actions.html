@@ -1,0 +1,44 @@
+﻿<div class="settings-page" id="global-actions">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>全局操作</h2>
+        <p class="settings-description">执行全局性的数据管理操作。请谨慎使用这些功能。</p>
+    </div>
+    <div class="settings-page-body">
+        <div class="settings-card settings-section">
+            <h4>数据管理</h4>
+            <div class="action-buttons-top">
+                <button id="clearAllBtn" class="btn danger">清空所有本地记录</button>
+            </div>
+            <p class="input-description">
+                <strong>清空所有本地记录:</strong> 删除所有本地存储的视频记录、演员数据和设置。此操作不可撤销！
+            </p>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>缓存管理</h4>
+            <div class="action-buttons-top">
+                <button id="clearCacheBtn" class="btn">清空缓存</button>
+                <button id="clearTempDataBtn" class="btn">清空临时数据</button>
+            </div>
+            <p class="input-description">
+                <strong>清空缓存:</strong> 清除所有缓存的图片、头像等临时文件。<br>
+                <strong>清空临时数据:</strong> 清除搜索历史、临时设置等非关键数据。
+            </p>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>系统操作</h4>
+            <div class="action-buttons-top">
+                <button id="resetSettingsBtn" class="btn warning">重置所有设置</button>
+                <button id="reloadExtensionBtn" class="btn">重新加载扩展</button>
+            </div>
+            <p class="input-description">
+                <strong>重置所有设置:</strong> 将所有设置恢复为默认值，但保留数据记录。<br>
+                <strong>重新加载扩展:</strong> 重新加载扩展程序，用于解决某些问题。
+            </p>
+        </div>
+    </div>
+</div>
