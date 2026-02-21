@@ -62,6 +62,9 @@ temp/
 *temp*.js
 *debug*.js
 
+# 排除设置页面文件
+!src/dashboard/partials/tabs/settings-network-test.html
+
 # Build scripts
 build.bat
 
