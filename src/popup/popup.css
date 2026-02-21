@@ -369,10 +369,53 @@ body {
 .volume-slider-container {
     position: relative;
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mute-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+
+.mute-btn i {
+    font-size: 14px;
+}
+
+.mute-btn:hover {
+    background: var(--surface-secondary);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+}
+
+.mute-btn:active {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-sm);
+}
+
+.mute-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .volume-slider {
-    width: 100%;
+    flex: 1;
     height: 6px;
     border-radius: 3px;
     background: var(--border-secondary);
@@ -444,6 +487,7 @@ body {
     transition: all 0.3s ease;
     box-sizing: border-box;
     white-space: nowrap;
+    text-align: left;
 }
 
 /* Toggle hover effects */
