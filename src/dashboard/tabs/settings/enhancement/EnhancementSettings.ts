@@ -126,7 +126,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 子标签元素
     private subtabLinks!: NodeListOf<HTMLButtonElement>;
-    private currentSubtab: 'list' | 'video' | 'actor' = 'list';
+    private currentSubtab: 'list' | 'video' | 'actor' | 'other' = 'list';
 
     // 编排可视化相关
     private showOrchestratorBtn!: HTMLButtonElement | null;
@@ -499,7 +499,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.subtabLinks && this.subtabLinks.length > 0) {
             this.subtabLinks.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor';
+                    const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor' | 'other';
                     this.switchSubtab(sub);
                 });
             });
@@ -1339,7 +1339,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 初始化子标签（读取最近一次选择）
         try {
-            const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | null;
+            const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | 'other' | null;
             this.switchSubtab(last || 'list');
         } catch {
             this.switchSubtab('list');
@@ -2563,6 +2563,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 切换子标签显示
      */
     private switchSubtab(sub: 'list' | 'video' | 'actor' | 'other'): void {
+        console.log('[Enhancement] switchSubtab called with:', sub);
         this.currentSubtab = sub as any;
         try { localStorage.setItem('enhancementSubtab', sub); } catch {}
 
@@ -2577,12 +2578,17 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
 
-        // 控制所有带 data-subtab 的元素显示/隐藏（仅限内容区域，显式排除顶部子标签按钮区域）
-        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body [data-subtab]:not(#enhancementSubTabs):not(#enhancementSubTabs *)');
+        // 控制所有带 data-subtab 的元素显示/隐藏
+        // 选择 .settings-panel-body 下的所有 .form-group[data-subtab]
+        const subtabElements = document.querySelectorAll('#enhancement-settings .settings-panel-body .form-group[data-subtab]');
+        console.log('[Enhancement] Found subtab elements:', subtabElements.length);
+        
         subtabElements.forEach(el => {
             const elem = el as HTMLElement;
             const attr = elem.getAttribute('data-subtab');
-            elem.style.display = (attr === sub) ? '' : 'none';
+            const shouldShow = (attr === sub);
+            elem.style.display = shouldShow ? '' : 'none';
+            console.log(`[Enhancement] Element with data-subtab="${attr}": ${shouldShow ? 'show' : 'hide'}`);
         });
 
         // 读取并应用每个 section 的折叠状态

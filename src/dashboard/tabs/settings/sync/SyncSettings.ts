@@ -33,7 +33,6 @@ export class SyncSettings extends BaseSettingsPanel {
     private actorMaxRetriesInput!: HTMLInputElement;
 
     // 按钮元素
-    private saveSyncBtn!: HTMLButtonElement;
     private testConnectionBtn!: HTMLButtonElement;
     private testParsingBtn!: HTMLButtonElement;
 
@@ -41,7 +40,7 @@ export class SyncSettings extends BaseSettingsPanel {
         super({
             panelId: 'sync-settings',
             panelName: '同步设置',
-            autoSave: false, // 同步设置需要手动保存
+            autoSave: true, // 修改为自动保存
             requireValidation: true
         });
     }
@@ -68,12 +67,11 @@ export class SyncSettings extends BaseSettingsPanel {
         this.actorMaxRetriesInput = document.getElementById('actorSyncMaxRetries') as HTMLInputElement;
 
         // 按钮元素
-        this.saveSyncBtn = document.getElementById('saveSyncSettings') as HTMLButtonElement;
         this.testConnectionBtn = document.getElementById('testActorSyncConnection') as HTMLButtonElement;
         this.testParsingBtn = document.getElementById('testActorSyncParsing') as HTMLButtonElement;
 
         if (!this.wantWatchUrlInput || !this.watchedVideosUrlInput || !this.enabledCheckbox ||
-            !this.saveSyncBtn || !this.testConnectionBtn || !this.testParsingBtn) {
+            !this.testConnectionBtn || !this.testParsingBtn) {
             throw new Error('同步设置相关的DOM元素未找到');
         }
     }
@@ -82,17 +80,41 @@ export class SyncSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.saveSyncBtn?.addEventListener('click', this.handleSaveSettings.bind(this));
         this.enabledCheckbox?.addEventListener('change', this.handleActorSyncEnabledChange.bind(this));
         this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this));
         this.testParsingBtn?.addEventListener('click', this.handleTestParsing.bind(this));
+        
+        // 为所有输入框添加自动保存事件
+        const inputs = [
+            this.wantWatchUrlInput,
+            this.watchedVideosUrlInput,
+            this.requestIntervalInput,
+            this.batchSizeInput,
+            this.maxRetriesInput,
+            this.autoSyncCheckbox,
+            this.syncIntervalInput,
+            this.collectionUrlInput,
+            this.detailUrlInput,
+            this.actorRequestIntervalInput,
+            this.actorBatchSizeInput,
+            this.actorMaxRetriesInput
+        ];
+        
+        inputs.forEach(input => {
+            if (input) {
+                if (input.type === 'checkbox') {
+                    input.addEventListener('change', () => this.emit('change'));
+                } else {
+                    input.addEventListener('input', () => this.emit('change'));
+                }
+            }
+        });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.saveSyncBtn?.removeEventListener('click', this.handleSaveSettings.bind(this));
         this.enabledCheckbox?.removeEventListener('change', this.handleActorSyncEnabledChange.bind(this));
         this.testConnectionBtn?.removeEventListener('click', this.handleTestConnection.bind(this));
         this.testParsingBtn?.removeEventListener('click', this.handleTestParsing.bind(this));
@@ -335,18 +357,6 @@ export class SyncSettings extends BaseSettingsPanel {
 
         this.toggleActorSyncControls();
         this.emit('change');
-    }
-
-    /**
-     * 处理保存设置按钮点击
-     */
-    private async handleSaveSettings(): Promise<void> {
-        try {
-            await this.saveSettings();
-        } catch (error) {
-            console.error('保存同步设置失败:', error);
-            showMessage('保存失败，请重试', 'error');
-        }
     }
 
     /**
