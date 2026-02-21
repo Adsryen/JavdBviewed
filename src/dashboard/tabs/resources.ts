@@ -57,14 +57,121 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
   'tab-insights': {
     name: 'tabs/insights.html',
     styles: [
+      './styles/05-pages/settings/enhancement.css',
     ],
   },
-  // 设置（基础样式，其余细分样式由各子面板自行导入或保留全局）
+  // 设置导航页
   'tab-settings': {
-    name: 'tabs/settings.html',
+    name: 'tabs/settings-index.html',
     styles: [
-      './styles/settings/index.css',
-      './styles/settings/settings.css',
+      './styles/05-pages/settings/settings.css',
+    ],
+  },
+  // 设置子页面
+  'tab-settings-display': {
+    name: 'tabs/settings-display.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/display.css',
+    ],
+  },
+  'tab-settings-enhancement': {
+    name: 'tabs/settings-enhancement.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/enhancement.css',
+    ],
+  },
+  'tab-settings-search-engine': {
+    name: 'tabs/settings-search-engine.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/searchEngine.css',
+    ],
+  },
+  'tab-settings-ai': {
+    name: 'tabs/settings-ai.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/aiSettings.css',
+    ],
+  },
+  'tab-settings-privacy': {
+    name: 'tabs/settings-privacy.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/privacy.css',
+    ],
+  },
+  'tab-settings-webdav': {
+    name: 'tabs/settings-webdav.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/webdav.css',
+    ],
+  },
+  'tab-settings-sync': {
+    name: 'tabs/settings-sync.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/sync.css',
+    ],
+  },
+  'tab-settings-drive115': {
+    name: 'tabs/settings-drive115.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/drive115.css',
+    ],
+  },
+  'tab-settings-emby': {
+    name: 'tabs/settings-emby.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/emby.css',
+      './styles/05-pages/settings/enhancement.css',
+    ],
+  },
+  'tab-settings-insights': {
+    name: 'tabs/settings-insights.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/enhancement.css',
+    ],
+  },
+  'tab-settings-log': {
+    name: 'tabs/settings-log.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/logs.css',
+    ],
+  },
+  'tab-settings-advanced': {
+    name: 'tabs/settings-advanced.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/advanced.css',
+    ],
+  },
+  'tab-settings-network-test': {
+    name: 'tabs/settings-network-test.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/networkTest.css',
+    ],
+  },
+  'tab-settings-global-actions': {
+    name: 'tabs/settings-global-actions.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/globalActions.css',
+    ],
+  },
+  'tab-settings-update': {
+    name: 'tabs/settings-update.html',
+    styles: [
+      './styles/05-pages/settings/settings.css',
+      './styles/05-pages/settings/update.css',
     ],
   },
   // 日志

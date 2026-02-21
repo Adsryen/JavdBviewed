@@ -18,7 +18,7 @@ export class Drive115TasksManager {
   private totalCount = 0;
   private pageCount = 0;
   private statusFilter: 'all' | 'running' | 'completed' | 'failed' = 'all';
-  private displayPageSize: number = 20;
+  private displayPageSize: number = 10;
   private searchKeyword: string = '';
 
   constructor() {
