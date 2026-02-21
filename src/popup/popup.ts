@@ -178,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleTreatSubscribedContainer = document.getElementById('toggleTreatSubscribedContainer') as HTMLDivElement;
     const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
+    const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
 
     const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
 
@@ -385,52 +386,158 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Failed to get settings for volume control');
             return;
         }
-        const currentVolumeFloat = settings.listEnhancement?.previewVolume || 0.2;
+        // 使用 ?? 而不是 || 来处理 0 值
+        const currentVolumeFloat = settings.listEnhancement?.previewVolume ?? 0.2;
         const currentVolume = Math.round(currentVolumeFloat * 100);
+        
+        console.log('[Popup] Initial volume from settings:', currentVolumeFloat, 'display:', currentVolume);
 
         // 更新滑块和显示值
         volumeSlider.value = currentVolume.toString();
         volumeValue.textContent = `${currentVolume}%`;
 
-        // 监听滑块变化
-        volumeSlider.addEventListener('input', async (e) => {
-            const volume = parseInt((e.target as HTMLInputElement).value);
-            volumeValue.textContent = `${volume}%`;
-
-            // 获取当前设置并更新音量
-            const currentSettings = await getSettingsSafely();
-            if (!currentSettings) {
-                console.error('Failed to get settings for volume update');
-                return;
+        // 更新静音按钮图标
+        const updateMuteIcon = (volume: number) => {
+            const icon = muteBtn.querySelector('i');
+            if (!icon) return;
+            
+            if (volume === 0) {
+                icon.className = 'fas fa-volume-xmark';
+                muteBtn.title = '取消静音';
+            } else if (volume <= 33) {
+                icon.className = 'fas fa-volume-low';
+                muteBtn.title = '静音';
+            } else if (volume <= 66) {
+                icon.className = 'fas fa-volume-low';
+                muteBtn.title = '静音';
+            } else {
+                icon.className = 'fas fa-volume-high';
+                muteBtn.title = '静音';
             }
-            if (!currentSettings.listEnhancement) {
-                currentSettings.listEnhancement = {
-                    enabled: true,
-                    enableClickEnhancement: true,
-                    enableVideoPreview: true,
-                    enableScrollPaging: false,
-                    enableListOptimization: true,
-                    previewDelay: 1000,
-                    previewVolume: 0.2,
-                    enableRightClickBackground: true
-                };
-            }
-            currentSettings.listEnhancement.previewVolume = volume / 100; // 转换为0-1范围
+        };
 
-            // 保存设置
-            await saveSettings(currentSettings);
+        updateMuteIcon(currentVolume);
 
-            // 通知内容脚本音量已更改
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]?.url?.includes('javdb')) {
-                    if (tabs[0].id) {
-                        chrome.tabs.sendMessage(tabs[0].id, {
-                            type: 'volume-changed',
-                            volume: volume / 100 // 转换为0-1范围
-                        });
-                    }
+        // 保存静音前的音量
+        let volumeBeforeMute = currentVolume > 0 ? currentVolume : 50;
+
+        // 静音按钮点击事件
+        muteBtn.addEventListener('click', async () => {
+            const currentVol = parseInt(volumeSlider.value);
+            console.log('[Popup] Mute button clicked, current volume:', currentVol);
+            
+            if (currentVol === 0) {
+                // 取消静音，恢复之前的音量
+                const restoreVolume = volumeBeforeMute > 0 ? volumeBeforeMute : 50;
+                console.log('[Popup] Unmuting, restore to:', restoreVolume);
+                
+                volumeSlider.value = restoreVolume.toString();
+                volumeValue.textContent = `${restoreVolume}%`;
+                updateMuteIcon(restoreVolume);
+                
+                // 保存设置
+                const currentSettings = await getSettingsSafely();
+                if (currentSettings?.listEnhancement) {
+                    currentSettings.listEnhancement.previewVolume = restoreVolume / 100;
+                    await saveSettings(currentSettings);
+                    console.log('[Popup] Settings saved, volume:', restoreVolume / 100);
+                    
+                    // 通知内容脚本
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]?.url?.includes('javdb') && tabs[0].id) {
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                type: 'volume-changed',
+                                volume: restoreVolume / 100
+                            });
+                        }
+                    });
                 }
-            });
+            } else {
+                // 静音
+                volumeBeforeMute = currentVol;
+                console.log('[Popup] Muting, save current volume:', volumeBeforeMute);
+                
+                volumeSlider.value = '0';
+                volumeValue.textContent = '0%';
+                updateMuteIcon(0);
+                
+                // 保存设置
+                const currentSettings = await getSettingsSafely();
+                if (currentSettings?.listEnhancement) {
+                    currentSettings.listEnhancement.previewVolume = 0;
+                    await saveSettings(currentSettings);
+                    console.log('[Popup] Settings saved, volume: 0');
+                    
+                    // 通知内容脚本
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]?.url?.includes('javdb') && tabs[0].id) {
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                type: 'volume-changed',
+                                volume: 0
+                            });
+                        }
+                    });
+                }
+            }
+        });
+
+        // 监听滑块变化 - 使用防抖来避免频繁保存
+        let saveTimeout: number | null = null;
+        volumeSlider.addEventListener('input', (e) => {
+            const volume = parseInt((e.target as HTMLInputElement).value);
+            console.log('[Popup] Slider input, volume:', volume);
+            volumeValue.textContent = `${volume}%`;
+            updateMuteIcon(volume);
+
+            // 如果用户手动调整音量到非0，更新volumeBeforeMute
+            if (volume > 0) {
+                volumeBeforeMute = volume;
+            }
+
+            // 清除之前的定时器
+            if (saveTimeout !== null) {
+                clearTimeout(saveTimeout);
+            }
+
+            // 延迟保存，避免频繁写入
+            saveTimeout = window.setTimeout(async () => {
+                console.log('[Popup] Saving volume after input:', volume);
+                // 获取当前设置并更新音量
+                const currentSettings = await getSettingsSafely();
+                if (!currentSettings) {
+                    console.error('Failed to get settings for volume update');
+                    return;
+                }
+                if (!currentSettings.listEnhancement) {
+                    currentSettings.listEnhancement = {
+                        enabled: true,
+                        enableClickEnhancement: true,
+                        enableVideoPreview: true,
+                        enableScrollPaging: false,
+                        enableListOptimization: true,
+                        previewDelay: 1000,
+                        previewVolume: 0.2,
+                        enableRightClickBackground: true
+                    };
+                }
+                currentSettings.listEnhancement.previewVolume = volume / 100;
+
+                // 保存设置
+                await saveSettings(currentSettings);
+                console.log('[Popup] Settings saved from slider, volume:', volume / 100);
+
+                // 通知内容脚本音量已更改
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.url?.includes('javdb')) {
+                        if (tabs[0].id) {
+                            chrome.tabs.sendMessage(tabs[0].id, {
+                                type: 'volume-changed',
+                                volume: volume / 100
+                            });
+                        }
+                    }
+                });
+            }, 300); // 300ms 防抖
         });
     }
 
