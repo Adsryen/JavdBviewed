@@ -14,10 +14,32 @@ export interface DataViewOptions {
     onDownload?: (data: string, filename: string) => void;
     filename?: string;
     info?: string;
-    // 为“原始设置(JSON)”提供快速筛选开关（仅在 dataType=json 且 data 为对象时生效）
+    // 为"原始设置(JSON)"提供快速筛选开关（仅在 dataType=json 且 data 为对象时生效）
     enableFilter?: boolean;
     // 可选：键名到显示名的映射，用于在筛选列表显示中文
     keyLabels?: Record<string, string>;
+    // 翻页功能配置
+    pagination?: {
+        enabled: boolean;
+        currentPage: number;
+        pageSize: number;
+        total: number;
+        statusOptions?: Array<{ value: string; label: string }>;
+        onPageChange?: (params: PaginationParams) => Promise<PaginationResult>;
+    };
+}
+
+export interface PaginationParams {
+    page: number;
+    pageSize: number;
+    status?: string;
+    orderBy: string;
+    order: 'asc' | 'desc';
+}
+
+export interface PaginationResult {
+    items: any[];
+    total: number;
 }
 
 export class DataViewModal {
@@ -30,9 +52,18 @@ export class DataViewModal {
     private cancelBtn!: HTMLButtonElement;
     private copyBtn!: HTMLButtonElement;
     private downloadBtn!: HTMLButtonElement;
-    private closeBtn!: HTMLButtonElement;
     private modalCloseBtn!: HTMLButtonElement;
     private infoElement!: HTMLElement;
+
+    // 翻页控件
+    private paginationContainer!: HTMLElement;
+    private statusFilter!: HTMLSelectElement;
+    private orderBySelect!: HTMLSelectElement;
+    private orderSelect!: HTMLSelectElement;
+    private pageSizeSelect!: HTMLSelectElement;
+    private prevBtn!: HTMLButtonElement;
+    private nextBtn!: HTMLButtonElement;
+    private pageInfo!: HTMLElement;
 
     private currentOptions: DataViewOptions | null = null;
     private originalData: string = '';
@@ -46,6 +77,14 @@ export class DataViewModal {
     private filterEnabled: boolean = false;
     private originalObject: any = null;
     private selectedKeys: Set<string> = new Set();
+
+    // 翻页状态
+    private currentPage: number = 1;
+    private pageSize: number = 50;
+    private total: number = 0;
+    private currentStatus: string = 'ALL';
+    private currentOrderBy: string = 'updatedAt';
+    private currentOrder: 'asc' | 'desc' = 'desc';
 
     constructor() {
         // 先监听 partial 挂载事件，确保即便很早发出事件也能接收
@@ -93,9 +132,18 @@ export class DataViewModal {
             this.cancelBtn = document.getElementById('dataViewCancelBtn') as HTMLButtonElement;
             this.copyBtn = document.getElementById('dataViewCopyBtn') as HTMLButtonElement;
             this.downloadBtn = document.getElementById('dataViewDownloadBtn') as HTMLButtonElement;
-            this.closeBtn = document.getElementById('dataViewCloseBtn') as HTMLButtonElement;
             this.modalCloseBtn = document.getElementById('dataViewModalClose') as HTMLButtonElement;
             this.infoElement = document.getElementById('dataViewInfo')!;
+
+            // 翻页控件
+            this.paginationContainer = document.getElementById('dataViewPagination')!;
+            this.statusFilter = document.getElementById('dataViewStatusFilter') as HTMLSelectElement;
+            this.orderBySelect = document.getElementById('dataViewOrderBy') as HTMLSelectElement;
+            this.orderSelect = document.getElementById('dataViewOrder') as HTMLSelectElement;
+            this.pageSizeSelect = document.getElementById('dataViewPageSize') as HTMLSelectElement;
+            this.prevBtn = document.getElementById('dataViewPrevBtn') as HTMLButtonElement;
+            this.nextBtn = document.getElementById('dataViewNextBtn') as HTMLButtonElement;
+            this.pageInfo = document.getElementById('dataViewPageInfo')!;
 
             if (!this.modal || !this.titleElement || !this.textarea) {
                 // 初次（DOM 仍在挂载 modals partial）时不打印错误，等 modals:mounted 后仍失败再报错
@@ -115,7 +163,6 @@ export class DataViewModal {
 
     private initEventListeners(): void {
         // 关闭弹窗
-        this.closeBtn.addEventListener('click', () => this.hide());
         this.modalCloseBtn.addEventListener('click', () => this.hide());
 
         // 点击背景关闭（兼容 dataViewModal 的结构，背景在 .modal-overlay 上）
@@ -145,9 +192,29 @@ export class DataViewModal {
 
         // 下载功能
         this.downloadBtn.addEventListener('click', () => this.downloadData());
+
+        // 翻页控件事件
+        if (this.prevBtn) {
+            this.prevBtn.addEventListener('click', () => this.goToPrevPage());
+        }
+        if (this.nextBtn) {
+            this.nextBtn.addEventListener('click', () => this.goToNextPage());
+        }
+        if (this.statusFilter) {
+            this.statusFilter.addEventListener('change', () => this.onFilterChange());
+        }
+        if (this.orderBySelect) {
+            this.orderBySelect.addEventListener('change', () => this.onFilterChange());
+        }
+        if (this.orderSelect) {
+            this.orderSelect.addEventListener('change', () => this.onFilterChange());
+        }
+        if (this.pageSizeSelect) {
+            this.pageSizeSelect.addEventListener('change', () => this.onPageSizeChange());
+        }
     }
 
-    public show(options: DataViewOptions): void {
+    public async show(options: DataViewOptions): Promise<void> {
         log.verbose('DataViewModal.show() 被调用', options.title);
 
         if (!this.modal) {
@@ -158,16 +225,59 @@ export class DataViewModal {
         this.currentOptions = options;
         this.titleElement.textContent = options.title;
 
-        // 格式化数据
-        if (options.dataType === 'json') {
-            this.originalData = typeof options.data === 'string'
-                ? options.data
-                : JSON.stringify(options.data, null, 2);
+        // 如果启用翻页功能
+        if (options.pagination?.enabled) {
+            this.currentPage = options.pagination.currentPage;
+            this.pageSize = options.pagination.pageSize;
+            this.total = options.pagination.total;
+
+            // 显示翻页控件
+            if (this.paginationContainer) {
+                this.paginationContainer.classList.remove('hidden');
+                
+                // 设置状态选项
+                if (options.pagination.statusOptions && this.statusFilter) {
+                    this.statusFilter.innerHTML = options.pagination.statusOptions
+                        .map(opt => `<option value="${opt.value}">${opt.label}</option>`)
+                        .join('');
+                }
+
+                // 设置页面大小
+                if (this.pageSizeSelect) {
+                    this.pageSizeSelect.value = String(this.pageSize);
+                }
+
+                this.updatePaginationUI();
+            }
+
+            // 格式化数据
+            if (options.dataType === 'json') {
+                this.originalData = typeof options.data === 'string'
+                    ? options.data
+                    : JSON.stringify(options.data, null, 2);
+            } else {
+                this.originalData = String(options.data);
+            }
+
+            this.textarea.value = this.originalData;
         } else {
-            this.originalData = String(options.data);
+            // 隐藏翻页控件
+            if (this.paginationContainer) {
+                this.paginationContainer.classList.add('hidden');
+            }
+
+            // 格式化数据
+            if (options.dataType === 'json') {
+                this.originalData = typeof options.data === 'string'
+                    ? options.data
+                    : JSON.stringify(options.data, null, 2);
+            } else {
+                this.originalData = String(options.data);
+            }
+
+            this.textarea.value = this.originalData;
         }
 
-        this.textarea.value = this.originalData;
         this.textarea.readOnly = true;
 
         // 每次显示前清理上一次的筛选侧栏
@@ -197,11 +307,7 @@ export class DataViewModal {
             this.infoElement.textContent = `${lines} 行, ${chars} 字符`;
         }
 
-        // 控制按钮显示
-        this.editBtn.style.display = options.editable ? 'inline-flex' : 'none';
-        this.downloadBtn.style.display = options.filename ? 'inline-flex' : 'none';
-
-        // 重置编辑状态
+        // 重置编辑状态（这会设置按钮的初始 disabled 状态）
         this.resetEditState();
 
         // 显示弹窗：同时让外层 modal 与内层 overlay 可见，避免只出现灰色背景
@@ -232,6 +338,82 @@ export class DataViewModal {
         this.currentOptions = null;
     }
 
+    private async goToPrevPage(): Promise<void> {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            await this.loadPage();
+        }
+    }
+
+    private async goToNextPage(): Promise<void> {
+        const totalPages = Math.ceil(this.total / this.pageSize);
+        if (this.currentPage < totalPages) {
+            this.currentPage++;
+            await this.loadPage();
+        }
+    }
+
+    private async onFilterChange(): Promise<void> {
+        this.currentStatus = this.statusFilter?.value || 'ALL';
+        this.currentOrderBy = this.orderBySelect?.value || 'updatedAt';
+        this.currentOrder = (this.orderSelect?.value as 'asc' | 'desc') || 'desc';
+        this.currentPage = 1; // 重置到第一页
+        await this.loadPage();
+    }
+
+    private async onPageSizeChange(): Promise<void> {
+        this.pageSize = parseInt(this.pageSizeSelect?.value || '50', 10);
+        this.currentPage = 1; // 重置到第一页
+        await this.loadPage();
+    }
+
+    private async loadPage(): Promise<void> {
+        if (!this.currentOptions?.pagination?.onPageChange) return;
+
+        try {
+            const params: PaginationParams = {
+                page: this.currentPage,
+                pageSize: this.pageSize,
+                status: this.currentStatus === 'ALL' ? undefined : this.currentStatus,
+                orderBy: this.currentOrderBy,
+                order: this.currentOrder
+            };
+
+            const result = await this.currentOptions.pagination.onPageChange(params);
+            
+            this.total = result.total;
+            this.originalData = JSON.stringify(result.items, null, 2);
+            this.textarea.value = this.originalData;
+
+            this.updatePaginationUI();
+
+            // 更新信息显示
+            const lines = this.originalData.split('\n').length;
+            const chars = this.originalData.length;
+            this.infoElement.textContent = `${lines} 行, ${chars} 字符`;
+        } catch (error) {
+            console.error('加载页面数据失败:', error);
+            this.showMessage('加载数据失败', 'error');
+        }
+    }
+
+    private updatePaginationUI(): void {
+        const totalPages = Math.ceil(this.total / this.pageSize);
+        
+        // 更新页面信息
+        if (this.pageInfo) {
+            this.pageInfo.textContent = `第 ${this.currentPage}/${totalPages} 页 · 共 ${this.total} 条`;
+        }
+
+        // 更新按钮状态
+        if (this.prevBtn) {
+            this.prevBtn.disabled = this.currentPage <= 1;
+        }
+        if (this.nextBtn) {
+            this.nextBtn.disabled = this.currentPage >= totalPages;
+        }
+    }
+
     private enableEdit(): void {
         if (!this.currentOptions?.editable) return;
 
@@ -239,10 +421,10 @@ export class DataViewModal {
         this.textarea.readOnly = false;
         this.textarea.focus();
 
-        // 切换按钮显示
-        this.editBtn.classList.add('hidden');
-        this.saveBtn.classList.remove('hidden');
-        this.cancelBtn.classList.remove('hidden');
+        // 切换按钮状态
+        this.editBtn.disabled = true;
+        this.saveBtn.disabled = false;
+        this.cancelBtn.disabled = false;
     }
 
     private async saveData(): Promise<void> {
@@ -250,6 +432,7 @@ export class DataViewModal {
 
         try {
             this.saveBtn.disabled = true;
+            this.cancelBtn.disabled = true;
             this.saveBtn.textContent = '保存中...';
 
             await this.currentOptions.onSave(this.textarea.value);
@@ -262,8 +445,10 @@ export class DataViewModal {
         } catch (error) {
             console.error('保存数据失败:', error);
             this.showMessage('保存失败: ' + (error instanceof Error ? error.message : '未知错误'), 'error');
-        } finally {
+            // 恢复按钮状态
             this.saveBtn.disabled = false;
+            this.cancelBtn.disabled = false;
+        } finally {
             this.saveBtn.textContent = '保存';
         }
     }
@@ -277,9 +462,14 @@ export class DataViewModal {
         this.isEditing = false;
         this.textarea.readOnly = true;
         
-        this.editBtn.classList.remove('hidden');
-        this.saveBtn.classList.add('hidden');
-        this.cancelBtn.classList.add('hidden');
+        // 编辑按钮：根据是否可编辑决定
+        this.editBtn.disabled = !this.currentOptions?.editable;
+        // 保存和取消按钮：非编辑状态下禁用
+        this.saveBtn.disabled = true;
+        this.cancelBtn.disabled = true;
+        // 复制和下载按钮：始终可点击
+        this.copyBtn.disabled = false;
+        this.downloadBtn.disabled = false;
     }
 
     private async copyData(): Promise<void> {
@@ -339,7 +529,7 @@ export class DataViewModal {
             <button type="button" class="btn-mini" data-action="reset">显示全部</button>
           </div>
           <div class="filter-list"></div>
-          <div class="filter-hint">提示：勾选后仅显示所选顶级键；“显示全部”恢复完整JSON</div>
+          <div class="filter-hint">提示：勾选后仅显示所选顶级键；"显示全部"恢复完整JSON</div>
         `;
 
         // 将侧栏插入到文本域之前

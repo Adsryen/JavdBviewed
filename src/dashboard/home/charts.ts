@@ -154,7 +154,8 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       text: getVar('--text', '#111827'),
       muted: getVar('--muted', '#6b7280'),
       border: getVar('--border', '#e5e7eb'),
-      surface: getVar('--surface', '#ffffff')
+      surface: getVar('--surface', '#ffffff'),
+      pieBorder: getVar('--bg-primary', '#f5f7fb')
     };
     const fmtDate = (d: Date) => {
       const y = d.getFullYear();
@@ -211,7 +212,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                 type: 'pie', radius: ['40%', '70%'],
                 avoidLabelOverlap: false,
                 minAngle: 6,
-                itemStyle: { borderRadius: 10, borderColor: COLORS.surface, borderWidth: 2 },
+                itemStyle: { borderRadius: 10, borderWidth: 0 },
                 label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
                 labelLine: { show: false },
                 emphasis: { label: { show: true, fontWeight: 'bold' } },
@@ -382,6 +383,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       muted: getVar('--muted', '#6b7280'),
       border: getVar('--border', '#e5e7eb'),
       surface: getVar('--surface', '#ffffff'),
+      pieBorder: getVar('--bg-primary', '#f5f7fb')
     } as any;
     const msDay = 24 * 60 * 60 * 1000;
     const fmt = (d: Date) => {
@@ -446,7 +448,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
                 type: 'pie', radius: ['40%', '70%'],
                 avoidLabelOverlap: false,
                 minAngle: 6,
-                itemStyle: { borderRadius: 10, borderColor: COLORS.surface, borderWidth: 2 },
+                itemStyle: { borderRadius: 10, borderWidth: 0 },
                 label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
                 labelLine: { show: false },
                 emphasis: { label: { show: true, fontWeight: 'bold' } },

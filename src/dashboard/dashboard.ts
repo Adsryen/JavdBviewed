@@ -205,6 +205,26 @@ function renderDrive115QuotaSidebar(info: { total?: number; used?: number; surpl
 // 首页 ECharts 兜底渲染已迁移到 ./home/charts
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 添加全局事件委托来处理设置页面的返回按钮
+    document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        console.log('[Dashboard] 点击事件触发，target:', target.tagName, target.className);
+        const backBtn = target.closest('[data-action="back-to-settings"]');
+        if (backBtn) {
+            console.log('[Dashboard] 找到返回按钮，阻止默认行为');
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[Dashboard] 返回按钮被点击，导航到设置页');
+            
+            // 使用 history.pushState 避免锚点跳转
+            const newUrl = window.location.pathname + window.location.search + '#tab-settings';
+            history.pushState(null, '', newUrl);
+            
+            // 手动触发 hashchange 事件
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+        }
+    }, true); // 使用捕获阶段
+    
     // 1. 首先初始化主题系统（在任何 UI 渲染之前）
     try {
         await themeManager.initialize();
