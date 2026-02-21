@@ -50,8 +50,12 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
      * 初始化面板
      */
     init(): void {
-        if (this.state !== SettingsPanelState.UNINITIALIZED) {
-            console.warn(`[${this.panelName}] 面板已经初始化过了`);
+        if (this.state !== SettingsPanelState.UNINITIALIZED && this.state !== SettingsPanelState.DESTROYED) {
+            console.warn(`[${this.panelName}] 面板已经初始化过了，重新加载设置`);
+            // 如果已经初始化过，重新加载设置
+            // 先重置状态为 INITIALIZED，然后再加载
+            this.setState(SettingsPanelState.INITIALIZED);
+            this.loadSettings();
             return;
         }
 
@@ -83,6 +87,17 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
         this.setState(SettingsPanelState.LOADING);
         
         try {
+            // 从存储中重新加载最新设置到 STATE
+            const { getSettings } = await import('../../../../utils/storage');
+            STATE.settings = await getSettings();
+            console.log(`[${this.panelName}] 已从存储重新加载设置到 STATE`);
+            
+            // 重新初始化元素引用（防止 DOM 被重新渲染后引用失效）
+            if (this.state !== SettingsPanelState.INITIALIZING) {
+                console.log(`[${this.panelName}] 重新初始化元素引用`);
+                this.initializeElements();
+            }
+            
             await this.doLoadSettings();
             this.setState(SettingsPanelState.LOADED);
             this.emit('load');

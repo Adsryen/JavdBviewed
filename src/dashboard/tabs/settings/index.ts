@@ -412,18 +412,146 @@ function initSettingsPanelSwitching(): void {
 }
 
 /**
+ * 初始化设置页面
+ * 根据当前 URL 初始化对应的设置模块
+ */
+export async function initSettingsPage(): Promise<void> {
+    try {
+        const hash = window.location.hash.substring(1);
+        
+        // 如果是设置导航页，不需要初始化任何模块
+        if (hash === 'tab-settings') {
+            console.log('[Settings] 设置导航页，无需初始化模块');
+            return;
+        }
+        
+        // 解析子路径（支持 tab-settings/ai-settings 格式）
+        const [mainTab, subSection] = hash.split('/');
+        
+        if (mainTab !== 'tab-settings' || !subSection) {
+            return;
+        }
+        
+        // 根据子路径初始化对应的设置模块
+        const moduleMap: Record<string, () => Promise<void>> = {
+            'display-settings': async () => {
+                const { getDisplaySettings } = await import('./display');
+                const panel = await getDisplaySettings();
+                await panel.init();
+            },
+            'ai-settings': async () => {
+                const { getAiSettings } = await import('./ai');
+                const panel = await getAiSettings();
+                await panel.init();
+            },
+            'search-engine-settings': async () => {
+                const { getSearchEngineSettings } = await import('./searchEngine');
+                const panel = await getSearchEngineSettings();
+                await panel.init();
+            },
+            'privacy-settings': async () => {
+                const { getPrivacySettings } = await import('./privacy');
+                const panel = await getPrivacySettings();
+                await panel.init();
+            },
+            'global-actions': async () => {
+                const { getGlobalActionsSettings } = await import('./globalActions');
+                const panel = await getGlobalActionsSettings();
+                await panel.init();
+            },
+            'emby-settings': async () => {
+                const { getEmbySettings } = await import('./emby');
+                const panel = await getEmbySettings();
+                await panel.init();
+            },
+            'enhancement-settings': async () => {
+                const { getEnhancementSettings } = await import('./enhancement');
+                const panel = await getEnhancementSettings();
+                await panel.init();
+            },
+            'webdav-settings': async () => {
+                const { getWebdavSettings } = await import('./webdav');
+                const panel = await getWebdavSettings();
+                await panel.init();
+            },
+            'sync-settings': async () => {
+                const { getSyncSettings } = await import('./sync');
+                const panel = await getSyncSettings();
+                await panel.init();
+            },
+            'drive115-settings': async () => {
+                const { getDrive115SettingsV2 } = await import('./drive115');
+                const panel = await getDrive115SettingsV2();
+                await panel.init();
+            },
+            'insights-settings': async () => {
+                const { getInsightsSettings } = await import('./insights');
+                const panel = await getInsightsSettings();
+                await panel.init();
+            },
+            'log-settings': async () => {
+                const { getLoggingSettings } = await import('./logging');
+                const panel = await getLoggingSettings();
+                await panel.init();
+            },
+            'advanced-settings': async () => {
+                const { getAdvancedSettings } = await import('./advanced');
+                const panel = await getAdvancedSettings();
+                await panel.init();
+            },
+            'network-test-settings': async () => {
+                const { getNetworkTestSettings } = await import('./networkTest');
+                const panel = await getNetworkTestSettings();
+                await panel.init();
+            },
+            'update-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                const panel = await getUpdateSettings();
+                await panel.init();
+            },
+        };
+        
+        const initFn = moduleMap[subSection];
+        if (initFn) {
+            console.log(`[Settings] 初始化设置模块: ${subSection}`);
+            await initFn();
+        } else {
+            console.log(`[Settings] 未找到对应的设置模块: ${subSection}，使用旧架构`);
+        }
+    } catch (error) {
+        console.error('[Settings] 初始化设置页面失败:', error);
+    }
+}
+
+/**
  * 完整的设置标签页初始化函数
  * 包括面板初始化和切换功能
  */
 export async function initSettingsTab(): Promise<void> {
     try {
-        // 初始化所有设置面板
+        const hash = window.location.hash.substring(1);
+        const [mainTab, subSection] = hash.split('/');
+        
+        // 如果是新架构的设置页面（tab-settings/xxx），使用新的初始化逻辑
+        if (mainTab === 'tab-settings' && subSection) {
+            await initSettingsPage();
+            console.log('[Settings] 新架构设置页面初始化完成');
+            return;
+        }
+        
+        // 如果是设置导航页
+        if (hash === 'tab-settings') {
+            console.log('[Settings] 设置导航页初始化完成');
+            return;
+        }
+        
+        // 旧架构：初始化所有设置面板
         await initAllSettingsPanels();
 
         // 初始化面板切换功能
         initSettingsPanelSwitching();
 
-        console.log('[Settings] 设置标签页初始化完成');
+        console.log('[Settings] 旧架构设置标签页初始化完成');
     } catch (error) {
         console.error('[Settings] 设置标签页初始化失败:', error);
         throw error;
