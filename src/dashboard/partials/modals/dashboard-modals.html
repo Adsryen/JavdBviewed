@@ -827,19 +827,42 @@
           <div class="modal-content data-view-modal">
               <div class="modal-header">
                   <h3 id="dataViewModalTitle">数据查看</h3>
-                  <button class="modal-close" id="dataViewModalClose">&times;</button>
+                  <div class="header-controls">
+                      <button id="dataViewEditBtn" class="btn btn-secondary">编辑</button>
+                      <button id="dataViewSaveBtn" class="btn btn-primary hidden">保存</button>
+                      <button id="dataViewCancelBtn" class="btn btn-secondary hidden">取消</button>
+                      <span class="header-divider"></span>
+                      <button id="dataViewCopyBtn" class="btn btn-outline">复制</button>
+                      <button id="dataViewDownloadBtn" class="btn btn-outline hidden">下载</button>
+                      <button class="modal-close" id="dataViewModalClose">&times;</button>
+                  </div>
               </div>
               <div class="modal-body">
-                  <div class="data-view-controls">
-                      <div class="control-group">
-                          <button id="dataViewEditBtn" class="btn btn-secondary">编辑</button>
-                          <button id="dataViewSaveBtn" class="btn btn-primary hidden">保存</button>
-                          <button id="dataViewCancelBtn" class="btn btn-secondary hidden">取消</button>
-                          <button id="dataViewCopyBtn" class="btn btn-outline">复制</button>
-                          <button id="dataViewDownloadBtn" class="btn btn-outline">下载</button>
+                  <!-- 翻页控件 -->
+                  <div id="dataViewPagination" class="data-view-pagination hidden">
+                      <div class="pagination-filters">
+                          <select id="dataViewStatusFilter" class="pagination-select">
+                              <option value="ALL">全部状态</option>
+                          </select>
+                          <select id="dataViewOrderBy" class="pagination-select">
+                              <option value="updatedAt">按更新时间</option>
+                              <option value="createdAt">按创建时间</option>
+                          </select>
+                          <select id="dataViewOrder" class="pagination-select">
+                              <option value="desc">倒序</option>
+                              <option value="asc">正序</option>
+                          </select>
+                          <select id="dataViewPageSize" class="pagination-select">
+                              <option value="20">20条/页</option>
+                              <option value="50" selected>50条/页</option>
+                              <option value="100">100条/页</option>
+                              <option value="200">200条/页</option>
+                          </select>
                       </div>
-                      <div class="data-info">
-                          <span id="dataViewInfo" class="data-info-text"></span>
+                      <div class="pagination-controls">
+                          <button id="dataViewPrevBtn" class="btn btn-outline">上一页</button>
+                          <span id="dataViewPageInfo" class="pagination-info"></span>
+                          <button id="dataViewNextBtn" class="btn btn-outline">下一页</button>
                       </div>
                   </div>
                   <div class="data-view-container">
@@ -847,7 +870,7 @@
                   </div>
               </div>
               <div class="modal-footer">
-                  <button id="dataViewCloseBtn" class="btn btn-secondary">关闭</button>
+                  <span id="dataViewInfo" class="data-info-text"></span>
               </div>
           </div>
       </div>
