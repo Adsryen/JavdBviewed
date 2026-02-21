@@ -1,0 +1,105 @@
+﻿<div class="settings-page" id="insights-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>报告设置</h2>
+        <p class="settings-description">配置报告生成所用的聚合参数，仅影响本地统计与 AI 提示词输入。</p>
+        
+        <!-- 功能提示 -->
+        <div class="enhancement-notice">
+            <i class="fas fa-info-circle"></i>
+            <span>报告功能目前处于测试阶段，部分功能可能不稳定。如遇到问题请在 <a href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</span>
+        </div>
+    </div>
+    <div class="settings-page-body">
+        <div class="settings-card settings-section">
+            <h4>报告功能</h4>
+            <p class="section-description">报告功能用于生成观看统计和数据分析，帮助您了解观看习惯和偏好。</p>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enableInsights" checked>
+                    <span class="checkmark"></span>
+                    启用报告功能
+                </label>
+                <p class="input-description">开启后可以在首页查看统计报告和数据分析。</p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>数据聚合</h4>
+            <p class="section-description">配置报告数据的聚合方式和统计维度。</p>
+            
+            <div class="form-group">
+                <label for="insightsTimeRange">统计时间范围:</label>
+                <select id="insightsTimeRange" class="text-input">
+                    <option value="7">最近 7 天</option>
+                    <option value="30" selected>最近 30 天</option>
+                    <option value="90">最近 90 天</option>
+                    <option value="180">最近 180 天</option>
+                    <option value="365">最近一年</option>
+                    <option value="all">全部时间</option>
+                </select>
+                <p class="input-description">选择报告统计的时间范围。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="insightsGroupBy">分组方式:</label>
+                <select id="insightsGroupBy" class="text-input">
+                    <option value="day">按天</option>
+                    <option value="week">按周</option>
+                    <option value="month" selected>按月</option>
+                    <option value="year">按年</option>
+                </select>
+                <p class="input-description">选择数据的分组统计方式。</p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>显示选项</h4>
+            <p class="section-description">配置报告的显示内容和样式。</p>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="showActorStats" checked>
+                    <span class="checkmark"></span>
+                    显示演员统计
+                </label>
+                <p class="input-description">在报告中显示演员相关的统计数据。</p>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="showGenreStats" checked>
+                    <span class="checkmark"></span>
+                    显示类型统计
+                </label>
+                <p class="input-description">在报告中显示影片类型的统计数据。</p>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="showTrendChart" checked>
+                    <span class="checkmark"></span>
+                    显示趋势图表
+                </label>
+                <p class="input-description">在报告中显示观看趋势的可视化图表。</p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>报告操作</h4>
+            <div class="action-buttons-top">
+                <button id="generateInsightsReport" class="btn primary">生成报告</button>
+                <button id="exportInsightsReport" class="btn">导出报告</button>
+                <button id="clearInsightsCache" class="btn danger">清除缓存</button>
+            </div>
+            <p class="input-description" style="margin-top: 12px;">
+                <strong>生成报告:</strong> 根据当前设置重新生成统计报告<br>
+                <strong>导出报告:</strong> 将报告数据导出为 JSON 或 HTML 格式<br>
+                <strong>清除缓存:</strong> 清除报告缓存数据，下次访问时重新计算
+            </p>
+        </div>
+    </div>
+</div>

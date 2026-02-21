@@ -1,0 +1,123 @@
+﻿<div class="settings-page" id="emby-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>Emby增强设置</h2>
+        <p class="settings-description">配置Emby/Jellyfin等媒体服务器的番号识别和跳转功能，自动将页面中的番号转换为可点击的链接。</p>
+    </div>
+    <div class="settings-page-body">
+        <div class="settings-card settings-section">
+            <div class="enhancement-notice">
+                <i class="fas fa-info-circle"></i>
+                <span>增强功能可能存在细微问题，如遇到任何异常请在 <a href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</span>
+            </div>
+        </div>
+        <div class="settings-card settings-section">
+            <h4>基本设置</h4>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-enabled">
+                    <span class="setting-title">启用Emby增强功能</span>
+                </label>
+                <p class="setting-description">
+                    启用后，扩展将在匹配的网站上自动识别番号并转换为可点击的链接。
+                </p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>网址匹配</h4>
+            <p class="setting-description">
+                配置需要启用番号识别功能的网址模式。支持通配符 * 匹配任意字符。
+            </p>
+            <div class="setting-item">
+                <div class="url-list-container">
+                    <div id="emby-match-urls-list" class="url-list">
+                        <!-- URL列表将通过JavaScript动态生成 -->
+                    </div>
+                    <button type="button" id="add-emby-url" class="btn btn-secondary">
+                        <i class="fas fa-plus"></i> 添加网址模式
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>链接行为</h4>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <span class="setting-title">点击番号后的行为</span>
+                    <select id="emby-link-behavior" class="setting-select">
+                        <option value="javdb-search">跳转到JavDB搜索页面</option>
+                        <option value="javdb-direct">直接跳转到JavDB详情页（如果存在）</option>
+                    </select>
+                </label>
+                <p class="setting-description">
+                    选择点击番号链接后的跳转行为。推荐使用搜索模式以确保能找到相关内容。
+                </p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>高级选项</h4>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-auto-detection">
+                    <span class="setting-title">启用自动检测</span>
+                </label>
+                <p class="setting-description">
+                    自动检测页面中的番号并转换为链接。关闭此选项后需要手动触发检测。
+                </p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>快捷按钮</h4>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-show-quick-search-code">
+                    <span class="setting-title">显示"搜番号"按钮</span>
+                </label>
+                <p class="setting-description">在右侧显示悬浮按钮，快速按页面内容或选中文本进行番号搜索/直达。</p>
+            </div>
+            <div class="setting-item">
+                <label class="setting-label">
+                    <input type="checkbox" id="emby-show-quick-search-actor">
+                    <span class="setting-title">显示"搜演员"按钮</span>
+                </label>
+                <p class="setting-description">在右侧显示悬浮按钮，快速按页面内容或选中文本进行演员搜索。</p>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>测试功能</h4>
+            <div class="setting-item">
+                <div class="test-buttons-group">
+                    <button type="button" id="test-current-page" class="btn btn-primary">
+                        <i class="fas fa-globe"></i> 测试当前页面
+                    </button>
+                    <button type="button" id="test-sample-urls" class="btn btn-secondary">
+                        <i class="fas fa-vial"></i> 测试示例网址
+                    </button>
+                </div>
+                <p class="setting-description">
+                    测试网址模式匹配功能。可以测试当前页面或使用预设的示例网址（包含匹配和不匹配的案例）。
+                </p>
+                <div id="test-result" class="test-result"></div>
+            </div>
+        </div>
+
+        <div class="settings-card settings-section">
+            <h4>使用说明</h4>
+            <div class="help-content">
+                <ul>
+                    <li><strong>网址模式:</strong> 使用通配符 * 匹配任意字符，如 *.emby.com/* 匹配所有emby.com的子域名</li>
+                    <li><strong>番号识别:</strong> 自动识别常见的番号格式，如 ABC-123、FC2-PPV-123456 等</li>
+                    <li><strong>链接跳转:</strong> 所有链接都会在新标签页中打开，不影响当前页面</li>
+                    <li><strong>兼容性:</strong> 支持Emby、Jellyfin等主流媒体服务器</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

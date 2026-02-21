@@ -1,0 +1,99 @@
+﻿<div class="settings-page" id="network-test-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>网络测试</h2>
+        <p class="settings-description">测试拓展涉及的所有外部服务的网络连通性，帮助诊断网络问题。</p>
+    </div>
+    <div class="settings-page-body">
+        <!-- 手动测试区域 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-edit"></i> 手动测试</h4>
+            <p class="section-description">输入任意URL进行网络延迟测试</p>
+            
+            <div class="form-group-inline">
+                <div class="input-with-icon" style="flex: 1;">
+                    <i class="fas fa-link icon"></i>
+                    <input type="text" id="ping-url" class="text-input" placeholder="例如: https://javdb.com" value="https://javdb.com" style="padding-left: 35px;">
+                </div>
+                <button id="start-ping-test" class="btn btn-primary">
+                    <span class="button-text">开始测试</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </div>
+            
+            <div id="ping-results-container" style="margin-top: 20px; display: none;">
+                <h4>测试结果:</h4>
+                <div id="ping-results"></div>
+            </div>
+        </div>
+
+        <!-- 批量测试区域 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-rocket"></i> 一键测试</h4>
+            <p class="section-description">快速检测拓展涉及的所有外部服务的连通性</p>
+
+            <!-- 统计信息 -->
+            <div class="domain-stats">
+                <div class="stat-item">
+                    <span class="stat-label">总域名数:</span>
+                    <span class="stat-value" id="total-domains">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">已启用:</span>
+                    <span class="stat-value" id="enabled-domains">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">上次测试:</span>
+                    <span class="stat-value" id="last-test-time">从未</span>
+                </div>
+            </div>
+
+            <!-- 批量测试控制按钮 -->
+            <div class="button-group">
+                <button id="test-all-domains" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    <span class="button-text">测试所有域名</span>
+                    <div class="spinner hidden"></div>
+                </button>
+                <button id="test-core-domains" class="btn btn-secondary">
+                    <i class="fas fa-home"></i>
+                    <span class="button-text">仅测试核心服务</span>
+                </button>
+                <button id="toggle-domain-config" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i>
+                    <span class="button-text">配置域名</span>
+                </button>
+                <button id="clear-batch-results" class="btn btn-secondary">
+                    <i class="fas fa-trash"></i>
+                    <span class="button-text">清空结果</span>
+                </button>
+            </div>
+
+            <!-- 域名配置面板 -->
+            <div id="domain-config-panel" class="domain-config-panel" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div class="config-header" style="margin-bottom: 15px;">
+                    <h5><i class="fas fa-cog"></i> 域名测试配置</h5>
+                    <p style="color: #666; font-size: 13px;">选择要测试的服务域名，只有启用的域名会被测试</p>
+                </div>
+                <div id="domain-config-content" class="domain-config-content">
+                    <!-- 动态生成的域名配置项 -->
+                </div>
+                <div class="config-actions" style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button id="select-all-domains" class="btn btn-secondary btn-sm">全选</button>
+                    <button id="deselect-all-domains" class="btn btn-secondary btn-sm">全不选</button>
+                    <button id="reset-default-domains" class="btn btn-secondary btn-sm">恢复默认</button>
+                </div>
+            </div>
+
+            <!-- 批量测试结果 -->
+            <div id="batch-test-results" class="batch-results-container" style="display: none; margin-top: 20px;">
+                <div class="batch-results-placeholder" style="text-align: center; padding: 40px; color: #999;">
+                    <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 10px; display: block;"></i>
+                    <p>点击上方按钮开始批量测试</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

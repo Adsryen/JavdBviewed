@@ -1,0 +1,205 @@
+<div class="settings-page" id="privacy-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>隐私保护设置</h2>
+        <p class="settings-description">配置截图模式和私密模式，保护您的隐私数据不被意外泄露。</p>
+    </div>
+    <div class="settings-page-body">
+        <!-- 截图模式设置 -->
+        <div class="settings-section privacy-card">
+            <div class="privacy-section-header">
+                <h4><i class="fas fa-camera"></i> 截图模式</h4>
+                <div class="privacy-toggle-wrapper">
+                    <input type="checkbox" id="screenshotModeEnabled" class="privacy-toggle">
+                    <label for="screenshotModeEnabled" class="privacy-toggle-label">
+                        <span class="privacy-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <p class="settings-description">对敏感内容应用模糊效果，防止截图时泄露隐私。</p>
+
+            <div class="privacy-settings-grid">
+                <div class="form-group">
+                    <label for="blurIntensity" class="privacy-label">
+                        <i class="fas fa-adjust"></i> 模糊强度:
+                        <span id="blurIntensityValue" class="privacy-value">5</span>
+                    </label>
+                    <input type="range" id="blurIntensity" min="1" max="10" value="5" class="privacy-slider">
+                </div>
+
+                <div class="form-group">
+                    <label for="autoBlurTrigger" class="privacy-label">
+                        <i class="fas fa-magic"></i> 自动模糊触发条件
+                    </label>
+                    <select id="autoBlurTrigger" class="privacy-select">
+                        <option value="manual">手动控制</option>
+                        <option value="tab-leave">离开标签页时</option>
+                        <option value="extension-reopen">重新打开拓展时</option>
+                        <option value="idle-timeout">空闲超时时</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 模糊区域选择 -->
+            <div class="privacy-blur-areas">
+                <label class="privacy-label">
+                    <i class="fas fa-layer-group"></i> 选择要模糊的区域
+                </label>
+                <div class="blur-areas-grid">
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurSidebar" data-area="sidebar" checked>
+                        <label for="blurSidebar">侧边栏</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurNavigation" data-area="navigation" checked>
+                        <label for="blurNavigation">导航栏</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurVideoLibrary" data-area="video-library" checked>
+                        <label for="blurVideoLibrary">番号库</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurActorLibrary" data-area="actor-library" checked>
+                        <label for="blurActorLibrary">演员库</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurPlaylistPage" data-area="playlist-page" checked>
+                        <label for="blurPlaylistPage">新作品</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurListsPage" data-area="lists-page" checked>
+                        <label for="blurListsPage">清单管理</label>
+                    </div>
+                    <div class="form-group-checkbox privacy-checkbox">
+                        <input type="checkbox" id="blurHomePage" data-area="home-page" checked>
+                        <label for="blurHomePage">首页</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 私密模式设置 -->
+        <div class="settings-section privacy-card">
+            <div class="privacy-section-header">
+                <h4><i class="fas fa-lock"></i> 私密模式</h4>
+                <div class="privacy-toggle-wrapper">
+                    <input type="checkbox" id="privateModeEnabled" class="privacy-toggle">
+                    <label for="privateModeEnabled" class="privacy-toggle-label">
+                        <span class="privacy-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <p class="settings-description">在截图模式基础上增加密码验证，适用于公共电脑环境。</p>
+
+            <div class="privacy-settings-grid">
+                <div class="form-group">
+                    <label class="privacy-label">
+                        <i class="fas fa-key"></i> 密码状态
+                    </label>
+                    <div class="privacy-status-row">
+                        <span id="passwordStatus" class="privacy-status privacy-status-warning">未设置</span>
+                        <div class="privacy-btn-group">
+                            <button id="setPasswordBtn" class="privacy-btn privacy-btn-primary">
+                                <i class="fas fa-plus"></i> 设置密码
+                            </button>
+                            <button id="changePasswordBtn" class="privacy-btn privacy-btn-secondary" style="display: none;">
+                                <i class="fas fa-edit"></i> 更改密码
+                            </button>
+                            <button id="removePasswordBtn" class="privacy-btn privacy-btn-danger" style="display: none;">
+                                <i class="fas fa-trash"></i> 取消密码
+                            </button>
+                        </div>
+                    </div>
+                    <div class="privacy-hint">
+                        <i class="fas fa-info-circle"></i>
+                        密码要求：至少6位，支持纯数字或字母数字组合
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sessionTimeout" class="privacy-label">
+                        <i class="fas fa-hourglass-half"></i> 无操作超时时间（分钟）
+                    </label>
+                    <input type="number" id="sessionTimeout" min="1" max="120" value="10" class="privacy-input">
+                    <div class="privacy-hint">
+                        <i class="fas fa-info-circle"></i>
+                        超过此时间无任何操作将自动锁定
+                    </div>
+                </div>
+            </div>
+
+            <div class="privacy-options">
+                <div class="form-group-checkbox privacy-checkbox">
+                    <input type="checkbox" id="requirePassword">
+                    <label for="requirePassword">
+                        <i class="fas fa-shield-alt"></i> 需要密码验证
+                    </label>
+                </div>
+
+                <div class="form-group-checkbox privacy-checkbox">
+                    <input type="checkbox" id="lockOnTabLeave">
+                    <label for="lockOnTabLeave">
+                        <i class="fas fa-sign-out-alt"></i> 离开标签页时自动锁定
+                    </label>
+                </div>
+
+                <div class="form-group-checkbox privacy-checkbox">
+                    <input type="checkbox" id="lockOnExtensionClose">
+                    <label for="lockOnExtensionClose">
+                        <i class="fas fa-times-circle"></i> 关闭拓展时自动锁定
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 密码恢复设置 -->
+        <div class="settings-section privacy-card">
+            <div class="privacy-section-header">
+                <h4><i class="fas fa-life-ring"></i> 密码恢复</h4>
+            </div>
+            <p class="settings-description">设置密码恢复选项，以防忘记密码。</p>
+
+            <div class="privacy-settings-grid">
+                <div class="form-group">
+                    <label class="privacy-label">
+                        <i class="fas fa-question-circle"></i> 安全问题
+                    </label>
+                    <div class="privacy-status-row">
+                        <span id="securityQuestionsStatus" class="privacy-status privacy-status-warning">未设置</span>
+                        <button id="setupSecurityQuestionsBtn" class="privacy-btn privacy-btn-secondary">
+                            <i class="fas fa-cog"></i> 设置安全问题
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="privacy-label">
+                        <i class="fas fa-code"></i> 备份恢复码
+                    </label>
+                    <div class="privacy-status-row">
+                        <span id="backupCodeStatus" class="privacy-status privacy-status-warning">未生成</span>
+                        <button id="generateBackupCodeBtn" class="privacy-btn privacy-btn-secondary">
+                            <i class="fas fa-key"></i> 生成备份码
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="privacy-alert privacy-alert-warning">
+                <div class="privacy-alert-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="privacy-alert-content">
+                    <strong>重要提醒：</strong>
+                    <ul>
+                        <li>请妥善保存备份恢复码，它只会显示一次</li>
+                        <li>如果忘记密码且没有恢复选项，只能重置所有数据</li>
+                        <li>建议至少设置一种恢复方式</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

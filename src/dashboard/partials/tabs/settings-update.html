@@ -1,0 +1,115 @@
+﻿<div class="settings-page" id="update-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>检查更新</h2>
+        <p class="settings-description">管理扩展程序的更新检查设置，获取最新版本信息。</p>
+    </div>
+    <div class="settings-page-body">
+        <!-- 版本信息卡片 -->
+        <div class="settings-section">
+            <h4>版本信息</h4>
+            <div class="version-info">
+                <div class="version-item">
+                    <span class="version-label">当前版本</span>
+                    <span class="version-value" id="currentVersion">加载中...</span>
+                </div>
+                <div class="version-item">
+                    <span class="version-label">最新版本</span>
+                    <span class="version-value" id="latestVersion">检查中...</span>
+                </div>
+                <div class="version-item">
+                    <span class="version-label">上次检查</span>
+                    <span class="version-value" id="lastUpdateCheck">从未检查</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 自动检查设置卡片 -->
+        <div class="settings-section auto-check-section">
+            <div class="section-header">
+                <h4>
+                    <span class="section-icon">⚙️</span>
+                    自动检查设置
+                </h4>
+                <p class="section-description">配置自动更新检查的频率和范围</p>
+            </div>
+            
+            <div class="auto-check-card">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">
+                            <span class="setting-icon">🔔</span>
+                            启用自动检查更新
+                        </div>
+                        <div class="setting-desc">定期自动检查是否有新版本发布</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoUpdateCheck">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">
+                            <span class="setting-icon">⏱️</span>
+                            检查间隔
+                        </div>
+                        <div class="setting-desc">设置自动检查更新的时间间隔</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="updateCheckInterval" class="modern-select">
+                            <option value="6">每 6 小时</option>
+                            <option value="12">每 12 小时</option>
+                            <option value="24">每 24 小时</option>
+                            <option value="72">每 3 天</option>
+                            <option value="168">每周</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">
+                            <span class="setting-icon">🧪</span>
+                            包含预发布版本
+                        </div>
+                        <div class="setting-desc">检查时包含测试版和预览版</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="includePrerelease">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手动操作区域 -->
+        <div class="settings-section">
+            <h4>手动操作</h4>
+            <div class="action-buttons-top">
+                <button id="checkUpdateNow" class="btn primary">立即检查</button>
+                <button id="viewChangelog" class="btn">查看更新日志</button>
+                <button id="downloadUpdate" class="btn success" style="display: none;">下载更新</button>
+            </div>
+            <p class="input-description" style="margin-top: 12px; color: #6b7280; font-size: 13px; line-height: 1.6;">
+                <strong style="color: #1f2937;">立即检查:</strong> 手动检查是否有新版本可用<br>
+                <strong style="color: #1f2937;">查看更新日志:</strong> 查看最新版本的更新内容和修复<br>
+                <strong style="color: #1f2937;">下载更新:</strong> 当有新版本时，跳转到下载页面
+            </p>
+        </div>
+
+        <!-- 更新通知区域 -->
+        <div class="settings-section" id="updateNotification" style="display: none;">
+            <h4>更新通知</h4>
+            <div class="update-notification">
+                <div class="notification-content">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="updateMessage">检查更新状态...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

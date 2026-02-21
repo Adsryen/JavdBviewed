@@ -1,0 +1,125 @@
+﻿<div class="settings-page" id="sync-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>同步设置</h2>
+        <p class="settings-description">配置从JavDB同步观看记录、想看列表和演员数据的URL地址和行为参数。</p>
+    </div>
+    <div class="settings-page-body">
+        <!-- 视频数据同步配置 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-video"></i> 视频数据同步配置</h4>
+            <p class="section-description">配置观看记录和想看列表的同步URL地址，页码参数将由程序自动添加。</p>
+
+            <div class="form-group" data-subtab="list">
+                <label for="dataSyncWantWatchUrl">想看列表URL:</label>
+                <input type="url" id="dataSyncWantWatchUrl" class="text-input" placeholder="https://javdb.com/users/want_watch_videos">
+                <p class="input-description">想看视频列表的URL地址，程序会自动添加页码参数。</p>
+            </div>
+
+            <div class="form-group" data-subtab="list">
+                <label for="dataSyncWatchedVideosUrl">已看列表URL:</label>
+                <input type="url" id="dataSyncWatchedVideosUrl" class="text-input" placeholder="https://javdb.com/users/watched_videos">
+                <p class="input-description">已观看视频列表的URL地址，程序会自动添加页码参数。</p>
+            </div>
+        </div>
+
+        <!-- 演员数据同步配置 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-users"></i> 演员数据同步配置</h4>
+            <p class="section-description">配置演员数据同步的行为和URL地址。</p>
+
+            <div class="form-group-checkbox" data-subtab="video">
+                <input type="checkbox" id="actorSyncEnabled">
+                <label for="actorSyncEnabled">启用演员同步功能</label>
+                <p class="input-description">开启后可以从JavDB同步收藏演员数据到本地。</p>
+            </div>
+
+            <div class="form-group-checkbox" data-subtab="actor">
+                <input type="checkbox" id="actorAutoSync">
+                <label for="actorAutoSync">自动同步演员数据</label>
+                <p class="input-description">定期自动同步演员数据，避免手动操作。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncInterval">演员同步间隔 (分钟):</label>
+                <input type="number" id="actorSyncInterval" class="number-input" min="60" max="10080" value="1440">
+                <p class="input-description">自动同步演员数据的时间间隔，建议设置为24小时(1440分钟)或更长。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncCollectionUrl">收藏演员URL:</label>
+                <input type="url" id="actorSyncCollectionUrl" class="text-input" placeholder="https://javdb.com/users/collection_actors">
+                <p class="input-description">收藏演员列表的URL地址，程序会自动添加页码参数。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncDetailUrl">演员详情URL模板:</label>
+                <input type="text" id="actorSyncDetailUrl" class="text-input" placeholder="https://javdb.com/actors/{{ACTOR_ID}}">
+                <p class="input-description">演员详情页的URL模板，{{ACTOR_ID}}将被替换为实际的演员ID。</p>
+            </div>
+        </div>
+
+        <!-- 通用同步行为配置 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-cog"></i> 通用同步行为配置</h4>
+            <p class="section-description">配置所有数据同步时的请求间隔和批量处理设置。</p>
+
+            <div class="form-group">
+                <label for="dataSyncRequestInterval">请求间隔 (秒):</label>
+                <input type="number" id="dataSyncRequestInterval" class="number-input" min="1" max="60" value="3">
+                <p class="input-description">每次请求之间的间隔时间，建议至少3秒以缓解服务器压力。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="dataSyncBatchSize">批量处理大小:</label>
+                <input type="number" id="dataSyncBatchSize" class="number-input" min="10" max="100" value="20">
+                <p class="input-description">每批处理的视频数量，建议设置为20-50之间。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="dataSyncMaxRetries">最大重试次数:</label>
+                <input type="number" id="dataSyncMaxRetries" class="number-input" min="1" max="10" value="3">
+                <p class="input-description">网络请求失败时的最大重试次数。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncRequestInterval">演员同步请求间隔 (秒):</label>
+                <input type="number" id="actorSyncRequestInterval" class="number-input" min="3" max="60" value="3">
+                <p class="input-description">演员详情页请求间隔，建议至少3秒以缓解服务器压力。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncBatchSize">演员批量处理大小:</label>
+                <input type="number" id="actorSyncBatchSize" class="number-input" min="10" max="50" value="20">
+                <p class="input-description">每批处理的演员数量，通常一页包含20个演员。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="actorSyncMaxRetries">演员同步最大重试次数:</label>
+                <input type="number" id="actorSyncMaxRetries" class="number-input" min="1" max="10" value="3">
+                <p class="input-description">演员数据获取失败时的最大重试次数。</p>
+            </div>
+        </div>
+
+        <!-- 测试功能 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-vial"></i> 测试功能</h4>
+            <p class="section-description">测试同步配置是否正确。</p>
+
+            <div class="button-group">
+                <button type="button" id="testActorSyncConnection" class="btn btn-info">
+                    <i class="fas fa-network-wired"></i>
+                    测试演员同步连接
+                </button>
+                <button type="button" id="testActorSyncParsing" class="btn btn-success">
+                    <i class="fas fa-code"></i>
+                    测试演员数据解析
+                </button>
+            </div>
+
+            <div id="actorSyncTestResults" class="test-results" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>

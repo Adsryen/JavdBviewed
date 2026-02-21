@@ -1,0 +1,221 @@
+﻿<div class="settings-page" id="webdav-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>WebDAV同步</h2>
+        <p class="settings-description">通过WebDAV协议，将您的观看记录备份到兼容的云存储服务（如：坚果云、Nextcloud等）。</p>
+    </div>
+    <div class="settings-page-body">
+        <!-- 主开关 -->
+        <div class="webdav-main-control settings-card">
+            <div class="form-group-checkbox webdav-enable-control">
+                <input type="checkbox" id="webdavEnabled">
+                <label for="webdavEnabled">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    启用 WebDAV 同步
+                </label>
+            </div>
+        </div>
+
+        <!-- 配置管理区域 -->
+        <div class="webdav-section settings-card" id="webdavConfigSection">
+                    <div class="webdav-section-header">
+                        <i class="fas fa-server"></i>
+                        <span>配置管理</span>
+                    </div>
+                    <div class="webdav-section-content">
+                        <div class="webdav-config-manager">
+                            <div class="config-manager-header">
+                                <button type="button" id="addWebdavConfig" class="button-like" style="padding: 6px 12px; font-size: 13px;">
+                                    <i class="fas fa-plus"></i> 添加配置
+                                </button>
+                                <div class="config-test-buttons">
+                                    <button type="button" id="testWebdavConnection" class="button-like" style="padding: 6px 12px; font-size: 13px;">
+                                        <i class="fas fa-plug"></i> 测试连接
+                                    </button>
+                                    <button type="button" id="diagnoseWebdavConnection" class="button-like" style="padding: 6px 12px; font-size: 13px;">
+                                        <i class="fas fa-stethoscope"></i> 诊断连接
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="webdavConfigList" class="webdav-config-list">
+                                <!-- 配置列表将由 JS 动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 同步设置 -->
+                <div class="webdav-section settings-card" id="webdavSyncSection">
+                    <div class="webdav-section-header">
+                        <i class="fas fa-cog"></i>
+                        <span>同步设置</span>
+                    </div>
+                    <div class="webdav-section-content">
+                        <div class="form-group-checkbox webdav-auto-control">
+                            <input type="checkbox" id="webdavAutoSync">
+                            <label for="webdavAutoSync">
+                                <i class="fas fa-sync-alt"></i>
+                                自动上传
+                            </label>
+                        </div>
+
+                        <div class="webdav-inline-controls">
+                            <div class="form-group-inline webdav-interval-control">
+                                <label for="webdav-sync-interval">
+                                    <i class="fas fa-clock"></i>
+                                    同步间隔:
+                                </label>
+                                <input type="number" id="webdav-sync-interval" class="number-input" min="1" max="1440" value="30">
+                                <span class="input-suffix">分钟</span>
+                            </div>
+
+                            <div class="form-group-inline webdav-retention-control">
+                                <label for="webdav-retention-days">
+                                    <i class="fas fa-trash-alt"></i>
+                                    保留备份:
+                                </label>
+                                <input type="number" id="webdav-retention-days" class="number-input" min="0" max="3650" value="7">
+                                <span class="input-suffix">天</span>
+                            </div>
+
+                            <div class="form-group-inline webdav-warning-control">
+                                <label for="webdav-warning-days">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    预警阈值:
+                                </label>
+                                <input type="number" id="webdav-warning-days" class="number-input" min="0" max="3650" value="7">
+                                <span class="input-suffix">天</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 备份数据范围 -->
+                <div class="webdav-section settings-card" id="webdavBackupSection">
+                    <div class="webdav-section-header">
+                        <i class="fas fa-database"></i>
+                        <span>备份数据范围</span>
+                    </div>
+                    <div class="webdav-section-content">
+                        <p class="webdav-section-description">选择要备份到云端的数据类型</p>
+                        <div class="webdav-data-range-options">
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavBackupCoreData" checked>
+                                <label for="webdavBackupCoreData">
+                                    <i class="fas fa-database"></i>
+                                    核心数据
+                                    <span class="checkbox-description">观看记录、用户资料</span>
+                                </label>
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavBackupActorData" checked>
+                                <label for="webdavBackupActorData">
+                                    <i class="fas fa-users"></i>
+                                    演员数据
+                                    <span class="checkbox-description">演员库、演员订阅</span>
+                                </label>
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavBackupNewWorksData">
+                                <label for="webdavBackupNewWorksData">
+                                    <i class="fas fa-star"></i>
+                                    新作品数据
+                                    <span class="checkbox-description">新作品订阅和记录</span>
+                                </label>
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavBackupSystemConfig" checked>
+                                <label for="webdavBackupSystemConfig">
+                                    <i class="fas fa-cog"></i>
+                                    系统配置
+                                    <span class="checkbox-description">拓展设置、域名配置、搜索引擎等</span>
+                                </label>
+                            </div>
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="webdavBackupLogsData">
+                                <label for="webdavBackupLogsData">
+                                    <i class="fas fa-file-alt"></i>
+                                    日志数据
+                                    <span class="checkbox-description">操作日志</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+        <div id="fileListContainer" class="settings-section hidden">
+            <h4>云端文件列表 (点击恢复)</h4>
+            <ul id="fileList"></ul>
+        </div>
+    </div>
+
+    <!-- WebDAV 配置编辑弹窗 -->
+    <div id="webdavConfigModal" class="webdav-config-modal" style="display: none;">
+        <div class="webdav-config-modal-overlay"></div>
+        <div class="webdav-config-modal-content">
+            <div class="webdav-config-modal-header">
+                <h3 id="webdavConfigModalTitle">添加配置</h3>
+                <button type="button" class="webdav-config-modal-close" id="closeWebdavConfigModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="webdav-config-modal-body">
+                <div class="form-group">
+                    <label for="modalConfigName">配置名称:</label>
+                    <input type="text" id="modalConfigName" placeholder="例如: 坚果云配置" class="text-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="modalWebdavUrl">
+                        WebDAV 地址:
+                        <button type="button" id="modalCopyWebdavFullUrl" class="copy-icon-btn" title="复制完整地址">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;">
+                        <input type="text" id="modalWebdavUrl" placeholder="例如: https://dav.jianguoyun.com/dav/" style="flex: 1; min-width: 200px; box-sizing: border-box;">
+                        <select id="modalWebdavProvider" class="webdav-provider-select" style="width: 120px; box-sizing: border-box;">
+                            <option value="custom">自定义</option>
+                            <option value="jianguoyun">坚果云</option>
+                            <option value="teracloud">TeraCloud</option>
+                        </select>
+                        <input type="text" id="modalWebdavFolder" placeholder="文件夹 (可选)" style="width: 150px; box-sizing: border-box;">
+                    </div>
+                    <p class="input-description" style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">选择厂商后会自动填充服务器地址，文件夹为远端存储路径（可选，留空则使用根目录）</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="modalWebdavUser">用户名:</label>
+                    <div style="position: relative; display: block; width: 100%;">
+                        <input type="text" id="modalWebdavUser" style="width: 100%; max-width: none; padding-right: 45px; box-sizing: border-box;">
+                        <button type="button" id="modalCopyWebdavUser" class="copy-input-btn" title="复制用户名">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="modalWebdavPass">密码/应用密钥:</label>
+                    <div class="password-input-container" style="position: relative; display: block; width: 100%;">
+                        <input type="password" id="modalWebdavPass" style="width: 100%; max-width: none; padding-right: 80px; box-sizing: border-box;">
+                        <button type="button" id="modalToggleWebdavPasswordVisibility" class="toggle-password-btn" title="显示/隐藏密码" style="position: absolute; right: 40px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 6px; color: #64748b; z-index: 1000; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 3px;">
+                            <i class="fas fa-eye" style="font-size: 14px; line-height: 1;"></i>
+                        </button>
+                        <button type="button" id="modalCopyWebdavPass" class="copy-input-btn" title="复制密码" style="right: 8px;">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="webdav-config-modal-footer">
+                <button type="button" class="button-secondary" id="cancelWebdavConfigModal">取消</button>
+                <button type="button" class="button-test" id="testWebdavConfigModal">
+                    <i class="fas fa-plug"></i> 测试连接
+                </button>
+                <button type="button" class="button-primary" id="saveWebdavConfigModal">保存</button>
+            </div>
+        </div>
+    </div>
+</div>

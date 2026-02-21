@@ -1,0 +1,29 @@
+﻿<div class="settings-page" id="advanced-settings">
+    <div class="settings-page-header">
+        <button class="settings-back-btn" data-action="back-to-settings">
+            <i class="fas fa-arrow-left"></i> 返回设置
+        </button>
+        <h2>高级配置</h2>
+        <p class="settings-description">高级用户可以在此处查看和编辑原始配置数据。</p>
+    </div>
+    <div class="settings-page-body">
+        <div class="settings-section settings-card">
+            <h4>原始设置 (JSON)</h4>
+            <div class="action-buttons-top">
+                <button id="viewJsonBtn" class="btn">查看设置</button>
+                <button id="editJsonBtn" class="btn">编辑设置</button>
+                <button id="exportJsonBtn" class="btn">导出完整备份</button>
+            </div>
+            <p class="section-description">查看和编辑扩展的原始配置数据，支持JSON格式导入导出。</p>
+        </div>
+
+        <div class="settings-section settings-card">
+            <h4>原始日志 (Raw Logs)</h4>
+            <div class="action-buttons-top">
+                <button id="viewRawLogsBtn" class="btn">查看日志</button>
+                <button id="testLogBtn" class="btn">测试日志</button>
+            </div>
+            <p class="section-description">查看扩展运行时产生的详细日志信息，用于调试和问题排查。</p>
+        </div>
+    </div>
+</div>
