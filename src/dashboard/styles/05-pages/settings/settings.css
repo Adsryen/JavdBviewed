@@ -1,3 +1,202 @@
+/* ========================================
+   新架构样式 - 设置导航页和设置子页面
+   ======================================== */
+
+/* 设置导航页容器 */
+.card.settings-index {
+    /* card 类已经提供了基础样式 */
+    padding: 24px;
+}
+
+.settings-index-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.settings-index-header h2 {
+    font-size: 32px;
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.settings-index-header p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* 设置导航卡片网格 */
+.settings-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+/* 确保在大屏幕上最多显示 3 列 */
+@media (min-width: 1200px) {
+    .settings-nav-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 中等屏幕显示 2 列 */
+@media (min-width: 768px) and (max-width: 1199px) {
+    .settings-nav-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 设置导航卡片 */
+.settings-nav-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    background: var(--surface-primary);
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.settings-nav-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.settings-nav-card i {
+    font-size: 32px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.settings-nav-card .card-content {
+    flex: 1;
+}
+
+.settings-nav-card .card-content h3 {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-nav-card .card-content p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* 设置子页面容器 */
+.settings-page {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    border: none;
+}
+
+.settings-page-header {
+    position: relative;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--border-primary);
+}
+
+.settings-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+.settings-back-btn:hover {
+    color: var(--primary-color);
+    background-color: var(--hover-bg);
+}
+
+.settings-back-btn i {
+    font-size: 12px;
+}
+
+.settings-page-header h2,
+.settings-page-header h3 {
+    font-size: 28px;
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    font-weight: 700;
+    text-align: center;
+}
+
+.settings-page-header .settings-description {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.settings-page-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .settings-index {
+        padding: 20px 15px;
+    }
+
+    .settings-index-header h2 {
+        font-size: 24px;
+    }
+
+    .settings-nav-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .settings-nav-card {
+        padding: 20px;
+    }
+
+    .settings-nav-card i {
+        font-size: 28px;
+    }
+
+    .settings-page {
+        padding: 15px;
+    }
+
+    .settings-page-header h2 {
+        font-size: 22px;
+    }
+}
+
+/* ========================================
+   旧架构样式 - 保留用于兼容
+   ======================================== */
+
 /* Settings Container Layout - 充分利用可用高度 */
 .settings-container {
     display: flex !important;
@@ -325,26 +524,10 @@
     overflow: hidden;
 }
 
-#advanced-settings .settings-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--advanced-primary) 0%, var(--advanced-secondary) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
 #advanced-settings .settings-section:hover {
     border-color: var(--advanced-primary);
     box-shadow: var(--advanced-shadow-hover);
     transform: translateY(-2px);
-}
-
-#advanced-settings .settings-section:hover::before {
-    opacity: 1;
 }
 
 #advanced-settings .settings-section h4 {
@@ -1768,10 +1951,10 @@ textarea.textarea-input {
 
 /* 数据查看弹窗样式 */
 .data-view-modal {
-    max-width: 90vw;
-    max-height: 90vh;
-    width: 800px;
-    height: 600px;
+    max-width: 95vw;
+    max-height: 95vh;
+    width: 1200px;
+    height: 800px;
     display: flex;
     flex-direction: column;
 }
@@ -1902,6 +2085,73 @@ textarea.textarea-input {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+/* 翻页控件样式 */
+.data-view-pagination {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 12px;
+}
+
+.data-view-pagination.hidden {
+    display: none;
+}
+
+.pagination-filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.pagination-select {
+    padding: 6px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-select:hover {
+    border-color: var(--primary);
+}
+
+.pagination-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-width: 150px;
+    text-align: center;
+}
+
+.pagination-controls .btn {
+    padding: 6px 16px;
+    font-size: 13px;
+}
+
+.pagination-controls .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* 响应式设计 */
@@ -2792,6 +3042,16 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+[data-theme="dark"] .log-controls .btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+[data-theme="dark"] .log-controls .btn-secondary:hover {
+    background: #475569;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
 .log-controls .btn-primary {
     background: #007bff;
     color: white;
@@ -3201,5 +3461,35 @@ input:checked + .toggle-slider:before {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+
+/* 显示设置页面 - 左右布局 */
+.display-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 20px;
+}
+
+.display-settings-column h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-primary);
+}
+
+.display-settings-column .form-group-checkbox {
+    margin-bottom: 12px;
+}
+
+/* 响应式：小屏幕时改为单列 */
+@media (max-width: 768px) {
+    .display-settings-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
     }
 }

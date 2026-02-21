@@ -5,7 +5,6 @@
 /* ===== 旧版标签页样式（保持兼容） ===== */
 .tabs {
     display: flex;
-    border-bottom: 1px solid var(--border-primary);
     margin-bottom: 25px;
 }
 

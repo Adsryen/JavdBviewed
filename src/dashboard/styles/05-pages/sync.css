@@ -2,6 +2,11 @@
    Data Sync Section - 精致现代化设计
    ================================================================ */
 
+/* 同步页面的 card 容器内边距 */
+#tab-sync .card {
+    padding: 24px;
+}
+
 /* 数据同步标题样式 */
 .data-sync-section .section-title {
     font-size: 24px;

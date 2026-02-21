@@ -1,17 +1,4 @@
-/* 网络测试样式 */
-
-/* CSS变量定义 */
-:root {
-    --network-primary: #3b82f6;
-    --network-secondary: #60a5fa;
-    --network-bg: #f8fafc;
-    --network-card-bg: #ffffff;
-    --network-border: #e2e8f0;
-    --network-text: #1e293b;
-    --network-text-muted: #64748b;
-    --network-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --network-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
+/* 网络测试样式 - 适配日夜主题 */
 
 /* 网络测试设置面板特有样式 */
 #network-test-settings {
@@ -41,7 +28,7 @@
 }
 
 #network-test-settings .settings-panel-header h3 {
-    color: var(--network-primary);
+    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -59,7 +46,7 @@
 }
 
 #network-test-settings .settings-description {
-    color: var(--network-text-muted);
+    color: var(--text-muted);
     font-size: 16px;
     margin-bottom: 0;
     max-width: 600px;
@@ -115,7 +102,7 @@
     gap: 20px;
     margin-bottom: 15px;
     padding: 12px;
-    background: var(--surface-primary);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
     border-radius: 6px;
     flex-wrap: wrap;
@@ -143,66 +130,57 @@
     text-align: center;
 }
 
-/* 批量测试控制按钮 */
-.batch-test-controls {
+/* 网络测试设置面板按钮样式 */
+#network-test-settings .button-group {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
-.batch-test-controls .button-like {
+#network-test-settings .button-group .btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    font-size: 13px;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
     border-radius: 6px;
     transition: all 0.3s ease;
-    min-height: 36px;
+    min-height: 40px;
+    border: 1px solid transparent;
 }
 
-.batch-test-controls .button-like.primary {
-    background: #007bff;
+#network-test-settings .button-group .btn-primary {
+    background: var(--primary);
     color: white;
-    border: 1px solid #007bff;
+    border-color: var(--primary);
 }
 
-.batch-test-controls .button-like.primary:hover {
-    background: #0056b3;
-    border-color: #0056b3;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+#network-test-settings .button-group .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.3);
 }
 
-.batch-test-controls .button-like.secondary {
-    background: #6c757d;
-    color: white;
-    border: 1px solid #6c757d;
+#network-test-settings .button-group .btn-secondary {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
 }
 
-.batch-test-controls .button-like.secondary:hover {
-    background: #545b62;
-    border-color: #545b62;
-    transform: translateY(-1px);
-}
-
-.batch-test-controls .button-like.tertiary {
-    background: #dc3545;
-    color: white;
-    border: 1px solid #dc3545;
-}
-
-.batch-test-controls .button-like.tertiary:hover {
-    background: #c82333;
-    border-color: #c82333;
-    transform: translateY(-1px);
+#network-test-settings .button-group .btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-primary);
 }
 
 /* 批量测试结果容器 */
 .batch-results-container {
-    background: #ffffff;
-    border: 1px solid #dee2e6;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     min-height: 200px;
     max-height: 500px;
@@ -216,7 +194,7 @@
     align-items: center;
     justify-content: center;
     height: 170px;
-    color: #6c757d;
+    color: var(--text-muted);
     text-align: center;
 }
 
@@ -234,15 +212,15 @@
 /* 分类测试结果 */
 .category-result {
     margin-bottom: 20px;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     overflow: hidden;
 }
 
 .category-header {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 12px 15px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -253,7 +231,7 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     margin: 0;
 }
 
@@ -263,7 +241,7 @@
 
 .category-stats {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -282,7 +260,7 @@
 /* 域名测试结果项 */
 .domain-result-item {
     padding: 10px 15px;
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -294,7 +272,7 @@
 }
 
 .domain-result-item:hover {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
 }
 
 .domain-info {
@@ -305,19 +283,19 @@
 
 .domain-name {
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .domain-url {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     font-family: 'Courier New', monospace;
 }
 
 .domain-description {
     font-size: 11px;
-    color: #868e96;
+    color: var(--text-muted);
 }
 
 .domain-status {
@@ -353,7 +331,7 @@
 
 .latency-info {
     font-size: 12px;
-    color: #6c757d;
+    color: var(--text-muted);
     font-weight: 500;
 }
 
@@ -373,8 +351,8 @@
 .test-progress {
     margin-bottom: 15px;
     padding: 10px;
-    background: #e3f2fd;
-    border: 1px solid #bbdefb;
+    background: var(--info-light);
+    border: 1px solid var(--info);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -382,12 +360,12 @@
 }
 
 .test-progress .progress-icon {
-    color: #1976d2;
+    color: var(--info);
     animation: spin 1s linear infinite;
 }
 
 .test-progress .progress-text {
-    color: #1976d2;
+    color: var(--info);
     font-size: 13px;
     font-weight: 500;
 }
@@ -433,8 +411,8 @@
 
 /* 域名配置面板 */
 .domain-config-panel {
-    background: #ffffff;
-    border: 1px solid #e9ecef;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
     margin: 15px 0;
     overflow: hidden;
@@ -453,14 +431,14 @@
 }
 
 .config-header {
-    background: #f8f9fa;
+    background: var(--bg-secondary);
     padding: 15px 20px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .config-header h5 {
     margin: 0 0 5px 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 600;
     display: flex;
@@ -469,13 +447,13 @@
 }
 
 .config-header h5 i {
-    color: #007bff;
+    color: var(--primary);
     font-size: 12px;
 }
 
 .config-header p {
     margin: 0;
-    color: #6c757d;
+    color: var(--text-muted);
     font-size: 12px;
     line-height: 1.4;
 }
@@ -500,11 +478,11 @@
     align-items: center;
     gap: 8px;
     margin: 0 0 12px 0;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 13px;
     font-weight: 600;
     padding-bottom: 5px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .category-title .emoji {
@@ -518,25 +496,25 @@
     justify-content: space-between;
     padding: 8px 12px;
     margin-bottom: 6px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     transition: all 0.2s ease;
 }
 
 .domain-config-item:hover {
-    background: #e9ecef;
-    border-color: #007bff;
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
 }
 
 .domain-config-item.enabled {
-    background: #e8f5e8;
-    border-color: #28a745;
+    background: var(--success-light);
+    border-color: var(--success);
 }
 
 .domain-config-item.disabled {
-    background: #f8f9fa;
-    border-color: #e9ecef;
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
     opacity: 0.7;
 }
 
@@ -547,20 +525,20 @@
 
 .domain-name-config {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 12px;
     margin-bottom: 2px;
 }
 
 .domain-url-config {
-    color: #007bff;
+    color: var(--primary);
     font-size: 11px;
     font-family: 'Courier New', monospace;
     margin-bottom: 2px;
 }
 
 .domain-desc-config {
-    color: #6c757d;
+    color: var(--text-muted);
     font-size: 11px;
     line-height: 1.3;
 }
@@ -576,14 +554,14 @@
     position: relative;
     width: 36px;
     height: 20px;
-    background: #ccc;
+    background: var(--text-muted);
     border-radius: 10px;
     cursor: pointer;
     transition: background 0.3s ease;
 }
 
 .domain-switch.enabled {
-    background: #28a745;
+    background: var(--success);
 }
 
 .domain-switch::before {
@@ -617,12 +595,12 @@
 }
 
 .priority-badge.medium {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning);
+    color: var(--text-primary);
 }
 
 .priority-badge.low {
-    background: #6c757d;
+    background: var(--text-muted);
     color: white;
 }
 
@@ -939,10 +917,10 @@
 }
 
 #batch-test-results .batch-test-summary {
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     padding: 1.5rem;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     margin-bottom: 1.5rem;
 }
 
@@ -964,30 +942,30 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
-    background: var(--bg-primary);
+    background: var(--surface-primary);
     border-radius: 6px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
 #batch-test-results .stat-item.success {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
-    border-color: #10b981;
+    background: var(--success-light);
+    border-color: var(--success);
     border-width: 2px;
 }
 
 #batch-test-results .stat-item.success .stat-value {
-    color: #10b981;
+    color: var(--success);
     font-size: 1.3rem;
 }
 
 #batch-test-results .stat-item.failure {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
-    border-color: #ef4444;
+    background: var(--error-light);
+    border-color: var(--error);
     border-width: 2px;
 }
 
 #batch-test-results .stat-item.failure .stat-value {
-    color: #ef4444;
+    color: var(--error);
     font-size: 1.3rem;
 }
 
@@ -1011,7 +989,7 @@
 #batch-test-results .batch-category-header {
     margin-top: 1rem;
     padding: 0.5rem 0;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-primary);
 }
 
 #batch-test-results .batch-category-header h5 {
@@ -1025,27 +1003,25 @@
     padding: 1rem;
     border-radius: 8px;
     border-left: 4px solid;
-    background: var(--bg-secondary);
+    background: var(--surface-primary);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 #batch-test-results .batch-result-item:hover {
     transform: translateX(4px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px var(--shadow-primary);
 }
 
 #batch-test-results .batch-result-item.success {
-    border-left-color: #10b981;
+    border-left-color: var(--success);
     border-left-width: 5px;
-    background: linear-gradient(to right, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
-    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+    background: var(--success-light);
 }
 
 #batch-test-results .batch-result-item.failure {
-    border-left-color: #ef4444;
+    border-left-color: var(--error);
     border-left-width: 5px;
-    background: linear-gradient(to right, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
-    box-shadow: 0 1px 3px rgba(239, 68, 68, 0.2);
+    background: var(--error-light);
 }
 
 #batch-test-results .result-header {
@@ -1060,15 +1036,13 @@
 }
 
 #batch-test-results .batch-result-item.success .result-header i {
-    color: #10b981;
+    color: var(--success);
     font-size: 1.4rem;
-    text-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 #batch-test-results .batch-result-item.failure .result-header i {
-    color: #ef4444;
+    color: var(--error);
     font-size: 1.4rem;
-    text-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
 }
 
 #batch-test-results .domain-name {
@@ -1086,17 +1060,15 @@
 }
 
 #batch-test-results .batch-result-item.success .domain-status {
-    background: #10b981;
+    background: var(--success);
     color: white;
     font-weight: 600;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
 }
 
 #batch-test-results .batch-result-item.failure .domain-status {
-    background: #ef4444;
+    background: var(--error);
     color: white;
     font-weight: 600;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
 #batch-test-results .result-details {
@@ -1106,7 +1078,7 @@
 #batch-test-results .domain-url {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     margin-bottom: 0.5rem;
 }
 
@@ -1114,30 +1086,30 @@
     display: flex;
     gap: 1.5rem;
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     margin-bottom: 0.5rem;
 }
 
 #batch-test-results .domain-description {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     font-style: italic;
     margin-top: 0.5rem;
 }
 
 #batch-test-results .error-message {
     font-size: 0.85rem;
-    color: var(--danger-color);
+    color: var(--error);
     margin-top: 0.5rem;
     padding: 0.5rem;
-    background: rgba(255, 0, 0, 0.05);
+    background: var(--error-light);
     border-radius: 4px;
 }
 
 #batch-test-results .batch-results-placeholder {
     text-align: center;
     padding: 3rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 
 #batch-test-results .batch-results-placeholder i {
@@ -1170,8 +1142,8 @@
 .domain-config-panel {
     margin: 1.5rem 0;
     padding: 1.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
 }
 
@@ -1190,7 +1162,7 @@
 
 .domain-config-panel .config-header p {
     margin: 0;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
@@ -1202,10 +1174,10 @@
 }
 
 .domain-category-group {
-    background: var(--bg-primary);
+    background: var(--bg-secondary);
     padding: 1rem;
     border-radius: 6px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
 }
 
 .domain-category-group h6 {
@@ -1217,12 +1189,12 @@
     align-items: center;
     gap: 0.5rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-primary);
 }
 
 .domain-category-description {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     margin-bottom: 1rem;
     font-style: italic;
 }
@@ -1237,15 +1209,15 @@
     display: flex;
     align-items: center;
     padding: 0.75rem;
-    background: var(--bg-secondary);
+    background: var(--surface-primary);
     border-radius: 4px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     transition: all 0.2s ease;
 }
 
 .domain-checkbox-item:hover {
     background: var(--bg-tertiary);
-    border-color: var(--primary-color);
+    border-color: var(--primary);
 }
 
 .domain-checkbox-item input[type="checkbox"] {
@@ -1274,12 +1246,12 @@
 .domain-checkbox-url {
     font-family: 'Courier New', monospace;
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 
 .domain-checkbox-description {
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 
 .domain-priority-badge {
@@ -1290,17 +1262,17 @@
 }
 
 .domain-priority-badge.high {
-    background: #ef4444;
+    background: var(--error);
     color: white;
 }
 
 .domain-priority-badge.medium {
-    background: #f59e0b;
+    background: var(--warning);
     color: white;
 }
 
 .domain-priority-badge.low {
-    background: #6b7280;
+    background: var(--text-muted);
     color: white;
 }
 
@@ -1308,11 +1280,27 @@
     display: flex;
     gap: 0.75rem;
     padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-primary);
 }
 
 .config-actions button {
     flex: 1;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid var(--border-primary);
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.config-actions button:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-primary);
 }
 
 @media (max-width: 768px) {

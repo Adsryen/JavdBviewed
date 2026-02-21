@@ -916,8 +916,8 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    background-color: var(--surface-primary);
-    border-top: 1px solid var(--border-primary);
+    background-color: transparent;
+    border-top: none;
 }
 
 /* 演员选择器特定样式 */

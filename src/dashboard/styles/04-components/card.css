@@ -233,3 +233,42 @@
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
+
+/* ===== 设置页面专用卡片样式 ===== */
+/* 通用的设置卡片，带有悬浮动画效果 */
+.settings-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+}
+
+.settings-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* 紧凑版本 */
+.settings-card--compact {
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* 宽松版本 */
+.settings-card--relaxed {
+  padding: 32px;
+  margin-bottom: 32px;
+}
+
+/* 无悬浮效果版本（用于不需要交互的卡片） */
+.settings-card--static {
+  transition: none;
+}
+
+.settings-card--static:hover {
+  box-shadow: var(--shadow-md);
+  transform: none;
+}

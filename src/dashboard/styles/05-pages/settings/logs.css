@@ -427,12 +427,21 @@
 }
 
 #log-settings .btn-secondary {
-    background: var(--secondary) !important;
-    color: var(--text-inverse) !important;
+    background: #6c757d !important;
+    color: #ffffff !important;
 }
 
 #log-settings .btn-secondary:hover {
-    background: var(--secondary-hover) !important;
+    background: #5a6268 !important;
+}
+
+[data-theme="dark"] #log-settings .btn-secondary {
+    background: #64748b !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] #log-settings .btn-secondary:hover {
+    background: #475569 !important;
 }
 
 #log-settings .btn-info {
