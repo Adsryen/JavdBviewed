@@ -376,8 +376,13 @@ if ($autoNotes) {
     # 获取上一个版本号进行比较
     if ($prevTag) {
         $prevVersion = $prevTag -replace '^v', ''
-        $prevVersion = $prevVersion -replace '\.\d+$', ''  # 移除 build 号
+        # 移除 build 号（最后一个点后面的数字）- 例如 1.18.0.67 -> 1.18.0
+        if ($prevVersion -match '^(\d+\.\d+\.\d+)') {
+            $prevVersion = $matches[1]
+        }
         $currentVersion = $versionStr
+        
+        Write-Host "Comparing versions: $prevVersion -> $currentVersion" -ForegroundColor Gray
         
         # 先提取上一个版本的各部分
         if ($prevVersion -match '^(\d+)\.(\d+)\.(\d+)') {
@@ -385,11 +390,15 @@ if ($autoNotes) {
             $prevMinor = [int]$matches[2]
             $prevPatch = [int]$matches[3]
             
+            Write-Host "Previous: Major=$prevMajor, Minor=$prevMinor, Patch=$prevPatch" -ForegroundColor Gray
+            
             # 再提取当前版本的各部分
             if ($currentVersion -match '^(\d+)\.(\d+)\.(\d+)') {
                 $currMajor = [int]$matches[1]
                 $currMinor = [int]$matches[2]
                 $currPatch = [int]$matches[3]
+                
+                Write-Host "Current: Major=$currMajor, Minor=$currMinor, Patch=$currPatch" -ForegroundColor Gray
                 
                 # 比较版本号
                 if ($currMajor -gt $prevMajor) {
@@ -402,6 +411,8 @@ if ($autoNotes) {
                     $changeType = "patch"
                     $isPatchChange = $true
                 }
+                
+                Write-Host "Detected change type: $changeType" -ForegroundColor Gray
             }
         }
     } else {
@@ -490,29 +501,38 @@ if ($autoNotes) {
     $fmt = "- %s - by %an on %ad ([%h]($repoUrl/commit/%H))"
 
     # 分类日志
-    $features = & git log --no-merges --date=short --grep="^feat" --pretty="format:$fmt" $range
-    if ($LASTEXITCODE -eq 0 -and $features) { $features = @($features) } else { $features = @() }
-    $fixes = & git log --no-merges --date=short --grep="^fix" --pretty="format:$fmt" $range
-    if ($LASTEXITCODE -eq 0 -and $fixes) { $fixes = @($fixes) } else { $fixes = @() }
+    $features = @(& git log --no-merges --date=short --grep="^feat" --pretty="format:$fmt" $range 2>$null)
+    $fixes = @(& git log --no-merges --date=short --grep="^fix" --pretty="format:$fmt" $range 2>$null)
     # 使用两次 --grep 来排除 feat 和 fix
-    $others = & git log --no-merges --date=short --grep="^feat" --grep="^fix" --invert-grep --pretty="format:$fmt" $range
-    if ($LASTEXITCODE -eq 0 -and $others) { $others = @($others) } else { $others = @() }
+    $others = @(& git log --no-merges --date=short --grep="^feat" --grep="^fix" --invert-grep --pretty="format:$fmt" $range 2>$null)
     
     Write-Host "Found $($features.Count) features, $($fixes.Count) fixes, $($others.Count) other changes" -ForegroundColor Gray
 
     if ($features.Count -gt 0) {
         $content.Add("### Features") | Out-Null
-        foreach ($l in $features) { $content.Add($l) | Out-Null }
+        foreach ($l in $features) { 
+            if ($l -and $l.Trim()) {
+                $content.Add($l) | Out-Null 
+            }
+        }
         $content.Add("") | Out-Null
     }
     if ($fixes.Count -gt 0) {
         $content.Add("### Fixes") | Out-Null
-        foreach ($l in $fixes) { $content.Add($l) | Out-Null }
+        foreach ($l in $fixes) { 
+            if ($l -and $l.Trim()) {
+                $content.Add($l) | Out-Null 
+            }
+        }
         $content.Add("") | Out-Null
     }
     if ($others.Count -gt 0) {
         $content.Add("### Other Changes") | Out-Null
-        foreach ($l in $others) { $content.Add($l) | Out-Null }
+        foreach ($l in $others) { 
+            if ($l -and $l.Trim()) {
+                $content.Add($l) | Out-Null 
+            }
+        }
         $content.Add("") | Out-Null
     }
 
