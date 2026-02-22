@@ -441,8 +441,247 @@
     border-radius: 8px;
     padding: 15px;
     margin-top: 10px;
-    max-height: 300px;
+    max-height: 500px;
     overflow-y: auto;
+}
+
+/* AI加载状态样式 */
+.test-result.loading {
+    background: var(--surface-primary);
+    border: 1px solid var(--ai-primary-color);
+    animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(var(--ai-primary-rgb, 74, 144, 226), 0.2);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(var(--ai-primary-rgb, 74, 144, 226), 0.4);
+    }
+}
+
+/* AI光标闪烁动画 */
+.ai-loading-dots {
+    margin-top: 12px;
+    padding: 8px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ai-text-color);
+}
+
+.ai-cursor {
+    display: inline-block;
+    animation: aiCursorBlink 0.8s ease-in-out infinite;
+    color: var(--ai-primary-color);
+    font-weight: bold;
+}
+
+@keyframes aiCursorBlink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.2;
+    }
+}
+
+/* 对话消息样式 */
+.chat-message {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-message:last-child {
+    margin-bottom: 0;
+}
+
+.message-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: var(--bg-secondary);
+}
+
+.user-message {
+    flex-direction: row-reverse;
+}
+
+/* 消息包装容器 - 包含按钮和气泡 */
+.message-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 75%;
+}
+
+.user-message .message-wrapper {
+    flex-direction: row-reverse;
+}
+
+.user-message .message-bubble {
+    background: var(--ai-primary-color);
+    color: white;
+    border-radius: 18px 18px 4px 18px;
+}
+
+.assistant-message .message-bubble {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: 18px 18px 18px 4px;
+    max-width: 100%; /* 确保气泡不会超出容器 */
+}
+
+.message-bubble {
+    padding: 12px 16px;
+    word-wrap: break-word;
+    word-break: break-word; /* 强制长单词换行 */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    min-width: 0; /* 允许flex子元素收缩 */
+}
+
+.message-content {
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* 流式输出打字光标 */
+.message-content.streaming {
+    position: relative;
+}
+
+.typing-cursor {
+    display: inline-block;
+    animation: typingBlink 0.7s ease-in-out infinite;
+    color: var(--ai-primary-color);
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes typingBlink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.3;
+    }
+}
+
+/* 重新发送按钮 */
+.resend-btn {
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    color: white;
+    padding: 0;
+}
+
+.resend-btn:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.resend-btn:active {
+    transform: scale(0.9);
+}
+
+.resend-btn svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+    transition: transform 0.3s ease;
+}
+
+.resend-btn:hover svg {
+    transform: rotate(180deg);
+}
+
+/* 日间模式优化 */
+[data-theme="light"] .resend-btn {
+    background: rgba(100, 100, 100, 0.2);
+    color: #666;
+}
+
+[data-theme="light"] .resend-btn:hover {
+    background: rgba(100, 100, 100, 0.3);
+}
+
+/* 夜间模式优化 */
+[data-theme="dark"] .resend-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ccc;
+}
+
+[data-theme="dark"] .resend-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* 消息气泡日夜模式适配 */
+[data-theme="light"] .assistant-message .message-bubble {
+    background: #f0f0f0;
+    color: #333;
+}
+
+[data-theme="dark"] .assistant-message .message-bubble {
+    background: #2a2a2a;
+    color: #e0e0e0;
+}
+
+[data-theme="light"] .message-avatar {
+    background: #e8e8e8;
+}
+
+[data-theme="dark"] .message-avatar {
+    background: #3a3a3a;
+}
+
+.message-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.model-name {
+    font-weight: 500;
+}
+
+.token-count {
+    opacity: 0.8;
+}
+
+.duration {
+    opacity: 0.8;
+    margin-left: auto;
 }
 
 .test-result .message {
