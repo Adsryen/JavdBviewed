@@ -1,6 +1,6 @@
 // src/dashboard/home/charts.ts
 
-import { dbViewedStats, dbActorsStats, dbNewWorksStats, dbViewedPage, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, ensureBackgroundReady } from '../dbClient';
+import { dbViewedStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, ensureBackgroundReady } from '../dbClient';
 import { aggregateMonthly } from '../../services/insights/aggregator';
 import { initStatsOverview, initHomeSectionsOverview } from './overview';
 
@@ -189,11 +189,10 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       const day = String(d.getDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     };
-    let s: any = null, a: any = null, w: any = null, insRange: any = null, insAll: any = null, viewsArrRange: any[] = [];
+    let s: any = null, w: any = null, insRange: any = null, insAll: any = null, viewsArrRange: any[] = [];
     const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
     const msDay = 24*60*60*1000;
     try { s = await dbViewedStats(); } catch {}
-    try { a = await dbActorsStats(); } catch {}
     try { w = await dbNewWorksStats(); } catch {}
     try {
       const { start: startStr, end: endStr } = getHomeChartsRange();
@@ -442,9 +441,8 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       return `${y}-${m}-${day}`;
     };
     const parse = (s: string) => { try { const [Y,M,D] = String(s||'').split('-').map((n) => Number(n)); return new Date(Y, (M||1)-1, D||1); } catch { return new Date(); } };
-    let s: any = null, a: any = null, w: any = null, ins: any = null, viewsArr: any[] = [], insAllG2: any = null;
+    let s: any = null, w: any = null, ins: any = null, viewsArr: any[] = [], insAllG2: any = null;
     try { s = await dbViewedStats(); } catch {}
-    try { a = await dbActorsStats(); } catch {}
     try { w = await dbNewWorksStats(); } catch {}
     try {
       const r = getHomeChartsRange();
