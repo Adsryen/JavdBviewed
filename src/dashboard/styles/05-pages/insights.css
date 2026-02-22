@@ -492,3 +492,48 @@
     animation: none;
     color: #fbbf24;
 }
+
+/* 查看生成过程弹窗的颜色变量 */
+:root {
+    --code-bg: #0f172a;
+    --code-text: #e2e8f0;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+    --progress-bg: #e2e8f0;
+    /* Badge 状态颜色 */
+    --success-bg: #dcfce7;
+    --success-text: #166534;
+    --success-border: #86efac;
+    --warning-bg: #fef3c7;
+    --warning-text: #92400e;
+    --warning-border: #fde68a;
+    --error-bg: #fee2e2;
+    --error-text: #991b1b;
+    --error-border: #fecaca;
+    --badge-default-bg: #e2e8f0;
+    --badge-default-text: #334155;
+    --badge-default-border: #cbd5e1;
+}
+
+[data-theme="dark"] {
+    --code-bg: #1e293b;
+    --code-text: #cbd5e1;
+    --error-color: #f87171;
+    --warning-color: #fbbf24;
+    --info-color: #60a5fa;
+    --progress-bg: #334155;
+    /* Badge 状态颜色 - 深色主题 */
+    --success-bg: #064e3b;
+    --success-text: #86efac;
+    --success-border: #065f46;
+    --warning-bg: #78350f;
+    --warning-text: #fde68a;
+    --warning-border: #92400e;
+    --error-bg: #7f1d1d;
+    --error-text: #fecaca;
+    --error-border: #991b1b;
+    --badge-default-bg: #334155;
+    --badge-default-text: #cbd5e1;
+    --badge-default-border: #475569;
+}

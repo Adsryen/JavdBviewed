@@ -31,6 +31,9 @@
     <header>
       <h1 id="report-title">{{reportTitle}}</h1>
       <p id="period-text">{{periodText}}</p>
+      <p style="color: var(--text-secondary); font-size: 14px; margin: 4px 0 0;">
+        <i class="fas fa-user-circle"></i> 人设：<span style="color: var(--text-primary); font-weight: 500;">{{personaName}}</span>
+      </p>
     </header>
 
     <section id="disclaimer">
@@ -43,8 +46,23 @@
       <ul id="insights">{{insightList}}</ul>
     </section>
 
+    <section id="viewer-profile">
+      <h2>观影者画像</h2>
+      <p id="viewer-profile-text">{{viewerProfile}}</p>
+    </section>
+
+    <section id="overview">
+      <h2>数据概览</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="label">总观看次数</div><div class="value">{{totalViews}}</div></div>
+        <div class="kpi"><div class="label">活跃天数</div><div class="value">{{activeDays}}</div></div>
+        <div class="kpi"><div class="label">日均观看</div><div class="value">{{avgPerDay}}</div></div>
+        <div class="kpi"><div class="label">标签总数</div><div class="value">{{totalTags}}</div></div>
+      </div>
+    </section>
+
     <section id="ranking">
-      <h2>标签排行</h2>
+      <h2>标签排行 Top 10</h2>
       <table class="table">
         <thead><tr><th>#</th><th>标签</th><th>次数</th><th>占比</th></tr></thead>
         <tbody id="ranking-body">{{rankingRows}}</tbody>
