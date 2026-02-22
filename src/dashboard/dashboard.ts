@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 themeSwitcher.mount(topbarRight as HTMLElement);
             }
-            console.log('[Dashboard] 主题切换器已挂载');
+            console.debug('[Dashboard] 主题切换器已挂载');
         } else {
             console.warn('[Dashboard] 未找到 .topbar-right 容器，主题切换器未挂载');
         }

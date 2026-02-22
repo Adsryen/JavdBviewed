@@ -49,7 +49,6 @@ export function parseHelpContent(html: string): ContentSection[] {
 
     // 获取所有 h3 标签
     const h3Elements = doc.querySelectorAll('h3');
-    console.log(`[HelpContentMapper] 找到 ${h3Elements.length} 个 h3 标签`);
 
     h3Elements.forEach((h3) => {
         // 提取标题文本，移除图标元素
@@ -73,11 +72,8 @@ export function parseHelpContent(html: string): ContentSection[] {
             title,
             html: sectionHtml.join('\n')
         });
-        
-        console.log(`[HelpContentMapper] 解析段落: "${title}" (${sectionHtml.length} 个元素)`);
     });
 
-    console.log(`[HelpContentMapper] 总共解析了 ${sections.length} 个段落`);
     return sections;
 }
 
@@ -104,22 +100,11 @@ export function mapContentToCategories(html: string): Map<string, string> {
                 categoryId,
                 existingContent + (existingContent ? '\n' : '') + section.html
             );
-            console.log(`[HelpContentMapper] 映射成功: "${section.title}" -> ${categoryId}`);
         } else {
             // 未映射的标题，记录警告
             console.warn(`[HelpContentMapper] 未找到标题 "${section.title}" 的分类映射`);
         }
     });
-
-    // 输出映射结果统计
-    let totalMapped = 0;
-    categoryContentMap.forEach((content, id) => {
-        if (content) {
-            totalMapped++;
-            console.log(`[HelpContentMapper] 分类 ${id} 有内容 (${content.length} 字符)`);
-        }
-    });
-    console.log(`[HelpContentMapper] 共映射了 ${totalMapped} 个分类`);
 
     return categoryContentMap;
 }
