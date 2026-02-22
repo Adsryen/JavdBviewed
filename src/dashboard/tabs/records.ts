@@ -868,7 +868,7 @@ export function initRecordsTab(): void {
             filteredRecords = records.filter(record => {
                 // 确保 record 对象存在且有必要的属性
                 if (!record || typeof record !== 'object') {
-                    console.warn('无效的记录对象:', record);
+                    console.warn('[Records] 无效的记录对象:', record);
                     return false;
                 }
 
@@ -919,12 +919,12 @@ export function initRecordsTab(): void {
                             return (b.updatedAt || 0) - (a.updatedAt || 0);
                     }
                 } catch (error) {
-                    console.error('排序时出错:', error, a, b);
+                    console.error('[Records] 排序时出错:', error, a, b);
                     return 0;
                 }
             });
         } catch (error) {
-            console.error('更新过滤记录时出错:', error);
+            console.error('[Records] 更新过滤记录时出错:', error);
             filteredRecords = [];
         }
     }
@@ -954,7 +954,7 @@ export function initRecordsTab(): void {
 
             // 确保 recordsToRender 是数组
             if (!Array.isArray(recordsToRender)) {
-                console.warn('recordsToRender 不是数组:', recordsToRender);
+                console.warn('[Records] recordsToRender 不是数组:', recordsToRender);
                 return;
             }
 
@@ -962,7 +962,7 @@ export function initRecordsTab(): void {
                 try {
                     // 确保 record 对象存在
                     if (!record || typeof record !== 'object') {
-                        console.warn('无效的记录对象:', record);
+                        console.warn('[Records] 无效的记录对象:', record);
                         return;
                     }
 
@@ -985,7 +985,7 @@ export function initRecordsTab(): void {
                         try {
                             // 确保 engine 对象有必要的属性
                             if (!engine || !engine.urlTemplate || !engine.name) {
-                                console.warn('无效的搜索引擎配置:', engine);
+                                console.warn('[Records] 无效的搜索引擎配置:', engine);
                                 return;
                             }
 
@@ -1007,7 +1007,7 @@ export function initRecordsTab(): void {
                             icon.appendChild(img);
                             iconsContainer.appendChild(icon);
                         } catch (error) {
-                            console.error('创建搜索引擎图标时出错:', error, engine);
+                            console.error('[Records] 创建搜索引擎图标时出错:', error, engine);
                         }
                     });
 
@@ -1105,7 +1105,7 @@ export function initRecordsTab(): void {
                                     render();
                                     showMessage(`记录 "${record.id}" 已删除`, 'success');
                                 } catch (error: any) {
-                                    console.error('删除记录时出错:', error);
+                                    console.error('[Records] 删除记录时出错:', error);
                                     showMessage(`删除记录失败: ${error.message}`, 'error');
                                 }
                             },
@@ -1499,11 +1499,11 @@ export function initRecordsTab(): void {
                         }
                     }
                 } catch (error) {
-                    console.error('渲染记录项时出错:', error, record);
+                    console.error('[Records] 渲染记录项时出错:', error, record);
                 }
             });
         } catch (error) {
-            console.error('渲染视频列表时出错:', error);
+            console.error('[Records] 渲染视频列表时出错:', error);
             videoList.innerHTML = '<li class="empty-list error">渲染列表时出现错误，请刷新重试。</li>';
         }
     }
@@ -2353,7 +2353,7 @@ export function initRecordsTab(): void {
                 render();
                 closeModal();
             } catch (error: any) {
-                console.error('保存记录时出错:', error);
+                console.error('[Records] 保存记录时出错:', error);
                 showMessage(`保存失败: ${error.message}`, 'error');
             }
         });
@@ -2511,7 +2511,7 @@ export function initRecordsTab(): void {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 } catch (error: any) {
                     errors.push(`${recordId}: ${error.message}`);
-                    console.error(`刷新记录 ${recordId} 失败:`, error);
+                    console.error(`[Records] 刷新记录 ${recordId} 失败:`, error);
                 }
             }
 
@@ -2527,14 +2527,14 @@ export function initRecordsTab(): void {
 
             if (errors.length > 0) {
                 showMessage(`刷新完成，但有 ${errors.length} 个失败`, 'warn');
-                console.log('刷新失败的项目:', errors);
+                console.log('[Records] 刷新失败的项目:', errors);
             } else {
                 showMessage(`成功刷新了 ${completed} 个视频的源数据！`, 'success');
             }
 
         } catch (error: any) {
             hideBatchProgress(progressModal);
-            console.error('批量刷新失败:', error);
+            console.error('[Records] 批量刷新失败:', error);
             showMessage(`批量刷新失败: ${error.message}`, 'error');
 
             // 即使失败也要刷新列表，因为可能有部分成功
@@ -2576,7 +2576,7 @@ export function initRecordsTab(): void {
             updateBatchUI();
             showMessage(`成功删除了 ${selectedIds.length} 个视频记录！`, 'success');
         } catch (error: any) {
-            console.error('批量删除失败:', error);
+            console.error('[Records] 批量删除失败:', error);
             showMessage(`批量删除失败: ${error.message}`, 'error');
             // 尝试刷新视图以保持同步
             render();
@@ -2825,7 +2825,7 @@ export function initRecordsTab(): void {
 
             showMessage(`成功导出 ${dataToExport.length} 条记录（JSON格式）`, 'success');
         } catch (error: any) {
-            console.error('导出JSON失败:', error);
+            console.error('[Records] 导出JSON失败:', error);
             showMessage(`导出失败: ${error.message}`, 'error');
         }
     }
@@ -2948,7 +2948,7 @@ export function initRecordsTab(): void {
 
             showMessage(`成功导出 ${dataToExport.length} 条记录（CSV格式）`, 'success');
         } catch (error: any) {
-            console.error('导出CSV失败:', error);
+            console.error('[Records] 导出CSV失败:', error);
             showMessage(`导出失败: ${error.message}`, 'error');
         }
     }

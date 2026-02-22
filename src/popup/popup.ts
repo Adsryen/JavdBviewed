@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     chrome.runtime.sendMessage({ type: 'privacy-lock' }, (response) => {
                         // 检查 lastError
                         if (chrome.runtime.lastError) {
-                            console.error('Lock message error:', chrome.runtime.lastError);
+                            console.error('[Popup] Lock message error:', chrome.runtime.lastError);
                             alert('锁定失败，请重试');
                             return;
                         }
@@ -207,12 +207,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     });
                 } catch (error) {
-                    console.error('Failed to lock:', error);
+                    console.error('[Popup] Failed to lock:', error);
                     alert('锁定失败，请重试');
                 }
             });
         } catch (error) {
-            console.error('Failed to init popup lock button:', error);
+            console.error('[Popup] Failed to init popup lock button:', error);
         }
     }
 
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.addEventListener('click', async () => {
             settings = await getSettingsSafely();
             if (!settings) {
-                console.error('Failed to get settings');
+                console.error('[Popup] Failed to get settings');
                 return;
             }
             const current = !!settings.display[key];
@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.addEventListener('click', async () => {
             settings = await getSettingsSafely();
             if (!settings) {
-                console.error('Failed to get settings');
+                console.error('[Popup] Failed to get settings');
                 return;
             }
             if (!settings.listEnhancement) {
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 从设置对象中获取当前音量设置
         const settings = await getSettingsSafely();
         if (!settings) {
-            console.error('Failed to get settings for volume control');
+            console.error('[Popup] Failed to get settings for volume control');
             return;
         }
         // 使用 ?? 而不是 || 来处理 0 值
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 获取当前设置并更新音量
                 const currentSettings = await getSettingsSafely();
                 if (!currentSettings) {
-                    console.error('Failed to get settings for volume update');
+                    console.error('[Popup] Failed to get settings for volume update');
                     return;
                 }
                 if (!currentSettings.listEnhancement) {

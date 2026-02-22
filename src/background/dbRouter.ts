@@ -75,7 +75,7 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:LOGS_ADD') {
         const entry = message?.payload?.entry;
-        try { console.debug('[DB][logs] ADD', { hasEntry: !!entry, level: entry?.level, msgLen: String(entry?.message||'').length }); } catch {}
+        try { console.debug('[Background] logs ADD', { hasEntry: !!entry, level: entry?.level, msgLen: String(entry?.message||'').length }); } catch {}
         idbLogsAdd(entry).then((id) => sendResponse({ success: true, id }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'logs add failed' }));
         return true;
@@ -88,9 +88,9 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:LOGS_QUERY') {
         const payload = message?.payload || {};
-        try { console.info('[DB][logs] QUERY', { offset: payload?.offset, limit: payload?.limit, level: payload?.level, minLevel: payload?.minLevel, hasDataOnly: payload?.hasDataOnly, source: payload?.source, hasQuery: !!payload?.query }); } catch {}
+        try { console.info('[Background] logs QUERY', { offset: payload?.offset, limit: payload?.limit, level: payload?.level, minLevel: payload?.minLevel, hasDataOnly: payload?.hasDataOnly, source: payload?.source, hasQuery: !!payload?.query }); } catch {}
         idbLogsQuery(payload).then((data) => {
-          try { console.info('[DB][logs] QUERY:RESULT', { items: Array.isArray(data?.items) ? data.items.length : -1, total: (data as any)?.total }); } catch {}
+          try { console.info('[Background] logs QUERY:RESULT', { items: Array.isArray(data?.items) ? data.items.length : -1, total: (data as any)?.total }); } catch {}
           sendResponse({ success: true, ...data });
         })
           .catch((e) => sendResponse({ success: false, error: e?.message || 'logs query failed' }));
@@ -157,12 +157,12 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:NEWWORKS_BULK_PUT') {
         const records = message?.payload?.records || [];
-        console.log(`[dbRouter] 收到 NEWWORKS_BULK_PUT 请求，records 数量: ${records.length}`);
+        console.log(`[Background] 收到 NEWWORKS_BULK_PUT 请求，records 数量: ${records.length}`);
         idbNewWorksBulkPut(records).then(() => {
-          console.log(`[dbRouter] NEWWORKS_BULK_PUT 成功`);
+          console.log(`[Background] NEWWORKS_BULK_PUT 成功`);
           sendResponse({ success: true });
         }).catch((e) => {
-          console.error(`[dbRouter] NEWWORKS_BULK_PUT 失败:`, e);
+          console.error(`[Background] NEWWORKS_BULK_PUT 失败:`, e);
           sendResponse({ success: false, error: e?.message || 'newWorks bulkPut failed' });
         });
         return true;

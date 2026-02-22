@@ -29,7 +29,7 @@ export class NewWorksTab {
      */
     async initialize(): Promise<void> {
         try {
-            console.log('开始初始化新作品标签页');
+            console.log('[NewWorks] 开始初始化新作品标签页');
 
             // 确保DOM元素存在
             await this.waitForDOM();
@@ -39,7 +39,7 @@ export class NewWorksTab {
 
             // 监听刷新事件
             window.addEventListener('newworks-refresh', () => {
-                console.log('收到刷新事件，重新渲染列表');
+                console.log('[NewWorks] 收到刷新事件，重新渲染列表');
                 this.render();
             });
 
@@ -50,9 +50,9 @@ export class NewWorksTab {
             this.autoSyncStatus();
 
             this.isInitialized = true;
-            console.log('新作品标签页初始化完成');
+            console.log('[NewWorks] 新作品标签页初始化完成');
         } catch (error) {
-            console.error('初始化新作品标签页失败:', error);
+            console.error('[NewWorks] 初始化新作品标签页失败:', error);
         }
     }
 

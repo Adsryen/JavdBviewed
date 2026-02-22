@@ -70,20 +70,20 @@ export class SimpleActorAvatar {
         container: HTMLElement,
         gender: 'female' | 'male' | 'unknown'
     ): void {
-        console.log(`SimpleActorAvatar: Loading ${avatarUrl} for ${actorId}`);
+        console.log(`[Actor] Loading ${avatarUrl} for ${actorId}`);
 
         container.classList.add('actor-avatar-loading');
 
         const tempImg = new Image();
         tempImg.onload = () => {
-            console.log(`SimpleActorAvatar: Success loading ${avatarUrl} for ${actorId}`);
+            console.log(`[Actor] Success loading ${avatarUrl} for ${actorId}`);
             img.src = avatarUrl;
             container.classList.remove('actor-avatar-loading', 'actor-avatar-default');
             container.classList.add('actor-avatar-loaded');
         };
 
         tempImg.onerror = () => {
-            console.log(`SimpleActorAvatar: Failed loading ${avatarUrl} for ${actorId}, using default`);
+            console.log(`[Actor] Failed loading ${avatarUrl} for ${actorId}, using default`);
             img.src = SimpleActorAvatar.DEFAULT_AVATARS[gender];
             container.classList.remove('actor-avatar-loading');
             container.classList.add('actor-avatar-default', 'actor-avatar-error');

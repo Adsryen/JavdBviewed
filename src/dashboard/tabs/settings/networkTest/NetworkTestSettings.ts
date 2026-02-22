@@ -330,7 +330,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             showMessage(`开始测试 ${allDomains.length} 个域名...`, 'info');
             await this.runBatchDomainTest(allDomains, '所有域名');
         } catch (error) {
-            console.error('测试所有域名失败:', error);
+            console.error('[Settings] 测试所有域名失败:', error);
             showMessage('测试所有域名失败', 'error');
         }
     }
@@ -349,7 +349,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             showMessage(`开始测试 ${coreDomains.length} 个核心域名...`, 'info');
             await this.runBatchDomainTest(coreDomains, '核心域名');
         } catch (error) {
-            console.error('测试核心域名失败:', error);
+            console.error('[Settings] 测试核心域名失败:', error);
             showMessage('测试核心域名失败', 'error');
         }
     }
@@ -516,7 +516,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     private async runBatchDomainTest(domains: DomainInfo[], testType: string): Promise<void> {
         const batchResults = document.getElementById('batch-test-results');
         if (!batchResults) {
-            console.error('批量测试结果容器未找到');
+            console.error('[Settings] 批量测试结果容器未找到');
             return;
         }
 
@@ -812,7 +812,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             lastTestTimeEl.textContent = timeText;
             lastTestTimeEl.title = testDate.toLocaleString('zh-CN');
         } catch (error) {
-            console.error('解析测试时间失败:', error);
+            console.error('[Settings] 解析测试时间失败:', error);
             lastTestTimeEl.textContent = '从未';
         }
     }

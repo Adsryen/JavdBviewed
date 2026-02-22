@@ -38,7 +38,7 @@ export async function initializeGlobalState(): Promise<void> {
         if (settings.version !== actualVersion) {
             settings.version = actualVersion;
             settingsChanged = true;
-            await logAsync('INFO', `版本号已更新到: ${actualVersion}`);
+            await logAsync('INFO', `[Dashboard] 版本号已更新到: ${actualVersion}`);
         }
         // --- End Version Sync Logic ---
         if (settings.searchEngines && Array.isArray(settings.searchEngines)) {
@@ -100,7 +100,7 @@ export async function initializeGlobalState(): Promise<void> {
                 const hasGoogleFavicon = engine.icon && engine.icon.includes('google.com/s2/favicons');
 
                 if (hasExampleDomain || hasGoogleFavicon) {
-                    logAsync('INFO', '移除包含测试数据的搜索引擎', { engine });
+                    logAsync('INFO', '[Dashboard] 移除包含测试数据的搜索引擎', { engine });
                     settingsChanged = true;
                     return false;
                 }
@@ -117,7 +117,7 @@ export async function initializeGlobalState(): Promise<void> {
         // Save settings if any changes were made
         if (settingsChanged) {
             await setValue(STORAGE_KEYS.SETTINGS, settings);
-            await logAsync('INFO', '设置已更新并保存。');
+            await logAsync('INFO', '[Dashboard] 设置已更新并保存。');
         }
 
         STATE.settings = settings;

@@ -725,7 +725,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         `;
                         const empty = '<div class="muted">(暂无事件)</div>';
                         container.innerHTML = `${header}${rows || empty}`;
-                        console.log('[Orchestrator][design] rows=%d', (this.orchestratorTimelineData || []).length);
+                        console.log('[Orchestrator] design rows=%d', (this.orchestratorTimelineData || []).length);
                     }
                 } catch (e) {
                     console.warn('[Orchestrator] fallback render failed:', e);

@@ -53,9 +53,9 @@ export class RecoveryService implements IRecoveryService {
             // 保存到敏感配置存储
             await this.storage.saveSensitiveConfig('security_questions', questions);
             
-            console.log(`Setup ${questions.length} security questions`);
+            console.log('[Privacy] Setup ${questions.length} security questions');
         } catch (error) {
-            console.error('Failed to setup security questions:', error);
+            console.error('[Privacy] Failed to setup security questions:', error);
             throw new Error('设置安全问题失败');
         }
     }
@@ -74,10 +74,10 @@ export class RecoveryService implements IRecoveryService {
             // 验证答案
             const result = await this.validator.verifySecurityAnswers(questions, answers);
             
-            console.log(`Security answers verification: ${result.correctCount}/${result.requiredCount} correct`);
+            console.log(`[Privacy] Security answers verification: ${result.correctCount}/${result.requiredCount} correct`);
             return result.success;
         } catch (error) {
-            console.error('Failed to verify security answers:', error);
+            console.error('[Privacy] Failed to verify security answers:', error);
             return false;
         }
     }
@@ -97,10 +97,10 @@ export class RecoveryService implements IRecoveryService {
             
             await this.storage.saveSensitiveConfig('recovery_config', config);
             
-            console.log('Generated new backup code');
+            console.log('[Privacy] Generated new backup code');
             return backupCode;
         } catch (error) {
-            console.error('Failed to generate backup code:', error);
+            console.error('[Privacy] Failed to generate backup code:', error);
             throw new Error('生成备份恢复码失败');
         }
     }
@@ -134,12 +134,12 @@ export class RecoveryService implements IRecoveryService {
                 config.backupCodeUsed = true;
                 await this.storage.saveSensitiveConfig('recovery_config', config);
                 
-                console.log('Backup code verified and marked as used');
+                console.log('[Privacy] Backup code verified and marked as used');
             }
             
             return isValid;
         } catch (error) {
-            console.error('Failed to verify backup code:', error);
+            console.error('[Privacy] Failed to verify backup code:', error);
             return false;
         }
     }
@@ -163,12 +163,12 @@ export class RecoveryService implements IRecoveryService {
             
             await this.storage.saveSensitiveConfig('recovery_config', config);
             
-            console.log('Email recovery initiated for:', email);
+            console.log('[Privacy] Email recovery initiated for:', email);
             
             // 抛出提示，因为邮箱恢复需要后端支持
             throw new Error('邮箱恢复功能需要服务器支持，请使用其他恢复方式');
         } catch (error) {
-            console.error('Failed to initiate email recovery:', error);
+            console.error('[Privacy] Failed to initiate email recovery:', error);
             throw error;
         }
     }
@@ -197,12 +197,12 @@ export class RecoveryService implements IRecoveryService {
             // 清除所有存储数据
             await this.clearAllStorageData();
             
-            console.log('All extension data has been reset');
+            console.log('[Privacy] All extension data has been reset');
             
             // 刷新页面
             window.location.reload();
         } catch (error) {
-            console.error('Failed to reset all data:', error);
+            console.error('[Privacy] Failed to reset all data:', error);
             throw error;
         }
     }
@@ -240,7 +240,7 @@ export class RecoveryService implements IRecoveryService {
                 // 重置密码尝试计数
                 this.validator.resetAttempts();
                 
-                console.log(`Password recovery successful via ${method}`);
+                console.log(`[Privacy] Password recovery successful via ${method}`);
             }
 
             return {
@@ -249,7 +249,7 @@ export class RecoveryService implements IRecoveryService {
                 newBackupCode
             };
         } catch (error) {
-            console.error('Password recovery failed:', error);
+            console.error('[Privacy] Password recovery failed:', error);
             return {
                 success: false,
                 method,
@@ -285,7 +285,7 @@ export class RecoveryService implements IRecoveryService {
                 answerSalt
             };
         } catch (error) {
-            console.error('Failed to create security question:', error);
+            console.error('[Privacy] Failed to create security question:', error);
             throw error;
         }
     }
@@ -298,7 +298,7 @@ export class RecoveryService implements IRecoveryService {
             const questions = await this.storage.loadSensitiveConfig<SecurityQuestion[]>('security_questions');
             return !!(questions && questions.length > 0);
         } catch (error) {
-            console.error('Failed to check security questions:', error);
+            console.error('[Privacy] Failed to check security questions:', error);
             return false;
         }
     }
@@ -311,7 +311,7 @@ export class RecoveryService implements IRecoveryService {
             const config = await this.storage.loadSensitiveConfig<PasswordRecoveryConfig>('recovery_config');
             return !!(config && config.backupCode && !config.backupCodeUsed);
         } catch (error) {
-            console.error('Failed to check backup code:', error);
+            console.error('[Privacy] Failed to check backup code:', error);
             return false;
         }
     }
@@ -325,7 +325,7 @@ export class RecoveryService implements IRecoveryService {
             if (!questions || questions.length === 0) return [];
             return questions.map(q => ({ id: q.id, question: q.question }));
         } catch (error) {
-            console.error('Failed to get security questions:', error);
+            console.error('[Privacy] Failed to get security questions:', error);
             return [];
         }
     }
@@ -345,7 +345,7 @@ export class RecoveryService implements IRecoveryService {
                 });
             });
         } catch (error) {
-            console.error('Failed to show security questions dialog:', error);
+            console.error('[Privacy] Failed to show security questions dialog:', error);
             return false;
         }
     }
@@ -371,7 +371,7 @@ export class RecoveryService implements IRecoveryService {
                 questionCount: questions ? questions.length : 0
             };
         } catch (error) {
-            console.error('Failed to get recovery options:', error);
+            console.error('[Privacy] Failed to get recovery options:', error);
             return {
                 hasSecurityQuestions: false,
                 hasBackupCode: false,
@@ -408,9 +408,9 @@ export class RecoveryService implements IRecoveryService {
                 localStorage.clear();
             }
 
-            console.log('All storage data cleared');
+            console.log('[Privacy] All storage data cleared');
         } catch (error) {
-            console.error('Failed to clear storage data:', error);
+            console.error('[Privacy] Failed to clear storage data:', error);
             throw new Error('清除存储数据失败');
         }
     }

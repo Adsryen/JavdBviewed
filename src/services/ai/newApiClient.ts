@@ -67,7 +67,7 @@ export class NewApiClient {
                 const reqIsHttp = url.startsWith('http://');
                 if (pageIsHttps && reqIsHttp) {
                     const msg = `Mixed Content: 当前页面为 HTTPS，但 AI 接口为 HTTP（${url}）。请将 API 地址改为 HTTPS。`;
-                    console.error('[AI][createChatCompletion] ' + msg);
+                    console.error('[AI] createChatCompletion: ' + msg);
                     throw new Error(msg);
                 }
             }

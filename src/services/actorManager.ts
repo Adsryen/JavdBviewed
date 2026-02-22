@@ -26,9 +26,9 @@ export class ActorManager {
             });
             
             this.isLoaded = true;
-            console.log(`ActorManager: Loaded ${this.cache.size} actors`);
+            console.log(`[Actor] Loaded ${this.cache.size} actors`);
         } catch (error) {
-            console.error('ActorManager: Failed to initialize:', error);
+            console.error('[Actor] Failed to initialize:', error);
             throw error;
         }
     }
@@ -306,7 +306,7 @@ export class ActorManager {
             
             await setValue(STORAGE_KEYS.ACTOR_RECORDS, actorsObject);
         } catch (error) {
-            console.error('ActorManager: Failed to save to storage:', error);
+            console.error('[Actor] Failed to save to storage:', error);
             throw error;
         }
     }
