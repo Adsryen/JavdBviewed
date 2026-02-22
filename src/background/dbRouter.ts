@@ -333,24 +333,46 @@ export function registerDbMessageRouter(): void {
         idbViewedGetAll().then((records) => {
           const totals: Record<string, number> = {};
           
-          for (const r of records) {
-            const arr = Array.isArray(r?.tags) ? r.tags : [];
-            for (const t of arr) {
-              const name = String(t || '').trim();
-              if (!name) continue;
-              const low = name.toLowerCase();
-              // 过滤掉常见的无意义标签
-              if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
-              totals[name] = (totals[name] ?? 0) + 1;
+          // 动态导入标签过滤工具
+          import('../utils/tagFilter').then(({ isValueableTag }) => {
+            for (const r of records) {
+              const arr = Array.isArray(r?.tags) ? r.tags : [];
+              for (const t of arr) {
+                const name = String(t || '').trim();
+                if (!name) continue;
+                // 使用通用过滤函数
+                if (!isValueableTag(name)) continue;
+                totals[name] = (totals[name] ?? 0) + 1;
+              }
             }
-          }
-          
-          const result = Object.entries(totals)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, Math.max(1, limit));
-          
-          sendResponse({ success: true, tags: result });
+            
+            const result = Object.entries(totals)
+              .map(([name, count]) => ({ name, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, Math.max(1, limit));
+            
+            sendResponse({ success: true, tags: result });
+          }).catch(() => {
+            // 如果导入失败，使用原有逻辑
+            for (const r of records) {
+              const arr = Array.isArray(r?.tags) ? r.tags : [];
+              for (const t of arr) {
+                const name = String(t || '').trim();
+                if (!name) continue;
+                const low = name.toLowerCase();
+                // 原有过滤逻辑作为后备
+                if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
+                totals[name] = (totals[name] ?? 0) + 1;
+              }
+            }
+            
+            const result = Object.entries(totals)
+              .map(([name, count]) => ({ name, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, Math.max(1, limit));
+            
+            sendResponse({ success: true, tags: result });
+          });
         }).catch((e) => sendResponse({ success: false, error: e?.message || 'get tags failed', tags: [] }));
         return true;
       }

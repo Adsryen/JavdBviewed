@@ -94,6 +94,54 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
     `累计观看天数：${days.length} 天`,
     ...changeIns,
   ].map(s => `<li>${s}</li>`).join('');
+  
+  // 构建排行表格和变化趋势
+  const topList: any[] = Array.isArray((stats as any)?.tagsTop) ? (stats as any).tagsTop : [];
+  const totalAllNum: number = Number((stats as any)?.metrics?.totalAll) || topList.reduce((s, t) => s + (Number(t?.count) || 0), 0) || 1;
+  const esc = (s: any) => String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const pct = (r: any) => {
+    const v = typeof r === 'number' && isFinite(r) ? r : (Number(r) || 0);
+    return (v * 100).toFixed(1) + '%';
+  };
+  const rankingRows = topList.map((t, i) => {
+    const ratio = (typeof t?.ratio === 'number' && isFinite(t.ratio)) ? t.ratio : ((Number(t?.count) || 0) / totalAllNum);
+    return `<tr><td>${i + 1}</td><td>${esc(t?.name)}</td><td>${Number(t?.count) || 0}</td><td>${pct(ratio)}</td></tr>`;
+  }).join('');
+  
+  const ch = (stats as any)?.changes || { newTags: [], rising: [], falling: [], risingDetailed: [], fallingDetailed: [], newTagsDetailed: [] };
+  let changesContent = '';
+  if (Array.isArray(ch.risingDetailed) && ch.risingDetailed.length > 0) {
+    changesContent += '<h3>📈 上升标签</h3><ul>';
+    ch.risingDetailed.slice(0, 5).forEach((item: any) => {
+      const diffPct = ((item.diffRatio || 0) * 100).toFixed(1);
+      changesContent += `<li>${esc(item.name)}：${item.newCount || 0}次 (${pct(item.newRatio || 0)})，较上月 +${diffPct}%</li>`;
+    });
+    changesContent += '</ul>';
+  }
+  if (Array.isArray(ch.fallingDetailed) && ch.fallingDetailed.length > 0) {
+    changesContent += '<h3>📉 下降标签</h3><ul>';
+    ch.fallingDetailed.slice(0, 5).forEach((item: any) => {
+      const diffPct = ((item.diffRatio || 0) * 100).toFixed(1);
+      changesContent += `<li>${esc(item.name)}：${item.newCount || 0}次 (${pct(item.newRatio || 0)})，较上月 ${diffPct}%</li>`;
+    });
+    changesContent += '</ul>';
+  }
+  if (Array.isArray(ch.newTagsDetailed) && ch.newTagsDetailed.length > 0) {
+    changesContent += '<h3>✨ 新出现标签</h3><ul>';
+    ch.newTagsDetailed.slice(0, 5).forEach((item: any) => {
+      changesContent += `<li>${esc(item.name)}：${item.newCount || 0}次 (${pct(item.newRatio || 0)})</li>`;
+    });
+    changesContent += '</ul>';
+  }
+  if (!changesContent) {
+    changesContent = '<p>暂无明显变化趋势</p>';
+  }
+  
   const fields: Record<string, string> = {
     reportTitle: `我的观影标签月报（${month.replace('-','年')}月）`,
     periodText: `统计范围：${start} ~ ${end}`,
@@ -103,8 +151,15 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
     disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
     generatedAt: new Date().toLocaleString(),
     version: '0.0.1',
+    personaName: '友好解说员',
     baseHref: chrome.runtime.getURL('') || './',
     statsJSON: JSON.stringify(stats || {}),
+    rankingRows,
+    totalViews: String(totalAllNum),
+    activeDays: String(days.length),
+    avgPerDay: (totalAllNum / Math.max(days.length, 1)).toFixed(1),
+    totalTags: String(topList.length),
+    changesContent,
   };
   const html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
   const now = Date.now();
