@@ -33,12 +33,12 @@ export async function initializeContentPrivacy(): Promise<void> {
 
         // Dashboard页面的隐私保护由dashboard.ts直接处理，这里不需要额外监听
         if (window.location.href.includes('dashboard.html')) {
-            console.log('Dashboard detected, privacy will be handled by dashboard.ts');
+            console.log('[Privacy] Dashboard detected, privacy will be handled by dashboard.ts');
         }
 
-        console.log('Content privacy features initialized successfully');
+        console.log('[Privacy] Content privacy features initialized successfully');
     } catch (error) {
-        console.error('Failed to initialize content privacy features:', error);
+        console.error('[Privacy] Failed to initialize content privacy features:', error);
     }
 }
 
@@ -55,9 +55,9 @@ export function cleanupContentPrivacy(): void {
         const stateListener = getPrivacyStateListener();
         stateListener.stopListening();
 
-        console.log('Content privacy features cleaned up');
+        console.log('[Privacy] Content privacy features cleaned up');
     } catch (error) {
-        console.error('Failed to cleanup content privacy features:', error);
+        console.error('[Privacy] Failed to cleanup content privacy features:', error);
     }
 }
 

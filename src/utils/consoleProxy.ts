@@ -322,7 +322,7 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
       const cleanedArgs = args.map((arg, index) => {
         if (index === 0 && typeof arg === 'string') {
           // 移除常见的分类标签模式：[NewWorks]、[Actor]、[Magnet] 等
-          return arg.replace(/^\[(NewWorks|NewWorksManager|Actor|ActorManager|Magnet|Sync|DataSync|Drive115|115V?2?|Privacy|PrivacyManager|AI|Update|UpdateChecker|Help|Settings|CORE|Extension|Storage|STORAGE|Orchestrator)\]\s*/i, '');
+          return arg.replace(/^\[(NewWorks|NewWorksManager|Actor|ActorManager|Magnet|Sync|DataSync|Drive115|115V?2?|Privacy|PrivacyManager|AI|Update|UpdateChecker|Help|Settings|CORE|Extension|Storage|STORAGE|Orchestrator|IDB|Background|Popup|Dashboard|Content|Enhancement|QA|HelpContentMapper|HelpPanelManager|LogController|Cache|LockScreen|INSIGHTS|dbRouter)\]\s*/i, '');
         }
         return arg;
       });

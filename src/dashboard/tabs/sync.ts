@@ -24,7 +24,7 @@ export class SyncTab {
             this.isInitialized = true;
             // logAsync('INFO', '数据同步标签页初始化完成');
         } catch (error) {
-            console.error('Failed to initialize sync tab:', error);
+            console.error('[Sync] Failed to initialize sync tab:', error);
             showMessage('初始化数据同步页面失败', 'error');
         }
     }

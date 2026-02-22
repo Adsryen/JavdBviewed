@@ -43,9 +43,9 @@ export class PrivacyStateListener {
             this.setupPageEventListeners();
 
             this.isListening = true;
-            console.log('Privacy state listener started');
+            console.log('[Privacy] State listener started');
         } catch (error) {
-            console.error('Failed to start privacy state listener:', error);
+            console.error('[Privacy] Failed to start state listener:', error);
         }
     }
 
@@ -61,14 +61,14 @@ export class PrivacyStateListener {
         this.removePageEventListeners();
 
         this.isListening = false;
-        console.log('Privacy state listener stopped');
+        console.log('[Privacy] State listener stopped');
     }
 
     /**
      * 处理模糊应用事件
      */
     private handleBlurApplied(event: PrivacyEvent): void {
-        console.log('Blur applied:', event.data);
+        console.log('[Privacy] Blur applied:', event.data);
         
         // 通知页面其他组件
         this.notifyPageComponents('privacy-blur-applied', event.data);
@@ -84,7 +84,7 @@ export class PrivacyStateListener {
      * 处理模糊移除事件
      */
     private handleBlurRemoved(event: PrivacyEvent): void {
-        console.log('Blur removed:', event.data);
+        console.log('[Privacy] Blur removed:', event.data);
         
         // 通知页面其他组件
         this.notifyPageComponents('privacy-blur-removed', event.data);
@@ -100,7 +100,7 @@ export class PrivacyStateListener {
      * 处理锁定事件
      */
     private handleLocked(event: PrivacyEvent): void {
-        console.log('Privacy locked:', event.data);
+        console.log('[Privacy] Locked:', event.data);
         
         // 添加锁定样式
         document.body.classList.add('privacy-locked');
@@ -119,7 +119,7 @@ export class PrivacyStateListener {
      * 处理解锁事件
      */
     private handleUnlocked(event: PrivacyEvent): void {
-        console.log('Privacy unlocked:', event.data);
+        console.log('[Privacy] Unlocked:', event.data);
         
         // 移除锁定样式
         document.body.classList.remove('privacy-locked');
@@ -138,7 +138,7 @@ export class PrivacyStateListener {
      * 处理认证成功事件
      */
     private handleAuthenticated(event: PrivacyEvent): void {
-        console.log('Authentication successful:', event.data);
+        console.log('[Privacy] Authentication successful:', event.data);
         
         // 添加认证样式
         document.body.classList.add('privacy-authenticated');
@@ -154,7 +154,7 @@ export class PrivacyStateListener {
      * 处理会话过期事件
      */
     private handleSessionExpired(event: PrivacyEvent): void {
-        console.log('Session expired:', event.data);
+        console.log('[Privacy] Session expired:', event.data);
         
         // 移除认证样式
         document.body.classList.remove('privacy-authenticated');
@@ -170,7 +170,7 @@ export class PrivacyStateListener {
      * 处理密码更改事件
      */
     private handlePasswordChanged(event: PrivacyEvent): void {
-        console.log('Password changed:', event.data);
+        console.log('[Privacy] Password changed:', event.data);
         
         // 显示成功提示
         this.showNotification('密码已更新', 'success');
@@ -213,7 +213,7 @@ export class PrivacyStateListener {
                 const privacyManager = getPrivacyManager();
                 await privacyManager.toggleBlur();
             } catch (error) {
-                console.error('Failed to toggle privacy mode:', error);
+                console.error('[Privacy] Failed to toggle privacy mode:', error);
             }
         }
         
@@ -224,7 +224,7 @@ export class PrivacyStateListener {
                 const privacyManager = getPrivacyManager();
                 await privacyManager.lock();
             } catch (error) {
-                console.error('Failed to lock privacy:', error);
+                console.error('[Privacy] Failed to lock:', error);
             }
         }
     }
@@ -411,7 +411,7 @@ export class PrivacyStateListener {
                 try {
                     handler(event);
                 } catch (error) {
-                    console.error('Event handler error:', error);
+                    console.error('[Privacy] Event handler error:', error);
                 }
             });
         }

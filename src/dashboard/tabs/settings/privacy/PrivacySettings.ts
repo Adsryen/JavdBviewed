@@ -153,7 +153,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             await this.updateRecoveryOptionsStatus();
 
         } catch (error) {
-            console.error('Failed to load privacy settings:', error);
+            console.error('[Settings] Failed to load privacy settings:', error);
             throw error;
         }
     }
@@ -244,7 +244,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             
             this.emit('change');
         } catch (error) {
-            console.error('Failed to toggle screenshot mode:', error);
+            console.error('[Settings] Failed to toggle screenshot mode:', error);
             checkbox.checked = !checkbox.checked; // 回滚状态
             showMessage('切换截图模式失败', 'error');
         }
@@ -267,7 +267,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             showMessage('模糊强度已更新', 'success');
             this.emit('change');
         } catch (error) {
-            console.error('Failed to update blur intensity:', error);
+            console.error('[Settings] Failed to update blur intensity:', error);
             showMessage('更新模糊强度失败', 'error');
         }
     }
@@ -284,7 +284,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             showMessage('自动模糊触发条件已更新', 'success');
             this.emit('change');
         } catch (error) {
-            console.error('Failed to update auto blur trigger:', error);
+            console.error('[Settings] Failed to update auto blur trigger:', error);
             showMessage('更新自动模糊触发条件失败', 'error');
         }
     }
@@ -311,7 +311,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             showMessage('模糊区域已更新', 'success');
             this.emit('change');
         } catch (error) {
-            console.error('Failed to update blur areas:', error);
+            console.error('[Settings] Failed to update blur areas:', error);
             showMessage('更新模糊区域失败', 'error');
         }
     }
@@ -372,7 +372,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             
             this.emit('change');
         } catch (error) {
-            console.error('Failed to toggle private mode:', error);
+            console.error('[Settings] Failed to toggle private mode:', error);
             checkbox.checked = !checkbox.checked; // 回滚状态
             showMessage('切换私密模式失败', 'error');
         }
@@ -394,7 +394,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             this.updatePasswordButtonsState();
             this.emit('change');
         } catch (error) {
-            console.error('Failed to toggle password requirement:', error);
+            console.error('[Settings] Failed to toggle password requirement:', error);
             checkbox.checked = !checkbox.checked; // 回滚状态
             showMessage('切换密码要求失败', 'error');
         }
@@ -417,7 +417,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             showMessage('私密模式设置已更新', 'success');
             this.emit('change');
         } catch (error) {
-            console.error('Failed to update private mode settings:', error);
+            console.error('[Settings] Failed to update private mode settings:', error);
             showMessage('更新私密模式设置失败', 'error');
         }
     }
@@ -435,7 +435,7 @@ export class PrivacySettings extends BaseSettingsPanel {
                 this.updatePasswordStatus(true);
             }
         } catch (error) {
-            console.error('Failed to set password:', error);
+            console.error('[Settings] Failed to set password:', error);
             showMessage('设置密码失败', 'error');
         }
     }
@@ -452,7 +452,7 @@ export class PrivacySettings extends BaseSettingsPanel {
                 showMessage('密码修改成功', 'success');
             }
         } catch (error) {
-            console.error('Failed to change password:', error);
+            console.error('[Settings] Failed to change password:', error);
             showMessage('修改密码失败', 'error');
         }
     }
@@ -495,7 +495,7 @@ export class PrivacySettings extends BaseSettingsPanel {
             showMessage('密码已取消，私密模式已关闭', 'success');
             this.emit('change');
         } catch (error) {
-            console.error('Failed to remove password:', error);
+            console.error('[Settings] Failed to remove password:', error);
             showMessage('取消密码失败', 'error');
         }
     }
@@ -513,7 +513,7 @@ export class PrivacySettings extends BaseSettingsPanel {
                 await this.updateRecoveryOptionsStatus();
             }
         } catch (error) {
-            console.error('Failed to setup security questions:', error);
+            console.error('[Settings] Failed to setup security questions:', error);
             showMessage('设置安全问题失败', 'error');
         }
     }
@@ -534,7 +534,7 @@ export class PrivacySettings extends BaseSettingsPanel {
                 await this.updateRecoveryOptionsStatus();
             }
         } catch (error) {
-            console.error('Failed to generate backup code:', error);
+            console.error('[Settings] Failed to generate backup code:', error);
             showMessage('生成备份码失败', 'error');
         }
     }
@@ -813,7 +813,7 @@ export class PrivacySettings extends BaseSettingsPanel {
                 this.generateBackupCodeBtn.textContent = hasBackupCode ? '重置备份恢复码' : '生成备份恢复码';
             }
         } catch (error) {
-            console.error('Failed to update recovery options status:', error);
+            console.error('[Settings] Failed to update recovery options status:', error);
         }
     }
 }

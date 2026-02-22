@@ -152,9 +152,9 @@ export class ElementProtector {
             this.setupMutationObserver(selectors);
             
             this.isActive = true;
-            console.log('Element protector started');
+            console.log('[Privacy] Element protector started');
         } catch (error) {
-            console.error('Failed to start element protector:', error);
+            console.error('[Privacy] Failed to start element protector:', error);
         }
     }
 
@@ -176,14 +176,14 @@ export class ElementProtector {
         this.protectedElements.clear();
         
         this.isActive = false;
-        console.log('Element protector stopped');
+        console.log('[Privacy] Element protector stopped');
     }
 
     /**
      * 保护现有元素
      */
     private async protectExistingElements(selectors: string[]): Promise<void> {
-        console.log('Initializing content privacy features...');
+        console.log('[Privacy] Initializing content privacy features...');
 
         let totalProtected = 0;
 
@@ -202,12 +202,12 @@ export class ElementProtector {
                     });
                 }
             } catch (error) {
-                console.warn(`Invalid selector: ${selector}`, error);
+                console.warn(`[Privacy] Invalid selector: ${selector}`, error);
             }
         }
 
         if (totalProtected > 0) {
-            console.log(`Protected ${totalProtected} elements for privacy`);
+            console.log(`[Privacy] Protected ${totalProtected} elements`);
         }
 
         // 添加Dashboard特定的智能检测
@@ -215,7 +215,7 @@ export class ElementProtector {
         dashboardElements.forEach(element => {
             if (!this.protectedElements.has(element)) {
                 this.markElementAsProtected(element);
-                console.log('Protected dashboard element:', element.className);
+                console.log('[Privacy] Protected dashboard element:', element.className);
             }
         });
 
@@ -230,7 +230,7 @@ export class ElementProtector {
         });
 
         if (smartProtectedCount > 0) {
-            console.log(`Protected ${smartProtectedCount} smart detected elements`);
+            console.log(`[Privacy] Protected ${smartProtectedCount} smart detected elements`);
         }
     }
 
@@ -516,7 +516,7 @@ export class ElementProtector {
                 this.applyBlurToElement(element);
             }
         } catch (error) {
-            console.error('Failed to apply protection:', error);
+            console.error('[Privacy] Failed to apply protection:', error);
         }
     }
 

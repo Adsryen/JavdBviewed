@@ -13,21 +13,21 @@ async function ensureIDBMigrated(): Promise<void> {
 
     const viewedObj = await getValue<Record<string, any>>(STORAGE_KEYS.VIEWED_RECORDS, {});
     const all = Object.values(viewedObj || {});
-    console.info('[DB] Starting initial migration to IndexedDB...', { count: all.length });
+    console.info('[Background] Starting initial migration to IndexedDB...', { count: all.length });
 
     const BATCH = 500;
     for (let i = 0; i < all.length; i += BATCH) {
       const slice = all.slice(i, i + BATCH);
       await idbViewedBulkPut(slice);
-      console.info('[DB] Migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
+      console.info('[Background] Migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
     }
 
 
     await setValue(STORAGE_KEYS.IDB_MIGRATED, true);
     const cnt = await idbViewedCount().catch(() => -1);
-    console.info('[DB] Migration finished', { total: all.length, idbCount: cnt });
+    console.info('[Background] Migration finished', { total: all.length, idbCount: cnt });
   } catch (e) {
-    console.warn('[DB] Migration failed (will not block extension)', (e as any)?.message);
+    console.warn('[Background] Migration failed (will not block extension)', (e as any)?.message);
   }
 }
 
@@ -43,9 +43,9 @@ async function ensureIDBLogsMigrated(): Promise<void> {
       try { await setValue(STORAGE_KEYS.LOGS, []); } catch {}
     }
     await setValue(STORAGE_KEYS.IDB_LOGS_MIGRATED, true);
-    console.info('[DB] Logs migration to IDB finished', { migrated: Array.isArray(oldLogs) ? oldLogs.length : 0 });
+    console.info('[Background] Logs migration to IDB finished', { migrated: Array.isArray(oldLogs) ? oldLogs.length : 0 });
   } catch (e) {
-    console.warn('[DB] Logs migration to IDB failed (will not block extension)', (e as any)?.message);
+    console.warn('[Background] Logs migration to IDB failed (will not block extension)', (e as any)?.message);
   }
 }
 
@@ -81,18 +81,18 @@ async function ensureIDBActorsMigrated(): Promise<void> {
 
     const actorObj = await getValue<Record<string, any>>(STORAGE_KEYS.ACTOR_RECORDS, {});
     const all = Object.values(actorObj || {});
-    console.info('[DB] Starting actors migration to IndexedDB...', { count: all.length });
+    console.info('[Background] Starting actors migration to IndexedDB...', { count: all.length });
 
     const BATCH = 500;
     for (let i = 0; i < all.length; i += BATCH) {
       const slice = all.slice(i, i + BATCH);
       await idbActorsBulkPut(slice);
-      console.info('[DB] Actors migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
+      console.info('[Background] Actors migrated batch', { from: i, to: Math.min(i + BATCH, all.length) });
     }
 
     await setValue(STORAGE_KEYS.IDB_ACTORS_MIGRATED, true);
-    console.info('[DB] Actors migration finished', { total: all.length });
+    console.info('[Background] Actors migration finished', { total: all.length });
   } catch (e) {
-    console.warn('[DB] Actors migration to IDB failed (will not block extension)', (e as any)?.message);
+    console.warn('[Background] Actors migration to IDB failed (will not block extension)', (e as any)?.message);
   }
 }

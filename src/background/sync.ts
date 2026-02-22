@@ -6,8 +6,8 @@ import type { VideoRecord } from '../types';
 import { viewedPut as idbViewedPut } from './db';
 import { md5Hex } from '../utils/md5';
 
-const log = (...args: any[]) => console.log('[JavDB Sync]', ...args);
-const error = (...args: any[]) => console.error('[JavDB Sync]', ...args);
+const log = (...args: any[]) => console.log('[Sync]', ...args);
+const error = (...args: any[]) => console.error('[Sync]', ...args);
 
 /**
  * Fetches HTML content from a given URL with browser-like headers.
@@ -464,7 +464,7 @@ async function refreshFC2RecordById(videoId: string): Promise<VideoRecord> {
  * @returns The updated video record.
  */
 export async function refreshRecordById(videoId: string): Promise<VideoRecord> {
-    console.log(`[refreshRecordById] Function called with videoId: ${videoId}`);
+    log(`[refreshRecordById] Function called with videoId: ${videoId}`);
     log(`[refreshRecordById] Starting refresh for: ${videoId}`);
     
     // 检查是否为FC2视频

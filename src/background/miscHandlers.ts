@@ -24,7 +24,7 @@ async function log(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, 
     const entry = { timestamp: new Date().toISOString(), level, message, data } as any;
     await idbLogsAdd(entry);
   } catch (e) {
-    console.error('Failed to write log to IDB:', e);
+    console.error('[Background] Failed to write log to IDB:', e);
   }
 }
 
@@ -166,15 +166,15 @@ export function registerMiscRouter(): void {
                   effectiveTotal += det.effective;
 
                   if (det.works.length > 0) {
-                    console.log(`准备保存 ${det.works.length} 个新作品到数据库`);
+                    console.log(`[Background] 准备保存 ${det.works.length} 个新作品到数据库`);
                     try { 
                       await newWorksManager.addNewWorks(det.works);
-                      console.log(`成功保存 ${det.works.length} 个新作品`);
+                      console.log(`[Background] 成功保存 ${det.works.length} 个新作品`);
                     } catch (e) {
-                      console.error(`保存新作品失败:`, e);
+                      console.error(`[Background] 保存新作品失败:`, e);
                     }
                   } else {
-                    console.log(`没有新作品需要保存`);
+                    console.log(`[Background] 没有新作品需要保存`);
                   }
                   discovered += det.works.length;
                 } catch (e: any) {
@@ -213,7 +213,7 @@ export function registerMiscRouter(): void {
                 return;
               }
 
-              console.log(`开始检查单个演员: ${actorName} (${actorId})`);
+              console.log(`[Background] 开始检查单个演员: ${actorName} (${actorId})`);
 
               const config = await newWorksManager.getGlobalConfig();
               
@@ -239,7 +239,7 @@ export function registerMiscRouter(): void {
               // 检查演员新作品
               const det = await newWorksCollector.checkActorNewWorksDetailed(subscription, cfg);
               
-              console.log(`演员 ${actorName} 检查结果:`, {
+              console.log(`[Background] 演员 ${actorName} 检查结果:`, {
                 identified: det.identified,
                 effective: det.effective,
                 newWorks: det.works.length
@@ -257,14 +257,14 @@ export function registerMiscRouter(): void {
                   }
                 });
               } catch (e) {
-                console.warn('发送进度消息失败:', e);
+                console.warn('[Background] 发送进度消息失败:', e);
               }
 
               // 保存新作品
               if (det.works.length > 0) {
-                console.log(`准备保存 ${det.works.length} 个新作品`);
+                console.log(`[Background] 准备保存 ${det.works.length} 个新作品`);
                 await newWorksManager.addNewWorks(det.works);
-                console.log(`成功保存 ${det.works.length} 个新作品`);
+                console.log(`[Background] 成功保存 ${det.works.length} 个新作品`);
               }
 
               sendResponse({
@@ -276,7 +276,7 @@ export function registerMiscRouter(): void {
                 }
               });
             } catch (error: any) {
-              console.error('检查单个演员失败:', error);
+              console.error('[Background] 检查单个演员失败:', error);
               sendResponse({ 
                 success: false, 
                 error: error?.message || '检查失败' 

@@ -83,7 +83,7 @@ export class PrivacyManager implements IPrivacyManager {
             this.isInitialized = true;
             log.privacy('Privacy Manager initialized successfully');
         } catch (error) {
-            console.error('Failed to initialize Privacy Manager:', error);
+            console.error('[Privacy] Failed to initialize Privacy Manager:', error);
             throw new Error('隐私管理器初始化失败');
         }
     }
@@ -107,7 +107,7 @@ export class PrivacyManager implements IPrivacyManager {
             await this.savePrivacyState();
             this.emitEvent('blur-applied', { mode: 'screenshot-test' });
         } catch (error) {
-            console.error('Failed to test blur effect:', error);
+            console.error('[Privacy] Failed to test blur effect:', error);
             throw new Error('测试模糊效果失败');
         }
     }
@@ -137,7 +137,7 @@ export class PrivacyManager implements IPrivacyManager {
             this.emitEvent('blur-applied', { mode: 'screenshot' });
             log.privacy('Screenshot mode enabled');
         } catch (error) {
-            console.error('Failed to enable screenshot mode:', error);
+            console.error('[Privacy] Failed to enable screenshot mode:', error);
             throw new Error('启用截图模式失败');
         }
     }
@@ -159,7 +159,7 @@ export class PrivacyManager implements IPrivacyManager {
             this.emitEvent('blur-removed', { mode: 'screenshot' });
             log.privacy('Screenshot mode disabled');
         } catch (error) {
-            console.error('Failed to disable screenshot mode:', error);
+            console.error('[Privacy] Failed to disable screenshot mode:', error);
             throw new Error('禁用截图模式失败');
         }
     }
@@ -190,7 +190,7 @@ export class PrivacyManager implements IPrivacyManager {
             this.emitEvent('blur-applied', { mode: 'screenshot-force' });
             log.privacy('Screenshot mode force reapplied successfully');
         } catch (error) {
-            console.error('Failed to force reapply screenshot mode:', error);
+            console.error('[Privacy] Failed to force reapply screenshot mode:', error);
             throw new Error('强制重新应用截图模式失败');
         }
     }
@@ -244,7 +244,7 @@ export class PrivacyManager implements IPrivacyManager {
 
             log.privacy('Screenshot settings updated:', updates);
         } catch (error) {
-            console.error('Failed to update screenshot settings:', error);
+            console.error('[Privacy] Failed to update screenshot settings:', error);
             throw new Error('更新截图设置失败');
         }
     }
@@ -284,7 +284,7 @@ export class PrivacyManager implements IPrivacyManager {
 
             log.privacy('Private mode enabled');
         } catch (error) {
-            console.error('Failed to enable private mode:', error);
+            console.error('[Privacy] Failed to enable private mode:', error);
             throw error;
         }
     }
@@ -308,7 +308,7 @@ export class PrivacyManager implements IPrivacyManager {
             this.emitEvent('privateModeDisabled', { mode: 'private' });
             log.privacy('Private mode disabled');
         } catch (error) {
-            console.error('Failed to disable private mode:', error);
+            console.error('[Privacy] Failed to disable private mode:', error);
             throw new Error('禁用私密模式失败');
         }
     }
@@ -361,7 +361,7 @@ export class PrivacyManager implements IPrivacyManager {
 
             log.privacy('Private mode settings updated:', updates);
         } catch (error) {
-            console.error('Failed to update private mode settings:', error);
+            console.error('[Privacy] Failed to update private mode settings:', error);
             throw new Error('更新私密模式设置失败');
         }
     }
@@ -408,7 +408,7 @@ export class PrivacyManager implements IPrivacyManager {
 
             return result;
         } catch (error) {
-            console.error('Authentication failed:', error);
+            console.error('[Privacy] Authentication failed:', error);
             return {
                 success: false,
                 error: '验证过程中发生错误'
@@ -450,7 +450,7 @@ export class PrivacyManager implements IPrivacyManager {
             log.privacy('Private mode locked');
             console.log('[PrivacyManager] Lock completed successfully');
         } catch (error) {
-            console.error('Failed to lock:', error);
+            console.error('[Privacy] Failed to lock:', error);
             throw new Error('锁定失败');
         }
     }

@@ -180,7 +180,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       insRange = aggregateMonthly(viewsArrRange || [], { topN: 8, previousDays: prevArr || [] });
       const allViews = await dbInsViewsRange('1970-01-01', '2999-12-31');
       insAll = aggregateMonthly(allViews || [], { topN: 10 });
-      try { console.info('[INSIGHTS][home][echarts] range', { start: startStr, end: endStr, views: (viewsArrRange || []).length, trend: Array.isArray(insRange?.trend) ? insRange.trend.length : 0, tagsTop: Array.isArray(insAll?.tagsTop) ? insAll.tagsTop.length : 0 }); } catch {}
+      try { console.info('[INSIGHTS] home echarts range', { start: startStr, end: endStr, views: (viewsArrRange || []).length, trend: Array.isArray(insRange?.trend) ? insRange.trend.length : 0, tagsTop: Array.isArray(insAll?.tagsTop) ? insAll.tagsTop.length : 0 }); } catch {}
     } catch {}
 
     try {
@@ -431,7 +431,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       ins = aggregateMonthly(viewsArr || [], { topN: 8, previousDays: prevArr || [] });
       const allViews = await dbInsViewsRange('1970-01-01', '2999-12-31');
       insAllG2 = aggregateMonthly(allViews || [], { topN: 10 });
-      try { console.info('[INSIGHTS][home][g2plot] range', { start: r.start, end: r.end, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(insAllG2?.tagsTop) ? insAllG2.tagsTop.length : 0 }); } catch {}
+      try { console.info('[INSIGHTS] home g2plot range', { start: r.start, end: r.end, views: (viewsArr || []).length, trend: Array.isArray(ins?.trend) ? ins.trend.length : 0, tagsTop: Array.isArray(insAllG2?.tagsTop) ? insAllG2.tagsTop.length : 0 }); } catch {}
     } catch {}
 
     try {

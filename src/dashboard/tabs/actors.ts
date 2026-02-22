@@ -41,7 +41,7 @@ export class ActorsTab {
             await this.updateStats();
             this.isInitialized = true;
         } catch (error) {
-            console.error('Failed to initialize actors tab:', error);
+            console.error('[Actor] Failed to initialize actors tab:', error);
             showMessage('初始化演员库失败', 'error');
         }
     }
@@ -267,7 +267,7 @@ export class ActorsTab {
             }
 
         } catch (error) {
-            console.error('Failed to load actors:', error);
+            console.error('[Actor] Failed to load actors:', error);
             showMessage('加载演员列表失败', 'error');
         } finally {
             this.isLoading = false;
@@ -511,7 +511,7 @@ export class ActorsTab {
                     await this.loadActors();
                     await this.updateStats();
                 } catch (err) {
-                    console.error('切换黑名单状态失败:', err);
+                    console.error('[Actor] 切换黑名单状态失败:', err);
                     showMessage('切换黑名单状态失败', 'error');
                 }
             });
@@ -568,7 +568,7 @@ export class ActorsTab {
                         showMessage('该演员已在订阅列表', 'info');
                         if (this.subscribedOnly) { await this.loadActors(); }
                     } else {
-                        console.error('切换订阅失败:', err);
+                        console.error('[Actor] 切换订阅失败:', err);
                         showMessage('操作失败，请重试', 'error');
                     }
                 } finally {
@@ -734,7 +734,7 @@ export class ActorsTab {
                 `;
             }
         } catch (error) {
-            console.error('Failed to update actor stats:', error);
+            console.error('[Actor] Failed to update actor stats:', error);
         }
     }
 
@@ -817,7 +817,7 @@ export class ActorsTab {
                 }
 
             } catch (fallbackError) {
-                console.error('Failed to copy actor name:', fallbackError);
+                console.error('[Actor] Failed to copy actor name:', fallbackError);
                 showMessage('复制失败，请手动复制', 'error');
 
                 // 恢复图标状态
@@ -848,7 +848,7 @@ export class ActorsTab {
             this.showActorEditModal(actor);
 
         } catch (error) {
-            console.error('Failed to edit actor source data:', error);
+            console.error('[Actor] Failed to edit actor source data:', error);
             showMessage('打开编辑界面失败', 'error');
         }
     }
@@ -878,7 +878,7 @@ export class ActorsTab {
             });
 
         } catch (error) {
-            console.error('Failed to open actor works:', error);
+            console.error('[Actor] Failed to open actor works:', error);
             showMessage('打开演员作品列表失败', 'error');
         }
     }
@@ -1094,7 +1094,7 @@ export class ActorsTab {
                 });
 
             } catch (error: any) {
-                console.error('Failed to save actor:', error);
+                console.error('[Actor] Failed to save actor:', error);
                 showMessage(`保存失败: ${error.message}`, 'error');
             }
         });
@@ -1119,7 +1119,7 @@ export class ActorsTab {
                 showMessage('删除失败', 'error');
             }
         } catch (error) {
-            console.error('Failed to delete actor:', error);
+            console.error('[Actor] Failed to delete actor:', error);
             showMessage('删除失败', 'error');
         }
     }

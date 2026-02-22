@@ -59,9 +59,9 @@ export class SessionManager implements ISessionManager {
             // 触发会话开始事件
             this.emitEvent('authenticated', { sessionInfo: this.sessionInfo });
 
-            console.log('Session started with idle timeout:', idleTimeout, 'minutes');
+            console.log('[Privacy] Session started with idle timeout:', idleTimeout, 'minutes');
         } catch (error) {
-            console.error('Failed to start session:', error);
+            console.error('[Privacy] Failed to start session:', error);
             throw new Error('启动会话失败');
         }
     }
@@ -83,9 +83,9 @@ export class SessionManager implements ISessionManager {
             this.sessionInfo = null;
             await this.storage.saveSessionInfo(null as any);
 
-            console.log('Session ended');
+            console.log('[Privacy] Session ended');
         } catch (error) {
-            console.error('Failed to end session:', error);
+            console.error('[Privacy] Failed to end session:', error);
             throw new Error('结束会话失败');
         }
     }
@@ -117,9 +117,9 @@ export class SessionManager implements ISessionManager {
             // 保存更新的会话信息
             await this.storage.saveSessionInfo(this.sessionInfo);
 
-            console.log('Session activity updated');
+            console.log('[Privacy] Session activity updated');
         } catch (error) {
-            console.error('Failed to refresh session:', error);
+            console.error('[Privacy] Failed to refresh session:', error);
             throw new Error('刷新会话失败');
         }
     }
@@ -160,7 +160,7 @@ export class SessionManager implements ISessionManager {
             this.sessionInfo.lastActivity = now;
             await this.storage.saveSessionInfo(this.sessionInfo);
         } catch (error) {
-            console.error('Failed to update activity:', error);
+            console.error('[Privacy] Failed to update activity:', error);
         }
     }
 
@@ -194,10 +194,10 @@ export class SessionManager implements ISessionManager {
             this.sessionInfo = storedSession;
             this.setupSessionTimeout();
 
-            console.log('Session restored:', this.sessionInfo);
+            console.log('[Privacy] Session restored:', this.sessionInfo);
             return true;
         } catch (error) {
-            console.error('Failed to restore session:', error);
+            console.error('[Privacy] Failed to restore session:', error);
             return false;
         }
     }
@@ -229,7 +229,7 @@ export class SessionManager implements ISessionManager {
             }
             
             if (this.isIdleTooLong()) {
-                console.log('Session idle timeout - no activity detected');
+                console.log('[Privacy] Session idle timeout - no activity detected');
                 this.handleSessionTimeout();
             }
         }, 30 * 1000);
@@ -244,7 +244,7 @@ export class SessionManager implements ISessionManager {
             return;
         }
 
-        console.log('Session timeout occurred');
+        console.log('[Privacy] Session timeout occurred');
         
         // 先清除会话信息，防止循环触发
         this.sessionInfo = null;
@@ -259,7 +259,7 @@ export class SessionManager implements ISessionManager {
         try {
             await this.storage.saveSessionInfo(null as any);
         } catch (error) {
-            console.error('Failed to clear session info:', error);
+            console.error('[Privacy] Failed to clear session info:', error);
         }
     }
 
@@ -343,7 +343,7 @@ export class SessionManager implements ISessionManager {
                 try {
                     listener(event);
                 } catch (error) {
-                    console.error('Event listener error:', error);
+                    console.error('[Privacy] Event listener error:', error);
                 }
             });
         }

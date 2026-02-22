@@ -219,9 +219,9 @@ export class WebDAVSettings extends BaseSettingsPanel {
         const settings = STATE.settings;
         const webdav = settings?.webdav || {};
 
-        console.log('[WebDAV设置] doLoadSettings 开始，STATE.settings:', settings);
-        console.log('[WebDAV设置] webdav 配置:', webdav);
-        console.log('[WebDAV设置] configs:', webdav.configs);
+        console.log('[Settings] doLoadSettings 开始，STATE.settings:', settings);
+        console.log('[Settings] webdav 配置:', webdav);
+        console.log('[Settings] configs:', webdav.configs);
 
         // 兼容旧版本：如果有旧配置但没有 configs，自动迁移
         if (webdav.url && webdav.username && (!webdav.configs || webdav.configs.length === 0)) {
@@ -232,14 +232,14 @@ export class WebDAVSettings extends BaseSettingsPanel {
         // 渲染配置列表
         this.renderConfigList();
 
-        console.log('[WebDAV设置] 准备设置 UI，webdav.enabled:', webdav.enabled);
-        console.log('[WebDAV设置] this.webdavEnabled 元素:', this.webdavEnabled);
+        console.log('[Settings] 准备设置 UI，webdav.enabled:', webdav.enabled);
+        console.log('[Settings] this.webdavEnabled 元素:', this.webdavEnabled);
         
         this.webdavEnabled.checked = webdav.enabled || false;
-        console.log('[WebDAV设置] 设置后 this.webdavEnabled.checked:', this.webdavEnabled.checked);
+        console.log('[Settings] 设置后 this.webdavEnabled.checked:', this.webdavEnabled.checked);
         
         this.webdavAutoSync.checked = webdav.autoSync || false;
-        console.log('[WebDAV设置] 设置后 this.webdavAutoSync.checked:', this.webdavAutoSync.checked);
+        console.log('[Settings] 设置后 this.webdavAutoSync.checked:', this.webdavAutoSync.checked);
         
         this.webdavSyncInterval.value = String(webdav.syncInterval || 30);
         this.webdavRetentionDays.value = String(webdav.retentionDays ?? 7);
@@ -259,7 +259,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         this.webdavBackupSystemConfig.checked = backupRange.systemConfig !== false;
         this.webdavBackupLogsData.checked = backupRange.logsData || false;
 
-        console.log('[WebDAV设置] UI 更新完成，enabled:', this.webdavEnabled.checked);
+        console.log('[Settings] UI 更新完成，enabled:', this.webdavEnabled.checked);
 
         // 更新UI状态
         this.updateWebDAVControlsState();
