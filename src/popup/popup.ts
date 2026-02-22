@@ -158,11 +158,6 @@ function updateTitleLogo(theme: 'light' | 'dark') {
     }
 }
 
-async function initTitleLogo() {
-    const theme = await getTheme();
-    updateTitleLogo(theme);
-}
-
 document.addEventListener('DOMContentLoaded', async () => {
     const dashboardButton = document.getElementById('dashboard-button') as HTMLButtonElement;
     const popupLockBtn = document.getElementById('popup-lock-btn') as HTMLButtonElement;

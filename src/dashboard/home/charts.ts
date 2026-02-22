@@ -363,6 +363,29 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
     const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
     if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl) return;
+    
+    // 显示加载动画（使用绝对定位覆盖层，不清空容器）
+    const showLoading = (el: HTMLElement) => {
+      // 移除旧的加载层
+      const oldLoading = el.querySelector('.chart-loading-overlay');
+      if (oldLoading) oldLoading.remove();
+      
+      // 添加新的加载层
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'chart-loading-overlay';
+      loadingDiv.innerHTML = '<div class="chart-loading"><div class="chart-spinner"></div><div class="chart-loading-text">加载中...</div></div>';
+      el.style.position = 'relative';
+      el.appendChild(loadingDiv);
+    };
+    
+    // 隐藏加载动画
+    const hideLoading = (el: HTMLElement) => {
+      const loadingDiv = el.querySelector('.chart-loading-overlay');
+      if (loadingDiv) loadingDiv.remove();
+    };
+    
+    const chartElements = [statusEl, barsEl, tagsEl, changeEl, newTagsEl, recordsTrendEl, actorsTrendEl, newWorksTrendEl].filter(Boolean) as HTMLElement[];
+    chartElements.forEach(showLoading);
     const G2P: any = await ensureG2PlotLoaded();
     if (!G2P) { await renderHomeChartsWithEcharts(); return; }
     const { Column, Line, Bar } = G2P;
@@ -422,6 +445,14 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
           try {
             if (HC['statusDonut']?.dispose) { HC['statusDonut'].dispose(); }
           } catch {}
+          
+          // 先移除加载动画，保留标题
+          hideLoading(statusEl);
+          // 只清除图表内容，保留标题
+          const titleEl = statusEl.querySelector('.chart-title');
+          statusEl.innerHTML = '';
+          if (titleEl) statusEl.appendChild(titleEl);
+          
           const inst = ech.init(statusEl);
           const data = [
             { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: COLORS.success },
@@ -457,6 +488,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
             ]
           });
           HC['statusDonut'] = inst;
+          
           // 简单的自适应
           if (!(HC as any)._statusDonutResizeBound) {
             try {
@@ -471,6 +503,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     try {
       if (barsEl) {
         if (HC['newWorksBars']?.destroy) { try { HC['newWorksBars'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(barsEl);
+        const titleEl = barsEl.querySelector('.chart-title');
+        barsEl.innerHTML = '';
+        if (titleEl) barsEl.appendChild(titleEl);
+        
         const plot = new Column(barsEl, {
           data: [
             { type: '今日发现', value: w?.today ?? 0 },
@@ -493,6 +532,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (tagsEl) {
         if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
         HC['tagsTop'] = null;
+        
         const full = await getTagsTopFromRecords(50);
         const pageSize = 10;
         const totalPages = Math.max(1, Math.ceil(full.length / pageSize));
@@ -504,6 +544,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
 
         const ctrl: any = {
           page: 0,
+          isFirstRender: true,
           render() {
             const start = this.page * pageSize;
             const list = full.slice(start, start + pageSize).map((d, i) => ({ name: d.name, value: d.count, color: color(i) }));
@@ -512,6 +553,18 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
                 HC['tagsTop'].changeData(list);
               } else {
                 if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
+                
+                // 首次渲染时先移除加载动画，保留标题和分页器
+                if (this.isFirstRender) {
+                  hideLoading(tagsEl);
+                  const titleEl = tagsEl.querySelector('.chart-title');
+                  const pagerEl = tagsEl.querySelector('.chart-pager');
+                  tagsEl.innerHTML = '';
+                  if (titleEl) tagsEl.appendChild(titleEl);
+                  if (pagerEl) tagsEl.appendChild(pagerEl);
+                  this.isFirstRender = false;
+                }
+                
                 const plot = new Bar(tagsEl, {
                   data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
                   barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
@@ -523,6 +576,18 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
               }
             } catch {
               try { if (HC['tagsTop']?.destroy) { HC['tagsTop'].destroy(); } } catch {}
+              
+              // 首次渲染时先移除加载动画，保留标题和分页器
+              if (this.isFirstRender) {
+                hideLoading(tagsEl);
+                const titleEl = tagsEl.querySelector('.chart-title');
+                const pagerEl = tagsEl.querySelector('.chart-pager');
+                tagsEl.innerHTML = '';
+                if (titleEl) tagsEl.appendChild(titleEl);
+                if (pagerEl) tagsEl.appendChild(pagerEl);
+                this.isFirstRender = false;
+              }
+              
               const plot = new Bar(tagsEl, {
                 data: list, xField: 'value', yField: 'name', legend: false, autoFit: true,
                 barStyle: { radius: [0, 6, 6, 0] }, label: { position: 'right' }, tooltip: { showTitle: false },
@@ -565,6 +630,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     try {
       if (changeEl) {
         if (HC['tagsChange']?.destroy) { try { HC['tagsChange'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(changeEl);
+        const titleEl = changeEl.querySelector('.chart-title');
+        changeEl.innerHTML = '';
+        if (titleEl) changeEl.appendChild(titleEl);
+        
         const rising = Array.isArray((ins as any)?.changes?.risingDetailed) ? (ins as any).changes.risingDetailed : [];
         const falling = Array.isArray((ins as any)?.changes?.fallingDetailed) ? (ins as any).changes.fallingDetailed : [];
         const changes = ([] as any[])
@@ -588,6 +660,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     try {
       if (newTagsEl) {
         if (HC['newTagsTop']?.destroy) { try { HC['newTagsTop'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(newTagsEl);
+        const titleEl = newTagsEl.querySelector('.chart-title');
+        newTagsEl.innerHTML = '';
+        if (titleEl) newTagsEl.appendChild(titleEl);
+        
         const list = Array.isArray((ins as any)?.changes?.newTagsDetailed) ? (ins as any).changes.newTagsDetailed : [];
         const top = list.slice(0, 5).map((d: any, i: number) => ({ name: d.name, value: Number(d.count || 0), color: ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa'][i % 5] }));
         const plot = new Bar(newTagsEl, {
@@ -606,6 +685,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       const r = getHomeChartsRange();
       if (recordsTrendEl) {
         if (HC['recordsTrend']?.destroy) { try { HC['recordsTrend'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(recordsTrendEl);
+        const titleEl = recordsTrendEl.querySelector('.chart-title');
+        recordsTrendEl.innerHTML = '';
+        if (titleEl) recordsTrendEl.appendChild(titleEl);
+        
         const rec = await dbTrendsRecordsRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
           rec.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
@@ -636,6 +722,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       }
       if (actorsTrendEl) {
         if (HC['actorsTrend']?.destroy) { try { HC['actorsTrend'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(actorsTrendEl);
+        const titleEl = actorsTrendEl.querySelector('.chart-title');
+        actorsTrendEl.innerHTML = '';
+        if (titleEl) actorsTrendEl.appendChild(titleEl);
+        
         const act = await dbTrendsActorsRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
           act.map((p: any) => ({ date: p.date, type: '总演员数', value: p.total })),
@@ -663,6 +756,13 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       }
       if (newWorksTrendEl) {
         if (HC['newWorksTrend']?.destroy) { try { HC['newWorksTrend'].destroy(); } catch {} }
+        
+        // 先移除加载动画，保留标题
+        hideLoading(newWorksTrendEl);
+        const titleEl = newWorksTrendEl.querySelector('.chart-title');
+        newWorksTrendEl.innerHTML = '';
+        if (titleEl) newWorksTrendEl.appendChild(titleEl);
+        
         const nw = await dbTrendsNewWorksRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
           nw.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
@@ -819,29 +919,21 @@ export function getHomeChartsRange(): { start: string; end: string } {
 }
 
 export async function getTagsTopFromRecords(limit: number = 10): Promise<Array<{ name: string; count: number }>> {
-  const totals: Record<string, number> = {};
-  let offset = 0;
-  const pageSize = 800;
-  while (true) {
-    const { items, total } = await dbViewedPage({ offset, limit: pageSize, orderBy: 'updatedAt', order: 'desc' });
-    const len = Array.isArray(items) ? items.length : 0;
-    if (!len) break;
-    for (const r of items as any[]) {
-      const arr = Array.isArray((r as any).tags) ? (r as any).tags : [];
-      for (const t of arr) {
-        const name = String(t || '').trim();
-        if (!name) continue;
-        const low = name.toLowerCase();
-        if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
-        totals[name] = (totals[name] ?? 0) + 1;
-      }
+  // 优化：在后台直接统计标签，只返回统计结果
+  // 避免传输大量数据，减少前端计算压力
+  try {
+    const response = await chrome.runtime.sendMessage({ 
+      type: 'DB:GET_ALL_TAGS',
+      payload: { limit: Math.max(1, Number(limit || 10)) }
+    });
+    
+    if (response?.success && Array.isArray(response?.tags)) {
+      return response.tags;
     }
-    offset += len;
-    if (offset >= (total || 0)) break;
-    if (len < pageSize) break;
+    
+    return [];
+  } catch (e) {
+    console.error('[getTagsTopFromRecords] 查询失败:', e);
+    return [];
   }
-  return Object.entries(totals)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, Math.max(1, Number(limit || 10)));
 }
