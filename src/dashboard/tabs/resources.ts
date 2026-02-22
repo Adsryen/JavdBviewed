@@ -136,7 +136,7 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
     name: 'tabs/settings-insights.html',
     styles: [
       './styles/05-pages/settings/settings.css',
-      './styles/05-pages/settings/enhancement.css',
+      './styles/05-pages/settings/insightsSettings.css',
     ],
   },
   'tab-settings-log': {

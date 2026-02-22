@@ -5,101 +5,120 @@
         </button>
         <h2>报告设置</h2>
         <p class="settings-description">配置报告生成所用的聚合参数，仅影响本地统计与 AI 提示词输入。</p>
-        
-        <!-- 功能提示 -->
-        <div class="enhancement-notice">
-            <i class="fas fa-info-circle"></i>
-            <span>报告功能目前处于测试阶段，部分功能可能不稳定。如遇到问题请在 <a href="https://github.com/Adsryen/JavdBviewed/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 反馈。</span>
-        </div>
     </div>
     <div class="settings-page-body">
+        <!-- 数据源与范围 -->
         <div class="settings-card settings-section">
-            <h4>报告功能</h4>
-            <p class="section-description">报告功能用于生成观看统计和数据分析，帮助您了解观看习惯和偏好。</p>
+            <h4>数据源与范围</h4>
+            <p class="section-description">配置报告统计的数据来源和状态范围。</p>
             
             <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="enableInsights" checked>
-                    <span class="checkmark"></span>
-                    启用报告功能
-                </label>
-                <p class="input-description">开启后可以在首页查看统计报告和数据分析。</p>
+                <label for="insightsSource">数据源模式:</label>
+                <select id="insightsSource" class="text-input">
+                    <option value="views">仅观看记录</option>
+                    <option value="compare">对比模式（观看 vs 浏览）</option>
+                    <option value="auto">自动选择</option>
+                </select>
+                <p class="input-description">选择报告使用的数据来源。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="insightsStatusScope">统计状态范围:</label>
+                <select id="insightsStatusScope" class="text-input">
+                    <option value="viewed">仅已观看</option>
+                    <option value="viewed_browsed">已观看 + 已浏览</option>
+                    <option value="viewed_browsed_want">已观看 + 已浏览 + 想看</option>
+                </select>
+                <p class="input-description">选择统计时包含的状态类型。</p>
             </div>
         </div>
 
+        <!-- 聚合参数 -->
         <div class="settings-card settings-section">
-            <h4>数据聚合</h4>
+            <h4>聚合参数</h4>
             <p class="section-description">配置报告数据的聚合方式和统计维度。</p>
             
-            <div class="form-group">
-                <label for="insightsTimeRange">统计时间范围:</label>
-                <select id="insightsTimeRange" class="text-input">
-                    <option value="7">最近 7 天</option>
-                    <option value="30" selected>最近 30 天</option>
-                    <option value="90">最近 90 天</option>
-                    <option value="180">最近 180 天</option>
-                    <option value="365">最近一年</option>
-                    <option value="all">全部时间</option>
-                </select>
-                <p class="input-description">选择报告统计的时间范围。</p>
-            </div>
+            <div class="form-grid">
+                <div class="form-group-inline">
+                    <label for="insightsTopN">Top N 排行数量:</label>
+                    <input type="number" id="insightsTopN" class="text-input" min="1" max="50" value="10">
+                    <button type="button" class="help-btn" title="排行榜显示的条目数量（1-50）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
 
-            <div class="form-group">
-                <label for="insightsGroupBy">分组方式:</label>
-                <select id="insightsGroupBy" class="text-input">
-                    <option value="day">按天</option>
-                    <option value="week">按周</option>
-                    <option value="month" selected>按月</option>
-                    <option value="year">按年</option>
-                </select>
-                <p class="input-description">选择数据的分组统计方式。</p>
+                <div class="form-group-inline">
+                    <label for="insightsMinTagCount">最小标签计数:</label>
+                    <input type="number" id="insightsMinTagCount" class="text-input" min="0" max="999" value="3">
+                    <button type="button" class="help-btn" title="标签至少出现的次数才会被统计（0-999）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+
+                <div class="form-group-inline">
+                    <label for="insightsChangeThresholdRatio">显著变化阈值:</label>
+                    <input type="number" id="insightsChangeThresholdRatio" class="text-input" min="0" max="1" step="0.01" value="0.08">
+                    <button type="button" class="help-btn" title="判断趋势显著变化的阈值比例（0-1）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+
+                <div class="form-group-inline">
+                    <label for="insightsRisingLimit">上升标签展示数:</label>
+                    <input type="number" id="insightsRisingLimit" class="text-input" min="0" max="50" value="5">
+                    <button type="button" class="help-btn" title="显示上升趋势标签的数量（0-50）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+
+                <div class="form-group-inline">
+                    <label for="insightsFallingLimit">下降标签展示数:</label>
+                    <input type="number" id="insightsFallingLimit" class="text-input" min="0" max="50" value="5">
+                    <button type="button" class="help-btn" title="显示下降趋势标签的数量（0-50）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+
+                <div class="form-group-inline">
+                    <label for="insightsMinMonthlySamples">最小月度样本量:</label>
+                    <input type="number" id="insightsMinMonthlySamples" class="text-input" min="0" max="999" value="10">
+                    <button type="button" class="help-btn" title="月报生成所需的最小样本数量（0-999）">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
+        <!-- 自动生成设置 -->
         <div class="settings-card settings-section">
-            <h4>显示选项</h4>
-            <p class="section-description">配置报告的显示内容和样式。</p>
+            <h4>自动生成设置</h4>
+            <p class="section-description">配置报告的自动生成选项。</p>
             
             <div class="form-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showActorStats" checked>
+                    <input type="checkbox" id="insightsAutoMonthlyEnabled">
                     <span class="checkmark"></span>
-                    显示演员统计
+                    <span>启用自动月报</span>
                 </label>
-                <p class="input-description">在报告中显示演员相关的统计数据。</p>
+                <p class="input-description">每月自动生成上月的观影报告。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="insightsAutoMinuteOfDay">触发时间（分钟）:</label>
+                <input type="number" id="insightsAutoMinuteOfDay" class="text-input" min="0" max="1439" value="10">
+                <p class="input-description">每月 1 日触发的时间，以当天的第几分钟表示（0-1439，例如 10 表示 00:10）。</p>
             </div>
 
             <div class="form-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="showGenreStats" checked>
+                    <input type="checkbox" id="insightsAutoCompensateEnabled">
                     <span class="checkmark"></span>
-                    显示类型统计
+                    <span>启用启动补偿</span>
                 </label>
-                <p class="input-description">在报告中显示影片类型的统计数据。</p>
+                <p class="input-description">如果错过定时生成，在浏览器启动时自动补生成。</p>
             </div>
 
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="showTrendChart" checked>
-                    <span class="checkmark"></span>
-                    显示趋势图表
-                </label>
-                <p class="input-description">在报告中显示观看趋势的可视化图表。</p>
-            </div>
-        </div>
-
-        <div class="settings-card settings-section">
-            <h4>报告操作</h4>
-            <div class="action-buttons-top">
-                <button id="generateInsightsReport" class="btn primary">生成报告</button>
-                <button id="exportInsightsReport" class="btn">导出报告</button>
-                <button id="clearInsightsCache" class="btn danger">清除缓存</button>
-            </div>
-            <p class="input-description" style="margin-top: 12px;">
-                <strong>生成报告:</strong> 根据当前设置重新生成统计报告<br>
-                <strong>导出报告:</strong> 将报告数据导出为 JSON 或 HTML 格式<br>
-                <strong>清除缓存:</strong> 清除报告缓存数据，下次访问时重新计算
-            </p>
+            <div id="insights-auto-tip" style="display: none; margin-top: 16px; padding: 12px; background: var(--info-bg, #e3f2fd); border-left: 4px solid var(--info, #2196f3); border-radius: 6px; font-size: 13px; color: var(--text-primary);"></div>
         </div>
     </div>
 </div>
