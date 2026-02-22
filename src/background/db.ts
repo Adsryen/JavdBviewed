@@ -44,34 +44,60 @@ function eachDate(startDate: string, endDate: string): { date: string; startMs: 
 export interface RecordsTrendPoint { date: string; total: number; viewed: number; browsed: number; want: number; }
 export async function trendsRecordsRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<RecordsTrendPoint[]> {
   const db = await initDB();
-  const idxCreated = db.transaction('viewedRecords').store.index('by_createdAt');
-  const idxStatusCreated = db.transaction('viewedRecords').store.index('by_status_createdAt');
+  const store = db.transaction('viewedRecords').store;
+  const idxCreated = store.index('by_createdAt');
   const items: RecordsTrendPoint[] = [];
-  for (const d of eachDate(startDate, endDate)) {
-    let total = 0, viewed = 0, browsed = 0, want = 0;
-    try {
-      if (mode === 'daily') {
-        // @ts-ignore
-        total = await idxCreated.count(IDBKeyRange.bound(d.startMs, d.endMs));
-        // @ts-ignore
-        viewed = await idxStatusCreated.count(IDBKeyRange.bound(['viewed', d.startMs], ['viewed', d.endMs]));
-        // @ts-ignore
-        browsed = await idxStatusCreated.count(IDBKeyRange.bound(['browsed', d.startMs], ['browsed', d.endMs]));
-        // @ts-ignore
-        want = await idxStatusCreated.count(IDBKeyRange.bound(['want', d.startMs], ['want', d.endMs]));
-      } else {
-        // @ts-ignore
-        total = await idxCreated.count(IDBKeyRange.upperBound(d.endMs));
-        // @ts-ignore
-        viewed = await idxStatusCreated.count(IDBKeyRange.bound(['viewed', 0], ['viewed', d.endMs]));
-        // @ts-ignore
-        browsed = await idxStatusCreated.count(IDBKeyRange.bound(['browsed', 0], ['browsed', d.endMs]));
-        // @ts-ignore
-        want = await idxStatusCreated.count(IDBKeyRange.bound(['want', 0], ['want', d.endMs]));
+  const dates = eachDate(startDate, endDate);
+  
+  if (mode === 'daily') {
+    // 每日模式：只查询一次所有数据，然后按日期分组
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    // @ts-ignore
+    const allRecords = await idxCreated.getAll(IDBKeyRange.bound(firstDate.startMs, lastDate.endMs));
+    
+    // 按日期分组统计
+    for (const d of dates) {
+      let total = 0, viewed = 0, browsed = 0, want = 0;
+      for (const r of allRecords) {
+        const ts = (r as any)?.createdAt || 0;
+        if (ts >= d.startMs && ts <= d.endMs) {
+          total++;
+          const status = (r as any)?.status;
+          if (status === 'viewed') viewed++;
+          else if (status === 'browsed') browsed++;
+          else if (status === 'want') want++;
+        }
       }
-    } catch {}
-    items.push({ date: d.date, total, viewed, browsed, want });
+      items.push({ date: d.date, total, viewed, browsed, want });
+    }
+  } else {
+    // 累计模式：查询一次所有数据，然后累计计算
+    const lastDate = dates[dates.length - 1];
+    // @ts-ignore
+    const allRecords = await idxCreated.getAll(IDBKeyRange.upperBound(lastDate.endMs));
+    
+    // 按 createdAt 排序
+    allRecords.sort((a: any, b: any) => ((a?.createdAt || 0) - (b?.createdAt || 0)));
+    
+    let recordIndex = 0;
+    let cumulativeTotal = 0, cumulativeViewed = 0, cumulativeBrowsed = 0, cumulativeWant = 0;
+    
+    for (const d of dates) {
+      // 累加到当前日期为止的所有记录
+      while (recordIndex < allRecords.length && (allRecords[recordIndex] as any)?.createdAt <= d.endMs) {
+        const r = allRecords[recordIndex];
+        cumulativeTotal++;
+        const status = (r as any)?.status;
+        if (status === 'viewed') cumulativeViewed++;
+        else if (status === 'browsed') cumulativeBrowsed++;
+        else if (status === 'want') cumulativeWant++;
+        recordIndex++;
+      }
+      items.push({ date: d.date, total: cumulativeTotal, viewed: cumulativeViewed, browsed: cumulativeBrowsed, want: cumulativeWant });
+    }
   }
+  
   return items;
 }
 
@@ -81,53 +107,101 @@ export async function trendsActorsRange(startDate: string, endDate: string, mode
   const all = await db.getAll('actors');
   const days = eachDate(startDate, endDate);
   const points: ActorsTrendPoint[] = [];
-  for (const d of days) {
-    let total = 0, female = 0, male = 0, blacklisted = 0;
-    for (const a of all) {
-      const ts = typeof (a as any)?.createdAt === 'number' ? (a as any).createdAt : (typeof (a as any)?.updatedAt === 'number' ? (a as any).updatedAt : 0);
-      if (ts <= 0) continue;
-      const inDay = (mode === 'daily') ? (ts >= d.startMs && ts <= d.endMs) : (ts <= d.endMs);
-      if (!inDay) continue;
-      total++;
-      const g = (a as any)?.gender;
-      if (g === 'female') female++;
-      else if (g === 'male') male++;
-      if ((a as any)?.blacklisted) blacklisted++;
+  
+  // 预处理：提取时间戳并排序
+  const actorsWithTs = all.map(a => ({
+    actor: a,
+    ts: typeof (a as any)?.createdAt === 'number' ? (a as any).createdAt : (typeof (a as any)?.updatedAt === 'number' ? (a as any).updatedAt : 0),
+    gender: (a as any)?.gender,
+    blacklisted: !!(a as any)?.blacklisted
+  })).filter(item => item.ts > 0);
+  
+  if (mode === 'daily') {
+    // 每日模式：按日期分组
+    for (const d of days) {
+      let total = 0, female = 0, male = 0, blacklisted = 0;
+      for (const item of actorsWithTs) {
+        if (item.ts >= d.startMs && item.ts <= d.endMs) {
+          total++;
+          if (item.gender === 'female') female++;
+          else if (item.gender === 'male') male++;
+          if (item.blacklisted) blacklisted++;
+        }
+      }
+      points.push({ date: d.date, total, female, male, blacklisted });
     }
-    points.push({ date: d.date, total, female, male, blacklisted });
+  } else {
+    // 累计模式：排序后累加
+    actorsWithTs.sort((a, b) => a.ts - b.ts);
+    
+    let actorIndex = 0;
+    let cumulativeTotal = 0, cumulativeFemale = 0, cumulativeMale = 0, cumulativeBlacklisted = 0;
+    
+    for (const d of days) {
+      while (actorIndex < actorsWithTs.length && actorsWithTs[actorIndex].ts <= d.endMs) {
+        const item = actorsWithTs[actorIndex];
+        cumulativeTotal++;
+        if (item.gender === 'female') cumulativeFemale++;
+        else if (item.gender === 'male') cumulativeMale++;
+        if (item.blacklisted) cumulativeBlacklisted++;
+        actorIndex++;
+      }
+      points.push({ date: d.date, total: cumulativeTotal, female: cumulativeFemale, male: cumulativeMale, blacklisted: cumulativeBlacklisted });
+    }
   }
+  
   return points;
 }
 
-export interface NewWorksTrendPoint { date: string; total: number; subscriptions: number; }
+export interface NewWorksTrendPoint { date: string; total: number; unread: number; }
 export async function trendsNewWorksRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<NewWorksTrendPoint[]> {
   const db = await initDB();
-  const idxDisc = db.transaction('newWorks').store.index('by_discoveredAt');
-  // 订阅数据来自 chrome.storage 本地
-  let subsMap: Record<string, any> = {};
-  try { subsMap = await getValue<Record<string, any>>(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, {} as any); } catch { subsMap = {}; }
-  const subs: Array<{ enabled: boolean; subscribedAt: number }> = Object.values(subsMap || {}).map((s: any) => ({ enabled: !!s?.enabled, subscribedAt: Number(s?.subscribedAt || 0) || 0 }));
+  const store = db.transaction('newWorks').store;
+  const idxDisc = store.index('by_discoveredAt');
   const points: NewWorksTrendPoint[] = [];
-  for (const d of eachDate(startDate, endDate)) {
-    let total = 0, subscriptions = 0;
-    try {
-      if (mode === 'daily') {
-        // @ts-ignore
-        total = await idxDisc.count(IDBKeyRange.bound(d.startMs, d.endMs));
-      } else {
-        // @ts-ignore
-        total = await idxDisc.count(IDBKeyRange.upperBound(d.endMs));
+  const dates = eachDate(startDate, endDate);
+  
+  if (mode === 'daily') {
+    // 每日模式：只查询一次所有数据
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    // @ts-ignore
+    const allRecords = await idxDisc.getAll(IDBKeyRange.bound(firstDate.startMs, lastDate.endMs));
+    
+    for (const d of dates) {
+      let total = 0, unread = 0;
+      for (const w of allRecords) {
+        const ts = (w as any)?.discoveredAt || 0;
+        if (ts >= d.startMs && ts <= d.endMs) {
+          total++;
+          if (!(w as any)?.isRead) unread++;
+        }
       }
-    } catch {}
-    try {
-      if (mode === 'daily') {
-        subscriptions = subs.filter(s => s.enabled && s.subscribedAt >= d.startMs && s.subscribedAt <= d.endMs).length;
-      } else {
-        subscriptions = subs.filter(s => s.enabled && s.subscribedAt > 0 && s.subscribedAt <= d.endMs).length;
+      points.push({ date: d.date, total, unread });
+    }
+  } else {
+    // 累计模式：查询一次所有数据，排序后累加
+    const lastDate = dates[dates.length - 1];
+    // @ts-ignore
+    const allRecords = await idxDisc.getAll(IDBKeyRange.upperBound(lastDate.endMs));
+    
+    // 按 discoveredAt 排序
+    allRecords.sort((a: any, b: any) => ((a?.discoveredAt || 0) - (b?.discoveredAt || 0)));
+    
+    let recordIndex = 0;
+    let cumulativeTotal = 0, cumulativeUnread = 0;
+    
+    for (const d of dates) {
+      while (recordIndex < allRecords.length && (allRecords[recordIndex] as any)?.discoveredAt <= d.endMs) {
+        const w = allRecords[recordIndex];
+        cumulativeTotal++;
+        if (!(w as any)?.isRead) cumulativeUnread++;
+        recordIndex++;
       }
-    } catch {}
-    points.push({ date: d.date, total, subscriptions });
+      points.push({ date: d.date, total: cumulativeTotal, unread: cumulativeUnread });
+    }
   }
+  
   return points;
 }
 
@@ -339,6 +413,10 @@ interface JavdbDB extends DBSchema {
     indexes: {
       by_name: string;
       by_updatedAt: number;
+      by_gender: string;
+      by_category: string;
+      by_blacklisted: number; // 布尔值在 IndexedDB 中作为数字存储
+      by_createdAt: number;
     };
   };
   newWorks: {
@@ -348,6 +426,7 @@ interface JavdbDB extends DBSchema {
       by_actorId: string;
       by_discoveredAt: number;
       by_status: string;
+      by_isRead: number; // 布尔值在 IndexedDB 中作为数字存储
     };
   };
   magnets: {
@@ -378,7 +457,7 @@ interface JavdbDB extends DBSchema {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -404,12 +483,17 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
           const actors = db.createObjectStore('actors', { keyPath: 'id' });
           actors.createIndex('by_name', 'name');
           actors.createIndex('by_updatedAt', 'updatedAt');
+          actors.createIndex('by_gender', 'gender');
+          actors.createIndex('by_category', 'category');
+          actors.createIndex('by_blacklisted', 'blacklisted');
+          actors.createIndex('by_createdAt', 'createdAt');
 
           // newWorks
           const nw = db.createObjectStore('newWorks', { keyPath: 'id' });
           nw.createIndex('by_actorId', 'actorId');
           nw.createIndex('by_discoveredAt', 'discoveredAt');
           nw.createIndex('by_status', 'status');
+          nw.createIndex('by_isRead', 'isRead');
 
           // magnets
           const mg = db.createObjectStore('magnets', { keyPath: 'key' });
@@ -449,6 +533,33 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
         // v6 -> 预留版本（无结构变更）
         if (oldVersion < 6) {
           // 无需操作，仅版本号升级
+        }
+        // v7 -> 为 actors 和 newWorks 添加性能优化索引
+        if (oldVersion < 7) {
+          try {
+            const actorsStore = tx.objectStore('actors');
+            // 检查索引是否已存在，避免重复创建
+            const existingIndexes = Array.from(actorsStore.indexNames);
+            if (!existingIndexes.includes('by_gender')) {
+              try { actorsStore.createIndex('by_gender', 'gender'); } catch {}
+            }
+            if (!existingIndexes.includes('by_category')) {
+              try { actorsStore.createIndex('by_category', 'category'); } catch {}
+            }
+            if (!existingIndexes.includes('by_blacklisted')) {
+              try { actorsStore.createIndex('by_blacklisted', 'blacklisted'); } catch {}
+            }
+            if (!existingIndexes.includes('by_createdAt')) {
+              try { actorsStore.createIndex('by_createdAt', 'createdAt'); } catch {}
+            }
+          } catch {}
+          try {
+            const newWorksStore = tx.objectStore('newWorks');
+            const existingIndexes = Array.from(newWorksStore.indexNames);
+            if (!existingIndexes.includes('by_isRead')) {
+              try { newWorksStore.createIndex('by_isRead', 'isRead'); } catch {}
+            }
+          } catch {}
         }
       }
     });
@@ -1125,22 +1236,78 @@ export async function actorsQuery(params: ActorsQueryParams): Promise<{ items: A
 
 export async function actorsStats(): Promise<{ total: number; byGender: Record<string, number>; byCategory: Record<string, number>; blacklisted: number; recentlyAdded: number; recentlyUpdated: number; }> {
   const db = await initDB();
-  const all = await db.getAll('actors');
+  const tx = db.transaction('actors');
+  const store = tx.store;
+  
+  // 使用索引优化查询
+  const total = await store.count();
+  
   const now = Date.now();
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  
+  // 使用索引统计性别分布
   const byGender: Record<string, number> = {};
+  try {
+    const genderIndex = store.index('by_gender');
+    const genderKeys = await genderIndex.getAllKeys();
+    for (const key of genderKeys) {
+      const gender = String(key);
+      byGender[gender] = (byGender[gender] || 0) + 1;
+    }
+  } catch {
+    // 如果索引不存在，回退到全量查询
+    const all = await store.getAll();
+    for (const a of all) {
+      byGender[a.gender] = (byGender[a.gender] || 0) + 1;
+    }
+  }
+  
+  // 使用索引统计分类分布
   const byCategory: Record<string, number> = {};
+  try {
+    const categoryIndex = store.index('by_category');
+    const categoryKeys = await categoryIndex.getAllKeys();
+    for (const key of categoryKeys) {
+      const category = String(key);
+      byCategory[category] = (byCategory[category] || 0) + 1;
+    }
+  } catch {
+    const all = await store.getAll();
+    for (const a of all) {
+      byCategory[a.category] = (byCategory[a.category] || 0) + 1;
+    }
+  }
+  
+  // 使用索引统计黑名单数量
   let blacklisted = 0;
+  try {
+    const blacklistedIndex = store.index('by_blacklisted');
+    blacklisted = await blacklistedIndex.count(IDBKeyRange.only(true));
+  } catch {
+    const all = await store.getAll();
+    blacklisted = all.filter(a => a.blacklisted).length;
+  }
+  
+  // 使用索引统计最近添加和更新
   let recentlyAdded = 0;
   let recentlyUpdated = 0;
-  for (const a of all) {
-    byGender[a.gender] = (byGender[a.gender] || 0) + 1;
-    byCategory[a.category] = (byCategory[a.category] || 0) + 1;
-    if (a.blacklisted) blacklisted++;
-    if ((a.createdAt || 0) > weekAgo) recentlyAdded++;
-    if ((a.updatedAt || 0) > weekAgo) recentlyUpdated++;
+  try {
+    const createdIndex = store.index('by_createdAt');
+    recentlyAdded = await createdIndex.count(IDBKeyRange.lowerBound(weekAgo));
+  } catch {
+    const all = await store.getAll();
+    recentlyAdded = all.filter(a => (a.createdAt || 0) > weekAgo).length;
   }
-  return { total: all.length, byGender, byCategory, blacklisted, recentlyAdded, recentlyUpdated };
+  
+  try {
+    const updatedIndex = store.index('by_updatedAt');
+    recentlyUpdated = await updatedIndex.count(IDBKeyRange.lowerBound(weekAgo));
+  } catch {
+    const all = await store.getAll();
+    recentlyUpdated = all.filter(a => (a.updatedAt || 0) > weekAgo).length;
+  }
+  
+  return { total, byGender, byCategory, blacklisted, recentlyAdded, recentlyUpdated };
 }
 
 export async function actorsExportJSON(): Promise<string> {
@@ -1245,15 +1412,41 @@ export async function newWorksQuery(params: NewWorksQueryParams): Promise<{ item
 
 export async function newWorksStats(): Promise<{ total: number; unread: number; today: number; week: number; }> {
   const db = await initDB();
-  const items = await db.getAll('newWorks');
-  console.log(`[IDB] newWorksStats: 从 IndexedDB 获取到 ${items.length} 个作品`);
+  const tx = db.transaction('newWorks');
+  const store = tx.store;
+  
+  console.log(`[IDB] newWorksStats: 开始统计`);
+  
+  const total = await store.count();
+  
+  // 使用索引统计未读数量
+  let unread = 0;
+  try {
+    const isReadIndex = store.index('by_isRead');
+    unread = await isReadIndex.count(IDBKeyRange.only(false));
+  } catch {
+    // 如果索引不存在，回退到全量查询
+    const items = await store.getAll();
+    unread = items.filter(w => !w.isRead).length;
+  }
+  
+  // 使用索引统计今日和本周发现的作品
   const now = Date.now();
   const todayStart = new Date().setHours(0, 0, 0, 0);
   const weekStart = now - 7 * 24 * 60 * 60 * 1000;
-  const total = items.length;
-  const unread = items.filter(w => !w.isRead).length;
-  const today = items.filter(w => (w.discoveredAt || 0) >= todayStart).length;
-  const week = items.filter(w => (w.discoveredAt || 0) >= weekStart).length;
+  
+  let today = 0;
+  let week = 0;
+  try {
+    const discoveredIndex = store.index('by_discoveredAt');
+    today = await discoveredIndex.count(IDBKeyRange.lowerBound(todayStart));
+    week = await discoveredIndex.count(IDBKeyRange.lowerBound(weekStart));
+  } catch {
+    const items = await store.getAll();
+    today = items.filter(w => (w.discoveredAt || 0) >= todayStart).length;
+    week = items.filter(w => (w.discoveredAt || 0) >= weekStart).length;
+  }
+  
   console.log(`[IDB] newWorksStats: 统计结果`, { total, unread, today, week });
   return { total, unread, today, week };
 }

@@ -328,6 +328,33 @@ export function registerDbMessageRouter(): void {
           .catch((e) => sendResponse({ success: false, error: e?.message || 'trends newWorks failed' }));
         return true;
       }
+      if (message.type === 'DB:GET_ALL_TAGS') {
+        // 优化：在后台直接统计标签，只返回统计结果
+        const limit = Number(message?.payload?.limit ?? 50);
+        idbViewedGetAll().then((records) => {
+          const totals: Record<string, number> = {};
+          
+          for (const r of records) {
+            const arr = Array.isArray(r?.tags) ? r.tags : [];
+            for (const t of arr) {
+              const name = String(t || '').trim();
+              if (!name) continue;
+              const low = name.toLowerCase();
+              // 过滤掉常见的无意义标签
+              if (name.includes('影片') || low.includes('import') || name.includes('單體作品')) continue;
+              totals[name] = (totals[name] ?? 0) + 1;
+            }
+          }
+          
+          const result = Object.entries(totals)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, Math.max(1, limit));
+          
+          sendResponse({ success: true, tags: result });
+        }).catch((e) => sendResponse({ success: false, error: e?.message || 'get tags failed', tags: [] }));
+        return true;
+      }
       return false;
     });
   } catch {}
