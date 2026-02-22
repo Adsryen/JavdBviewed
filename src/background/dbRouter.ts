@@ -75,7 +75,6 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:LOGS_ADD') {
         const entry = message?.payload?.entry;
-        try { console.debug('[Background] logs ADD', { hasEntry: !!entry, level: entry?.level, msgLen: String(entry?.message||'').length }); } catch {}
         idbLogsAdd(entry).then((id) => sendResponse({ success: true, id }))
           .catch((e) => sendResponse({ success: false, error: e?.message || 'logs add failed' }));
         return true;

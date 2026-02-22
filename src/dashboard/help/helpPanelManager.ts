@@ -84,7 +84,7 @@ export class HelpPanelManager {
             // 切换到默认分类
             this.switchCategory(this.state.currentCategory);
 
-            console.log('[HelpPanelManager] 初始化完成');
+            console.debug('[HelpPanelManager] 初始化完成');
         } catch (error) {
             console.error('[HelpPanelManager] 初始化失败:', error);
         }
@@ -291,7 +291,7 @@ export class HelpPanelManager {
                 this.panelElement.classList.remove('mobile-layout');
             }
 
-            console.log(`[HelpPanelManager] 布局模式切换: ${isMobile ? '移动' : '桌面'}`);
+            console.debug(`[HelpPanelManager] 布局模式切换: ${isMobile ? '移动' : '桌面'}`);
         }
     }
 

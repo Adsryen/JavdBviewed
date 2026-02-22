@@ -33,7 +33,7 @@ export function runQASelfCheck(): void {
       console.warn('[QA] 发现重复的模态框 ID：', duplicateModals);
     }
     if (modalsRoot && missingHeadCss.length === 0 && missingModals.length === 0 && duplicateModals.length === 0) {
-      console.info('[QA] 基础自检通过：样式与模态框挂载正常');
+      console.debug('[QA] 基础自检通过：样式与模态框挂载正常');
     }
   } catch (e) {
     console.warn('[QA] 自检异常：', e);
