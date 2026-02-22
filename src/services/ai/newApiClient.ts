@@ -131,138 +131,158 @@ export class NewApiClient {
      * 创建聊天完成（非流式）
      */
     async createChatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-        // 优先按 JSON 解析；若服务端错误返回 SSE（以 data: 开头的文本），则降级解析并聚合为一个响应
-        const url = this.buildApiUrl('/v1/chat/completions');
-        const headers = this.getAuthHeaders();
+            // 优先按 JSON 解析；若服务端错误返回 SSE（以 data: 开头的文本），则降级解析并聚合为一个响应
+            const url = this.buildApiUrl('/v1/chat/completions');
+            const headers = this.getAuthHeaders();
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.settings.timeout * 1000);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.settings.timeout * 1000);
 
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    ...request,
-                    stream: false
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                let body: any = undefined;
-                try { body = await response.json(); } catch {}
-                const status = response.status;
-                const statusText = response.statusText || '';
-                const serverMsg = (body as any)?.error?.message || (body as any)?.message || '';
-                let msg = serverMsg || `HTTP ${status}: ${statusText}`;
-                if (status === 401 || status === 403) {
-                    msg = `鉴权失败(${status})：请检查 API Key 是否正确/有效` + (serverMsg ? `；服务端：${serverMsg}` : '');
-                } else if (status === 404) {
-                    msg = `接口不存在(404)：请检查 API 地址是否正确（注意不要重复或缺少“/v1”）` + (serverMsg ? `；服务端：${serverMsg}` : '');
-                } else if (status === 408) {
-                    msg = `服务端超时(408)` + (serverMsg ? `：${serverMsg}` : '');
-                } else if (status === 413) {
-                    msg = `请求体过大(413)` + (serverMsg ? `：${serverMsg}` : '');
-                } else if (status === 429) {
-                    msg = `超出速率限制(429)：请降低请求频率或更换模型/Key` + (serverMsg ? `；服务端：${serverMsg}` : '');
-                } else if (status >= 500) {
-                    msg = `服务器错误(${status})` + (serverMsg ? `：${serverMsg}` : '');
-                }
-                throw new Error(msg);
-            }
-
-            const contentType = response.headers.get('content-type') || '';
-            // 常规 JSON
-            if (contentType.includes('application/json')) {
-                return await response.json();
-            }
-
-            // 某些网关会错误地以 text/event-stream 返回非流式结果
-            const raw = await response.text();
-            // 尝试直接作为 JSON
             try {
-                return JSON.parse(raw);
-            } catch {
-                // 按 SSE 行解析并聚合
-                const lines = raw.split('\n');
-                const chunks: ChatCompletionResponse[] = [];
-                for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (!trimmed) continue;
-                    if (trimmed.startsWith('data: ')) {
-                        const data = trimmed.slice(6);
-                        if (data === '[DONE]') continue;
-                        try {
-                            const parsed = JSON.parse(data) as ChatCompletionResponse;
-                            chunks.push(parsed);
-                        } catch {
-                            // 跳过无法解析的行
-                        }
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        ...request,
+                        stream: false
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    let body: any = undefined;
+                    try { body = await response.json(); } catch {}
+                    const status = response.status;
+                    const statusText = response.statusText || '';
+                    const serverMsg = (body as any)?.error?.message || (body as any)?.message || '';
+                    const errorCode = (body as any)?.error?.code || (body as any)?.error?.type || '';
+
+                    let msg = '';
+                    if (status === 401 || status === 403) {
+                        msg = `鉴权失败(${status})：请检查 API Key 是否正确/有效`;
+                    } else if (status === 404) {
+                        msg = `接口不存在(404)：请检查 API 地址是否正确（注意不要重复或缺少"/v1"）`;
+                    } else if (status === 408) {
+                        msg = `服务端超时(408)`;
+                    } else if (status === 413) {
+                        msg = `请求体过大(413)`;
+                    } else if (status === 429) {
+                        msg = `超出速率限制(429)：请降低请求频率或更换模型/Key`;
+                    } else if (status === 502) {
+                        msg = `网关错误(502)：上游服务器无响应，请稍后重试`;
+                    } else if (status === 503) {
+                        msg = `服务不可用(503)：服务器暂时无法处理请求，请稍后重试`;
+                    } else if (status === 521) {
+                        msg = `Web服务器宕机(521)：目标服务器拒绝连接，请检查API地址或稍后重试`;
+                    } else if (status >= 500) {
+                        msg = `服务器错误(${status})`;
                     } else {
-                        // 非标准行，尝试 JSON
-                        try {
-                            const parsed = JSON.parse(trimmed) as ChatCompletionResponse;
-                            chunks.push(parsed);
-                        } catch {
-                            // 忽略
+                        msg = `请求失败(${status})${statusText ? ': ' + statusText : ''}`;
+                    }
+
+                    // 添加详细的错误信息
+                    if (serverMsg) {
+                        msg += `\n详细信息：${serverMsg}`;
+                    }
+                    if (errorCode) {
+                        msg += `\n错误代码：${errorCode}`;
+                    }
+
+                    throw new Error(msg);
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                // 常规 JSON
+                if (contentType.includes('application/json')) {
+                    return await response.json();
+                }
+
+                // 某些网关会错误地以 text/event-stream 返回非流式结果
+                const raw = await response.text();
+                // 尝试直接作为 JSON
+                try {
+                    return JSON.parse(raw);
+                } catch {
+                    // 按 SSE 行解析并聚合
+                    const lines = raw.split('\n');
+                    const chunks: ChatCompletionResponse[] = [];
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        if (trimmed.startsWith('data: ')) {
+                            const data = trimmed.slice(6);
+                            if (data === '[DONE]') continue;
+                            try {
+                                const parsed = JSON.parse(data) as ChatCompletionResponse;
+                                chunks.push(parsed);
+                            } catch {
+                                // 跳过无法解析的行
+                            }
+                        } else {
+                            // 非标准行，尝试 JSON
+                            try {
+                                const parsed = JSON.parse(trimmed) as ChatCompletionResponse;
+                                chunks.push(parsed);
+                            } catch {
+                                // 忽略
+                            }
                         }
                     }
+
+                    if (chunks.length === 0) {
+                        throw new Error('无法解析AI服务返回内容');
+                    }
+
+                    // 聚合 content
+                    let finalText = '';
+                    let model = this.settings.selectedModel || chunks[0]?.model || '';
+                    let id = chunks[0]?.id || 'sse_fallback';
+                    let created = Math.floor(Date.now() / 1000);
+
+                    for (const c of chunks) {
+                        const piece = (c as any)?.choices?.[0]?.delta?.content
+                                  ?? (c as any)?.choices?.[0]?.message?.content
+                                  ?? '';
+                        if (piece) finalText += piece;
+                        if (!model && (c as any)?.model) model = (c as any).model;
+                        if ((c as any)?.id) id = (c as any).id;
+                        if ((c as any)?.created) created = (c as any).created;
+                    }
+
+                    const result: ChatCompletionResponse = {
+                        id,
+                        object: 'chat.completion',
+                        created,
+                        model,
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                message: { role: 'assistant', content: finalText }
+                            } as any
+                        ],
+                        usage: undefined
+                    } as ChatCompletionResponse;
+
+                    return result;
                 }
-
-                if (chunks.length === 0) {
-                    throw new Error('无法解析AI服务返回内容');
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error instanceof Error) {
+                    if (error.name === 'AbortError') {
+                        throw new Error(`请求超时（客户端等待 ${this.settings.timeout}s）`);
+                    }
+                    if (error.name === 'TypeError' || /Failed to fetch/i.test(error.message)) {
+                        throw new Error(`网络错误：可能是网络不可达、证书问题、被浏览器拦截或跨域限制。原始信息：${error.message}`);
+                    }
+                    throw error;
                 }
-
-                // 聚合 content
-                let finalText = '';
-                let model = this.settings.selectedModel || chunks[0]?.model || '';
-                let id = chunks[0]?.id || 'sse_fallback';
-                let created = Math.floor(Date.now() / 1000);
-
-                for (const c of chunks) {
-                    const piece = (c as any)?.choices?.[0]?.delta?.content
-                              ?? (c as any)?.choices?.[0]?.message?.content
-                              ?? '';
-                    if (piece) finalText += piece;
-                    if (!model && (c as any)?.model) model = (c as any).model;
-                    if ((c as any)?.id) id = (c as any).id;
-                    if ((c as any)?.created) created = (c as any).created;
-                }
-
-                const result: ChatCompletionResponse = {
-                    id,
-                    object: 'chat.completion',
-                    created,
-                    model,
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'stop',
-                            message: { role: 'assistant', content: finalText }
-                        } as any
-                    ],
-                    usage: undefined
-                } as ChatCompletionResponse;
-
-                return result;
+                throw new Error('未知错误');
             }
-        } catch (error) {
-            clearTimeout(timeoutId);
-            if (error instanceof Error) {
-                if (error.name === 'AbortError') {
-                    throw new Error(`请求超时（客户端等待 ${this.settings.timeout}s）`);
-                }
-                if (error.name === 'TypeError' || /Failed to fetch/i.test(error.message)) {
-                    throw new Error(`网络错误：可能是网络不可达、证书问题、被浏览器拦截或跨域限制。原始信息：${error.message}`);
-                }
-                throw error;
-            }
-            throw new Error('未知错误');
         }
-    }
+
 
     /**
      * 创建流式聊天完成

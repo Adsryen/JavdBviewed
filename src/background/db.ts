@@ -821,10 +821,11 @@ export interface LogsQueryParams {
   query?: string;
   hasDataOnly?: boolean;
   source?: 'ALL' | 'GENERAL' | 'DRIVE115';
+  category?: string; // 新增：日志类别筛选（如 DB、BG、CONTENT等）
 }
 
 export async function logsQuery(params: LogsQueryParams): Promise<{ items: PersistedLogEntry[]; total: number; }> {
-  const { level, minLevel, fromMs, toMs, offset = 0, limit = 100, order = 'desc', query = '', hasDataOnly = false, source = 'ALL' } = params || {} as any;
+  const { level, minLevel, fromMs, toMs, offset = 0, limit = 100, order = 'desc', query = '', hasDataOnly = false, source = 'ALL', category } = params || {} as any;
   const db = await initDB();
   const idx = db.transaction('logs').store.index('by_timestamp');
   let range: IDBKeyRange | undefined = undefined;
@@ -840,6 +841,18 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
   const deriveSource = (msg: string): 'DRIVE115' | 'GENERAL' => {
     const m = String(msg || '');
     if (/\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+    return 'GENERAL';
+  };
+  // 从消息中提取类别（兼容旧日志格式）
+  const deriveCategory = (msg: string): string => {
+    const m = String(msg || '');
+    // 匹配 [类别] 格式，如 [DB]、[BG]、[CONTENT]
+    const match = m.match(/^\[([A-Z0-9]+)\]/);
+    if (match) return match[1].toUpperCase();
+    // 兼容旧格式：从消息内容推断
+    if (/\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+    if (/\bDB\b|database/i.test(m)) return 'DB';
+    if (/\bBG\b|background/i.test(m)) return 'BG';
     return 'GENERAL';
   };
   const rank = (lv: LogEntry['level']) => {
@@ -873,6 +886,11 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
     if (source && source !== 'ALL') {
       const s = deriveSource(String(v.message || ''));
       if (s !== source) continue;
+    }
+    // 新增：类别筛选
+    if (category && category !== 'ALL') {
+      const cat = deriveCategory(String(v.message || ''));
+      if (cat !== category.toUpperCase()) continue;
     }
     // 通过过滤
     total++;

@@ -226,7 +226,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         const logging = settings?.logging || {};
 
         // 日志配置设置
-        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 1000);
+        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 10000);
         this.verboseMode.checked = logging.verboseMode || false;
         this.showPrivacyLogs.checked = logging.showPrivacyLogs || false;
         this.showStorageLogs.checked = logging.showStorageLogs || false;
@@ -299,7 +299,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                 ...STATE.settings,
                 logging: {
                     ...STATE.settings?.logging,
-                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 1000,
+                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
                     verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                     showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                     showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
@@ -344,8 +344,8 @@ export class LoggingSettings extends BaseSettingsPanel {
 
         // 验证最大日志条目数
         const maxEntries = parseInt(this.maxLogEntries.value, 10);
-        if (isNaN(maxEntries) || maxEntries < 100 || maxEntries > 10000) {
-            errors.push('最大日志条目数必须在100-10000之间');
+        if (isNaN(maxEntries) || maxEntries < 100 || maxEntries > 50000) {
+            errors.push('最大保存条数必须在100-50000之间');
         }
 
         // 验证保留天数（可选，0 表示关闭按天清理）
@@ -396,7 +396,7 @@ export class LoggingSettings extends BaseSettingsPanel {
 
         return {
             logging: {
-                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 1000,
+                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
                 verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                 showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                 showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
