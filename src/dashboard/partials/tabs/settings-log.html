@@ -127,6 +127,16 @@
         <div class="settings-card logging-section log-modules">
             <h4><i class="fas fa-th-large"></i> 功能模块日志</h4>
             <p class="section-description">按功能模块精细控制日志输出。<strong>注意：需同时满足上方"日志级别"阈值才会显示。</strong></p>
+            
+            <div class="form-group-checkbox" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                <input type="checkbox" id="suppressConsoleOutput">
+                <label for="suppressConsoleOutput">
+                    <i class="fas fa-volume-mute"></i> 仅抑制控制台输出（数据库仍保存）
+                </label>
+                <p class="input-description" style="margin-left: 24px; margin-top: 5px; font-size: 0.9em; color: #666;">
+                    勾选后，下方模块的日志不会输出到浏览器控制台，但仍会保存到数据库中供日志页面查看。
+                </p>
+            </div>
 
             <!-- 树状结构 -->
             <div class="log-tree">

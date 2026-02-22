@@ -1,4 +1,4 @@
-import { renderTemplate, generateReportHTML } from "../../services/insights/reportGenerator";
+﻿import { renderTemplate, generateReportHTML } from "../../services/insights/reportGenerator";
 import { aiService } from "../../services/ai/aiService";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
@@ -12,6 +12,7 @@ import type { VideoRecord } from "../../types";
 import { showMessage } from "../ui/toast";
 import { initInsightsMonthPicker } from "../components/MonthRangePickerIntegration";
 import { themeManager } from "../services/themeManager";
+import { log } from '../../utils/logController';
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -1438,7 +1439,7 @@ async function handleGenerate() {
       }
     } catch {}
   } catch (err: any) {
-    console.error('[Insights] 生成报告失败：', err);
+    log.error('[Insights] 生成报告失败', err);
     showStatus(`生成失败：${err?.message || err}`, 'error');
   } finally {
     showLoading(false);
@@ -1761,7 +1762,7 @@ export const insightsTab = {
     try {
       initInsightsMonthPicker();
     } catch (err) {
-      console.warn('Failed to initialize month picker, fallback to native input:', err);
+      log.warn('[Insights] 初始化月份选择器失败，回退到原生输入', err);
     }
 
     // 按钮：查看生成过程
@@ -1791,7 +1792,7 @@ export const insightsTab = {
         }
       });
     } catch (err) {
-      console.warn('[Insights] 主题切换监听器注册失败:', err);
+      log.warn('[Insights] 主题切换监听器注册失败', err);
     }
   },
 
