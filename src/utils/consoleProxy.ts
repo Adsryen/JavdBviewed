@@ -91,6 +91,12 @@ function buildDefaultCategories(): Record<string, CategoryRule> {
       label: 'SYNC',
       color: '#3498db',
     },
+    newworks: {
+      enabled: false,
+      match: /\[NewWorks|NewWorksManager|NEWWORKS\]|新作品/i,
+      label: 'NEWWORKS',
+      color: '#f39c12',
+    },
     
     // ========== 扩展功能 ==========
     drive115: {
@@ -310,18 +316,29 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
     try {
       const catKey = pickCategory(args, CONFIG.categories);
       if (!shouldPrint(level, catKey)) return;
+
+      // 去掉第一个参数中的分类标签（如 [NewWorks]、[Actor] 等）
+      // 因为 proxy 会自动添加统一的分类标签
+      const cleanedArgs = args.map((arg, index) => {
+        if (index === 0 && typeof arg === 'string') {
+          // 移除常见的分类标签模式：[NewWorks]、[Actor]、[Magnet] 等
+          return arg.replace(/^\[(NewWorks|NewWorksManager|Actor|ActorManager|Magnet|Sync|DataSync|Drive115|115V?2?|Privacy|PrivacyManager|AI|Update|UpdateChecker|Help|Settings|CORE|Extension|Storage|STORAGE|Orchestrator)\]\s*/i, '');
+        }
+        return arg;
+      });
+
       const { text, styles } = formatPrefix(level, catKey);
       if (CONFIG.format.color && styles.length > 0) {
-        native(text, ...styles, ...args);
+        native(text, ...styles, ...cleanedArgs);
       } else {
-        native(text, ...args);
+        native(text, ...cleanedArgs);
       }
 
-      // 将控制台输出广播给页面（例如 Dashboard 日志页）用于“控制台日志”视图
+      // 将控制台输出广播给页面（例如 Dashboard 日志页）用于"控制台日志"视图
       try {
         const g: any = (typeof window !== 'undefined') ? window : (globalThis as any);
         if (g && typeof g.dispatchEvent === 'function') {
-          const serialized = args.map((a) => safeToString(a)).join(' ');
+          const serialized = cleanedArgs.map((a) => safeToString(a)).join(' ');
           g.dispatchEvent(new CustomEvent('jdb:console-output', {
             detail: {
               level,
@@ -352,6 +369,7 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
     }
   };
 }
+
 
 export function installConsoleProxy(options?: ConsoleProxyOptions) {
   if (INSTALLED) return getConsoleControl();
