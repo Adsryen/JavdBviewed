@@ -36,6 +36,7 @@ export class LoggingSettings extends BaseSettingsPanel {
     private logModuleActor!: HTMLInputElement;
     private logModuleMagnet!: HTMLInputElement;
     private logModuleSync!: HTMLInputElement;
+    private logModuleNewWorks!: HTMLInputElement;
     private logModuleDrive115!: HTMLInputElement;
     private logModulePrivacy!: HTMLInputElement;
     private logModuleAI!: HTMLInputElement;
@@ -105,6 +106,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.logModuleActor = document.getElementById('logModuleActor') as HTMLInputElement;
         this.logModuleMagnet = document.getElementById('logModuleMagnet') as HTMLInputElement;
         this.logModuleSync = document.getElementById('logModuleSync') as HTMLInputElement;
+        this.logModuleNewWorks = document.getElementById('logModuleNewWorks') as HTMLInputElement;
         this.logModuleDrive115 = document.getElementById('logModuleDrive115') as HTMLInputElement;
         this.logModulePrivacy = document.getElementById('logModulePrivacy') as HTMLInputElement;
         this.logModuleAI = document.getElementById('logModuleAI') as HTMLInputElement;
@@ -153,6 +155,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (!this.logModuleActor) console.warn('[LoggingSettings] 找不到 logModuleActor 元素');
         if (!this.logModuleMagnet) console.warn('[LoggingSettings] 找不到 logModuleMagnet 元素');
         if (!this.logModuleSync) console.warn('[LoggingSettings] 找不到 logModuleSync 元素');
+        if (!this.logModuleNewWorks) console.warn('[LoggingSettings] 找不到 logModuleNewWorks 元素');
         if (!this.logModuleDrive115) console.warn('[LoggingSettings] 找不到 logModuleDrive115 元素');
         if (!this.logModulePrivacy) console.warn('[LoggingSettings] 找不到 logModulePrivacy 元素');
         if (!this.logModuleAI) console.warn('[LoggingSettings] 找不到 logModuleAI 元素');
@@ -189,6 +192,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.logModuleActor?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleMagnet?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleSync?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleNewWorks?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModulePrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
         this.logModuleAI?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -246,6 +250,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleActor) this.logModuleActor.checked = modules.actor ?? cats.actor ?? false;
         if (this.logModuleMagnet) this.logModuleMagnet.checked = modules.magnet ?? cats.magnet ?? false;
         if (this.logModuleSync) this.logModuleSync.checked = modules.sync ?? false;
+        if (this.logModuleNewWorks) this.logModuleNewWorks.checked = modules.newworks ?? false;
         if (this.logModuleDrive115) this.logModuleDrive115.checked = modules.drive115 ?? cats.drive115 ?? false;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = modules.privacy ?? cats.privacy ?? false;
         if (this.logModuleAI) this.logModuleAI.checked = modules.ai ?? false;
@@ -269,6 +274,7 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.logModuleActor) logModules.actor = this.logModuleActor.checked;
             if (this.logModuleMagnet) logModules.magnet = this.logModuleMagnet.checked;
             if (this.logModuleSync) logModules.sync = this.logModuleSync.checked;
+            if (this.logModuleNewWorks) logModules.newworks = this.logModuleNewWorks.checked;
             if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
             if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
             if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
@@ -368,6 +374,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleActor) logModules.actor = this.logModuleActor.checked;
         if (this.logModuleMagnet) logModules.magnet = this.logModuleMagnet.checked;
         if (this.logModuleSync) logModules.sync = this.logModuleSync.checked;
+        if (this.logModuleNewWorks) logModules.newworks = this.logModuleNewWorks.checked;
         if (this.logModuleDrive115) logModules.drive115 = this.logModuleDrive115.checked;
         if (this.logModulePrivacy) logModules.privacy = this.logModulePrivacy.checked;
         if (this.logModuleAI) logModules.ai = this.logModuleAI.checked;
@@ -446,6 +453,7 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.logModuleActor && (modules.actor !== undefined || cats.actor !== undefined)) this.logModuleActor.checked = !!(modules.actor ?? cats.actor);
             if (this.logModuleMagnet && (modules.magnet !== undefined || cats.magnet !== undefined)) this.logModuleMagnet.checked = !!(modules.magnet ?? cats.magnet);
             if (this.logModuleSync && modules.sync !== undefined) this.logModuleSync.checked = !!modules.sync;
+            if (this.logModuleNewWorks && modules.newworks !== undefined) this.logModuleNewWorks.checked = !!modules.newworks;
             if (this.logModuleDrive115 && (modules.drive115 !== undefined || cats.drive115 !== undefined)) this.logModuleDrive115.checked = !!(modules.drive115 ?? cats.drive115);
             if (this.logModulePrivacy && (modules.privacy !== undefined || cats.privacy !== undefined)) this.logModulePrivacy.checked = !!(modules.privacy ?? cats.privacy);
             if (this.logModuleAI && modules.ai !== undefined) this.logModuleAI.checked = !!modules.ai;
@@ -489,6 +497,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleActor) this.logModuleActor.checked = false;
         if (this.logModuleMagnet) this.logModuleMagnet.checked = false;
         if (this.logModuleSync) this.logModuleSync.checked = false;
+        if (this.logModuleNewWorks) this.logModuleNewWorks.checked = false;
         if (this.logModuleDrive115) this.logModuleDrive115.checked = false;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = false;
         if (this.logModuleAI) this.logModuleAI.checked = false;
@@ -512,6 +521,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleActor) this.logModuleActor.checked = true;
         if (this.logModuleMagnet) this.logModuleMagnet.checked = true;
         if (this.logModuleSync) this.logModuleSync.checked = true;
+        if (this.logModuleNewWorks) this.logModuleNewWorks.checked = true;
         if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
         if (this.logModuleAI) this.logModuleAI.checked = true;
@@ -538,6 +548,7 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleActor) this.logModuleActor.checked = true;
         if (this.logModuleMagnet) this.logModuleMagnet.checked = true;
         if (this.logModuleSync) this.logModuleSync.checked = true;
+        if (this.logModuleNewWorks) this.logModuleNewWorks.checked = true;
         if (this.logModuleDrive115) this.logModuleDrive115.checked = true;
         if (this.logModulePrivacy) this.logModulePrivacy.checked = true;
         if (this.logModuleAI) this.logModuleAI.checked = true;
