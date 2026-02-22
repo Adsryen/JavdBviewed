@@ -261,7 +261,7 @@ export interface ExtensionSettings {
         autoMonthlyMinuteOfDay?: number; // 触发分钟（0-1439），默认 10 → 00:10
         // 提示词自定义（前台编辑与持久化）
         prompts?: {
-            persona?: 'doctor' | 'default';
+            persona?: 'doctor' | 'default' | 'maid' | 'tsundere' | 'yandere' | 'analyst' | 'friend' | 'bro';
             enableCustom?: boolean;
             systemOverride?: string;
             rulesOverride?: string;

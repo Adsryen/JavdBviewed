@@ -268,7 +268,7 @@ export async function generateReportHTML({ templateHTML, stats, baseFields, mode
 
     const extSettings = await getSettings();
     const p = (extSettings as any)?.insights?.prompts || {};
-    const usePersona: PromptPersona = (p?.persona === 'doctor' || p?.persona === 'default') ? p.persona : 'doctor';
+    const usePersona: PromptPersona = ['doctor', 'default', 'maid', 'tsundere', 'yandere', 'analyst', 'friend', 'bro'].includes(p?.persona) ? p.persona : 'doctor';
     const overrides = p?.enableCustom ? {
       system: typeof p?.systemOverride === 'string' ? p.systemOverride : '',
       rules: typeof p?.rulesOverride === 'string' ? p.rulesOverride : ''
