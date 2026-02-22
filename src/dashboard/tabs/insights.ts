@@ -6,7 +6,7 @@ import { dbInsViewsRange, dbViewedPage } from "../dbClient";
 import { aggregateMonthly } from "../../services/insights/aggregator";
 import { getSettings, saveSettings } from "../../utils/storage";
 import { buildPrompts } from "../../services/insights/prompts";
-import { getAllPersonas, getPersonaConfig } from "../../services/insights/personas";
+import { getAllPersonas, getPersonaName, type PersonaId } from "../../services/insights/personas";
 import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
 import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
 import type { VideoRecord } from "../../types";
@@ -71,9 +71,9 @@ async function openPromptsModal(): Promise<void> {
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     const modal = document.createElement('div');
-    modal.style.width = '920px';
+    modal.style.width = '1100px';
     modal.style.maxWidth = '95%';
-    modal.style.maxHeight = '90%';
+    modal.style.maxHeight = '92%';
     modal.style.overflow = 'auto';
     modal.style.background = 'var(--surface-primary)';
     modal.style.borderRadius = '10px';
@@ -173,7 +173,7 @@ async function openPromptsModal(): Promise<void> {
     sysLab.textContent = 'System';
     const sysTa = document.createElement('textarea');
     sysTa.style.width = '100%';
-    sysTa.style.height = '140px';
+    sysTa.style.height = '180px';
     sysTa.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
     sysTa.style.fontSize = '12px';
     sysTa.style.lineHeight = '1.5';
@@ -189,7 +189,7 @@ async function openPromptsModal(): Promise<void> {
     rulesLab.textContent = 'Rules';
     const rulesTa = document.createElement('textarea');
     rulesTa.style.width = '100%';
-    rulesTa.style.height = '200px';
+    rulesTa.style.height = '280px';
     rulesTa.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
     rulesTa.style.fontSize = '12px';
     rulesTa.style.lineHeight = '1.5';
@@ -637,10 +637,10 @@ function openTraceModal(): void {
       const status = (trace?.status || '-').toLowerCase();
       const badge = document.createElement('span');
       const badgeCfg: Record<string, {bg: string;color: string;border: string;label: string}> = {
-        success: { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'success' },
-        fallback: { bg: '#fef3c7', color: '#92400e', border: '#fde68a', label: 'fallback' },
-        error: { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: 'error' },
-        '-': { bg: '#e2e8f0', color: '#334155', border: '#cbd5e1', label: '-' }
+        success: { bg: 'var(--success-bg)', color: 'var(--success-text)', border: 'var(--success-border)', label: 'success' },
+        fallback: { bg: 'var(--warning-bg)', color: 'var(--warning-text)', border: 'var(--warning-border)', label: 'fallback' },
+        error: { bg: 'var(--error-bg)', color: 'var(--error-text)', border: 'var(--error-border)', label: 'error' },
+        '-': { bg: 'var(--badge-default-bg)', color: 'var(--badge-default-text)', border: 'var(--badge-default-border)', label: '-' }
       };
       const bc = badgeCfg[status] || badgeCfg['-'];
       badge.textContent = bc.label;
@@ -731,20 +731,20 @@ function openTraceModal(): void {
         const m = Math.round((ms % 3_600_000) / 60_000);
         return `${h}h ${m}m`;
       };
-      const pre = (obj: any) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
+      const pre = (obj: any) => `<pre style="white-space:pre-wrap;word-break:break-word;background:var(--code-bg);color:var(--code-text);border:1px solid var(--border-secondary);border-radius:8px;padding:10px 12px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">${
         (()=>{ try { return JSON.stringify(obj, null, 2); } catch { return String(obj); } })()
       }</pre>`;
-      const prePlain = (s: string) => `<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;overflow:auto;">${
+      const prePlain = (s: string) => `<pre style="white-space:pre-wrap;word-break:break-word;background:var(--code-bg);color:var(--code-text);border:1px solid var(--border-secondary);border-radius:8px;padding:10px 12px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">${
         String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'} as any)[c] || c)
       }</pre>`;
       const card = (title: string, content: string) => `
-        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;background:#ffffff;">
-          <div style="font-weight:600;color:#0f172a;margin-bottom:6px;">${title}</div>
+        <div style="border:1px solid var(--border-primary);border-radius:8px;padding:10px 12px;margin-bottom:12px;background:var(--surface-secondary);">
+          <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px;">${title}</div>
           ${content}
         </div>`;
 
       if (!trace) {
-        body.innerHTML = '<div style="color:#999;">暂无生成过程，请先点击“生成报告”。</div>';
+        body.innerHTML = '<div style="color:var(--text-muted);">暂无生成过程，请先点击“生成报告”。</div>';
       } else {
         const duration = (trace.endedAt && trace.startedAt) ? (trace.endedAt - trace.startedAt) : undefined;
         const ctx = trace.context || {};
@@ -792,20 +792,20 @@ function openTraceModal(): void {
             : (typeof e.time === 'number' ? (e.time - prevT) : 0);
           const tot = typeof e.time === 'number' ? (e.time - tStart) : 0;
           prevT = typeof e.time === 'number' ? e.time : prevT;
-          const color = e.level==='error'?'#ef4444':(e.level==='warn'?'#f59e0b':'#3b82f6');
+          const color = e.level==='error'?'var(--error-color)':(e.level==='warn'?'var(--warning-color)':'var(--info-color)');
           // 进度条改为“单步耗时占比”，并设置最小可见宽度1%
           const barPct = fullDur > 0 ? Math.min(100, Math.max((dt > 0 ? 1 : 0), Math.round((dt / fullDur) * 100))) : 0;
           stepBlocks.push(`
             <div style="border-left:3px solid ${color}; padding-left:8px; margin:8px 0;">
-              <div style="display:flex; flex-wrap:wrap; gap:8px; color:#475569; align-items:center;">
+              <div style="display:flex; flex-wrap:wrap; gap:8px; color:var(--text-secondary); align-items:center;">
                 <span style="min-width:160px;">${fmt(e.time)}</span>
                 <span>[${(e.level||'').toUpperCase()}][${e.tag}] ${e.message || ''}</span>
-                <span style="margin-left:auto; color:#64748b; font-size:11px;">+${fmtDur(dt)} / 总 ${fmtDur(tot)}</span>
+                <span style="margin-left:auto; color:var(--text-muted); font-size:11px;">+${fmtDur(dt)} / 总 ${fmtDur(tot)}</span>
               </div>
-              <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-top:6px;">
+              <div style="height:6px; background:var(--progress-bg); border-radius:999px; overflow:hidden; margin-top:6px;">
                 <div style="width:${barPct}%; height:100%; background:${color};"></div>
               </div>
-              <div style="display:flex; gap:8px; color:#64748b; font-size:11px; margin-top:4px;">
+              <div style="display:flex; gap:8px; color:var(--text-muted); font-size:11px; margin-top:4px;">
                 <span>区间：${tStart ? fmt(prevT - dt) : '-'} → ${fmt(e.time)}（${fmtDur(dt)}）</span>
                 <span style="margin-left:auto;">累计：${fmtDur(tot)} / ${fmtDur(fullDur)}</span>
               </div>
@@ -813,9 +813,9 @@ function openTraceModal(): void {
             </div>
           `);
         }
-        const stepsHtml = stepBlocks.length ? stepBlocks.join('') : '<div style="color:#999;">无步骤</div>';
+        const stepsHtml = stepBlocks.length ? stepBlocks.join('') : '<div style="color:var(--text-muted);">无步骤</div>';
         const nonStreamNote = (ctx && ctx.streamEnabled === false)
-          ? '<div style="color:#64748b;font-size:11px;margin-bottom:6px;">本次为非流式调用，等待阶段不产生中间步骤</div>'
+          ? '<div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">本次为非流式调用，等待阶段不产生中间步骤</div>'
           : '';
 
         // 提示词：展示最近一次 PROMPT/messages 的内容
@@ -871,6 +871,47 @@ function onTraceClick(): void {
     openTraceModal();
   } catch {
     // 兜底：静默
+  }
+}
+
+// 自动调整 iframe 高度以适应内容
+function adjustIframeHeight(iframe: HTMLIFrameElement): void {
+  try {
+    // 等待 iframe 内容加载完成
+    const checkHeight = () => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!doc || !doc.body) return;
+        
+        // 获取内容实际高度
+        const contentHeight = Math.max(
+          doc.body.scrollHeight,
+          doc.body.offsetHeight,
+          doc.documentElement.scrollHeight,
+          doc.documentElement.offsetHeight
+        );
+        
+        // 设置 iframe 高度（添加一些额外空间）
+        if (contentHeight > 0) {
+          iframe.style.height = `${contentHeight + 20}px`;
+        }
+      } catch (e) {
+        // 跨域或其他错误，保持默认高度
+      }
+    };
+    
+    // 立即检查一次
+    checkHeight();
+    
+    // 监听 iframe 加载完成
+    iframe.addEventListener('load', () => {
+      checkHeight();
+      // 延迟再检查一次，确保图表等动态内容已渲染
+      setTimeout(checkHeight, 100);
+      setTimeout(checkHeight, 500);
+    });
+  } catch (e) {
+    // 忽略错误
   }
 }
 
@@ -946,7 +987,15 @@ function prepareForPreview(html: string): string {
       const noticeColors = isDarkMode 
         ? { bg: '#422006', border: '#78350f', text: '#fef3c7' }  // 深色模式：深棕背景，浅黄文字
         : { bg: '#fff7ed', border: '#fdba74', text: '#92400e' }; // 浅色模式：浅橙背景，深棕文字
-      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:${textColor} !important; -webkit-text-fill-color:${textColor} !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:${bgColor} !important; }\n  /* 免责声明主题适配 */\n  .notice { background: ${noticeColors.bg} !important; border-color: ${noticeColors.border} !important; color: ${noticeColors.text} !important; }\n  .notice * { color: ${noticeColors.text} !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:${textColor} !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:${textColor} !important; }\n  .text-white, .text-light, [class*="text-white"] { color:${textColor} !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:${textColor} !important; }\n</style>`;
+      // 表格主题颜色
+      const tableColors = isDarkMode
+        ? { border: '#334155', thBg: '#1e293b', thColor: '#cbd5e1' }  // 深色模式
+        : { border: '#e5e7eb', thBg: '#f8fafc', thColor: '#475569' }; // 浅色模式
+      // 数据概览卡片主题颜色
+      const kpiColors = isDarkMode
+        ? { bg: '#1e293b', border: '#334155', labelColor: '#94a3b8', valueColor: '#f1f5f9' }  // 深色模式
+        : { bg: '#fff', border: '#e5e7eb', labelColor: '#64748b', valueColor: '#0f172a' }; // 浅色模式
+      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:${textColor} !important; -webkit-text-fill-color:${textColor} !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:${bgColor} !important; }\n  /* 免责声明主题适配 */\n  .notice { background: ${noticeColors.bg} !important; border-color: ${noticeColors.border} !important; color: ${noticeColors.text} !important; }\n  .notice * { color: ${noticeColors.text} !important; }\n  /* 表格主题适配 */\n  .table th, .table td { border-bottom-color: ${tableColors.border} !important; color: ${textColor} !important; }\n  .table th { background: ${tableColors.thBg} !important; color: ${tableColors.thColor} !important; }\n  /* 数据概览卡片主题适配 */\n  .kpi { background: ${kpiColors.bg} !important; border-color: ${kpiColors.border} !important; }\n  .kpi .label { color: ${kpiColors.labelColor} !important; }\n  .kpi .value { color: ${kpiColors.valueColor} !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:${textColor} !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:${textColor} !important; }\n  .text-white, .text-light, [class*="text-white"] { color:${textColor} !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:${textColor} !important; }\n</style>`;
       if (!hasFallback) {
         if (/<\/body>/i.test(res)) {
           res = res.replace(/<\/body>/i, (m) => `${fallback}\n${m}`);
@@ -1278,6 +1327,10 @@ async function previewSample() {
   const iframe = getEl<HTMLIFrameElement>('insights-preview');
   if (!iframe) return;
   const now = new Date();
+  const extSettings = await getSettings();
+  const p = (extSettings as any)?.insights?.prompts || {};
+  const usePersona: PersonaId = ['doctor', 'default', 'maid', 'tsundere', 'yandere', 'analyst', 'friend', 'bro'].includes(p?.persona) ? p.persona : 'doctor';
+  const personaName = getPersonaName(usePersona);
   const fields = {
     reportTitle: '我的观影标签月报（示例）',
     periodText: '统计范围：示例',
@@ -1287,13 +1340,21 @@ async function previewSample() {
     disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
     generatedAt: now.toLocaleString(),
     version: '0.0.1',
+    personaName,
     baseHref: chrome.runtime.getURL('') || './',
     statsJSON: '{}',
+    rankingRows: '<tr><td>1</td><td>示例标签</td><td>10</td><td>50.0%</td></tr>',
+    totalViews: '20',
+    activeDays: '5',
+    avgPerDay: '4.0',
+    totalTags: '10',
+    viewerProfile: '基于你的观影习惯，你是一个多元探索型观影者。建议后续可以尝试相关类型的影片。',
   } as Record<string, string>;
   const tpl = await loadTemplate();
   const html = renderTemplate({ templateHTML: tpl, fields });
   currentPreviewRawHTML = html; // 保存原始 HTML
   iframe.srcdoc = prepareForPreview(html);
+  adjustIframeHeight(iframe);
   // 示例预览不允许保存
   canSaveReport = false;
   try { ensurePreviewCopyButton(); } catch {}
@@ -1447,27 +1508,54 @@ async function handleGenerate() {
       const ratio = (typeof t?.ratio === 'number' && isFinite(t.ratio)) ? t.ratio : ((Number(t?.count) || 0) / totalAllNum);
       return `<tr><td>${i + 1}</td><td>${esc(t?.name)}</td><td>${Number(t?.count) || 0}</td><td>${pct(ratio)}</td></tr>`;
     }).join('');
+    
+    // 获取人设名称
+    const extSettings = await getSettings();
+    const p = (extSettings as any)?.insights?.prompts || {};
+    const usePersona: PersonaId = ['doctor', 'default', 'maid', 'tsundere', 'yandere', 'analyst', 'friend', 'bro'].includes(p?.persona) ? p.persona : 'doctor';
+    const personaName = getPersonaName(usePersona);
+    
+    // 提取月份信息用于标题
+    const startMonth = startDate.getMonth() + 1;
+    const endMonth = endDate.getMonth() + 1;
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
+    let monthLabel = '';
+    if (startYear === endYear && startMonth === endMonth) {
+      monthLabel = `${startMonth}月`;
+    } else if (startYear === endYear) {
+      monthLabel = `${startMonth}-${endMonth}月`;
+    } else {
+      monthLabel = `${startYear}年${startMonth}月-${endYear}年${endMonth}月`;
+    }
+    
     const fields: Record<string, string> = {
-      reportTitle: `我的观影标签报告`,
+      reportTitle: `我的${monthLabel}观影标签报告`,
       periodText: `统计范围：${start} ~ ${end}`,
       summary: [
-        `这个月你的口味更集中，Top3 约 ${top3}，整体${trend}。`,
+        `本月观影集中度较高，Top3 约 ${top3}，整体${trend}。`,
         (Array.isArray((stats as any)?.changes?.newTags) && (stats as any).changes.newTags.length
-          ? `也有点新鲜感：${(stats as any).changes.newTags.slice(0,3).join('、')} 出现过。`
+          ? `出现了一些新标签：${(stats as any).changes.newTags.slice(0,3).join('、')}。`
           : '结构基本稳定，没有明显的偏好跳变。'),
         (modeUsed === 'compare'
-          ? `样本不多（新增 ${newCount} / 基线 ${baselineCount}），这些判断更偏趋势参考。`
+          ? `样本量：新增 ${newCount} / 基线 ${baselineCount}，这些判断更偏趋势参考。`
           : ''),
-        '下月不妨留意前述标签的占比会不会继续上扬，看看新人是否延续热度。'
+        '下月可以留意前述标签的占比变化，观察趋势是否延续。'
       ].filter(Boolean).join(' '),
       insightList,
       methodology,
       disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
       generatedAt: new Date().toLocaleString(),
       version: '0.0.1',
+      personaName,
       baseHref: chrome.runtime.getURL('') || './',
       statsJSON: JSON.stringify(stats || {}),
       rankingRows,
+      totalViews: String(totalAllNum),
+      activeDays: String(days.length),
+      avgPerDay: (totalAllNum / Math.max(days.length, 1)).toFixed(1),
+      totalTags: String(topList.length),
+      viewerProfile: '基于你的观影习惯，你是一个多元探索型观影者。建议后续可以尝试相关类型的影片。',
     } as Record<string, string>;
     const tpl = await loadTemplate();
     const modelSel = getEl<HTMLSelectElement>('insights-model-select');
@@ -1489,6 +1577,7 @@ async function handleGenerate() {
     if (iframe) {
       currentPreviewRawHTML = html; // 保存原始 HTML
       iframe.srcdoc = prepareForPreview(html);
+      adjustIframeHeight(iframe);
     }
     canSaveReport = true;
     try { ensurePreviewCopyButton(); } catch {}
@@ -1860,6 +1949,7 @@ export const insightsTab = {
         if (iframe && currentPreviewRawHTML) {
           // 使用保存的原始 HTML 重新应用主题
           iframe.srcdoc = prepareForPreview(currentPreviewRawHTML);
+          adjustIframeHeight(iframe);
         }
       });
     } catch (err) {
@@ -2021,15 +2111,25 @@ export const insightsTab = {
     listEl.innerHTML = records.map(r => {
       const ts = r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
       const month = r.month || '';
+      const title = r.period ? `${r.period.start} ~ ${r.period.end}` : month;
+      // 从 HTML 中提取报告标题
+      let reportTitle = '';
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(r.html || '', 'text/html');
+        const titleEl = doc.querySelector('#report-title');
+        if (titleEl) reportTitle = titleEl.textContent || '';
+      } catch {}
       return `
-        <div class="history-item" data-month="${month}" style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee;">
+        <div class="history-item" data-month="${month}" style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border-primary);">
           <input type="checkbox" class="history-select" data-month="${month}" />
           <div style="flex:1;">
-            <div style="font-weight:600;">${month}</div>
-            <div style="color:#888; font-size:12px;">创建于 ${ts}</div>
+            <div style="font-weight:600; color:var(--text-primary);">${reportTitle || month}</div>
+            <div style="color:var(--text-secondary); font-size:12px;">${title}</div>
+            <div style="color:var(--text-muted); font-size:11px;">创建于 ${ts}</div>
           </div>
           <div style="display:flex; gap:6px;">
-            <button class="btn-secondary btn-sm history-preview-btn" style="background:#ffffff; border:1px solid #e5e7eb; color:#334155; -webkit-text-fill-color:#334155" data-action="preview" data-month="${month}"><i class="fas fa-eye"></i>&nbsp;预览</button>
+            <button class="btn-secondary btn-sm history-preview-btn" data-action="preview" data-month="${month}"><i class="fas fa-eye"></i>&nbsp;预览</button>
           </div>
         </div>
       `;
@@ -2061,6 +2161,7 @@ export const insightsTab = {
         if (iframe && rec?.html) {
           currentPreviewRawHTML = rec.html; // 保存原始 HTML
           iframe.srcdoc = prepareForPreview(rec.html);
+          adjustIframeHeight(iframe);
         }
       }
     };
