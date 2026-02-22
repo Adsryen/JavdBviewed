@@ -1,4 +1,5 @@
 import { ViewsDaily, ReportStats, TagStat, TrendPoint, Changes } from "../../types/insights";
+import { isValueableTag } from "../../utils/tagFilter";
 
 export interface AggregateOptions {
   topN?: number;
@@ -27,6 +28,8 @@ export function aggregateMonthly(days: ViewsDaily[], opts: AggregateOptions = {}
   for (const d of ordered) {
     let dayTotal = 0;
     for (const [tag, cnt] of Object.entries(d.tags || {})) {
+      // 过滤无价值标签
+      if (!isValueableTag(tag)) continue;
       const v = Number(cnt ?? 0) || 0;
       tagTotals[tag] = (tagTotals[tag] ?? 0) + v;
       dayTotal += v;
@@ -47,6 +50,8 @@ export function aggregateMonthly(days: ViewsDaily[], opts: AggregateOptions = {}
     const prevTotals: Record<string, number> = {};
     for (const d of prevDays) {
       for (const [tag, cnt] of Object.entries(d.tags || {})) {
+        // 过滤无价值标签
+        if (!isValueableTag(tag)) continue;
         prevTotals[tag] = (prevTotals[tag] ?? 0) + (Number(cnt ?? 0) || 0);
       }
     }
