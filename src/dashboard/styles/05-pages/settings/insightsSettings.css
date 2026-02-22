@@ -1,0 +1,356 @@
+/* ========================================
+   报告设置页面样式优化
+   ======================================== */
+
+/* 报告设置页面容器 */
+#insights-settings {
+    /* 移除 max-width 限制，与其他设置页面保持一致 */
+}
+
+#insights-settings .settings-page-body {
+    gap: 24px;
+}
+
+/* 设置卡片优化 */
+#insights-settings .settings-card {
+    background: transparent;
+    border: 2px solid var(--border-primary);
+    border-radius: 16px;
+    padding: 28px;
+    transition: all 0.3s ease;
+    box-shadow: none;
+}
+
+#insights-settings .settings-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+/* 卡片标题 */
+#insights-settings .settings-card h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 为不同卡片添加图标 */
+#insights-settings .settings-card:nth-child(1) h4::before {
+    content: '📊';
+    font-size: 1.2em;
+}
+
+#insights-settings .settings-card:nth-child(2) h4::before {
+    content: '📈';
+    font-size: 1.2em;
+}
+
+#insights-settings .settings-card:nth-child(3) h4::before {
+    content: '🎨';
+    font-size: 1.2em;
+}
+
+/* 区块描述 */
+#insights-settings .section-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 24px 0;
+    line-height: 1.6;
+}
+
+/* 表单组优化 */
+#insights-settings .form-group {
+    margin-bottom: 24px;
+}
+
+#insights-settings .form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* 网格布局 - 两列 */
+#insights-settings .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 24px;
+}
+
+/* 行内表单组 */
+#insights-settings .form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#insights-settings .form-group-inline label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    min-width: 120px;
+}
+
+#insights-settings .form-group-inline input.text-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+/* 帮助按钮 */
+#insights-settings .help-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: help;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+#insights-settings .help-btn:hover {
+    color: var(--primary);
+    background: var(--bg-hover);
+    transform: scale(1.1);
+}
+
+#insights-settings .help-btn i {
+    font-size: 16px;
+}
+
+/* 标签样式 */
+#insights-settings .form-group > label:not(.checkbox-label) {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+/* 下拉选择框样式 */
+#insights-settings select.text-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 40px;
+}
+
+#insights-settings select.text-input:hover {
+    border-color: var(--primary);
+}
+
+#insights-settings select.text-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* 深色主题下的下拉框箭头 */
+[data-theme="dark"] #insights-settings select.text-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+/* 输入说明文字 */
+#insights-settings .input-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+}
+
+/* ========================================
+   复选框样式优化 - 现代化设计
+   ======================================== */
+
+#insights-settings .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 14px 18px;
+    background: var(--surface-secondary);
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    user-select: none;
+}
+
+#insights-settings .checkbox-label:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+    transform: translateX(4px);
+}
+
+/* 隐藏原生复选框 */
+#insights-settings .checkbox-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+/* 自定义复选框外观 */
+#insights-settings .checkbox-label .checkmark {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 复选框悬停效果 */
+#insights-settings .checkbox-label:hover .checkmark {
+    border-color: var(--primary);
+    background: var(--surface-primary);
+}
+
+/* 复选框选中状态 */
+#insights-settings .checkbox-label input[type="checkbox"]:checked ~ .checkmark {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+/* 复选框选中后的对勾 */
+#insights-settings .checkbox-label input[type="checkbox"]:checked ~ .checkmark::after {
+    content: '';
+    position: absolute;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    top: 3px;
+    left: 7px;
+}
+
+/* 复选框标签文字 */
+#insights-settings .checkbox-label span:not(.checkmark) {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+/* 选中状态的整体样式 */
+#insights-settings .checkbox-label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+    border-color: var(--primary);
+}
+
+/* 复选框焦点状态 */
+#insights-settings .checkbox-label input[type="checkbox"]:focus ~ .checkmark {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ========================================
+   深色主题适配
+   ======================================== */
+
+[data-theme="dark"] #insights-settings .settings-card {
+    background: transparent;
+    border-color: var(--border-secondary);
+    box-shadow: none;
+}
+
+[data-theme="dark"] #insights-settings .settings-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] #insights-settings .checkbox-label {
+    background: var(--surface-primary);
+    border-color: var(--border-secondary);
+}
+
+[data-theme="dark"] #insights-settings .checkbox-label:hover {
+    background: var(--surface-hover);
+}
+
+[data-theme="dark"] #insights-settings .checkbox-label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+    border-color: var(--primary);
+}
+
+/* ========================================
+   响应式设计
+   ======================================== */
+
+@media (max-width: 768px) {
+    #insights-settings {
+        padding: 15px;
+    }
+
+    #insights-settings .settings-card {
+        padding: 20px;
+    }
+
+    #insights-settings .form-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    #insights-settings .form-group-inline label {
+        min-width: 100px;
+        font-size: 13px;
+    }
+
+    #insights-settings select.text-input {
+        max-width: 100%;
+    }
+
+    #insights-settings .checkbox-label {
+        padding: 12px 14px;
+    }
+
+    #insights-settings .checkbox-label span:not(.checkmark) {
+        font-size: 13px;
+    }
+}
+
+/* ========================================
+   动画效果
+   ======================================== */
+
+@keyframes checkboxPop {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+#insights-settings .checkbox-label input[type="checkbox"]:checked ~ .checkmark {
+    animation: checkboxPop 0.3s ease;
+}
