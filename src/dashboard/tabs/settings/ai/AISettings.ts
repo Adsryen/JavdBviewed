@@ -791,54 +791,158 @@ export class AISettingsPanel extends BaseSettingsPanel {
             return;
         }
 
+        await this.sendTestMessageWithStream(message);
+    }
+
+    private async sendTestMessageWithStream(message: string): Promise<void> {
         try {
-            showMessage('正在发送测试消息...', 'info');
-
-            const response = await aiService.sendMessage([
-                { role: 'user', content: message }
-            ]);
-
+            // 显示加载动画
             if (this.testResults) {
                 this.testResults.style.display = 'block';
-                const reply = response.choices[0]?.message?.content || '';
-                const rawTokens = response.usage?.total_tokens || 0;
-                const estimatedTokens = rawTokens > 0 ? rawTokens : aiService.estimateTokenUsage(`${message}\n${reply}`);
-                const tokensText = rawTokens > 0 ? `${rawTokens} tokens` : `约 ${estimatedTokens} tokens`;
                 this.testResults.innerHTML = `
-                    <div class="test-result success">
-                        <h5>测试成功</h5>
-                        <p><strong>发送:</strong> ${message}</p>
-                        <p><strong>回复:</strong> ${reply || '无回复内容'}</p>
-                        <p><strong>模型:</strong> ${response.model}</p>
-                        <p><strong>用时:</strong> ${tokensText}</p>
+                    <div class="test-result loading">
+                        <div class="chat-message user-message">
+                            <div class="message-avatar">👤</div>
+                            <div class="message-wrapper">
+                                <button class="resend-btn" data-message="${message.replace(/"/g, '&quot;')}" title="重新发送">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                                    </svg>
+                                </button>
+                                <div class="message-bubble">
+                                    <div class="message-content">${message}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-message assistant-message">
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-bubble">
+                                <div class="ai-loading-dots">
+                                    <span class="ai-cursor">▋</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
+            
+            showMessage('正在发送测试消息...', 'info');
 
-            showMessage('测试消息发送成功', 'success');
-            this.testInput.value = '';
+            let fullReply = '';
+            let modelName = '';
+            const startTime = Date.now();
+
+            await aiService.sendStreamMessage(
+                [{ role: 'user', content: message }],
+                (chunk) => {
+                    // 处理流式数据块
+                    const content = chunk.choices?.[0]?.delta?.content || '';
+                    if (content) {
+                        fullReply += content;
+                        modelName = chunk.model || modelName;
+                        
+                        // 实时更新显示
+                        if (this.testResults) {
+                            const assistantBubble = this.testResults.querySelector('.assistant-message .message-bubble');
+                            if (assistantBubble) {
+                                assistantBubble.innerHTML = `
+                                    <div class="message-content streaming">${fullReply}<span class="typing-cursor">▋</span></div>
+                                `;
+                            }
+                        }
+                    }
+                },
+                () => {
+                    // 完成回调
+                    const endTime = Date.now();
+                    const duration = ((endTime - startTime) / 1000).toFixed(2);
+                    const estimatedTokens = aiService.estimateTokenUsage(`${message}\n${fullReply}`);
+                    
+                    if (this.testResults) {
+                        this.testResults.innerHTML = `
+                            <div class="test-result success">
+                                <div class="chat-message user-message">
+                                    <div class="message-avatar">👤</div>
+                                    <div class="message-wrapper">
+                                        <button class="resend-btn" data-message="${message.replace(/"/g, '&quot;')}" title="重新发送">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                                            </svg>
+                                        </button>
+                                        <div class="message-bubble">
+                                            <div class="message-content">${message}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chat-message assistant-message">
+                                    <div class="message-avatar">🤖</div>
+                                    <div class="message-bubble">
+                                        <div class="message-content">${fullReply || '无回复内容'}</div>
+                                        <div class="message-meta">
+                                            <span class="model-name">${modelName}</span>
+                                            <span class="token-count">约 ${estimatedTokens} tokens</span>
+                                            <span class="duration">${duration}秒</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 绑定重新发送按钮事件
+                        const resendBtn = this.testResults.querySelector('.resend-btn');
+                        if (resendBtn) {
+                            resendBtn.addEventListener('click', (e) => {
+                                const btn = e.currentTarget as HTMLElement;
+                                const msg = btn.getAttribute('data-message') || '';
+                                if (msg) {
+                                    this.testInput.value = msg;
+                                    this.sendTestMessageWithStream(msg);
+                                }
+                            });
+                        }
+                    }
+
+                    showMessage('测试消息发送成功', 'success');
+                    this.testInput.value = '';
+                },
+                (error) => {
+                    // 错误回调
+                    log.error('[AI] 测试消息发送失败', error);
+                    const errorMsg = error instanceof Error ? error.message : String(error || '未知错误');
+                    const errorLines = errorMsg.split('\n');
+                    const mainError = errorLines[0];
+                    const details = errorLines.slice(1).filter(line => line.trim());
+                    
+                    if (this.testResults) {
+                        this.testResults.style.display = 'block';
+                        let detailsHtml = '';
+                        if (details.length > 0) {
+                            detailsHtml = details.map(line => `<p style="margin: 4px 0; font-size: 0.9em; color: #666;">${line}</p>`).join('');
+                        }
+                        this.testResults.innerHTML = `
+                            <div class="test-result error">
+                                <h5>测试失败</h5>
+                                <p><strong>错误:</strong> ${mainError}</p>
+                                ${detailsHtml}
+                            </div>
+                        `;
+                    }
+                    showMessage(`测试失败: ${mainError}`, 'error');
+                }
+            );
         } catch (error) {
             log.error('[AI] 测试消息发送失败', error);
             const errorMsg = error instanceof Error ? error.message : String(error || '未知错误');
-            const errorLines = errorMsg.split('\n');
-            const mainError = errorLines[0];
-            const details = errorLines.slice(1).filter(line => line.trim());
-            
             if (this.testResults) {
                 this.testResults.style.display = 'block';
-                let detailsHtml = '';
-                if (details.length > 0) {
-                    detailsHtml = details.map(line => `<p style="margin: 4px 0; font-size: 0.9em; color: #666;">${line}</p>`).join('');
-                }
                 this.testResults.innerHTML = `
                     <div class="test-result error">
                         <h5>测试失败</h5>
-                        <p><strong>错误:</strong> ${mainError}</p>
-                        ${detailsHtml}
+                        <p><strong>错误:</strong> ${errorMsg}</p>
                     </div>
                 `;
             }
-            showMessage(`测试失败: ${mainError}`, 'error');
+            showMessage(`测试失败: ${errorMsg}`, 'error');
         }
     }
 
