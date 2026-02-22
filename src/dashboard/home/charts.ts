@@ -59,6 +59,28 @@ function installCanvasDirectionGuard(): void {
   } catch {}
 }
 
+// 确保被动事件监听器 polyfill 已加载
+let passivePolyfillLoaded = false;
+async function ensurePassivePolyfill(): Promise<void> {
+  if (passivePolyfillLoaded) return;
+  const inject = (src: string) => new Promise<void>((resolve, reject) => {
+    try {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('load failed'));
+      (document.head || document.documentElement).appendChild(s);
+    } catch { resolve(); }
+  });
+  try {
+    await inject(chrome.runtime.getURL('assets/templates/passive-events-polyfill.js'));
+    passivePolyfillLoaded = true;
+  } catch {
+    // 如果加载失败，标记为已加载以避免重复尝试
+    passivePolyfillLoaded = true;
+  }
+}
+
 let echartsLoadingPromise: Promise<any> | null = null;
 async function ensureEchartsLoaded(): Promise<any> {
   const w: any = window as any;
@@ -74,6 +96,8 @@ async function ensureEchartsLoaded(): Promise<any> {
     } catch { resolve(); }
   });
   echartsLoadingPromise = new Promise(async (resolve) => {
+    // 先加载 polyfill
+    await ensurePassivePolyfill();
     try { await inject(chrome.runtime.getURL('assets/templates/echarts.min.js')); }
     catch { try { await inject(chrome.runtime.getURL('assets/echarts.min.js')); } catch {} }
     resolve(void 0);
@@ -96,6 +120,8 @@ async function ensureG2PlotLoaded(): Promise<any> {
     } catch { resolve(); }
   });
   g2plotLoadingPromise = new Promise(async (resolve) => {
+    // 先加载 polyfill
+    await ensurePassivePolyfill();
     try { await inject(chrome.runtime.getURL('assets/templates/g2plot.min.js')); }
     catch { try { await inject(chrome.runtime.getURL('assets/g2plot.min.js')); } catch {} }
     resolve(void 0);
