@@ -222,6 +222,7 @@ export function mergeFields(base: Record<string, string>, ai: Record<string, str
   const allow: Record<string, true> = {
     reportTitle: true,
     summary: true,
+    viewerProfile: true,
     insightList: true,
     methodology: true,
     periodText: true,
