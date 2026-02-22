@@ -1,4 +1,4 @@
-// New API客户端实现
+﻿// New API客户端实现
 
 import type {
     AISettings,
@@ -7,6 +7,7 @@ import type {
     ModelsResponse,
     ConnectionTestResult
 } from '../../types/ai';
+import { log } from '../../utils/logController';
 
 /**
  * New API客户端
@@ -67,7 +68,7 @@ export class NewApiClient {
                 const reqIsHttp = url.startsWith('http://');
                 if (pageIsHttps && reqIsHttp) {
                     const msg = `Mixed Content: 当前页面为 HTTPS，但 AI 接口为 HTTP（${url}）。请将 API 地址改为 HTTPS。`;
-                    console.error('[AI] createChatCompletion: ' + msg);
+                    log.error('[AI] createChatCompletion: ' + msg);
                     throw new Error(msg);
                 }
             }
@@ -518,7 +519,7 @@ export class StreamParser {
                     const parsed = JSON.parse(data) as ChatCompletionResponse;
                     results.push(parsed);
                 } catch (error) {
-                    console.warn('解析流式数据失败:', error, data);
+                    log.warn('[AI] 解析流式数据失败', error, data);
                 }
             } else if (trimmed.startsWith('event: ') || trimmed.startsWith('id: ')) {
                 // 忽略SSE事件和ID行
@@ -529,7 +530,7 @@ export class StreamParser {
                     const parsed = JSON.parse(trimmed) as ChatCompletionResponse;
                     results.push(parsed);
                 } catch (error) {
-                    console.warn('解析非SSE格式数据失败:', error, trimmed);
+                    log.warn('[AI] 解析非SSE格式数据失败', error, trimmed);
                 }
             }
         }

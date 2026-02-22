@@ -50,6 +50,9 @@ export class LoggingSettings extends BaseSettingsPanel {
     private consoleMuteAllBtn!: HTMLButtonElement;
     private consoleEnableAllBtn!: HTMLButtonElement;
     private consoleResetDefaultBtn!: HTMLButtonElement;
+    
+    // 抑制控制台输出开关
+    private suppressConsoleOutput!: HTMLInputElement;
 
     constructor() {
         super({
@@ -120,6 +123,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleMuteAllBtn = document.getElementById('consoleMuteAll') as HTMLButtonElement;
         this.consoleEnableAllBtn = document.getElementById('consoleEnableAll') as HTMLButtonElement;
         this.consoleResetDefaultBtn = document.getElementById('consoleResetDefault') as HTMLButtonElement;
+        
+        // 抑制控制台输出开关
+        this.suppressConsoleOutput = document.getElementById('suppressConsoleOutput') as HTMLInputElement;
 
         // 验证元素是否存在
         if (!this.maxLogEntries) {
@@ -208,6 +214,8 @@ export class LoggingSettings extends BaseSettingsPanel {
         this.consoleResetDefaultBtn?.addEventListener('click', this.handleConsoleResetDefault.bind(this));
         // 可选：保留天数
         this.retentionDays?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 抑制控制台输出开关
+        this.suppressConsoleOutput?.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
     /**
@@ -259,6 +267,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (this.logModuleSettings) this.logModuleSettings.checked = modules.settings ?? false;
         if (this.logModuleGeneral) this.logModuleGeneral.checked = modules.general ?? cats.general ?? false;
         if (this.logModuleDebug) this.logModuleDebug.checked = modules.debug ?? false;
+        
+        // 抑制控制台输出开关
+        if (this.suppressConsoleOutput) this.suppressConsoleOutput.checked = (logging as any).suppressConsoleOutput ?? false;
     }
 
     /**
@@ -314,6 +325,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                     },
                     logModules: Object.keys(logModules).length > 0 ? logModules : undefined,
                     consoleCategories: Object.keys(consoleCategories).length > 0 ? consoleCategories : undefined,
+                    suppressConsoleOutput: this.suppressConsoleOutput ? this.suppressConsoleOutput.checked : false,
                 }
             };
 
@@ -411,6 +423,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                 },
                 ...(Object.keys(logModules).length > 0 ? { logModules } : {}),
                 ...(Object.keys(consoleCategories).length > 0 ? { consoleCategories } : {}),
+                suppressConsoleOutput: this.suppressConsoleOutput ? this.suppressConsoleOutput.checked : false,
             }
         };
     }
@@ -462,6 +475,11 @@ export class LoggingSettings extends BaseSettingsPanel {
             if (this.logModuleSettings && modules.settings !== undefined) this.logModuleSettings.checked = !!modules.settings;
             if (this.logModuleGeneral && (modules.general !== undefined || cats.general !== undefined)) this.logModuleGeneral.checked = !!(modules.general ?? cats.general);
             if (this.logModuleDebug && modules.debug !== undefined) this.logModuleDebug.checked = !!modules.debug;
+            
+            // 抑制控制台输出开关
+            if (this.suppressConsoleOutput && (logging as any).suppressConsoleOutput !== undefined) {
+                this.suppressConsoleOutput.checked = !!(logging as any).suppressConsoleOutput;
+            }
         }
     }
 

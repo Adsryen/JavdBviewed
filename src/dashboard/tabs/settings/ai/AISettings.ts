@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI设置面板
  * AI功能配置、模型管理、API设置等
  */
@@ -9,6 +9,7 @@ import { aiService } from '../../../../services/ai/aiService';
 import type { ExtensionSettings } from '../../../../types';
 import type { AISettings, AIModel } from '../../../../types/ai';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
+import { log } from '../../../../utils/logController';
 
 /**
  * AI设置面板类
@@ -319,12 +320,12 @@ export class AISettingsPanel extends BaseSettingsPanel {
                         this.selectedModel.value = this.aiSettings.selectedModel;
                     }
                 } catch (error) {
-                    console.warn('自动加载模型列表失败:', error);
+                    log.warn('[AI] 自动加载模型列表失败', error);
                 }
             }
 
         } catch (error) {
-            console.error('加载AI设置失败:', error);
+            log.error('[AI] 加载AI设置失败', error);
             throw error;
         }
     }
@@ -492,7 +493,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             await aiService.saveSettings({ temperature });
             showMessage('温度设置已保存', 'success');
         } catch (error) {
-            console.warn('保存温度设置失败:', error);
+            log.warn('[AI] 保存温度设置失败', error);
             showMessage('保存温度设置失败', 'error');
         }
     }
@@ -509,7 +510,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             await aiService.saveSettings({ streamEnabled });
             showMessage('流式输出设置已保存', 'success');
         } catch (error) {
-            console.warn('保存流式输出设置失败:', error);
+            log.warn('[AI] 保存流式输出设置失败', error);
             showMessage('保存失败', 'error');
         }
     }
@@ -526,7 +527,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             await aiService.saveSettings({ systemPrompt });
             showMessage('系统提示词已保存', 'success');
         } catch (error) {
-            console.warn('保存系统提示词失败:', error);
+            log.warn('[AI] 保存系统提示词失败', error);
             showMessage('保存失败', 'error');
         }
     }
@@ -553,7 +554,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 await this.saveModelSelection();
                 showMessage('模型选择已保存', 'success');
             } catch (error) {
-                console.warn('自动保存模型选择失败:', error);
+                log.warn('[AI] 自动保存模型选择失败', error);
                 showMessage('保存模型选择失败', 'error');
             }
             return;
@@ -569,7 +570,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
                     showMessage('最大回复长度已保存', 'success');
                 }
             } catch (error) {
-                console.warn('保存最大回复长度失败:', error);
+                log.warn('[AI] 保存最大回复长度失败', error);
                 showMessage('保存失败', 'error');
             }
             return;
@@ -589,7 +590,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 await aiService.saveSettings(partial);
                 showMessage('设置已保存', 'success');
             } catch (e) {
-                console.warn('自动保存设置失败:', e);
+                log.warn('[AI] 自动保存设置失败', e);
                 showMessage('保存设置失败', 'error');
             }
         }
@@ -668,7 +669,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             }
         } catch (error) {
             showMessage('AI连接测试失败', 'error');
-            console.error('AI连接测试失败:', error);
+            log.error('[AI] 连接测试失败', error);
         } finally {
             this.testConnectionBtn.disabled = false;
             this.testConnectionBtn.textContent = '测试连接';
@@ -695,7 +696,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             showMessage(`成功加载 ${models.length} 个模型`, 'success');
         } catch (error) {
             showMessage('加载模型失败', 'error');
-            console.error('加载模型失败:', error);
+            log.error('[AI] 加载模型失败', error);
         } finally {
             this.loadModelsBtn.disabled = false;
             this.loadModelsBtn.textContent = '刷新';
@@ -716,7 +717,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             showMessage('AI设置已重置', 'success');
         } catch (error) {
             showMessage('重置AI设置失败', 'error');
-            console.error('重置AI设置失败:', error);
+            log.error('[AI] 重置AI设置失败', error);
         }
     }
 
@@ -817,7 +818,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             showMessage('测试消息发送成功', 'success');
             this.testInput.value = '';
         } catch (error) {
-            console.error('测试消息发送失败:', error);
+            log.error('[AI] 测试消息发送失败', error);
             const errorMsg = error instanceof Error ? error.message : String(error || '未知错误');
             const errorLines = errorMsg.split('\n');
             const mainError = errorLines[0];
@@ -862,7 +863,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
             showMessage('AI设置已导出', 'success');
         } catch (error) {
-            console.error('导出AI设置失败:', error);
+            log.error('[AI] 导出AI设置失败', error);
             showMessage('导出AI设置失败', 'error');
         }
     }
@@ -898,14 +899,14 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
                     showMessage('AI设置已导入', 'success');
                 } catch (error) {
-                    console.error('导入AI设置失败:', error);
+                    log.error('[AI] 导入AI设置失败', error);
                     showMessage('导入AI设置失败：' + (error instanceof Error ? error.message : '未知错误'), 'error');
                 }
             };
 
             input.click();
         } catch (error) {
-            console.error('导入AI设置失败:', error);
+            log.error('[AI] 导入AI设置失败', error);
             showMessage('导入AI设置失败', 'error');
         }
     }
@@ -948,10 +949,10 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 // 保存到aiService
                 await aiService.saveSettings({ selectedModel });
                 
-                console.log('模型选择已保存:', selectedModel);
+                log.info('[AI] 模型选择已保存: ' + selectedModel);
             }
         } catch (error) {
-            console.error('保存模型选择失败:', error);
+            log.error('[AI] 保存模型选择失败', error);
             throw error;
         }
     }
@@ -969,7 +970,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             }
         } catch (error) {
             showMessage('保存AI设置失败', 'error');
-            console.error('保存AI设置失败:', error);
+            log.error('[AI] 保存AI设置失败', error);
         }
     }
 }

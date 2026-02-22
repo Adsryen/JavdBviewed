@@ -6,13 +6,15 @@ export interface LogControllerConfig {
     verboseMode: boolean;
     showPrivacyLogs: boolean;
     showStorageLogs: boolean;
+    suppressConsoleOutput: boolean;
 }
 
 class LogController {
     private config: LogControllerConfig = {
         verboseMode: false,
         showPrivacyLogs: false,
-        showStorageLogs: false
+        showStorageLogs: false,
+        suppressConsoleOutput: false
     };
 
     private initialized = false;
@@ -26,7 +28,8 @@ class LogController {
             this.config = {
                 verboseMode: settings.logging?.verboseMode || false,
                 showPrivacyLogs: settings.logging?.showPrivacyLogs || false,
-                showStorageLogs: settings.logging?.showStorageLogs || false
+                showStorageLogs: settings.logging?.showStorageLogs || false,
+                suppressConsoleOutput: (settings.logging as any)?.suppressConsoleOutput || false
             };
             this.initialized = true;
             console.log('[LogController] Initialized with config:', JSON.stringify(this.config));
@@ -128,8 +131,11 @@ class LogController {
      * 始终显示的重要日志
      */
     info(message: string, ...args: any[]): void {
-        console.log(`[INFO] ${message}`, ...args);
-        // 持久化到后台 IDB
+        // 如果启用了抑制控制台输出，则不输出到控制台
+        if (!this.config.suppressConsoleOutput) {
+            console.log(`[INFO] ${message}`, ...args);
+        }
+        // 持久化到后台 IDB（始终保存）
         try {
             // 仅在扩展环境下发送
             if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
@@ -148,7 +154,11 @@ class LogController {
      * 始终显示的警告日志
      */
     warn(message: string, ...args: any[]): void {
-        console.warn(`[WARN] ${message}`, ...args);
+        // 如果启用了抑制控制台输出，则不输出到控制台
+        if (!this.config.suppressConsoleOutput) {
+            console.warn(`[WARN] ${message}`, ...args);
+        }
+        // 持久化到后台 IDB（始终保存）
         try {
             if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
                 const entry: any = {
@@ -166,7 +176,11 @@ class LogController {
      * 始终显示的错误日志
      */
     error(message: string, ...args: any[]): void {
-        console.error(`[ERROR] ${message}`, ...args);
+        // 如果启用了抑制控制台输出，则不输出到控制台
+        if (!this.config.suppressConsoleOutput) {
+            console.error(`[ERROR] ${message}`, ...args);
+        }
+        // 持久化到后台 IDB（始终保存）
         try {
             if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
                 const entry: any = {
@@ -228,7 +242,8 @@ export async function updateLogControllerConfig(): Promise<void> {
         logController.updateConfig({
             verboseMode: settings.logging?.verboseMode || false,
             showPrivacyLogs: settings.logging?.showPrivacyLogs || false,
-            showStorageLogs: settings.logging?.showStorageLogs || false
+            showStorageLogs: settings.logging?.showStorageLogs || false,
+            suppressConsoleOutput: (settings.logging as any)?.suppressConsoleOutput || false
         });
         
         // 同时更新 consoleProxy 的配置
