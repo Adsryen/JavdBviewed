@@ -6,6 +6,7 @@ import { dbInsViewsRange, dbViewedPage } from "../dbClient";
 import { aggregateMonthly } from "../../services/insights/aggregator";
 import { getSettings, saveSettings } from "../../utils/storage";
 import { buildPrompts } from "../../services/insights/prompts";
+import { getAllPersonas, getPersonaConfig } from "../../services/insights/personas";
 import { getLastGenerationTrace, addTrace } from "../../services/insights/generationTrace";
 import { aggregateCompareFromRecords } from "../../services/insights/compareAggregator";
 import type { VideoRecord } from "../../types";
@@ -16,6 +17,19 @@ import { log } from '../../utils/logController';
 
 function getEl<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
+}
+
+async function updateCurrentPersonaDisplay(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const personaId = ((settings as any)?.insights?.prompts?.persona) || 'doctor';
+    const personas = getAllPersonas();
+    const persona = personas.find(p => p.id === personaId);
+    const displayEl = document.getElementById('insights-current-persona');
+    if (displayEl && persona) {
+      displayEl.textContent = persona.name;
+    }
+  } catch {}
 }
 
 function ensurePromptsButton(): HTMLButtonElement | null {
@@ -29,7 +43,8 @@ function ensurePromptsButton(): HTMLButtonElement | null {
         btn.id = BTN_ID;
         btn.className = 'btn-ghost';
         btn.innerHTML = '<i class="fas fa-pen"></i>&nbsp;编辑提示词';
-        actionBar.appendChild(btn);
+        // 插入到第一个位置
+        actionBar.insertBefore(btn, actionBar.firstChild);
       }
       return btn as HTMLButtonElement;
     }
@@ -56,9 +71,9 @@ async function openPromptsModal(): Promise<void> {
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     const modal = document.createElement('div');
-    modal.style.width = '820px';
+    modal.style.width = '920px';
     modal.style.maxWidth = '95%';
-    modal.style.maxHeight = '85%';
+    modal.style.maxHeight = '90%';
     modal.style.overflow = 'auto';
     modal.style.background = 'var(--surface-primary)';
     modal.style.borderRadius = '10px';
@@ -100,13 +115,59 @@ async function openPromptsModal(): Promise<void> {
     row1.style.display = 'flex';
     row1.style.gap = '12px';
     row1.style.alignItems = 'center';
+    
+    // 人设选择
+    const personaLabel = document.createElement('label');
+    personaLabel.textContent = '人设：';
+    personaLabel.style.marginRight = '4px';
+    const personaSelect = document.createElement('select');
+    personaSelect.style.padding = '4px 8px';
+    personaSelect.style.borderRadius = '4px';
+    personaSelect.style.border = '1px solid var(--border-primary)';
+    personaSelect.style.background = 'var(--input-bg)';
+    personaSelect.style.color = 'var(--text-primary)';
+    
+    // 动态生成人设选项
+    const personas = getAllPersonas();
+    personaSelect.innerHTML = personas.map(persona => 
+      `<option value="${persona.id}" title="${persona.description}">${persona.name}</option>`
+    ).join('');
+    personaSelect.value = p.persona || 'doctor';
+    
+    // 添加人设说明提示
+    const personaHint = document.createElement('span');
+    personaHint.style.marginLeft = '8px';
+    personaHint.style.fontSize = '11px';
+    personaHint.style.color = 'var(--text-secondary)';
+    personaHint.style.fontStyle = 'italic';
+    const updateHint = () => {
+      const selected = personas.find(p => p.id === personaSelect.value);
+      personaHint.textContent = selected ? `（${selected.description}）` : '';
+    };
+    updateHint();
+    
     const enableLabel = document.createElement('label');
     enableLabel.textContent = '启用自定义';
+    enableLabel.style.marginLeft = '16px';
     const enableChk = document.createElement('input');
     enableChk.type = 'checkbox';
     enableChk.checked = !!p.enableCustom;
+    row1.appendChild(personaLabel);
+    row1.appendChild(personaSelect);
+    row1.appendChild(personaHint);
     row1.appendChild(enableLabel);
     row1.appendChild(enableChk);
+    
+    // 人设切换时更新默认提示词和说明
+    personaSelect.onchange = () => {
+      const selectedPersona = personaSelect.value as any;
+      const newDefaults = buildPrompts({ persona: selectedPersona });
+      if (!enableChk.checked) {
+        sysTa.value = newDefaults.system;
+        rulesTa.value = newDefaults.rules;
+      }
+      updateHint();
+    };
     const sysWrap = document.createElement('div');
     const sysLab = document.createElement('div');
     sysLab.textContent = 'System';
@@ -187,7 +248,7 @@ async function openPromptsModal(): Promise<void> {
         const next = {
           ...cur,
           prompts: {
-            persona: 'doctor',
+            persona: personaSelect.value || 'doctor',
             enableCustom: !!enableChk.checked,
             systemOverride: sysTa.value || '',
             rulesOverride: rulesTa.value || '',
@@ -195,6 +256,7 @@ async function openPromptsModal(): Promise<void> {
         };
         (s as any).insights = next;
         await saveSettings(s as any);
+        await updateCurrentPersonaDisplay();
         try { showMessage('已保存提示词设置', 'success'); } catch {}
       } catch {
         try { showMessage('保存失败', 'error'); } catch {}
@@ -268,7 +330,13 @@ function ensureTraceButton(): HTMLButtonElement | null {
         btn.id = BTN_ID;
         btn.className = 'btn-ghost';
         btn.innerHTML = '<i class="fas fa-list-ul"></i>&nbsp;查看生成过程';
-        actionBar.appendChild(btn);
+        // 查找生成报告按钮,插入到它之前
+        const genBtn = document.getElementById('insights-generate');
+        if (genBtn && genBtn.parentElement === actionBar) {
+          actionBar.insertBefore(btn, genBtn);
+        } else {
+          actionBar.appendChild(btn);
+        }
       }
       return btn as HTMLButtonElement;
     }
@@ -1715,7 +1783,7 @@ export const insightsTab = {
     try {
       const actionsBar = document.getElementById('insights-toolbar-row2-actions');
       if (actionsBar && genBtn && genBtn.parentElement !== actionsBar) {
-        actionsBar.insertBefore(genBtn, actionsBar.firstChild);
+        actionsBar.appendChild(genBtn);
       }
     } catch {}
     exportBtn?.addEventListener('click', () => { performExport('html'); });
@@ -1765,19 +1833,22 @@ export const insightsTab = {
       log.warn('[Insights] 初始化月份选择器失败，回退到原生输入', err);
     }
 
-    // 按钮：查看生成过程
-    try {
-      const traceBtn = ensureTraceButton();
-      traceBtn?.addEventListener('click', onTraceClick);
-    } catch {}
+    // 按钮初始化顺序：先创建编辑提示词，再创建查看生成过程，最后移动生成报告
     try {
       const promptsBtn = ensurePromptsButton();
       promptsBtn?.addEventListener('click', () => { openPromptsModal(); });
+    } catch {}
+    try {
+      const traceBtn = ensureTraceButton();
+      traceBtn?.addEventListener('click', onTraceClick);
     } catch {}
     try { await ensureModelDropdown(); } catch {}
 
     // 初次进入显示示例预览
     try { await previewSample(); } catch {}
+
+    // 更新当前人设显示
+    try { await updateCurrentPersonaDisplay(); } catch {}
 
     // 刷新历史
     try { await this.refreshHistory(); updateDeleteSelectedEnabled(); } catch {}

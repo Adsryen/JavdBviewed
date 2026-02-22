@@ -418,3 +418,77 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* 编辑提示词按钮动画 */
+@keyframes prompts-pulse {
+    0%, 100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+    }
+    50% { 
+        transform: scale(1.05); 
+        box-shadow: 0 0 0 8px rgba(251, 191, 36, 0);
+    }
+}
+
+@keyframes prompts-glow {
+    0%, 100% { 
+        filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6));
+    }
+    50% { 
+        filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9));
+    }
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts {
+    position: relative;
+    animation: prompts-pulse 2s ease-in-out infinite;
+    transition: all 0.3s ease;
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(45deg, 
+        rgba(251, 191, 36, 0.3), 
+        rgba(250, 204, 21, 0.3), 
+        rgba(251, 191, 36, 0.3)
+    );
+    z-index: -1;
+    opacity: 0;
+    animation: prompts-glow 2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts:hover {
+    animation: none;
+    transform: scale(1.02);
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts:hover::before {
+    opacity: 1;
+    animation: none;
+}
+
+/* 编辑提示词按钮图标闪烁 */
+@keyframes prompts-icon-shine {
+    0%, 100% { 
+        color: inherit;
+        text-shadow: none;
+    }
+    50% { 
+        color: #fbbf24;
+        text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+    }
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts i {
+    animation: prompts-icon-shine 2s ease-in-out infinite;
+}
+
+.tab-section[data-tab-id="insights"] #insights-edit-prompts:hover i {
+    animation: none;
+    color: #fbbf24;
+}
