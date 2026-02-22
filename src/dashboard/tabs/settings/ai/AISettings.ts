@@ -818,16 +818,26 @@ export class AISettingsPanel extends BaseSettingsPanel {
             this.testInput.value = '';
         } catch (error) {
             console.error('测试消息发送失败:', error);
+            const errorMsg = error instanceof Error ? error.message : String(error || '未知错误');
+            const errorLines = errorMsg.split('\n');
+            const mainError = errorLines[0];
+            const details = errorLines.slice(1).filter(line => line.trim());
+            
             if (this.testResults) {
                 this.testResults.style.display = 'block';
+                let detailsHtml = '';
+                if (details.length > 0) {
+                    detailsHtml = details.map(line => `<p style="margin: 4px 0; font-size: 0.9em; color: #666;">${line}</p>`).join('');
+                }
                 this.testResults.innerHTML = `
                     <div class="test-result error">
                         <h5>测试失败</h5>
-                        <p><strong>错误:</strong> ${error instanceof Error ? error.message : '未知错误'}</p>
+                        <p><strong>错误:</strong> ${mainError}</p>
+                        ${detailsHtml}
                     </div>
                 `;
             }
-            showMessage('测试消息发送失败', 'error');
+            showMessage(`测试失败: ${mainError}`, 'error');
         }
     }
 

@@ -182,6 +182,7 @@ export interface LogsQueryParams {
   query?: string;
   hasDataOnly?: boolean;
   source?: 'ALL' | 'GENERAL' | 'DRIVE115';
+  category?: string; // 新增：日志类别筛选（如 DB、BG、CONTENT等）
 }
 
 export async function dbLogsQuery(params: LogsQueryParams): Promise<{ items: LogEntry[]; total: number }>{
