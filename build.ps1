@@ -1,4 +1,4 @@
-# JavDB Extension - Interactive Build Assistant (PowerShell Version)
+﻿# JavDB Extension - Interactive Build Assistant (PowerShell Version)
 param()
 
 # Set console encoding to UTF-8
@@ -65,6 +65,7 @@ function Show-Success {
 # Main loop
 while ($true) {
     Show-Menu
+    # 交互步骤 1: 选择构建类型
     $choice = Get-UserChoice "Enter your choice (1-6)" "4"
 
     switch ($choice) {
@@ -105,6 +106,7 @@ while ($true) {
 if ($versionType) {
     Write-Host ""
     Write-Host "You have selected a $versionType release. This will create a new git commit and tag." -ForegroundColor Yellow
+    # 交互步骤 2: 确认版本更新
     $confirm = Get-UserChoice "Are you sure? (y/n)" "Y"
 
     if ($confirm.ToLower() -ne "y") {
@@ -167,6 +169,7 @@ if (-not $releaseOnly) {
 
 # Decide release for options 1-3; for Just Build (option 4), ask user
 if (-not $versionType -and -not $releaseOnly) {
+    # 交互步骤 3: 询问是否创建 GitHub Release（Just Build 模式）
     $ans = Get-UserChoice "Create GitHub Release now? (y/n)" "N"
     if ($ans.ToLower() -ne "y") {
         Write-Host "" 
@@ -181,6 +184,7 @@ if (-not $versionType -and -not $releaseOnly) {
 # Interactive: ask whether to create release when version bumped
 $shouldRelease = $false
 if ($versionType -and -not $releaseOnly) {
+    # 交互步骤 4: 询问是否创建 GitHub Release（版本更新模式）
     $ans = Get-UserChoice "Create GitHub Release now? (y/n)" "N"
     if ($ans.ToLower() -eq "y") { $shouldRelease = $true }
 }
@@ -362,13 +366,109 @@ if ($autoNotes) {
 
     # 基本信息
     $releaseDate = Get-Date -Format "yyyy-MM-dd"
-    $buildType = "patch release"
-    if ($versionStr -match "\.0\.0$") { $buildType = "major release" }
-    elseif ($versionStr -match "\.\d+\.0$") { $buildType = "minor release" }
+    
+    # 检测版本变更类型
+    $changeType = "unknown"
+    $isMajorChange = $false
+    $isMinorChange = $false
+    $isPatchChange = $false
+    
+    # 获取上一个版本号进行比较
+    if ($prevTag) {
+        $prevVersion = $prevTag -replace '^v', ''
+        $prevVersion = $prevVersion -replace '\.\d+$', ''  # 移除 build 号
+        $currentVersion = $versionStr
+        
+        # 先提取上一个版本的各部分
+        if ($prevVersion -match '^(\d+)\.(\d+)\.(\d+)') {
+            $prevMajor = [int]$matches[1]
+            $prevMinor = [int]$matches[2]
+            $prevPatch = [int]$matches[3]
+            
+            # 再提取当前版本的各部分
+            if ($currentVersion -match '^(\d+)\.(\d+)\.(\d+)') {
+                $currMajor = [int]$matches[1]
+                $currMinor = [int]$matches[2]
+                $currPatch = [int]$matches[3]
+                
+                # 比较版本号
+                if ($currMajor -gt $prevMajor) {
+                    $changeType = "major"
+                    $isMajorChange = $true
+                } elseif ($currMajor -eq $prevMajor -and $currMinor -gt $prevMinor) {
+                    $changeType = "minor"
+                    $isMinorChange = $true
+                } elseif ($currMajor -eq $prevMajor -and $currMinor -eq $prevMinor -and $currPatch -gt $prevPatch) {
+                    $changeType = "patch"
+                    $isPatchChange = $true
+                }
+            }
+        }
+    } else {
+        # 如果没有上一个版本，根据版本号格式判断
+        if ($versionStr -match "\.0\.0$") { 
+            $changeType = "major"
+            $isMajorChange = $true
+        } elseif ($versionStr -match "\.\d+\.0$") { 
+            $changeType = "minor"
+            $isMinorChange = $true
+        } else {
+            $changeType = "patch"
+            $isPatchChange = $true
+        }
+    }
+    
+    $buildType = "$changeType release"
     $content.Add("**Build Type:** $buildType") | Out-Null
     $content.Add("**Version:** $fullVersionStr") | Out-Null
     $content.Add("**Release Date:** $releaseDate") | Out-Null
     $content.Add("") | Out-Null
+    
+    # 交互步骤 5: 询问是否添加重要提示（生成 Release Notes 内容时）
+    $shouldAddWarning = $false
+    if ($isMajorChange -or $isMinorChange -or $isPatchChange) {
+        Write-Host ""
+        Write-Host "检测到版本变更类型: $changeType" -ForegroundColor Cyan
+        if ($isMajorChange) {
+            Write-Host "这是一个主要版本更新 (Major)，通常包含不兼容的重大变更" -ForegroundColor Yellow
+        } elseif ($isMinorChange) {
+            Write-Host "这是一个次要版本更新 (Minor)，通常包含新功能和改进" -ForegroundColor Yellow
+        } else {
+            Write-Host "这是一个补丁版本更新 (Patch)，通常包含错误修复" -ForegroundColor Yellow
+        }
+        Write-Host ""
+        $addWarning = Get-UserChoice "是否在 Release Notes 中添加重要提示？(y/n)" "Y"
+        if ($addWarning.ToLower() -eq "y") {
+            $shouldAddWarning = $true
+        }
+    }
+    
+    # 根据用户选择和版本类型添加重要提示
+    if ($shouldAddWarning) {
+        $content.Add("### ⚠️ 重要提示") | Out-Null
+        $content.Add("") | Out-Null
+        
+        if ($isMajorChange) {
+            $content.Add("本版本为主要版本更新 (Major Release)，可能包含不兼容的重大变更。**强烈建议在更新前仔细阅读以下变更说明，并备份您的数据和配置**。") | Out-Null
+        } elseif ($isMinorChange) {
+            $content.Add("本版本为次要版本更新 (Minor Release)，包含新功能和改进，可能涉及架构调整或配置变更。**建议在更新前查看以下变更说明**。") | Out-Null
+        } elseif ($isPatchChange) {
+            $content.Add("本版本为补丁版本更新 (Patch Release)，主要包含错误修复和小幅优化。建议及时更新以获得更好的使用体验。") | Out-Null
+        }
+        
+        $content.Add("") | Out-Null
+        
+        if ($isMajorChange -or $isMinorChange) {
+            $content.Add("如果您跨多个版本更新，请特别注意：") | Out-Null
+            $content.Add("- 检查是否有不兼容的变更") | Out-Null
+            $content.Add("- 查看配置项是否需要重新设置") | Out-Null
+            $content.Add("- 备份重要数据后再进行更新") | Out-Null
+        } else {
+            $content.Add("如果您跨多个版本更新，建议查看中间版本的变更说明。") | Out-Null
+        }
+        
+        $content.Add("") | Out-Null
+    }
 
     # 比较链接与日志范围（使用 HEAD 因为 tag 还未创建）
     Write-Host "Previous tag: '$prevTag'" -ForegroundColor Gray
@@ -448,7 +548,7 @@ if ($autoNotes) {
     Write-Host "=================================================" -ForegroundColor Cyan
     Write-Host ""
     
-    # 询问是否继续
+    # 交互步骤 6: 确认生成的 Release Notes 并决定是否继续发布
     $confirm = Get-UserChoice "Release Notes generated. Continue to create tag and publish to GitHub? (y/n)" "Y"
     if ($confirm.ToLower() -ne "y") {
         Write-Host ""

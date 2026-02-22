@@ -169,13 +169,57 @@ preview_release_notes() {
   local release_date
   release_date=$(date +%Y-%m-%d)
   
-  # 获取构建类型
-  local build_type="patch release"
-  if [[ "$current_version" =~ \.0\.0$ ]]; then
-    build_type="major release"
-  elif [[ "$current_version" =~ \.\d+\.0$ ]]; then
-    build_type="minor release"
+  # 检测版本变更类型
+  local change_type="unknown"
+  local is_major_change=false
+  local is_minor_change=false
+  local is_patch_change=false
+  
+  # 获取上一个版本号进行比较
+  if [[ -n "$prev_tag" && "$prev_tag" != "initial commit" ]]; then
+    local prev_version="${prev_tag#v}"
+    prev_version="${prev_version%.*}"  # 移除 build 号
+    
+    # 先提取上一个版本的各部分
+    if [[ "$prev_version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+      local prev_major="${BASH_REMATCH[1]}"
+      local prev_minor="${BASH_REMATCH[2]}"
+      local prev_patch="${BASH_REMATCH[3]}"
+      
+      # 再提取当前版本的各部分
+      if [[ "$current_version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+        local curr_major="${BASH_REMATCH[1]}"
+        local curr_minor="${BASH_REMATCH[2]}"
+        local curr_patch="${BASH_REMATCH[3]}"
+        
+        # 比较版本号（修复后的逻辑）
+        if [[ $curr_major -gt $prev_major ]]; then
+          change_type="major"
+          is_major_change=true
+        elif [[ $curr_major -eq $prev_major && $curr_minor -gt $prev_minor ]]; then
+          change_type="minor"
+          is_minor_change=true
+        elif [[ $curr_major -eq $prev_major && $curr_minor -eq $prev_minor && $curr_patch -gt $prev_patch ]]; then
+          change_type="patch"
+          is_patch_change=true
+        fi
+      fi
+    fi
+  else
+    # 如果没有上一个版本，根据版本号格式判断
+    if [[ "$current_version" =~ \.0\.0$ ]]; then
+      change_type="major"
+      is_major_change=true
+    elif [[ "$current_version" =~ \.[0-9]+\.0$ ]]; then
+      change_type="minor"
+      is_minor_change=true
+    else
+      change_type="patch"
+      is_patch_change=true
+    fi
   fi
+  
+  local build_type="$change_type release"
   
   # 预览：分离标题与正文
   echo "Title: Release $current_version"
@@ -186,6 +230,53 @@ preview_release_notes() {
   echo "**Version:** $current_version"
   echo "**Release Date:** $release_date"
   echo ""
+  
+  # 交互步骤 5: 询问是否添加重要提示（生成 Release Notes 内容时）
+  local should_add_warning=false
+  if [[ "$is_major_change" == "true" || "$is_minor_change" == "true" || "$is_patch_change" == "true" ]]; then
+    echo ""
+    echo "检测到版本变更类型: $change_type"
+    if [[ "$is_major_change" == "true" ]]; then
+      echo "这是一个主要版本更新 (Major)，通常包含不兼容的重大变更"
+    elif [[ "$is_minor_change" == "true" ]]; then
+      echo "这是一个次要版本更新 (Minor)，通常包含新功能和改进"
+    else
+      echo "这是一个补丁版本更新 (Patch)，通常包含错误修复"
+    fi
+    echo ""
+    read -r -p "是否在 Release Notes 中添加重要提示？(y/n) [Y]: " add_warning
+    add_warning="${add_warning:-Y}"
+    if [[ "$add_warning" =~ ^[Yy]$ ]]; then
+      should_add_warning=true
+    fi
+  fi
+  
+  # 根据用户选择和版本类型添加重要提示
+  if [[ "$should_add_warning" == "true" ]]; then
+    echo "### ⚠️ 重要提示"
+    echo ""
+    
+    if [[ "$is_major_change" == "true" ]]; then
+      echo "本版本为主要版本更新 (Major Release)，可能包含不兼容的重大变更。**强烈建议在更新前仔细阅读以下变更说明，并备份您的数据和配置**。"
+    elif [[ "$is_minor_change" == "true" ]]; then
+      echo "本版本为次要版本更新 (Minor Release)，包含新功能和改进，可能涉及架构调整或配置变更。**建议在更新前查看以下变更说明**。"
+    elif [[ "$is_patch_change" == "true" ]]; then
+      echo "本版本为补丁版本更新 (Patch Release)，主要包含错误修复和小幅优化。建议及时更新以获得更好的使用体验。"
+    fi
+    
+    echo ""
+    
+    if [[ "$is_major_change" == "true" || "$is_minor_change" == "true" ]]; then
+      echo "如果您跨多个版本更新，请特别注意："
+      echo "- 检查是否有不兼容的变更"
+      echo "- 查看配置项是否需要重新设置"
+      echo "- 备份重要数据后再进行更新"
+    else
+      echo "如果您跨多个版本更新，建议查看中间版本的变更说明。"
+    fi
+    
+    echo ""
+  fi
   
   # 输出比较链接
   if [[ -n "$repo_url" && -n "$prev_tag" && "$prev_tag" != "initial commit" ]]; then
@@ -299,6 +390,7 @@ create_release_custom() {
   echo "----------------------------------------"
   cat "$notes"
   echo "----------------------------------------"
+  # 交互步骤 6: 确认生成的 Release Notes 并决定是否继续发布
   local confirm_release
   read -r -p "确认使用以上文案创建 Release 并上传资源吗？(y/n) [Y]: " confirm_release
   confirm_release="${confirm_release:-Y}"
@@ -341,6 +433,7 @@ menu_main() {
   # 交互式菜单
   local choice
   show_menu
+  # 交互步骤 1: 选择构建类型
   read -r -p "输入你的选择 (1-7) [4]: " choice
   choice="${choice:-4}"  # 默认选择 4（仅构建）
   
@@ -351,6 +444,7 @@ menu_main() {
       [[ "$choice" == "2" ]] && mode="minor"
       echo ""
       warn "选择了 $mode 发布，将创建新的 tag（不自动提交）。"
+      # 交互步骤 2: 确认版本更新
       local confirm; confirm=$(ask "确认执行吗？(y/n) [Y]:")
       [[ -z "$confirm" ]] && confirm="Y"
       if [[ ! "$confirm" =~ ^[Yy]$ ]]; then warn "已取消"; exit 0; fi
@@ -360,6 +454,7 @@ menu_main() {
       if [[ ! -d "$dist_dir" ]]; then err "构建失败：缺少 dist/"; exit 1; fi
       local v; v=$(read_version)
       zip_dist "$v"
+      # 交互步骤 4: 询问是否创建 GitHub Release（版本更新模式）
       local doRel; doRel=$(ask "现在创建 GitHub Release 吗？(y/n) [N]:")
       doRel="${doRel:-N}"
       local tag="v${v}"
@@ -386,6 +481,25 @@ menu_main() {
       install_and_build
       local v; v=$(read_version)
       zip_dist "$v"
+      # 交互步骤 3: 询问是否创建 GitHub Release（Just Build 模式）
+      local doRel; doRel=$(ask "现在创建 GitHub Release 吗？(y/n) [N]:")
+      doRel="${doRel:-N}"
+      if [[ "$doRel" =~ ^[Yy]$ ]]; then
+        local tag="v${v}"
+        local dirty; dirty=$(git_dirty)
+        if [[ -n "$dirty" ]]; then
+          warn "检测到未提交的改动，这些改动不会包含在标签 $tag 中。"
+          local conf; conf=$(ask "仍要创建标签并发布吗？(y/n) [N]:")
+          conf="${conf:-N}"
+          if [[ ! "$conf" =~ ^[Yy]$ ]]; then
+            warn "已取消发布。请先手动提交后再重试。"
+            exit 0
+          fi
+        fi
+        tag_and_push "$tag"
+        local asset_zip="$zip_dir/$zip_name"
+        create_release_custom "$tag" "$asset_zip"
+      fi
       ;;
     5)
       info "仅发布（自定义备注）"
