@@ -9,6 +9,7 @@ import { getSettings } from '../../utils/storage';
 import { showDanger } from '../components/confirmModal';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorSearchResult, ExtensionSettings } from '../../types';
+import { buildJavDBUrl } from '../../utils/routeManager';
 
 export class ActorsTab {
     private currentPage = 1;
@@ -866,7 +867,7 @@ export class ActorsTab {
             }
 
             // 构建JavDB演员作品列表URL
-            const actorWorksUrl = `https://javdb.com/actors/${actorId}`;
+            const actorWorksUrl = await buildJavDBUrl(`/actors/${actorId}`);
 
             // 在新标签页中打开演员作品列表
             window.open(actorWorksUrl, '_blank');
