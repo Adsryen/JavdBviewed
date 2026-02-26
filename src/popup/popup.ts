@@ -174,8 +174,87 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
     const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
+    const siteStatusTag = document.getElementById('site-status-tag') as HTMLSpanElement;
 
     const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
+
+    // 检测当前网站可用性
+    async function checkSiteAvailability() {
+        if (!siteStatusTag) return;
+
+        try {
+            // 获取当前活动标签页
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            const currentTab = tabs[0];
+            
+            if (!currentTab?.url) {
+                siteStatusTag.style.display = 'none';
+                return;
+            }
+
+            const url = currentTab.url;
+            
+            // 检查是否是 JavDB 网站
+            if (!url.includes('javdb')) {
+                siteStatusTag.style.display = 'none';
+                return;
+            }
+
+            // 显示标签并设置为检测中状态
+            siteStatusTag.style.display = 'inline-flex';
+            siteStatusTag.className = 'site-status-tag checking';
+            siteStatusTag.querySelector('.status-text')!.textContent = '检测中...';
+
+            // 提取当前域名
+            const urlObj = new URL(url);
+            const currentDomain = `${urlObj.protocol}//${urlObj.host}`;
+
+            // 尝试访问当前域名来检测可用性
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+
+            try {
+                const response = await fetch(currentDomain, {
+                    method: 'HEAD',
+                    signal: controller.signal,
+                    cache: 'no-cache'
+                });
+                
+                clearTimeout(timeoutId);
+
+                if (response.ok || response.status === 403 || response.status === 301 || response.status === 302) {
+                    // 网站可访问（包括重定向和403，这些通常表示网站在线）
+                    siteStatusTag.className = 'site-status-tag available';
+                    siteStatusTag.querySelector('.status-text')!.textContent = '可用';
+                    siteStatusTag.title = `当前线路 ${currentDomain} 可访问`;
+                } else {
+                    // 网站返回错误状态
+                    siteStatusTag.className = 'site-status-tag unavailable';
+                    siteStatusTag.querySelector('.status-text')!.textContent = '不可用';
+                    siteStatusTag.title = `当前线路 ${currentDomain} 无法访问 (状态码: ${response.status})`;
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                
+                // 网络错误或超时
+                siteStatusTag.className = 'site-status-tag unavailable';
+                siteStatusTag.querySelector('.status-text')!.textContent = '不可用';
+                
+                if (error instanceof Error && error.name === 'AbortError') {
+                    siteStatusTag.title = `当前线路 ${currentDomain} 连接超时`;
+                } else {
+                    siteStatusTag.title = `当前线路 ${currentDomain} 无法访问`;
+                }
+            }
+        } catch (error) {
+            console.error('[Popup] 检测网站可用性失败:', error);
+            if (siteStatusTag) {
+                siteStatusTag.className = 'site-status-tag unknown';
+                siteStatusTag.querySelector('.status-text')!.textContent = '未知';
+                siteStatusTag.title = '无法检测网站状态';
+            }
+        }
+    }
 
     // 初始化手动锁定按钮
     async function initPopupLockButton() {
@@ -561,4 +640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupThemeSync(); // 设置主题同步监听
     initialize();
     initVersionInfo();
+    
+    // 检测网站可用性
+    checkSiteAvailability();
 });
