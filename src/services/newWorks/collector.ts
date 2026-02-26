@@ -8,6 +8,7 @@ import type {
 } from './types';
 import type { VideoRecord } from '../../types';
 import { viewedGetAll, newWorksGet } from '../../background/db';
+import { buildJavDBUrl } from '../../utils/routeManager';
 
 export class NewWorksCollector {
     private readonly BASE_DELAY = 3000; // 基础延迟3秒
@@ -15,8 +16,8 @@ export class NewWorksCollector {
     /**
      * 构建演员作品页面URL，应用类别筛选
      */
-    private buildActorWorksUrl(actorId: string, categoryFilters?: string[]): string {
-        let url = `https://javdb.com/actors/${actorId}`;
+    private async buildActorWorksUrl(actorId: string, categoryFilters?: string[]): Promise<string> {
+        let url = await buildJavDBUrl(`/actors/${actorId}`);
         
         // 如果有类别筛选，添加到URL参数
         // JavDB格式: ?t=s,d&sort_type=0 (用逗号分隔)
@@ -42,7 +43,7 @@ export class NewWorksCollector {
             console.log(`开始检查演员 ${subscription.actorName} 的新作品`);
             
             // 构建演员作品页面URL，应用类别筛选
-            const actorWorksUrl = this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
+            const actorWorksUrl = await this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
             
             // 获取演员作品页面数据
             const works = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
@@ -312,7 +313,7 @@ export class NewWorksCollector {
             console.log(`开始(详细)检查演员 ${subscription.actorName} 的新作品`);
 
             // 构建演员作品页面URL，应用类别筛选
-            const actorWorksUrl = this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
+            const actorWorksUrl = await this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
             const worksRaw = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
             const identified = worksRaw.length;
 
@@ -525,6 +526,8 @@ export class NewWorksCollector {
                                             if (tagText) tags.push(tagText);
                                         });
 
+                                        // 注意：URL 始终使用 javdb.com 作为持久化存储的域名
+                                        // 显示时会通过 RouteManager 动态替换为当前选择的线路
                                         works.push({
                                             id: actualId, // 使用提取的番号或JavDB ID
                                             javdbId: videoId, // 保留JavDB ID用于链接
