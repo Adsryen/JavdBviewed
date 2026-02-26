@@ -14,6 +14,12 @@
     ],
     "host_permissions": [
         "*://*.javdb.com/*",
+        "*://javdb.com/*",
+        "*://*.javbus.com/*",
+        "*://javbus.com/*",
+        "*://*.seejav.cyou/*",
+        "*://*.busjav.cyou/*",
+        "*://*.fanbus.cyou/*",
         "https://dav.jianguoyun.com/*",
         "https://*.teracloud.jp/*",
         "https://*.webdav.yandex.com/*",
@@ -45,7 +51,11 @@
     "content_scripts": [
         {
             "matches": [
-                "*://*.javdb.com/*"
+                "*://*.javdb.com/*",
+                "*://*.javbus.com/*",
+                "*://*.seejav.cyou/*",
+                "*://*.busjav.cyou/*",
+                "*://*.fanbus.cyou/*"
             ],
             "js": [
                 "content/index.ts"
@@ -54,8 +64,9 @@
         },
         {
             "matches": [
-                "http://*/web/*",
-                "https://*/web/*",
+                "http://localhost/web/*",
+                "https://localhost/web/*",
+                "http://127.0.0.1/web/*",
                 "http://localhost/*",
                 "https://localhost/*",
                 "http://127.0.0.1/*"
