@@ -1,6 +1,6 @@
 /**
- * 网络测试设置面板
- * 测试网络连通性和性能，帮助诊断连接问题
+ * 网络配置设置面板
+ * 配置网络加速和测试网络连通性，帮助诊断连接问题
  */
 
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
@@ -17,10 +17,27 @@ import {
 } from '../../../../utils/domainConfig';
 
 /**
- * 网络测试设置面板类
- * 基于原始network.ts的简化实现
+ * 网络配置设置面板类
+ * 基于原始network.ts的简化实现，新增网络加速配置
  */
 export class NetworkTestSettings extends BaseSettingsPanel {
+    // 网络加速相关元素
+    private enableGithubProxyCheckbox!: HTMLInputElement;
+    private githubProxyServiceSelect!: HTMLSelectElement;
+    private customProxyUrlInput!: HTMLInputElement;
+    private customProxyUrlGroup!: HTMLDivElement;
+    private testGithubProxyBtn!: HTMLButtonElement;
+    private proxyTestResultsDiv!: HTMLDivElement;
+
+    // 线路管理相关元素
+    private javdbRoutesListDiv!: HTMLDivElement;
+    private javdbNewRouteUrlInput!: HTMLInputElement;
+    private javdbNewRouteDescInput!: HTMLInputElement;
+    private addJavdbRouteBtn!: HTMLButtonElement;
+    private testAllRoutesBtn!: HTMLButtonElement;
+    private updateRoutesFromGithubBtn!: HTMLButtonElement;
+    private resetDefaultRoutesBtn!: HTMLButtonElement;
+
     // 手动测试相关元素
     private manualTestBtn!: HTMLButtonElement;
     private manualUrlInput!: HTMLInputElement;
@@ -42,8 +59,8 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     constructor() {
         super({
             panelId: 'network-test-settings',
-            panelName: '网络测试设置',
-            autoSave: false, // 网络测试不需要保存设置
+            panelName: '网络配置设置',
+            autoSave: true, // 改为自动保存
             requireValidation: false
         });
     }
@@ -52,43 +69,134 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      * 初始化DOM元素
      */
     protected initializeElements(): void {
-        // 使用HTML中实际存在的元素ID（基于原始network.ts实现）
-        this.manualTestBtn = document.getElementById('start-ping-test') as HTMLButtonElement;
-        this.manualUrlInput = document.getElementById('ping-url') as HTMLInputElement;
-        this.manualResultsDiv = document.getElementById('ping-results') as HTMLDivElement;
-        this.resultsContainerWrapper = document.getElementById('ping-results-container') as HTMLDivElement;
+            console.log('[NetworkTestSettings] [DEBUG] 初始化元素引用');
 
-        // 批量测试按钮
-        this.testAllDomainsBtn = document.getElementById('test-all-domains') as HTMLButtonElement;
-        this.testCoreDomainsBtn = document.getElementById('test-core-domains') as HTMLButtonElement;
-        this.toggleDomainConfigBtn = document.getElementById('toggle-domain-config') as HTMLButtonElement;
-        this.clearBatchResultsBtn = document.getElementById('clear-batch-results') as HTMLButtonElement;
-        this.selectAllDomainsBtn = document.getElementById('select-all-domains') as HTMLButtonElement;
-        this.deselectAllDomainsBtn = document.getElementById('deselect-all-domains') as HTMLButtonElement;
-        this.resetDefaultDomainsBtn = document.getElementById('reset-default-domains') as HTMLButtonElement;
+            // 检查面板 DOM 是否存在
+            const panelElement = document.getElementById(this.config.panelId);
+            if (!panelElement) {
+                console.error('[NetworkTestSettings] [DEBUG] 面板 DOM 不存在，无法初始化元素');
+                return;
+            }
 
-        if (!this.manualTestBtn || !this.manualUrlInput || !this.manualResultsDiv || !this.resultsContainerWrapper ||
-            !this.testAllDomainsBtn || !this.testCoreDomainsBtn || !this.toggleDomainConfigBtn || !this.clearBatchResultsBtn ||
-            !this.selectAllDomainsBtn || !this.deselectAllDomainsBtn || !this.resetDefaultDomainsBtn) {
-            throw new Error('网络测试设置相关的DOM元素未找到');
+            // 网络加速相关元素
+            this.enableGithubProxyCheckbox = document.getElementById('enable-github-proxy') as HTMLInputElement;
+            this.githubProxyServiceSelect = document.getElementById('github-proxy-service') as HTMLSelectElement;
+            this.customProxyUrlInput = document.getElementById('custom-proxy-url') as HTMLInputElement;
+            this.customProxyUrlGroup = document.getElementById('custom-proxy-url-group') as HTMLDivElement;
+            this.testGithubProxyBtn = document.getElementById('test-github-proxy') as HTMLButtonElement;
+            this.proxyTestResultsDiv = document.getElementById('proxy-test-results') as HTMLDivElement;
+
+            // 线路管理相关元素
+            this.javdbRoutesListDiv = document.getElementById('javdb-routes-list') as HTMLDivElement;
+            this.javdbNewRouteUrlInput = document.getElementById('javdb-new-route-url') as HTMLInputElement;
+            this.javdbNewRouteDescInput = document.getElementById('javdb-new-route-desc') as HTMLInputElement;
+            this.addJavdbRouteBtn = document.getElementById('add-javdb-route') as HTMLButtonElement;
+            this.testAllRoutesBtn = document.getElementById('test-all-routes') as HTMLButtonElement;
+            this.updateRoutesFromGithubBtn = document.getElementById('update-routes-from-github') as HTMLButtonElement;
+            this.resetDefaultRoutesBtn = document.getElementById('reset-default-routes') as HTMLButtonElement;
+
+            // 使用HTML中实际存在的元素ID（基于原始network.ts实现）
+            this.manualTestBtn = document.getElementById('start-ping-test') as HTMLButtonElement;
+            this.manualUrlInput = document.getElementById('ping-url') as HTMLInputElement;
+            this.manualResultsDiv = document.getElementById('ping-results') as HTMLDivElement;
+            this.resultsContainerWrapper = document.getElementById('ping-results-container') as HTMLDivElement;
+
+            // 批量测试按钮
+            this.testAllDomainsBtn = document.getElementById('test-all-domains') as HTMLButtonElement;
+            this.testCoreDomainsBtn = document.getElementById('test-core-domains') as HTMLButtonElement;
+            this.toggleDomainConfigBtn = document.getElementById('toggle-domain-config') as HTMLButtonElement;
+            this.clearBatchResultsBtn = document.getElementById('clear-batch-results') as HTMLButtonElement;
+            this.selectAllDomainsBtn = document.getElementById('select-all-domains') as HTMLButtonElement;
+            this.deselectAllDomainsBtn = document.getElementById('deselect-all-domains') as HTMLButtonElement;
+            this.resetDefaultDomainsBtn = document.getElementById('reset-default-domains') as HTMLButtonElement;
+
+            // 检查必需元素是否存在（不抛出错误，只记录警告）
+            if (!this.manualTestBtn || !this.manualUrlInput || !this.manualResultsDiv || !this.resultsContainerWrapper ||
+                !this.testAllDomainsBtn || !this.testCoreDomainsBtn || !this.toggleDomainConfigBtn || !this.clearBatchResultsBtn ||
+                !this.selectAllDomainsBtn || !this.deselectAllDomainsBtn || !this.resetDefaultDomainsBtn) {
+                console.warn('[NetworkTestSettings] [DEBUG] 部分DOM元素未找到，可能是因为页面还未完全加载');
+                return;
+            }
+
+            console.log('[NetworkTestSettings] [DEBUG] 元素引用初始化完成');
         }
-    }
+
 
     /**
      * 绑定事件监听器
      */
     protected bindEvents(): void {
+        console.log('[NetworkTestSettings] [DEBUG] 绑定事件监听器');
+
+        // 网络加速事件绑定
+        this.enableGithubProxyCheckbox?.addEventListener('change', () => {
+            console.log('[NetworkTestSettings] [DEBUG] GitHub 代理开关变化，触发自动保存');
+            this.handleGithubProxyToggle();
+        });
+        this.githubProxyServiceSelect?.addEventListener('change', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 代理服务变化，触发自动保存');
+            this.handleProxyServiceChange();
+        });
+        this.testGithubProxyBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击测试 GitHub 代理按钮');
+            this.handleTestGithubProxy();
+        });
+
+        // 线路管理事件绑定
+        this.addJavdbRouteBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击添加线路按钮');
+            this.handleAddRoute('javdb');
+        });
+        this.testAllRoutesBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击测试所有线路按钮');
+            this.handleTestAllRoutes();
+        });
+        this.updateRoutesFromGithubBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击从 GitHub 更新线路按钮');
+            this.handleUpdateRoutesFromGithub();
+        });
+        this.resetDefaultRoutesBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击恢复默认线路按钮');
+            this.handleResetDefaultRoutes();
+        });
+
         // 基于原始network.ts的ping测试实现
-        this.manualTestBtn.addEventListener('click', this.handlePingTest.bind(this));
+        this.manualTestBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击手动测试按钮');
+            this.handlePingTest();
+        });
 
         // 批量测试事件绑定
-        this.testAllDomainsBtn.addEventListener('click', this.handleTestAllDomains.bind(this));
-        this.testCoreDomainsBtn.addEventListener('click', this.handleTestCoreDomains.bind(this));
-        this.toggleDomainConfigBtn.addEventListener('click', this.handleToggleDomainConfig.bind(this));
-        this.clearBatchResultsBtn.addEventListener('click', this.handleClearBatchResults.bind(this));
-        this.selectAllDomainsBtn.addEventListener('click', this.handleSelectAllDomains.bind(this));
-        this.deselectAllDomainsBtn.addEventListener('click', this.handleDeselectAllDomains.bind(this));
-        this.resetDefaultDomainsBtn.addEventListener('click', this.handleResetDefaultDomains.bind(this));
+        this.testAllDomainsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击测试所有域名按钮');
+            this.handleTestAllDomains();
+        });
+        this.testCoreDomainsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击测试核心域名按钮');
+            this.handleTestCoreDomains();
+        });
+        this.toggleDomainConfigBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击切换域名配置按钮');
+            this.handleToggleDomainConfig();
+        });
+        this.clearBatchResultsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击清除批量测试结果按钮');
+            this.handleClearBatchResults();
+        });
+        this.selectAllDomainsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击全选域名按钮');
+            this.handleSelectAllDomains();
+        });
+        this.deselectAllDomainsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击取消全选域名按钮');
+            this.handleDeselectAllDomains();
+        });
+        this.resetDefaultDomainsBtn?.addEventListener('click', () => {
+            console.log('[NetworkTestSettings] [DEBUG] 点击恢复默认域名按钮');
+            this.handleResetDefaultDomains();
+        });
+
+        console.log('[NetworkTestSettings] [DEBUG] 事件监听器绑定完成');
     }
 
     /**
@@ -102,10 +210,42 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      * 加载设置到UI
      */
     protected async doLoadSettings(): Promise<void> {
+        console.log('[NetworkTestSettings] [DEBUG] 开始加载设置到UI');
+
         // 加载域名配置
         loadDomainConfig();
 
-        // 网络测试面板不需要加载设置，只需要初始化UI状态
+        // 加载网络加速配置
+        const settings = await this.getStoredSettings();
+        console.log('[NetworkTestSettings] [DEBUG] 获取到的存储设置:', settings);
+
+        const networkAcceleration = settings.networkAcceleration || {
+            github: {
+                enabled: true,
+                proxyService: 'ghproxy',
+                customProxyUrl: ''
+            }
+        };
+
+        if (this.enableGithubProxyCheckbox) {
+            this.enableGithubProxyCheckbox.checked = networkAcceleration.github.enabled;
+            console.log('[NetworkTestSettings] [DEBUG] GitHub 代理开关:', networkAcceleration.github.enabled);
+        }
+        if (this.githubProxyServiceSelect) {
+            this.githubProxyServiceSelect.value = networkAcceleration.github.proxyService;
+            console.log('[NetworkTestSettings] [DEBUG] 代理服务:', networkAcceleration.github.proxyService);
+        }
+        if (this.customProxyUrlInput) {
+            this.customProxyUrlInput.value = networkAcceleration.github.customProxyUrl || '';
+        }
+
+        // 更新自定义代理输入框显示状态
+        this.updateCustomProxyVisibility();
+
+        // 加载线路配置
+        await this.loadRoutesConfig();
+
+        // 网络测试面板初始化UI状态
         if (this.manualResultsDiv) {
             this.manualResultsDiv.innerHTML = '<p class="test-placeholder">点击上方按钮开始网络测试</p>';
         }
@@ -118,14 +258,45 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         
         // 加载上次测试时间
         this.loadLastTestTime();
+
+        console.log('[NetworkTestSettings] [DEBUG] 设置加载完成');
     }
 
     /**
      * 保存设置
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
-        // 网络测试面板不需要保存设置
-        return { success: true };
+        console.log('[NetworkTestSettings] [DEBUG] 开始保存设置');
+
+        try {
+            const settings = await this.getStoredSettings();
+            
+            // 保存网络加速配置
+            const networkAcceleration = {
+                github: {
+                    enabled: this.enableGithubProxyCheckbox?.checked || false,
+                    proxyService: (this.githubProxyServiceSelect?.value as any) || 'ghproxy',
+                    customProxyUrl: this.customProxyUrlInput?.value || ''
+                }
+            };
+
+            console.log('[NetworkTestSettings] [DEBUG] 保存的网络加速配置:', networkAcceleration);
+
+            settings.networkAcceleration = networkAcceleration;
+
+            // 保存线路配置（从当前 UI 状态获取）
+            settings.routes = this.getCurrentRoutesConfig();
+
+            await this.saveStoredSettings(settings);
+            console.log('[NetworkTestSettings] [DEBUG] 设置保存成功');
+            return { success: true };
+        } catch (error) {
+            console.error('[NetworkTestSettings] [DEBUG] 保存网络配置失败:', error);
+            return { 
+                success: false, 
+                error: error instanceof Error ? error.message : '保存失败' 
+            };
+        }
     }
 
     /**
@@ -140,15 +311,729 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      * 获取当前设置
      */
     protected doGetSettings(): Partial<ExtensionSettings> {
-        // 网络测试面板不需要返回设置
-        return {};
+        return {
+            networkAcceleration: {
+                github: {
+                    enabled: this.enableGithubProxyCheckbox?.checked || false,
+                    proxyService: (this.githubProxyServiceSelect?.value as any) || 'ghproxy',
+                    customProxyUrl: this.customProxyUrlInput?.value || ''
+                }
+            },
+            routes: this.getCurrentRoutesConfig()
+        };
     }
 
     /**
      * 设置数据到UI
      */
-    protected doSetSettings(_settings: Partial<ExtensionSettings>): void {
-        // 网络测试面板不需要设置数据到UI
+    protected doSetSettings(settings: Partial<ExtensionSettings>): void {
+        const networkAcceleration = settings.networkAcceleration;
+        if (networkAcceleration) {
+            if (this.enableGithubProxyCheckbox) {
+                this.enableGithubProxyCheckbox.checked = networkAcceleration.github.enabled;
+            }
+            if (this.githubProxyServiceSelect) {
+                this.githubProxyServiceSelect.value = networkAcceleration.github.proxyService;
+            }
+            if (this.customProxyUrlInput) {
+                this.customProxyUrlInput.value = networkAcceleration.github.customProxyUrl || '';
+            }
+            this.updateCustomProxyVisibility();
+        }
+
+        // 加载线路配置
+        if (settings.routes) {
+            this.loadRoutesConfig();
+        }
+    }
+
+    /**
+     * 获取存储的设置
+     */
+    private async getStoredSettings(): Promise<ExtensionSettings> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get('settings', (result) => {
+                resolve((result.settings || {}) as ExtensionSettings);
+            });
+        });
+    }
+
+    /**
+     * 保存设置到存储
+     */
+    private async saveStoredSettings(settings: ExtensionSettings): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.set({ settings }, () => {
+                resolve();
+            });
+        });
+    }
+
+    /**
+     * 处理 GitHub 代理开关切换
+     */
+    private handleGithubProxyToggle(): void {
+        const enabled = this.enableGithubProxyCheckbox.checked;
+        
+        // 启用/禁用相关控件
+        if (this.githubProxyServiceSelect) {
+            this.githubProxyServiceSelect.disabled = !enabled;
+        }
+        if (this.customProxyUrlInput) {
+            this.customProxyUrlInput.disabled = !enabled;
+        }
+        if (this.testGithubProxyBtn) {
+            this.testGithubProxyBtn.disabled = !enabled;
+        }
+    }
+
+    /**
+     * 处理代理服务选择变化
+     */
+    private handleProxyServiceChange(): void {
+        this.updateCustomProxyVisibility();
+    }
+
+    /**
+     * 更新自定义代理输入框显示状态
+     */
+    private updateCustomProxyVisibility(): void {
+        if (!this.customProxyUrlGroup || !this.githubProxyServiceSelect) return;
+
+        const isCustom = this.githubProxyServiceSelect.value === 'custom';
+        this.customProxyUrlGroup.style.display = isCustom ? 'block' : 'none';
+    }
+
+    /**
+     * 处理测试 GitHub 代理
+     */
+    private async handleTestGithubProxy(): Promise<void> {
+        if (!this.testGithubProxyBtn || !this.proxyTestResultsDiv) return;
+
+        const buttonText = this.testGithubProxyBtn.querySelector('.button-text') as HTMLSpanElement;
+        const spinner = this.testGithubProxyBtn.querySelector('.spinner') as HTMLDivElement;
+
+        this.testGithubProxyBtn.disabled = true;
+        if (buttonText) buttonText.textContent = '测试中...';
+        if (spinner) spinner.classList.remove('hidden');
+
+        this.proxyTestResultsDiv.style.display = 'block';
+        this.proxyTestResultsDiv.innerHTML = '<p style="color: #666;">正在测试代理速度...</p>';
+
+        try {
+            const proxyService = this.githubProxyServiceSelect.value;
+            const customUrl = this.customProxyUrlInput.value;
+
+            // 测试文件 URL（使用本仓库的 routes.json）
+            const testFileUrl = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json';
+            
+            // 获取代理 URL
+            const proxyUrl = this.getProxyUrl(proxyService, customUrl);
+            const proxiedUrl = proxyUrl + testFileUrl;
+
+            // 测试直连速度
+            const directStart = Date.now();
+            let directSuccess = false;
+            let directLatency = 0;
+            try {
+                await fetch(testFileUrl, { method: 'HEAD', cache: 'no-cache' });
+                directLatency = Date.now() - directStart;
+                directSuccess = true;
+            } catch {
+                directLatency = Date.now() - directStart;
+            }
+
+            // 测试代理速度
+            const proxyStart = Date.now();
+            let proxySuccess = false;
+            let proxyLatency = 0;
+            try {
+                await fetch(proxiedUrl, { method: 'HEAD', cache: 'no-cache' });
+                proxyLatency = Date.now() - proxyStart;
+                proxySuccess = true;
+            } catch {
+                proxyLatency = Date.now() - proxyStart;
+            }
+
+            // 显示结果
+            let resultHtml = '<div style="padding: 10px;">';
+            resultHtml += '<h5 style="margin-bottom: 10px;">测试结果</h5>';
+            
+            resultHtml += '<div style="margin-bottom: 10px;">';
+            resultHtml += `<div style="display: flex; align-items: center; margin-bottom: 5px;">`;
+            resultHtml += `<i class="fas ${directSuccess ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${directSuccess ? '#4caf50' : '#f44336'}; margin-right: 8px;"></i>`;
+            resultHtml += `<span><strong>直连:</strong> ${directSuccess ? `${directLatency}ms` : '失败'}</span>`;
+            resultHtml += `</div>`;
+            resultHtml += `<div style="display: flex; align-items: center;">`;
+            resultHtml += `<i class="fas ${proxySuccess ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${proxySuccess ? '#4caf50' : '#f44336'}; margin-right: 8px;"></i>`;
+            resultHtml += `<span><strong>代理:</strong> ${proxySuccess ? `${proxyLatency}ms` : '失败'}</span>`;
+            resultHtml += `</div>`;
+            resultHtml += '</div>';
+
+            if (directSuccess && proxySuccess) {
+                const improvement = ((directLatency - proxyLatency) / directLatency * 100).toFixed(1);
+                if (proxyLatency < directLatency) {
+                    resultHtml += `<p style="color: #4caf50; margin-top: 10px;"><i class="fas fa-rocket"></i> 代理加速 ${improvement}%</p>`;
+                } else {
+                    resultHtml += `<p style="color: #ff9800; margin-top: 10px;"><i class="fas fa-info-circle"></i> 代理较慢 ${Math.abs(parseFloat(improvement))}%</p>`;
+                }
+            } else if (proxySuccess && !directSuccess) {
+                resultHtml += `<p style="color: #4caf50; margin-top: 10px;"><i class="fas fa-check"></i> 代理可用，直连失败</p>`;
+            } else if (!proxySuccess) {
+                resultHtml += `<p style="color: #f44336; margin-top: 10px;"><i class="fas fa-exclamation-triangle"></i> 代理不可用</p>`;
+            }
+
+            resultHtml += '</div>';
+            this.proxyTestResultsDiv.innerHTML = resultHtml;
+
+            showMessage(proxySuccess ? '代理测试完成' : '代理测试失败', proxySuccess ? 'success' : 'error');
+        } catch (error) {
+            console.error('[Settings] 测试代理失败:', error);
+            this.proxyTestResultsDiv.innerHTML = `<p style="color: #f44336;">测试失败: ${error instanceof Error ? error.message : '未知错误'}</p>`;
+            showMessage('代理测试失败', 'error');
+        } finally {
+            this.testGithubProxyBtn.disabled = false;
+            if (buttonText) buttonText.textContent = '测试加速效果';
+            if (spinner) spinner.classList.add('hidden');
+        }
+    }
+
+    /**
+     * 获取代理 URL
+     */
+    private getProxyUrl(service: string, customUrl: string): string {
+        const proxyMap: Record<string, string> = {
+            'ghproxy': 'https://ghproxy.com/',
+            'mirror': 'https://mirror.ghproxy.com/',
+            'api99988866': 'https://gh.api.99988866.xyz/',
+            'jsdelivr': 'https://cdn.jsdelivr.net/gh/',
+            'custom': customUrl
+        };
+
+        return proxyMap[service] || proxyMap['ghproxy'];
+    }
+
+    /**
+     * 加载线路配置
+     */
+    private async loadRoutesConfig(): Promise<void> {
+        const settings = await this.getStoredSettings();
+        const routes = settings.routes || {
+            javdb: {
+                primary: 'https://javdb.com',
+                alternatives: []
+            }
+        };
+
+        // 合并主线路和备用线路
+        const allRoutes = [
+            {
+                url: routes.javdb.primary,
+                enabled: true,
+                description: '主线路',
+                isPrimary: true,
+                addedAt: 0
+            },
+            ...routes.javdb.alternatives.map((r: any) => ({ ...r, isPrimary: false }))
+        ];
+
+        // 渲染所有线路
+        this.renderRoutesList('javdb', allRoutes, routes.javdb);
+    }
+
+    /**
+     * 渲染线路列表
+     */
+    private renderRoutesList(service: 'javdb', routes: any[], routeConfig: any): void {
+        const listDiv = this.javdbRoutesListDiv;
+        if (!listDiv) return;
+
+        if (routes.length === 0) {
+            listDiv.innerHTML = '<p class="routes-empty-hint">暂无线路</p>';
+            return;
+        }
+
+        // 获取当前首选线路
+        const preferredUrl = routeConfig.preferredUrl || routeConfig.primary;
+
+        // 将首选线路排序到最前面
+        const sortedRoutes = [...routes].sort((a, b) => {
+            const aIsPreferred = a.url === preferredUrl;
+            const bIsPreferred = b.url === preferredUrl;
+            if (aIsPreferred && !bIsPreferred) return -1;
+            if (!aIsPreferred && bIsPreferred) return 1;
+            return 0;
+        });
+
+        listDiv.innerHTML = '';
+        sortedRoutes.forEach((route) => {
+            const routeItem = document.createElement('div');
+            const isPreferred = route.url === preferredUrl;
+            routeItem.className = `route-item ${isPreferred ? 'route-item-preferred' : ''}`;
+            
+            // 获取缓存的延迟信息
+            const latencyInfo = this.getRouteLatency(route.url);
+            const latencyHtml = latencyInfo ? this.renderLatencyBadge(latencyInfo) : '';
+            
+            routeItem.innerHTML = `
+                <input type="checkbox" ${route.enabled ? 'checked' : ''} data-url="${route.url}" data-is-primary="${route.isPrimary}" class="route-checkbox">
+                <div class="route-info">
+                    <div class="route-url">
+                        ${route.url}
+                        ${isPreferred ? '<span class="route-preferred-badge"><i class="fas fa-star"></i> 首选</span>' : ''}
+                        ${latencyHtml}
+                    </div>
+                    ${route.description ? `<div class="route-description">${route.description}</div>` : ''}
+                </div>
+                <div class="route-actions">
+                    ${!isPreferred ? `<button class="btn btn-sm btn-secondary" data-action="set-preferred" data-url="${route.url}">
+                        <i class="fas fa-star"></i> 设为首选
+                    </button>` : ''}
+                    <button class="btn btn-sm btn-secondary" data-action="test" data-url="${route.url}">
+                        <i class="fas fa-vial"></i> 测试
+                    </button>
+                    ${!route.isPrimary ? `<button class="btn btn-sm btn-danger" data-action="delete" data-url="${route.url}">
+                        <i class="fas fa-trash"></i>
+                    </button>` : ''}
+                </div>
+            `;
+
+            // 绑定复选框事件
+            const checkbox = routeItem.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            checkbox.addEventListener('change', () => {
+                this.handleToggleRoute(service, route.url, route.isPrimary, checkbox.checked);
+            });
+
+            // 绑定设为首选按钮事件
+            const preferredBtn = routeItem.querySelector('[data-action="set-preferred"]') as HTMLButtonElement;
+            if (preferredBtn) {
+                preferredBtn.addEventListener('click', () => {
+                    this.handleSetPreferredRoute(service, route.url);
+                });
+            }
+
+            // 绑定测试按钮事件
+            const testBtn = routeItem.querySelector('[data-action="test"]') as HTMLButtonElement;
+            testBtn.addEventListener('click', async () => {
+                await this.handleTestSingleRoute(service, route.url, routeItem);
+            });
+
+            // 绑定删除按钮事件
+            const deleteBtn = routeItem.querySelector('[data-action="delete"]') as HTMLButtonElement;
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    this.handleDeleteRoute(service, route.url);
+                });
+            }
+
+            listDiv.appendChild(routeItem);
+        });
+    }
+
+    /**
+     * 渲染延迟徽章
+     */
+    private renderLatencyBadge(latency: number): string {
+        let className = 'latency-excellent';
+        let icon = 'fa-bolt';
+        
+        if (latency < 0) {
+            className = 'latency-error';
+            icon = 'fa-times-circle';
+            return `<span class="route-latency-badge ${className}"><i class="fas ${icon}"></i> 失败</span>`;
+        } else if (latency < 200) {
+            className = 'latency-excellent';
+            icon = 'fa-bolt';
+        } else if (latency < 500) {
+            className = 'latency-good';
+            icon = 'fa-check-circle';
+        } else if (latency < 1000) {
+            className = 'latency-medium';
+            icon = 'fa-exclamation-circle';
+        } else {
+            className = 'latency-poor';
+            icon = 'fa-exclamation-triangle';
+        }
+        
+        return `<span class="route-latency-badge ${className}"><i class="fas ${icon}"></i> ${latency}ms</span>`;
+    }
+
+    /**
+     * 获取线路延迟（从缓存）
+     */
+    private getRouteLatency(url: string): number | null {
+        const cacheKey = `route_latency_${url}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            const data = JSON.parse(cached);
+            // 缓存5分钟
+            if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+                return data.latency;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 保存线路延迟到缓存
+     */
+    private saveRouteLatency(url: string, latency: number): void {
+        const cacheKey = `route_latency_${url}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+            latency,
+            timestamp: Date.now()
+        }));
+    }
+
+    /**
+     * 获取当前线路配置
+     */
+    private getCurrentRoutesConfig(): any {
+        // 从 UI 状态构建配置对象
+        const javdbRoutes: any[] = [];
+
+        // 获取 JavDB 线路
+        if (this.javdbRoutesListDiv) {
+            const items = this.javdbRoutesListDiv.querySelectorAll('.route-item');
+            items.forEach((item) => {
+                const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
+                const urlDiv = item.querySelector('.route-url') as HTMLDivElement;
+                const descDiv = item.querySelector('.route-description') as HTMLDivElement;
+                const isPrimary = checkbox.dataset.isPrimary === 'true';
+                
+                // 提取 URL（移除首选徽章和延迟徽章）
+                let urlText = urlDiv.textContent?.trim() || '';
+                const badgeIndex = urlText.indexOf('首选');
+                if (badgeIndex > 0) {
+                    urlText = urlText.substring(0, badgeIndex).trim();
+                }
+                // 移除延迟信息
+                const latencyMatch = urlText.match(/^(https?:\/\/[^\s]+)/);
+                if (latencyMatch) {
+                    urlText = latencyMatch[1];
+                }
+                
+                if (!isPrimary) {
+                    javdbRoutes.push({
+                        url: urlText,
+                        enabled: checkbox.checked,
+                        description: descDiv ? descDiv.textContent?.trim() : '',
+                        addedAt: Date.now()
+                    });
+                }
+            });
+        }
+
+        return {
+            javdb: {
+                primary: 'https://javdb.com',
+                alternatives: javdbRoutes
+            }
+        };
+    }
+
+    /**
+     * 处理添加线路
+     */
+    private async handleAddRoute(service: 'javdb'): Promise<void> {
+        const urlInput = this.javdbNewRouteUrlInput;
+        const descInput = this.javdbNewRouteDescInput;
+
+        const url = urlInput?.value.trim();
+        if (!url) {
+            showMessage('请输入线路 URL', 'warn');
+            return;
+        }
+
+        // 验证 URL 格式
+        try {
+            new URL(url);
+        } catch {
+            showMessage('URL 格式不正确', 'error');
+            return;
+        }
+
+        const settings = await this.getStoredSettings();
+        if (!settings.routes) {
+            settings.routes = {
+                javdb: { primary: 'https://javdb.com', alternatives: [] },
+                javbus: { primary: 'https://www.javbus.com', alternatives: [] }
+            };
+        }
+
+        // 检查是否已存在（包括主线路）
+        if (url === settings.routes[service].primary) {
+            showMessage('该线路已存在（主线路）', 'warn');
+            return;
+        }
+
+        const existingRoutes = settings.routes[service].alternatives;
+        if (existingRoutes.some(r => r.url === url)) {
+            showMessage('该线路已存在', 'warn');
+            return;
+        }
+
+        // 添加新线路
+        existingRoutes.push({
+            url,
+            enabled: true,
+            description: descInput?.value.trim() || '',
+            addedAt: Date.now()
+        });
+
+        await this.saveStoredSettings(settings);
+        await this.loadRoutesConfig();
+
+        // 清空输入框
+        if (urlInput) urlInput.value = '';
+        if (descInput) descInput.value = '';
+
+        showMessage('线路添加成功', 'success');
+    }
+
+    /**
+     * 处理切换线路启用状态
+     */
+    private async handleToggleRoute(service: 'javdb', url: string, isPrimary: boolean, enabled: boolean): Promise<void> {
+        if (isPrimary) {
+            // 主线路不能禁用
+            showMessage('主线路不能禁用', 'warn');
+            await this.loadRoutesConfig();
+            return;
+        }
+
+        const settings = await this.getStoredSettings();
+        if (!settings.routes) return;
+
+        const route = settings.routes[service].alternatives.find((r: any) => r.url === url);
+        if (route) {
+            route.enabled = enabled;
+            await this.saveStoredSettings(settings);
+        }
+    }
+
+    /**
+     * 处理设置首选线路
+     */
+    private async handleSetPreferredRoute(service: 'javdb', url: string): Promise<void> {
+        const settings = await this.getStoredSettings();
+        if (!settings.routes) return;
+
+        settings.routes[service].preferredUrl = url;
+        
+        await this.saveStoredSettings(settings);
+        await this.loadRoutesConfig();
+        
+        showMessage(`已将 ${url} 设为首选线路`, 'success');
+        
+        // 清除路由管理器的缓存，使新的首选线路立即生效
+        const { getRouteManager } = await import('../../../../utils/routeManager');
+        getRouteManager().clearCache(service);
+    }
+
+    /**
+     * 处理删除线路
+     */
+    private async handleDeleteRoute(service: 'javdb', url: string): Promise<void> {
+        if (!confirm('确定要删除这条线路吗？')) return;
+
+        const settings = await this.getStoredSettings();
+        if (!settings.routes) return;
+
+        const index = settings.routes[service].alternatives.findIndex((r: any) => r.url === url);
+        if (index >= 0) {
+            settings.routes[service].alternatives.splice(index, 1);
+            await this.saveStoredSettings(settings);
+            await this.loadRoutesConfig();
+            showMessage('线路已删除', 'success');
+        }
+    }
+
+    /**
+     * 处理测试单个线路
+     */
+    private async handleTestSingleRoute(service: 'javdb', url: string, routeItem: HTMLElement): Promise<void> {
+        const testBtn = routeItem.querySelector('[data-action="test"]') as HTMLButtonElement;
+        const originalText = testBtn.innerHTML;
+        
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中';
+
+        const startTime = Date.now();
+        try {
+            await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
+            const latency = Date.now() - startTime;
+            
+            // 保存延迟到缓存
+            this.saveRouteLatency(url, latency);
+            
+            // 更新UI显示延迟
+            const urlDiv = routeItem.querySelector('.route-url') as HTMLDivElement;
+            const existingBadge = urlDiv.querySelector('.route-latency-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // 创建新的延迟徽章
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = this.renderLatencyBadge(latency);
+            const latencyBadge = tempDiv.firstElementChild as HTMLElement;
+            if (latencyBadge) {
+                urlDiv.appendChild(latencyBadge);
+            }
+            
+            showMessage(`线路可用，延迟 ${latency}ms`, 'success');
+        } catch {
+            const latency = Date.now() - startTime;
+            
+            // 保存失败状态
+            this.saveRouteLatency(url, -1);
+            
+            // 更新UI显示失败
+            const urlDiv = routeItem.querySelector('.route-url') as HTMLDivElement;
+            const existingBadge = urlDiv.querySelector('.route-latency-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // 创建新的延迟徽章
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = this.renderLatencyBadge(-1);
+            const latencyBadge = tempDiv.firstElementChild as HTMLElement;
+            if (latencyBadge) {
+                urlDiv.appendChild(latencyBadge);
+            }
+            
+            showMessage(`线路不可用，耗时 ${latency}ms`, 'error');
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = originalText;
+        }
+    }
+
+    /**
+     * 处理测试所有线路
+     */
+    private async handleTestAllRoutes(): Promise<void> {
+        if (!this.testAllRoutesBtn) return;
+
+        const buttonText = this.testAllRoutesBtn.querySelector('.button-text') as HTMLSpanElement;
+        const spinner = this.testAllRoutesBtn.querySelector('.spinner') as HTMLDivElement;
+
+        this.testAllRoutesBtn.disabled = true;
+        if (buttonText) buttonText.textContent = '测试中...';
+        if (spinner) spinner.classList.remove('hidden');
+
+        const settings = await this.getStoredSettings();
+        if (!settings.routes) {
+            showMessage('未找到线路配置', 'error');
+            this.testAllRoutesBtn.disabled = false;
+            if (buttonText) buttonText.textContent = '测试所有线路';
+            if (spinner) spinner.classList.add('hidden');
+            return;
+        }
+
+        // 获取所有线路（包括主线路）
+        const allRoutes = [
+            { url: settings.routes.javdb.primary, description: '主线路' },
+            ...settings.routes.javdb.alternatives
+        ];
+
+        showMessage(`开始测试 ${allRoutes.length} 条线路...`, 'info');
+
+        // 逐个测试线路
+        for (const route of allRoutes) {
+            const startTime = Date.now();
+            try {
+                await fetch(route.url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
+                const latency = Date.now() - startTime;
+                this.saveRouteLatency(route.url, latency);
+            } catch {
+                this.saveRouteLatency(route.url, -1);
+            }
+        }
+
+        // 重新加载列表以显示延迟信息
+        await this.loadRoutesConfig();
+
+        this.testAllRoutesBtn.disabled = false;
+        if (buttonText) buttonText.textContent = '测试所有线路';
+        if (spinner) spinner.classList.add('hidden');
+
+        showMessage('线路测试完成', 'success');
+    }
+
+    /**
+     * 处理从 GitHub 更新线路配置
+     */
+    private async handleUpdateRoutesFromGithub(): Promise<void> {
+        const btn = this.updateRoutesFromGithubBtn;
+        const spinner = btn.querySelector('.spinner') as HTMLElement;
+        const buttonText = btn.querySelector('.button-text') as HTMLElement;
+        
+        try {
+            // 显示加载状态
+            btn.disabled = true;
+            spinner?.classList.remove('hidden');
+            if (buttonText) buttonText.textContent = '正在更新...';
+            
+            // 动态导入 RouteManager
+            const { RouteManager } = await import('../../../../utils/routeManager');
+            const routeManager = RouteManager.getInstance();
+            
+            // 强制更新线路配置
+            const updated = await routeManager.checkAndUpdateRoutes(true);
+            
+            if (updated) {
+                showMessage('线路配置已从 GitHub 更新成功！', 'success');
+                // 重新加载线路列表
+                await this.loadRoutesConfig();
+            } else {
+                showMessage('当前已是最新版本，无需更新', 'info');
+            }
+            
+        } catch (error: any) {
+            console.error('[NetworkTestSettings] 更新线路配置失败:', error);
+            showMessage(`更新失败: ${error?.message || '未知错误'}`, 'error');
+        } finally {
+            // 恢复按钮状态
+            btn.disabled = false;
+            spinner?.classList.add('hidden');
+            if (buttonText) buttonText.textContent = '从 GitHub 更新线路';
+        }
+    }
+
+    /**
+     * 处理恢复默认线路
+     */
+    private async handleResetDefaultRoutes(): Promise<void> {
+        if (!confirm('确定要恢复默认线路配置吗？这将清除所有自定义线路。')) return;
+
+        const settings = await this.getStoredSettings();
+        
+        // 恢复默认配置（仅 JavDB）
+        settings.routes = {
+            javdb: {
+                primary: 'https://javdb.com',
+                alternatives: [
+                    {
+                        url: 'https://javdb570.com',
+                        enabled: true,
+                        description: '备用线路',
+                        addedAt: Date.now()
+                    }
+                ]
+            },
+            javbus: {
+                primary: 'https://www.javbus.com',
+                alternatives: []
+            }
+        };
+
+        await this.saveStoredSettings(settings);
+        await this.loadRoutesConfig();
+
+        showMessage('已恢复默认线路配置', 'success');
     }
 
     /**
@@ -703,7 +1588,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         const grouped: Record<string, DomainInfo[]> = {};
 
         // 遍历所有分类
-        Object.entries(EXTENSION_DOMAINS).forEach(([categoryKey, category]) => {
+        Object.entries(EXTENSION_DOMAINS).forEach(([, category]) => {
             const categoryDomains = domains.filter(domain => 
                 category.domains.some(d => d.domain === domain.domain)
             );
