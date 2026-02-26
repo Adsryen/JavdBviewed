@@ -887,14 +887,18 @@ export class VideoDetailEnhancer {
     indicator.id = 'enhancement-loading';
     indicator.style.cssText = `
       position: fixed;
-      top: 20px;
+      top: 70px;
       right: 20px;
-      background: rgba(0,0,0,0.8);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
       color: white;
-      padding: 10px 15px;
-      border-radius: 5px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       z-index: 10000;
       font-size: 14px;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+      animation: slideInRight 0.3s ease-out;
     `;
     indicator.textContent = '正在获取增强信息...';
     document.body.appendChild(indicator);
