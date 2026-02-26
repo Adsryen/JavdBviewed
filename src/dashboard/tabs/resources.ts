@@ -60,7 +60,7 @@ export const TAB_PARTIALS: Record<string, { name: string; styles?: string[] }> =
       './styles/05-pages/settings/enhancement.css',
     ],
   },
-  // 设置导航页
+  // 设置导航页（卡片式导航，新架构）
   'tab-settings': {
     name: 'tabs/settings-index.html',
     styles: [
