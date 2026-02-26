@@ -225,193 +225,6 @@ export function destroyAllSettingsPanels(): void {
 }
 
 /**
- * 初始化设置面板切换功能
- */
-function initSettingsPanelSwitching(): void {
-    try {
-        const settingsSidebar = document.getElementById('settingsSidebar');
-        if (!settingsSidebar) {
-            console.warn('[Settings] 设置侧边栏未找到');
-            return;
-        }
-
-        // 为所有设置导航项添加点击事件
-        const navItems = settingsSidebar.querySelectorAll('.settings-nav-item');
-        navItems.forEach(item => {
-            item.addEventListener('click', (event) => {
-                event.preventDefault();
-
-                const targetSection = item.getAttribute('data-section');
-                if (!targetSection) return;
-
-                // 移除所有导航项的active状态
-                navItems.forEach(nav => nav.classList.remove('active'));
-                // 添加当前项的active状态
-                item.classList.add('active');
-
-                // 隐藏所有设置面板
-                const allPanels = document.querySelectorAll('.settings-panel');
-                allPanels.forEach(panel => {
-                    panel.classList.remove('active');
-                    (panel as HTMLElement).style.display = 'none';
-                });
-
-                // 显示目标设置面板
-                const targetPanel = document.getElementById(targetSection);
-                if (targetPanel) {
-                    targetPanel.classList.add('active');
-                    targetPanel.style.display = 'block';
-                }
-
-                // 更新URL以支持二级锚点
-                const currentHash = window.location.hash;
-                const newHash = `#tab-settings/${targetSection}`;
-                if (currentHash !== newHash) {
-                    // 使用 replaceState 避免触发 hashchange 事件
-                    if (history.replaceState) {
-                        history.replaceState(null, '', newHash);
-                    } else {
-                        // 临时移除 hashchange 监听器，避免循环触发
-                        const hashChangeHandler = (window as any).settingsHashChangeHandler;
-                        if (hashChangeHandler) {
-                            window.removeEventListener('hashchange', hashChangeHandler);
-                            window.location.hash = newHash;
-                            setTimeout(() => {
-                                window.addEventListener('hashchange', hashChangeHandler);
-                            }, 0);
-                        } else {
-                            window.location.hash = newHash;
-                        }
-                    }
-                }
-
-                // 特殊处理：115网盘设置面板切换时刷新UI
-                if (targetSection === 'drive115-settings') {
-                    setTimeout(async () => {
-                        try {
-                            const { settingsPanelManager } = await import('./base/SettingsPanelManager');
-                            const drive115Panel = settingsPanelManager.getPanel('drive115-settings');
-                            if (drive115Panel && typeof (drive115Panel as any).refreshUI === 'function') {
-                                console.log('[Settings] 刷新115网盘设置UI...');
-                                (drive115Panel as any).refreshUI();
-                            }
-                        } catch (error) {
-                            console.warn('[Settings] 刷新115网盘设置UI失败:', error);
-                        }
-                    }, 50);
-                }
-
-                console.log(`[Settings] 切换到设置面板: ${targetSection}`);
-            });
-        });
-
-        // 处理页面加载时的初始子页面（二级锚点）
-        const initialSection = (window as any).initialSettingsSection;
-        // 解析当前 hash，判断主标签是否为设置页
-        const fullHash = window.location.hash.substring(1) || 'tab-records';
-        const [mainTab] = fullHash.split('/');
-
-        if (initialSection) {
-            // 如果有指定的初始子页面，切换到该页面
-            const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${initialSection}"]`);
-            if (targetNavItem) {
-                if (mainTab === 'tab-settings') {
-                    // 仅当当前主标签就是设置页时，才触发点击以同步 URL
-                    (targetNavItem as HTMLElement).click();
-                } else {
-                    // 非设置页：静默激活对应面板，不改 URL
-                    navItems.forEach(nav => nav.classList.remove('active'));
-                    targetNavItem.classList.add('active');
-                    const allPanels = document.querySelectorAll('.settings-panel');
-                    allPanels.forEach(panel => {
-                        panel.classList.remove('active');
-                        (panel as HTMLElement).style.display = 'none';
-                    });
-                    const targetPanel = document.getElementById(initialSection);
-                    if (targetPanel) {
-                        targetPanel.classList.add('active');
-                        targetPanel.style.display = 'block';
-                    }
-                }
-                console.log(`[Settings] 切换到指定的初始子页面: ${initialSection}`);
-            } else {
-                console.warn(`[Settings] 未找到指定的子页面: ${initialSection}`);
-                // 如果找不到指定页面，根据是否在设置页决定是否 click
-                if (navItems.length > 0) {
-                    const firstItem = navItems[0] as HTMLElement;
-                    if (mainTab === 'tab-settings') {
-                        firstItem.click();
-                    } else {
-                        // 非设置页：静默激活第一个面板
-                        navItems.forEach(nav => nav.classList.remove('active'));
-                        firstItem.classList.add('active');
-                        const allPanels = document.querySelectorAll('.settings-panel');
-                        allPanels.forEach(panel => {
-                            panel.classList.remove('active');
-                            (panel as HTMLElement).style.display = 'none';
-                        });
-                        const firstPanelId = firstItem.getAttribute('data-section');
-                        if (firstPanelId) {
-                            const firstPanel = document.getElementById(firstPanelId);
-                            if (firstPanel) {
-                                firstPanel.classList.add('active');
-                                firstPanel.style.display = 'block';
-                            }
-                        }
-                    }
-                }
-            }
-            // 清理全局状态
-            delete (window as any).initialSettingsSection;
-        } else {
-            // 如果没有指定初始页面，默认显示第一个设置页面
-            if (navItems.length > 0) {
-                const firstItem = navItems[0] as HTMLElement;
-                if (mainTab === 'tab-settings') {
-                    // 在设置页中，点击以同步二级锚点
-                    firstItem.click();
-                } else {
-                    // 不在设置页，静默激活，不修改 URL
-                    navItems.forEach(nav => nav.classList.remove('active'));
-                    firstItem.classList.add('active');
-                    const allPanels = document.querySelectorAll('.settings-panel');
-                    allPanels.forEach(panel => {
-                        panel.classList.remove('active');
-                        (panel as HTMLElement).style.display = 'none';
-                    });
-                    const firstPanelId = firstItem.getAttribute('data-section');
-                    if (firstPanelId) {
-                        const firstPanel = document.getElementById(firstPanelId);
-                        if (firstPanel) {
-                            firstPanel.classList.add('active');
-                            firstPanel.style.display = 'block';
-                        }
-                    }
-                }
-            }
-        }
-
-        // 监听设置子页面切换事件（自定义事件类型断言）
-        window.addEventListener('settingsSubSectionChange' as any, (event: Event) => {
-            const { section } = (event as CustomEvent).detail || {};
-            console.log(`[Settings] 收到子页面切换事件: ${section}`);
-
-            const targetNavItem = settingsSidebar.querySelector(`.settings-nav-item[data-section="${section}"]`);
-            if (targetNavItem) {
-                (targetNavItem as HTMLElement).click();
-                console.log(`[Settings] 切换到子页面: ${section}`);
-            } else {
-                console.warn(`[Settings] 未找到目标子页面: ${section}`);
-            }
-        });
-
-        console.log('[Settings] 设置面板切换功能初始化完成');
-    } catch (error) {
-        console.error('[Settings] 初始化设置面板切换功能失败:', error);
-    }
-}
-
-/**
  * 初始化设置页面
  * 根据当前 URL 初始化对应的设置模块
  */
@@ -437,77 +250,77 @@ export async function initSettingsPage(): Promise<void> {
             'display-settings': async () => {
                 const { getDisplaySettings } = await import('./display');
                 const panel = await getDisplaySettings();
-                await panel.init();
+                panel.init();
             },
             'ai-settings': async () => {
                 const { getAiSettings } = await import('./ai');
                 const panel = await getAiSettings();
-                await panel.init();
+                panel.init();
             },
             'search-engine-settings': async () => {
                 const { getSearchEngineSettings } = await import('./searchEngine');
                 const panel = await getSearchEngineSettings();
-                await panel.init();
+                panel.init();
             },
             'privacy-settings': async () => {
                 const { getPrivacySettings } = await import('./privacy');
                 const panel = await getPrivacySettings();
-                await panel.init();
+                panel.init();
             },
             'global-actions': async () => {
                 const { getGlobalActionsSettings } = await import('./globalActions');
                 const panel = await getGlobalActionsSettings();
-                await panel.init();
+                panel.init();
             },
             'emby-settings': async () => {
                 const { getEmbySettings } = await import('./emby');
                 const panel = await getEmbySettings();
-                await panel.init();
+                panel.init();
             },
             'enhancement-settings': async () => {
                 const { getEnhancementSettings } = await import('./enhancement');
                 const panel = await getEnhancementSettings();
-                await panel.init();
+                panel.init();
             },
             'webdav-settings': async () => {
                 const { getWebdavSettings } = await import('./webdav');
                 const panel = await getWebdavSettings();
-                await panel.init();
+                panel.init();
             },
             'sync-settings': async () => {
                 const { getSyncSettings } = await import('./sync');
                 const panel = await getSyncSettings();
-                await panel.init();
+                panel.init();
             },
             'drive115-settings': async () => {
                 const { getDrive115SettingsV2 } = await import('./drive115');
                 const panel = await getDrive115SettingsV2();
-                await panel.init();
+                panel.init();
             },
             'insights-settings': async () => {
                 const { getInsightsSettings } = await import('./insights');
                 const panel = await getInsightsSettings();
-                await panel.init();
+                panel.init();
             },
             'log-settings': async () => {
                 const { getLoggingSettings } = await import('./logging');
                 const panel = await getLoggingSettings();
-                await panel.init();
+                panel.init();
             },
             'advanced-settings': async () => {
                 const { getAdvancedSettings } = await import('./advanced');
                 const panel = await getAdvancedSettings();
-                await panel.init();
+                panel.init();
             },
             'network-test-settings': async () => {
                 const { getNetworkTestSettings } = await import('./networkTest');
                 const panel = await getNetworkTestSettings();
-                await panel.init();
+                panel.init();
             },
             'update-settings': async () => {
                 const { getUpdateSettings } = await import('./update');
                 const panel = await getUpdateSettings();
-                await panel.init();
+                panel.init();
             },
         };
         
@@ -525,35 +338,117 @@ export async function initSettingsPage(): Promise<void> {
 
 /**
  * 完整的设置标签页初始化函数
- * 包括面板初始化和切换功能
+ * 新架构：直接初始化对应的设置面板，不需要侧边栏切换
  */
 export async function initSettingsTab(): Promise<void> {
     try {
+        console.debug('========== initSettingsTab 开始 ==========');
         const hash = window.location.hash.substring(1);
         const [mainTab, subSection] = hash.split('/');
         
-        // 如果是新架构的设置页面（tab-settings/xxx），使用新的初始化逻辑
-        if (mainTab === 'tab-settings' && subSection) {
-            await initSettingsPage();
-            console.log('[Settings] 新架构设置页面初始化完成');
+        console.debug('hash:', hash);
+        console.debug('mainTab:', mainTab);
+        console.debug('subSection:', subSection);
+        
+        // 如果没有子路径，说明是在设置导航页，不需要初始化任何面板
+        if (!subSection) {
+            console.debug('设置导航页，无需初始化面板');
             return;
         }
         
-        // 如果是设置导航页
-        if (hash === 'tab-settings') {
-            console.log('[Settings] 设置导航页初始化完成');
-            return;
-        }
+        // 有子路径，只初始化对应的单个设置面板
+        console.debug('初始化设置面板:', subSection);
         
-        // 旧架构：初始化所有设置面板
-        await initAllSettingsPanels();
+        // 根据子路径初始化对应的设置模块
+        const moduleMap: Record<string, () => Promise<void>> = {
+            'display-settings': async () => {
+                const { getDisplaySettings } = await import('./display');
+                const panel = await getDisplaySettings();
+                panel.init();
+            },
+            'ai-settings': async () => {
+                const { getAiSettings } = await import('./ai');
+                const panel = await getAiSettings();
+                panel.init();
+            },
+            'search-engine-settings': async () => {
+                const { getSearchEngineSettings } = await import('./searchEngine');
+                const panel = await getSearchEngineSettings();
+                panel.init();
+            },
+            'privacy-settings': async () => {
+                const { getPrivacySettings } = await import('./privacy');
+                const panel = await getPrivacySettings();
+                panel.init();
+            },
+            'global-actions': async () => {
+                const { getGlobalActionsSettings } = await import('./globalActions');
+                const panel = await getGlobalActionsSettings();
+                panel.init();
+            },
+            'emby-settings': async () => {
+                const { getEmbySettings } = await import('./emby');
+                const panel = await getEmbySettings();
+                panel.init();
+            },
+            'enhancement-settings': async () => {
+                const { getEnhancementSettings } = await import('./enhancement');
+                const panel = await getEnhancementSettings();
+                panel.init();
+            },
+            'webdav-settings': async () => {
+                const { getWebdavSettings } = await import('./webdav');
+                const panel = await getWebdavSettings();
+                panel.init();
+            },
+            'sync-settings': async () => {
+                const { getSyncSettings } = await import('./sync');
+                const panel = await getSyncSettings();
+                panel.init();
+            },
+            'drive115-settings': async () => {
+                const { getDrive115SettingsV2 } = await import('./drive115');
+                const panel = await getDrive115SettingsV2();
+                panel.init();
+            },
+            'insights-settings': async () => {
+                const { getInsightsSettings } = await import('./insights');
+                const panel = await getInsightsSettings();
+                panel.init();
+            },
+            'log-settings': async () => {
+                const { getLoggingSettings } = await import('./logging');
+                const panel = await getLoggingSettings();
+                panel.init();
+            },
+            'advanced-settings': async () => {
+                const { getAdvancedSettings } = await import('./advanced');
+                const panel = await getAdvancedSettings();
+                panel.init();
+            },
+            'network-test-settings': async () => {
+                const { getNetworkTestSettings } = await import('./networkTest');
+                const panel = await getNetworkTestSettings();
+                panel.init();
+            },
+            'update-settings': async () => {
+                const { getUpdateSettings } = await import('./update');
+                const panel = await getUpdateSettings();
+                panel.init();
+            },
+        };
+        
+        const initFn = moduleMap[subSection];
+        if (initFn) {
+            console.debug(`初始化单个设置模块: ${subSection}`);
+            await initFn();
+        } else {
+            console.warn(`未找到对应的设置模块: ${subSection}`);
+        }
 
-        // 初始化面板切换功能
-        initSettingsPanelSwitching();
-
-        console.log('[Settings] 旧架构设置标签页初始化完成');
+        console.debug('设置标签页初始化完成');
     } catch (error) {
-        console.error('[Settings] 设置标签页初始化失败:', error);
+        console.error('设置标签页初始化失败:', error);
         throw error;
     }
 }
