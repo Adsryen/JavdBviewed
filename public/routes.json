@@ -1,0 +1,61 @@
+{
+  "version": "1.0.1",
+  "lastUpdated": "2026-02-23T07:30:00Z",
+  "updateInterval": 86400000,
+  "remoteUrl": "https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json",
+  "services": {
+    "javdb": {
+      "name": "JavDB",
+      "primary": "https://javdb.com",
+      "alternatives": [
+        {
+          "url": "https://javdb570.com",
+          "region": "global",
+          "status": "active",
+          "addedAt": "2026-02-23T00:00:00Z",
+          "description": "备用线路1"
+        }
+      ],
+      "officialChannels": [
+        {
+          "type": "telegram",
+          "url": "https://t.me/javdbnews",
+          "description": "官方 Telegram 频道"
+        }
+      ]
+    },
+    "javbus": {
+      "name": "JavBus",
+      "primary": "https://www.javbus.com",
+      "alternatives": [
+        {
+          "url": "https://www.seejav.cyou",
+          "region": "global",
+          "status": "active",
+          "addedAt": "2026-02-23T00:00:00Z",
+          "description": "防屏蔽地址1"
+        },
+        {
+          "url": "https://www.busjav.cyou",
+          "region": "global",
+          "status": "active",
+          "addedAt": "2026-02-23T00:00:00Z",
+          "description": "防屏蔽地址2"
+        },
+        {
+          "url": "https://www.fanbus.cyou",
+          "region": "global",
+          "status": "active",
+          "addedAt": "2026-02-23T00:00:00Z",
+          "description": "防屏蔽地址3"
+        }
+      ],
+      "officialChannels": []
+    }
+  },
+  "notes": {
+    "zh-CN": "本配置文件提供免翻墙的备用访问地址，扩展会自动从此文件获取最新线路。如果发现线路失效，请访问官方频道获取最新地址。",
+    "updateFrequency": "建议每24小时更新一次此文件",
+    "contribution": "欢迎通过 Pull Request 提交新的可用线路"
+  }
+}
