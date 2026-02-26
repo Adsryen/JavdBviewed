@@ -31,7 +31,18 @@ async function main() {
     try {
         console.log('Starting build process...');
 
-        // 0. Refresh version/build identifiers for this build
+        // 0. 更新 manifest.json 中的域名配置（从 routes.json）
+        try {
+            console.log('[build] 正在从 routes.json 更新 manifest.json 域名配置...');
+            execSync('node --import tsx scripts/updateManifestRoutes.ts', {
+                cwd: root,
+                stdio: 'inherit',
+            });
+        } catch (e) {
+            console.warn('[build] 更新 manifest 域名配置失败，继续构建...', e);
+        }
+
+        // 1. Refresh version/build identifiers for this build
         try {
             execSync('node --import tsx scripts/version.ts', {
                 cwd: root,
