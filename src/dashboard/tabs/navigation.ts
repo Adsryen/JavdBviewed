@@ -7,6 +7,7 @@ import { prefetchedTabs, prefetchTabResources } from './resources';
 
 export async function initTabs(): Promise<void> {
   try {
+    console.log('[Navigation] initTabs 开始执行');
     const tabs = document.querySelectorAll('.tab-link');
     const contents = document.querySelectorAll('.tab-content');
 
@@ -19,7 +20,7 @@ export async function initTabs(): Promise<void> {
       return;
     }
 
-    const switchTab = (tabButton: Element | null) => {
+    const switchTab = (tabButton: Element | null, preserveSubPath: boolean = false) => {
       if (!tabButton) return;
       const tabId = tabButton.getAttribute('data-tab');
       if (!tabId) return;
@@ -47,10 +48,21 @@ export async function initTabs(): Promise<void> {
         tabButton.classList.add('active');
         document.getElementById(tabId)?.classList.add('active');
 
+        // 对于设置页面，只在明确要求保留子路径时才保留
+        let newHash = `#${tabId}`;
+        if (tabId === 'tab-settings' && preserveSubPath) {
+          const currentHash = window.location.hash.substring(1);
+          const [currentMain, currentSub] = currentHash.split('/');
+          // 如果当前已经在设置页且有子路径，保留它
+          if (currentMain === 'tab-settings' && currentSub) {
+            newHash = `#${tabId}/${currentSub}`;
+          }
+        }
+
         if (history.pushState) {
-          history.pushState(null, '', `#${tabId}`);
+          history.pushState(null, '', newHash);
         } else {
-          location.hash = `#${tabId}`;
+          location.hash = newHash;
         }
 
         // 分发显示事件（当前激活的 tab）
@@ -86,52 +98,40 @@ export async function initTabs(): Promise<void> {
       });
     }
 
-    // 解析当前 hash，支持二级路径
-    const fullHash = window.location.hash.substring(1) || 'tab-home';
-    const [mainTab, subSection] = fullHash.split('/');
-    
-    // 如果是设置页的子页面，激活设置标签并加载对应页面
-    if (mainTab === 'tab-settings' && subSection) {
-      const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
-      switchTab(settingsTab);
-      await mountTabIfNeeded('tab-settings');
-      await initializeTabById('tab-settings');
-      return;
-    }
-    
-    const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
-    switchTab(targetTab || ((tabs && tabs.length > 0) ? tabs[0] : null));
-    await mountTabIfNeeded(mainTab);
-
-    await initializeTabById(mainTab);
-    if (mainTab === 'tab-home') {
-      try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
-    }
-
-    // 如果初始化时就是设置页且有子页面，立即触发切换事件
-    if (mainTab === 'tab-settings' && subSection) {
-      // 延迟触发，确保设置页面已经初始化完成
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('settingsSubSectionChange', {
-          detail: { section: subSection }
-        }));
-      }, 100);
-    }
-
-    // 监听 URL 变化
+    // 监听 URL 变化（必须在初始化逻辑之前注册，避免提前 return 导致监听器未注册）
+    console.log('[Navigation] 注册 hashchange 监听器');
     window.addEventListener('hashchange', async () => {
+      console.log('[Navigation] hashchange 事件触发');
       const newHash = window.location.hash.substring(1) || 'tab-home';
       const [newMainTab, newSubSection] = newHash.split('/');
+      console.log('[Navigation] newHash:', newHash);
+      console.log('[Navigation] newMainTab:', newMainTab);
+      console.log('[Navigation] newSubSection:', newSubSection);
 
       // 如果是设置页（无论是否有子页面），激活设置标签并加载对应页面
       if (newMainTab === 'tab-settings') {
+        console.log('[Navigation] 检测到设置页面');
         const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
         const currentActiveTab = document.querySelector('.tab-link.active');
         if (currentActiveTab !== settingsTab) {
-          switchTab(settingsTab);
+          console.log('[Navigation] 激活设置标签');
+          // 不要调用 switchTab，直接激活标签，保持原有 URL
+          if (settingsTab) {
+            if (tabs && (tabs as any).forEach) {
+              (tabs as any).forEach((t: Element) => t.classList.remove('active'));
+            }
+            if (contents && (contents as any).forEach) {
+              (contents as any).forEach((c: Element) => c.classList.remove('active'));
+            }
+            settingsTab.classList.add('active');
+            document.getElementById('tab-settings')?.classList.add('active');
+          }
         }
+        console.log('[Navigation] 调用 mountTabIfNeeded');
         await mountTabIfNeeded('tab-settings');
+        console.log('[Navigation] 调用 initializeTabById');
         await initializeTabById('tab-settings');
+        console.log('[Navigation] 设置页面处理完成');
         return;
       }
 
@@ -141,7 +141,7 @@ export async function initTabs(): Promise<void> {
       if (currentTabId !== newMainTab) {
         const newTargetTab = document.querySelector(`.tab-link[data-tab="${newMainTab}"]`);
         if (newTargetTab) {
-          switchTab(newTargetTab);
+          switchTab(newTargetTab, false);
           await mountTabIfNeeded(newMainTab);
         }
       }
@@ -151,6 +151,39 @@ export async function initTabs(): Promise<void> {
         try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
       }
     });
+    console.log('[Navigation] hashchange 监听器注册完成');
+
+    // 解析当前 hash，支持二级路径
+    const fullHash = window.location.hash.substring(1) || 'tab-home';
+    const [mainTab, subSection] = fullHash.split('/');
+    
+    // 如果是设置页的子页面，激活设置标签并加载对应页面
+    if (mainTab === 'tab-settings' && subSection) {
+      const settingsTab = document.querySelector(`.tab-link[data-tab="tab-settings"]`);
+      // 不要调用 switchTab，直接激活标签，保持原有 URL
+      if (settingsTab) {
+        if (tabs && (tabs as any).forEach) {
+          (tabs as any).forEach((t: Element) => t.classList.remove('active'));
+        }
+        if (contents && (contents as any).forEach) {
+          (contents as any).forEach((c: Element) => c.classList.remove('active'));
+        }
+        settingsTab.classList.add('active');
+        document.getElementById('tab-settings')?.classList.add('active');
+      }
+      await mountTabIfNeeded('tab-settings');
+      await initializeTabById('tab-settings');
+      return;
+    }
+    
+    const targetTab = document.querySelector(`.tab-link[data-tab="${mainTab}"]`);
+    switchTab(targetTab || ((tabs && tabs.length > 0) ? tabs[0] : null), false);
+    await mountTabIfNeeded(mainTab);
+
+    await initializeTabById(mainTab);
+    if (mainTab === 'tab-home') {
+      try { window.dispatchEvent(new CustomEvent('home:init-required')); } catch {}
+    }
   } catch (error) {
     console.error('初始化标签页时出错:', error);
   }
