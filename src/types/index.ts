@@ -128,6 +128,39 @@ export interface ExtensionSettings {
         enablePasswordHelper: boolean; // 启用密码显示助手
     };
 
+    // 新增：网络加速配置
+    networkAcceleration?: {
+        github: {
+            enabled: boolean; // 启用 GitHub 加速
+            proxyService: 'ghproxy' | 'mirror' | 'api99988866' | 'jsdelivr' | 'custom'; // 加速服务
+            customProxyUrl?: string; // 自定义代理地址
+        };
+    };
+
+    // 新增：线路配置
+    routes?: {
+        javdb: {
+            primary: string; // 主线路
+            preferredUrl?: string; // 用户首选线路（可以是主线路或任一备用线路的 URL）
+            alternatives: Array<{
+                url: string;
+                enabled: boolean;
+                description?: string;
+                addedAt?: number;
+            }>;
+        };
+        javbus: {
+            primary: string; // 主线路
+            preferredUrl?: string; // 用户首选线路（可以是主线路或任一备用线路的 URL）
+            alternatives: Array<{
+                url: string;
+                enabled: boolean;
+                description?: string;
+                addedAt?: number;
+            }>;
+        };
+    };
+
     // 新增：密码助手配置
     passwordHelper?: {
         showMethod: number; // 显示方式：0=悬浮, 1=双击, 2=单击, 3=Ctrl+单击

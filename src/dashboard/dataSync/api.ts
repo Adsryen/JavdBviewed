@@ -17,6 +17,7 @@ import { dbViewedPut } from '../dbClient';
 import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflareVerification';
 import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
 import type { SavedSyncProgress } from '../config/syncConfig';
+import { getJavDBRoute } from '../../utils/routeManager';
 
 /**
  * 视频数据接口
@@ -66,7 +67,8 @@ export class ApiClient {
             const u = new URL(String(url));
             return u.origin;
         } catch {
-            return 'https://javdb.com';
+            // 如果解析失败，返回空字符串，让调用方使用 getPreferredJavdbOrigin
+            return '';
         }
     }
 
@@ -75,11 +77,15 @@ export class ApiClient {
             const settings = await getSettings();
             const urls: any = settings?.dataSync?.urls || {};
             const candidate = String(urls.wantWatch || urls.watchedVideos || urls.collectionActors || '').trim();
-            if (candidate) return this.getOriginFromUrl(candidate);
+            if (candidate) {
+                const origin = this.getOriginFromUrl(candidate);
+                if (origin) return origin;
+            }
         } catch {
             // ignore
         }
-        return 'https://javdb.com';
+        // 使用动态线路管理器获取当前 JavDB 线路
+        return await getJavDBRoute();
     }
 
     /**
@@ -511,40 +517,43 @@ export class ApiClient {
         // 获取用户设置的URL
         const settings = await getValue<any>('settings', {});
         const dataSyncUrls = settings.dataSync?.urls || {};
+        
+        // 获取当前 JavDB 线路
+        const javdbRoute = await getJavDBRoute();
 
         const configs: Record<SyncType, SyncTypeConfig> = {
             viewed: {
-                url: dataSyncUrls.watchedVideos || 'https://javdb.com/users/watched_videos',
+                url: dataSyncUrls.watchedVideos || `${javdbRoute}/users/watched_videos`,
                 status: 'viewed',
                 displayName: '已观看',
                 countField: 'watchedCount'
             },
             want: {
-                url: dataSyncUrls.wantWatch || 'https://javdb.com/users/want_watch_videos',
+                url: dataSyncUrls.wantWatch || `${javdbRoute}/users/want_watch_videos`,
                 status: 'want',
                 displayName: '想看',
                 countField: 'wantCount'
             },
             actors: {
-                url: dataSyncUrls.collectionActors || 'https://javdb.com/users/collection_actors',
+                url: dataSyncUrls.collectionActors || `${javdbRoute}/users/collection_actors`,
                 status: 'viewed', // 演员同步使用viewed状态
                 displayName: '演员',
                 countField: 'watchedCount'
             },
             'actors-gender': {
-                url: dataSyncUrls.collectionActors || 'https://javdb.com/users/collection_actors',
+                url: dataSyncUrls.collectionActors || `${javdbRoute}/users/collection_actors`,
                 status: 'viewed',
                 displayName: '演员性别',
                 countField: 'watchedCount'
             },
             all: {
-                url: dataSyncUrls.wantWatch || 'https://javdb.com/users/want_watch_videos',
+                url: dataSyncUrls.wantWatch || `${javdbRoute}/users/want_watch_videos`,
                 status: 'viewed',
                 displayName: '全部',
                 countField: 'watchedCount'
             },
             lists: {
-                url: 'https://javdb.com/users/lists',
+                url: `${javdbRoute}/users/lists`,
                 displayName: '清单'
             }
         };
@@ -553,17 +562,17 @@ export class ApiClient {
         const defaultUrl = (() => {
             switch (type) {
                 case 'want':
-                    return 'https://javdb.com/users/want_watch_videos';
+                    return `${javdbRoute}/users/want_watch_videos`;
                 case 'viewed':
-                    return 'https://javdb.com/users/watched_videos';
+                    return `${javdbRoute}/users/watched_videos`;
                 case 'actors':
-                    return 'https://javdb.com/users/collection_actors';
+                    return `${javdbRoute}/users/collection_actors`;
                 case 'actors-gender':
-                    return 'https://javdb.com/users/collection_actors';
+                    return `${javdbRoute}/users/collection_actors`;
                 case 'all':
-                    return 'https://javdb.com/users/want_watch_videos';
+                    return `${javdbRoute}/users/want_watch_videos`;
                 case 'lists':
-                    return 'https://javdb.com/users/lists';
+                    return `${javdbRoute}/users/lists`;
                 default:
                     return config?.url;
             }
@@ -1231,14 +1240,14 @@ export class ApiClient {
             // 创建新记录
             const now = Date.now();
 
-            // 构建javdbUrl，优先使用原始的URL ID
+            // 构建javdbUrl，始终使用 javdb.com 作为持久化存储的域名
+            // 显示时会通过 RouteManager 动态替换为当前选择的线路
             let javdbUrl = `https://javdb.com/v/${videoId}`;
             if (urlVideoId) {
                 // 如果提供了URL ID，使用URL ID构建URL
                 javdbUrl = `https://javdb.com/v/${urlVideoId}`;
-            } else if (videoData.javdbUrl) {
-                javdbUrl = videoData.javdbUrl;
             }
+            // 注意：不使用 videoData.javdbUrl，因为它可能包含动态线路域名
 
             const newRecord: VideoRecord = {
                 id: videoId,
