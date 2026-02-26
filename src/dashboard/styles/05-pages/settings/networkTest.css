@@ -1,5 +1,617 @@
 /* 网络测试样式 - 适配日夜主题 */
 
+/* 确保 settings-page-body 使用 gap 来创建间距 */
+#network-test-settings .settings-page-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+}
+
+/* 移除 settings-card 的 margin-bottom，使用 gap 代替 */
+#network-test-settings .settings-card {
+    margin-bottom: 0 !important;
+}
+
+#network-test-settings .settings-section {
+    margin-bottom: 0 !important;
+}
+
+/* ===== 网络加速配置区域样式 ===== */
+#network-test-settings .settings-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#network-test-settings .settings-section h4 i {
+    font-size: 18px;
+    color: var(--primary);
+}
+
+#network-test-settings .section-description {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* 表单组样式 */
+#network-test-settings .form-group {
+    margin-bottom: 20px;
+}
+
+#network-test-settings .form-group:last-child {
+    margin-bottom: 0;
+}
+
+#network-test-settings .form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#network-test-settings .form-label i {
+    font-size: 14px;
+    color: var(--primary);
+}
+
+/* 复选框组样式 */
+#network-test-settings .checkbox-group {
+    margin-bottom: 8px;
+}
+
+#network-test-settings .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+#network-test-settings .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+#network-test-settings .checkbox-label span {
+    user-select: none;
+}
+
+/* 提示文字样式 */
+#network-test-settings .form-hint {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* 选择框样式 */
+#network-test-settings .select-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 10px 12px;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#network-test-settings .select-input:hover {
+    border-color: var(--primary);
+}
+
+#network-test-settings .select-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+}
+
+/* 输入框样式 */
+#network-test-settings .text-input {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 12px;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+#network-test-settings .text-input:hover {
+    border-color: var(--primary);
+}
+
+#network-test-settings .text-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+}
+
+#network-test-settings .text-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* 按钮样式 */
+#network-test-settings .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+#network-test-settings .btn i {
+    font-size: 14px;
+}
+
+#network-test-settings .btn-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+#network-test-settings .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.3);
+}
+
+#network-test-settings .btn-secondary {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+}
+
+#network-test-settings .btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-primary);
+}
+
+#network-test-settings .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* 加载动画 */
+#network-test-settings .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+#network-test-settings .spinner.hidden {
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 测试结果框 */
+.test-results-box {
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+}
+
+/* 线路管理区域 - 移除不必要的样式 */
+.route-group {
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+}
+
+.routes-list {
+    margin-bottom: 10px;
+}
+
+.routes-empty-hint {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 10px 0;
+    margin: 0;
+}
+
+/* 线路项样式 */
+.route-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.route-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px var(--shadow-primary);
+}
+
+.route-item-preferred {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%);
+    border: 2px solid var(--success);
+    border-left-width: 5px;
+    box-shadow: 0 2px 12px rgba(76, 175, 80, 0.2);
+    position: relative;
+    animation: preferredPulse 2s ease-in-out infinite;
+}
+
+.route-item-preferred::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.1), transparent);
+    animation: shimmer 3s infinite;
+    pointer-events: none;
+    border-radius: 6px;
+}
+
+@keyframes preferredPulse {
+    0%, 100% {
+        box-shadow: 0 2px 12px rgba(76, 175, 80, 0.2);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(76, 175, 80, 0.35);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.route-item-preferred:hover {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.12) 100%);
+    border-color: var(--success);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(76, 175, 80, 0.3);
+}
+
+.route-checkbox {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.route-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.route-url {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary);
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.route-preferred-badge {
+    color: white;
+    background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+.route-preferred-badge i {
+    animation: starRotate 4s linear infinite;
+}
+
+/* 延迟徽章样式 */
+.route-latency-badge {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+.route-latency-badge.latency-excellent {
+    background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+}
+
+.route-latency-badge.latency-good {
+    background: linear-gradient(135deg, #8bc34a 0%, #9ccc65 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(139, 195, 74, 0.3);
+}
+
+.route-latency-badge.latency-medium {
+    background: linear-gradient(135deg, #ff9800 0%, #ffa726 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
+}
+
+.route-latency-badge.latency-poor {
+    background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(244, 67, 54, 0.3);
+}
+
+.route-latency-badge.latency-error {
+    background: linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(158, 158, 158, 0.3);
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes starRotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.route-description {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.route-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.route-actions .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    min-height: 32px;
+}
+
+.route-actions .btn-danger {
+    background: transparent;
+    color: var(--error);
+    border-color: var(--border-primary);
+}
+
+.route-actions .btn-danger:hover {
+    background: var(--error-light);
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.route-add-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.route-url-input {
+    flex: 1;
+    min-width: 250px;
+}
+
+.route-desc-input {
+    width: 180px;
+    min-width: 150px;
+}
+
+/* 域名配置面板 */
+.domain-config-panel {
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+}
+
+.domain-config-panel .config-header {
+    margin-bottom: 15px;
+}
+
+.domain-config-panel .config-header h5 {
+    margin: 0 0 5px 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.domain-config-panel .config-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.domain-config-panel .config-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+/* 批量测试结果容器 */
+.batch-results-container {
+    margin-top: 20px;
+}
+
+.batch-results-placeholder {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.batch-results-placeholder i {
+    font-size: 48px;
+    margin-bottom: 10px;
+    display: block;
+    opacity: 0.5;
+}
+
+.batch-results-placeholder p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .route-primary-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .route-primary-row .btn {
+        width: 100%;
+    }
+    
+    .route-add-row {
+        flex-direction: column;
+    }
+    
+    .route-url-input,
+    .route-desc-input {
+        width: 100%;
+        min-width: 100%;
+    }
+    
+    .route-item {
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+    }
+    
+    .route-checkbox {
+        grid-row: 1;
+    }
+    
+    .route-info {
+        grid-row: 1;
+    }
+    
+    .route-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+    
+    .route-actions .btn {
+        flex: 1;
+    }
+    
+    .domain-config-panel .config-actions {
+        flex-direction: column;
+    }
+    
+    .domain-config-panel .config-actions button {
+        width: 100%;
+    }
+    
+    .form-group-inline {
+        flex-direction: column;
+    }
+    
+    .form-group-inline .input-with-icon {
+        width: 100% !important;
+    }
+}
+
+/* 手动测试区域样式 */
+.form-group-inline {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon .icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.input-with-icon .text-input {
+    width: 100%;
+}
+
 /* 网络测试设置面板特有样式 */
 #network-test-settings {
     position: relative;

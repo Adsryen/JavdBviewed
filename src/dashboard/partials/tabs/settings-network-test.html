@@ -3,10 +3,102 @@
         <button class="settings-back-btn" data-action="back-to-settings">
             <i class="fas fa-arrow-left"></i> 返回设置
         </button>
-        <h2>网络测试</h2>
-        <p class="settings-description">测试拓展涉及的所有外部服务的网络连通性，帮助诊断网络问题。</p>
+        <h2>网络配置</h2>
+        <p class="settings-description">配置网络加速和测试拓展涉及的所有外部服务的网络连通性。</p>
     </div>
     <div class="settings-page-body">
+        <!-- 网络加速配置区域 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-rocket"></i> 网络加速配置</h4>
+            <p class="section-description">配置 GitHub 等服务的加速代理，提升文件下载速度</p>
+            
+            <!-- GitHub 加速配置 -->
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fab fa-github"></i> GitHub 文件加速
+                </label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enable-github-proxy" checked>
+                        <span>启用 GitHub 文件下载加速</span>
+                    </label>
+                </div>
+                <p class="form-hint">启用后，从 GitHub 仓库下载文件时将自动使用加速代理</p>
+            </div>
+
+            <div class="form-group" id="github-proxy-config">
+                <label class="form-label">选择加速服务</label>
+                <select id="github-proxy-service" class="select-input">
+                    <option value="ghproxy">ghproxy.com（推荐）</option>
+                    <option value="mirror">mirror.ghproxy.com</option>
+                    <option value="api99988866">gh.api.99988866.xyz</option>
+                    <option value="jsdelivr">jsDelivr CDN</option>
+                    <option value="custom">自定义代理</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="custom-proxy-url-group" style="display: none;">
+                <label class="form-label">自定义代理地址</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-link icon"></i>
+                    <input type="text" id="custom-proxy-url" class="text-input" placeholder="例如: https://your-proxy.com/" style="padding-left: 35px;">
+                </div>
+                <p class="form-hint">代理地址格式：https://proxy.com/ （需要以 / 结尾）</p>
+            </div>
+
+            <!-- 测试加速效果 -->
+            <div class="form-group">
+                <button id="test-github-proxy" class="btn btn-secondary">
+                    <i class="fas fa-vial"></i>
+                    <span class="button-text">测试加速效果</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <div id="proxy-test-results" class="test-results-box" style="display: none;">
+                <!-- 测试结果将显示在这里 -->
+            </div>
+        </div>
+
+        <!-- 线路管理区域 -->
+        <div class="settings-card settings-section">
+            <h4><i class="fas fa-route"></i> 线路管理</h4>
+            <p class="section-description">管理 JavDB 的访问线路，支持添加自定义域名并设置首选线路</p>
+                
+            <div class="route-group">
+                <div class="form-group">
+                    <label class="form-label">所有线路</label>
+                    <div id="javdb-routes-list" class="routes-list">
+                        <!-- 动态生成的线路列表 -->
+                    </div>
+                    <div class="route-add-row">
+                        <input type="text" id="javdb-new-route-url" class="text-input route-url-input" placeholder="输入新的线路 URL，如 https://javdb570.com">
+                        <input type="text" id="javdb-new-route-desc" class="text-input route-desc-input" placeholder="描述（可选）">
+                        <button id="add-javdb-route" class="btn btn-secondary">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="button-group route-actions">
+                    <button id="test-all-routes" class="btn btn-secondary">
+                        <i class="fas fa-vial"></i>
+                        <span class="button-text">测试所有线路</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="update-routes-from-github" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i>
+                        <span class="button-text">从 GitHub 更新线路</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="reset-default-routes" class="btn btn-secondary">
+                        <i class="fas fa-undo"></i>
+                        <span class="button-text">恢复默认</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 手动测试区域 -->
         <div class="settings-card settings-section">
             <h4><i class="fas fa-edit"></i> 手动测试</h4>
@@ -72,15 +164,15 @@
             </div>
 
             <!-- 域名配置面板 -->
-            <div id="domain-config-panel" class="domain-config-panel" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <div class="config-header" style="margin-bottom: 15px;">
+            <div id="domain-config-panel" class="domain-config-panel" style="display: none;">
+                <div class="config-header">
                     <h5><i class="fas fa-cog"></i> 域名测试配置</h5>
-                    <p style="color: #666; font-size: 13px;">选择要测试的服务域名，只有启用的域名会被测试</p>
+                    <p>选择要测试的服务域名，只有启用的域名会被测试</p>
                 </div>
                 <div id="domain-config-content" class="domain-config-content">
                     <!-- 动态生成的域名配置项 -->
                 </div>
-                <div class="config-actions" style="margin-top: 15px; display: flex; gap: 10px;">
+                <div class="config-actions">
                     <button id="select-all-domains" class="btn btn-secondary btn-sm">全选</button>
                     <button id="deselect-all-domains" class="btn btn-secondary btn-sm">全不选</button>
                     <button id="reset-default-domains" class="btn btn-secondary btn-sm">恢复默认</button>
@@ -88,9 +180,9 @@
             </div>
 
             <!-- 批量测试结果 -->
-            <div id="batch-test-results" class="batch-results-container" style="display: none; margin-top: 20px;">
-                <div class="batch-results-placeholder" style="text-align: center; padding: 40px; color: #999;">
-                    <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 10px; display: block;"></i>
+            <div id="batch-test-results" class="batch-results-container" style="display: none;">
+                <div class="batch-results-placeholder">
+                    <i class="fas fa-info-circle"></i>
                     <p>点击上方按钮开始批量测试</p>
                 </div>
             </div>
