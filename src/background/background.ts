@@ -28,8 +28,9 @@ ensureMigrationsStart();
 /**
  * 动态注册内容脚本到备用域名
  * 这样当用户添加新的备用线路时，不需要重新编译扩展
+ * @param showNotification 是否显示通知（用户手动添加时显示）
  */
-async function registerDynamicContentScripts(): Promise<void> {
+async function registerDynamicContentScripts(showNotification: boolean = false): Promise<void> {
   try {
     const settings = await getSettings();
     const routes = settings?.routes;
@@ -41,46 +42,76 @@ async function registerDynamicContentScripts(): Promise<void> {
 
     // 收集所有需要注入的域名
     const domains: string[] = [];
+    const domainSet = new Set<string>(); // 用于去重
     
-    // JavDB 备用域名
-    if (routes.javdb?.alternatives) {
-      routes.javdb.alternatives
-        .filter(alt => alt.enabled && alt.url)
-        .forEach(alt => {
-          try {
-            const url = new URL(alt.url);
-            const domain = url.hostname;
-            // 只添加不在 manifest.json 中的域名
-            if (!domain.includes('javdb.com') && !domain.includes('seejav.cyou') && 
-                !domain.includes('busjav.cyou') && !domain.includes('fanbus.cyou')) {
-              domains.push(`*://${domain}/*`);
-              domains.push(`*://*.${domain}/*`);
+    // JavDB 主域名和备用域名
+    if (routes.javdb) {
+      // 添加主域名
+      try {
+        const url = new URL(routes.javdb.primary);
+        const domain = url.hostname;
+        domainSet.add(`*://${domain}/*`);
+        if (!domain.startsWith('www.')) {
+          domainSet.add(`*://*.${domain}/*`);
+        }
+      } catch (e) {
+        console.warn('[Background] Invalid primary URL:', routes.javdb.primary);
+      }
+      
+      // 添加所有启用的备用域名
+      if (routes.javdb.alternatives) {
+        routes.javdb.alternatives
+          .filter(alt => alt.enabled && alt.url)
+          .forEach(alt => {
+            try {
+              const url = new URL(alt.url);
+              const domain = url.hostname;
+              domainSet.add(`*://${domain}/*`);
+              if (!domain.startsWith('www.')) {
+                domainSet.add(`*://*.${domain}/*`);
+              }
+            } catch (e) {
+              console.warn('[Background] Invalid alternative URL:', alt.url);
             }
-          } catch (e) {
-            console.warn('[Background] Invalid alternative URL:', alt.url);
-          }
-        });
+          });
+      }
     }
     
-    // JavBus 备用域名
-    if (routes.javbus?.alternatives) {
-      routes.javbus.alternatives
-        .filter(alt => alt.enabled && alt.url)
-        .forEach(alt => {
-          try {
-            const url = new URL(alt.url);
-            const domain = url.hostname;
-            // 只添加不在 manifest.json 中的域名
-            if (!domain.includes('javbus.com') && !domain.includes('seejav.cyou') && 
-                !domain.includes('busjav.cyou') && !domain.includes('fanbus.cyou')) {
-              domains.push(`*://${domain}/*`);
-              domains.push(`*://*.${domain}/*`);
+    // JavBus 主域名和备用域名
+    if (routes.javbus) {
+      // 添加主域名
+      try {
+        const url = new URL(routes.javbus.primary);
+        const domain = url.hostname;
+        domainSet.add(`*://${domain}/*`);
+        if (!domain.startsWith('www.')) {
+          domainSet.add(`*://*.${domain}/*`);
+        }
+      } catch (e) {
+        console.warn('[Background] Invalid primary URL:', routes.javbus.primary);
+      }
+      
+      // 添加所有启用的备用域名
+      if (routes.javbus.alternatives) {
+        routes.javbus.alternatives
+          .filter(alt => alt.enabled && alt.url)
+          .forEach(alt => {
+            try {
+              const url = new URL(alt.url);
+              const domain = url.hostname;
+              domainSet.add(`*://${domain}/*`);
+              if (!domain.startsWith('www.')) {
+                domainSet.add(`*://*.${domain}/*`);
+              }
+            } catch (e) {
+              console.warn('[Background] Invalid alternative URL:', alt.url);
             }
-          } catch (e) {
-            console.warn('[Background] Invalid alternative URL:', alt.url);
-          }
-        });
+          });
+      }
     }
+    
+    // 转换为数组
+    domains.push(...Array.from(domainSet));
 
     if (domains.length === 0) {
       console.debug('[Background] No additional domains to register');
@@ -109,7 +140,22 @@ async function registerDynamicContentScripts(): Promise<void> {
         }
       ]);
 
-      console.info('[Background] Dynamic content scripts registered for domains:', domains);
+      console.info('[Background] 动态内容脚本已注册，支持的域名:', domains);
+      
+      // 如果是用户手动触发的（通过设置更改），显示通知
+      if (showNotification && domains.length > 0) {
+        try {
+          await chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'assets/favicons/light/favicon-128x128.png',
+            title: 'Jav 助手 - 线路已更新',
+            message: `已为 ${domains.length} 个域名启用扩展功能，请刷新页面使用`,
+            priority: 1
+          });
+        } catch (e) {
+          // 通知失败不影响主流程
+        }
+      }
     } catch (e: any) {
       console.warn('[Background] Failed to register dynamic content scripts:', e?.message || e);
     }
@@ -246,11 +292,13 @@ try {
         }
         
         // 如果线路配置发生变化，重新注册动态内容脚本
-        const oldRoutes = changes['settings']?.oldValue?.routes;
-        const newRoutes = changes['settings']?.newValue?.routes;
+        const oldSettings = changes['settings']?.oldValue as any;
+        const newSettings = changes['settings']?.newValue as any;
+        const oldRoutes = oldSettings?.routes;
+        const newRoutes = newSettings?.routes;
         if (JSON.stringify(oldRoutes) !== JSON.stringify(newRoutes)) {
           console.info('[Background] Routes config changed, re-registering dynamic content scripts');
-          await registerDynamicContentScripts();
+          await registerDynamicContentScripts(true); // 显示通知
         }
       } catch {}
     }
