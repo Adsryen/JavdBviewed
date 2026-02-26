@@ -212,12 +212,32 @@
                                                 <p class="input-description">
                                                     开启后，当从影片页触发 115 推送成功，将自动将本片标记为“已看”。
                                                 </p>
+                                                <!-- 115 自动标记星级配置 -->
+                                                <div class="sub-settings" id="autoMarkWatchedConfig" style="display: none;">
+                                                    <div class="sub-settings-header">
+                                                        <h5> 星级配置</h5>
+                                                        <p class="sub-description">设置自动标记"已看"时使用的星级评分</p>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="veAutoMarkWatchedStars">默认星级：</label>
+                                                        <select id="veAutoMarkWatchedStars" class="select-input">
+                                                            <option value="0">不评分</option>
+                                                            <option value="1"> 1星</option>
+                                                            <option value="2"> 2星</option>
+                                                            <option value="3"> 3星</option>
+                                                            <option value="4" selected> 4星</option>
+                                                            <option value="5"> 5星</option>
+                                                        </select>
+                                                        <p class="input-description">115 推送成功后自动标记为"已看"时使用的星级，默认 4 星。</p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
+                                    <!-- 状态标记增强 结束 -->
 
-
-                                <!-- 用户体验 -->
+                                    <!-- 用户体验 -->
                                 <div class="settings-section">
                                     <div class="form-group" data-subtab="list">
                                         <label class="checkbox-label">

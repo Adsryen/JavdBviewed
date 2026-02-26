@@ -1,4 +1,4 @@
-import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
+﻿import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
 import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
@@ -296,6 +296,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableListEnhancement: true, // 默认启用列表增强
         enableActorEnhancement: false,
         showEnhancedTooltips: false, // 开发中，暂时关闭
+        enablePasswordHelper: false, // 密码显示助手，默认关闭
     },
 
     // 新增：网络加速默认配置
@@ -381,6 +382,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         // 新增：默认开启“想看同步”和“115推送后自动已看”（保持旧行为）
         enableWantSync: true,
         autoMarkWatchedAfter115: true,
+        autoMarkWatchedStars: 4, // 默认4星
         // 新增：演员备注（Wiki/xslist）
         enableActorRemarks: false,
         actorRemarksMode: 'panel' as const,

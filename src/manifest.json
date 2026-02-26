@@ -13,11 +13,8 @@
         "declarativeNetRequest"
     ],
     "host_permissions": [
-        "*://*.busjav.cyou/*",
-        "*://*.fanbus.cyou/*",
         "*://*.javbus.com/*",
         "*://*.javdb.com/*",
-        "*://*.seejav.cyou/*",
         "*://javdb.com/*",
         "*://javdb570.com/*",
         "https://dav.jianguoyun.com/*",
@@ -51,11 +48,8 @@
     "content_scripts": [
         {
             "matches": [
-                "*://*.busjav.cyou/*",
-                "*://*.fanbus.cyou/*",
                 "*://*.javbus.com/*",
                 "*://*.javdb.com/*",
-                "*://*.seejav.cyou/*",
                 "*://javdb.com/*",
                 "*://javdb570.com/*"
             ],

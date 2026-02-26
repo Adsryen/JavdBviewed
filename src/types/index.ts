@@ -1,4 +1,4 @@
-// 移除未使用的导入
+﻿// 移除未使用的导入
 import type { Drive115Settings } from "../services/drive115/types";
 import type { PrivacyConfig } from "./privacy";
 import type { AISettings } from "./ai";
@@ -202,6 +202,7 @@ export interface ExtensionSettings {
         // 新增：影片页增强控制开关
         enableWantSync?: boolean; // 点击“想看”时同步到本地番号库
         autoMarkWatchedAfter115?: boolean; // 115推送成功后自动标记“已看”
+        autoMarkWatchedStars?: number; // 115推送后自动标记的星级（0-5）
         // 新增：演员备注（Wiki/xslist）
         enableActorRemarks?: boolean; // 是否启用演员备注
         actorRemarksMode?: 'panel' | 'inline'; // 展示模式

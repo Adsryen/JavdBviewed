@@ -287,6 +287,24 @@
     border-bottom-width: 1px;
 }
 
+/* 嵌套的子设置（如星级配置）：需要特殊样式 */
+#enhancement-settings .sub-settings .sub-settings {
+    margin-top: 15px;
+    margin-left: 20px;
+    padding-left: 15px;
+    border-left: 3px solid var(--primary-color);
+    border-top: none;
+    border-bottom: none;
+    background: rgba(var(--primary-color-rgb, 99, 102, 241), 0.05);
+}
+
+#enhancement-settings .sub-settings .sub-settings.is-open {
+    padding-top: 15px;
+    padding-bottom: 15px;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
 /* 子设置禁用状态：当主功能开关未打开时 */
 #enhancement-settings .sub-settings[data-enabled="0"] {
     pointer-events: none;

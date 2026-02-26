@@ -45,6 +45,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 新增：状态标记增强子项
     private veEnableWantSync!: HTMLInputElement;
     private veAutoMarkWatchedAfter115!: HTMLInputElement;
+    private veAutoMarkWatchedStars!: HTMLSelectElement;
 
     // 磁力搜索源配置
     private magnetSourceSukebei!: HTMLInputElement;
@@ -361,6 +362,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：本地同步类子项
         this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
         this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
+        this.veAutoMarkWatchedStars = document.getElementById('veAutoMarkWatchedStars') as HTMLSelectElement;
         // 演员水印子设置元素
         this.actorWatermarkPosition = document.getElementById('actorWatermarkPosition') as HTMLSelectElement;
         this.actorWatermarkOpacity = document.getElementById('actorWatermarkOpacity') as HTMLInputElement;
@@ -1310,6 +1312,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：本地同步子项回填
         if (this.veEnableWantSync) this.veEnableWantSync.checked = (videoEnhancement as any).enableWantSync !== false;
         if (this.veAutoMarkWatchedAfter115) this.veAutoMarkWatchedAfter115.checked = (videoEnhancement as any).autoMarkWatchedAfter115 !== false;
+        if (this.veAutoMarkWatchedStars) this.veAutoMarkWatchedStars.value = String((videoEnhancement as any).autoMarkWatchedStars ?? 4);
         // 新增：演员备注
         if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
         if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
@@ -1431,6 +1434,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 新增：本地同步子项
                     enableWantSync: this.veEnableWantSync?.checked !== false,
                     autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
+                    autoMarkWatchedStars: parseInt(this.veAutoMarkWatchedStars?.value || '4', 10) || 4,
                     // 新增：演员备注
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
@@ -1690,7 +1694,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
             updateToggleState();
 
             // 添加点击事件
-            toggle.addEventListener('click', () => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 if (toggle.hasAttribute('disabled')) return;
 
                 // 切换状态
@@ -1731,10 +1738,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.subSettingsHoverInitialized) return;
         this.subSettingsHoverInitialized = true;
 
+        // 查找所有包含 .sub-settings 的 .form-group（包括嵌套的）
         const groups = document.querySelectorAll('#enhancement-settings .form-group');
         groups.forEach(group => {
             const container = group as HTMLElement;
-            const sub = container.querySelector('.sub-settings') as HTMLElement | null;
+            // 使用 :scope > .sub-settings 只查找直接子元素，避免嵌套混淆
+            const sub = container.querySelector(':scope > .sub-settings') as HTMLElement | null;
             if (!sub) return;
 
             // 初始折叠（配合CSS动画）
@@ -1843,6 +1852,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'enableMagnetSearch': 'magnetSourcesConfig',
             'enableVideoEnhancement': 'videoEnhancementConfig',
             'veEnableActorRemarks': 'actorRemarksConfig',
+            'veAutoMarkWatchedAfter115': 'autoMarkWatchedConfig',
             'enableActorWatermark': 'actorWatermarkConfig',
             'aeEnableTimeSegmentationDivider': 'actorTimeSegmentationConfig',
         };
