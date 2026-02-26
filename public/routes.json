@@ -28,27 +28,7 @@
       "name": "JavBus",
       "primary": "https://www.javbus.com",
       "alternatives": [
-        {
-          "url": "https://www.seejav.cyou",
-          "region": "global",
-          "status": "active",
-          "addedAt": "2026-02-23T00:00:00Z",
-          "description": "防屏蔽地址1"
-        },
-        {
-          "url": "https://www.busjav.cyou",
-          "region": "global",
-          "status": "active",
-          "addedAt": "2026-02-23T00:00:00Z",
-          "description": "防屏蔽地址2"
-        },
-        {
-          "url": "https://www.fanbus.cyou",
-          "region": "global",
-          "status": "active",
-          "addedAt": "2026-02-23T00:00:00Z",
-          "description": "防屏蔽地址3"
-        }
+      
       ],
       "officialChannels": []
     }
