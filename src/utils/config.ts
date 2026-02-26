@@ -298,6 +298,59 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         showEnhancedTooltips: false, // 开发中，暂时关闭
     },
 
+    // 新增：网络加速默认配置
+    networkAcceleration: {
+        github: {
+            enabled: true, // 默认启用 GitHub 加速
+            proxyService: 'ghproxy', // 默认使用 ghproxy.com
+            customProxyUrl: '',
+        },
+    },
+
+    // 新增：线路默认配置
+    routes: {
+        javdb: {
+            primary: 'https://javdb.com',
+            alternatives: [
+                {
+                    url: 'https://javdb570.com',
+                    enabled: true,
+                    description: '备用线路1',
+                    addedAt: Date.now()
+                },
+                {
+                    url: 'https://javdb36.com',
+                    enabled: true,
+                    description: '备用线路2',
+                    addedAt: Date.now()
+                }
+            ]
+        },
+        javbus: {
+            primary: 'https://www.javbus.com',
+            alternatives: [
+                {
+                    url: 'https://www.seejav.cyou',
+                    enabled: true,
+                    description: '防屏蔽地址1',
+                    addedAt: Date.now()
+                },
+                {
+                    url: 'https://www.busjav.cyou',
+                    enabled: true,
+                    description: '防屏蔽地址2',
+                    addedAt: Date.now()
+                },
+                {
+                    url: 'https://www.fanbus.cyou',
+                    enabled: true,
+                    description: '防屏蔽地址3',
+                    addedAt: Date.now()
+                }
+            ]
+        }
+    },
+
     // 磁力资源搜索默认配置
     magnetSearch: {
         sources: {

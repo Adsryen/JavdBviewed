@@ -215,15 +215,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const target = e.target as HTMLElement;
         const backBtn = target.closest('[data-action="back-to-settings"]');
         if (backBtn) {
+            console.log('[SETTINGS] 点击返回设置按钮');
+            console.log('[SETTINGS] 当前 URL:', window.location.href);
+            
             e.preventDefault();
             e.stopPropagation();
             
-            // 使用 history.pushState 避免锚点跳转
-            const newUrl = window.location.pathname + window.location.search + '#tab-settings';
-            history.pushState(null, '', newUrl);
-            
-            // 手动触发 hashchange 事件
-            window.dispatchEvent(new HashChangeEvent('hashchange'));
+            // 直接修改 location.hash，这会自动触发 hashchange 事件
+            console.log('[SETTINGS] 准备跳转到: /dashboard/dashboard.html#tab-settings');
+            window.location.hash = '#tab-settings';
         }
     }, true); // 使用捕获阶段
     
