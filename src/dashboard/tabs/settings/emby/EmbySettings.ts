@@ -8,6 +8,7 @@ import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { saveSettings } from '../../../../utils/storage';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import type { ExtensionSettings } from '../../../../types';
+import { buildJavDBUrl } from '../../../../utils/routeManager';
 
 /**
  * Emby设置面板类
@@ -569,7 +570,7 @@ export class EmbySettings extends BaseSettingsPanel {
     /**
      * 生成测试跳转URL
      */
-    private generateTestJumpUrl(videoId: string, hasRecord: boolean): string {
+    private async generateTestJumpUrl(videoId: string, hasRecord: boolean): Promise<string> {
         if (hasRecord) {
             // 如果有记录，显示直接链接（模拟）
             const record = STATE.records?.find(r => r.id === videoId);
@@ -586,8 +587,8 @@ export class EmbySettings extends BaseSettingsPanel {
             return javdbEngine.urlTemplate.replace('{{ID}}', encodeURIComponent(videoId));
         }
 
-        // 默认使用JavDB搜索
-        return `https://javdb.com/search?q=${encodeURIComponent(videoId)}&f=all`;
+        // 默认使用JavDB搜索（使用动态线路）
+        return await buildJavDBUrl(`/search?q=${encodeURIComponent(videoId)}&f=all`);
     }
 
     /**

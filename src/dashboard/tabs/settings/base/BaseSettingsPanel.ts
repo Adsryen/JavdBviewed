@@ -50,15 +50,16 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
      * 初始化面板
      */
     init(): void {
+        console.log(`[${this.panelName}] [DEBUG] init() 被调用，当前状态: ${this.state}`);
+        
         if (this.state !== SettingsPanelState.UNINITIALIZED && this.state !== SettingsPanelState.DESTROYED) {
-            console.warn(`[${this.panelName}] 面板已经初始化过了，重新加载设置`);
-            // 如果已经初始化过，重新加载设置
-            // 先重置状态为 INITIALIZED，然后再加载
-            this.setState(SettingsPanelState.INITIALIZED);
+            console.log(`[${this.panelName}] [DEBUG] 面板已经初始化过了，直接加载设置`);
+            // 如果已经初始化过，只需要重新加载设置，不需要重新初始化元素和事件
             this.loadSettings();
             return;
         }
 
+        console.log(`[${this.panelName}] [DEBUG] 开始首次初始化`);
         this.setState(SettingsPanelState.INITIALIZING);
         
         try {
@@ -80,7 +81,10 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
      * 加载设置到UI
      */
     async loadSettings(): Promise<void> {
+        console.log(`[${this.panelName}] [DEBUG] loadSettings() 被调用，当前状态: ${this.state}`);
+        
         if (this.state === SettingsPanelState.LOADING) {
+            console.log(`[${this.panelName}] [DEBUG] 正在加载中，跳过`);
             return;
         }
 
@@ -90,17 +94,39 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
             // 从存储中重新加载最新设置到 STATE
             const { getSettings } = await import('../../../../utils/storage');
             STATE.settings = await getSettings();
-            console.log(`[${this.panelName}] 已从存储重新加载设置到 STATE`);
+            console.log(`[${this.panelName}] [DEBUG] 已从存储重新加载设置到 STATE`);
+            
+            // 检查 DOM 是否存在，如果不存在则等待
+            const panelElement = document.getElementById(this.config.panelId);
+            if (!panelElement) {
+                console.warn(`[${this.panelName}] [DEBUG] 面板 DOM 不存在，等待 DOM 渲染...`);
+                // 等待 DOM 渲染
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // 再次检查
+                const retryElement = document.getElementById(this.config.panelId);
+                if (!retryElement) {
+                    console.error(`[${this.panelName}] [DEBUG] 面板 DOM 仍然不存在，放弃加载`);
+                    this.setState(SettingsPanelState.ERROR);
+                    return;
+                }
+            }
             
             // 重新初始化元素引用（防止 DOM 被重新渲染后引用失效）
             if (this.state !== SettingsPanelState.INITIALIZING) {
-                console.log(`[${this.panelName}] 重新初始化元素引用`);
-                this.initializeElements();
+                console.log(`[${this.panelName}] [DEBUG] 重新初始化元素引用`);
+                try {
+                    this.initializeElements();
+                } catch (error) {
+                    console.error(`[${this.panelName}] [DEBUG] 重新初始化元素失败:`, error);
+                    // 不抛出错误，继续尝试加载设置
+                }
             }
             
             await this.doLoadSettings();
             this.setState(SettingsPanelState.LOADED);
             this.emit('load');
+            console.log(`[${this.panelName}] [DEBUG] 设置加载完成`);
         } catch (error) {
             console.error(`[${this.panelName}] 加载设置失败:`, error);
             this.setState(SettingsPanelState.ERROR);
