@@ -157,43 +157,102 @@ export function registerMiscRouter(): void {
                 },
               } as any;
 
-              for (const sub of active) {
-                if (manualCheckCancel.cancelled) break;
-                try {
-                  // 使用带统计的检查
-                  const det = await newWorksCollector.checkActorNewWorksDetailed(sub, cfg);
-                  identifiedTotal += det.identified;
-                  effectiveTotal += det.effective;
+              const concurrency = cfg.concurrency || 1;
+              console.log(`[Background] 开始手动检查，并发数: ${concurrency}`);
 
-                  if (det.works.length > 0) {
-                    console.log(`[Background] 准备保存 ${det.works.length} 个新作品到数据库`);
-                    try { 
-                      await newWorksManager.addNewWorks(det.works);
-                      console.log(`[Background] 成功保存 ${det.works.length} 个新作品`);
-                    } catch (e) {
-                      console.error(`[Background] 保存新作品失败:`, e);
-                    }
-                  } else {
-                    console.log(`[Background] 没有新作品需要保存`);
-                  }
-                  discovered += det.works.length;
-                } catch (e: any) {
-                  errors.push(`检查演员 ${sub.actorName} 失败: ${e?.message || String(e)}`);
-                } finally {
-                  processed++;
+              // 使用并发控制
+              for (let i = 0; i < active.length; i += concurrency) {
+                if (manualCheckCancel.cancelled) break;
+                
+                const batch = active.slice(i, i + concurrency);
+                console.log(`[Background] 处理批次 ${Math.floor(i / concurrency) + 1}，包含 ${batch.length} 个演员`);
+                
+                // 并发检查当前批次
+                const batchPromises = batch.map(async (sub) => {
+                  if (manualCheckCancel.cancelled) return null;
+                  
                   try {
-                    chrome.runtime.sendMessage({
-                      type: 'new-works-progress',
-                      payload: { processed, total, discovered, identifiedTotal, effectiveTotal, actorId: sub.actorId, actorName: sub.actorName },
-                    });
-                  } catch {}
-                }
-                // 按配置的请求间隔小憩（避免过快）
-                try {
-                  if (manualCheckCancel.cancelled) break;
+                    const det = await newWorksCollector.checkActorNewWorksDetailed(sub, cfg);
+                    
+                    if (det.works.length > 0) {
+                      console.log(`[Background] 准备保存 ${det.works.length} 个新作品到数据库`);
+                      try { 
+                        await newWorksManager.addNewWorks(det.works);
+                        console.log(`[Background] 成功保存 ${det.works.length} 个新作品`);
+                      } catch (e) {
+                        console.error(`[Background] 保存新作品失败:`, e);
+                      }
+                    }
+                    
+                    // 立即更新进度（每个演员完成时）
+                    identifiedTotal += det.identified || 0;
+                    effectiveTotal += det.effective || 0;
+                    discovered += det.discovered || 0;
+                    processed++;
+                    
+                    // 发送单个演员完成的进度更新
+                    try {
+                      chrome.runtime.sendMessage({
+                        type: 'new-works-progress',
+                        payload: { 
+                          processed, 
+                          total, 
+                          discovered, 
+                          identifiedTotal, 
+                          effectiveTotal, 
+                          actorName: sub.actorName  // 显示刚完成的演员名字
+                        },
+                      });
+                    } catch {}
+                    
+                    return {
+                      success: true,
+                      identified: det.identified,
+                      effective: det.effective,
+                      discovered: det.works.length,
+                      actorId: sub.actorId,
+                      actorName: sub.actorName
+                    };
+                  } catch (e: any) {
+                    processed++;
+                    const errorMsg = `检查演员 ${sub.actorName} 失败: ${e?.message || String(e)}`;
+                    errors.push(errorMsg);
+                    
+                    // 即使失败也要更新进度
+                    try {
+                      chrome.runtime.sendMessage({
+                        type: 'new-works-progress',
+                        payload: { 
+                          processed, 
+                          total, 
+                          discovered, 
+                          identifiedTotal, 
+                          effectiveTotal, 
+                          actorName: sub.actorName
+                        },
+                      });
+                    } catch {}
+                    
+                    return {
+                      success: false,
+                      error: errorMsg,
+                      actorId: sub.actorId,
+                      actorName: sub.actorName
+                    };
+                  }
+                });
+                
+                // 等待当前批次完成
+                await Promise.all(batchPromises);
+                
+                // 批次间延迟
+                if (i + concurrency < active.length && !manualCheckCancel.cancelled) {
                   const gap = Math.max(0, Number(cfg.requestInterval || 0)) * 1000;
-                  if (gap > 0) await new Promise(r => setTimeout(r, gap));
-                } catch {}
+                  if (gap > 0) {
+                    console.log(`[Background] 批次间延迟 ${cfg.requestInterval} 秒`);
+                    await new Promise(r => setTimeout(r, gap));
+                  }
+                }
               }
 
               try { await newWorksManager.updateGlobalConfig({ lastGlobalCheck: Date.now() }); } catch {}

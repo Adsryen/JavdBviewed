@@ -31,7 +31,10 @@ export class ActorSelector {
             const allActors = await actorManager.getAllActors();
             console.log('ActorSelector: 获取到演员数量:', allActors.length);
 
-            const availableActors = allActors.filter(actor => !excludeIds.includes(actor.id));
+            // 过滤掉已订阅的演员和拉黑的演员
+            const availableActors = allActors.filter(actor => 
+                !excludeIds.includes(actor.id) && !actor.blacklisted
+            );
             console.log('ActorSelector: 可选择演员数量:', availableActors.length);
 
             if (availableActors.length === 0) {
@@ -348,8 +351,11 @@ export class ActorSelector {
 
         const filteredActors = actors.filter(actor => {
             const lowerQuery = query.toLowerCase();
-            return actor.name.toLowerCase().includes(lowerQuery) ||
-                   actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery));
+            // 搜索时也要排除拉黑的演员
+            return !actor.blacklisted && (
+                actor.name.toLowerCase().includes(lowerQuery) ||
+                actor.aliases.some(alias => alias.toLowerCase().includes(lowerQuery))
+            );
         });
 
         listContainer.innerHTML = this.renderActorList(filteredActors);
