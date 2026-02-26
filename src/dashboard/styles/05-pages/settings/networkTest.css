@@ -273,6 +273,7 @@
     box-shadow: 0 2px 12px rgba(76, 175, 80, 0.2);
     position: relative;
     animation: preferredPulse 2s ease-in-out infinite;
+    overflow: hidden; /* 防止光效溢出 */
 }
 
 .route-item-preferred::before {
@@ -1919,4 +1920,73 @@
     .config-actions {
         flex-direction: column;
     }
+}
+
+
+/* 线路管理警告提示框 */
+.route-warning {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%);
+    border: 2px solid #ff9800;
+    border-left-width: 5px;
+    border-radius: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15);
+    animation: warningPulse 3s ease-in-out infinite;
+}
+
+.route-warning i {
+    color: #ff9800;
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.route-warning .alert-content {
+    flex: 1;
+}
+
+.route-warning .alert-content strong {
+    display: block;
+    color: #f57c00;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.route-warning .alert-content p {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+@keyframes warningPulse {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(255, 152, 0, 0.25);
+    }
+}
+
+/* 深色主题下的警告框 */
+[data-theme="dark"] .route-warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
+    border-color: #ffa726;
+}
+
+[data-theme="dark"] .route-warning i {
+    color: #ffa726;
+}
+
+[data-theme="dark"] .route-warning .alert-content strong {
+    color: #ffb74d;
+}
+
+[data-theme="dark"] .route-warning .alert-content p {
+    color: var(--text-secondary);
 }
