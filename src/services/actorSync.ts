@@ -141,7 +141,7 @@ export class ActorSyncService {
      * 从收藏演员列表HTML直接解析演员信息
      * 这样可以避免为每个演员单独请求详情页面，提高同步效率
      */
-    private parseActorsFromCollectionHtml(html: string): ActorRecord[] {
+    private async parseActorsFromCollectionHtml(html: string): Promise<ActorRecord[]> {
         const actors: ActorRecord[] = [];
         const now = Date.now();
 
@@ -202,6 +202,8 @@ export class ActorSyncService {
                 const displayName = strongMatch ? strongMatch[1].trim() : primaryName;
 
                 // 创建演员记录
+                // 注意：profileUrl 始终使用 javdb.com 作为持久化存储的域名
+                // 显示时会通过 RouteManager 动态替换为当前选择的线路
                 const actor: ActorRecord = {
                     id: actorId,
                     name: displayName || primaryName,
@@ -344,7 +346,7 @@ export class ActorSyncService {
                     }
 
                     const html = await response.text();
-                    const pageActors = this.parseActorsFromCollectionHtml(html);
+                    const pageActors = await this.parseActorsFromCollectionHtml(html);
 
                     console.log(`${category.displayName} 第 ${categoryPage} 页解析到 ${pageActors.length} 个演员`);
 
