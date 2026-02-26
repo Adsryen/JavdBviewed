@@ -290,10 +290,11 @@ export async function handlePushToDrive115(
             try {
                 const settings: any = await getSettings();
                 const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
+                const stars = settings?.videoEnhancement?.autoMarkWatchedStars ?? 4;
                 if (autoMark) {
                     log('开始标记视频为已看...');
                     console.log('[JavDB Ext] 开始标记视频为已看...');
-                    await markVideoAsWatched(videoId);
+                    await markVideoAsWatched(videoId, stars);
                     log('markVideoAsWatched函数执行完毕');
                     console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
 
@@ -404,12 +405,12 @@ export async function handleBatchDownload(
 /**
  * 标记视频为已看（公共方法）
  */
-export async function markVideoAsWatched(videoId: string): Promise<void> {
+export async function markVideoAsWatched(videoId: string, stars: number = 4): Promise<void> {
     try {
-        log(`开始标记视频为已看: ${videoId}`);
+        log(`开始标记视频为已看: ${videoId}, 星级: ${stars}`);
 
         // 1. 标记JavDB服务器数据为已看
-        await markJavDBAsWatched();
+        await markJavDBAsWatched(stars);
 
         // 2. 更新扩展番号库数据为已看
         await updateExtensionWatchedStatus(videoId);
@@ -446,7 +447,7 @@ export async function markVideoAsWatched(videoId: string): Promise<void> {
 /**
  * 标记JavDB服务器数据为已看
  */
-async function markJavDBAsWatched(): Promise<void> {
+async function markJavDBAsWatched(stars: number = 4): Promise<void> {
     try {
         // 获取当前页面的URL和CSRF token
         const currentUrl = window.location.href;
@@ -481,7 +482,7 @@ async function markJavDBAsWatched(): Promise<void> {
                 '_method': 'put',
                 'authenticity_token': token,
                 'video_review[status]': 'watched',
-                'video_review[score]': '4',
+                'video_review[score]': String(stars),
                 'video_review[content]': '',
                 'commit': '保存'
             });
@@ -521,7 +522,7 @@ async function markJavDBAsWatched(): Promise<void> {
         const reviewsUrl = `https://javdb.com${videoPath}/reviews`;
         const formData = new URLSearchParams({
             'authenticity_token': csrfToken,
-            'video_review[score]': '4',
+            'video_review[score]': String(stars),
             'video_review[content]': '',
             'video_review[status]': 'watched',
             'commit': '保存'
