@@ -589,7 +589,7 @@ export class NewWorksCollector {
     }
 
     /**
-     * 检查多个演员的新作品
+     * 检查多个演员的新作品（支持并发）
      */
     async checkMultipleActors(
         subscriptions: ActorSubscription[],
@@ -606,28 +606,61 @@ export class NewWorksCollector {
         };
 
         const activeSubscriptions = subscriptions.filter(sub => sub.enabled);
+        const concurrency = globalConfig.concurrency || 1;
         
-        for (const subscription of activeSubscriptions) {
-            try {
-                const works = await this.checkActorNewWorks(subscription, globalConfig);
-                results.newWorks.push(...works);
-                results.discovered += works.length;
-                
-                // 更新订阅的最后检查时间
-                subscription.lastCheckTime = Date.now();
-                
-            } catch (error) {
-                const errorMsg = `检查演员 ${subscription.actorName} 失败: ${error}`;
-                console.error(errorMsg);
-                results.errors.push(errorMsg);
+        console.log(`[NewWorksCollector] 开始检查 ${activeSubscriptions.length} 个演员，并发数: ${concurrency}`);
+        
+        // 使用并发控制
+        for (let i = 0; i < activeSubscriptions.length; i += concurrency) {
+            const batch = activeSubscriptions.slice(i, i + concurrency);
+            console.log(`[NewWorksCollector] 处理批次 ${Math.floor(i / concurrency) + 1}，包含 ${batch.length} 个演员`);
+            
+            // 并发检查当前批次
+            const batchPromises = batch.map(async (subscription) => {
+                try {
+                    const works = await this.checkActorNewWorks(subscription, globalConfig);
+                    
+                    // 更新订阅的最后检查时间
+                    subscription.lastCheckTime = Date.now();
+                    
+                    return {
+                        success: true,
+                        works,
+                        actorName: subscription.actorName
+                    };
+                } catch (error) {
+                    const errorMsg = `检查演员 ${subscription.actorName} 失败: ${error}`;
+                    console.error(errorMsg);
+                    return {
+                        success: false,
+                        error: errorMsg,
+                        actorName: subscription.actorName
+                    };
+                }
+            });
+            
+            // 等待当前批次完成
+            const batchResults = await Promise.all(batchPromises);
+            
+            // 处理批次结果
+            for (const result of batchResults) {
+                if (result.success && result.works) {
+                    results.newWorks.push(...result.works);
+                    results.discovered += result.works.length;
+                    console.log(`[NewWorksCollector] 演员 ${result.actorName} 发现 ${result.works.length} 个新作品`);
+                } else if (!result.success && result.error) {
+                    results.errors.push(result.error);
+                }
             }
             
-            // 在每个演员之间添加延迟
-            if (globalConfig.requestInterval > 0) {
+            // 在批次之间添加延迟（如果不是最后一个批次）
+            if (i + concurrency < activeSubscriptions.length && globalConfig.requestInterval > 0) {
+                console.log(`[NewWorksCollector] 批次间延迟 ${globalConfig.requestInterval} 秒`);
                 await this.delay(globalConfig.requestInterval * 1000);
             }
         }
 
+        console.log(`[NewWorksCollector] 检查完成，共发现 ${results.discovered} 个新作品，${results.errors.length} 个错误`);
         return results;
     }
 }

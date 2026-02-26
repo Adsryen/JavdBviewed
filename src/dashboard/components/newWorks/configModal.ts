@@ -91,6 +91,15 @@ export class NewWorksConfigModal {
                                         </label>
                                     </div>
                                 </div>
+                                <div class="form-group">
+                                    <label for="configConcurrency">
+                                        <span>
+                                            并发数量
+                                            <i class="fas fa-question-circle help-icon" title="同时检查多少个演员的新作品，建议1-3个，过高可能导致请求失败"></i>
+                                        </span>
+                                        <input type="number" id="configConcurrency" min="1" max="5" value="${config.concurrency || 1}">
+                                    </label>
+                                </div>
                             </div>
 
                             <!-- 过滤条件 -->
@@ -317,11 +326,18 @@ export class NewWorksConfigModal {
     private updateFormState(enabled: boolean): void {
         if (!this.modal) return;
 
-        // 只禁用与自动检查相关的输入框；过滤条件和清理设置始终可用
+        // 只禁用与自动检查相关的输入框（检查间隔和请求间隔）
+        // 并发设置、过滤条件和清理设置始终可用
         const autoInputs = this.modal.querySelectorAll('#configCheckInterval, #configRequestInterval');
         autoInputs.forEach(input => {
             (input as HTMLInputElement).disabled = !enabled;
         });
+
+        // 并发设置始终可用（手动检查和自动检查都需要）
+        const concurrencyInput = this.modal.querySelector('#configConcurrency') as HTMLInputElement;
+        if (concurrencyInput) {
+            concurrencyInput.disabled = false;
+        }
 
         // 过滤条件始终可用，不受启用状态影响
         const filterInputs = this.modal.querySelectorAll('#configExcludeViewed, #configExcludeBrowsed, #configExcludeWant, #configDateRange');
@@ -391,6 +407,7 @@ export class NewWorksConfigModal {
             checkInterval: getValue('configCheckInterval'),
             requestInterval: getValue('configRequestInterval'),
             autoCheckEnabled: getValue('configAutoCheckEnabled'),
+            concurrency: getValue('configConcurrency') || 1,
             filters: {
                 excludeViewed: getValue('configExcludeViewed'),
                 excludeBrowsed: getValue('configExcludeBrowsed'),
@@ -415,6 +432,12 @@ export class NewWorksConfigModal {
 
         if (config.requestInterval < 1 || config.requestInterval > 60) {
             showMessage('请求间隔必须在1-60秒之间', 'warn');
+            return false;
+        }
+
+        const concurrency = (config as any).concurrency || 1;
+        if (concurrency < 1 || concurrency > 5) {
+            showMessage('并发数量必须在1-5之间', 'warn');
             return false;
         }
 

@@ -75,6 +75,7 @@ export const DEFAULT_NEW_WORKS_CONFIG: NewWorksGlobalConfig = {
     checkInterval: 24, // 24小时检查一次
     requestInterval: 3, // 请求间隔3秒
     autoCheckEnabled: false, // 默认不开启自动检查
+    concurrency: 1, // 默认并发数为1
     filters: {
         excludeViewed: true, // 默认排除已看
         excludeBrowsed: true, // 默认排除已浏览

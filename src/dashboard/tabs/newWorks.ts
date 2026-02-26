@@ -185,6 +185,9 @@ export class NewWorksTab {
                 this.checkNewWorksNow();
             });
             console.log('立即检查按钮事件已绑定');
+            
+            // 设置帮助图标的提示
+            this.setupCheckNowHelpIcon();
         } else {
             console.warn('未找到立即检查按钮');
         }
@@ -416,6 +419,9 @@ export class NewWorksTab {
                 const count = stats.totalSubscriptions || 0;
                 manageBtn.innerHTML = `<i class="fas fa-list"></i> 管理订阅 <span class="badge">${count}</span>`;
             }
+            
+            // 更新上一次检查时间显示
+            this.updateLastCheckTimeDisplay(stats.lastCheckTime);
             
             console.log('统计信息渲染完成');
         } catch (error) {
@@ -847,6 +853,68 @@ export class NewWorksTab {
     }
 
     /**
+     * 设置立即检查按钮的帮助图标
+     */
+    private setupCheckNowHelpIcon(): void {
+        const helpIcon = document.getElementById('checkNowHelpIcon');
+        if (!helpIcon) return;
+
+        const helpText = '立即检查所有已启用的订阅演员的新作品。\n\n系统会根据设置的并发数量同时检查多个演员，并自动过滤已看、已浏览等状态的作品。\n\n检查完成后，新发现的作品会显示在下方列表中。';
+        
+        let tooltip: HTMLDivElement | null = null;
+
+        const showTooltip = (e: MouseEvent) => {
+            // 移除旧的tooltip
+            if (tooltip) {
+                tooltip.remove();
+            }
+
+            // 创建新的tooltip
+            tooltip = document.createElement('div');
+            tooltip.className = 'help-tooltip';
+            tooltip.textContent = helpText;
+            document.body.appendChild(tooltip);
+
+            // 计算位置
+            const iconRect = helpIcon.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            
+            // 默认显示在图标上方居中
+            let left = iconRect.left + iconRect.width / 2 - tooltipRect.width / 2;
+            let top = iconRect.top - tooltipRect.height - 10;
+
+            // 边界检查
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            if (top < 10) {
+                // 如果上方空间不够，显示在下方
+                top = iconRect.bottom + 10;
+            }
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.opacity = '1';
+        };
+
+        const hideTooltip = () => {
+            if (tooltip) {
+                tooltip.style.opacity = '0';
+                setTimeout(() => {
+                    if (tooltip) {
+                        tooltip.remove();
+                        tooltip = null;
+                    }
+                }, 200);
+            }
+        };
+
+        helpIcon.addEventListener('mouseenter', showTooltip);
+        helpIcon.addEventListener('mouseleave', hideTooltip);
+    }
+
+    /**
      * 更新批量操作状态
      */
     private updateBatchOperations(): void {
@@ -1067,6 +1135,46 @@ export class NewWorksTab {
     }
 
     /**
+     * 更新上一次检查时间显示
+     */
+    private updateLastCheckTimeDisplay(lastCheckTime?: number): void {
+        const display = document.getElementById('lastCheckTimeDisplay');
+        const textEl = document.getElementById('lastCheckTimeText');
+        
+        if (!display || !textEl) return;
+        
+        if (lastCheckTime) {
+            const now = Date.now();
+            const diff = now - lastCheckTime;
+            
+            // 计算时间差
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            let timeText = '';
+            if (minutes < 1) {
+                timeText = '刚刚';
+            } else if (minutes < 60) {
+                timeText = `${minutes}分钟前`;
+            } else if (hours < 24) {
+                timeText = `${hours}小时前`;
+            } else if (days < 7) {
+                timeText = `${days}天前`;
+            } else {
+                // 超过7天显示具体日期
+                const date = new Date(lastCheckTime);
+                timeText = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+            }
+            
+            textEl.textContent = `上次检查：${timeText}`;
+            display.style.display = 'flex';
+        } else {
+            display.style.display = 'none';
+        }
+    }
+
+    /**
      * 立即检查新作品
      */
     private async checkNewWorksNow(): Promise<void> {
@@ -1154,8 +1262,17 @@ export class NewWorksTab {
         if (!host) return;
         const el = document.createElement('div');
         el.id = 'newWorksProgress';
-        el.style.cssText = 'margin:10px 0;padding:8px 12px;border:1px dashed #999;border-radius:6px;background:rgba(0,0,0,0.03);font-size:13px;display:flex;align-items:center;gap:10px;';
-        el.innerHTML = '<i class="fas fa-tasks"></i><span class="text">准备中...</span><button id="newWorksCancelBtn" class="btn-secondary" style="margin-left:auto;">取消</button>';
+        el.style.cssText = 'margin:10px 0;padding:12px;border:1px dashed #999;border-radius:6px;background:rgba(0,0,0,0.03);font-size:13px;';
+        el.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <i class="fas fa-tasks"></i>
+                <span class="text">准备中...</span>
+                <button id="newWorksCancelBtn" class="btn-secondary" style="margin-left:auto;">取消</button>
+            </div>
+            <div class="progress-bar-container" style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;">
+                <div class="progress-bar-fill" style="width:0%;height:100%;background:linear-gradient(90deg, #4caf50, #66bb6a);transition:width 0.3s ease;"></div>
+            </div>
+        `;
         host.appendChild(el);
         this.progressEl = el;
 
@@ -1181,16 +1298,28 @@ export class NewWorksTab {
     private updateProgressUI(data: { processed?: number; total?: number; identifiedTotal?: number; effectiveTotal?: number; actorName?: string; done?: boolean }): void {
         if (!this.progressEl) return;
         const text = this.progressEl.querySelector('.text') as HTMLElement | null;
+        const progressBar = this.progressEl.querySelector('.progress-bar-fill') as HTMLElement | null;
+        
         if (!text) return;
+        
         if (data.done) {
             text.textContent = '检查完成';
+            if (progressBar) progressBar.style.width = '100%';
             return;
         }
+        
         const p = typeof data.processed === 'number' ? data.processed : undefined;
         const t = typeof data.total === 'number' ? data.total : undefined;
         const idt = typeof data.identifiedTotal === 'number' ? data.identifiedTotal : undefined;
         const eff = typeof data.effectiveTotal === 'number' ? data.effectiveTotal : undefined;
         const actor = data.actorName ? `，当前：${data.actorName}` : '';
+        
+        // 更新进度条
+        if (progressBar && p !== undefined && t !== undefined && t > 0) {
+            const percentage = Math.round((p / t) * 100);
+            progressBar.style.width = `${percentage}%`;
+        }
+        
         const seg1 = (p !== undefined && t !== undefined) ? `进度 ${p}/${t}` : '进行中';
         const seg2 = (idt !== undefined) ? `，已识别 ${idt}` : '';
         const seg3 = (eff !== undefined) ? `，有效 ${eff}` : '';

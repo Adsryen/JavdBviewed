@@ -16,6 +16,7 @@ export interface NewWorksGlobalConfig {
   checkInterval: number;     // 检查间隔（小时）
   requestInterval: number;   // 请求间隔（秒）
   autoCheckEnabled?: boolean; // 是否启用自动检查（仅影响定时任务）
+  concurrency?: number;      // 并发数量（同时检查多少个演员）
 
   // 全局过滤条件
   filters: {
