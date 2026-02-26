@@ -12,60 +12,53 @@ export async function mountTabIfNeeded(tabId: string): Promise<void> {
       const hash = window.location.hash.substring(1);
       const [mainTab, subSection] = hash.split('/');
       
+      // 如果有子路径，直接加载对应的子页面
       if (mainTab === 'tab-settings' && subSection) {
-        // 有子路径：加载对应的设置页面
-        const sectionToTabId: Record<string, string> = {
-          'display-settings': 'tab-settings-display',
-          'ai-settings': 'tab-settings-ai',
-          'search-engine-settings': 'tab-settings-search-engine',
-          'privacy-settings': 'tab-settings-privacy',
-          'webdav-settings': 'tab-settings-webdav',
-          'sync-settings': 'tab-settings-sync',
-          'drive115-settings': 'tab-settings-drive115',
-          'emby-settings': 'tab-settings-emby',
-          'enhancement-settings': 'tab-settings-enhancement',
-          'advanced-settings': 'tab-settings-advanced',
-          'log-settings': 'tab-settings-log',
-          'insights-settings': 'tab-settings-insights',
-          'network-test-settings': 'tab-settings-network-test',
-          'global-actions': 'tab-settings-global-actions',
-          'update-settings': 'tab-settings-update',
-        };
+        console.debug('[mount] 检测到设置子页面:', subSection);
         
-        const newTabId = sectionToTabId[subSection];
+        // 构建子页面的配置键（例如：network-test-settings -> tab-settings-network-test）
+        const subPageKey = `tab-settings-${subSection.replace('-settings', '')}`;
+        const subCfg = (TAB_PARTIALS as any)[subPageKey];
         
-        if (newTabId) {
-          const cfg = (TAB_PARTIALS as any)[newTabId];
-          
-          if (cfg) {
-            const selector = '#tab-settings';
-            const html = await loadPartial(cfg.name);
-            
-            if (html) {
-              await injectPartial(selector, html, { mode: 'replace' });
-            }
-            if (cfg.styles && cfg.styles.length) {
-              await ensureStylesLoaded(cfg.styles);
-            }
-            return;
-          }
-        }
-      } else if (mainTab === 'tab-settings' && !subSection) {
-        // 没有子路径：加载导航页
-        const cfg = (TAB_PARTIALS as any)['tab-settings'];
-        if (cfg) {
+        console.debug('[mount] 子页面配置键:', subPageKey);
+        console.debug('[mount] 子页面配置:', subCfg);
+        
+        if (subCfg) {
           const selector = '#tab-settings';
-          const html = await loadPartial(cfg.name);
+          const html = await loadPartial(subCfg.name);
           
           if (html) {
             await injectPartial(selector, html, { mode: 'replace' });
+            console.debug('[mount] 子页面 HTML 加载完成:', subSection);
           }
-          if (cfg.styles && cfg.styles.length) {
-            await ensureStylesLoaded(cfg.styles);
+          
+          if (subCfg.styles && subCfg.styles.length) {
+            await ensureStylesLoaded(subCfg.styles);
           }
+          
           return;
+        } else {
+          console.warn('[mount] 未找到子页面配置，回退到导航页:', subPageKey);
         }
       }
+      
+      // 没有子路径或子页面配置不存在，加载设置导航页
+      const cfg = (TAB_PARTIALS as any)['tab-settings'];
+      if (cfg) {
+        const selector = '#tab-settings';
+        const html = await loadPartial(cfg.name);
+        
+        if (html) {
+          await injectPartial(selector, html, { mode: 'replace' });
+          console.debug('[mount] 设置导航页加载完成');
+        }
+        
+        if (cfg.styles && cfg.styles.length) {
+          await ensureStylesLoaded(cfg.styles);
+        }
+      }
+      
+      return;
     }
     
     // 原有逻辑
