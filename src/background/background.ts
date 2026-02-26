@@ -25,6 +25,127 @@ import { getSettings } from '../utils/storage';
 installDrive115V2Proxy();
 ensureMigrationsStart();
 
+/**
+ * 动态注册内容脚本到备用域名
+ * 这样当用户添加新的备用线路时，不需要重新编译扩展
+ */
+async function registerDynamicContentScripts(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const routes = settings?.routes;
+    
+    if (!routes) {
+      console.debug('[Background] No routes config found, skipping dynamic content scripts');
+      return;
+    }
+
+    // 收集所有需要注入的域名
+    const domains: string[] = [];
+    
+    // JavDB 备用域名
+    if (routes.javdb?.alternatives) {
+      routes.javdb.alternatives
+        .filter(alt => alt.enabled && alt.url)
+        .forEach(alt => {
+          try {
+            const url = new URL(alt.url);
+            const domain = url.hostname;
+            // 只添加不在 manifest.json 中的域名
+            if (!domain.includes('javdb.com') && !domain.includes('seejav.cyou') && 
+                !domain.includes('busjav.cyou') && !domain.includes('fanbus.cyou')) {
+              domains.push(`*://${domain}/*`);
+              domains.push(`*://*.${domain}/*`);
+            }
+          } catch (e) {
+            console.warn('[Background] Invalid alternative URL:', alt.url);
+          }
+        });
+    }
+    
+    // JavBus 备用域名
+    if (routes.javbus?.alternatives) {
+      routes.javbus.alternatives
+        .filter(alt => alt.enabled && alt.url)
+        .forEach(alt => {
+          try {
+            const url = new URL(alt.url);
+            const domain = url.hostname;
+            // 只添加不在 manifest.json 中的域名
+            if (!domain.includes('javbus.com') && !domain.includes('seejav.cyou') && 
+                !domain.includes('busjav.cyou') && !domain.includes('fanbus.cyou')) {
+              domains.push(`*://${domain}/*`);
+              domains.push(`*://*.${domain}/*`);
+            }
+          } catch (e) {
+            console.warn('[Background] Invalid alternative URL:', alt.url);
+          }
+        });
+    }
+
+    if (domains.length === 0) {
+      console.debug('[Background] No additional domains to register');
+      return;
+    }
+
+    // 注册动态内容脚本
+    try {
+      // 先清除旧的动态脚本
+      const existingScripts = await chrome.scripting.getRegisteredContentScripts();
+      const dynamicScriptIds = existingScripts
+        .filter(s => s.id?.startsWith('dynamic-'))
+        .map(s => s.id!);
+      
+      if (dynamicScriptIds.length > 0) {
+        await chrome.scripting.unregisterContentScripts({ ids: dynamicScriptIds });
+      }
+
+      // 注册新的动态脚本
+      await chrome.scripting.registerContentScripts([
+        {
+          id: 'dynamic-javdb-javbus',
+          matches: domains,
+          js: ['content/index.ts'],
+          runAt: 'document_end'
+        }
+      ]);
+
+      console.info('[Background] Dynamic content scripts registered for domains:', domains);
+    } catch (e: any) {
+      console.warn('[Background] Failed to register dynamic content scripts:', e?.message || e);
+    }
+  } catch (e: any) {
+    console.warn('[Background] Error in registerDynamicContentScripts:', e?.message || e);
+  }
+}
+
+// 启动时注册动态内容脚本
+registerDynamicContentScripts();
+
+/**
+ * 自动更新线路配置
+ * 从 GitHub 仓库获取最新的线路配置
+ */
+async function autoUpdateRoutes(): Promise<void> {
+  try {
+    const { RouteManager } = await import('../utils/routeManager');
+    const routeManager = RouteManager.getInstance();
+    
+    // 检查并更新线路配置
+    const updated = await routeManager.checkAndUpdateRoutes(false);
+    
+    if (updated) {
+      console.info('[Background] 线路配置已自动更新');
+      // 重新注册动态内容脚本（新线路可能需要新的域名）
+      await registerDynamicContentScripts();
+    }
+  } catch (e: any) {
+    console.warn('[Background] 自动更新线路配置失败:', e?.message || e);
+  }
+}
+
+// 启动时检查更新
+autoUpdateRoutes();
+
 // 安装 DNR 规则：为 jdbstatic 封面请求补充 Referer
 function installCoversRefererDNR(): void {
   try {
@@ -122,6 +243,14 @@ try {
           registerMonthlyAlarm({ enabled: true, minuteOfDay: Number.isFinite(minute) ? minute : 10 });
         } else {
           try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
+        }
+        
+        // 如果线路配置发生变化，重新注册动态内容脚本
+        const oldRoutes = changes['settings']?.oldValue?.routes;
+        const newRoutes = changes['settings']?.newValue?.routes;
+        if (JSON.stringify(oldRoutes) !== JSON.stringify(newRoutes)) {
+          console.info('[Background] Routes config changed, re-registering dynamic content scripts');
+          await registerDynamicContentScripts();
         }
       } catch {}
     }
