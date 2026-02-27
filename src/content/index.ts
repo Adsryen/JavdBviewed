@@ -447,6 +447,8 @@ async function initialize(): Promise<void> {
         listEnhancementManager.updateConfig({
             enabled: true,
             enableClickEnhancement: settings.listEnhancement?.enableClickEnhancement !== false,
+            enableClickEnhancementList: (settings.listEnhancement as any)?.enableClickEnhancementList !== false,
+            enableClickEnhancementDetail: (settings.listEnhancement as any)?.enableClickEnhancementDetail !== false,
             enableVideoPreview: settings.listEnhancement?.enableVideoPreview !== false,
             enableListOptimization: settings.listEnhancement?.enableListOptimization !== false,
             enableScrollPaging: settings.listEnhancement?.enableScrollPaging === true,

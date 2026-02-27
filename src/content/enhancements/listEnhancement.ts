@@ -8,6 +8,8 @@ import { newWorksManager } from '../../services/newWorks';
 export interface ListEnhancementConfig {
   enabled: boolean;
   enableClickEnhancement: boolean;
+  enableClickEnhancementList?: boolean; // 列表页点击增强
+  enableClickEnhancementDetail?: boolean; // 详情页相关作品点击增强
   enableVideoPreview: boolean;
   enableListOptimization: boolean;
   enableScrollPaging: boolean;
@@ -35,6 +37,8 @@ class ListEnhancementManager {
   private config: ListEnhancementConfig = {
     enabled: false,
     enableClickEnhancement: true,
+    enableClickEnhancementList: true,
+    enableClickEnhancementDetail: true,
     enableVideoPreview: true,
     enableListOptimization: true,
     enableScrollPaging: false,
@@ -471,7 +475,7 @@ class ListEnhancementManager {
     // }
 
     // 应用各种增强功能
-    if (this.config.enableClickEnhancement) {
+    if (this.config.enableClickEnhancement && this.config.enableClickEnhancementList !== false) {
       this.enhanceClicks(item, videoInfo);
     }
 

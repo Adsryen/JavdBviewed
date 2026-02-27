@@ -407,6 +407,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     listEnhancement: {
         enabled: true, // 默认启用
         enableClickEnhancement: true,
+        enableClickEnhancementList: true,
+        enableClickEnhancementDetail: true,
         enableVideoPreview: true,
         enableScrollPaging: false, // 默认关闭滚动翻页
         enableListOptimization: true,

@@ -64,6 +64,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 列表增强配置
     private enableClickEnhancement!: HTMLInputElement;
+    private enableClickEnhancementList!: HTMLInputElement;
+    private enableClickEnhancementDetail!: HTMLInputElement;
     private enableListVideoPreview!: HTMLInputElement;
     private enableScrollPaging!: HTMLInputElement;
     private previewDelay!: HTMLInputElement;
@@ -344,6 +346,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 列表增强配置
         this.enableClickEnhancement = document.getElementById('enableClickEnhancement') as HTMLInputElement;
+        this.enableClickEnhancementList = document.getElementById('enableClickEnhancementList') as HTMLInputElement;
+        this.enableClickEnhancementDetail = document.getElementById('enableClickEnhancementDetail') as HTMLInputElement;
         this.enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
         this.enableScrollPaging = document.getElementById('enableScrollPaging') as HTMLInputElement;
         this.enableActorWatermark = document.getElementById('enableActorWatermark') as HTMLInputElement;
@@ -458,6 +462,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 列表增强配置事件监听
         this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableClickEnhancementList?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableClickEnhancementDetail?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableActorWatermark?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1233,6 +1239,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         // 列表增强配置
         if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
+        if (this.enableClickEnhancementList) this.enableClickEnhancementList.checked = (listEnhancement as any).enableClickEnhancementList !== false;
+        if (this.enableClickEnhancementDetail) this.enableClickEnhancementDetail.checked = (listEnhancement as any).enableClickEnhancementDetail !== false;
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
         if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
         if (this.enableActorWatermark) this.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
@@ -1479,6 +1487,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 listEnhancement: {
                     enabled: this.enableListEnhancement.checked,
                     enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
+                    enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
+                    enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableScrollPaging: this.enableScrollPaging?.checked === true,
                     enableListOptimization: true, // 总是启用列表优化
@@ -1559,6 +1569,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             listEnhancement: {
                 enabled: this.enableListEnhancement.checked,
                 enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
+                enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
+                enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
                 enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                 enableScrollPaging: this.enableScrollPaging?.checked === true,
                 enableListOptimization: true,
@@ -1615,6 +1627,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (settings.listEnhancement) {
                 const le = settings.listEnhancement as any;
                 if (this.enableClickEnhancement && typeof le.enableClickEnhancement === 'boolean') this.enableClickEnhancement.checked = le.enableClickEnhancement;
+                if (this.enableClickEnhancementList && typeof le.enableClickEnhancementList === 'boolean') this.enableClickEnhancementList.checked = le.enableClickEnhancementList;
+                if (this.enableClickEnhancementDetail && typeof le.enableClickEnhancementDetail === 'boolean') this.enableClickEnhancementDetail.checked = le.enableClickEnhancementDetail;
                 if (this.enableListVideoPreview && typeof le.enableVideoPreview === 'boolean') this.enableListVideoPreview.checked = le.enableVideoPreview;
                 if (this.enableScrollPaging && typeof le.enableScrollPaging === 'boolean') this.enableScrollPaging.checked = le.enableScrollPaging;
                 if (this.previewDelay && typeof le.previewDelay === 'number') this.previewDelay.value = String(le.previewDelay);
