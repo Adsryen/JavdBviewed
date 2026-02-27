@@ -5,21 +5,146 @@ import { STORAGE_KEYS } from '../utils/config';
 import { setValue } from '../utils/storage';
 import { dbActorsBulkPut } from './dbClient';
 
+/**
+ * 检测备份数据的版本
+ */
+function detectBackupVersion(data: any): 'v1' | 'v2' | 'unknown' {
+  if (!data || typeof data !== 'object') return 'unknown';
+  
+  // v2 格式特征：有 version 字段或包含 data/actorRecords 等结构化字段
+  if (data.version || data.timestamp || (data.data && typeof data.data === 'object')) {
+    return 'v2';
+  }
+  
+  // v1 格式特征：直接是记录对象，或者有 viewed/browsed 等旧字段
+  if (data.viewed || data.browsed || data.want) {
+    return 'v1';
+  }
+  
+  // 检查第一个记录的结构
+  const firstRecord = Object.values(data)[0];
+  if (firstRecord && typeof firstRecord === 'object') {
+    const rec = firstRecord as any;
+    // 旧版特征：status 是 'viewed'/'unviewed'，没有 createdAt/updatedAt
+    if ((rec.status === 'viewed' || rec.status === 'unviewed') && !rec.createdAt) {
+      return 'v1';
+    }
+    // 新版特征：有 createdAt/updatedAt
+    if (rec.createdAt || rec.updatedAt) {
+      return 'v2';
+    }
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * 迁移单条旧版记录到新版格式
+ */
 function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
   const now = Date.now();
+  
+  // 如果已经是新版格式，直接返回
+  if ((record as VideoRecord).createdAt && (record as VideoRecord).updatedAt) {
+    return record as VideoRecord;
+  }
+  
+  // 转换旧版 status
   let status: VideoStatus = 'browsed';
-  if ((record as any).status === 'viewed') status = 'viewed';
-  else if ((record as any).status === 'want') status = 'want';
+  if ((record as any).status === 'viewed') {
+    status = 'viewed';
+  } else if ((record as any).status === 'want') {
+    status = 'want';
+  } else if ((record as any).status === 'unviewed') {
+    status = 'browsed'; // 旧版的 unviewed 对应新版的 browsed
+  }
 
   const base: Partial<VideoRecord> = {
-    ...(record as any),
+    id: record.id,
+    title: (record as any).title || record.id,
     status,
-    title: (record as any).title || (record as any).id,
     tags: (record as any).tags || [],
+    listIds: (record as any).listIds || [],
+    createdAt: (record as any).createdAt || now,
+    updatedAt: now,
+    releaseDate: (record as any).releaseDate,
+    javdbUrl: (record as any).javdbUrl,
+    javdbImage: (record as any).javdbImage,
+    enhancedData: (record as any).enhancedData,
   };
-  if (!base.createdAt) base.createdAt = now;
-  base.updatedAt = now;
+  
   return base as VideoRecord;
+}
+
+/**
+ * 迁移旧版备份数据到新版格式
+ */
+function migrateBackupData(oldData: any): any {
+  const version = detectBackupVersion(oldData);
+  
+  logAsync('INFO', '检测到备份数据版本', { version });
+  
+  if (version === 'v2') {
+    // 已经是新版格式，直接返回
+    return oldData;
+  }
+  
+  if (version === 'v1') {
+    // 旧版格式迁移
+    const migratedData: any = {
+      version: '2.1',
+      timestamp: new Date().toISOString(),
+      data: {},
+      actorRecords: oldData.actorRecords || {},
+      settings: oldData.settings,
+      userProfile: oldData.userProfile,
+      logs: oldData.logs || [],
+      importStats: oldData.importStats,
+      newWorks: oldData.newWorks || {}
+    };
+    
+    // 迁移视频记录
+    const recordsSource = oldData.data || oldData.viewed || oldData;
+    if (recordsSource && typeof recordsSource === 'object') {
+      const migratedRecords: Record<string, VideoRecord> = {};
+      
+      for (const [id, record] of Object.entries(recordsSource)) {
+        if (record && typeof record === 'object') {
+          migratedRecords[id] = migrateRecord(record as any);
+        }
+      }
+      
+      migratedData.data = migratedRecords;
+      logAsync('INFO', '已迁移视频记录', { count: Object.keys(migratedRecords).length });
+    }
+    
+    // 合并 browsed 和 want 列表（如果存在）
+    if (oldData.browsed && typeof oldData.browsed === 'object') {
+      for (const [id, record] of Object.entries(oldData.browsed)) {
+        if (record && typeof record === 'object' && !migratedData.data[id]) {
+          const migrated = migrateRecord(record as any);
+          migrated.status = 'browsed';
+          migratedData.data[id] = migrated;
+        }
+      }
+    }
+    
+    if (oldData.want && typeof oldData.want === 'object') {
+      for (const [id, record] of Object.entries(oldData.want)) {
+        if (record && typeof record === 'object' && !migratedData.data[id]) {
+          const migrated = migrateRecord(record as any);
+          migrated.status = 'want';
+          migratedData.data[id] = migrated;
+        }
+      }
+    }
+    
+    return migratedData;
+  }
+  
+  // 未知格式，尝试原样返回
+  logAsync('WARN', '无法识别备份数据版本，尝试原样导入');
+  return oldData;
 }
 
 export function handleFileRestoreClick(file: { name: string; path: string }) {
@@ -45,7 +170,17 @@ export async function applyImportedData(
   mode: 'merge' | 'overwrite' = 'merge'
 ): Promise<void> {
   try {
-    const importData = JSON.parse(jsonData);
+    let importData = JSON.parse(jsonData);
+    
+    // 检测并迁移旧版数据格式
+    const version = detectBackupVersion(importData);
+    if (version === 'v1') {
+      showMessage('检测到旧版本备份数据，正在自动迁移...', 'info');
+      await logAsync('INFO', '开始迁移旧版本备份数据');
+      importData = migrateBackupData(importData);
+      showMessage('✓ 旧版本数据迁移成功', 'success');
+    }
+    
     let actorsChanged = false;
 
     // 仅处理演员库，其他数据留待后续完整恢复
@@ -72,7 +207,7 @@ export async function applyImportedData(
     }
 
     showMessage('导入文件已解析（简化模式，浏览记录/设置导入稍后恢复）', 'info');
-    await logAsync('INFO', 'Import stub executed', { importType, mode, actorsChanged });
+    await logAsync('INFO', 'Import stub executed', { importType, mode, actorsChanged, detectedVersion: version });
   } catch (e: any) {
     showMessage(`解析导入数据失败：${e?.message || e}`, 'error');
     await logAsync('ERROR', 'Import stub failed', { error: e?.message || String(e) });
