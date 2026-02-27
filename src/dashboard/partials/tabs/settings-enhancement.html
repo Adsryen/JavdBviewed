@@ -33,6 +33,8 @@
                                     <input type="checkbox" id="enableVideoPreview">
                                     <input type="checkbox" id="enableHighQualityCover">
                                     <input type="checkbox" id="enableClickEnhancement">
+                                    <input type="checkbox" id="enableClickEnhancementList">
+                                    <input type="checkbox" id="enableClickEnhancementDetail">
                                     <input type="checkbox" id="enableScrollPaging">
                                     <input type="checkbox" id="enableActorWatermark">
                                     <input type="checkbox" id="enableActorEnhancement">
@@ -296,9 +298,41 @@
                                         </label>
                                         <p class="input-description">
                                             <strong>效果：</strong>左键直接在当前标签打开，右键在后台新标签打开（不中断当前浏览）。<br>
-                                            <strong>说明：</strong>该增强会统一列表中卡片/标题的点击行为，减少多余的页面跳转。<br>
-                                            <strong>适用：</strong>所有影片列表页（首页、搜索、分类、演员页的作品列表等）。
+                                            <strong>说明：</strong>该增强会统一卡片/标题的点击行为，减少多余的页面跳转。<br>
+                                            <strong>适用：</strong>影片列表页和详情页的相关作品区域。
                                         </p>
+                                        
+                                        <!-- 点击增强独立子设置 -->
+                                        <div class="sub-settings" id="clickEnhancementConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>🖱️ 点击增强细化设置</h5>
+                                                <p class="sub-description">分别控制列表页和详情页的点击增强功能。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <span>列表页点击增强</span>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="enableClickEnhancementList"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    适用于首页、搜索、分类、演员页等所有影片列表页
+                                                </p>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <span>详情页相关作品点击增强</span>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="enableClickEnhancementDetail"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    适用于影片详情页的"TA(們)還出演過"和"你可能也喜歡"区域
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- 新：🎬 视频预览增强（独立区块） -->

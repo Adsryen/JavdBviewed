@@ -226,6 +226,8 @@ export interface ExtensionSettings {
     listEnhancement: {
         enabled: boolean;
         enableClickEnhancement: boolean; // 启用点击增强（左键直接打开，右键后台打开）
+        enableClickEnhancementList?: boolean; // 列表页点击增强
+        enableClickEnhancementDetail?: boolean; // 详情页相关作品点击增强
         enableVideoPreview: boolean; // 启用视频预览
         enableScrollPaging: boolean; // 启用滚动翻页
         enableListOptimization: boolean; // 启用列表优化

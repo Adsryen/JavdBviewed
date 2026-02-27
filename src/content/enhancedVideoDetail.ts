@@ -1,4 +1,4 @@
-// src/content/enhancedVideoDetail.ts
+﻿// src/content/enhancedVideoDetail.ts
 // 视频详情页增强功能
 
 import { defaultDataAggregator } from '../services/dataAggregator';
@@ -203,6 +203,9 @@ export class VideoDetailEnhancer {
 
     // 执行“current-title”定点翻译
     await this.translateCurrentTitleIfNeeded();
+
+    // 增强详情页相关作品列表的点击行为
+    this.enhanceRelatedVideoClicks();
   }
 
   /**
@@ -1571,6 +1574,80 @@ export class VideoDetailEnhancer {
     item.appendChild(valueEl);
 
     return item;
+  }
+
+  /**
+   * 增强详情页相关作品列表的点击行为
+   * 支持"TA(們)還出演過"和"你可能也喜歡"区域的作品卡片
+   */
+  private enhanceRelatedVideoClicks(): void {
+    try {
+      // 检查是否启用详情页点击增强
+      const settings = STATE.settings;
+      const enableClickEnhancement = settings?.listEnhancement?.enableClickEnhancement !== false;
+      const enableClickEnhancementDetail = settings?.listEnhancement?.enableClickEnhancementDetail !== false;
+      
+      if (!enableClickEnhancement || !enableClickEnhancementDetail) {
+        log('[RelatedVideos] Detail page click enhancement is disabled');
+        return;
+      }
+
+      // 查找所有相关作品区域的视频卡片链接
+      const relatedVideoLinks = document.querySelectorAll('.video-panel .tile-item[href*="/v/"]');
+      
+      if (relatedVideoLinks.length === 0) {
+        log('[RelatedVideos] No related video links found');
+        return;
+      }
+
+      log(`[RelatedVideos] Found ${relatedVideoLinks.length} related video links, enhancing...`);
+
+      relatedVideoLinks.forEach((link) => {
+        const linkElement = link as HTMLAnchorElement;
+        
+        // 避免重复处理
+        if (linkElement.hasAttribute('data-click-enhanced')) {
+          return;
+        }
+        linkElement.setAttribute('data-click-enhanced', 'true');
+
+        // 左键点击：在当前标签打开
+        linkElement.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.href = linkElement.href;
+        });
+
+        // 右键点击：在后台新标签打开
+        linkElement.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // 使用chrome.runtime.sendMessage发送消息给background script
+          chrome.runtime.sendMessage({
+            type: 'OPEN_TAB_BACKGROUND',
+            url: linkElement.href
+          }).catch(err => {
+            log('[RelatedVideos] Failed to open background tab:', err);
+            // 降级方案：使用window.open
+            window.open(linkElement.href, '_blank');
+          });
+
+          showToast('已在后台打开', 'success');
+        });
+
+        // 阻止右键菜单
+        linkElement.addEventListener('mousedown', (e) => {
+          if (e.button === 2) { // 右键
+            e.preventDefault();
+          }
+        });
+      });
+
+      log('[RelatedVideos] Related video clicks enhanced successfully');
+    } catch (error) {
+      log('[RelatedVideos] Error enhancing related video clicks:', error);
+    }
   }
 }
 
