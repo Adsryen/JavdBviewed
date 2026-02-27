@@ -10,6 +10,166 @@ import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../services/privacy';
 import { dbActorsBulkPut } from './dbClient';
 import { showConfirm } from './components/confirmModal';
+import type { VideoRecord, VideoStatus } from '../types';
+
+/**
+ * 检测备份数据的版本
+ */
+function detectBackupVersion(data: any): 'v1' | 'v2' | 'unknown' {
+  if (!data || typeof data !== 'object') return 'unknown';
+  
+  // v2 格式特征：有 version 字段或包含 data/actorRecords 等结构化字段
+  if (data.version || data.timestamp || (data.data && typeof data.data === 'object')) {
+    return 'v2';
+  }
+  
+  // v1 格式特征：直接是记录对象，或者有 viewed/browsed 等旧字段
+  if (data.viewed || data.browsed || data.want) {
+    return 'v1';
+  }
+  
+  // 检查第一个记录的结构
+  const firstKey = Object.keys(data)[0];
+  if (firstKey && data[firstKey] && typeof data[firstKey] === 'object') {
+    const rec = data[firstKey] as any;
+    // 旧版特征：status 是 'viewed'/'unviewed'，没有 createdAt/updatedAt
+    if ((rec.status === 'viewed' || rec.status === 'unviewed') && !rec.createdAt) {
+      return 'v1';
+    }
+    // 新版特征：有 createdAt/updatedAt
+    if (rec.createdAt || rec.updatedAt) {
+      return 'v2';
+    }
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * 迁移单条旧版记录到新版格式
+ */
+function migrateOldRecord(record: any): VideoRecord {
+  const now = Date.now();
+  
+  // 如果已经是新版格式，直接返回
+  if (record.createdAt && record.updatedAt) {
+    return record as VideoRecord;
+  }
+  
+  // 转换旧版 status
+  let status: VideoStatus = 'browsed';
+  if (record.status === 'viewed') {
+    status = 'viewed';
+  } else if (record.status === 'want') {
+    status = 'want';
+  } else if (record.status === 'unviewed') {
+    status = 'browsed'; // 旧版的 unviewed 对应新版的 browsed
+  }
+
+  return {
+    id: record.id,
+    title: record.title || record.id,
+    status,
+    tags: record.tags || [],
+    listIds: record.listIds || [],
+    createdAt: record.createdAt || now,
+    updatedAt: now,
+    releaseDate: record.releaseDate,
+    javdbUrl: record.javdbUrl,
+    javdbImage: record.javdbImage,
+    enhancedData: record.enhancedData,
+  };
+}
+
+/**
+ * 迁移旧版备份数据到新版格式
+ */
+function migrateBackupData(oldData: any): any {
+  const version = detectBackupVersion(oldData);
+  
+  logAsync('INFO', 'WebDAV恢复：检测到备份数据版本', { version });
+  
+  if (version === 'v2') {
+    // 已经是新版格式，直接返回
+    return oldData;
+  }
+  
+  if (version === 'v1') {
+    // 旧版格式迁移
+    logAsync('INFO', 'WebDAV恢复：开始迁移旧版本数据格式');
+    
+    const migratedData: any = {
+      version: '2.1',
+      timestamp: new Date().toISOString(),
+      data: {},
+      actorRecords: oldData.actorRecords || {},
+      settings: oldData.settings,
+      userProfile: oldData.userProfile,
+      logs: oldData.logs || [],
+      importStats: oldData.importStats,
+      newWorks: oldData.newWorks || {}
+    };
+    
+    // 迁移视频记录
+    const recordsSource = oldData.data || oldData.viewed || oldData;
+    if (recordsSource && typeof recordsSource === 'object') {
+      const migratedRecords: Record<string, VideoRecord> = {};
+      let migratedCount = 0;
+      
+      for (const [id, record] of Object.entries(recordsSource)) {
+        if (record && typeof record === 'object') {
+          migratedRecords[id] = migrateOldRecord(record as any);
+          migratedCount++;
+        }
+      }
+      
+      migratedData.data = migratedRecords;
+      logAsync('INFO', 'WebDAV恢复：已迁移视频记录', { count: migratedCount });
+    }
+    
+    // 合并 browsed 和 want 列表（如果存在）
+    if (oldData.browsed && typeof oldData.browsed === 'object') {
+      let browsedCount = 0;
+      for (const [id, record] of Object.entries(oldData.browsed)) {
+        if (record && typeof record === 'object' && !migratedData.data[id]) {
+          const migrated = migrateOldRecord(record as any);
+          migrated.status = 'browsed';
+          migratedData.data[id] = migrated;
+          browsedCount++;
+        }
+      }
+      if (browsedCount > 0) {
+        logAsync('INFO', 'WebDAV恢复：已迁移browsed记录', { count: browsedCount });
+      }
+    }
+    
+    if (oldData.want && typeof oldData.want === 'object') {
+      let wantCount = 0;
+      for (const [id, record] of Object.entries(oldData.want)) {
+        if (record && typeof record === 'object' && !migratedData.data[id]) {
+          const migrated = migrateOldRecord(record as any);
+          migrated.status = 'want';
+          migratedData.data[id] = migrated;
+          wantCount++;
+        }
+      }
+      if (wantCount > 0) {
+        logAsync('INFO', 'WebDAV恢复：已迁移want记录', { count: wantCount });
+      }
+    }
+    
+    logAsync('INFO', 'WebDAV恢复：旧版本数据迁移完成', { 
+      totalRecords: Object.keys(migratedData.data).length,
+      actors: Object.keys(migratedData.actorRecords).length
+    });
+    
+    return migratedData;
+  }
+  
+  // 未知格式，尝试原样返回
+  logAsync('WARN', 'WebDAV恢复：无法识别备份数据版本，尝试原样导入');
+  return oldData;
+}
 
 interface WebDAVFile {
     path: string;
@@ -149,8 +309,6 @@ interface WizardState {
 }
 
 // 简化状态管理：覆盖式恢复不需要复杂的向导状态
-let isAnalysisComplete = false;
-
 // 保留向导状态以兼容现有代码，但简化使用
 let wizardState: WizardState = {
     currentMode: 'quick',
@@ -275,7 +433,7 @@ function initializeRestoreInterface(diffResult: DataDiffResult): void {
     logAsync('INFO', '初始化覆盖式恢复界面');
 
     // 标记分析完成
-    isAnalysisComplete = true;
+    wizardState.isAnalysisComplete = true;
 
     // 初始化统一的恢复模式
     initializeRestoreMode(diffResult);
@@ -324,11 +482,6 @@ function initializeRestoreMode(diffResult: DataDiffResult): void {
             startQuickRestore();
         };
     }
-}
-
-// 移除复杂的模式切换逻辑
-function initializeModeSelector(): void {
-    // 覆盖式恢复不需要模式切换，保留空函数以避免调用错误
 }
 
 /**
@@ -1658,7 +1811,21 @@ async function loadCloudPreview(): Promise<void> {
 
         if (!resp?.success) throw new Error(resp?.error || '预览失败');
 
-        currentCloudData = resp.raw || resp.data || {};
+        let cloudData = resp.raw || resp.data || {};
+        
+        // 检测并迁移旧版本数据格式
+        const version = detectBackupVersion(cloudData);
+        if (version === 'v1') {
+            logAsync('INFO', 'WebDAV恢复：检测到旧版本备份，正在自动迁移');
+            showMessage('检测到旧版本备份数据，正在自动迁移...', 'info');
+            cloudData = migrateBackupData(cloudData);
+            showMessage('✓ 旧版本数据迁移成功', 'success');
+        } else if (version === 'unknown') {
+            logAsync('WARN', 'WebDAV恢复：无法识别备份版本，尝试原样处理');
+            showMessage('⚠️ 备份数据格式未知，将尝试兼容处理', 'warn');
+        }
+        
+        currentCloudData = cloudData;
 
         // 计算云端统计（优先使用后台 preview.counts），并增加 storageAll 回退
         const previewCounts = resp.preview?.counts || {};
@@ -2800,7 +2967,7 @@ async function downloadLatestBackup(): Promise<void> {
 
         // 获取最新的备份
         const latestBackupKey = restoreBackupKeys.sort().pop()!;
-        const backupData = backupKeys[latestBackupKey];
+        const backupData = backupKeys[latestBackupKey] as any;
 
         // 创建下载
         const blob = new Blob([JSON.stringify(backupData, null, 2)], {
@@ -2841,7 +3008,7 @@ export async function rollbackLastRestore(): Promise<void> {
 
         // 获取最新的备份
         const latestBackupKey = restoreBackupKeys.sort().pop()!;
-        const backupData = backupKeys[latestBackupKey];
+        const backupData = backupKeys[latestBackupKey] as any;
 
         if (!backupData || !backupData.data) {
             throw new Error('备份数据格式错误');
@@ -3369,29 +3536,64 @@ function displayVersionContent(containerId: string, data: any, type: 'video' | '
     if (type === 'video') {
         html += `<div class="field-item"><span class="field-label"><i class="fas fa-video"></i> 标题:</span><span class="field-value">${data.title || '未知'}</span></div>`;
         html += `<div class="field-item"><span class="field-label"><i class="fas fa-eye"></i> 状态:</span><span class="field-value status-${data.status}">${getStatusText(data.status)}</span></div>`;
-        if (data.tags && data.tags.length > 0) { const tagsHtml = data.tags.map((tag: string) => `<span class=\"tag\">${tag}</span>`).join(''); html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签:</span><span class=\"field-value tags\">${tagsHtml}</span></div>`; } else { html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签:</span><span class=\"field-value empty\">无标签</span></div>`; }
-        if (data.releaseDate) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar\"></i> 发行日期:</span><span class=\"field-value\">${data.releaseDate}</span></div>`;
-        if (data.javdbUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 链接:</span><span class=\"field-value\"><a href=\"${data.javdbUrl}\" target=\"_blank\" class=\"external-link\">${data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl}</a></span></div>`;
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间:</span><span class=\"field-value\">${formatTimestamp(data.updatedAt)}</span></div>`;
+        
+        if (data.tags && data.tags.length > 0) {
+            const tagsHtml = data.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join('');
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-tags"></i> 标签:</span><span class="field-value tags">${tagsHtml}</span></div>`;
+        } else {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-tags"></i> 标签:</span><span class="field-value empty">无标签</span></div>`;
+        }
+        
+        if (data.releaseDate) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-calendar"></i> 发行日期:</span><span class="field-value">${data.releaseDate}</span></div>`;
+        }
+        if (data.javdbUrl) {
+            const urlDisplay = data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl;
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-link"></i> 链接:</span><span class="field-value"><a href="${data.javdbUrl}" target="_blank" class="external-link">${urlDisplay}</a></span></div>`;
+        }
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-clock"></i> 更新时间:</span><span class="field-value">${formatTimestamp(data.updatedAt)}</span></div>`;
     } else if (type === 'actor') {
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-user\"></i> 姓名:</span><span class=\"field-value\">${data.name || '未知'}</span></div>`;
-        if (data.gender) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-venus-mars\"></i> 性别:</span><span class=\"field-value\">${data.gender}</span></div>`;
-        if (data.category) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 分类:</span><span class=\"field-value\">${data.category}</span></div>`;
-        if (data.profileUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 资料链接:</span><span class=\"field-value\"><a href=\"${data.profileUrl}\" target=\"_blank\" class=\"external-link\">${data.profileUrl.length > 50 ? data.profileUrl.substring(0, 50) + '...' : data.profileUrl}</a></span></div>`;
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间:</span><span class=\"field-value\">${formatTimestamp(data.updatedAt)}</span></div>`;
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-user"></i> 姓名:</span><span class="field-value">${data.name || '未知'}</span></div>`;
+        if (data.gender) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-venus-mars"></i> 性别:</span><span class="field-value">${data.gender}</span></div>`;
+        }
+        if (data.category) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-tags"></i> 分类:</span><span class="field-value">${data.category}</span></div>`;
+        }
+        if (data.profileUrl) {
+            const urlDisplay = data.profileUrl.length > 50 ? data.profileUrl.substring(0, 50) + '...' : data.profileUrl;
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-link"></i> 资料链接:</span><span class="field-value"><a href="${data.profileUrl}" target="_blank" class="external-link">${urlDisplay}</a></span></div>`;
+        }
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-clock"></i> 更新时间:</span><span class="field-value">${formatTimestamp(data.updatedAt)}</span></div>`;
     } else if (type === 'newWorksSub') {
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-id-badge\"></i> 演员：</span><span class=\"field-value\">${data.actorName || '未知'}</span></div>`;
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-toggle-on\"></i> 订阅状态：</span><span class=\"field-value\">${data.enabled ? '启用' : '停用'}</span></div>`;
-        if (data.lastCheckTime) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 最后检查：</span><span class=\"field-value\">${formatTimestamp(data.lastCheckTime)}</span></div>`;
-        if (data.subscribedAt) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar-plus\"></i> 订阅时间：</span><span class=\"field-value\">${formatTimestamp(data.subscribedAt)}</span></div>`;
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-id-badge"></i> 演员：</span><span class="field-value">${data.actorName || '未知'}</span></div>`;
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-toggle-on"></i> 订阅状态：</span><span class="field-value">${data.enabled ? '启用' : '停用'}</span></div>`;
+        if (data.lastCheckTime) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-clock"></i> 最后检查：</span><span class="field-value">${formatTimestamp(data.lastCheckTime)}</span></div>`;
+        }
+        if (data.subscribedAt) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-calendar-plus"></i> 订阅时间：</span><span class="field-value">${formatTimestamp(data.subscribedAt)}</span></div>`;
+        }
     } else if (type === 'newWorksRec') {
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-film\"></i> 标题：</span><span class=\"field-value\">${data.title || '未知'}</span></div>`;
-        if (data.actorName) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-user\"></i> 演员：</span><span class=\"field-value\">${data.actorName}</span></div>`;
-        if (data.releaseDate) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-calendar\"></i> 发行日期：</span><span class=\"field-value\">${data.releaseDate}</span></div>`;
-        if (data.tags && data.tags.length > 0) { const tagsHtml = data.tags.map((t: string) => `<span class=\"tag\">${t}</span>`).join(''); html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-tags\"></i> 标签：</span><span class=\"field-value tags\">${tagsHtml}</span></div>`; }
-        if (data.javdbUrl) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-link\"></i> 链接：</span><span class=\"field-value\"><a href=\"${data.javdbUrl}\" target=\"_blank\" class=\"external-link\">${data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl}</a></span></div>`;
-        if (data.discoveredAt) html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-search\"></i> 发现时间：</span><span class=\"field-value\">${formatTimestamp(data.discoveredAt)}</span></div>`;
-        html += `<div class=\"field-item\"><span class=\"field-label\"><i class=\"fas fa-clock\"></i> 更新时间：</span><span class=\"field-value\">${formatTimestamp(data.updatedAt || Date.now())}</span></div>`;
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-film"></i> 标题：</span><span class="field-value">${data.title || '未知'}</span></div>`;
+        if (data.actorName) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-user"></i> 演员：</span><span class="field-value">${data.actorName}</span></div>`;
+        }
+        if (data.releaseDate) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-calendar"></i> 发行日期：</span><span class="field-value">${data.releaseDate}</span></div>`;
+        }
+        if (data.tags && data.tags.length > 0) {
+            const tagsHtml = data.tags.map((t: string) => `<span class="tag">${t}</span>`).join('');
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-tags"></i> 标签：</span><span class="field-value tags">${tagsHtml}</span></div>`;
+        }
+        if (data.javdbUrl) {
+            const urlDisplay = data.javdbUrl.length > 50 ? data.javdbUrl.substring(0, 50) + '...' : data.javdbUrl;
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-link"></i> 链接：</span><span class="field-value"><a href="${data.javdbUrl}" target="_blank" class="external-link">${urlDisplay}</a></span></div>`;
+        }
+        if (data.discoveredAt) {
+            html += `<div class="field-item"><span class="field-label"><i class="fas fa-search"></i> 发现时间：</span><span class="field-value">${formatTimestamp(data.discoveredAt)}</span></div>`;
+        }
+        html += `<div class="field-item"><span class="field-label"><i class="fas fa-clock"></i> 更新时间：</span><span class="field-value">${formatTimestamp(data.updatedAt || Date.now())}</span></div>`;
     }
 
     container.innerHTML = html;
