@@ -59,7 +59,10 @@ function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
     status = 'browsed'; // 旧版的 unviewed 对应新版的 browsed
   }
 
+  // 使用扩展运算符保留所有原有字段（包括未来可能添加的字段）
   const base: Partial<VideoRecord> = {
+    ...(record as any), // 保留所有原有字段
+    // 覆盖必需的字段
     id: record.id,
     title: (record as any).title || record.id,
     status,
@@ -67,6 +70,7 @@ function migrateRecord(record: OldVideoRecord | VideoRecord): VideoRecord {
     listIds: (record as any).listIds || [],
     createdAt: (record as any).createdAt || now,
     updatedAt: now,
+    // 以下字段如果存在则保留，不存在则为 undefined（会被过滤）
     releaseDate: (record as any).releaseDate,
     javdbUrl: (record as any).javdbUrl,
     javdbImage: (record as any).javdbImage,

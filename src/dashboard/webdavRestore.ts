@@ -66,7 +66,10 @@ function migrateOldRecord(record: any): VideoRecord {
     status = 'browsed'; // 旧版的 unviewed 对应新版的 browsed
   }
 
+  // 使用扩展运算符保留所有原有字段（包括未来可能添加的字段）
   return {
+    ...record, // 保留所有原有字段
+    // 覆盖必需的字段
     id: record.id,
     title: record.title || record.id,
     status,
@@ -74,6 +77,7 @@ function migrateOldRecord(record: any): VideoRecord {
     listIds: record.listIds || [],
     createdAt: record.createdAt || now,
     updatedAt: now,
+    // 以下字段如果存在则保留，不存在则为 undefined
     releaseDate: record.releaseDate,
     javdbUrl: record.javdbUrl,
     javdbImage: record.javdbImage,
