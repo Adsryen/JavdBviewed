@@ -632,6 +632,23 @@ async function handleExistingRecord(
     if (latestData.releaseDate !== undefined) record.releaseDate = latestData.releaseDate;
     record.javdbUrl = currentUrl; // 始终更新URL
     if (latestData.javdbImage !== undefined) record.javdbImage = latestData.javdbImage;
+    
+    // 🆕 更新新增字段
+    if (latestData.videoCode !== undefined) record.videoCode = latestData.videoCode;
+    if (latestData.duration !== undefined) record.duration = latestData.duration;
+    if (latestData.maker !== undefined) record.maker = latestData.maker;
+    if (latestData.makerUrl !== undefined) record.makerUrl = latestData.makerUrl;
+    if (latestData.publisher !== undefined) record.publisher = latestData.publisher;
+    if (latestData.publisherUrl !== undefined) record.publisherUrl = latestData.publisherUrl;
+    if (latestData.series !== undefined) record.series = latestData.series;
+    if (latestData.seriesUrl !== undefined) record.seriesUrl = latestData.seriesUrl;
+    if (latestData.rating !== undefined) record.rating = latestData.rating;
+    if (latestData.ratingCount !== undefined) record.ratingCount = latestData.ratingCount;
+    if (latestData.actors !== undefined) record.actors = latestData.actors;
+    if (latestData.wantToWatchCount !== undefined) record.wantToWatchCount = latestData.wantToWatchCount;
+    if (latestData.watchedCount !== undefined) record.watchedCount = latestData.watchedCount;
+    if (latestData.categories !== undefined) record.categories = latestData.categories;
+    
     record.updatedAt = now;
 
     // 检查哪些字段发生了变化
@@ -641,6 +658,21 @@ async function handleExistingRecord(
     if (oldRecord.releaseDate !== record.releaseDate) changes.push('发布日期');
     if (oldRecord.javdbUrl !== record.javdbUrl) changes.push('URL');
     if (oldRecord.javdbImage !== record.javdbImage) changes.push('封面图片');
+    // 🆕 检查新增字段的变化
+    if (oldRecord.videoCode !== record.videoCode) changes.push('番号前缀');
+    if (oldRecord.duration !== record.duration) changes.push('时长');
+    if (oldRecord.maker !== record.maker) changes.push('片商');
+    if (oldRecord.makerUrl !== record.makerUrl) changes.push('片商链接');
+    if (oldRecord.publisher !== record.publisher) changes.push('发行商');
+    if (oldRecord.publisherUrl !== record.publisherUrl) changes.push('发行商链接');
+    if (oldRecord.series !== record.series) changes.push('系列');
+    if (oldRecord.seriesUrl !== record.seriesUrl) changes.push('系列链接');
+    if (oldRecord.rating !== record.rating) changes.push('评分');
+    if (oldRecord.ratingCount !== record.ratingCount) changes.push('评分人数');
+    if (JSON.stringify(oldRecord.actors) !== JSON.stringify(record.actors)) changes.push('演员');
+    if (oldRecord.wantToWatchCount !== record.wantToWatchCount) changes.push('想看人数');
+    if (oldRecord.watchedCount !== record.watchedCount) changes.push('看过人数');
+    if (JSON.stringify(oldRecord.categories) !== JSON.stringify(record.categories)) changes.push('类别');
 
     log(`Updated fields for ${videoId}: [${changes.join(', ')}]`);
 
@@ -677,6 +709,23 @@ async function handleExistingRecord(
             if (latestData.releaseDate !== undefined) updatedRecord.releaseDate = latestData.releaseDate;
             updatedRecord.javdbUrl = currentUrl;
             if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
+            
+            // 🆕 更新新增字段
+            if (latestData.videoCode !== undefined) updatedRecord.videoCode = latestData.videoCode;
+            if (latestData.duration !== undefined) updatedRecord.duration = latestData.duration;
+            if (latestData.maker !== undefined) updatedRecord.maker = latestData.maker;
+            if (latestData.makerUrl !== undefined) updatedRecord.makerUrl = latestData.makerUrl;
+            if (latestData.publisher !== undefined) updatedRecord.publisher = latestData.publisher;
+            if (latestData.publisherUrl !== undefined) updatedRecord.publisherUrl = latestData.publisherUrl;
+            if (latestData.series !== undefined) updatedRecord.series = latestData.series;
+            if (latestData.seriesUrl !== undefined) updatedRecord.seriesUrl = latestData.seriesUrl;
+            if (latestData.rating !== undefined) updatedRecord.rating = latestData.rating;
+            if (latestData.ratingCount !== undefined) updatedRecord.ratingCount = latestData.ratingCount;
+            if (latestData.actors !== undefined) updatedRecord.actors = latestData.actors;
+            if (latestData.wantToWatchCount !== undefined) updatedRecord.wantToWatchCount = latestData.wantToWatchCount;
+            if (latestData.watchedCount !== undefined) updatedRecord.watchedCount = latestData.watchedCount;
+            if (latestData.categories !== undefined) updatedRecord.categories = latestData.categories;
+            
             updatedRecord.updatedAt = now;
 
             // 尝试状态升级（优先采用页面识别状态，其次退回到 browsed）
@@ -768,82 +817,161 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
     try {
         const title = document.title.replace(/ \| JavDB.*/, '').trim();
 
-        // 获取发布日期 - 改进的逻辑
-        let releaseDate: string | undefined;
-
-        // 方法1: 查找包含"日期"的panel-block
+        // 获取所有 panel-block 元素，用于提取各种字段
         const panelBlocks = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
-        for (const block of panelBlocks) {
-            const strongElement = block.querySelector('strong');
-            if (strongElement && strongElement.textContent?.includes('日期')) {
-                const valueElement = block.querySelector('.value');
-                if (valueElement) {
-                    releaseDate = valueElement.textContent?.trim();
-                    log(`Found release date in panel-block: "${releaseDate}"`);
-                    break;
-                }
-            }
-        }
-
-        // 方法2: 如果没找到，尝试其他兼容的选择器
-        if (!releaseDate) {
-            // 尝试一些兼容的选择器
-            const compatibleSelectors = [
-                '.panel-block .value', // 通用的value选择器
-                '.panel-block span.value', // 带span的value
-                '.panel-block .field-value' // 可能的字段值
-            ];
-
-            for (const selector of compatibleSelectors) {
-                const elements = Array.from(document.querySelectorAll<HTMLElement>(selector));
-                for (const element of elements) {
-                    const text = element.textContent?.trim();
-                    if (text && /^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
-                        releaseDate = text;
-                        log(`Found release date with compatible selector "${selector}": "${releaseDate}"`);
-                        break;
+        
+        // 辅助函数：根据标签名查找对应的值
+        const findValueByLabel = (labels: string[]): string | undefined => {
+            for (const block of panelBlocks) {
+                const strongElement = block.querySelector('strong');
+                const label = strongElement?.textContent?.trim() || '';
+                if (labels.some(l => label.includes(l))) {
+                    const valueElement = block.querySelector('.value');
+                    if (valueElement) {
+                        return valueElement.textContent?.trim();
                     }
                 }
-                if (releaseDate) break;
             }
-        }
+            return undefined;
+        };
 
-        // 方法3: 如果还是没找到，搜索日期模式
+        // 🆕 辅助函数：根据标签名查找对应的链接
+        const findLinkByLabel = (labels: string[]): { text?: string; url?: string } | undefined => {
+            for (const block of panelBlocks) {
+                const strongElement = block.querySelector('strong');
+                const label = strongElement?.textContent?.trim() || '';
+                if (labels.some(l => label.includes(l))) {
+                    const linkElement = block.querySelector<HTMLAnchorElement>('.value a');
+                    if (linkElement) {
+                        return {
+                            text: linkElement.textContent?.trim(),
+                            url: linkElement.getAttribute('href') || undefined
+                        };
+                    }
+                }
+            }
+            return undefined;
+        };
+
+        // 🆕 提取番号前缀（从番号中提取，如 "JAC-229" -> "JAC"）
+        const videoCode = videoId.split('-')[0] || undefined;
+
+        // 获取发布日期
+        let releaseDate = findValueByLabel(['日期', 'Date']);
         if (!releaseDate) {
-            log('Still no release date found, searching for date patterns...');
+            // 尝试通过正则匹配日期格式
             for (const block of panelBlocks) {
                 const text = block.textContent?.trim();
                 if (text) {
-                    // 匹配 YYYY-MM-DD 格式
                     const dateMatch = text.match(/(\d{4}-\d{1,2}-\d{1,2})/);
                     if (dateMatch) {
                         releaseDate = dateMatch[1];
-                        log(`Found date pattern in panel-block: "${releaseDate}"`);
                         break;
                     }
                 }
             }
         }
+        log(`Release date: "${releaseDate || 'undefined'}"`);
 
-        log(`Final release date: "${releaseDate || 'undefined'}"`);
+        // 🆕 提取时长（分钟）
+        let duration: number | undefined;
+        const durationText = findValueByLabel(['時長', '时长', 'Duration']);
+        if (durationText) {
+            const durationMatch = durationText.match(/(\d+)/);
+            if (durationMatch) {
+                duration = parseInt(durationMatch[1], 10);
+                log(`Duration: ${duration} minutes`);
+            }
+        }
 
-        // 获取标签
+        // 🆕 提取片商（名称 + 链接）
+        const makerInfo = findLinkByLabel(['片商', 'Maker', 'Studio']);
+        const maker = makerInfo?.text;
+        const makerUrl = makerInfo?.url;
+        if (maker) log(`Maker: "${maker}"${makerUrl ? ` (${makerUrl})` : ''}`);
+
+        // 🆕 提取发行商（名称 + 链接）
+        const publisherInfo = findLinkByLabel(['發行', '发行', 'Publisher']);
+        const publisher = publisherInfo?.text;
+        const publisherUrl = publisherInfo?.url;
+        if (publisher) log(`Publisher: "${publisher}"${publisherUrl ? ` (${publisherUrl})` : ''}`);
+
+        // 🆕 提取系列（名称 + 链接）
+        const seriesInfo = findLinkByLabel(['系列', 'Series']);
+        const series = seriesInfo?.text;
+        const seriesUrl = seriesInfo?.url;
+        if (series) log(`Series: "${series}"${seriesUrl ? ` (${seriesUrl})` : ''}`);
+
+
+        // 🆕 提取评分信息
+        let rating: number | undefined;
+        let ratingCount: number | undefined;
+        const ratingText = findValueByLabel(['評分', '评分', 'Rating']);
+        if (ratingText) {
+            // 匹配格式如 "3.73分, 由87人評價"
+            const ratingMatch = ratingText.match(/([\d.]+)分/);
+            const countMatch = ratingText.match(/(\d+)人/);
+            if (ratingMatch) {
+                rating = parseFloat(ratingMatch[1]);
+                log(`Rating: ${rating}`);
+            }
+            if (countMatch) {
+                ratingCount = parseInt(countMatch[1], 10);
+                log(`Rating count: ${ratingCount}`);
+            }
+        }
+
+        // 🆕 提取演员列表
+        const actors: string[] = [];
+        for (const block of panelBlocks) {
+            const strongElement = block.querySelector('strong');
+            const label = strongElement?.textContent?.trim() || '';
+            if (label.includes('演員') || label.includes('演员') || label.includes('Actor')) {
+                const actorLinks = block.querySelectorAll<HTMLAnchorElement>('a[href^="/actors/"]');
+                actorLinks.forEach(link => {
+                    const actorName = link.textContent?.trim();
+                    if (actorName && actorName !== 'N/A') {
+                        actors.push(actorName);
+                    }
+                });
+                break;
+            }
+        }
+        if (actors.length > 0) log(`Actors: [${actors.join(', ')}]`);
+
+        // 🆕 提取统计数据（想看人数、看过人数）
+        let wantToWatchCount: number | undefined;
+        let watchedCount: number | undefined;
+        const statsText = findValueByLabel(['人想看', '人看過', '人看过']);
+        if (statsText) {
+            // 匹配格式如 "671人想看, 87人看過"
+            const wantMatch = statsText.match(/(\d+)人想看/);
+            const watchedMatch = statsText.match(/(\d+)人看[過过]/);
+            if (wantMatch) {
+                wantToWatchCount = parseInt(wantMatch[1], 10);
+                log(`Want to watch count: ${wantToWatchCount}`);
+            }
+            if (watchedMatch) {
+                watchedCount = parseInt(watchedMatch[1], 10);
+                log(`Watched count: ${watchedCount}`);
+            }
+        }
+
+        // 获取标签（类别）
         const tagElements = document.querySelectorAll<HTMLAnchorElement>(SELECTORS.VIDEO_DETAIL_TAGS);
-
         const tags = Array.from(tagElements)
             .map(tag => tag.innerText.trim())
             .filter(Boolean);
 
         // 如果没有找到标签，尝试备用选择器
         if (tags.length === 0) {
-
             const altSelectors = [
                 '.panel-block.genre span.value a',
                 'div.panel-block.genre .value a',
                 '.genre .value a',
-                '.panel-block .value a', // 通用的panel-block value链接
-                '.tags a', // 通用的标签链接
-                'a[href*="/genres/"]' // 指向类别页面的链接
+                '.panel-block .value a',
+                '.tags a',
+                'a[href*="/genres/"]'
             ];
 
             for (const selector of altSelectors) {
@@ -864,11 +992,28 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
             }
         }
 
-        // 提取描述文本，用于二次过滤（常见标签：描述/簡介/简介/說明/说明）
+        // 🆕 提取类别标签（从"類別"字段）
+        const categories: string[] = [];
+        for (const block of panelBlocks) {
+            const strongElement = block.querySelector('strong');
+            const label = strongElement?.textContent?.trim() || '';
+            if (label.includes('類別') || label.includes('类别') || label.includes('Category')) {
+                const categoryLinks = block.querySelectorAll<HTMLAnchorElement>('a[href*="/tags"]');
+                categoryLinks.forEach(link => {
+                    const categoryName = link.textContent?.trim();
+                    if (categoryName) {
+                        categories.push(categoryName);
+                    }
+                });
+                break;
+            }
+        }
+        if (categories.length > 0) log(`Categories: [${categories.join(', ')}]`);
+
+        // 提取描述文本，用于二次过滤
         let descriptionText: string | undefined;
         try {
-            const panelBlocksForDesc = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
-            for (const block of panelBlocksForDesc) {
+            for (const block of panelBlocks) {
                 const strongElement = block.querySelector('strong');
                 const label = strongElement?.textContent?.trim() || '';
                 if (['描述', '簡介', '简介', '說明', '说明'].some(k => label.includes(k))) {
@@ -898,7 +1043,6 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
             javdbImage = coverImageElement.src;
             log(`Found cover image: ${javdbImage}`);
         } else {
-            // 尝试从 fancybox 链接获取
             const fancyboxElement = document.querySelector<HTMLAnchorElement>('.column-video-cover a[data-fancybox="gallery"]');
             if (fancyboxElement && fancyboxElement.href) {
                 javdbImage = fancyboxElement.href;
@@ -911,6 +1055,21 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
             tags,
             releaseDate,
             javdbImage,
+            // 🆕 新增字段
+            videoCode,
+            duration,
+            maker,
+            makerUrl,
+            publisher,
+            publisherUrl,
+            series,
+            seriesUrl,
+            rating,
+            ratingCount,
+            actors: actors.length > 0 ? actors : undefined,
+            wantToWatchCount,
+            watchedCount,
+            categories: categories.length > 0 ? categories : undefined,
         };
     } catch (error) {
         log(`Error extracting video data for ${videoId}:`, error);
@@ -920,120 +1079,11 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
 
 async function createVideoRecord(videoId: string, now: number, currentUrl: string): Promise<VideoRecord | null> {
     try {
-        const title = document.title.replace(/ \| JavDB.*/, '').trim();
-
-        // 调试发布日期获取 - 使用兼容的方法
-        log(`Looking for release date using compatible methods`);
-        let releaseDate: string | undefined;
-
-        // 直接使用兼容的方法查找发布日期
-        {
-            log('No release date found with primary selector, trying alternatives...');
-
-            // 方法1: 查找包含"日期"的panel-block
-            const panelBlocks = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
-            log(`Found ${panelBlocks.length} panel-block elements`);
-
-            for (const block of panelBlocks) {
-                const strongElement = block.querySelector('strong');
-                if (strongElement) {
-                    const strongText = strongElement.textContent?.trim();
-                    log(`Panel-block strong text: "${strongText}"`);
-
-                    if (strongText && (strongText.includes('日期') || strongText.includes('Date'))) {
-                        const valueElement = block.querySelector('.value');
-                        if (valueElement) {
-                            releaseDate = valueElement.textContent?.trim();
-                            log(`Found release date in panel-block with strong "${strongText}": "${releaseDate}"`);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // 方法2: 如果还是没找到，搜索日期模式
-            if (!releaseDate) {
-                log('Still no release date found, searching for date patterns...');
-                for (const block of panelBlocks) {
-                    const text = block.textContent?.trim();
-                    if (text) {
-                        // 匹配 YYYY-MM-DD 格式
-                        const dateMatch = text.match(/(\d{4}-\d{1,2}-\d{1,2})/);
-                        if (dateMatch) {
-                            releaseDate = dateMatch[1];
-                            log(`Found date pattern in panel-block: "${releaseDate}"`);
-                            break;
-                        }
-                    }
-                }
-            }
-
-        }
-
-        log(`Final release date: "${releaseDate || 'undefined'}"`);
-
-
-        // 调试标签获取
-        log(`Looking for tags with selector: ${SELECTORS.VIDEO_DETAIL_TAGS}`);
-        const tagElements = document.querySelectorAll<HTMLAnchorElement>(SELECTORS.VIDEO_DETAIL_TAGS);
-        log(`Found ${tagElements.length} tag elements`);
-
-        const tags = Array.from(tagElements)
-            .map(tag => {
-                const text = tag.innerText.trim();
-                log(`Tag element text: "${text}"`);
-                return text;
-            })
-            .filter(Boolean);
-
-        log(`Final tags array: [${tags.join(', ')}]`);
-
-        // 如果没有找到标签，尝试备用选择器
-        if (tags.length === 0) {
-            log('No tags found with primary selector, trying alternative selectors...');
-
-            const altSelectors = [
-                '.panel-block.genre span.value a',
-                'div.panel-block.genre .value a',
-                '.genre .value a',
-                '.panel-block .value a', // 通用的panel-block value链接
-                '.tags a', // 通用的标签链接
-                'a[href*="/genres/"]' // 指向类别页面的链接
-            ];
-
-            for (const selector of altSelectors) {
-                try {
-                    const altTagElements = document.querySelectorAll<HTMLAnchorElement>(selector);
-                    if (altTagElements.length > 0) {
-                        log(`Found ${altTagElements.length} tags with alternative selector: ${selector}`);
-                        const altTags = Array.from(altTagElements)
-                            .map(tag => tag.innerText.trim())
-                            .filter(Boolean);
-                        if (altTags.length > 0) {
-                            tags.push(...altTags);
-                            log(`Alternative tags: [${altTags.join(', ')}]`);
-                            break;
-                        }
-                    }
-                } catch (error) {
-                    log(`Error with alternative selector ${selector}:`, error);
-                }
-            }
-        }
-
-        // 获取封面图片链接
-        let javdbImage: string | undefined;
-        const coverImageElement = document.querySelector<HTMLImageElement>('.column-video-cover img.video-cover');
-        if (coverImageElement && coverImageElement.src) {
-            javdbImage = coverImageElement.src;
-            log(`Found cover image: ${javdbImage}`);
-        } else {
-            // 尝试从 fancybox 链接获取
-            const fancyboxElement = document.querySelector<HTMLAnchorElement>('.column-video-cover a[data-fancybox="gallery"]');
-            if (fancyboxElement && fancyboxElement.href) {
-                javdbImage = fancyboxElement.href;
-                log(`Found cover image from fancybox: ${javdbImage}`);
-            }
+        // 使用统一的数据提取函数
+        const extractedData = await extractVideoData(videoId);
+        if (!extractedData) {
+            log(`Failed to extract data for ${videoId}`);
+            return null;
         }
 
         // 页面状态识别（我看過/我想看）
@@ -1041,14 +1091,29 @@ async function createVideoRecord(videoId: string, now: number, currentUrl: strin
 
         return {
             id: videoId,
-            title: title,
+            title: extractedData.title || document.title.replace(/ \| JavDB.*/, '').trim(),
             status: pageDetectedStatus ?? VIDEO_STATUS.BROWSED,
             createdAt: now,
             updatedAt: now,
-            tags: tags,
-            releaseDate: releaseDate || undefined,
+            tags: extractedData.tags || [],
+            releaseDate: extractedData.releaseDate,
             javdbUrl: currentUrl,
-            javdbImage: javdbImage,
+            javdbImage: extractedData.javdbImage,
+            // 🆕 新增字段
+            videoCode: extractedData.videoCode,
+            duration: extractedData.duration,
+            maker: extractedData.maker,
+            makerUrl: extractedData.makerUrl,
+            publisher: extractedData.publisher,
+            publisherUrl: extractedData.publisherUrl,
+            series: extractedData.series,
+            seriesUrl: extractedData.seriesUrl,
+            rating: extractedData.rating,
+            ratingCount: extractedData.ratingCount,
+            actors: extractedData.actors,
+            wantToWatchCount: extractedData.wantToWatchCount,
+            watchedCount: extractedData.watchedCount,
+            categories: extractedData.categories,
         };
     } catch (error) {
         log(`Error creating video record for ${videoId}:`, error);

@@ -378,14 +378,41 @@ export interface VideoRecord {
   javdbUrl?: string; // 对应JavDB页面的URL
   javdbImage?: string; // 封面图片链接 (可选)
 
+  // 🆕 基础信息扩展
+  duration?: number; // 时长（分钟）
+  maker?: string; // 片商
+  makerUrl?: string; // 片商链接
+  publisher?: string; // 发行商
+  publisherUrl?: string; // 发行商链接
+  series?: string; // 系列
+  seriesUrl?: string; // 系列链接
+  videoCode?: string; // 番号前缀（如JAC）
+  
+  // 🆕 演员信息
+  actors?: string[]; // 演员名称数组
+  
+  // 🆕 评分系统
+  rating?: number; // 官方评分 (1-5)
+  ratingCount?: number; // 评分人数
+  userRating?: number; // 用户自定义评分 (1-5)
+  userNotes?: string; // 用户备注
+  
+  // 🆕 统计数据
+  wantToWatchCount?: number; // 想看人数
+  watchedCount?: number; // 看过人数
+  
+  // 🆕 收藏功能
+  isFavorite?: boolean; // 是否收藏
+  favoritedAt?: number; // 收藏时间
+  
+  // 🆕 分类标签
+  categories?: string[]; // 类别（業餘、巨乳等）
+
   // 新增：增强数据字段
   enhancedData?: {
     coverImage?: string; // 高质量封面图
     previewVideo?: string; // 预览视频链接
     translatedTitle?: string; // 翻译后的标题
-    studio?: string; // 制作商
-    series?: string; // 系列
-    genre?: string[]; // 类别标签
     magnets?: EnhancedMagnet[]; // 磁力链接
     lastEnhanced?: number; // 最后增强时间
   };
