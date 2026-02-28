@@ -625,31 +625,35 @@ async function handleExistingRecord(
     // 保存原始状态用于回滚
     const oldStatus = record.status;
     const oldRecord = { ...record };
+    
+    // 获取锁定字段列表
+    const lockedFields = new Set(record.manuallyEditedFields || []);
 
-    // 始终更新数据字段（除了状态和时间戳）
-    if (latestData.title) record.title = latestData.title;
-    if (latestData.tags) record.tags = latestData.tags;
-    if (latestData.releaseDate !== undefined) record.releaseDate = latestData.releaseDate;
+    // 始终更新数据字段（除了状态、时间戳和锁定字段）
+    // 用户专属字段（userRating, userNotes, isFavorite）永远不会被覆盖
+    if (latestData.title && !lockedFields.has('title')) record.title = latestData.title;
+    if (latestData.tags && !lockedFields.has('tags')) record.tags = latestData.tags;
+    if (latestData.releaseDate !== undefined && !lockedFields.has('releaseDate')) record.releaseDate = latestData.releaseDate;
     record.javdbUrl = currentUrl; // 始终更新URL
     if (latestData.javdbImage !== undefined) record.javdbImage = latestData.javdbImage;
     
-    // 🆕 更新新增字段
+    // 🆕 更新新增字段（跳过锁定字段）
     if (latestData.videoCode !== undefined) record.videoCode = latestData.videoCode;
-    if (latestData.duration !== undefined) record.duration = latestData.duration;
-    if (latestData.director !== undefined) record.director = latestData.director;
+    if (latestData.duration !== undefined && !lockedFields.has('duration')) record.duration = latestData.duration;
+    if (latestData.director !== undefined && !lockedFields.has('director')) record.director = latestData.director;
     if (latestData.directorUrl !== undefined) record.directorUrl = latestData.directorUrl;
-    if (latestData.maker !== undefined) record.maker = latestData.maker;
+    if (latestData.maker !== undefined && !lockedFields.has('maker')) record.maker = latestData.maker;
     if (latestData.makerUrl !== undefined) record.makerUrl = latestData.makerUrl;
     if (latestData.publisher !== undefined) record.publisher = latestData.publisher;
     if (latestData.publisherUrl !== undefined) record.publisherUrl = latestData.publisherUrl;
-    if (latestData.series !== undefined) record.series = latestData.series;
+    if (latestData.series !== undefined && !lockedFields.has('series')) record.series = latestData.series;
     if (latestData.seriesUrl !== undefined) record.seriesUrl = latestData.seriesUrl;
     if (latestData.rating !== undefined) record.rating = latestData.rating;
     if (latestData.ratingCount !== undefined) record.ratingCount = latestData.ratingCount;
-    if (latestData.actors !== undefined) record.actors = latestData.actors;
+    if (latestData.actors !== undefined && !lockedFields.has('actors')) record.actors = latestData.actors;
     if (latestData.wantToWatchCount !== undefined) record.wantToWatchCount = latestData.wantToWatchCount;
     if (latestData.watchedCount !== undefined) record.watchedCount = latestData.watchedCount;
-    if (latestData.categories !== undefined) record.categories = latestData.categories;
+    if (latestData.categories !== undefined && !lockedFields.has('categories')) record.categories = latestData.categories;
     
     record.updatedAt = now;
 
@@ -706,31 +710,34 @@ async function handleExistingRecord(
 
             // 创建更新后的记录，应用所有变更
             const updatedRecord = { ...currentRecord };
+            
+            // 获取锁定字段列表
+            const lockedFieldsInner = new Set(currentRecord.manuallyEditedFields || []);
 
-            // 应用数据更新
-            if (latestData.title) updatedRecord.title = latestData.title;
-            if (latestData.tags) updatedRecord.tags = latestData.tags;
-            if (latestData.releaseDate !== undefined) updatedRecord.releaseDate = latestData.releaseDate;
+            // 应用数据更新（跳过锁定字段）
+            if (latestData.title && !lockedFieldsInner.has('title')) updatedRecord.title = latestData.title;
+            if (latestData.tags && !lockedFieldsInner.has('tags')) updatedRecord.tags = latestData.tags;
+            if (latestData.releaseDate !== undefined && !lockedFieldsInner.has('releaseDate')) updatedRecord.releaseDate = latestData.releaseDate;
             updatedRecord.javdbUrl = currentUrl;
             if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
             
-            // 🆕 更新新增字段
+            // 🆕 更新新增字段（跳过锁定字段）
             if (latestData.videoCode !== undefined) updatedRecord.videoCode = latestData.videoCode;
-            if (latestData.duration !== undefined) updatedRecord.duration = latestData.duration;
-            if (latestData.director !== undefined) updatedRecord.director = latestData.director;
+            if (latestData.duration !== undefined && !lockedFieldsInner.has('duration')) updatedRecord.duration = latestData.duration;
+            if (latestData.director !== undefined && !lockedFieldsInner.has('director')) updatedRecord.director = latestData.director;
             if (latestData.directorUrl !== undefined) updatedRecord.directorUrl = latestData.directorUrl;
-            if (latestData.maker !== undefined) updatedRecord.maker = latestData.maker;
+            if (latestData.maker !== undefined && !lockedFieldsInner.has('maker')) updatedRecord.maker = latestData.maker;
             if (latestData.makerUrl !== undefined) updatedRecord.makerUrl = latestData.makerUrl;
             if (latestData.publisher !== undefined) updatedRecord.publisher = latestData.publisher;
             if (latestData.publisherUrl !== undefined) updatedRecord.publisherUrl = latestData.publisherUrl;
-            if (latestData.series !== undefined) updatedRecord.series = latestData.series;
+            if (latestData.series !== undefined && !lockedFieldsInner.has('series')) updatedRecord.series = latestData.series;
             if (latestData.seriesUrl !== undefined) updatedRecord.seriesUrl = latestData.seriesUrl;
             if (latestData.rating !== undefined) updatedRecord.rating = latestData.rating;
             if (latestData.ratingCount !== undefined) updatedRecord.ratingCount = latestData.ratingCount;
-            if (latestData.actors !== undefined) updatedRecord.actors = latestData.actors;
+            if (latestData.actors !== undefined && !lockedFieldsInner.has('actors')) updatedRecord.actors = latestData.actors;
             if (latestData.wantToWatchCount !== undefined) updatedRecord.wantToWatchCount = latestData.wantToWatchCount;
             if (latestData.watchedCount !== undefined) updatedRecord.watchedCount = latestData.watchedCount;
-            if (latestData.categories !== undefined) updatedRecord.categories = latestData.categories;
+            if (latestData.categories !== undefined && !lockedFieldsInner.has('categories')) updatedRecord.categories = latestData.categories;
             
             updatedRecord.updatedAt = now;
 
