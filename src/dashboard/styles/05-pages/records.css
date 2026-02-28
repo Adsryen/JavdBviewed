@@ -1459,10 +1459,12 @@
     background: var(--surface-primary);
     border-radius: 8px;
     width: 90%;
-    max-width: 800px;
+    max-width: 1200px; /* 从800px增加到1200px */
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden; /* 改为hidden，让body内部滚动 */
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
 }
 
 .edit-modal-header {
@@ -1504,21 +1506,65 @@
 
 .edit-modal-body {
     padding: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 20px;
+    overflow-y: auto; /* 让body内部可滚动 */
+    flex: 1;
+}
+
+/* 表单容器 - 左右布局 */
+.edit-form-container {
+    display: flex;
+    gap: 20px;
+    width: 100%;
 }
 
 .edit-form {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 15px;
+    min-width: 0; /* 防止flex子元素溢出 */
+}
+
+/* JSON编辑器容器 */
+.json-editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* 表单分组标题 */
+.edit-form h4 {
+    margin: 16px 0 8px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+    color: #495057;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.edit-form h4:first-child {
+    margin-top: 0;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 5px;
+}
+
+/* 表单行 - 支持多个字段在同一行 */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
 }
 
 .form-group label {
@@ -1528,19 +1574,61 @@
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
     transition: border-color 0.2s ease;
+    background-color: var(--surface-primary);
+    color: var(--text-primary);
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+/* 必填字段标记 */
+.form-group .required {
+    color: #dc3545;
+    margin-left: 2px;
+}
+
+/* 复选框组样式 */
+.checkbox-group {
+    flex-direction: row;
+    align-items: center;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-group i {
+    font-size: 16px;
 }
 
 .form-hint {
@@ -1554,6 +1642,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    height: 100%;
 }
 
 .json-editor label {
@@ -1569,8 +1658,9 @@
     font-family: 'Courier New', monospace;
     font-size: 12px;
     line-height: 1.4;
-    resize: vertical;
-    min-height: 200px;
+    resize: none; /* 禁止调整大小，让它填充容器 */
+    flex: 1; /* 填充剩余空间 */
+    min-height: 400px;
     background-color: #f8f9fa;
 }
 
@@ -1578,6 +1668,94 @@
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 星星评分组样式 */
+.star-rating-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.star-rating-input {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.star-rating-input:hover {
+    background: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.star-rating-input .rating-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+    min-width: 70px;
+}
+
+.star-rating-input .rating-value {
+    font-size: 13px;
+    color: #6c757d;
+    font-weight: 500;
+    min-width: 60px;
+}
+
+.star-rating-input .stars-container {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+/* 星星包装器 - 支持半星点击 */
+.star-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.star-half-left,
+.star-half-right {
+    position: absolute;
+    top: 0;
+    font-size: 20px;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+}
+
+.star-half-left {
+    left: 0;
+    width: 50%;
+    overflow: hidden;
+    z-index: 2;
+}
+
+.star-half-right {
+    right: 0;
+    width: 100%;
+    z-index: 1;
+}
+
+.star-wrapper:hover .star-half-left,
+.star-wrapper:hover .star-half-right {
+    transform: scale(1.15);
+}
+
+/* 悬浮提示半星 */
+.star-half-left:hover {
+    filter: brightness(1.2);
+}
+
+.star-half-right:hover {
+    filter: brightness(1.2);
 }
 
 .json-editor-buttons {
@@ -1713,16 +1891,37 @@
 }
 
 [data-theme="dark"] .form-group input,
-[data-theme="dark"] .form-group select {
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea {
     background-color: var(--input-bg);
     border-color: var(--input-border);
     color: var(--text-primary);
 }
 
 [data-theme="dark"] .form-group input:focus,
-[data-theme="dark"] .form-group select:focus {
+[data-theme="dark"] .form-group select:focus,
+[data-theme="dark"] .form-group textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}
+
+[data-theme="dark"] .edit-form h4 {
+    color: var(--text-primary);
+    border-bottom-color: var(--border-primary);
+}
+
+[data-theme="dark"] .star-rating-input {
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .star-rating-input:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+[data-theme="dark"] .star-rating-input .rating-value {
+    color: var(--text-secondary);
 }
 
 [data-theme="dark"] .form-hint {
@@ -1770,6 +1969,24 @@
 }
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+    .edit-modal-content {
+        max-width: 95%;
+    }
+    
+    .edit-form-container {
+        flex-direction: column;
+    }
+    
+    .json-editor-container {
+        max-height: 300px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .edit-modal-content {
         width: 95%;
@@ -1777,12 +1994,16 @@
     }
 
     .edit-modal-body {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 15px;
     }
 
     .json-editor textarea {
-        min-height: 150px;
+        min-height: 200px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -2226,3 +2447,57 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     pointer-events: none; /* So it doesn't interfere with mouse events */
 } 
+
+/* 🆕 星星评分样式 */
+.rating-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 14px;
+    margin-left: 8px;
+}
+
+.rating-stars i {
+    transition: transform 0.2s ease;
+}
+
+.rating-stars:hover i {
+    transform: scale(1.1);
+}
+
+/* 官方评分 - 黄色星星 */
+.rating-stars.official i {
+    color: #ffd700;
+}
+
+.rating-stars.official i.far {
+    color: #ddd;
+}
+
+/* 用户评分 - 红色星星 */
+.rating-stars.user {
+    margin-left: 4px;
+}
+
+.rating-stars.user i {
+    color: #ff4444;
+}
+
+.rating-stars.user i.far {
+    color: #ffcccc;
+}
+
+/* 卡片视图中的星星样式调整 */
+#videoList.card-view .rating-stars {
+    font-size: 13px;
+}
+
+/* 列表视图中的星星样式 */
+#videoList:not(.card-view) .rating-stars {
+    font-size: 14px;
+}
+
+/* 星星悬浮效果 */
+.rating-stars {
+    cursor: help;
+}
