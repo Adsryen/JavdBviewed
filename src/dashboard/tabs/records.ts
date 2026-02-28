@@ -1157,6 +1157,53 @@ export function initRecordsTab(): void {
                         videoIdHtml = `<span class="video-id-text">${record.id}</span>`;
                     }
 
+                    // 🆕 生成星星评分 HTML
+                    const generateStarsHtml = (rating: number | undefined, userRating: number | undefined) => {
+                        let starsHtml = '';
+                        
+                        // 官方评分（黄色星星）
+                        if (rating && rating > 0) {
+                            const fullStars = Math.floor(rating);
+                            const hasHalfStar = rating % 1 >= 0.5;
+                            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                            
+                            starsHtml += '<span class="rating-stars official" title="官方评分: ' + rating.toFixed(2) + '">';
+                            for (let i = 0; i < fullStars; i++) {
+                                starsHtml += '<i class="fas fa-star"></i>';
+                            }
+                            if (hasHalfStar) {
+                                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+                            }
+                            for (let i = 0; i < emptyStars; i++) {
+                                starsHtml += '<i class="far fa-star"></i>';
+                            }
+                            starsHtml += '</span>';
+                        }
+                        
+                        // 用户评分（红色星星）
+                        if (userRating && userRating > 0) {
+                            const fullStars = Math.floor(userRating);
+                            const hasHalfStar = userRating % 1 >= 0.5;
+                            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                            
+                            starsHtml += '<span class="rating-stars user" title="我的评分: ' + userRating.toFixed(1) + '">';
+                            for (let i = 0; i < fullStars; i++) {
+                                starsHtml += '<i class="fas fa-star"></i>';
+                            }
+                            if (hasHalfStar) {
+                                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+                            }
+                            for (let i = 0; i < emptyStars; i++) {
+                                starsHtml += '<i class="far fa-star"></i>';
+                            }
+                            starsHtml += '</span>';
+                        }
+                        
+                        return starsHtml;
+                    };
+
+                    const starsHtml = generateStarsHtml(record.rating, record.userRating);
+
                     // 生成tags HTML（按所选标签子串匹配高亮，忽略大小写）
                     const selectedTokensLower = Array.from(selectedTags).map(t => String(t).toLowerCase());
                     const tagsHtml = record.tags && record.tags.length > 0
@@ -1189,6 +1236,7 @@ export function initRecordsTab(): void {
                             <div class="video-content-wrapper">
                                 <div class="video-id-container">
                                     ${videoIdHtml}
+                                    ${starsHtml}
                                 </div>
                                 ${tagsHtml}
                                 ${listsHtml}
@@ -1201,6 +1249,7 @@ export function initRecordsTab(): void {
                             <div class="video-content-wrapper">
                                 <div class="video-id-container">
                                     ${videoIdHtml}
+                                    ${starsHtml}
                                 </div>
                                 ${tagsHtml}
                                 ${listsHtml}
@@ -2157,6 +2206,44 @@ export function initRecordsTab(): void {
         // 创建modal元素
         const modal = document.createElement('div');
         modal.className = 'edit-record-modal';
+        
+        // 生成星星评分选择器HTML - 支持半星评分
+        const generateStarRating = (fieldId: string, currentRating: number | undefined, label: string, color: string) => {
+            const rating = currentRating || 0;
+            let starsHtml = '';
+            
+            // 生成5个星星，每个星星分为左右两半
+            for (let i = 1; i <= 5; i++) {
+                const fullValue = i;
+                const halfValue = i - 0.5;
+                const isFull = rating >= fullValue;
+                const isHalf = !isFull && rating >= halfValue;
+                
+                starsHtml += `
+                    <span class="star-wrapper" data-star="${i}">
+                        <i class="star-half-left ${isHalf || isFull ? 'fas' : 'far'} fa-star" 
+                           data-value="${halfValue}" 
+                           style="color: ${isHalf || isFull ? color : '#ddd'}"></i>
+                        <i class="star-half-right ${isFull ? 'fas' : 'far'} fa-star" 
+                           data-value="${fullValue}" 
+                           style="color: ${isFull ? color : '#ddd'}"></i>
+                    </span>
+                `;
+            }
+            
+            return `
+                <div class="form-group star-rating-group">
+                    <div class="star-rating-input" data-field="${fieldId}" data-rating="${rating}">
+                        <span class="rating-label">${label}:</span>
+                        <span class="rating-value">${rating > 0 ? rating + ' 星' : '未评分'}</span>
+                        <div class="stars-container">
+                            ${starsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+        
         modal.innerHTML = `
             <div class="edit-modal-content">
                 <div class="edit-modal-header">
@@ -2164,50 +2251,104 @@ export function initRecordsTab(): void {
                     <button class="edit-modal-close">&times;</button>
                 </div>
                 <div class="edit-modal-body">
-                    <div class="edit-form">
-                        <div class="form-group">
-                            <label for="edit-id">视频ID:</label>
-                            <input type="text" id="edit-id" value="${record.id}" />
-                            <small class="form-hint">修改ID后会创建新记录，原记录将被删除</small>
+                    <div class="edit-form-container">
+                        <div class="json-editor-container">
+                            <div class="json-editor">
+                                <label for="edit-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
+                                <textarea id="edit-json" rows="30">${JSON.stringify(record, null, 2)}</textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="edit-title">标题:</label>
-                            <input type="text" id="edit-title" value="${record.title}" />
+                        <div class="edit-form">
+                            <h4>基础信息</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-id">视频ID: <span class="required">*</span></label>
+                                    <input type="text" id="edit-id" value="${record.id}" />
+                                    <small class="form-hint">修改ID后会创建新记录，原记录将被删除</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-status">状态:</label>
+                                    <select id="edit-status">
+                                        <option value="${VIDEO_STATUS.UNTRACKED}" ${record.status === VIDEO_STATUS.UNTRACKED ? 'selected' : ''}>未标记</option>
+                                        <option value="${VIDEO_STATUS.VIEWED}" ${record.status === VIDEO_STATUS.VIEWED ? 'selected' : ''}>已观看</option>
+                                        <option value="${VIDEO_STATUS.BROWSED}" ${record.status === VIDEO_STATUS.BROWSED ? 'selected' : ''}>已浏览</option>
+                                        <option value="${VIDEO_STATUS.WANT}" ${record.status === VIDEO_STATUS.WANT ? 'selected' : ''}>想看</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-title">标题: <span class="required">*</span></label>
+                                <input type="text" id="edit-title" value="${record.title}" />
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-release-date">发布日期:</label>
+                                    <input type="date" id="edit-release-date" value="${record.releaseDate || ''}" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-duration">时长 (分钟):</label>
+                                    <input type="number" id="edit-duration" value="${record.duration || ''}" placeholder="120" min="0" />
+                                </div>
+                            </div>
+                            
+                            <h4>评分与收藏</h4>
+                            ${generateStarRating('userRating', record.userRating, '我的评分', '#ff4444')}
+                            <div class="form-group checkbox-group">
+                                <label>
+                                    <input type="checkbox" id="edit-is-favorite" ${record.isFavorite ? 'checked' : ''} />
+                                    <i class="fas fa-heart" style="color: #ff4444;"></i> 收藏此影片
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-user-notes">我的备注:</label>
+                                <textarea id="edit-user-notes" rows="3" placeholder="写下你对这部影片的想法...">${record.userNotes || ''}</textarea>
+                            </div>
+                            
+                            <h4>制作信息</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-director">导演:</label>
+                                    <input type="text" id="edit-director" value="${record.director || ''}" placeholder="导演名称" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-maker">片商:</label>
+                                    <input type="text" id="edit-maker" value="${record.maker || ''}" placeholder="片商名称" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-series">系列:</label>
+                                <input type="text" id="edit-series" value="${record.series || ''}" placeholder="系列名称" />
+                            </div>
+                            
+                            <h4>链接与图片</h4>
+                            <div class="form-group">
+                                <label for="edit-javdb-url">JavDB链接:</label>
+                                <input type="url" id="edit-javdb-url" value="${record.javdbUrl || ''}" placeholder="https://javdb.com/v/..." />
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-javdb-image">封面图片链接:</label>
+                                <input type="url" id="edit-javdb-image" value="${record.javdbImage || ''}" placeholder="https://..." />
+                            </div>
+                            
+                            <h4>标签与分类</h4>
+                            <div class="form-group">
+                                <label for="edit-tags">标签 (用逗号分隔):</label>
+                                <textarea id="edit-tags" rows="2" placeholder="中出, 巨乳, 单体作品">${record.tags ? record.tags.join(', ') : ''}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-categories">类别 (用逗号分隔):</label>
+                                <textarea id="edit-categories" rows="2" placeholder="已婚婦女, 出軌, 巨乳">${record.categories ? record.categories.join(', ') : ''}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-actors">演员 (用逗号分隔):</label>
+                                <textarea id="edit-actors" rows="2" placeholder="演员1, 演员2">${record.actors ? record.actors.join(', ') : ''}</textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="edit-status">状态:</label>
-                            <select id="edit-status">
-                                <option value="${VIDEO_STATUS.UNTRACKED}" ${record.status === VIDEO_STATUS.UNTRACKED ? 'selected' : ''}>未标记</option>
-                                <option value="${VIDEO_STATUS.VIEWED}" ${record.status === VIDEO_STATUS.VIEWED ? 'selected' : ''}>已观看</option>
-                                <option value="${VIDEO_STATUS.BROWSED}" ${record.status === VIDEO_STATUS.BROWSED ? 'selected' : ''}>已浏览</option>
-                                <option value="${VIDEO_STATUS.WANT}" ${record.status === VIDEO_STATUS.WANT ? 'selected' : ''}>想看</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-release-date">发布日期:</label>
-                            <input type="text" id="edit-release-date" value="${record.releaseDate || ''}" placeholder="YYYY-MM-DD" />
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-javdb-url">JavDB链接:</label>
-                            <input type="url" id="edit-javdb-url" value="${record.javdbUrl || ''}" />
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-javdb-image">封面图片链接:</label>
-                            <input type="url" id="edit-javdb-image" value="${record.javdbImage || ''}" />
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-tags">标签 (用逗号分隔):</label>
-                            <input type="text" id="edit-tags" value="${record.tags ? record.tags.join(', ') : ''}" />
-                        </div>
-                    </div>
-                    <div class="json-editor">
-                        <label for="edit-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
-                        <textarea id="edit-json" rows="20">${JSON.stringify(record, null, 2)}</textarea>
                     </div>
                 </div>
                 <div class="edit-modal-footer">
-                    <button id="save-record" class="btn-primary">保存</button>
-                    <button id="cancel-edit" class="btn-secondary">取消</button>
+                    <button id="save-record" class="btn-primary"><i class="fas fa-save"></i> 保存</button>
+                    <button id="cancel-edit" class="btn-secondary"><i class="fas fa-times"></i> 取消</button>
                 </div>
             </div>
         `;
@@ -2221,8 +2362,71 @@ export function initRecordsTab(): void {
         const releaseDateInput = modal.querySelector('#edit-release-date') as HTMLInputElement;
         const javdbUrlInput = modal.querySelector('#edit-javdb-url') as HTMLInputElement;
         const javdbImageInput = modal.querySelector('#edit-javdb-image') as HTMLInputElement;
-        const tagsInput = modal.querySelector('#edit-tags') as HTMLInputElement;
+        const tagsInput = modal.querySelector('#edit-tags') as HTMLTextAreaElement;
+        const categoriesInput = modal.querySelector('#edit-categories') as HTMLTextAreaElement;
+        const actorsInput = modal.querySelector('#edit-actors') as HTMLTextAreaElement;
+        const directorInput = modal.querySelector('#edit-director') as HTMLInputElement;
+        const makerInput = modal.querySelector('#edit-maker') as HTMLInputElement;
+        const seriesInput = modal.querySelector('#edit-series') as HTMLInputElement;
+        const durationInput = modal.querySelector('#edit-duration') as HTMLInputElement;
+        const userNotesInput = modal.querySelector('#edit-user-notes') as HTMLTextAreaElement;
+        const isFavoriteInput = modal.querySelector('#edit-is-favorite') as HTMLInputElement;
         const jsonTextarea = modal.querySelector('#edit-json') as HTMLTextAreaElement;
+
+        // 星星评分交互 - 支持半星
+        const userRatingContainer = modal.querySelector('[data-field="userRating"]') as HTMLElement;
+        let currentUserRating = record.userRating || 0;
+        
+        const updateStarDisplay = (container: HTMLElement, rating: number, color: string) => {
+            const valueSpan = container.querySelector('.rating-value') as HTMLElement;
+            const starWrappers = container.querySelectorAll('.star-wrapper');
+            
+            starWrappers.forEach((wrapper, index) => {
+                const starNum = index + 1;
+                const leftHalf = wrapper.querySelector('.star-half-left') as HTMLElement;
+                const rightHalf = wrapper.querySelector('.star-half-right') as HTMLElement;
+                
+                const fullValue = starNum;
+                const halfValue = starNum - 0.5;
+                const isFull = rating >= fullValue;
+                const isHalf = !isFull && rating >= halfValue;
+                
+                // 左半边
+                if (isHalf || isFull) {
+                    leftHalf.classList.remove('far');
+                    leftHalf.classList.add('fas');
+                    leftHalf.style.color = color;
+                } else {
+                    leftHalf.classList.remove('fas');
+                    leftHalf.classList.add('far');
+                    leftHalf.style.color = '#ddd';
+                }
+                
+                // 右半边
+                if (isFull) {
+                    rightHalf.classList.remove('far');
+                    rightHalf.classList.add('fas');
+                    rightHalf.style.color = color;
+                } else {
+                    rightHalf.classList.remove('fas');
+                    rightHalf.classList.add('far');
+                    rightHalf.style.color = '#ddd';
+                }
+            });
+            
+            valueSpan.textContent = rating > 0 ? rating + ' 星' : '未评分';
+            container.setAttribute('data-rating', String(rating));
+        };
+        
+        userRatingContainer.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('star-half-left') || target.classList.contains('star-half-right')) {
+                const value = parseFloat(target.getAttribute('data-value') || '0');
+                currentUserRating = value;
+                updateStarDisplay(userRatingContainer, value, '#ff4444');
+                formToJson();
+            }
+        });
 
         // 防止循环更新的标志
         let isUpdatingFromForm = false;
@@ -2230,10 +2434,10 @@ export function initRecordsTab(): void {
 
         // 表单到JSON的自动同步
         const formToJson = () => {
-            if (isUpdatingFromJson) return; // 防止循环更新
+            if (isUpdatingFromJson) return;
             isUpdatingFromForm = true;
             
-            const formData = {
+            const formData: any = {
                 ...record,
                 id: idInput.value.trim(),
                 title: titleInput.value,
@@ -2241,17 +2445,27 @@ export function initRecordsTab(): void {
                 releaseDate: releaseDateInput.value || undefined,
                 javdbUrl: javdbUrlInput.value || undefined,
                 javdbImage: javdbImageInput.value || undefined,
-                tags: tagsInput.value ? tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+                tags: tagsInput.value ? tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean) : [],
+                categories: categoriesInput.value ? categoriesInput.value.split(',').map(c => c.trim()).filter(Boolean) : undefined,
+                actors: actorsInput.value ? actorsInput.value.split(',').map(a => a.trim()).filter(Boolean) : undefined,
+                director: directorInput.value.trim() || undefined,
+                maker: makerInput.value.trim() || undefined,
+                series: seriesInput.value.trim() || undefined,
+                duration: durationInput.value ? parseInt(durationInput.value) : undefined,
+                userRating: currentUserRating > 0 ? currentUserRating : undefined,
+                userNotes: userNotesInput.value.trim() || undefined,
+                isFavorite: isFavoriteInput.checked || undefined,
+                favoritedAt: isFavoriteInput.checked && !record.isFavorite ? Date.now() : record.favoritedAt,
                 updatedAt: Date.now()
             };
-            jsonTextarea.value = JSON.stringify(formData, null, 2);
             
+            jsonTextarea.value = JSON.stringify(formData, null, 2);
             isUpdatingFromForm = false;
         };
 
         // JSON到表单的自动同步
         const jsonToForm = () => {
-            if (isUpdatingFromForm) return; // 防止循环更新
+            if (isUpdatingFromForm) return;
             isUpdatingFromJson = true;
             
             try {
@@ -2263,12 +2477,22 @@ export function initRecordsTab(): void {
                 javdbUrlInput.value = jsonData.javdbUrl || '';
                 javdbImageInput.value = jsonData.javdbImage || '';
                 tagsInput.value = jsonData.tags ? jsonData.tags.join(', ') : '';
+                categoriesInput.value = jsonData.categories ? jsonData.categories.join(', ') : '';
+                actorsInput.value = jsonData.actors ? jsonData.actors.join(', ') : '';
+                directorInput.value = jsonData.director || '';
+                makerInput.value = jsonData.maker || '';
+                seriesInput.value = jsonData.series || '';
+                durationInput.value = jsonData.duration || '';
+                userNotesInput.value = jsonData.userNotes || '';
+                isFavoriteInput.checked = jsonData.isFavorite || false;
                 
-                // 清除错误提示
+                // 更新星星评分
+                currentUserRating = jsonData.userRating || 0;
+                updateStarDisplay(userRatingContainer, currentUserRating, '#ff4444');
+                
                 jsonTextarea.style.borderColor = '';
                 jsonTextarea.title = '';
             } catch (error) {
-                // JSON格式错误时显示视觉提示
                 jsonTextarea.style.borderColor = '#ff4444';
                 jsonTextarea.title = 'JSON格式错误';
             }
@@ -2276,13 +2500,14 @@ export function initRecordsTab(): void {
             isUpdatingFromJson = false;
         };
 
-        // 监听所有表单字段的变化，自动同步到JSON
-        [idInput, titleInput, statusSelect, releaseDateInput, javdbUrlInput, javdbImageInput, tagsInput].forEach(element => {
+        // 监听所有表单字段的变化
+        [idInput, titleInput, statusSelect, releaseDateInput, javdbUrlInput, javdbImageInput, 
+         tagsInput, categoriesInput, actorsInput, directorInput, makerInput, seriesInput, 
+         durationInput, userNotesInput, isFavoriteInput].forEach(element => {
             element.addEventListener('input', formToJson);
             element.addEventListener('change', formToJson);
         });
 
-        // 监听JSON文本框的变化，自动同步到表单
         jsonTextarea.addEventListener('input', jsonToForm);
 
         // 关闭modal
@@ -2292,35 +2517,26 @@ export function initRecordsTab(): void {
 
         modal.querySelector('.edit-modal-close')?.addEventListener('click', closeModal);
         modal.querySelector('#cancel-edit')?.addEventListener('click', closeModal);
-
-        // 点击背景关闭
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (e.target === modal) closeModal();
         });
 
         // 保存记录
         modal.querySelector('#save-record')?.addEventListener('click', async () => {
             try {
-                // 先尝试从JSON解析
                 const updatedRecord = JSON.parse(jsonTextarea.value);
 
-                // 验证必要字段
                 if (!updatedRecord.id || !updatedRecord.title) {
                     showMessage('ID和标题是必填字段', 'error');
                     return;
                 }
 
-                // 确保更新时间
                 updatedRecord.updatedAt = Date.now();
 
                 const originalId = record.id;
                 const newId = updatedRecord.id.trim();
 
-                // 如果 ID 发生变化，先删除旧记录
                 if (originalId !== newId) {
-                    // 检查新ID是否已存在
                     const existingRecord = STATE.records.find(r => r.id === newId);
                     if (existingRecord) {
                         showMessage(`ID "${newId}" 已存在，请使用其他ID`, 'error');
@@ -2329,10 +2545,8 @@ export function initRecordsTab(): void {
                     try { await dbViewedDelete(originalId); } catch {}
                 }
 
-                // 写入（或更新）新记录
                 await dbViewedPut(updatedRecord);
 
-                // 同步内存
                 const idx = STATE.records.findIndex(r => r.id === originalId);
                 if (idx !== -1) {
                     STATE.records.splice(idx, 1, updatedRecord);
@@ -2340,7 +2554,6 @@ export function initRecordsTab(): void {
                     STATE.records.push(updatedRecord);
                 }
                 if (originalId !== newId) {
-                    // 确保移除旧 id 的残留
                     for (let i = STATE.records.length - 1; i >= 0; i--) {
                         if (STATE.records[i].id === originalId) STATE.records.splice(i, 1);
                     }
@@ -2348,7 +2561,6 @@ export function initRecordsTab(): void {
                 } else {
                     showMessage(`记录 "${updatedRecord.id}" 已更新`, 'success');
                 }
-
                 // 刷新视图
                 render();
                 closeModal();
