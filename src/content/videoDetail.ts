@@ -11,6 +11,7 @@ import { showToast } from './toast';
 import { getRandomDelay, waitForElement } from './utils';
 import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
+import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
 import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
 import { getSettings, saveSettings } from '../utils/storage';
@@ -404,6 +405,20 @@ async function runActorRemarksQuick(): Promise<void> {
                     initOrchestrator.add('deferred', async () => {
                         try { await runActorRemarksQuick(); } catch {}
                     }, { label: 'actorRemarks:run', idle: true, idleTimeout: 5000, delayMs: 1200 });
+                }
+            }
+        } catch {}
+
+        // 独立：影片页收藏与评分（不依赖 videoEnhancement.enabled）
+        try {
+            const enabledVideoFavoriteRating = ((STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true);
+            if (enabledVideoFavoriteRating) {
+                const FLAG = '__jdb_videoFavoriteRating_scheduled__';
+                if (!(window as any)[FLAG]) {
+                    (window as any)[FLAG] = true;
+                    initOrchestrator.add('deferred', async () => {
+                        try { await videoFavoriteRatingEnhancer.init(); } catch {}
+                    }, { label: 'videoFavoriteRating:init', idle: true, idleTimeout: 5000, delayMs: 1000 });
                 }
             }
         } catch {}

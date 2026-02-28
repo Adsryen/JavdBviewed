@@ -42,6 +42,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableActorRemarks!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
+    private veEnableVideoFavoriteRating!: HTMLInputElement; // 新增：影片页收藏与评分
     // 新增：状态标记增强子项
     private veEnableWantSync!: HTMLInputElement;
     private veAutoMarkWatchedAfter115!: HTMLInputElement;
@@ -363,6 +364,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableActorRemarks = document.getElementById('veEnableActorRemarks') as HTMLInputElement;
         this.veActorRemarksMode = document.getElementById('veActorRemarksMode') as HTMLSelectElement;
         this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
+        // 新增：影片页收藏与评分
+        this.veEnableVideoFavoriteRating = document.getElementById('enableVideoFavoriteRating') as HTMLInputElement;
         // 新增：本地同步类子项
         this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
         this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
@@ -1325,6 +1328,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
         if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
         if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
+        // 新增：影片页收藏与评分（默认启用）
+        if (this.veEnableVideoFavoriteRating) this.veEnableVideoFavoriteRating.checked = (videoEnhancement as any).enableVideoFavoriteRating !== false;
 
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
@@ -1431,7 +1436,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         this.enableTranslation?.checked === true ||
                         this.veShowLoadingIndicator?.checked === true ||
                         this.veEnableReviewBreaker?.checked === true ||
-                        this.veEnableFC2Breaker?.checked === true
+                        this.veEnableFC2Breaker?.checked === true ||
+                        this.veEnableVideoFavoriteRating?.checked === true
                     ),
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
                     // 与"翻译"总开关保持一致，避免两处状态不一致
@@ -1447,6 +1453,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
+                    // 新增：影片页收藏与评分
+                    enableVideoFavoriteRating: this.veEnableVideoFavoriteRating?.checked === true,
                 } as any,
                 translation: {
                     provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',

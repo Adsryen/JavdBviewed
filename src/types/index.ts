@@ -207,6 +207,8 @@ export interface ExtensionSettings {
         enableActorRemarks?: boolean; // 是否启用演员备注
         actorRemarksMode?: 'panel' | 'inline'; // 展示模式
         actorRemarksTTLDays?: number; // 缓存 TTL（天），0 表示不缓存
+        // 新增：影片页收藏与评分
+        enableVideoFavoriteRating?: boolean; // 是否在影片页显示收藏和评分功能
     };
 
     // 新增：内容过滤配置

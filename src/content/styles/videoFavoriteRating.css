@@ -1,0 +1,194 @@
+/* 影片页收藏与评分样式 */
+
+.video-favorite-rating-container {
+  margin: 16px 0;
+  padding: 0;
+}
+
+.vfr-panel {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* 收藏按钮 */
+.vfr-favorite {
+  display: flex;
+  align-items: center;
+}
+
+.vfr-favorite-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 2px solid #ff6b9d;
+  border-radius: 24px;
+  color: #ff6b9d;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(255, 107, 157, 0.2);
+}
+
+.vfr-favorite-btn:hover {
+  background: #ff6b9d;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+}
+
+.vfr-favorite-btn.favorited {
+  background: #ff6b9d;
+  color: white;
+  border-color: #ff6b9d;
+}
+
+.vfr-favorite-btn.favorited:hover {
+  background: #ff4081;
+  border-color: #ff4081;
+  box-shadow: 0 4px 12px rgba(255, 64, 129, 0.5);
+}
+
+.vfr-favorite-btn i {
+  font-size: 16px;
+  transition: transform 0.3s ease;
+}
+
+.vfr-favorite-btn:hover i {
+  transform: scale(1.2);
+}
+
+.vfr-favorite-btn.favorited i {
+  animation: heartbeat 1s ease-in-out;
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14%, 42% {
+    transform: scale(1.3);
+  }
+  28%, 56% {
+    transform: scale(1);
+  }
+}
+
+/* 评分区域 */
+.vfr-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.vfr-rating-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.vfr-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.vfr-star-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.vfr-star-half {
+  position: absolute;
+  top: 0;
+  font-size: 24px;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  color: #ffd700;
+}
+
+.vfr-star-half.vfr-star-left {
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.vfr-star-half.vfr-star-right {
+  right: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+.vfr-star-half i.far {
+  color: #ddd;
+}
+
+.vfr-star-wrapper:hover .vfr-star-half {
+  transform: scale(1.2);
+  filter: brightness(1.2);
+}
+
+.vfr-rating-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff6b00;
+  min-width: 60px;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .vfr-panel {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .vfr-favorite-btn {
+  background: #2d3748;
+  color: #ff6b9d;
+}
+
+[data-theme="dark"] .vfr-favorite-btn:hover {
+  background: #ff6b9d;
+  color: white;
+}
+
+[data-theme="dark"] .vfr-favorite-btn.favorited {
+  background: #ff6b9d;
+  color: white;
+}
+
+[data-theme="dark"] .vfr-rating-label {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .vfr-rating-value {
+  color: #ffa94d;
+}
+
+[data-theme="dark"] .vfr-star-half i.far {
+  color: #4a5568;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .vfr-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .vfr-rating {
+    width: 100%;
+  }
+}
