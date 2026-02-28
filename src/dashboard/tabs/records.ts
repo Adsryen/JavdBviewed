@@ -780,7 +780,7 @@ export function initRecordsTab(): void {
             let total = 0;
 
             // 复杂条件或按 id/title 排序 -> 后台查询
-            if (searchTerm || hasTags || hasLists || adv.length > 0 || parsed.tags.length > 0 || parsed.listIds.length > 0 || parsed.listNames.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title') {
+            if (searchTerm || hasTags || hasLists || adv.length > 0 || parsed.tags.length > 0 || parsed.listIds.length > 0 || parsed.listNames.length > 0 || !sort || sort.orderBy === 'id' || sort.orderBy === 'title' || favoritesFilterActive) {
                 const queryParams: ViewedQueryParams = {
                     search: searchTerm || undefined,
                     status: statusVal,
@@ -803,6 +803,7 @@ export function initRecordsTab(): void {
                     offset: (currentPage - 1) * recordsPerPage,
                     limit: recordsPerPage,
                     adv,
+                    isFavorite: favoritesFilterActive ? true : undefined,
                 };
                 const resp = await dbViewedQuery(queryParams);
                 items = resp.items || [];
@@ -892,7 +893,10 @@ export function initRecordsTab(): void {
                     return Array.from(selectedListIds).some(id => recListIds.includes(String(id)));
                 })();
 
-                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists;
+                // 收藏过滤
+                const matchesFavorites = !favoritesFilterActive || record.isFavorite === true;
+
+                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists && matchesFavorites;
                 if (!basicMatch) return false;
 
                 // Advanced search conditions (AND)
@@ -1139,7 +1143,44 @@ export function initRecordsTab(): void {
                     deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
                     deleteButton.title = '删除记录';
 
+                    // 收藏按钮
+                    const favoriteButton = document.createElement('button');
+                    favoriteButton.className = `action-button favorite-button${record.isFavorite ? ' favorited' : ''}`;
+                    favoriteButton.innerHTML = `<i class="${record.isFavorite ? 'fas' : 'far'} fa-heart"></i>`;
+                    favoriteButton.title = record.isFavorite ? '取消收藏' : '添加到收藏';
+                    favoriteButton.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            // 切换收藏状态
+                            const newFavoriteState = !record.isFavorite;
+                            record.isFavorite = newFavoriteState;
+                            if (newFavoriteState) {
+                                record.favoritedAt = Date.now();
+                            }
+                            
+                            // 保存到数据库
+                            await dbViewedPut(record);
+                            
+                            // 更新按钮UI
+                            favoriteButton.className = `action-button favorite-button${newFavoriteState ? ' favorited' : ''}`;
+                            favoriteButton.innerHTML = `<i class="${newFavoriteState ? 'fas' : 'far'} fa-heart"></i>`;
+                            favoriteButton.title = newFavoriteState ? '取消收藏' : '添加到收藏';
+                            
+                            showMessage(newFavoriteState ? '已添加到收藏' : '已取消收藏', 'success');
+                            
+                            // 如果当前在收藏筛选模式，重新渲染列表
+                            if (favoritesFilterActive && !newFavoriteState) {
+                                updateFilteredRecords();
+                                render();
+                            }
+                        } catch (error: any) {
+                            console.error('[Records] 更新收藏状态失败:', error);
+                            showMessage(`操作失败: ${error.message}`, 'error');
+                        }
+                    });
+
                     // 将按钮添加到容器
+                    actionButtonsContainer.appendChild(favoriteButton);
                     actionButtonsContainer.appendChild(editButton);
                     actionButtonsContainer.appendChild(refreshButton);
                     actionButtonsContainer.appendChild(deleteButton);
@@ -1937,6 +1978,27 @@ export function initRecordsTab(): void {
         });
     }
 
+    // 我的收藏按钮
+    const myFavoritesBtn = document.getElementById('myFavoritesBtn') as HTMLButtonElement;
+    let favoritesFilterActive = false;
+    if (myFavoritesBtn) {
+        myFavoritesBtn.addEventListener('click', () => {
+            favoritesFilterActive = !favoritesFilterActive;
+            
+            // 更新按钮状态
+            if (favoritesFilterActive) {
+                myFavoritesBtn.classList.add('active');
+            } else {
+                myFavoritesBtn.classList.remove('active');
+            }
+            
+            // 重新筛选和渲染
+            currentPage = 1;
+            updateFilteredRecords();
+            render();
+        });
+    }
+
     // 已移除：精确查询事件监听器
 
     // Advanced search 切换使用文档级事件委托（见前文注入），此处不再重复绑定
@@ -2244,6 +2306,24 @@ export function initRecordsTab(): void {
             `;
         };
         
+        // 生成带锁图标的表单组
+        const generateFormGroupWithLock = (fieldName: string, label: string, inputHtml: string, isRequired: boolean = false) => {
+            const isLocked = record.manuallyEditedFields?.includes(fieldName) || false;
+            const lockIcon = isLocked 
+                ? '<i class="fas fa-lock field-lock locked" title="此字段已锁定，不会被自动同步覆盖。点击解锁"></i>'
+                : '<i class="fas fa-lock-open field-lock unlocked" title="此字段会自动同步。编辑后将自动锁定"></i>';
+            
+            return `
+                <div class="form-group" data-field-name="${fieldName}">
+                    <label>
+                        ${label}${isRequired ? ': <span class="required">*</span>' : ':'}
+                        ${lockIcon}
+                    </label>
+                    ${inputHtml}
+                </div>
+            `;
+        };
+        
         modal.innerHTML = `
             <div class="edit-modal-content">
                 <div class="edit-modal-header">
@@ -2306,19 +2386,10 @@ export function initRecordsTab(): void {
                             
                             <h4>制作信息</h4>
                             <div class="form-row">
-                                <div class="form-group">
-                                    <label for="edit-director">导演:</label>
-                                    <input type="text" id="edit-director" value="${record.director || ''}" placeholder="导演名称" />
-                                </div>
-                                <div class="form-group">
-                                    <label for="edit-maker">片商:</label>
-                                    <input type="text" id="edit-maker" value="${record.maker || ''}" placeholder="片商名称" />
-                                </div>
+                                ${generateFormGroupWithLock('director', '导演', `<input type="text" id="edit-director" value="${record.director || ''}" placeholder="导演名称" />`)}
+                                ${generateFormGroupWithLock('maker', '片商', `<input type="text" id="edit-maker" value="${record.maker || ''}" placeholder="片商名称" />`)}
                             </div>
-                            <div class="form-group">
-                                <label for="edit-series">系列:</label>
-                                <input type="text" id="edit-series" value="${record.series || ''}" placeholder="系列名称" />
-                            </div>
+                            ${generateFormGroupWithLock('series', '系列', `<input type="text" id="edit-series" value="${record.series || ''}" placeholder="系列名称" />`)}
                             
                             <h4>链接与图片</h4>
                             <div class="form-group">
@@ -2331,18 +2402,9 @@ export function initRecordsTab(): void {
                             </div>
                             
                             <h4>标签与分类</h4>
-                            <div class="form-group">
-                                <label for="edit-tags">标签 (用逗号分隔):</label>
-                                <textarea id="edit-tags" rows="2" placeholder="中出, 巨乳, 单体作品">${record.tags ? record.tags.join(', ') : ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-categories">类别 (用逗号分隔):</label>
-                                <textarea id="edit-categories" rows="2" placeholder="已婚婦女, 出軌, 巨乳">${record.categories ? record.categories.join(', ') : ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-actors">演员 (用逗号分隔):</label>
-                                <textarea id="edit-actors" rows="2" placeholder="演员1, 演员2">${record.actors ? record.actors.join(', ') : ''}</textarea>
-                            </div>
+                            ${generateFormGroupWithLock('tags', '标签 (用逗号分隔)', `<textarea id="edit-tags" rows="2" placeholder="中出, 巨乳, 单体作品">${record.tags ? record.tags.join(', ') : ''}</textarea>`)}
+                            ${generateFormGroupWithLock('categories', '类别 (用逗号分隔)', `<textarea id="edit-categories" rows="2" placeholder="已婚婦女, 出軌, 巨乳">${record.categories ? record.categories.join(', ') : ''}</textarea>`)}
+                            ${generateFormGroupWithLock('actors', '演员 (用逗号分隔)', `<textarea id="edit-actors" rows="2" placeholder="演员1, 演员2">${record.actors ? record.actors.join(', ') : ''}</textarea>`)}
                         </div>
                     </div>
                 </div>
@@ -2427,6 +2489,80 @@ export function initRecordsTab(): void {
                 formToJson();
             }
         });
+        
+        // 锁图标交互 - 点击切换锁定状态
+        const lockedFields = new Set<string>(record.manuallyEditedFields || []);
+        
+        modal.querySelectorAll('.field-lock').forEach(lockIcon => {
+            lockIcon.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const formGroup = (e.target as HTMLElement).closest('.form-group') as HTMLElement;
+                const fieldName = formGroup?.getAttribute('data-field-name');
+                
+                if (!fieldName) return;
+                
+                const isCurrentlyLocked = lockedFields.has(fieldName);
+                
+                if (isCurrentlyLocked) {
+                    // 解锁
+                    lockedFields.delete(fieldName);
+                    lockIcon.classList.remove('fas', 'fa-lock', 'locked');
+                    lockIcon.classList.add('fas', 'fa-lock-open', 'unlocked');
+                    lockIcon.setAttribute('title', '解锁状态，此字段会自动同步数据，用户编辑后将自动锁定。');
+                } else {
+                    // 锁定
+                    lockedFields.add(fieldName);
+                    lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
+                    lockIcon.classList.add('fas', 'fa-lock', 'locked');
+                    lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步的数据覆盖，点击解锁。');
+                }
+                
+                formToJson();
+            });
+        });
+        
+        // 监听字段变化，自动锁定
+        const trackableFields = {
+            'title': titleInput,
+            'director': directorInput,
+            'maker': makerInput,
+            'series': seriesInput,
+            'tags': tagsInput,
+            'categories': categoriesInput,
+            'actors': actorsInput
+        };
+        
+        Object.entries(trackableFields).forEach(([fieldName, input]) => {
+            input.addEventListener('change', () => {
+                // 检查字段是否真的被修改了
+                const originalValue = (record as any)[fieldName];
+                let currentValue: any;
+                
+                if (input instanceof HTMLTextAreaElement && (fieldName === 'tags' || fieldName === 'categories' || fieldName === 'actors')) {
+                    currentValue = input.value ? input.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+                } else if (input instanceof HTMLInputElement && input.type === 'number') {
+                    currentValue = input.value ? parseInt(input.value) : undefined;
+                } else {
+                    currentValue = input.value.trim() || undefined;
+                }
+                
+                const hasChanged = JSON.stringify(originalValue) !== JSON.stringify(currentValue);
+                
+                if (hasChanged && !lockedFields.has(fieldName)) {
+                    // 自动锁定
+                    lockedFields.add(fieldName);
+                    const formGroup = modal.querySelector(`[data-field-name="${fieldName}"]`);
+                    const lockIcon = formGroup?.querySelector('.field-lock');
+                    if (lockIcon) {
+                        lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
+                        lockIcon.classList.add('fas', 'fa-lock', 'locked');
+                        lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
+                    }
+                }
+            });
+        });
 
         // 防止循环更新的标志
         let isUpdatingFromForm = false;
@@ -2456,6 +2592,7 @@ export function initRecordsTab(): void {
                 userNotes: userNotesInput.value.trim() || undefined,
                 isFavorite: isFavoriteInput.checked || undefined,
                 favoritedAt: isFavoriteInput.checked && !record.isFavorite ? Date.now() : record.favoritedAt,
+                manuallyEditedFields: Array.from(lockedFields),
                 updatedAt: Date.now()
             };
             
@@ -2489,6 +2626,29 @@ export function initRecordsTab(): void {
                 // 更新星星评分
                 currentUserRating = jsonData.userRating || 0;
                 updateStarDisplay(userRatingContainer, currentUserRating, '#ff4444');
+                
+                // 更新锁定字段
+                lockedFields.clear();
+                if (jsonData.manuallyEditedFields) {
+                    jsonData.manuallyEditedFields.forEach((field: string) => lockedFields.add(field));
+                }
+                
+                // 更新锁图标显示
+                modal.querySelectorAll('.form-group[data-field-name]').forEach(formGroup => {
+                    const fieldName = formGroup.getAttribute('data-field-name');
+                    const lockIcon = formGroup.querySelector('.field-lock');
+                    if (fieldName && lockIcon) {
+                        if (lockedFields.has(fieldName)) {
+                            lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
+                            lockIcon.classList.add('fas', 'fa-lock', 'locked');
+                            lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
+                        } else {
+                            lockIcon.classList.remove('fas', 'fa-lock', 'locked');
+                            lockIcon.classList.add('fas', 'fa-lock-open', 'unlocked');
+                            lockIcon.setAttribute('title', '此字段会自动同步。编辑后将自动锁定');
+                        }
+                    }
+                });
                 
                 jsonTextarea.style.borderColor = '';
                 jsonTextarea.title = '';
