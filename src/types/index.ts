@@ -380,6 +380,8 @@ export interface VideoRecord {
 
   // 🆕 基础信息扩展
   duration?: number; // 时长（分钟）
+  director?: string; // 导演
+  directorUrl?: string; // 导演链接
   maker?: string; // 片商
   makerUrl?: string; // 片商链接
   publisher?: string; // 发行商

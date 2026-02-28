@@ -636,6 +636,8 @@ async function handleExistingRecord(
     // 🆕 更新新增字段
     if (latestData.videoCode !== undefined) record.videoCode = latestData.videoCode;
     if (latestData.duration !== undefined) record.duration = latestData.duration;
+    if (latestData.director !== undefined) record.director = latestData.director;
+    if (latestData.directorUrl !== undefined) record.directorUrl = latestData.directorUrl;
     if (latestData.maker !== undefined) record.maker = latestData.maker;
     if (latestData.makerUrl !== undefined) record.makerUrl = latestData.makerUrl;
     if (latestData.publisher !== undefined) record.publisher = latestData.publisher;
@@ -661,6 +663,8 @@ async function handleExistingRecord(
     // 🆕 检查新增字段的变化
     if (oldRecord.videoCode !== record.videoCode) changes.push('番号前缀');
     if (oldRecord.duration !== record.duration) changes.push('时长');
+    if (oldRecord.director !== record.director) changes.push('导演');
+    if (oldRecord.directorUrl !== record.directorUrl) changes.push('导演链接');
     if (oldRecord.maker !== record.maker) changes.push('片商');
     if (oldRecord.makerUrl !== record.makerUrl) changes.push('片商链接');
     if (oldRecord.publisher !== record.publisher) changes.push('发行商');
@@ -713,6 +717,8 @@ async function handleExistingRecord(
             // 🆕 更新新增字段
             if (latestData.videoCode !== undefined) updatedRecord.videoCode = latestData.videoCode;
             if (latestData.duration !== undefined) updatedRecord.duration = latestData.duration;
+            if (latestData.director !== undefined) updatedRecord.director = latestData.director;
+            if (latestData.directorUrl !== undefined) updatedRecord.directorUrl = latestData.directorUrl;
             if (latestData.maker !== undefined) updatedRecord.maker = latestData.maker;
             if (latestData.makerUrl !== undefined) updatedRecord.makerUrl = latestData.makerUrl;
             if (latestData.publisher !== undefined) updatedRecord.publisher = latestData.publisher;
@@ -883,6 +889,12 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
                 log(`Duration: ${duration} minutes`);
             }
         }
+
+        // 🆕 提取导演（名称 + 链接）
+        const directorInfo = findLinkByLabel(['導演', '导演', 'Director']);
+        const director = directorInfo?.text;
+        const directorUrl = directorInfo?.url;
+        if (director) log(`Director: "${director}"${directorUrl ? ` (${directorUrl})` : ''}`);
 
         // 🆕 提取片商（名称 + 链接）
         const makerInfo = findLinkByLabel(['片商', 'Maker', 'Studio']);
@@ -1058,6 +1070,8 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
             // 🆕 新增字段
             videoCode,
             duration,
+            director,
+            directorUrl,
             maker,
             makerUrl,
             publisher,
@@ -1102,6 +1116,8 @@ async function createVideoRecord(videoId: string, now: number, currentUrl: strin
             // 🆕 新增字段
             videoCode: extractedData.videoCode,
             duration: extractedData.duration,
+            director: extractedData.director,
+            directorUrl: extractedData.directorUrl,
             maker: extractedData.maker,
             makerUrl: extractedData.makerUrl,
             publisher: extractedData.publisher,
