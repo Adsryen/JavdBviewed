@@ -355,6 +355,54 @@
     background: var(--surface-hover, #e9ecef);
 }
 
+/* 我的收藏按钮 - 红色心跳脉冲 */
+.search-and-filter.records-toolbar #myFavoritesBtn.button-like {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    border: 1px solid #ff5252;
+    position: relative;
+    overflow: visible;
+}
+
+.search-and-filter.records-toolbar #myFavoritesBtn.button-like:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #e63946 100%);
+    border-color: #e63946;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+.search-and-filter.records-toolbar #myFavoritesBtn.button-like i {
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+    0% {
+        transform: scale(1);
+    }
+    14% {
+        transform: scale(1.2);
+    }
+    28% {
+        transform: scale(1);
+    }
+    42% {
+        transform: scale(1.2);
+    }
+    56% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 我的收藏按钮激活状态 */
+.search-and-filter.records-toolbar #myFavoritesBtn.button-like.active {
+    background: linear-gradient(135deg, #e63946 0%, #d62828 100%);
+    border-color: #d62828;
+    box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.3);
+}
+
 /* 显示/隐藏封面按钮配色与状态 */
 #toggleCoversBtn.button-like {
     background: var(--surface-secondary, #f3f4f6);
@@ -1441,6 +1489,42 @@
     box-shadow: 0 3px 6px rgba(220, 53, 69, 0.3);
 }
 
+/* 收藏按钮 - 粉红色爱心 */
+.favorite-button {
+    background-color: transparent;
+    border: 2px solid #ff6b9d;
+    color: #ff6b9d;
+    padding: 4px 8px;
+}
+
+.favorite-button:hover:not(:disabled) {
+    background-color: #ff6b9d;
+    color: white;
+    border-color: #ff6b9d;
+    box-shadow: 0 3px 6px rgba(255, 107, 157, 0.4);
+}
+
+.favorite-button.favorited {
+    background-color: #ff6b9d;
+    color: white;
+    border-color: #ff6b9d;
+}
+
+.favorite-button.favorited:hover:not(:disabled) {
+    background-color: #ff4081;
+    border-color: #ff4081;
+    box-shadow: 0 3px 6px rgba(255, 64, 129, 0.4);
+}
+
+.favorite-button i {
+    font-size: 14px;
+    transition: transform 0.2s ease;
+}
+
+.favorite-button:hover i {
+    transform: scale(1.2);
+}
+
 /* 编辑记录Modal样式 */
 .edit-record-modal {
     position: fixed;
@@ -1571,6 +1655,37 @@
     font-weight: 600;
     color: #333;
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 字段锁定图标 */
+.field-lock {
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    padding: 2px;
+    border-radius: 3px;
+}
+
+.field-lock.unlocked {
+    color: #adb5bd;
+}
+
+.field-lock.unlocked:hover {
+    color: #6c757d;
+    background: #f8f9fa;
+}
+
+.field-lock.locked {
+    color: #fd7e14;
+}
+
+.field-lock.locked:hover {
+    color: #e8590c;
+    background: #fff3e0;
+    transform: scale(1.1);
 }
 
 .form-group input,
@@ -1660,7 +1775,7 @@
     line-height: 1.4;
     resize: none; /* 禁止调整大小，让它填充容器 */
     flex: 1; /* 填充剩余空间 */
-    min-height: 400px;
+    min-height: 600px; /* 从500px增加到600px */
     background-color: #f8f9fa;
 }
 
@@ -1888,6 +2003,24 @@
 
 [data-theme="dark"] .form-group label {
     color: var(--text-primary);
+}
+
+[data-theme="dark"] .field-lock.unlocked {
+    color: #6c757d;
+}
+
+[data-theme="dark"] .field-lock.unlocked:hover {
+    color: #adb5bd;
+    background: var(--bg-hover);
+}
+
+[data-theme="dark"] .field-lock.locked {
+    color: #ff922b;
+}
+
+[data-theme="dark"] .field-lock.locked:hover {
+    color: #ffa94d;
+    background: rgba(255, 146, 43, 0.1);
 }
 
 [data-theme="dark"] .form-group input,
