@@ -95,6 +95,7 @@ export interface ViewedPageParams {
   status?: VideoRecord['status'];
   orderBy?: 'updatedAt' | 'createdAt';
   order?: 'asc' | 'desc';
+  isFavorite?: boolean;
 }
 
 export interface ViewedStats {
@@ -114,6 +115,7 @@ export interface ViewedQueryParams {
   offset?: number;
   limit?: number;
   adv?: Array<{ field: string; op: string; value?: string }>;
+  isFavorite?: boolean;
 }
 
 export async function dbViewedCount(status?: VideoRecord['status']): Promise<number> {

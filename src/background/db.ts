@@ -218,7 +218,7 @@ export interface ViewedQueryParams {
 }
 
 export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }> {
-  const { search = '', status = 'all', tags = [], listIds = [], orderBy = 'updatedAt', order = 'desc', offset = 0, limit = 50 } = params || {} as any;
+  const { search = '', status = 'all', tags = [], listIds = [], orderBy = 'updatedAt', order = 'desc', offset = 0, limit = 50, isFavorite } = params || {} as any;
   const db = await initDB();
   const tx = db.transaction('viewedRecords');
   const store = tx.store;
@@ -253,6 +253,10 @@ export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: V
     const r = cursor.value as VideoRecord;
     if (!r) continue;
     if (status && status !== 'all' && r.status !== status) continue;
+    
+    // 收藏筛选
+    if (isFavorite !== undefined && isFavorite && r.isFavorite !== true) continue;
+    
     if (lower) {
       const idS = (r.id || '').toLowerCase();
       const titleS = (r.title || '').toLowerCase();
@@ -674,19 +678,42 @@ export async function viewedCountByStatus(status?: VideoRecord['status']): Promi
   return idx.count(IDBKeyRange.only(status));
 }
 
-export interface ViewedPageParams {
-  offset: number;
-  limit: number;
-  status?: VideoRecord['status'];
-  orderBy?: 'updatedAt' | 'createdAt';
-  order?: 'asc' | 'desc';
-}
-
 export async function viewedPage(params: ViewedPageParams): Promise<{ items: VideoRecord[]; total: number; }> {
-  const { offset = 0, limit = 50, status, orderBy = 'updatedAt', order = 'desc' } = params || {} as any;
+  const { offset = 0, limit = 50, status, orderBy = 'updatedAt', order = 'desc', isFavorite } = params || {} as any;
   const db = await initDB();
   let items: VideoRecord[] = [];
   let total = 0;
+
+  // 如果有收藏筛选，需要遍历所有记录进行过滤
+  if (isFavorite !== undefined) {
+    const tx = db.transaction('viewedRecords');
+    const store = tx.store;
+    const allItems: VideoRecord[] = [];
+
+    // 收集所有符合条件的记录
+    for (let cursor = await store.openCursor(); cursor; cursor = await cursor.continue()) {
+      const record = cursor.value as VideoRecord;
+      const matchesStatus = !status || record.status === status;
+      const matchesFavorite = isFavorite ? record.isFavorite === true : true;
+
+      if (matchesStatus && matchesFavorite) {
+        allItems.push(record);
+      }
+    }
+
+    // 排序
+    allItems.sort((a, b) => {
+      const aVal = orderBy === 'createdAt' ? (a.createdAt || 0) : (a.updatedAt || 0);
+      const bVal = orderBy === 'createdAt' ? (b.createdAt || 0) : (b.updatedAt || 0);
+      return order === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    total = allItems.length;
+    items = allItems.slice(offset, offset + limit);
+
+    return { items, total };
+  }
+
   if (status) {
     // 使用复合索引高效分页
     const indexName = orderBy === 'createdAt' ? 'by_status_createdAt' : 'by_status_updatedAt';
@@ -728,6 +755,7 @@ export async function viewedPage(params: ViewedPageParams): Promise<{ items: Vid
       collected++;
       if (collected >= limit) break;
     }
+
     total = await tx.store.count();
   }
   return { items, total };
