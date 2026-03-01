@@ -8,7 +8,6 @@ import { handleVideoDetailPage } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
-import { globalCache } from '../utils/cache';
 import { defaultDataAggregator } from '../services/dataAggregator';
 import { contentFilterManager } from './contentFilter';
 import { keyboardShortcutsManager } from './keyboardShortcuts';
@@ -283,11 +282,11 @@ async function initialize(): Promise<void> {
                 log('Status polling error:', e);
             }
         }, 5000);
-        // 初始化115功能：改由编排器延时调度，保持原 1500ms 行为
-        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:video', delayMs: 1500 });
+        // 初始化115功能：优化延迟到800ms，加快功能生效，优先级5（中等）
+        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:video', delayMs: 800, priority: 5 });
 
-        // 初始化观影标签采集器（仅影片详情页，延时以等待页面标签渲染）
-        initOrchestrator.add('deferred', () => initInsightsCollector(), { label: 'insights:collector', delayMs: 1200 });
+        // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
+        initOrchestrator.add('deferred', () => initInsightsCollector(), { label: 'insights:collector', delayMs: 800 });
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -367,6 +366,7 @@ async function initialize(): Promise<void> {
     const isActorPage = path.startsWith('/actors/');
 
     // 演员页：演员备注（不依赖 videoEnhancement.enabled，也不触发其它重型增强）
+    // 优化：缩短延迟到500ms
     try {
         const enabledActorRemarks = (settings as any)?.videoEnhancement?.enableActorRemarks === true;
         if (enabledActorRemarks && isActorPage) {
@@ -375,12 +375,13 @@ async function initialize(): Promise<void> {
                 (window as any)[FLAG] = true;
                 initOrchestrator.add('deferred', async () => {
                     await runActorRemarksOnActorPage(settings as any);
-                }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 800 });
+                }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 500 });
             }
         }
     } catch {}
 
     // 初始化用户体验优化功能（通过编排器注册到合适阶段）
+    // 优化：添加微延迟，分批注册任务，减少瞬时压力，优先级8（高）
     if (settings.userExperience.enableKeyboardShortcuts) {
         keyboardShortcutsManager.updateConfig({
             enabled: true,
@@ -388,21 +389,22 @@ async function initialize(): Promise<void> {
             enableGlobalShortcuts: true,
             enablePageSpecificShortcuts: true,
         });
-        initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init' });
+        initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init', delayMs: 0, priority: 8 });
     }
 
     // 隐私保护统一在 high 阶段 await（由 orchestrator.run() 处理）
+    // 优化：添加微延迟50ms，避免与快捷键同时执行，优先级10（最高）
     initOrchestrator.add('high', async () => {
         log('Privacy system initializing...');
         await initializeContentPrivacy();
         log('Privacy system initialized successfully');
-    }, { label: 'privacy:init' });
+    }, { label: 'privacy:init', delayMs: 50, priority: 10 });
 
-    // 移除官方App和Telegram按钮（用 orchestrator 延时 1000ms 保持原体验）
-    initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 1000 });
+    // 移除官方App和Telegram按钮（优化：缩短延迟到200ms，减少按钮闪烁，优先级3）
+    initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3 });
 
     if (settings.userExperience.enableMagnetSearch) {
-        // 改为 idle 阶段，确保最后执行（空闲 + 更长延迟）
+        // 改为 idle 阶段，确保最后执行（空闲 + 优化延迟）
         console.log('[JavDB Ext] Scheduling magnet search in idle phase (last)');
         initOrchestrator.add('idle', () => {
             try {
@@ -428,7 +430,7 @@ async function initialize(): Promise<void> {
             } catch (e) {
                 log('Deferred magnet search initialization failed:', e);
             }
-        }, { label: 'ux:magnet:autoSearch', idle: true, idleTimeout: 15000, delayMs: 8000 }); // 增加延迟时间
+        }, { label: 'ux:magnet:autoSearch', idle: true, idleTimeout: 8000, delayMs: 4000 }); // 优化：缩短延迟和超时
     }
 
     if (settings.userExperience.enableAnchorOptimization) {
@@ -439,7 +441,8 @@ async function initialize(): Promise<void> {
             customButtons: [],
         });
         // 列表/演员页优先，影片页影响较小，归为 deferred
-        initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'ux:anchorOptimization:init', idle: true, delayMs: 2000 });
+        // 优化：缩短延迟到1000ms
+        initOrchestrator.add('deferred', () => anchorOptimizationManager.initialize(), { label: 'anchorOptimization:init', idle: true, delayMs: 1000 });
     }
 
     // 初始化列表增强功能（列表/演员页常用）
@@ -466,8 +469,10 @@ async function initialize(): Promise<void> {
             enableHighQualityCover: settings.listEnhancement?.enableHighQualityCover !== false,
         });
         if (!isVideoPage) {
-            initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init' });
+            // 优化：添加微延迟100ms，避免与隐私保护同时执行，优先级7（较高）
+            initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init', delayMs: 100, priority: 7 });
             // 在列表增强注入完成后，二次处理列表，确保【隐藏VR】在首屏也稳定生效
+            // 优化：缩短延迟到300ms，优先级6
             initOrchestrator.add('high', () => {
                 try {
                     log('Reprocessing items after listEnhancement initialization');
@@ -475,7 +480,7 @@ async function initialize(): Promise<void> {
                 } catch (e) {
                     log('Reprocess after listEnhancement failed:', e as any);
                 }
-            }, { label: 'list:reprocess:after-listEnhancement', delayMs: 500 });
+            }, { label: 'list:reprocess:after-listEnhancement', delayMs: 300, priority: 6 });
         }
     }
 
@@ -494,6 +499,7 @@ async function initialize(): Promise<void> {
     }
 
     // 初始化Emby增强功能（延后执行）
+    // 优化：缩短延迟到1500ms
     if (settings.emby?.enabled) {
         initOrchestrator.add('deferred', async () => {
             try {
@@ -501,10 +507,11 @@ async function initialize(): Promise<void> {
             } catch (error) {
                 log('Failed to initialize Emby enhancement:', error as any);
             }
-        }, { label: 'embyEnhancement:init', idle: true, delayMs: 3000 });
+        }, { label: 'emby:badge', idle: true, delayMs: 1500 });
     }
 
     // 初始化密码显示助手（全局生效）
+    // 优化：缩短延迟到600ms
     if (settings.userExperience.enablePasswordHelper) {
         const passwordHelperConfig = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
         const passwordHelper = new PasswordHelper(
@@ -514,7 +521,7 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('deferred', () => {
             passwordHelper.init();
             log('Password helper initialized');
-        }, { label: 'passwordHelper:init', idle: true, delayMs: 1000 });
+        }, { label: 'passwordHelper:init', idle: true, delayMs: 600 });
     }
 
     // 隐私保护功能已通过编排器在 high 阶段初始化
@@ -540,16 +547,18 @@ async function initialize(): Promise<void> {
     }
 
     // 在默认隐藏功能处理完后，再初始化智能内容过滤（统一由编排器调度）
+    // 优化：缩短延迟到300ms
     if (settings.userExperience.enableContentFilter) {
         initOrchestrator.add('deferred', () => {
             contentFilterManager.initialize();
             log('Content filter initialized after default hide processing');
-        }, { label: 'contentFilter:initialize', delayMs: 500 });
+        }, { label: 'contentFilter:initialize', delayMs: 300 });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
         // 在列表页也初始化115功能（由编排器统一延时调度）
-        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:list', delayMs: 2000 });
+        // 优化：缩短延迟到1000ms，添加微延迟150ms避免与列表增强冲突，优先级5（中等）
+        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:list', delayMs: 1000, priority: 5 });
     }
 
     // 启动统一编排器（处理 deferred / idle 阶段任务）
