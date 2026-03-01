@@ -775,33 +775,59 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 设计视图：根据代码中的编排约定构造静态规格
     private buildDesignSpec(): Record<'critical'|'high'|'deferred'|'idle', string[]> {
         // 注意：此处维护设计时序，不依赖页面是否开启
-        // A) 系统内置（例：全局状态、图标、日志初始化等，可按需追加）
+        // A) Critical 阶段：串行执行，首屏必需
         const critical: string[] = [
             'system:init',
             'list:observe:init',
+            'actorEnhancement:init',
         ];
-        // B) 高优先（快捷键、核心初始化等）
+        
+        // B) High 阶段：受控并发（最多3个同时执行）
         const high: string[] = [
-            'keyboardShortcuts:init',
+            'performanceOptimizer:init',
+            'ux:shortcuts:init',
+            'privacy:init',
+            'ui:remove-unwanted',
+            'drive115:init:video',
+            'drive115:init:list',
+            'listEnhancement:init',
             'videoEnhancement:initCore',
         ];
-        // C) 延后/空闲（页面增强模块）
+        
+        // C) Deferred 阶段：延后执行，空闲优先
         const deferred: string[] = [
+            // 数据采集
+            'insights:collector',
+            
             // 列表页增强
             'list:preview:init',
             'list:optimization:init',
+            
             // 影片页增强
             'videoEnhancement:runCover',
             'videoEnhancement:runTitle',
+            'videoEnhancement:runReviewBreaker',
+            'videoEnhancement:runFC2Breaker',
             'videoEnhancement:finish',
-            // 其他增强
-            'ux:contentFilter',
-            'ux:anchorOptimization',
+            
+            // 演员相关
+            'actorRemarks:actorPage',
+            'actorRemarks:run',
+            
+            // 其他功能
+            'videoFavoriteRating:init',
+            'contentFilter:init',
+            'contentFilter:initialize',
+            'anchorOptimization:init',
             'emby:badge',
+            'passwordHelper:init',
         ];
+        
+        // D) Idle 阶段：空闲时执行
         const idle: string[] = [
             'ux:magnet:autoSearch',
         ];
+        
         return { critical, high, deferred, idle };
     }
 
@@ -826,7 +852,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                   <span class="orch-count">${items.length} 项</span>
                 </div>
                 <ul class="orch-list">
-                  ${items.length === 0 ? '<li class="muted">(无任务)</li>' : items.map((label: string) => `<li title="${label}"><i class="dot"></i>${label}</li>`).join('')}
+                  ${items.length === 0 ? '<li class="muted">(无任务)</li>' : items.map((label: string) => {
+                      const desc = this.getTaskDescription(label);
+                      const displayText = desc ? `${label} - ${desc}` : label;
+                      return `<li title="${displayText}"><i class="dot"></i><span class="task-label">${label}</span>${desc ? `<span class="task-desc"> - ${desc}</span>` : ''}</li>`;
+                  }).join('')}
                 </ul>
               </div>
             `);
@@ -846,19 +876,46 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 任务中文说明（可按需扩展）
     private getTaskDescription(label: string): string {
         const map: Record<string, string> = {
-            'system:init': '系统：全局初始化（图标/日志/状态等）',
-            'list:observe:init': '列表页：初始化可见项处理与观察器（首屏必要）',
-            'keyboardShortcuts:init': '快捷键：注册键位与处理器',
-            'list:preview:init': '列表页：悬浮预览/延迟加载初始化',
-            'list:optimization:init': '列表页：结构与性能优化',
-            'videoEnhancement:initCore': '影片页：核心初始化（定点翻译、数据准备等）',
-            'videoEnhancement:runCover': '影片页：封面增强（更清晰/多源展示）',
-            'videoEnhancement:runTitle': '影片页：标题增强与翻译（AI/传统服务）',
-            'videoEnhancement:finish': '影片页：增强完成，收起加载指示',
-            'ux:contentFilter': '内容过滤：隐藏/高亮/模糊等',
-            'ux:anchorOptimization': '链接锚点：定位/跳转优化',
-            'ux:magnet:autoSearch': '磁力：自动检索与合并',
-            'emby:badge': 'Emby：收藏/已看徽标',
+            // Critical 阶段
+            'system:init': '系统全局初始化',
+            'list:observe:init': '列表页观察器初始化',
+            'actorEnhancement:init': '演员页增强初始化',
+            
+            // High 阶段
+            'performanceOptimizer:init': '性能优化器初始化',
+            'ux:shortcuts:init': '快捷键系统初始化',
+            'keyboardShortcuts:init': '快捷键系统初始化',
+            'privacy:init': '隐私保护系统初始化',
+            'ui:remove-unwanted': '移除官方按钮',
+            'drive115:init:video': '115网盘功能初始化（影片页）',
+            'drive115:init:list': '115网盘功能初始化（列表页）',
+            'listEnhancement:init': '列表增强初始化',
+            'videoEnhancement:initCore': '影片页核心初始化',
+            
+            // Deferred 阶段
+            'insights:collector': '观影标签采集器',
+            'actorRemarks:actorPage': '演员页备注显示',
+            'anchorOptimization:init': '锚点优化初始化',
+            'ux:anchorOptimization:init': '锚点优化初始化',
+            'contentFilter:init': '内容过滤初始化',
+            'contentFilter:initialize': '内容过滤初始化',
+            'ux:contentFilter': '内容过滤初始化',
+            'emby:badge': 'Emby徽标增强',
+            'passwordHelper:init': '密码助手初始化',
+            'videoEnhancement:runCover': '影片页封面增强',
+            'videoEnhancement:runTitle': '影片页标题翻译',
+            'videoEnhancement:runReviewBreaker': '评论区破解',
+            'videoEnhancement:runFC2Breaker': 'FC2拦截破解',
+            'videoEnhancement:finish': '影片页增强完成',
+            'actorRemarks:run': '演员备注快速运行',
+            'videoFavoriteRating:init': '影片收藏评分初始化',
+            
+            // Idle 阶段
+            'ux:magnet:autoSearch': '磁力搜索自动检索',
+            
+            // 其他可能的任务
+            'list:preview:init': '列表页预览初始化',
+            'list:optimization:init': '列表页优化初始化',
         };
         return map[label] || '';
     }
@@ -878,25 +935,44 @@ export class EnhancementSettings extends BaseSettingsPanel {
         container.classList.toggle('timeline-design', mode === 'design');
         container.classList.toggle('timeline-realtime', mode !== 'design');
 
-        const rows = list.map((item) => {
-            const t = item.ts !== undefined ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`) : '';
-            const dur = mode === 'design' ? '' : (typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-');
-            const badgeClass = `badge ${item.status}`;
-            const detail = item.detail ? `<div class=\"detail\">${item.detail}</div>` : '';
-            const desc = this.getTaskDescription(item.label);
-            return `
-              <div class="row">
-                <div class="col time">${t}</div>
-                <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
-                <div class="col phase">${item.phase}</div>
-                <div class="col label" title="${item.label}">
-                  <div class="label-main">${item.label}</div>
-                  ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
-                </div>
-                ${mode === 'design' ? '' : `<div class=\"col duration\">${dur}</div>`}
-              </div>
-              ${detail}
-            `;
+        // 分组并发任务（相同时间戳的任务）
+        const grouped: Array<{ ts: number; items: typeof list }> = [];
+        list.forEach(item => {
+            const lastGroup = grouped[grouped.length - 1];
+            if (lastGroup && Math.abs(lastGroup.ts - item.ts) < 1) {
+                // 时间差小于1ms，视为并发
+                lastGroup.items.push(item);
+            } else {
+                grouped.push({ ts: item.ts, items: [item] });
+            }
+        });
+
+        const rows = grouped.map((group) => {
+            const isConcurrent = group.items.length > 1;
+            const groupHtml = group.items.map((item, idx) => {
+                const t = item.ts !== undefined ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`) : '';
+                const dur = mode === 'design' ? '' : (typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-');
+                const badgeClass = `badge ${item.status}`;
+                const detail = item.detail ? `<div class=\"detail\">${item.detail}</div>` : '';
+                const desc = this.getTaskDescription(item.label);
+                const concurrentMarker = isConcurrent ? `<span class="concurrent-marker" title="并发执行">⚡</span>` : '';
+                const timeDisplay = idx === 0 ? t : (isConcurrent ? '↳' : t);
+                return `
+                  <div class="row ${isConcurrent ? 'concurrent' : ''}">
+                    <div class="col time">${timeDisplay}</div>
+                    <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
+                    <div class="col phase">${item.phase}</div>
+                    <div class="col label" title="${item.label}">
+                      ${concurrentMarker}
+                      <div class="label-main">${item.label}</div>
+                      ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
+                    </div>
+                    ${mode === 'design' ? '' : `<div class=\"col duration\">${dur}</div>`}
+                  </div>
+                  ${detail}
+                `;
+            }).join('');
+            return groupHtml;
         }).join('');
 
         const header = mode === 'design'
@@ -943,8 +1019,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .orch-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
         .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #f1f5f9; font-weight:600; }
         .orch-list { list-style:none; margin:8px 10px; padding:0; }
-        .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:center; color:#111; }
-        .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; }
+        .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:flex-start; color:#111; line-height:1.4; }
+        .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; margin-top:6px; flex-shrink:0; }
+        .orch-list li .task-label { font-weight:500; color:#111; }
+        .orch-list li .task-desc { color:#6b7280; font-size:12px; }
         .orch-list li.muted { color:#9ca3af; }
         .muted { color:#9ca3af; }
         .header.with-duration { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
@@ -952,7 +1030,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         #orchestratorTimeline.timeline-realtime .row { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
         #orchestratorTimeline.timeline-design .row { display:grid; grid-template-columns: 90px 100px 110px 1fr; align-items:center; column-gap:8px; }
         .header { font-weight:600; padding:6px 4px; border-bottom:1px solid #e5e7eb; background:#f8fafc; color:#111; }
-        .row { padding:6px 4px; border-bottom:1px dashed #eef2f7; }
+        .row { padding:6px 4px; border-bottom:1px dashed #eef2f7; position:relative; }
+        .row.concurrent { background:#f0f9ff; border-left:3px solid #3b82f6; }
         .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
         .badge.scheduled { background:#607d8b; }
         .badge.running { background:#ff8f00; }
@@ -961,6 +1040,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .detail { margin:0 4px 6px 4px; color:#b91c1c; font-size:12px; }
         .label-main { font-weight:600; color:#111; }
         .label-desc { color:#6b7280; font-size:12px; margin-top:2px; }
+        .concurrent-marker { color:#3b82f6; font-size:14px; margin-right:4px; font-weight:bold; }
+        .col.time { color:#6b7280; font-family:monospace; }
         `;
         document.head.appendChild(style);
     }
