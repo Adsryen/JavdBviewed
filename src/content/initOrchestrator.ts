@@ -10,6 +10,7 @@ export interface InitTaskOptions {
   delayMs?: number;         // 延时执行（统一由编排器管理）
   idle?: boolean;           // 使用 requestIdleCallback 调度（deferred/idle 阶段尤为有用）
   idleTimeout?: number;     // requestIdleCallback 的超时
+  priority?: number;        // 优先级（0-10，数字越大优先级越高，默认5）
 }
 
 interface ScheduledTask {
@@ -29,6 +30,22 @@ class InitOrchestrator {
   // 并发控制
   private runningHighTasks = 0;
   private maxConcurrentHighTasks = 3; // 限制high阶段并发数
+  
+  // 性能指标
+  private metrics = {
+    totalTasks: 0,
+    completedTasks: 0,
+    failedTasks: 0,
+    totalDuration: 0,
+    avgDuration: 0,
+    maxDuration: 0,
+    minDuration: Infinity,
+  };
+
+  constructor() {
+    // 根据设备性能动态调整并发数
+    this.adjustConcurrencyByHardware();
+  }
 
   private relTs(now?: number): number {
     const base = this.t0 ?? performance.now();
@@ -39,6 +56,50 @@ class InitOrchestrator {
   private log(...args: any[]) {
     if (!this.verbose) return;
     try { console.log('[Orchestrator]', ...args); } catch {}
+  }
+
+  /**
+   * 根据设备硬件性能动态调整并发数
+   */
+  private adjustConcurrencyByHardware(): void {
+    try {
+      const cores = navigator.hardwareConcurrency || 4;
+      if (cores >= 8) {
+        this.maxConcurrentHighTasks = 5; // 高性能设备
+        this.log('Hardware detection: High-end device, concurrency set to 5');
+      } else if (cores >= 4) {
+        this.maxConcurrentHighTasks = 3; // 中等性能设备
+        this.log('Hardware detection: Mid-range device, concurrency set to 3');
+      } else {
+        this.maxConcurrentHighTasks = 2; // 低性能设备
+        this.log('Hardware detection: Low-end device, concurrency set to 2');
+      }
+    } catch (e) {
+      this.log('Hardware detection failed, using default concurrency: 3');
+    }
+  }
+
+  /**
+   * 更新性能指标
+   */
+  private updateMetrics(durationMs: number, success: boolean): void {
+    this.metrics.totalTasks++;
+    if (success) {
+      this.metrics.completedTasks++;
+      this.metrics.totalDuration += durationMs;
+      this.metrics.avgDuration = this.metrics.totalDuration / this.metrics.completedTasks;
+      this.metrics.maxDuration = Math.max(this.metrics.maxDuration, durationMs);
+      this.metrics.minDuration = Math.min(this.metrics.minDuration, durationMs);
+    } else {
+      this.metrics.failedTasks++;
+    }
+  }
+
+  /**
+   * 获取性能指标
+   */
+  getMetrics() {
+    return { ...this.metrics };
   }
 
   add(phase: InitPhase, task: InitTask, options: InitTaskOptions = {}): void {
@@ -86,6 +147,10 @@ class InitOrchestrator {
         this.timeline.push({ phase, label, status: 'done', ts: endAbs, durationMs });
         this.emit('task:done', { phase, label, ts: endAbs, relativeTs: this.relTs(endAbs), durationMs });
         this.log('done', { phase, label, ts: Math.round(endAbs), relative: Math.round(this.relTs(endAbs)), durationMs: durationMs && Math.round(durationMs) });
+        // 更新性能指标
+        if (durationMs !== undefined) {
+          this.updateMetrics(durationMs, true);
+        }
       })
       .catch((e) => {
         let durationMs: number | undefined = undefined;
@@ -101,6 +166,10 @@ class InitOrchestrator {
         console.warn(`[InitOrchestrator] task failed: phase=${phase} label=${label}`, e);
         this.emit('task:error', { phase, label, ts: errAbs, relativeTs: this.relTs(errAbs), error: String(e), durationMs });
         this.log('error', { phase, label, ts: Math.round(errAbs), relative: Math.round(this.relTs(errAbs)), error: String(e), durationMs: durationMs && Math.round(durationMs) });
+        // 更新性能指标
+        if (durationMs !== undefined) {
+          this.updateMetrics(durationMs, false);
+        }
       })
       .finally(() => {
         // 释放并发计数
@@ -192,10 +261,16 @@ class InitOrchestrator {
   }
 
   /**
-   * 受控并发执行high阶段任务
+   * 受控并发执行high阶段任务（支持优先级排序）
    */
   private async runHighTasksWithConcurrencyControl(): Promise<void> {
-    const tasks = [...this.phases.high]; // 复制数组
+    // 按优先级排序任务（优先级高的先执行）
+    const tasks = [...this.phases.high].sort((a, b) => {
+      const priorityA = a.options.priority ?? 5;
+      const priorityB = b.options.priority ?? 5;
+      return priorityB - priorityA; // 降序排列
+    });
+    
     const runningTasks: Promise<void>[] = [];
     
     while (tasks.length > 0 || runningTasks.length > 0) {
