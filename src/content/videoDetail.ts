@@ -240,88 +240,100 @@ async function runActorRemarksQuick(): Promise<void> {
         const processed = new Set<string>();
         let renderedCount = 0;
 
-        for (const a of links) {
+        // 优化：并行查询所有演员信息
+        const actorTasks = links.map(async (a) => {
             const name = (a.textContent || '').trim();
-            if (!name) continue;
-            if (processed.has(name)) continue;
+            if (!name || processed.has(name)) return null;
             processed.add(name);
 
             try {
                 const data = await actorExtraInfoService.getActorRemarks(name, STATE.settings as any);
-                const badgeText = data ? buildBadgeText(data) : '';
-
-                // 兜底：抓不到字段时，展示外链入口
-                const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
-                const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
-
-                if (mode === 'inline') {
-                    // 只移除当前演员 a 后面紧挨着的备注，避免同一父节点下互相覆盖
-                    const existing = a.nextElementSibling as HTMLElement | null;
-                    if (existing?.classList?.contains('jdb-actor-remarks-inline')) existing.remove();
-
-                    const wrap = document.createElement('span');
-                    wrap.className = 'jdb-actor-remarks-inline';
-                    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:6px;';
-
-                    if (badgeText) {
-                        const infoEl = document.createElement('span');
-                        infoEl.textContent = badgeText;
-                        infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
-                        wrap.appendChild(infoEl);
-                    } else {
-                        const link1 = document.createElement('a');
-                        link1.href = wikiUrl;
-                        link1.target = '_blank';
-                        link1.textContent = 'Wiki';
-                        link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
-                        wrap.appendChild(link1);
-
-                        const link2 = document.createElement('a');
-                        link2.href = xslistUrl;
-                        link2.target = '_blank';
-                        link2.textContent = 'xslist';
-                        link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
-                        wrap.appendChild(link2);
-                    }
-
-                    a.insertAdjacentElement('afterend', wrap);
-                } else {
-                    const panel = ensurePanel();
-
-                    const row = document.createElement('div');
-                    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap;';
-                    const nameEl = document.createElement('span');
-                    nameEl.textContent = name;
-                    nameEl.style.cssText = 'font-weight:600;';
-                    row.appendChild(nameEl);
-
-                    if (badgeText) {
-                        const infoEl = document.createElement('span');
-                        infoEl.textContent = badgeText;
-                        infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:2px 6px;border-radius:12px;font-size:12px;';
-                        row.appendChild(infoEl);
-                    } else {
-                        const link1 = document.createElement('a');
-                        link1.href = wikiUrl;
-                        link1.target = '_blank';
-                        link1.textContent = 'Wiki';
-                        link1.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
-                        row.appendChild(link1);
-
-                        const link2 = document.createElement('a');
-                        link2.href = xslistUrl;
-                        link2.target = '_blank';
-                        link2.textContent = 'xslist';
-                        link2.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
-                        row.appendChild(link2);
-                    }
-                    panel.appendChild(row);
-                }
-
-                renderedCount += 1;
+                return { element: a, name, data };
             } catch (e) {
                 log('actorRemarks: fetch failed for', name, e);
+                return null;
             }
+        });
+
+        // 等待所有查询完成
+        const results = await Promise.all(actorTasks);
+
+        // 统一渲染结果
+        for (const result of results) {
+            if (!result) continue;
+
+            const { element: a, name, data } = result;
+            const badgeText = data ? buildBadgeText(data) : '';
+
+            // 兜底：抓不到字段时，展示外链入口
+            const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
+            const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
+
+            if (mode === 'inline') {
+                // 只移除当前演员 a 后面紧挨着的备注，避免同一父节点下互相覆盖
+                const existing = a.nextElementSibling as HTMLElement | null;
+                if (existing?.classList?.contains('jdb-actor-remarks-inline')) existing.remove();
+
+                const wrap = document.createElement('span');
+                wrap.className = 'jdb-actor-remarks-inline';
+                wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:6px;';
+
+                if (badgeText) {
+                    const infoEl = document.createElement('span');
+                    infoEl.textContent = badgeText;
+                    infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
+                    wrap.appendChild(infoEl);
+                } else {
+                    const link1 = document.createElement('a');
+                    link1.href = wikiUrl;
+                    link1.target = '_blank';
+                    link1.textContent = 'Wiki';
+                    link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                    wrap.appendChild(link1);
+
+                    const link2 = document.createElement('a');
+                    link2.href = xslistUrl;
+                    link2.target = '_blank';
+                    link2.textContent = 'xslist';
+                    link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                    wrap.appendChild(link2);
+                }
+
+                a.insertAdjacentElement('afterend', wrap);
+            } else {
+                const panel = ensurePanel();
+
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;flex-wrap:wrap;';
+                const nameEl = document.createElement('span');
+                nameEl.textContent = name;
+                nameEl.style.cssText = 'font-weight:600;';
+                row.appendChild(nameEl);
+
+                if (badgeText) {
+                    const infoEl = document.createElement('span');
+                    infoEl.textContent = badgeText;
+                    infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:2px 6px;border-radius:12px;font-size:12px;';
+                    row.appendChild(infoEl);
+                } else {
+                    const link1 = document.createElement('a');
+                    link1.href = wikiUrl;
+                    link1.target = '_blank';
+                    link1.textContent = 'Wiki';
+                    link1.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
+                    row.appendChild(link1);
+
+                    const link2 = document.createElement('a');
+                    link2.href = xslistUrl;
+                    link2.target = '_blank';
+                    link2.textContent = 'xslist';
+                    link2.style.cssText = 'margin-left:6px;color:#b45309;text-decoration:underline;';
+                    row.appendChild(link2);
+                }
+                panel.appendChild(row);
+            }
+
+            renderedCount += 1;
         }
 
         if (mode === 'panel') {
