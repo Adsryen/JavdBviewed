@@ -397,6 +397,13 @@ export function registerMiscRouter(): void {
             .catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
         }
+        case 'orchestrator:clearTaskDetails': {
+          // 清空任务详细信息
+          handleClearTaskDetails()
+            .then((result) => sendResponse(result))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
         default:
           return false;
       }
@@ -1098,8 +1105,8 @@ async function handleSaveTaskDetail(taskDetail: any): Promise<void> {
       savedAt: Date.now(),
     });
     
-    // 只保留最近 500 条记录
-    const trimmedDetails = existingDetails.slice(-500);
+    // 只保留最近 2000 条记录
+    const trimmedDetails = existingDetails.slice(-2000);
     
     // 保存到存储
     await setValue('orchestratorTaskDetails', trimmedDetails);
@@ -1141,5 +1148,19 @@ async function handleGetTaskDetails(options: any = {}): Promise<any> {
   } catch (error) {
     console.error('[Background] Failed to get task details:', error);
     throw error;
+  }
+}
+
+/**
+ * 清空任务详细信息
+ */
+async function handleClearTaskDetails(): Promise<any> {
+  try {
+    // 清空存储中的任务详细信息
+    await setValue('orchestratorTaskDetails', []);
+    return { success: true };
+  } catch (error) {
+    console.error('[Background] Failed to clear task details:', error);
+    return { success: false, error: String(error) };
   }
 }
