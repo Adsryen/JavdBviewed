@@ -11,6 +11,8 @@ export interface InitTaskOptions {
   idle?: boolean;           // 使用 requestIdleCallback 调度（deferred/idle 阶段尤为有用）
   idleTimeout?: number;     // requestIdleCallback 的超时
   priority?: number;        // 优先级（0-10，数字越大优先级越高，默认5）
+  timeout?: number;         // 任务执行超时时间（毫秒），0表示不限制
+  dependsOn?: string[];     // 依赖的任务标签列表
 }
 
 interface ScheduledTask {
@@ -36,11 +38,17 @@ class InitOrchestrator {
     totalTasks: 0,
     completedTasks: 0,
     failedTasks: 0,
+    timeoutTasks: 0,
     totalDuration: 0,
     avgDuration: 0,
     maxDuration: 0,
     minDuration: Infinity,
+    maxDurationTask: '', // 最耗时的任务名称
   };
+  
+  // 任务依赖管理
+  private completedTasks = new Set<string>(); // 已完成的任务标签
+  private taskDependencies = new Map<string, string[]>(); // 任务依赖关系
 
   constructor() {
     // 根据设备性能动态调整并发数
@@ -82,17 +90,29 @@ class InitOrchestrator {
   /**
    * 更新性能指标
    */
-  private updateMetrics(durationMs: number, success: boolean): void {
+  private updateMetrics(durationMs: number, success: boolean, isTimeout: boolean = false, taskLabel?: string): void {
     this.metrics.totalTasks++;
     if (success) {
       this.metrics.completedTasks++;
       this.metrics.totalDuration += durationMs;
       this.metrics.avgDuration = this.metrics.totalDuration / this.metrics.completedTasks;
-      this.metrics.maxDuration = Math.max(this.metrics.maxDuration, durationMs);
+      
+      // 更新最大耗时和对应的任务
+      if (durationMs > this.metrics.maxDuration) {
+        this.metrics.maxDuration = durationMs;
+        this.metrics.maxDurationTask = taskLabel || 'unknown';
+      }
+      
       this.metrics.minDuration = Math.min(this.metrics.minDuration, durationMs);
     } else {
-      this.metrics.failedTasks++;
+      if (isTimeout) {
+        this.metrics.timeoutTasks++;
+      } else {
+        this.metrics.failedTasks++;
+      }
     }
+    // 任务完成后，调度保存性能指标
+    this.scheduleMetricsSave();
   }
 
   /**
@@ -102,13 +122,97 @@ class InitOrchestrator {
     return { ...this.metrics };
   }
 
+  /**
+   * 将性能指标保存到数据库
+   */
+  private async saveMetricsToDatabase(): Promise<void> {
+    try {
+      const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const metrics = {
+        ...this.metrics,
+        pageUrl,
+        timestamp: Date.now(),
+      };
+      
+      this.log('Saving metrics to database:', metrics);
+      
+      // 发送到后台保存
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({
+          type: 'orchestrator:saveMetrics',
+          metrics,
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('[Orchestrator] Failed to save metrics:', chrome.runtime.lastError);
+          } else {
+            this.log('Metrics saved successfully:', response);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[Orchestrator] Failed to save metrics to database:', e);
+    }
+  }
+
+  /**
+   * 保存单个任务的详细信息
+   */
+  private async saveTaskDetail(phase: InitPhase, label: string, status: 'done' | 'error', durationMs: number | undefined, error?: string): Promise<void> {
+    try {
+      const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const taskDetail = {
+        label,
+        phase,
+        status,
+        durationMs: durationMs || 0,
+        pageUrl,
+        timestamp: Date.now(),
+        error,
+      };
+      
+      // 发送到后台保存
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({
+          type: 'orchestrator:saveTaskDetail',
+          taskDetail,
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            // 静默失败，不影响主流程
+          }
+        });
+      }
+    } catch (e) {
+      // 静默失败
+    }
+  }
+
+  /**
+   * 任务完成时保存性能指标
+   */
+  private scheduleMetricsSave(): void {
+    // 防抖：避免频繁写入数据库
+    if (this.metricsSaveTimeout) {
+      clearTimeout(this.metricsSaveTimeout);
+    }
+    this.metricsSaveTimeout = window.setTimeout(() => {
+      this.saveMetricsToDatabase();
+    }, 1000); // 1秒后保存
+  }
+
+  private metricsSaveTimeout?: number;
+
   add(phase: InitPhase, task: InitTask, options: InitTaskOptions = {}): void {
+    // 记录任务依赖关系
+    if (options.dependsOn && options.dependsOn.length > 0 && options.label) {
+      this.taskDependencies.set(options.label, options.dependsOn);
+    }
+    
     this.phases[phase].push({ task, options });
     const abs = performance.now();
     const label = options.label || 'anonymous';
     this.timeline.push({ phase, label, status: 'scheduled', ts: abs });
     this.emit('task:scheduled', { phase, label, ts: abs, relativeTs: this.relTs(abs), options });
-    this.log('scheduled', { phase, label, delayMs: options.delayMs, idle: options.idle, ts: Math.round(abs), relative: Math.round(this.relTs(abs)) });
+    this.log('scheduled', { phase, label, delayMs: options.delayMs, idle: options.idle, priority: options.priority, timeout: options.timeout, dependsOn: options.dependsOn, ts: Math.round(abs), relative: Math.round(this.relTs(abs)) });
   }
 
   getState() {
@@ -122,6 +226,16 @@ class InitOrchestrator {
 
   private runTask(phase: InitPhase, st: ScheduledTask): Promise<void> {
     const label = st.options.label || 'anonymous';
+    
+    // 检查依赖是否满足
+    if (st.options.dependsOn && st.options.dependsOn.length > 0) {
+      const unmetDeps = st.options.dependsOn.filter(dep => !this.completedTasks.has(dep));
+      if (unmetDeps.length > 0) {
+        this.log('skipping task due to unmet dependencies', { label, unmetDeps });
+        return Promise.resolve();
+      }
+    }
+    
     const startMark = `orchestrator:${phase}:${label}:start`;
     const endMark = `orchestrator:${phase}:${label}:end`;
     try { performance.mark(startMark); } catch {}
@@ -130,9 +244,29 @@ class InitOrchestrator {
     this.emit('task:running', { phase, label, ts: startAbs, relativeTs: this.relTs(startAbs) });
     this.log('running', { phase, label, ts: Math.round(startAbs), relative: Math.round(this.relTs(startAbs)) });
     
+    // 创建超时Promise
+    const timeout = st.options.timeout || 0;
+    let timeoutId: number | undefined;
+    const timeoutPromise = timeout > 0 ? new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => {
+        reject(new Error(`Task timeout after ${timeout}ms`));
+      }, timeout);
+    }) : null;
+    
     const taskPromise = Promise.resolve()
-      .then(() => st.task())
       .then(() => {
+        // 如果有超时设置，使用 Promise.race
+        if (timeoutPromise) {
+          return Promise.race([st.task(), timeoutPromise]);
+        }
+        return st.task();
+      })
+      .then(() => {
+        // 清除超时定时器
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
+        
         try {
           performance.mark(endMark);
           performance.measure(`orchestrator:${phase}:${label}`, startMark, endMark);
@@ -149,10 +283,21 @@ class InitOrchestrator {
         this.log('done', { phase, label, ts: Math.round(endAbs), relative: Math.round(this.relTs(endAbs)), durationMs: durationMs && Math.round(durationMs) });
         // 更新性能指标
         if (durationMs !== undefined) {
-          this.updateMetrics(durationMs, true);
+          this.updateMetrics(durationMs, true, false, label);
         }
+        // 标记任务为已完成
+        if (label !== 'anonymous') {
+          this.completedTasks.add(label);
+        }
+        // 保存任务详细信息
+        this.saveTaskDetail(phase, label, 'done', durationMs);
       })
       .catch((e) => {
+        // 清除超时定时器
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
+        
         let durationMs: number | undefined = undefined;
         try {
           performance.mark(endMark);
@@ -162,14 +307,17 @@ class InitOrchestrator {
           durationMs = last?.duration;
         } catch {}
         const errAbs = performance.now();
+        const isTimeout = e.message && e.message.includes('timeout');
         this.timeline.push({ phase, label, status: 'error', ts: errAbs, detail: String(e), durationMs });
-        console.warn(`[InitOrchestrator] task failed: phase=${phase} label=${label}`, e);
-        this.emit('task:error', { phase, label, ts: errAbs, relativeTs: this.relTs(errAbs), error: String(e), durationMs });
-        this.log('error', { phase, label, ts: Math.round(errAbs), relative: Math.round(this.relTs(errAbs)), error: String(e), durationMs: durationMs && Math.round(durationMs) });
+        console.warn(`[InitOrchestrator] task ${isTimeout ? 'timeout' : 'failed'}: phase=${phase} label=${label}`, e);
+        this.emit('task:error', { phase, label, ts: errAbs, relativeTs: this.relTs(errAbs), error: String(e), durationMs, isTimeout });
+        this.log('error', { phase, label, ts: Math.round(errAbs), relative: Math.round(this.relTs(errAbs)), error: String(e), durationMs: durationMs && Math.round(durationMs), isTimeout });
         // 更新性能指标
         if (durationMs !== undefined) {
-          this.updateMetrics(durationMs, false);
+          this.updateMetrics(durationMs, false, isTimeout, label);
         }
+        // 保存任务详细信息（包含错误）
+        this.saveTaskDetail(phase, label, 'error', durationMs, String(e));
       })
       .finally(() => {
         // 释放并发计数
@@ -261,7 +409,7 @@ class InitOrchestrator {
   }
 
   /**
-   * 受控并发执行high阶段任务（支持优先级排序）
+   * 受控并发执行high阶段任务（支持优先级排序和依赖检查）
    */
   private async runHighTasksWithConcurrencyControl(): Promise<void> {
     // 按优先级排序任务（优先级高的先执行）
@@ -272,11 +420,33 @@ class InitOrchestrator {
     });
     
     const runningTasks: Promise<void>[] = [];
+    const pendingTasks = [...tasks]; // 待处理任务队列
     
-    while (tasks.length > 0 || runningTasks.length > 0) {
-      // 启动新任务直到达到并发限制
-      while (tasks.length > 0 && runningTasks.length < this.maxConcurrentHighTasks) {
-        const task = tasks.shift()!;
+    while (pendingTasks.length > 0 || runningTasks.length > 0) {
+      // 从待处理队列中找出依赖已满足的任务
+      const readyTasks: ScheduledTask[] = [];
+      const notReadyTasks: ScheduledTask[] = [];
+      
+      for (const task of pendingTasks) {
+        if (task.options.dependsOn && task.options.dependsOn.length > 0) {
+          const allDepsReady = task.options.dependsOn.every(dep => this.completedTasks.has(dep));
+          if (allDepsReady) {
+            readyTasks.push(task);
+          } else {
+            notReadyTasks.push(task);
+          }
+        } else {
+          readyTasks.push(task);
+        }
+      }
+      
+      // 更新待处理队列
+      pendingTasks.length = 0;
+      pendingTasks.push(...notReadyTasks);
+      
+      // 启动就绪的任务直到达到并发限制
+      while (readyTasks.length > 0 && runningTasks.length < this.maxConcurrentHighTasks) {
+        const task = readyTasks.shift()!;
         const taskPromise = this.runTask('high', task);
         runningTasks.push(taskPromise);
         
@@ -287,6 +457,28 @@ class InitOrchestrator {
             runningTasks.splice(index, 1);
           }
         });
+      }
+      
+      // 如果没有正在运行的任务但还有待处理任务，说明存在循环依赖或依赖不存在
+      if (runningTasks.length === 0 && pendingTasks.length > 0) {
+        this.log('warning: circular dependency or missing dependency detected', {
+          pendingTasks: pendingTasks.map(t => ({
+            label: t.options.label,
+            dependsOn: t.options.dependsOn
+          }))
+        });
+        // 强制执行剩余任务以避免死锁
+        for (const task of pendingTasks) {
+          const taskPromise = this.runTask('high', task);
+          runningTasks.push(taskPromise);
+          taskPromise.finally(() => {
+            const index = runningTasks.indexOf(taskPromise);
+            if (index > -1) {
+              runningTasks.splice(index, 1);
+            }
+          });
+        }
+        pendingTasks.length = 0;
       }
       
       // 等待至少一个任务完成
@@ -320,5 +512,48 @@ export const initOrchestrator = new InitOrchestrator();
 try {
   if (typeof window !== 'undefined') {
     (window as any).__initOrchestrator__ = initOrchestrator;
+    
+    // 页面卸载时强制保存性能指标
+    window.addEventListener('beforeunload', () => {
+      try {
+        // 立即保存，不使用防抖
+        const pageUrl = window.location.href;
+        const metrics = {
+          ...initOrchestrator.getMetrics(),
+          pageUrl,
+          timestamp: Date.now(),
+        };
+        
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+          // 使用同步方式发送（页面卸载时异步可能不会完成）
+          chrome.runtime.sendMessage({
+            type: 'orchestrator:saveMetrics',
+            metrics,
+          });
+        }
+      } catch (e) {
+        console.warn('[Orchestrator] Failed to save metrics on unload:', e);
+      }
+    });
+  }
+} catch {}
+
+
+// 监听来自 Dashboard 的性能指标请求
+try {
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      try {
+        if (message && message.type === 'orchestrator:getMetrics') {
+          const metrics = initOrchestrator.getMetrics();
+          sendResponse({ ok: true, metrics });
+          return true; // async response
+        }
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err) });
+        return true;
+      }
+      return undefined;
+    });
   }
 } catch {}
