@@ -74,6 +74,41 @@
           <div>• <strong>deferred</strong>：延后执行；常结合 <code>delay</code>/<code>idle</code>，避免阻塞首屏。</div>
           <div>• <strong>idle</strong>：空闲时机再执行，对交互影响最低。</div>
         </div>
+        <!-- 性能监控面板 -->
+        <div class="orchestrator-metrics" style="margin-bottom:14px;">
+          <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;">
+            <span style="display:flex; align-items:center; gap:8px;">
+              <i class="fas fa-chart-line"></i>
+              <span>性能指标</span>
+            </span>
+            <button id="showTaskDetailsBtn" class="button-like" style="font-size:12px; padding:4px 12px;">
+              <i class="fas fa-list"></i> 任务执行明细
+            </button>
+          </h4>
+          <div style="overflow-x:auto; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px;">
+            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 90px 90px 130px 150px 130px 150px; min-width:1030px; font-size:13px; background:#fff; border-radius:4px;">
+              <!-- 表头 -->
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">总任务数</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">失败</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">超时</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">平均耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">最长耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">最短耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">总耗时</div>
+              <!-- 数据行 -->
+              <div id="metricTotalTasks" style="padding:8px 10px; color:#1e293b; font-weight:600;">0</div>
+              <div id="metricCompletedTasks" style="padding:8px 10px; color:#059669; font-weight:600;">0</div>
+              <div id="metricFailedTasks" style="padding:8px 10px; color:#dc2626; font-weight:600;">0</div>
+              <div id="metricTimeoutTasks" style="padding:8px 10px; color:#d97706; font-weight:600;">0</div>
+              <div id="metricAvgDuration" style="padding:8px 10px; color:#7c3aed; font-weight:600;">0ms</div>
+              <div id="metricMaxDuration" style="padding:8px 10px; color:#db2777; font-weight:600;">0ms</div>
+              <div id="metricMinDuration" style="padding:8px 10px; color:#0891b2; font-weight:600;">∞</div>
+              <div id="metricTotalDuration" style="padding:8px 10px; color:#0d9488; font-weight:600;">0ms</div>
+            </div>
+          </div>
+        </div>
+
         <div class="orchestrator-grid" style="display:grid; grid-template-columns: 1fr 1.2fr; gap:14px;">
           <div>
             <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
@@ -223,7 +258,74 @@
         <button id="saveFilterRuleBtn" class="btn btn-primary">保存</button>
       </div>
     </div>
-  </div><!-- Smart Restore Confirmation Modal -->
+  </div>
+
+  <!-- Task Details Modal -->
+  <div id="taskDetailsModal" class="modal-overlay hidden">
+    <div class="modal-content" style="width:90vw; max-width:1200px; max-height:85vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-tasks"></i>
+          任务执行明细
+        </h3>
+        <button class="modal-close" id="taskDetailsModalClose">&times;</button>
+      </div>
+      <div class="modal-body" style="flex:1; overflow:auto; display:flex; flex-direction:column;">
+        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+          <div style="color:#64748b; font-size:13px;">
+            显示最近 <span id="taskDetailsCount">0</span> 条任务记录
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="taskDetailsPrevPage" class="button-like" style="font-size:12px; padding:4px 8px;" disabled>
+              <i class="fas fa-chevron-left"></i> 上一页
+            </button>
+            <span id="taskDetailsPagination" style="padding:4px 12px; color:#64748b; font-size:13px;">第 1 页</span>
+            <button id="taskDetailsNextPage" class="button-like" style="font-size:12px; padding:4px 8px;" disabled>
+              下一页 <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        <div style="flex:1; overflow:auto; border:1px solid #e5e7eb; border-radius:8px;">
+          <table id="taskDetailsTable" style="width:100%; border-collapse:collapse; font-size:13px; min-width:800px;">
+            <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+              <tr style="border-bottom:2px solid #e5e7eb;">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="label">
+                  任务名称 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="phase">
+                  阶段 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="status">
+                  状态 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b; cursor:pointer;" data-sort="duration">
+                  耗时 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="pageUrl">
+                  页面 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="timestamp">
+                  时间 <i class="fas fa-sort"></i>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="taskDetailsTableBody">
+              <tr>
+                <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                  <i class="fas fa-spinner fa-spin"></i> 加载中...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">
+        <button id="taskDetailsCloseBtn" class="button-like">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Smart Restore Confirmation Modal -->
   <div id="smartRestoreModal" class="modal-overlay hidden">
     <div class="modal-content smart-restore-modal">
       <div class="modal-header">
@@ -498,6 +600,14 @@
                                   </label>
                                   <small>最后一次导入的统计信息（可选）</small>
                               </div>
+                              <div class="form-group-checkbox">
+                                  <input type="checkbox" id="webdavRestoreTaskDetails" disabled>
+                                  <label for="webdavRestoreTaskDetails" style="opacity:0.5; cursor:not-allowed;">
+                                      <i class="fas fa-tasks"></i>
+                                      任务执行明细
+                                  </label>
+                                  <small>编排器任务执行记录（暂不支持备份）</small>
+                              </div>
                           </div>
                       </div>
 
@@ -595,6 +705,14 @@
                                   导入统计
                               </label>
                               <small>最后一次导入的统计信息（可选）</small>
+                          </div>
+                          <div class="form-group-checkbox">
+                              <input type="checkbox" id="webdavRestoreTaskDetailsSimple" disabled>
+                              <label for="webdavRestoreTaskDetailsSimple" style="opacity:0.5; cursor:not-allowed;">
+                                  <i class="fas fa-tasks"></i>
+                                  任务执行明细
+                              </label>
+                              <small>编排器任务执行记录（暂不支持备份）</small>
                           </div>
                       </div>
                   </div>

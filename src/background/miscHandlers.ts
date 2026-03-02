@@ -369,6 +369,34 @@ export function registerMiscRouter(): void {
           // 处理手动锁定请求
           handlePrivacyLock(sendResponse);
           return true;
+        case 'orchestrator:saveMetrics': {
+          // 保存编排器性能指标到数据库
+          handleSaveOrchestratorMetrics(message.metrics)
+            .then(() => sendResponse({ success: true }))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
+        case 'orchestrator:getAggregatedMetrics': {
+          // 获取聚合的性能指标
+          handleGetAggregatedMetrics()
+            .then((metrics) => sendResponse({ success: true, metrics }))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
+        case 'orchestrator:saveTaskDetail': {
+          // 保存任务详细信息
+          handleSaveTaskDetail(message.taskDetail)
+            .then(() => sendResponse({ success: true }))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
+        case 'orchestrator:getTaskDetails': {
+          // 获取任务详细信息
+          handleGetTaskDetails(message.options)
+            .then((details) => sendResponse({ success: true, details }))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
         default:
           return false;
       }
@@ -920,3 +948,198 @@ async function setupAlarms(): Promise<void> {
   } catch {}
 }
 
+
+
+/**
+ * 保存编排器性能指标到数据库
+ */
+async function handleSaveOrchestratorMetrics(metrics: any): Promise<void> {
+  console.log('[Background] Saving orchestrator metrics:', metrics);
+  try {
+    if (!metrics) {
+      console.warn('[Background] No metrics provided, skipping save');
+      return;
+    }
+    
+    // 获取现有的性能指标数据
+    const existingData = await getValue<any[]>('orchestratorMetrics', []);
+    console.log('[Background] Existing metrics count:', existingData.length);
+    
+    // 添加新的指标数据
+    existingData.push({
+      ...metrics,
+      savedAt: Date.now(),
+    });
+    
+    // 只保留最近 100 条记录
+    const trimmedData = existingData.slice(-100);
+    
+    // 保存到存储
+    await setValue('orchestratorMetrics', trimmedData);
+    
+    console.log('[Background] Orchestrator metrics saved successfully, total records:', trimmedData.length);
+  } catch (error) {
+    console.error('[Background] Failed to save orchestrator metrics:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取聚合的性能指标
+ */
+async function handleGetAggregatedMetrics(): Promise<any> {
+  console.log('[Background] Getting aggregated metrics...');
+  try {
+    // 从存储中获取所有性能指标
+    const metricsData = await getValue<any[]>('orchestratorMetrics', []);
+    console.log('[Background] Retrieved metrics records:', metricsData.length);
+    
+    if (metricsData.length === 0) {
+      console.log('[Background] No metrics data found, returning zeros');
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        failedTasks: 0,
+        timeoutTasks: 0,
+        avgDuration: 0,
+        maxDuration: 0,
+        minDuration: Infinity,
+        totalDuration: 0,
+        recordCount: 0,
+        avgTasksPerPage: 0,
+        successRate: 0,
+        maxDurationTask: '',
+        lastSavedAt: 0,
+      };
+    }
+    
+    // 聚合所有指标
+    const aggregated = {
+      totalTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0,
+      timeoutTasks: 0,
+      totalDuration: 0,
+      maxDuration: 0,
+      minDuration: Infinity,
+      recordCount: metricsData.length,
+      maxDurationTask: '',
+      lastSavedAt: 0,
+    };
+    
+    metricsData.forEach((record) => {
+      aggregated.totalTasks += record.totalTasks || 0;
+      aggregated.completedTasks += record.completedTasks || 0;
+      aggregated.failedTasks += record.failedTasks || 0;
+      aggregated.timeoutTasks += record.timeoutTasks || 0;
+      aggregated.totalDuration += record.totalDuration || 0;
+      
+      // 更新最大耗时和对应的任务
+      if ((record.maxDuration || 0) > aggregated.maxDuration) {
+        aggregated.maxDuration = record.maxDuration || 0;
+        aggregated.maxDurationTask = record.maxDurationTask || '';
+      }
+      
+      if (record.minDuration !== undefined && record.minDuration !== Infinity) {
+        aggregated.minDuration = Math.min(aggregated.minDuration, record.minDuration);
+      }
+      
+      // 更新最后保存时间
+      if ((record.savedAt || 0) > aggregated.lastSavedAt) {
+        aggregated.lastSavedAt = record.savedAt || 0;
+      }
+    });
+    
+    // 计算平均耗时
+    const avgDuration = aggregated.completedTasks > 0 
+      ? aggregated.totalDuration / aggregated.completedTasks 
+      : 0;
+    
+    // 计算平均每页任务数
+    const avgTasksPerPage = aggregated.recordCount > 0
+      ? aggregated.totalTasks / aggregated.recordCount
+      : 0;
+    
+    // 计算成功率
+    const successRate = aggregated.totalTasks > 0
+      ? (aggregated.completedTasks / aggregated.totalTasks) * 100
+      : 0;
+    
+    const result = {
+      ...aggregated,
+      avgDuration,
+      avgTasksPerPage,
+      successRate,
+    };
+    
+    console.log('[Background] Aggregated metrics:', result);
+    return result;
+  } catch (error) {
+    console.error('[Background] Failed to get aggregated metrics:', error);
+    throw error;
+  }
+}
+
+/**
+ * 保存任务详细信息
+ */
+async function handleSaveTaskDetail(taskDetail: any): Promise<void> {
+  try {
+    if (!taskDetail) {
+      return;
+    }
+    
+    // 获取现有的任务详细信息
+    const existingDetails = await getValue<any[]>('orchestratorTaskDetails', []);
+    
+    // 添加新的任务详细信息
+    existingDetails.push({
+      ...taskDetail,
+      savedAt: Date.now(),
+    });
+    
+    // 只保留最近 500 条记录
+    const trimmedDetails = existingDetails.slice(-500);
+    
+    // 保存到存储
+    await setValue('orchestratorTaskDetails', trimmedDetails);
+  } catch (error) {
+    console.error('[Background] Failed to save task detail:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取任务详细信息
+ */
+async function handleGetTaskDetails(options: any = {}): Promise<any> {
+  try {
+    // 从存储中获取所有任务详细信息
+    const taskDetails = await getValue<any[]>('orchestratorTaskDetails', []);
+    
+    // 应用过滤和排序
+    let filtered = [...taskDetails];
+    
+    // 按时间戳倒序排序（最新的在前）
+    filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    // 分页
+    const page = options.page || 1;
+    const pageSize = options.pageSize || 20;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    
+    const paginatedDetails = filtered.slice(startIndex, endIndex);
+    
+    return {
+      details: paginatedDetails,
+      total: filtered.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(filtered.length / pageSize),
+    };
+  } catch (error) {
+    console.error('[Background] Failed to get task details:', error);
+    throw error;
+  }
+}

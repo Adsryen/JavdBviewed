@@ -245,6 +245,8 @@ export interface ExtensionSettings {
         hideBlacklistedActorsInList?: boolean; // 隐藏含黑名单演员的作品
         hideNonFavoritedActorsInList?: boolean; // 隐藏未收藏演员的作品（按标题识别）
         treatSubscribedAsFavorited?: boolean; // 订阅视为已收藏
+        // 新增：高质量封面
+        enableHighQualityCover?: boolean; // 启用高质量封面
     };
 
     // 新增：演员页增强配置

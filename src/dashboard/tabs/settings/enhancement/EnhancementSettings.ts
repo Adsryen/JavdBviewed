@@ -152,6 +152,23 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchViewModeSel!: HTMLSelectElement | null;
     private orchestratorTimelineData: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }> = [];
 
+    // 任务明细弹窗相关元素
+    private showTaskDetailsBtn!: HTMLButtonElement | null;
+    private taskDetailsModal!: HTMLElement | null;
+    private taskDetailsModalClose!: HTMLButtonElement | null;
+    private taskDetailsCloseBtn!: HTMLButtonElement | null;
+    private taskDetailsTable!: HTMLTableElement | null;
+    private taskDetailsTableBody!: HTMLElement | null;
+    private taskDetailsCount!: HTMLElement | null;
+    private taskDetailsPrevPage!: HTMLButtonElement | null;
+    private taskDetailsNextPage!: HTMLButtonElement | null;
+    private taskDetailsPagination!: HTMLElement | null;
+    private taskDetailsData: any[] = [];
+    private taskDetailsCurrentPage: number = 1;
+    private taskDetailsPageSize: number = 20;
+    private taskDetailsSortField: string = 'timestamp';
+    private taskDetailsSortOrder: 'asc' | 'desc' = 'desc';
+
     constructor() {
         super({
             panelId: 'enhancement-settings',
@@ -429,6 +446,18 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
         this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
 
+        // 任务明细弹窗元素
+        this.showTaskDetailsBtn = document.getElementById('showTaskDetailsBtn') as HTMLButtonElement | null;
+        this.taskDetailsModal = document.getElementById('taskDetailsModal');
+        this.taskDetailsModalClose = document.getElementById('taskDetailsModalClose') as HTMLButtonElement | null;
+        this.taskDetailsCloseBtn = document.getElementById('taskDetailsCloseBtn') as HTMLButtonElement | null;
+        this.taskDetailsTable = document.getElementById('taskDetailsTable') as HTMLTableElement | null;
+        this.taskDetailsTableBody = document.getElementById('taskDetailsTableBody') as HTMLElement | null;
+        this.taskDetailsCount = document.getElementById('taskDetailsCount') as HTMLElement | null;
+        this.taskDetailsPrevPage = document.getElementById('taskDetailsPrevPage') as HTMLButtonElement | null;
+        this.taskDetailsNextPage = document.getElementById('taskDetailsNextPage') as HTMLButtonElement | null;
+        this.taskDetailsPagination = document.getElementById('taskDetailsPagination') as HTMLElement | null;
+
         if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
             throw new Error('功能增强设置相关的DOM元素未找到');
         }
@@ -569,6 +598,35 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterPhaseSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchFilterSearchInput?.addEventListener('input', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchViewModeSel?.addEventListener('change', () => this.refreshOrchestratorState());
+
+        // 任务明细弹窗事件
+        if (this.showTaskDetailsBtn) {
+            this.showTaskDetailsBtn.addEventListener('click', () => this.openTaskDetailsModal());
+        }
+        if (this.taskDetailsModalClose) {
+            this.taskDetailsModalClose.addEventListener('click', () => this.closeTaskDetailsModal());
+        }
+        if (this.taskDetailsCloseBtn) {
+            this.taskDetailsCloseBtn.addEventListener('click', () => this.closeTaskDetailsModal());
+        }
+        if (this.taskDetailsPrevPage) {
+            this.taskDetailsPrevPage.addEventListener('click', () => this.taskDetailsPrevPageHandler());
+        }
+        if (this.taskDetailsNextPage) {
+            this.taskDetailsNextPage.addEventListener('click', () => this.taskDetailsNextPageHandler());
+        }
+        // 表格排序事件
+        if (this.taskDetailsTable) {
+            const headers = this.taskDetailsTable.querySelectorAll('thead th[data-sort]');
+            headers.forEach((header) => {
+                header.addEventListener('click', () => {
+                    const sortField = header.getAttribute('data-sort');
+                    if (sortField) {
+                        this.taskDetailsSortHandler(sortField);
+                    }
+                });
+            });
+        }
 
         // 折叠/展开 与 重置按钮
         document.addEventListener('click', (e) => {
@@ -743,6 +801,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 }
                 // 常规渲染（保留原逻辑）
                 this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+                // 获取并更新性能指标（设计视图也需要显示）
+                await this.fetchAndUpdateMetrics();
                 // 设计视图不订阅事件
                 this.unsubscribeOrchestratorEvents();
                 return;
@@ -765,6 +825,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             this.renderOrchestratorPhases(state.phases || {});
             this.orchestratorTimelineData = (state.timeline || []) as any[];
             this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+            // 获取并更新性能指标
+            await this.fetchAndUpdateMetrics();
             // 实时订阅
             this.subscribeOrchestratorEvents();
         } catch (e) {
@@ -2992,5 +3054,420 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
         }
     }
-}
 
+    /**
+     * 获取并更新性能指标
+     */
+    private async fetchAndUpdateMetrics(): Promise<void> {
+        console.log('[Enhancement] Fetching aggregated metrics from background...');
+        try {
+            // 从后台获取聚合的性能指标
+            const resp = await new Promise<any>((resolve) => {
+                try {
+                    chrome.runtime.sendMessage({ type: 'orchestrator:getAggregatedMetrics' }, (reply) => {
+                        const err = chrome.runtime.lastError;
+                        if (err) {
+                            console.warn('[Enhancement] Failed to get metrics:', err);
+                            resolve(null);
+                        } else {
+                            console.log('[Enhancement] Received metrics response:', reply);
+                            resolve(reply);
+                        }
+                    });
+                } catch (e) {
+                    console.error('[Enhancement] Exception when sending message:', e);
+                    resolve(null);
+                }
+            });
+
+            if (resp && resp.success) {
+                console.log('[Enhancement] Updating metrics display with:', resp.metrics);
+                this.updatePerformanceMetrics(resp.metrics);
+            } else {
+                console.warn('[Enhancement] No valid metrics response, clearing display');
+                this.updatePerformanceMetrics(null);
+            }
+        } catch (e) {
+            console.warn('[Enhancement] fetchAndUpdateMetrics failed:', e);
+            this.updatePerformanceMetrics(null);
+        }
+    }
+
+    /**
+     * 更新性能指标显示
+     */
+    private updatePerformanceMetrics(metrics: any): void {
+        const metricTotalTasks = document.getElementById('metricTotalTasks');
+        const metricCompletedTasks = document.getElementById('metricCompletedTasks');
+        const metricFailedTasks = document.getElementById('metricFailedTasks');
+        const metricTimeoutTasks = document.getElementById('metricTimeoutTasks');
+        const metricAvgDuration = document.getElementById('metricAvgDuration');
+        const metricMaxDuration = document.getElementById('metricMaxDuration');
+        const metricMinDuration = document.getElementById('metricMinDuration');
+        const metricTotalDuration = document.getElementById('metricTotalDuration');
+
+        if (!metrics) {
+            // 清空或显示默认值
+            if (metricTotalTasks) metricTotalTasks.textContent = '0';
+            if (metricCompletedTasks) metricCompletedTasks.textContent = '0';
+            if (metricFailedTasks) metricFailedTasks.textContent = '0';
+            if (metricTimeoutTasks) metricTimeoutTasks.textContent = '0';
+            if (metricAvgDuration) metricAvgDuration.textContent = '0ms';
+            if (metricMaxDuration) metricMaxDuration.textContent = '0ms';
+            if (metricMinDuration) metricMinDuration.textContent = '∞';
+            if (metricTotalDuration) metricTotalDuration.textContent = '0ms';
+            return;
+        }
+
+        // 格式化时间显示
+        const formatDuration = (ms: number): string => {
+            if (ms < 1000) {
+                return `${Math.round(ms)}ms`;
+            } else if (ms < 60000) {
+                return `${(ms / 1000).toFixed(2)}s`;
+            } else {
+                const minutes = Math.floor(ms / 60000);
+                const seconds = ((ms % 60000) / 1000).toFixed(0);
+                return `${minutes}m ${seconds}s`;
+            }
+        };
+
+        // 更新指标
+        if (metricTotalTasks) metricTotalTasks.textContent = String(metrics.totalTasks || 0);
+        if (metricCompletedTasks) {
+            const successRate = metrics.successRate !== undefined ? ` (${metrics.successRate.toFixed(1)}%)` : '';
+            metricCompletedTasks.textContent = `${metrics.completedTasks || 0}${successRate}`;
+        }
+        if (metricFailedTasks) metricFailedTasks.textContent = String(metrics.failedTasks || 0);
+        if (metricTimeoutTasks) metricTimeoutTasks.textContent = String(metrics.timeoutTasks || 0);
+        if (metricAvgDuration) metricAvgDuration.textContent = formatDuration(metrics.avgDuration || 0);
+        
+        // 最长耗时：显示任务名称
+        if (metricMaxDuration) {
+            const taskName = metrics.maxDurationTask ? ` (${metrics.maxDurationTask})` : '';
+            metricMaxDuration.textContent = formatDuration(metrics.maxDuration || 0);
+            metricMaxDuration.title = metrics.maxDurationTask ? `最耗时任务: ${metrics.maxDurationTask}` : '';
+        }
+        
+        if (metricMinDuration) {
+            const minDur = metrics.minDuration;
+            metricMinDuration.textContent = (minDur === Infinity || minDur === undefined) ? '∞' : formatDuration(minDur);
+        }
+        if (metricTotalDuration) metricTotalDuration.textContent = formatDuration(metrics.totalDuration || 0);
+    }
+
+    // ===== 任务明细弹窗相关方法 =====
+
+    /**
+     * 打开任务明细弹窗
+     */
+    private async openTaskDetailsModal(): Promise<void> {
+        if (!this.taskDetailsModal) return;
+        
+        this.taskDetailsModal.classList.remove('hidden');
+        this.taskDetailsModal.classList.add('visible');
+        
+        // 重置分页
+        this.taskDetailsCurrentPage = 1;
+        
+        // 加载任务明细数据
+        await this.fetchTaskDetails();
+    }
+
+    /**
+     * 关闭任务明细弹窗
+     */
+    private closeTaskDetailsModal(): void {
+        if (!this.taskDetailsModal) return;
+        this.taskDetailsModal.classList.add('hidden');
+        this.taskDetailsModal.classList.remove('visible');
+    }
+
+    /**
+     * 从后台获取任务明细数据
+     */
+    private async fetchTaskDetails(): Promise<void> {
+        try {
+            // 显示加载状态
+            if (this.taskDetailsTableBody) {
+                this.taskDetailsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </td>
+                    </tr>
+                `;
+            }
+
+            // 从后台获取任务明细
+            const resp = await new Promise<any>((resolve) => {
+                try {
+                    chrome.runtime.sendMessage({
+                        type: 'orchestrator:getTaskDetails',
+                        options: {
+                            page: this.taskDetailsCurrentPage,
+                            pageSize: this.taskDetailsPageSize,
+                        }
+                    }, (reply) => {
+                        const err = chrome.runtime.lastError;
+                        if (err) {
+                            console.warn('[Enhancement] Failed to get task details:', err);
+                            resolve(null);
+                        } else {
+                            resolve(reply);
+                        }
+                    });
+                } catch (e) {
+                    console.error('[Enhancement] Exception when fetching task details:', e);
+                    resolve(null);
+                }
+            });
+
+            if (resp && resp.success && resp.details) {
+                this.taskDetailsData = resp.details.details || [];
+                this.renderTaskDetailsTable();
+                this.updateTaskDetailsPagination(resp.details.total, resp.details.totalPages);
+            } else {
+                // 显示错误状态
+                if (this.taskDetailsTableBody) {
+                    this.taskDetailsTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="padding:40px; text-align:center; color:#ef4444;">
+                                <i class="fas fa-exclamation-triangle"></i> 加载失败
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        } catch (e) {
+            console.error('[Enhancement] Failed to fetch task details:', e);
+            if (this.taskDetailsTableBody) {
+                this.taskDetailsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding:40px; text-align:center; color:#ef4444;">
+                            <i class="fas fa-exclamation-triangle"></i> 加载失败
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+    }
+
+    /**
+     * 渲染任务明细表格
+     */
+    private renderTaskDetailsTable(): void {
+        if (!this.taskDetailsTableBody) return;
+
+        if (this.taskDetailsData.length === 0) {
+            this.taskDetailsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                        <i class="fas fa-inbox"></i> 暂无任务记录
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // 应用排序
+        const sortedData = [...this.taskDetailsData].sort((a, b) => {
+            let aVal = a[this.taskDetailsSortField];
+            let bVal = b[this.taskDetailsSortField];
+
+            // 处理特殊字段
+            if (this.taskDetailsSortField === 'duration') {
+                aVal = a.durationMs || 0;
+                bVal = b.durationMs || 0;
+            }
+
+            if (typeof aVal === 'string') {
+                return this.taskDetailsSortOrder === 'asc' 
+                    ? aVal.localeCompare(bVal) 
+                    : bVal.localeCompare(aVal);
+            } else {
+                return this.taskDetailsSortOrder === 'asc' 
+                    ? aVal - bVal 
+                    : bVal - aVal;
+            }
+        });
+
+        // 格式化时间显示
+        const formatDuration = (ms: number): string => {
+            if (ms < 1000) {
+                return `${Math.round(ms)}ms`;
+            } else if (ms < 60000) {
+                return `${(ms / 1000).toFixed(2)}s`;
+            } else {
+                const minutes = Math.floor(ms / 60000);
+                const seconds = ((ms % 60000) / 1000).toFixed(0);
+                return `${minutes}m ${seconds}s`;
+            }
+        };
+
+        const getDurationColor = (ms: number): string => {
+            // 根据耗时返回不同颜色
+            // < 100ms: 绿色 (快速)
+            // 100ms - 500ms: 蓝色 (正常)
+            // 500ms - 1s: 青色 (稍慢)
+            // 1s - 3s: 橙色 (较慢)
+            // > 3s: 红色 (很慢)
+            if (ms < 100) {
+                return '#059669'; // 绿色
+            } else if (ms < 500) {
+                return '#0891b2'; // 青色
+            } else if (ms < 1000) {
+                return '#7c3aed'; // 紫色
+            } else if (ms < 3000) {
+                return '#d97706'; // 橙色
+            } else {
+                return '#dc2626'; // 红色
+            }
+        };
+
+        const formatTimestamp = (ts: number): string => {
+            const date = new Date(ts);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+        };
+
+        const getStatusBadge = (status: string): string => {
+            const statusMap: Record<string, { text: string; color: string }> = {
+                done: { text: '完成', color: '#059669' },
+                error: { text: '错误', color: '#dc2626' },
+                timeout: { text: '超时', color: '#d97706' },
+            };
+            const info = statusMap[status] || { text: status, color: '#6b7280' };
+            return `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; color:#fff; background:${info.color};">${info.text}</span>`;
+        };
+
+        const getPhaseBadge = (phase: string): string => {
+            const phaseMap: Record<string, { text: string; color: string }> = {
+                critical: { text: 'critical', color: '#dc2626' },
+                high: { text: 'high', color: '#ea580c' },
+                deferred: { text: 'deferred', color: '#0891b2' },
+                idle: { text: 'idle', color: '#6b7280' },
+            };
+            const info = phaseMap[phase] || { text: phase, color: '#6b7280' };
+            return `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; color:#fff; background:${info.color};">${info.text}</span>`;
+        };
+
+        const getPageUrl = (url: string): string => {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.pathname;
+            } catch {
+                return url;
+            }
+        };
+
+        const getPageLink = (url: string): string => {
+            if (!url) return '-';
+            const displayUrl = getPageUrl(url);
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6; text-decoration:none; cursor:pointer;" title="点击打开: ${url}">${displayUrl}</a>`;
+        };
+
+        const rows = sortedData.map((task) => {
+            const durationMs = task.durationMs || 0;
+            const duration = formatDuration(durationMs);
+            const durationColor = getDurationColor(durationMs);
+            const timestamp = formatTimestamp(task.timestamp || Date.now());
+            const status = getStatusBadge(task.status || 'unknown');
+            const phase = getPhaseBadge(task.phase || 'unknown');
+            const pageLink = getPageLink(task.pageUrl || '');
+            const label = task.label || 'unknown';
+
+            return `
+                <tr style="background:#fff; border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:10px 12px; color:#1e293b; font-weight:500;" title="${label}">${label}</td>
+                    <td style="padding:10px 12px;">${phase}</td>
+                    <td style="padding:10px 12px;">${status}</td>
+                    <td style="padding:10px 12px; text-align:right; color:${durationColor}; font-weight:600;">${duration}</td>
+                    <td style="padding:10px 12px; color:#64748b; font-size:12px;">${pageLink}</td>
+                    <td style="padding:10px 12px; color:#64748b; font-size:12px;">${timestamp}</td>
+                </tr>
+            `;
+        }).join('');
+
+        this.taskDetailsTableBody.innerHTML = rows;
+    }
+
+    /**
+     * 更新分页信息
+     */
+    private updateTaskDetailsPagination(total: number, totalPages: number): void {
+        if (this.taskDetailsCount) {
+            this.taskDetailsCount.textContent = String(total);
+        }
+
+        if (this.taskDetailsPagination) {
+            this.taskDetailsPagination.textContent = `第 ${this.taskDetailsCurrentPage} / ${totalPages} 页`;
+        }
+
+        // 更新按钮状态
+        if (this.taskDetailsPrevPage) {
+            this.taskDetailsPrevPage.disabled = this.taskDetailsCurrentPage <= 1;
+        }
+
+        if (this.taskDetailsNextPage) {
+            this.taskDetailsNextPage.disabled = this.taskDetailsCurrentPage >= totalPages;
+        }
+    }
+
+    /**
+     * 上一页
+     */
+    private taskDetailsPrevPageHandler(): void {
+        if (this.taskDetailsCurrentPage > 1) {
+            this.taskDetailsCurrentPage--;
+            this.fetchTaskDetails();
+        }
+    }
+
+    /**
+     * 下一页
+     */
+    private taskDetailsNextPageHandler(): void {
+        this.taskDetailsCurrentPage++;
+        this.fetchTaskDetails();
+    }
+
+    /**
+     * 排序处理
+     */
+    private taskDetailsSortHandler(field: string): void {
+        if (this.taskDetailsSortField === field) {
+            // 切换排序顺序
+            this.taskDetailsSortOrder = this.taskDetailsSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            // 新字段，默认降序
+            this.taskDetailsSortField = field;
+            this.taskDetailsSortOrder = 'desc';
+        }
+
+        // 重新渲染表格
+        this.renderTaskDetailsTable();
+
+        // 更新排序图标
+        if (this.taskDetailsTable) {
+            const headers = this.taskDetailsTable.querySelectorAll('thead th[data-sort]');
+            headers.forEach((header) => {
+                const icon = header.querySelector('i');
+                if (icon) {
+                    const sortField = header.getAttribute('data-sort');
+                    if (sortField === this.taskDetailsSortField) {
+                        icon.className = this.taskDetailsSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+            });
+        }
+    }
+}
