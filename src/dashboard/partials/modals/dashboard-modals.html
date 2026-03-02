@@ -27,7 +27,7 @@
 
   <!-- Orchestrator Visualization Modal -->
   <div id="orchestratorModal" class="modal-overlay hidden">
-    <div id="orchestratorModalContent" class="modal-content" style="width:94vw; max-width: 1600px; max-height: 88vh; background:#fff; color:#111; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
+    <div id="orchestratorModalContent" class="modal-content" style="width:94vw; max-width: 1600px; max-height: 88vh; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
       <div class="modal-header">
         <h3>
           <i class="fas fa-project-diagram"></i>
@@ -67,7 +67,7 @@
           </label>
           <input id="orchFilterSearch" type="search" placeholder="按任务关键词搜索…" style="flex:1;" />
         </div>
-        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:#52525b; line-height:1.6; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; text-align:left;">
+        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:var(--text-secondary); line-height:1.6; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; text-align:left;">
           <div><strong>说明：</strong>本设计视图仅展示“代码中约定的任务编排顺序”，不依赖页面加载。</div>
           <div>• <strong>critical</strong>：关键路径，首屏必须；串行完成。</div>
           <div>• <strong>high</strong>：较高优先，尽快执行；并行触发。</div>
@@ -85,19 +85,19 @@
               <i class="fas fa-list"></i> 任务执行明细
             </button>
           </h4>
-          <div style="overflow-x:auto; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px;">
-            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 90px 90px 130px 150px 130px 150px; min-width:1030px; font-size:13px; background:#fff; border-radius:4px;">
+          <div style="overflow-x:auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px;">
+            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 90px 90px 130px 150px 130px 150px; min-width:1030px; font-size:13px; background:var(--bg-primary); border-radius:4px;">
               <!-- 表头 -->
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">总任务数</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">已完成</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">失败</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">超时</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">平均耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">最长耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">最短耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:#64748b; border-bottom:2px solid #e5e7eb;">总耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">总任务数</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">失败</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">超时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">平均耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">最长耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">最短耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">总耗时</div>
               <!-- 数据行 -->
-              <div id="metricTotalTasks" style="padding:8px 10px; color:#1e293b; font-weight:600;">0</div>
+              <div id="metricTotalTasks" style="padding:8px 10px; color:var(--text-primary); font-weight:600;">0</div>
               <div id="metricCompletedTasks" style="padding:8px 10px; color:#059669; font-weight:600;">0</div>
               <div id="metricFailedTasks" style="padding:8px 10px; color:#dc2626; font-weight:600;">0</div>
               <div id="metricTimeoutTasks" style="padding:8px 10px; color:#d97706; font-weight:600;">0</div>
@@ -272,46 +272,46 @@
       </div>
       <div class="modal-body" style="flex:1; overflow:auto; display:flex; flex-direction:column;">
         <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-          <div style="color:#64748b; font-size:13px;">
+          <div style="color:var(--text-secondary); font-size:13px;">
             显示最近 <span id="taskDetailsCount">0</span> 条任务记录
           </div>
           <div style="display:flex; gap:8px;">
             <button id="taskDetailsPrevPage" class="button-like" style="font-size:12px; padding:4px 8px;" disabled>
               <i class="fas fa-chevron-left"></i> 上一页
             </button>
-            <span id="taskDetailsPagination" style="padding:4px 12px; color:#64748b; font-size:13px;">第 1 页</span>
+            <span id="taskDetailsPagination" style="padding:4px 12px; color:var(--text-secondary); font-size:13px;">第 1 页</span>
             <button id="taskDetailsNextPage" class="button-like" style="font-size:12px; padding:4px 8px;" disabled>
               下一页 <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
-        <div style="flex:1; overflow:auto; border:1px solid #e5e7eb; border-radius:8px;">
+        <div style="flex:1; overflow:auto; border:1px solid var(--border-color); border-radius:8px;">
           <table id="taskDetailsTable" style="width:100%; border-collapse:collapse; font-size:13px; min-width:800px;">
-            <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
-              <tr style="border-bottom:2px solid #e5e7eb;">
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="label">
+            <thead style="position:sticky; top:0; background:var(--bg-secondary); z-index:1;">
+              <tr style="border-bottom:2px solid var(--border-color);">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="label">
                   任务名称 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="phase">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="phase">
                   阶段 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="status">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="status">
                   状态 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b; cursor:pointer;" data-sort="duration">
+                <th style="padding:10px 12px; text-align:right; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="duration">
                   耗时 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="pageUrl">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">
                   页面 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b; cursor:pointer;" data-sort="timestamp">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="timestamp">
                   时间 <i class="fas fa-sort"></i>
                 </th>
               </tr>
             </thead>
             <tbody id="taskDetailsTableBody">
               <tr>
-                <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                <td colspan="6" style="padding:40px; text-align:center; color:var(--text-secondary);">
                   <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </td>
               </tr>
@@ -319,7 +319,15 @@
           </table>
         </div>
       </div>
-      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">
+      <div class="modal-footer" style="display:flex; justify-content:space-between; gap:8px; flex-shrink:0;">
+        <div style="display:flex; gap:8px;">
+          <button id="taskDetailsRefreshBtn" class="button-like" style="display:flex; align-items:center; gap:6px;">
+            <i class="fas fa-sync-alt"></i> 刷新
+          </button>
+          <button id="taskDetailsClearBtn" class="button-like" style="display:flex; align-items:center; gap:6px; color:#dc2626;">
+            <i class="fas fa-trash-alt"></i> 清空
+          </button>
+        </div>
         <button id="taskDetailsCloseBtn" class="button-like">关闭</button>
       </div>
     </div>
