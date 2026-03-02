@@ -149,9 +149,15 @@ export async function initDrive115Features(): Promise<void> {
             try { await inject115ButtonsIntoNativeMagnetList(); } catch {}
         }
 
-        // 等待容器元素出现，避免初始化过早导致刷新后不渲染
-        const userBox = await waitForElement('#drive115-user-box', 5000, 150);
-        const userStatus = await waitForElement('#drive115-user-status', 3000, 150);
+        // 优化：并行等待容器元素，避免串行等待导致耗时累加
+        // 列表页可能没有这些元素，缩短超时时间避免长时间阻塞
+        const isDetailPage = window.location.pathname.startsWith('/v/');
+        const timeout = isDetailPage ? 3000 : 1000; // 详情页3秒，列表页1秒
+        
+        const [userBox, userStatus] = await Promise.all([
+            waitForElement('#drive115-user-box', timeout, 150),
+            waitForElement('#drive115-user-status', timeout, 150)
+        ]);
         
         if (!userBox || !userStatus) {
             log('[Drive115] Required containers not found, continue without quota UI');
