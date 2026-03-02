@@ -157,6 +157,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsModal!: HTMLElement | null;
     private taskDetailsModalClose!: HTMLButtonElement | null;
     private taskDetailsCloseBtn!: HTMLButtonElement | null;
+    private taskDetailsRefreshBtn!: HTMLButtonElement | null;
+    private taskDetailsClearBtn!: HTMLButtonElement | null;
     private taskDetailsTable!: HTMLTableElement | null;
     private taskDetailsTableBody!: HTMLElement | null;
     private taskDetailsCount!: HTMLElement | null;
@@ -451,6 +453,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsModal = document.getElementById('taskDetailsModal');
         this.taskDetailsModalClose = document.getElementById('taskDetailsModalClose') as HTMLButtonElement | null;
         this.taskDetailsCloseBtn = document.getElementById('taskDetailsCloseBtn') as HTMLButtonElement | null;
+        this.taskDetailsRefreshBtn = document.getElementById('taskDetailsRefreshBtn') as HTMLButtonElement | null;
+        this.taskDetailsClearBtn = document.getElementById('taskDetailsClearBtn') as HTMLButtonElement | null;
         this.taskDetailsTable = document.getElementById('taskDetailsTable') as HTMLTableElement | null;
         this.taskDetailsTableBody = document.getElementById('taskDetailsTableBody') as HTMLElement | null;
         this.taskDetailsCount = document.getElementById('taskDetailsCount') as HTMLElement | null;
@@ -608,6 +612,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         if (this.taskDetailsCloseBtn) {
             this.taskDetailsCloseBtn.addEventListener('click', () => this.closeTaskDetailsModal());
+        }
+        if (this.taskDetailsRefreshBtn) {
+            this.taskDetailsRefreshBtn.addEventListener('click', () => this.refreshTaskDetails());
+        }
+        if (this.taskDetailsClearBtn) {
+            this.taskDetailsClearBtn.addEventListener('click', () => this.clearTaskDetails());
         }
         if (this.taskDetailsPrevPage) {
             this.taskDetailsPrevPage.addEventListener('click', () => this.taskDetailsPrevPageHandler());
@@ -1072,38 +1082,38 @@ export class EnhancementSettings extends BaseSettingsPanel {
         style.id = 'orch-local-style';
         style.textContent = `
         #orchestratorModalContent.fullscreen { width:96vw !important; max-width:96vw !important; height:96vh !important; max-height:96vh !important; }
-        .orchestrator-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; }
-        .orchestrator-toolbar label { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; color:#111; }
-        .orchestrator-toolbar label > select { border:none; outline:none; background:transparent; color:#111; font-weight:600; }
-        .orchestrator-toolbar input[type="search"] { padding:8px 12px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; color:#111; min-width:240px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03); }
+        .orchestrator-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:10px; }
+        .orchestrator-toolbar label { display:flex; align-items:center; gap:6px; padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; color:var(--text-primary); }
+        .orchestrator-toolbar label > select { border:none; outline:none; background:transparent; color:var(--text-primary); font-weight:600; }
+        .orchestrator-toolbar input[type="search"] { padding:8px 12px; border:1px solid var(--border-color); border-radius:999px; background:var(--bg-primary); color:var(--text-primary); min-width:240px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03); }
         .orchestrator-toolbar input[type="search"]:focus { border-color:#60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); outline:none; }
         .orch-phases-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; }
-        .orch-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
-        .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #f1f5f9; font-weight:600; }
+        .orch-card { background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+        .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border-color); font-weight:600; }
         .orch-list { list-style:none; margin:8px 10px; padding:0; }
-        .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:flex-start; color:#111; line-height:1.4; }
+        .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:flex-start; color:var(--text-primary); line-height:1.4; }
         .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; margin-top:6px; flex-shrink:0; }
-        .orch-list li .task-label { font-weight:500; color:#111; }
-        .orch-list li .task-desc { color:#6b7280; font-size:12px; }
+        .orch-list li .task-label { font-weight:500; color:var(--text-primary); }
+        .orch-list li .task-desc { color:var(--text-secondary); font-size:12px; }
         .orch-list li.muted { color:#9ca3af; }
         .muted { color:#9ca3af; }
         .header.with-duration { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
         .header.no-duration { display:grid; grid-template-columns: 90px 100px 110px 1fr; align-items:center; column-gap:8px; }
         #orchestratorTimeline.timeline-realtime .row { display:grid; grid-template-columns: 90px 100px 110px 1fr 80px; align-items:center; column-gap:8px; }
         #orchestratorTimeline.timeline-design .row { display:grid; grid-template-columns: 90px 100px 110px 1fr; align-items:center; column-gap:8px; }
-        .header { font-weight:600; padding:6px 4px; border-bottom:1px solid #e5e7eb; background:#f8fafc; color:#111; }
-        .row { padding:6px 4px; border-bottom:1px dashed #eef2f7; position:relative; }
-        .row.concurrent { background:#f0f9ff; border-left:3px solid #3b82f6; }
+        .header { font-weight:600; padding:6px 4px; border-bottom:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); }
+        .row { padding:6px 4px; border-bottom:1px dashed var(--border-color); position:relative; }
+        .row.concurrent { background:rgba(59, 130, 246, 0.1); border-left:3px solid #3b82f6; }
         .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
         .badge.scheduled { background:#607d8b; }
         .badge.running { background:#ff8f00; }
         .badge.done { background:#2e7d32; }
         .badge.error { background:#d32f2f; }
         .detail { margin:0 4px 6px 4px; color:#b91c1c; font-size:12px; }
-        .label-main { font-weight:600; color:#111; }
-        .label-desc { color:#6b7280; font-size:12px; margin-top:2px; }
+        .label-main { font-weight:600; color:var(--text-primary); }
+        .label-desc { color:var(--text-secondary); font-size:12px; margin-top:2px; }
         .concurrent-marker { color:#3b82f6; font-size:14px; margin-right:4px; font-weight:bold; }
-        .col.time { color:#6b7280; font-family:monospace; }
+        .col.time { color:var(--text-secondary); font-family:monospace; }
         `;
         document.head.appendChild(style);
     }
@@ -3184,6 +3194,68 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 刷新任务明细数据
+     */
+    private async refreshTaskDetails(): Promise<void> {
+        if (!this.taskDetailsRefreshBtn) return;
+        
+        // 显示刷新动画
+        const icon = this.taskDetailsRefreshBtn.querySelector('i');
+        if (icon) {
+            icon.classList.add('fa-spin');
+        }
+        this.taskDetailsRefreshBtn.disabled = true;
+
+        try {
+            // 重新获取数据
+            await this.fetchTaskDetails();
+        } finally {
+            // 恢复按钮状态
+            if (icon) {
+                icon.classList.remove('fa-spin');
+            }
+            this.taskDetailsRefreshBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 清空任务明细数据
+     */
+    private async clearTaskDetails(): Promise<void> {
+        // 确认对话框
+        const confirmed = confirm('确定要清空所有任务执行记录吗？此操作不可恢复。');
+        if (!confirmed) return;
+
+        try {
+            // 发送清空请求到后台
+            const resp = await new Promise<any>((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'orchestrator:clearTaskDetails'
+                }, (reply) => {
+                    const err = chrome.runtime.lastError;
+                    if (err) {
+                        console.warn('[Enhancement] Failed to clear task details:', err);
+                        resolve({ success: false });
+                    } else {
+                        resolve(reply);
+                    }
+                });
+            });
+
+            if (resp && resp.success) {
+                showMessage('任务记录已清空', 'success');
+                // 刷新显示
+                await this.fetchTaskDetails();
+            } else {
+                showMessage('清空失败，请重试', 'error');
+            }
+        } catch (e) {
+            console.error('[Enhancement] Exception when clearing task details:', e);
+            showMessage('清空失败，请重试', 'error');
+        }
+    }
+
+    /**
      * 从后台获取任务明细数据
      */
     private async fetchTaskDetails(): Promise<void> {
@@ -3384,13 +3456,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const label = task.label || 'unknown';
 
             return `
-                <tr style="background:#fff; border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:10px 12px; color:#1e293b; font-weight:500;" title="${label}">${label}</td>
+                <tr style="background:var(--bg-primary); border-bottom:1px solid var(--border-color);">
+                    <td style="padding:10px 12px; color:var(--text-primary); font-weight:500;" title="${label}">${label}</td>
                     <td style="padding:10px 12px;">${phase}</td>
                     <td style="padding:10px 12px;">${status}</td>
                     <td style="padding:10px 12px; text-align:right; color:${durationColor}; font-weight:600;">${duration}</td>
-                    <td style="padding:10px 12px; color:#64748b; font-size:12px;">${pageLink}</td>
-                    <td style="padding:10px 12px; color:#64748b; font-size:12px;">${timestamp}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${pageLink}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${timestamp}</td>
                 </tr>
             `;
         }).join('');
