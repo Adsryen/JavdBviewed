@@ -631,6 +631,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
                     hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
                     treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
+                    // 🆕 同步列表显示控制配置
+                    listDisplayControl: (settings.listEnhancement as any)?.listDisplayControl,
                 });
                 listEnhancementManager.reapplyActorHidingForAll?.();
             } catch (e) {
