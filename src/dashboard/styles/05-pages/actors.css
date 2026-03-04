@@ -1137,3 +1137,56 @@
         padding: 16px 20px;
     }
 }
+
+
+/* 统计卡片可点击样式 */
+.stats-section .stat-card.clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.stats-section .stat-card.clickable:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    filter: brightness(1.1);
+}
+
+.stats-section .stat-card.clickable:active {
+    transform: translateY(-2px) scale(1.01);
+}
+
+/* 激活状态 */
+.stats-section .stat-card.clickable.active {
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+    box-shadow: 0 8px 24px rgba(255, 215, 0, 0.5);
+    animation: cardPulse 0.6s ease-out;
+}
+
+@keyframes cardPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 添加点击提示图标 */
+.stats-section .stat-card.clickable::after {
+    content: '👆';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stats-section .stat-card.clickable:hover::after {
+    opacity: 0.6;
+}

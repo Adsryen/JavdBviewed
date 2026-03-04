@@ -704,35 +704,110 @@ export class ActorsTab {
             
             if (statsEl) {
                 statsEl.innerHTML = `
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="all" title="点击查看所有演员">
                         <div class="stat-value">${stats.total}</div>
                         <div class="stat-label">总演员数</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="female" title="点击查看女演员">
                         <div class="stat-value">${stats.byGender.female || 0}</div>
                         <div class="stat-label">女演员</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="male" title="点击查看男演员">
                         <div class="stat-value">${stats.byGender.male || 0}</div>
                         <div class="stat-label">男演员</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="censored" title="点击查看有码演员">
                         <div class="stat-value">${stats.byCategory.censored || 0}</div>
                         <div class="stat-label">有码</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="uncensored" title="点击查看无码演员">
                         <div class="stat-value">${stats.byCategory.uncensored || 0}</div>
                         <div class="stat-label">无码</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="blacklisted" title="点击查看已拉黑演员">
                         <div class="stat-value">${stats.blacklisted || 0}</div>
                         <div class="stat-label">已拉黑</div>
                     </div>
-                    <div class="stat-card new-works-stat">
+                    <div class="stat-card new-works-stat clickable" data-filter="recentlyAdded" title="点击查看本周新增演员">
                         <div class="stat-value">${stats.recentlyAdded}</div>
                         <div class="stat-label">本周新增</div>
                     </div>
                 `;
+
+                // 添加统计卡片点击事件监听器
+                statsEl.querySelectorAll('.stat-card.clickable').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const filterType = card.getAttribute('data-filter');
+                        if (!filterType) return;
+
+                        // 获取过滤器元素
+                        const searchInput = document.getElementById('actorSearchInput') as HTMLInputElement;
+                        const genderFilter = document.getElementById('actorGenderFilter') as HTMLSelectElement;
+                        const categoryFilter = document.getElementById('actorCategoryFilter') as HTMLSelectElement;
+                        const blacklistFilter = document.getElementById('actorBlacklistFilter') as HTMLSelectElement;
+
+                        // 清空搜索框
+                        if (searchInput) {
+                            searchInput.value = '';
+                            this.currentQuery = '';
+                        }
+
+                        // 根据点击的卡片类型设置过滤
+                        if (filterType === 'all') {
+                            // 显示所有演员
+                            if (genderFilter) genderFilter.value = '';
+                            if (categoryFilter) categoryFilter.value = '';
+                            if (blacklistFilter) blacklistFilter.value = 'exclude';
+                            this.currentGenderFilter = '';
+                            this.currentCategoryFilter = '';
+                            this.currentBlacklistFilter = 'exclude';
+                        } else if (filterType === 'female' || filterType === 'male') {
+                            // 按性别过滤
+                            if (genderFilter) genderFilter.value = filterType;
+                            if (categoryFilter) categoryFilter.value = '';
+                            if (blacklistFilter) blacklistFilter.value = 'exclude';
+                            this.currentGenderFilter = filterType;
+                            this.currentCategoryFilter = '';
+                            this.currentBlacklistFilter = 'exclude';
+                        } else if (filterType === 'censored' || filterType === 'uncensored') {
+                            // 按分类过滤
+                            if (genderFilter) genderFilter.value = '';
+                            if (categoryFilter) categoryFilter.value = filterType;
+                            if (blacklistFilter) blacklistFilter.value = 'exclude';
+                            this.currentGenderFilter = '';
+                            this.currentCategoryFilter = filterType;
+                            this.currentBlacklistFilter = 'exclude';
+                        } else if (filterType === 'blacklisted') {
+                            // 显示已拉黑
+                            if (genderFilter) genderFilter.value = '';
+                            if (categoryFilter) categoryFilter.value = '';
+                            if (blacklistFilter) blacklistFilter.value = 'only';
+                            this.currentGenderFilter = '';
+                            this.currentCategoryFilter = '';
+                            this.currentBlacklistFilter = 'only';
+                        } else if (filterType === 'recentlyAdded') {
+                            // 本周新增 - 暂时显示所有，按更新时间排序
+                            if (genderFilter) genderFilter.value = '';
+                            if (categoryFilter) categoryFilter.value = '';
+                            if (blacklistFilter) blacklistFilter.value = 'exclude';
+                            this.currentGenderFilter = '';
+                            this.currentCategoryFilter = '';
+                            this.currentBlacklistFilter = 'exclude';
+                            this.currentSort = 'updatedAt';
+                            this.currentOrder = 'desc';
+                            const sortSelect = document.getElementById('actorSortSelect') as HTMLSelectElement;
+                            if (sortSelect) sortSelect.value = 'updatedAt';
+                        }
+
+                        // 重置到第一页并刷新
+                        this.currentPage = 1;
+                        this.loadActors();
+
+                        // 添加视觉反馈
+                        statsEl.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                    });
+                });
             }
         } catch (error) {
             console.error('[Actor] Failed to update actor stats:', error);
