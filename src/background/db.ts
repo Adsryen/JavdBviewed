@@ -4,8 +4,7 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry, ListRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
-import { getSettings, getValue } from '../utils/storage';
-import { STORAGE_KEYS } from '../utils/config';
+import { getSettings } from '../utils/storage';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）
@@ -215,6 +214,16 @@ export interface ViewedQueryParams {
   offset?: number;
   limit?: number;
   adv?: Array<{ field: string; op: string; value?: string }>;
+  isFavorite?: boolean;
+}
+
+export interface ViewedPageParams {
+  offset?: number;
+  limit?: number;
+  status?: VideoRecord['status'];
+  orderBy?: 'updatedAt' | 'createdAt';
+  order?: 'asc' | 'desc';
+  isFavorite?: boolean;
 }
 
 export async function viewedQuery(params: ViewedQueryParams): Promise<{ items: VideoRecord[]; total: number }> {
@@ -1291,66 +1300,36 @@ export async function actorsStats(): Promise<{ total: number; byGender: Record<s
   const now = Date.now();
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   
-  // 使用索引统计性别分布
+  // 统计性别分布 - 直接遍历所有记录
   const byGender: Record<string, number> = {};
-  try {
-    const genderIndex = store.index('by_gender');
-    const genderKeys = await genderIndex.getAllKeys();
-    for (const key of genderKeys) {
-      const gender = String(key);
-      byGender[gender] = (byGender[gender] || 0) + 1;
-    }
-  } catch {
-    // 如果索引不存在，回退到全量查询
-    const all = await store.getAll();
-    for (const a of all) {
-      byGender[a.gender] = (byGender[a.gender] || 0) + 1;
-    }
-  }
-  
-  // 使用索引统计分类分布
   const byCategory: Record<string, number> = {};
-  try {
-    const categoryIndex = store.index('by_category');
-    const categoryKeys = await categoryIndex.getAllKeys();
-    for (const key of categoryKeys) {
-      const category = String(key);
-      byCategory[category] = (byCategory[category] || 0) + 1;
-    }
-  } catch {
-    const all = await store.getAll();
-    for (const a of all) {
-      byCategory[a.category] = (byCategory[a.category] || 0) + 1;
-    }
-  }
-  
-  // 使用索引统计黑名单数量
   let blacklisted = 0;
-  try {
-    const blacklistedIndex = store.index('by_blacklisted');
-    blacklisted = await blacklistedIndex.count(IDBKeyRange.only(true));
-  } catch {
-    const all = await store.getAll();
-    blacklisted = all.filter(a => a.blacklisted).length;
-  }
-  
-  // 使用索引统计最近添加和更新
   let recentlyAdded = 0;
   let recentlyUpdated = 0;
-  try {
-    const createdIndex = store.index('by_createdAt');
-    recentlyAdded = await createdIndex.count(IDBKeyRange.lowerBound(weekAgo));
-  } catch {
-    const all = await store.getAll();
-    recentlyAdded = all.filter(a => (a.createdAt || 0) > weekAgo).length;
-  }
-  
-  try {
-    const updatedIndex = store.index('by_updatedAt');
-    recentlyUpdated = await updatedIndex.count(IDBKeyRange.lowerBound(weekAgo));
-  } catch {
-    const all = await store.getAll();
-    recentlyUpdated = all.filter(a => (a.updatedAt || 0) > weekAgo).length;
+
+  // 一次性获取所有数据进行统计
+  const all = await store.getAll();
+  for (const actor of all) {
+    // 统计性别
+    if (actor.gender) {
+      byGender[actor.gender] = (byGender[actor.gender] || 0) + 1;
+    }
+    // 统计分类
+    if (actor.category) {
+      byCategory[actor.category] = (byCategory[actor.category] || 0) + 1;
+    }
+    // 统计黑名单
+    if (actor.blacklisted) {
+      blacklisted++;
+    }
+    // 统计最近添加
+    if (actor.createdAt && actor.createdAt > weekAgo) {
+      recentlyAdded++;
+    }
+    // 统计最近更新
+    if (actor.updatedAt && actor.updatedAt > weekAgo) {
+      recentlyUpdated++;
+    }
   }
   
   return { total, byGender, byCategory, blacklisted, recentlyAdded, recentlyUpdated };
