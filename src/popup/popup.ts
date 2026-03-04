@@ -131,19 +131,17 @@ async function toggleTheme() {
 }
 
 function initVersionInfo() {
-    const versionContainer = document.getElementById('versionAuthorInfo');
-    if (versionContainer) {
+    const versionTag = document.getElementById('versionTag');
+    if (versionTag) {
         let manifestVersion = '';
         try {
             manifestVersion = chrome?.runtime?.getManifest?.().version || '';
         } catch {}
 
         const envVersion = import.meta.env.VITE_APP_VERSION || '';
-        const buildId = import.meta.env.VITE_APP_BUILD_ID || '';
         const version = manifestVersion || envVersion || 'N/A';
 
-        const buildSuffix = buildId ? `\nBuild: ${buildId}` : '';
-        versionContainer.textContent = `Version: ${version}${buildSuffix}`;
+        versionTag.textContent = `v${version}`;
     }
 }
 
@@ -175,12 +173,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
     const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
     const siteStatusTag = document.getElementById('site-status-tag') as HTMLSpanElement;
-    const columnCountSlider = document.getElementById('columnCountSlider') as HTMLInputElement;
-    const columnCountValue = document.getElementById('columnCountValue') as HTMLSpanElement;
+    const columnCountInput = document.getElementById('columnCountInput') as HTMLInputElement;
     const containerWidthSlider = document.getElementById('containerWidthSlider') as HTMLInputElement;
-    const containerWidthValue = document.getElementById('containerWidthValue') as HTMLSpanElement;
-
-    const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
+    const containerWidthInput = document.getElementById('containerWidthInput') as HTMLInputElement;
+    const resetListDisplayBtn = document.getElementById('resetListDisplayBtn') as HTMLButtonElement;
 
     // 检测当前网站可用性
     async function checkSiteAvailability() {
@@ -636,18 +632,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log('[Popup] Initial list display control:', control);
 
-        // 更新滑块和显示值
-        columnCountSlider.value = control.columnCount.toString();
-        columnCountValue.textContent = control.columnCount.toString();
+        // 更新输入框的值
+        columnCountInput.value = control.columnCount.toString();
         containerWidthSlider.value = control.containerWidth.toString();
-        containerWidthValue.textContent = `${control.containerWidth}%`;
+        containerWidthInput.value = control.containerWidth.toString();
 
-        // 列数滑块变化事件
+        // 列数输入框变化事件
         let columnCountTimeout: number | null = null;
-        columnCountSlider.addEventListener('input', (e) => {
-            const count = parseInt((e.target as HTMLInputElement).value);
-            console.log('[Popup] Column count slider input:', count);
-            columnCountValue.textContent = count.toString();
+        const updateColumnCount = async (count: number) => {
+            console.log('[Popup] Column count changed:', count);
+            columnCountInput.value = count.toString();
 
             if (columnCountTimeout !== null) {
                 clearTimeout(columnCountTimeout);
@@ -693,14 +687,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }, 300);
+        };
+
+        columnCountInput.addEventListener('input', (e) => {
+            const count = parseInt((e.target as HTMLInputElement).value);
+            if (!isNaN(count) && count >= 1 && count <= 8) {
+                updateColumnCount(count);
+            }
         });
 
-        // 容器宽度滑块变化事件
+        // 容器宽度变化事件
         let containerWidthTimeout: number | null = null;
-        containerWidthSlider.addEventListener('input', (e) => {
-            const width = parseInt((e.target as HTMLInputElement).value);
-            console.log('[Popup] Container width slider input:', width);
-            containerWidthValue.textContent = `${width}%`;
+        const updateContainerWidth = async (width: number) => {
+            console.log('[Popup] Container width changed:', width);
+            containerWidthSlider.value = width.toString();
+            containerWidthInput.value = width.toString();
 
             if (containerWidthTimeout !== null) {
                 clearTimeout(containerWidthTimeout);
@@ -746,7 +747,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }, 300);
+        };
+
+        containerWidthSlider.addEventListener('input', (e) => {
+            const width = parseInt((e.target as HTMLInputElement).value);
+            updateContainerWidth(width);
         });
+
+        containerWidthInput.addEventListener('input', (e) => {
+            const width = parseInt((e.target as HTMLInputElement).value);
+            if (!isNaN(width) && width >= 50 && width <= 150) {
+                updateContainerWidth(width);
+            }
+        });
+
+        // 还原按钮点击事件
+        if (resetListDisplayBtn) {
+            resetListDisplayBtn.addEventListener('click', async () => {
+                console.log('[Popup] Reset list display control to default');
+                
+                // 默认值：列数4，宽度100
+                const defaultColumnCount = 4;
+                const defaultContainerWidth = 100;
+                
+                // 更新UI
+                columnCountInput.value = defaultColumnCount.toString();
+                containerWidthSlider.value = defaultContainerWidth.toString();
+                containerWidthInput.value = defaultContainerWidth.toString();
+                
+                // 保存到设置
+                const currentSettings = await getSettingsSafely();
+                if (!currentSettings) {
+                    console.error('[Popup] Failed to get settings for reset');
+                    return;
+                }
+                if (!currentSettings.listEnhancement) {
+                    currentSettings.listEnhancement = {
+                        enabled: true,
+                        enableClickEnhancement: true,
+                        enableVideoPreview: true,
+                        enableScrollPaging: false,
+                        enableListOptimization: true,
+                        previewDelay: 1000,
+                        previewVolume: 0.2,
+                        enableRightClickBackground: true
+                    };
+                }
+                if (!currentSettings.listEnhancement.listDisplayControl) {
+                    currentSettings.listEnhancement.listDisplayControl = {
+                        enabled: true,
+                        columnCount: defaultColumnCount,
+                        containerWidth: defaultContainerWidth
+                    };
+                } else {
+                    currentSettings.listEnhancement.listDisplayControl.columnCount = defaultColumnCount;
+                    currentSettings.listEnhancement.listDisplayControl.containerWidth = defaultContainerWidth;
+                }
+                
+                await saveSettings(currentSettings);
+                console.log('[Popup] List display control reset to default');
+                
+                // 通知内容脚本
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.url?.includes('javdb') && tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: 'settings-updated'
+                        });
+                    }
+                });
+            });
+        }
     }
 
     // Initializer Function
@@ -764,9 +834,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await setupVolumeControl();
         await setupListDisplayControl();
         await initPopupLockButton();
-
-        const manifest = chrome.runtime.getManifest();
-        versionAuthorInfo.textContent = `v${manifest.version}`;
 
         setupHelpPanel();
     }
