@@ -247,6 +247,12 @@ export interface ExtensionSettings {
         treatSubscribedAsFavorited?: boolean; // 订阅视为已收藏
         // 新增：高质量封面
         enableHighQualityCover?: boolean; // 启用高质量封面
+        // 新增：列表显示控制
+        listDisplayControl?: {
+            enabled: boolean; // 是否启用列表显示控制
+            columnCount: number; // 列数 (1-8)
+            containerWidth: number; // 容器宽度百分比 (50-150)
+        };
     };
 
     // 新增：演员页增强配置
