@@ -66,6 +66,9 @@ class ListEnhancementManager {
       containerWidth: 100, // 默认100%宽度
     },
   };
+  
+  // 保存上一次的列表显示控制配置，用于检测变化
+  private lastDisplayControl: { enabled: boolean; columnCount: number; containerWidth: number } | null = null;
 
   private previewTimer: number | null = null;
   private currentPlayingVideo: HTMLVideoElement | null = null; // 追踪当前播放的视频
@@ -111,26 +114,65 @@ class ListEnhancementManager {
     }
 
     // 🆕 如果列表显示控制配置发生变化，重新应用样式
-    const displayControlChanged = (
-      oldConfig.listDisplayControl?.enabled !== this.config.listDisplayControl?.enabled ||
-      oldConfig.listDisplayControl?.columnCount !== this.config.listDisplayControl?.columnCount ||
-      oldConfig.listDisplayControl?.containerWidth !== this.config.listDisplayControl?.containerWidth
+    const currentControl = this.config.listDisplayControl;
+    const lastControl = this.lastDisplayControl;
+    
+    log('Checking display control changes...', {
+      lastEnabled: lastControl?.enabled,
+      currentEnabled: currentControl?.enabled,
+      lastColumnCount: lastControl?.columnCount,
+      currentColumnCount: currentControl?.columnCount,
+      lastContainerWidth: lastControl?.containerWidth,
+      currentContainerWidth: currentControl?.containerWidth
+    });
+    
+    const displayControlChanged = !lastControl || (
+      lastControl.enabled !== currentControl?.enabled ||
+      lastControl.columnCount !== currentControl?.columnCount ||
+      lastControl.containerWidth !== currentControl?.containerWidth
     );
+    
+    log('Display control changed:', displayControlChanged);
+    
     if (displayControlChanged) {
+      log('Applying list display styles due to config change...');
       this.applyListDisplayStyles();
+      // 保存当前配置作为下次比较的基准
+      if (currentControl) {
+        this.lastDisplayControl = {
+          enabled: currentControl.enabled,
+          columnCount: currentControl.columnCount,
+          containerWidth: currentControl.containerWidth
+        };
+      }
     }
   }
 
   // 🆕 应用列表显示样式
   private applyListDisplayStyles(): void {
     const control = this.config.listDisplayControl;
+    
+    log('[LIST DISPLAY] Applying list display styles...', {
+      control,
+      enabled: control?.enabled,
+      columnCount: control?.columnCount,
+      containerWidth: control?.containerWidth
+    });
+    
+    // 找到所有容器（可能有多个，比如翻页后）
+    const containers = document.querySelectorAll('.movie-list.h') as NodeListOf<HTMLElement>;
+    
     if (!control || !control.enabled) {
       // 移除自定义样式
       const existingStyle = document.getElementById('x-list-display-control');
       if (existingStyle) {
         existingStyle.remove();
+        log('[LIST DISPLAY] Removed custom styles (disabled)');
       }
-      log('List display control disabled, removed custom styles');
+      // 恢复原始cols类
+      containers.forEach(container => {
+        container.removeAttribute('data-x-cols-override');
+      });
       return;
     }
 
@@ -142,27 +184,70 @@ class ListEnhancementManager {
       existingStyle.remove();
     }
 
-    // 创建新样式
+    // 处理所有容器
+    containers.forEach(container => {
+      // 移除所有cols-*类
+      for (let i = 1; i <= 8; i++) {
+        container.classList.remove(`cols-${i}`);
+      }
+      // 标记为已被我们接管
+      container.setAttribute('data-x-cols-override', 'true');
+    });
+    
+    if (containers.length > 0) {
+      log('[LIST DISPLAY] Processed containers:', containers.length);
+    }
+
+    // 创建新样式 - 参考JAVBUS-larger-thumbnails.js的实现
     const style = document.createElement('style');
     style.id = 'x-list-display-control';
+    
+    // 计算item宽度百分比
+    const itemWidth = 100 / columnCount;
+    
+    // 计算容器margin
+    const marginValue = containerWidth > 100 
+      ? `0 ${(100 - containerWidth) / 2}%` 
+      : '0 auto';
+    
+    // 使用更简单直接的CSS，参考油猴脚本的方式
     style.textContent = `
-      /* 列表显示控制样式 */
-      .movie-list.h {
+      /* 列表显示控制样式 - 参考JAVBUS-larger-thumbnails.js */
+      .movie-list.h[data-x-cols-override] {
         width: ${containerWidth}% !important;
-        margin: 0 ${containerWidth > 100 ? (100 - containerWidth) / 2 + '%' : 'auto'} !important;
-        transition: width 0.3s ease !important;
+        margin: ${marginValue} !important;
+        transition: width 0.3s ease, margin 0.3s ease !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
       }
-      .movie-list.h > .item {
-        width: ${100 / columnCount}% !important;
+      
+      /* 直接设置item宽度，不依赖cols-*类 */
+      .movie-list.h[data-x-cols-override] > .item {
+        padding: 5px !important;
+        width: ${itemWidth}% !important;
+        flex: 0 0 ${itemWidth}% !important;
+        max-width: ${itemWidth}% !important;
+        min-width: 0 !important;
         transition: width 0.3s ease !important;
+        box-sizing: border-box !important;
       }
+      
       /* 确保图片容器正确显示 */
-      .movie-list.h > .item .box {
+      .movie-list.h[data-x-cols-override] > .item .box {
         width: 100% !important;
       }
     `;
+    
     document.head.appendChild(style);
-    log(`List display styles applied: ${columnCount} columns, ${containerWidth}% width`);
+    
+    log('[LIST DISPLAY] ✓ List display styles applied successfully', {
+      columnCount,
+      containerWidth,
+      itemWidth: `${itemWidth}%`,
+      margin: marginValue,
+      containersProcessed: containers.length
+    });
   }
   // ====== 演员水印相关 ======
   private ensureWatermarkStyles(): void {
@@ -457,6 +542,18 @@ class ListEnhancementManager {
     // 初始化滚动监听（防止滚动时触发预览）
     this.initScrollListener();
 
+    // 🆕 应用列表显示控制样式
+    this.applyListDisplayStyles();
+    
+    // 保存初始配置
+    if (this.config.listDisplayControl) {
+      this.lastDisplayControl = {
+        enabled: this.config.listDisplayControl.enabled,
+        columnCount: this.config.listDisplayControl.columnCount,
+        containerWidth: this.config.listDisplayControl.containerWidth
+      };
+    }
+
     // 处理现有的影片项目
     this.processExistingItems();
 
@@ -506,22 +603,51 @@ class ListEnhancementManager {
     if (!targetNode) return;
 
     const observer = new MutationObserver(mutations => {
+      let hasNewItems = false;
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as Element;
             if (element.matches('.item')) {
               this.enhanceItem(element as HTMLElement);
+              hasNewItems = true;
             } else {
               const items = element.querySelectorAll('.item');
-              items.forEach(item => this.enhanceItem(item as HTMLElement));
+              if (items.length > 0) {
+                items.forEach(item => this.enhanceItem(item as HTMLElement));
+                hasNewItems = true;
+              }
             }
           }
         });
       });
+      
+      // 如果有新item添加，重新处理容器属性
+      if (hasNewItems) {
+        this.processContainerAttributes();
+      }
     });
 
     observer.observe(targetNode, { childList: true, subtree: true });
+  }
+
+  // 🆕 处理容器的data属性（用于列表显示控制）
+  private processContainerAttributes(): void {
+    const control = this.config.listDisplayControl;
+    if (!control || !control.enabled) return;
+
+    const containers = document.querySelectorAll('.movie-list.h') as NodeListOf<HTMLElement>;
+    containers.forEach(container => {
+      // 移除所有cols-*类
+      for (let i = 1; i <= 8; i++) {
+        container.classList.remove(`cols-${i}`);
+      }
+      // 标记为已被我们接管
+      if (!container.hasAttribute('data-x-cols-override')) {
+        container.setAttribute('data-x-cols-override', 'true');
+        log('[LIST DISPLAY] Added data-x-cols-override to new container');
+      }
+    });
   }
 
   private enhanceItem(item: HTMLElement): void {
