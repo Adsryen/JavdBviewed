@@ -1728,31 +1728,98 @@ export function initRecordsTab(): void {
         }
 
         statsContainer.innerHTML = `
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="all" title="点击查看所有番号">
                 <div class="stat-value">${stats.total}</div>
                 <div class="stat-label">总番号数</div>
             </div>
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="viewed" title="点击查看已观看">
                 <div class="stat-value">${stats.viewed}</div>
                 <div class="stat-label">已观看</div>
             </div>
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="browsed" title="点击查看已浏览">
                 <div class="stat-value">${stats.browsed}</div>
                 <div class="stat-label">已浏览</div>
             </div>
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="want" title="点击查看我想看">
                 <div class="stat-value">${stats.want}</div>
                 <div class="stat-label">我想看</div>
             </div>
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="thisWeek" title="点击查看本周新增">
                 <div class="stat-value">${stats.thisWeek}</div>
                 <div class="stat-label">本周新增</div>
             </div>
-            <div class="stat-card new-works-stat">
+            <div class="stat-card new-works-stat clickable" data-filter="thisMonth" title="点击查看本月新增">
                 <div class="stat-value">${stats.thisMonth}</div>
                 <div class="stat-label">本月新增</div>
             </div>
         `;
+
+        // 添加统计卡片点击事件监听器
+        statsContainer.querySelectorAll('.stat-card.clickable').forEach(card => {
+            card.addEventListener('click', () => {
+                const filterType = card.getAttribute('data-filter');
+                if (!filterType) return;
+
+                // 清空搜索框和其他过滤条件
+                searchInput.value = '';
+                selectedTags.clear();
+                tokenSelectedTags.clear();
+                selectedListIds.clear();
+                tokenSelectedListIds.clear();
+                refreshTagsFilterDisplay();
+                try { refreshListsFilterDisplay(); } catch {}
+
+                // 根据点击的卡片类型设置过滤
+                if (filterType === 'all') {
+                    filterSelect.value = 'all';
+                    // 清空高级搜索条件
+                    advConditions = [];
+                    advConditionsEl.innerHTML = '';
+                } else if (filterType === 'viewed' || filterType === 'browsed' || filterType === 'want') {
+                    filterSelect.value = filterType;
+                    // 清空高级搜索条件
+                    advConditions = [];
+                    advConditionsEl.innerHTML = '';
+                } else if (filterType === 'thisWeek') {
+                    // 本周新增：使用高级搜索条件
+                    filterSelect.value = 'all';
+                    const now = Date.now();
+                    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+                    advConditions = [{
+                        id: `cond_week_${Date.now()}`,
+                        field: 'createdAt',
+                        op: 'gte',
+                        value: String(oneWeekAgo)
+                    }];
+                    // 清空并重建高级搜索UI
+                    advConditionsEl.innerHTML = '';
+                    advConditions.forEach(cond => createAdvConditionRow(cond));
+                } else if (filterType === 'thisMonth') {
+                    // 本月新增：使用高级搜索条件
+                    filterSelect.value = 'all';
+                    const now = Date.now();
+                    const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000;
+                    advConditions = [{
+                        id: `cond_month_${Date.now()}`,
+                        field: 'createdAt',
+                        op: 'gte',
+                        value: String(oneMonthAgo)
+                    }];
+                    // 清空并重建高级搜索UI
+                    advConditionsEl.innerHTML = '';
+                    advConditions.forEach(cond => createAdvConditionRow(cond));
+                }
+
+                // 重置到第一页并刷新
+                currentPage = 1;
+                updateFilteredRecords();
+                render();
+
+                // 添加视觉反馈
+                statsContainer.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
     }
 
     function collectAllTags() {
