@@ -391,27 +391,83 @@ export class NewWorksTab {
             console.log('获取到统计信息:', stats);
 
             container.innerHTML = `
-                <div class="stat-card new-works-stat">
+                <div class="stat-card new-works-stat clickable" data-filter="all" title="点击查看所有订阅演员">
                     <div class="stat-value">${stats.totalSubscriptions}</div>
                     <div class="stat-label">订阅演员</div>
                 </div>
-                <div class="stat-card new-works-stat">
+                <div class="stat-card new-works-stat clickable" data-filter="active" title="点击查看活跃订阅">
                     <div class="stat-value">${stats.activeSubscriptions}</div>
                     <div class="stat-label">活跃订阅</div>
                 </div>
-                <div class="stat-card new-works-stat">
+                <div class="stat-card new-works-stat clickable" data-filter="allWorks" title="点击查看所有新作品">
                     <div class="stat-value">${stats.totalNewWorks}</div>
                     <div class="stat-label">总新作品</div>
                 </div>
-                <div class="stat-card new-works-stat">
+                <div class="stat-card new-works-stat clickable" data-filter="unread" title="点击查看未读作品">
                     <div class="stat-value">${stats.unreadWorks}</div>
                     <div class="stat-label">未读作品</div>
                 </div>
-                <div class="stat-card new-works-stat">
+                <div class="stat-card new-works-stat clickable" data-filter="today" title="点击查看今日发现">
                     <div class="stat-value">${stats.todayDiscovered}</div>
                     <div class="stat-label">今日发现</div>
                 </div>
             `;
+
+            // 添加统计卡片点击事件监听器
+            container.querySelectorAll('.stat-card.clickable').forEach(card => {
+                card.addEventListener('click', () => {
+                    const filterType = card.getAttribute('data-filter');
+                    if (!filterType) return;
+
+                    // 获取过滤器元素
+                    const searchInput = document.getElementById('newWorksSearchInput') as HTMLInputElement;
+                    const filterSelect = document.getElementById('newWorksFilterSelect') as HTMLSelectElement;
+                    const sortSelect = document.getElementById('newWorksSortSelect') as HTMLSelectElement;
+
+                    // 清空搜索框
+                    if (searchInput) {
+                        searchInput.value = '';
+                        this.currentFilters.search = '';
+                    }
+
+                    // 根据点击的卡片类型设置过滤
+                    if (filterType === 'all' || filterType === 'active') {
+                        // 订阅演员相关 - 跳转到演员管理
+                        const manageBtn = document.getElementById('manageSubscriptionsBtn') as HTMLButtonElement;
+                        if (manageBtn) {
+                            manageBtn.click();
+                        }
+                        return;
+                    } else if (filterType === 'allWorks') {
+                        // 显示所有新作品
+                        if (filterSelect) filterSelect.value = 'all';
+                        this.currentFilters.filter = 'all';
+                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
+                        this.currentFilters.sort = 'discoveredAt_desc';
+                    } else if (filterType === 'unread') {
+                        // 显示未读作品
+                        if (filterSelect) filterSelect.value = 'unread';
+                        this.currentFilters.filter = 'unread';
+                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
+                        this.currentFilters.sort = 'discoveredAt_desc';
+                    } else if (filterType === 'today') {
+                        // 今日发现 - 显示所有，按发现时间倒序
+                        if (filterSelect) filterSelect.value = 'all';
+                        this.currentFilters.filter = 'all';
+                        if (sortSelect) sortSelect.value = 'discoveredAt_desc';
+                        this.currentFilters.sort = 'discoveredAt_desc';
+                        // TODO: 可以添加日期过滤逻辑
+                    }
+
+                    // 重置到第一页并刷新
+                    this.currentPage = 1;
+                    this.render();
+
+                    // 添加视觉反馈
+                    container.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                });
+            });
             
             // 更新管理订阅按钮的数量徽章
             const manageBtn = document.getElementById('manageSubscriptionsBtn');
