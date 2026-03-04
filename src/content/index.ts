@@ -4,7 +4,7 @@ import { getSettings, getValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
-import { handleVideoDetailPage } from './videoDetail';
+import { handleVideoDetailPage, cleanupVideoDetailObservers } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
@@ -878,6 +878,9 @@ if (typeof window !== 'undefined') {
 // 页面卸载时清理资源
 window.addEventListener('beforeunload', () => {
     try {
+        // 清理视频详情页的状态监听器
+        cleanupVideoDetailObservers();
+
         // 清理性能优化器
         if (performanceOptimizer) {
             performanceOptimizer.cleanup();
