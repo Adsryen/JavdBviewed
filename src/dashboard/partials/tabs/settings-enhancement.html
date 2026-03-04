@@ -502,6 +502,59 @@
                                         </div>
                                     </div>
 
+                                    <!-- 🆕 列表页显示控制 -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">📐 列表页显示控制</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="enableListDisplayControl" data-always-on="true"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>自定义列表页的列数和容器宽度，优化浏览体验。<br>
+                                            <strong>说明：</strong>可以根据屏幕大小和个人喜好调整列表显示效果。<br>
+                                            <strong>适用：</strong>所有影片列表页面。
+                                        </p>
+
+                                        <!-- 列表显示控制子设置 -->
+                                        <div class="sub-settings" id="listDisplayControlConfig" style="display: block;">
+                                            <div class="sub-settings-header">
+                                                <h5>📐 显示设置</h5>
+                                                <p class="sub-description">调整列表页的列数和容器宽度。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <div class="volume-header">
+                                                    <label for="listColumnCount">列数</label>
+                                                    <span id="listColumnCountValue" class="volume-percentage">4 列</span>
+                                                </div>
+                                                <div class="volume-slider-wrapper">
+                                                    <input type="range" id="listColumnCount" class="modern-range" min="1" max="8" step="1" value="4">
+                                                    <div class="range-track-fill"></div>
+                                                </div>
+                                                <p class="input-description">设置列表页每行显示的影片数量（1-8列）。</p>
+                                            </div>
+
+                                            <div class="form-group volume-control-group">
+                                                <div class="volume-header">
+                                                    <label for="listContainerWidth">容器宽度</label>
+                                                    <span id="listContainerWidthValue" class="volume-percentage">100%</span>
+                                                </div>
+                                                <div class="volume-slider-wrapper">
+                                                    <input type="range" id="listContainerWidth" class="modern-range" min="50" max="150" step="5" value="100">
+                                                    <div class="range-track-fill"></div>
+                                                </div>
+                                                <p class="input-description">设置列表容器的宽度百分比（50%-150%），超过100%时会居中显示。</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 列表页显示控制 结束 -->
+
                                     <!-- 新：📝 演员备注（Wiki/xslist）（独立区块） -->
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">

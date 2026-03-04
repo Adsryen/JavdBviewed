@@ -26,6 +26,12 @@ export interface ListEnhancementConfig {
   hideBlacklistedActorsInList?: boolean; // 隐藏含黑名单演员的作品
   hideNonFavoritedActorsInList?: boolean; // 隐藏未收藏演员的作品（通过标题近似识别）
   treatSubscribedAsFavorited?: boolean; // 订阅视为收藏
+  // 🆕 列表页显示控制
+  listDisplayControl?: {
+    enabled: boolean; // 是否启用列表显示控制
+    columnCount: number; // 列数 (1-8)
+    containerWidth: number; // 容器宽度百分比 (50-150)
+  };
 }
 
 interface VideoPreviewSource {
@@ -53,6 +59,12 @@ class ListEnhancementManager {
     hideBlacklistedActorsInList: false,
     hideNonFavoritedActorsInList: false,
     treatSubscribedAsFavorited: true,
+    // 🆕 列表页显示控制默认配置
+    listDisplayControl: {
+      enabled: true, // 默认启用
+      columnCount: 4, // 默认4列
+      containerWidth: 100, // 默认100%宽度
+    },
   };
 
   private previewTimer: number | null = null;
@@ -97,6 +109,60 @@ class ListEnhancementManager {
     if (actorFlagsChanged) {
       this.reapplyActorHidingForAll();
     }
+
+    // 🆕 如果列表显示控制配置发生变化，重新应用样式
+    const displayControlChanged = (
+      oldConfig.listDisplayControl?.enabled !== this.config.listDisplayControl?.enabled ||
+      oldConfig.listDisplayControl?.columnCount !== this.config.listDisplayControl?.columnCount ||
+      oldConfig.listDisplayControl?.containerWidth !== this.config.listDisplayControl?.containerWidth
+    );
+    if (displayControlChanged) {
+      this.applyListDisplayStyles();
+    }
+  }
+
+  // 🆕 应用列表显示样式
+  private applyListDisplayStyles(): void {
+    const control = this.config.listDisplayControl;
+    if (!control || !control.enabled) {
+      // 移除自定义样式
+      const existingStyle = document.getElementById('x-list-display-control');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      log('List display control disabled, removed custom styles');
+      return;
+    }
+
+    const { columnCount, containerWidth } = control;
+    
+    // 移除旧样式
+    const existingStyle = document.getElementById('x-list-display-control');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+
+    // 创建新样式
+    const style = document.createElement('style');
+    style.id = 'x-list-display-control';
+    style.textContent = `
+      /* 列表显示控制样式 */
+      .movie-list.h {
+        width: ${containerWidth}% !important;
+        margin: 0 ${containerWidth > 100 ? (100 - containerWidth) / 2 + '%' : 'auto'} !important;
+        transition: width 0.3s ease !important;
+      }
+      .movie-list.h > .item {
+        width: ${100 / columnCount}% !important;
+        transition: width 0.3s ease !important;
+      }
+      /* 确保图片容器正确显示 */
+      .movie-list.h > .item .box {
+        width: 100% !important;
+      }
+    `;
+    document.head.appendChild(style);
+    log(`List display styles applied: ${columnCount} columns, ${containerWidth}% width`);
   }
   // ====== 演员水印相关 ======
   private ensureWatermarkStyles(): void {

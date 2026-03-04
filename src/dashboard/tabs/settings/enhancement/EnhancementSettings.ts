@@ -83,6 +83,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private actorWatermarkOpacity!: HTMLInputElement;
     private actorWatermarkOpacityValue!: HTMLSpanElement;
 
+    // 🆕 列表显示控制配置
+    private listColumnCount!: HTMLInputElement;
+    private listColumnCountValue!: HTMLSpanElement;
+    private listContainerWidth!: HTMLInputElement;
+    private listContainerWidthValue!: HTMLSpanElement;
+
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
     private actorDefaultTagInputs!: NodeListOf<HTMLInputElement>;
@@ -259,6 +265,32 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     /**
+     * 🆕 处理列数变化
+     */
+    private handleColumnCountChange(): void {
+        if (!this.listColumnCount) return;
+        const value = parseInt(this.listColumnCount.value);
+        if (this.listColumnCountValue) this.listColumnCountValue.textContent = `${value} 列`;
+        const group = this.listColumnCount.closest('.form-group') as HTMLElement | null;
+        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+        if (trackFill) trackFill.style.width = `${((value - 1) / 7) * 100}%`;
+        this.handleSettingChange();
+    }
+
+    /**
+     * 🆕 处理容器宽度变化
+     */
+    private handleContainerWidthChange(): void {
+        if (!this.listContainerWidth) return;
+        const value = parseInt(this.listContainerWidth.value);
+        if (this.listContainerWidthValue) this.listContainerWidthValue.textContent = `${value}%`;
+        const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
+        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+        if (trackFill) trackFill.style.width = `${((value - 50) / 100) * 100}%`;
+        this.handleSettingChange();
+    }
+
+    /**
      * 获取当前选中的预览来源
      */
     private getPreferredPreviewSource(): 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl' {
@@ -393,6 +425,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.actorWatermarkPosition = document.getElementById('actorWatermarkPosition') as HTMLSelectElement;
         this.actorWatermarkOpacity = document.getElementById('actorWatermarkOpacity') as HTMLInputElement;
         this.actorWatermarkOpacityValue = document.getElementById('actorWatermarkOpacityValue') as HTMLSpanElement;
+
+        // 🆕 列表显示控制元素
+        this.listColumnCount = document.getElementById('listColumnCount') as HTMLInputElement;
+        this.listColumnCountValue = document.getElementById('listColumnCountValue') as HTMLSpanElement;
+        this.listContainerWidth = document.getElementById('listContainerWidth') as HTMLInputElement;
+        this.listContainerWidthValue = document.getElementById('listContainerWidthValue') as HTMLSpanElement;
         // 预览来源单选
         this.previewSourceAuto = document.getElementById('previewSourceAuto') as HTMLInputElement;
         this.previewSourceJavDB = document.getElementById('previewSourceJavDB') as HTMLInputElement;
@@ -521,6 +559,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
         this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
+
+        // 🆕 列表显示控制事件监听
+        this.listColumnCount?.addEventListener('input', () => this.handleColumnCountChange());
+        this.listContainerWidth?.addEventListener('input', () => this.handleContainerWidthChange());
 
         // 内容过滤规则事件监听
         if (this.addFilterRuleBtn) {
@@ -1454,6 +1496,23 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (trackFill2) trackFill2.style.width = `${pct}%`;
         }
 
+        // 🆕 列表显示控制配置回填
+        const displayControl = (listEnhancement as any).listDisplayControl || { enabled: true, columnCount: 4, containerWidth: 100 };
+        if (this.listColumnCount) {
+            this.listColumnCount.value = String(displayControl.columnCount || 4);
+            if (this.listColumnCountValue) this.listColumnCountValue.textContent = `${displayControl.columnCount || 4} 列`;
+            const group = this.listColumnCount.closest('.form-group') as HTMLElement | null;
+            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+            if (trackFill) trackFill.style.width = `${(((displayControl.columnCount || 4) - 1) / 7) * 100}%`;
+        }
+        if (this.listContainerWidth) {
+            this.listContainerWidth.value = String(displayControl.containerWidth || 100);
+            if (this.listContainerWidthValue) this.listContainerWidthValue.textContent = `${displayControl.containerWidth || 100}%`;
+            const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
+            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+            if (trackFill) trackFill.style.width = `${(((displayControl.containerWidth || 100) - 50) / 100) * 100}%`;
+        }
+
         // 影片页增强配置
         const videoEnhancement = settings?.videoEnhancement || { 
             enabled: false, 
@@ -1660,6 +1719,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorWatermark: this.enableActorWatermark?.checked === true,
                     actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
                     actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
+                    // 🆕 列表显示控制
+                    listDisplayControl: {
+                        enabled: true, // 默认启用
+                        columnCount: parseInt(this.listColumnCount?.value || '4'),
+                        containerWidth: parseInt(this.listContainerWidth?.value || '100'),
+                    },
                 },
                 actorEnhancement: {
                     // 若任一子项启用即视为启用演员页增强
@@ -1742,6 +1807,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableActorWatermark: this.enableActorWatermark?.checked === true,
                 actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
                 actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
+                // 🆕 列表显示控制
+                listDisplayControl: {
+                    enabled: true, // 默认启用
+                    columnCount: parseInt(this.listColumnCount?.value || '4'),
+                    containerWidth: parseInt(this.listContainerWidth?.value || '100'),
+                },
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,

@@ -541,6 +541,115 @@ body {
     line-height: 1.3;
 }
 
+/* List Display Control Section */
+.list-display-control-section {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: 15px;
+    margin-top: 5px;
+}
+
+.control-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.control-icon {
+    font-size: 16px;
+}
+
+.control-label {
+    flex: 1;
+    margin-left: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.control-item {
+    margin-bottom: 12px;
+}
+
+.control-item:last-of-type {
+    margin-bottom: 8px;
+}
+
+.control-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.control-item-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.control-item-value {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 13px;
+    min-width: 40px;
+    text-align: right;
+}
+
+.control-slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-secondary);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.control-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.control-slider::-webkit-slider-thumb:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+}
+
+.control-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.control-slider::-moz-range-thumb:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+}
+
+.control-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 8px;
+    line-height: 1.3;
+}
+
 .toggle-button {
     width: 100%;
     padding: 10px 12px;

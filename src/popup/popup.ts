@@ -175,6 +175,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
     const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
     const siteStatusTag = document.getElementById('site-status-tag') as HTMLSpanElement;
+    const columnCountSlider = document.getElementById('columnCountSlider') as HTMLInputElement;
+    const columnCountValue = document.getElementById('columnCountValue') as HTMLSpanElement;
+    const containerWidthSlider = document.getElementById('containerWidthSlider') as HTMLInputElement;
+    const containerWidthValue = document.getElementById('containerWidthValue') as HTMLSpanElement;
 
     const versionAuthorInfo = document.getElementById('versionAuthorInfo') as HTMLSpanElement;
 
@@ -615,6 +619,136 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // List Display Control
+    async function setupListDisplayControl() {
+        const settings = await getSettingsSafely();
+        if (!settings) {
+            console.error('[Popup] Failed to get settings for list display control');
+            return;
+        }
+
+        // 获取当前配置
+        const control = settings.listEnhancement?.listDisplayControl || {
+            enabled: true,
+            columnCount: 4,
+            containerWidth: 100
+        };
+
+        console.log('[Popup] Initial list display control:', control);
+
+        // 更新滑块和显示值
+        columnCountSlider.value = control.columnCount.toString();
+        columnCountValue.textContent = control.columnCount.toString();
+        containerWidthSlider.value = control.containerWidth.toString();
+        containerWidthValue.textContent = `${control.containerWidth}%`;
+
+        // 列数滑块变化事件
+        let columnCountTimeout: number | null = null;
+        columnCountSlider.addEventListener('input', (e) => {
+            const count = parseInt((e.target as HTMLInputElement).value);
+            console.log('[Popup] Column count slider input:', count);
+            columnCountValue.textContent = count.toString();
+
+            if (columnCountTimeout !== null) {
+                clearTimeout(columnCountTimeout);
+            }
+
+            columnCountTimeout = window.setTimeout(async () => {
+                console.log('[Popup] Saving column count:', count);
+                const currentSettings = await getSettingsSafely();
+                if (!currentSettings) {
+                    console.error('[Popup] Failed to get settings for column count update');
+                    return;
+                }
+                if (!currentSettings.listEnhancement) {
+                    currentSettings.listEnhancement = {
+                        enabled: true,
+                        enableClickEnhancement: true,
+                        enableVideoPreview: true,
+                        enableScrollPaging: false,
+                        enableListOptimization: true,
+                        previewDelay: 1000,
+                        previewVolume: 0.2,
+                        enableRightClickBackground: true
+                    };
+                }
+                if (!currentSettings.listEnhancement.listDisplayControl) {
+                    currentSettings.listEnhancement.listDisplayControl = {
+                        enabled: true,
+                        columnCount: 4,
+                        containerWidth: 100
+                    };
+                }
+                currentSettings.listEnhancement.listDisplayControl.columnCount = count;
+
+                await saveSettings(currentSettings);
+                console.log('[Popup] Column count saved:', count);
+
+                // 通知内容脚本
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.url?.includes('javdb') && tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: 'settings-updated'
+                        });
+                    }
+                });
+            }, 300);
+        });
+
+        // 容器宽度滑块变化事件
+        let containerWidthTimeout: number | null = null;
+        containerWidthSlider.addEventListener('input', (e) => {
+            const width = parseInt((e.target as HTMLInputElement).value);
+            console.log('[Popup] Container width slider input:', width);
+            containerWidthValue.textContent = `${width}%`;
+
+            if (containerWidthTimeout !== null) {
+                clearTimeout(containerWidthTimeout);
+            }
+
+            containerWidthTimeout = window.setTimeout(async () => {
+                console.log('[Popup] Saving container width:', width);
+                const currentSettings = await getSettingsSafely();
+                if (!currentSettings) {
+                    console.error('[Popup] Failed to get settings for container width update');
+                    return;
+                }
+                if (!currentSettings.listEnhancement) {
+                    currentSettings.listEnhancement = {
+                        enabled: true,
+                        enableClickEnhancement: true,
+                        enableVideoPreview: true,
+                        enableScrollPaging: false,
+                        enableListOptimization: true,
+                        previewDelay: 1000,
+                        previewVolume: 0.2,
+                        enableRightClickBackground: true
+                    };
+                }
+                if (!currentSettings.listEnhancement.listDisplayControl) {
+                    currentSettings.listEnhancement.listDisplayControl = {
+                        enabled: true,
+                        columnCount: 4,
+                        containerWidth: 100
+                    };
+                }
+                currentSettings.listEnhancement.listDisplayControl.containerWidth = width;
+
+                await saveSettings(currentSettings);
+                console.log('[Popup] Container width saved:', width);
+
+                // 通知内容脚本
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.url?.includes('javdb') && tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: 'settings-updated'
+                        });
+                    }
+                });
+            }, 300);
+        });
+    }
+
     // Initializer Function
     async function initialize() {
         createToggleButton('hideViewed', toggleWatchedContainer, '显示已看的作品', '隐藏已看的作品');
@@ -628,6 +762,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏');
 
         await setupVolumeControl();
+        await setupListDisplayControl();
         await initPopupLockButton();
 
         const manifest = chrome.runtime.getManifest();
