@@ -70,6 +70,38 @@
             </div>
 
             <div class="full-row">
+                <!-- 列表显示控制 -->
+                <div class="list-display-control-section">
+                    <div class="control-header">
+                        <span class="control-icon">📐</span>
+                        <span class="control-label">列表显示控制</span>
+                    </div>
+                    
+                    <div class="control-item">
+                        <div class="control-item-header">
+                            <span class="control-item-label">列数</span>
+                            <span id="columnCountValue" class="control-item-value">4</span>
+                        </div>
+                        <input type="range" id="columnCountSlider" class="control-slider"
+                               min="1" max="8" value="4" step="1">
+                    </div>
+
+                    <div class="control-item">
+                        <div class="control-item-header">
+                            <span class="control-item-label">容器宽度</span>
+                            <span id="containerWidthValue" class="control-item-value">100%</span>
+                        </div>
+                        <input type="range" id="containerWidthSlider" class="control-slider"
+                               min="50" max="150" value="100" step="5">
+                    </div>
+
+                    <div class="control-description">
+                        调整列表页的列数和容器宽度
+                    </div>
+                </div>
+            </div>
+
+            <div class="full-row">
                 <div class="dashboard-link">
                     <button id="dashboard-button" class="button">
                         高级设置 & 数据管理

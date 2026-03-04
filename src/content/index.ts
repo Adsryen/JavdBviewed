@@ -467,6 +467,12 @@ async function initialize(): Promise<void> {
             treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
             // 高质量封面
             enableHighQualityCover: settings.listEnhancement?.enableHighQualityCover !== false,
+            // 🆕 列表显示控制
+            listDisplayControl: {
+                enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,
+                columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
+                containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
+            },
         });
         if (!isVideoPage) {
             // 优化：添加微延迟100ms，避免与隐私保护同时执行，优先级7（较高）
