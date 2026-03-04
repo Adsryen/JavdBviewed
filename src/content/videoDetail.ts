@@ -17,6 +17,10 @@ import { actorManager } from '../services/actorManager';
 import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
 
+// 全局变量：状态监听器
+let statusObserver: MutationObserver | null = null;
+let lastDetectedStatus: typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null = null;
+
 // 识别当前详情页中用户对该影片的账号状态（我看過/我想看）
 // 返回 VIDEO_STATUS.VIEWED / VIDEO_STATUS.WANT / null
 function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null {
@@ -58,6 +62,178 @@ function detectPageUserStatus(): typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] 
         // 忽略识别错误，返回 null
     }
     return null;
+}
+
+/**
+ * 设置状态变化监听器
+ * 监听页面上"看过"/"想看"按钮的变化，自动更新插件状态
+ */
+function setupStatusChangeObserver(videoId: string): void {
+    try {
+        // 如果已经存在监听器，先清理
+        if (statusObserver) {
+            statusObserver.disconnect();
+            statusObserver = null;
+        }
+
+        // 初始化最后检测的状态
+        lastDetectedStatus = detectPageUserStatus();
+        log(`[StatusObserver] Initial status: ${lastDetectedStatus || 'null'}`);
+
+        // 查找需要监听的容器（评论区域，通常包含"看过"/"想看"状态）
+        const reviewContainer = document.querySelector('.review-buttons')?.parentElement
+            || document.querySelector('.movie-panel-info')
+            || document.body;
+
+        if (!reviewContainer) {
+            log('[StatusObserver] Review container not found, skipping observer setup');
+            return;
+        }
+
+        // 创建 MutationObserver 监听 DOM 变化
+        statusObserver = new MutationObserver((mutations) => {
+            // 检查是否有相关的 DOM 变化
+            let shouldCheck = false;
+            for (const mutation of mutations) {
+                // 检查是否有新增或修改的节点包含"看过"或"想看"相关内容
+                if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                    const addedNodes = Array.from(mutation.addedNodes);
+                    const hasRelevantChange = addedNodes.some(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            const element = node as Element;
+                            const text = element.textContent || '';
+                            return text.includes('我看過') || text.includes('我想看') ||
+                                   element.querySelector('.review-title') !== null;
+                        }
+                        return false;
+                    });
+
+                    if (hasRelevantChange || mutation.target.textContent?.includes('我看過') ||
+                        mutation.target.textContent?.includes('我想看')) {
+                        shouldCheck = true;
+                        break;
+                    }
+                }
+            }
+
+            if (shouldCheck) {
+                // 延迟检查，避免频繁触发
+                setTimeout(() => {
+                    checkAndUpdateStatusIfChanged(videoId);
+                }, 500);
+            }
+        });
+
+        // 开始监听
+        statusObserver.observe(reviewContainer, {
+            childList: true,      // 监听子节点的添加/删除
+            subtree: true,        // 监听所有后代节点
+            characterData: true,  // 监听文本内容变化
+            attributes: false     // 不监听属性变化（性能优化）
+        });
+
+        log('[StatusObserver] Status change observer setup complete');
+    } catch (error) {
+        log('[StatusObserver] Failed to setup observer:', error);
+    }
+}
+
+/**
+ * 检查状态是否变化，如果变化则更新
+ */
+async function checkAndUpdateStatusIfChanged(videoId: string): Promise<void> {
+    try {
+        const currentStatus = detectPageUserStatus();
+
+        // 如果状态没有变化，不做任何操作
+        if (currentStatus === lastDetectedStatus) {
+            return;
+        }
+
+        log(`[StatusObserver] Status changed from ${lastDetectedStatus || 'null'} to ${currentStatus || 'null'}`);
+        lastDetectedStatus = currentStatus;
+
+        // 如果检测到新状态，更新数据库
+        if (currentStatus) {
+            await updateVideoStatus(videoId, currentStatus);
+        }
+    } catch (error) {
+        log('[StatusObserver] Error checking status change:', error);
+    }
+}
+
+/**
+ * 更新视频状态到数据库
+ */
+async function updateVideoStatus(
+    videoId: string,
+    newStatus: typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS]
+): Promise<void> {
+    const opId = await concurrencyManager.startProcessingVideo(`${videoId}-status-update`);
+    if (!opId) {
+        log('[StatusObserver] Another operation in progress, skipping status update');
+        return;
+    }
+
+    try {
+        const now = Date.now();
+        const existing = STATE.records[videoId];
+
+        if (existing) {
+            // 更新现有记录
+            const result = await storageManager.updateRecord(
+                videoId,
+                (current) => {
+                    const cur = current[videoId];
+                    if (!cur) {
+                        throw new Error(`Record ${videoId} not found`);
+                    }
+                    const updated = { ...cur } as VideoRecord;
+                    // 使用安全的状态升级逻辑
+                    updated.status = safeUpdateStatus(cur.status, newStatus);
+                    updated.updatedAt = now;
+                    return updated;
+                },
+                opId
+            );
+
+            if (result.success) {
+                log(`[StatusObserver] Status updated to ${newStatus} for ${videoId}`);
+                updateFaviconForStatus(newStatus);
+
+                // 显示状态名称
+                const statusName = newStatus === VIDEO_STATUS.VIEWED ? '已观看' :
+                                 newStatus === VIDEO_STATUS.WANT ? '我想看' : '已浏览';
+                showToast(`状态已自动更新为「${statusName}」`, 'success');
+            } else {
+                log(`[StatusObserver] Failed to update status: ${result.error}`);
+            }
+        } else {
+            log('[StatusObserver] No existing record found, status update skipped');
+        }
+    } catch (error) {
+        log('[StatusObserver] Error updating status:', error);
+    } finally {
+        concurrencyManager.finishProcessingVideo(`${videoId}-status-update`, opId);
+    }
+}
+
+/**
+ * 清理状态监听器
+ */
+function cleanupStatusObserver(): void {
+    if (statusObserver) {
+        statusObserver.disconnect();
+        statusObserver = null;
+        log('[StatusObserver] Observer cleaned up');
+    }
+}
+
+/**
+ * 导出清理函数供外部调用
+ */
+export function cleanupVideoDetailObservers(): void {
+    cleanupStatusObserver();
 }
 
 // --- Page-Specific Logic ---
@@ -449,6 +625,11 @@ async function runActorRemarksQuick(): Promise<void> {
         try {
             await injectVideoEnhancementPanel();
         } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
+        
+        // 🆕 设置状态变化监听器，自动检测用户点击"看过"/"想看"按钮
+        try {
+            setupStatusChangeObserver(videoId);
+        } catch (e) { log('setupStatusChangeObserver error:', e as any); }
     } catch (error) {
         log(`Error processing video ${videoId} (operation ${operationId}):`, error);
         showToast(`处理失败: ${videoId}`, 'error');
