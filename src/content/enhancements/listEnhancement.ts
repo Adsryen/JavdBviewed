@@ -198,38 +198,35 @@ class ListEnhancementManager {
       log('[LIST DISPLAY] Processed containers:', containers.length);
     }
 
-    // 创建新样式 - 参考JAVBUS-larger-thumbnails.js的实现
+    // 创建新样式 - 完全参考JAVBUS-larger-thumbnails.js的实现
     const style = document.createElement('style');
     style.id = 'x-list-display-control';
     
-    // 计算item宽度百分比
+    // 计算item宽度百分比 - 注意：这里的宽度是相对于容器的，不是相对于视口的
     const itemWidth = 100 / columnCount;
     
-    // 计算容器margin
+    // 计算容器margin - 参考油猴脚本的实现
     const marginValue = containerWidth > 100 
       ? `0 ${(100 - containerWidth) / 2}%` 
       : '0 auto';
     
-    // 使用更简单直接的CSS，参考油猴脚本的方式
+    // 使用油猴脚本的CSS实现方式
     style.textContent = `
-      /* 列表显示控制样式 - 参考JAVBUS-larger-thumbnails.js */
+      /* 列表显示控制样式 - 完全参考JAVBUS-larger-thumbnails.js */
       .movie-list.h[data-x-cols-override] {
         width: ${containerWidth}% !important;
         margin: ${marginValue} !important;
-        transition: width 0.3s ease, margin 0.3s ease !important;
+        transition: 0.5s !important;
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
       }
       
-      /* 直接设置item宽度，不依赖cols-*类 */
+      /* 直接设置item宽度 - 参考油猴脚本 */
       .movie-list.h[data-x-cols-override] > .item {
         padding: 5px !important;
         width: ${itemWidth}% !important;
-        flex: 0 0 ${itemWidth}% !important;
-        max-width: ${itemWidth}% !important;
-        min-width: 0 !important;
-        transition: width 0.3s ease !important;
+        transition: 0.5s !important;
         box-sizing: border-box !important;
       }
       
