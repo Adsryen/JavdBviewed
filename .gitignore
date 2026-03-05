@@ -43,6 +43,7 @@ javdb-backup_*.json
 # 排除特定文件夹的 md 文件
 !todo/*.md
 !scripts/*.md
+!tutorial/*.md
 !PRIVACY_POLICY.md
 !FEATURES.md
 
