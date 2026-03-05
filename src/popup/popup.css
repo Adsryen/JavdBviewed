@@ -659,6 +659,15 @@ body {
     flex-shrink: 0;
 }
 
+.control-value {
+    font-size: 13px;
+    color: var(--primary);
+    font-weight: 600;
+    min-width: 42px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
 .control-input {
     width: 42px;
     height: 24px;
@@ -706,6 +715,9 @@ body {
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer;
+    /* 调整宽度，让滑块按钮能完全到达两端 */
+    width: calc(100% - 18px);
+    margin: 0 9px;
 }
 
 .control-slider::-webkit-slider-thumb {

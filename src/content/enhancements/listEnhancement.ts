@@ -148,7 +148,7 @@ class ListEnhancementManager {
     }
   }
 
-  // 🆕 应用列表显示样式
+  // 🆕 应用列表显示样式 - 分两步实现
   private applyListDisplayStyles(): void {
     const control = this.config.listDisplayControl;
     
@@ -198,35 +198,55 @@ class ListEnhancementManager {
       log('[LIST DISPLAY] Processed containers:', containers.length);
     }
 
-    // 创建新样式 - 完全参考JAVBUS-larger-thumbnails.js的实现
+    // 创建新样式 - 分两步实现
     const style = document.createElement('style');
     style.id = 'x-list-display-control';
     
-    // 计算item宽度百分比 - 注意：这里的宽度是相对于容器的，不是相对于视口的
-    const itemWidth = 100 / columnCount;
+    // 计算item宽度百分比 - 精确控制，保证列数准确
+    // 每个item有10px的padding（左右各5px），需要从宽度中扣除
+    // 使用calc()来精确计算，避免换行
+    const itemWidthCalc = `calc(${100 / columnCount}% - 10px)`;
     
-    // 计算容器margin - 参考油猴脚本的实现
+    // 计算影片容器的margin - 参考油猴脚本的实现
     const marginValue = containerWidth > 100 
       ? `0 ${(100 - containerWidth) / 2}%` 
       : '0 auto';
     
-    // 使用油猴脚本的CSS实现方式
+    // 分两步实现：
+    // 第一步：搜索栏和内容容器都扩展到100%宽度，接近窗口边缘
+    // 第二步：只有影片容器的宽度受滑块控制，搜索框保持不变
     style.textContent = `
-      /* 列表显示控制样式 - 完全参考JAVBUS-larger-thumbnails.js */
+      /* 第一步：搜索栏和内容容器扩展到100%宽度 - 覆盖Bulma的container限制 */
+      body #search-bar-wrap,
+      body section .container,
+      body .section .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* 第二步：只有影片容器的宽度受滑块控制 */
       .movie-list.h[data-x-cols-override] {
         width: ${containerWidth}% !important;
         margin: ${marginValue} !important;
-        transition: 0.5s !important;
+        transition: width 0.5s, margin 0.5s !important;
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
+        justify-content: flex-start !important;
       }
       
-      /* 直接设置item宽度 - 参考油猴脚本 */
+      /* 直接设置item宽度 - 使用calc精确计算，考虑padding */
       .movie-list.h[data-x-cols-override] > .item {
         padding: 5px !important;
-        width: ${itemWidth}% !important;
-        transition: 0.5s !important;
+        width: ${itemWidthCalc} !important;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
+        transition: width 0.5s !important;
         box-sizing: border-box !important;
       }
       
