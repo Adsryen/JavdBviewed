@@ -76,7 +76,7 @@
                     <div class="control-header">
                         <span class="control-icon">📐</span>
                         <span class="control-label">列表显示控制</span>
-                        <button class="help-icon-btn" title="调整列表页的列数和影片卡片的宽度">
+                        <button class="help-icon-btn" title="列数：1-8列，列数越多，每列越窄&#10;宽度：影片列表容器的宽度百分比&#10;注意：列数越多，最大宽度会自动限制，以保证列数准确显示">
                             <i class="fas fa-question-circle"></i>
                         </button>
                         <button id="resetListDisplayBtn" class="reset-btn" title="恢复默认设置">
@@ -93,10 +93,9 @@
 
                         <div class="control-item">
                             <label class="control-item-label">宽度</label>
-                            <input type="number" id="containerWidthInput" class="control-input"
-                                   min="50" max="150" value="100" step="5">
                             <input type="range" id="containerWidthSlider" class="control-slider"
-                                   min="50" max="150" value="100" step="5">
+                                   min="50" max="150" value="100" step="1">
+                            <span id="containerWidthValue" class="control-value">100%</span>
                         </div>
                     </div>
                 </div>

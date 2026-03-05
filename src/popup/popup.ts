@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteStatusTag = document.getElementById('site-status-tag') as HTMLSpanElement;
     const columnCountInput = document.getElementById('columnCountInput') as HTMLInputElement;
     const containerWidthSlider = document.getElementById('containerWidthSlider') as HTMLInputElement;
-    const containerWidthInput = document.getElementById('containerWidthInput') as HTMLInputElement;
+    const containerWidthValue = document.getElementById('containerWidthValue') as HTMLSpanElement;
     const resetListDisplayBtn = document.getElementById('resetListDisplayBtn') as HTMLButtonElement;
 
     // 检测当前网站可用性
@@ -635,13 +635,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 更新输入框的值
         columnCountInput.value = control.columnCount.toString();
         containerWidthSlider.value = control.containerWidth.toString();
-        containerWidthInput.value = control.containerWidth.toString();
+        containerWidthValue.textContent = `${control.containerWidth}%`;
 
-        // 列数输入框变化事件
+        // 列数输入框变化事件（支持滚轮）
         let columnCountTimeout: number | null = null;
         const updateColumnCount = async (count: number) => {
+            // 限制范围1-8
+            count = Math.max(1, Math.min(8, count));
             console.log('[Popup] Column count changed:', count);
             columnCountInput.value = count.toString();
+
+            // 根据列数计算最大宽度限制
+            // 公式：最大宽度 = 100 * 列数 / 实际可显示列数
+            // 为了保证列数准确，最大宽度不能让实际列数超过设置的列数
+            const maxWidth = Math.floor(100 * count / (count - 0.5)); // 保守估计
+            
+            // 更新滑块的最大值
+            containerWidthSlider.max = maxWidth.toString();
+            
+            console.log('[Popup] Max width updated to:', maxWidth, 'for column count:', count);
+            
+            // 如果当前宽度超过新的最大值，调整到最大值
+            const currentWidth = parseInt(containerWidthSlider.value);
+            if (currentWidth > maxWidth) {
+                containerWidthSlider.value = maxWidth.toString();
+                containerWidthValue.textContent = `${maxWidth}%`;
+                console.log('[Popup] Width adjusted to max:', maxWidth);
+            }
 
             if (columnCountTimeout !== null) {
                 clearTimeout(columnCountTimeout);
@@ -689,19 +709,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 300);
         };
 
+        // 输入框输入事件
         columnCountInput.addEventListener('input', (e) => {
             const count = parseInt((e.target as HTMLInputElement).value);
-            if (!isNaN(count) && count >= 1 && count <= 8) {
+            if (!isNaN(count)) {
                 updateColumnCount(count);
             }
         });
+
+        // 输入框滚轮事件
+        columnCountInput.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const currentValue = parseInt(columnCountInput.value) || 4;
+            const delta = e.deltaY > 0 ? -1 : 1; // 向下滚动减少，向上滚动增加
+            const newValue = currentValue + delta;
+            updateColumnCount(newValue);
+        });
+        
+        // 初始化时也要设置最大值
+        const initialMaxWidth = Math.floor(100 * control.columnCount / (control.columnCount - 0.5));
+        containerWidthSlider.max = initialMaxWidth.toString();
+        console.log('[Popup] Initial max width set to:', initialMaxWidth, 'for column count:', control.columnCount);
 
         // 容器宽度变化事件
         let containerWidthTimeout: number | null = null;
         const updateContainerWidth = async (width: number) => {
             console.log('[Popup] Container width changed:', width);
             containerWidthSlider.value = width.toString();
-            containerWidthInput.value = width.toString();
+            containerWidthValue.textContent = `${width}%`;
 
             if (containerWidthTimeout !== null) {
                 clearTimeout(containerWidthTimeout);
@@ -754,13 +789,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateContainerWidth(width);
         });
 
-        containerWidthInput.addEventListener('input', (e) => {
-            const width = parseInt((e.target as HTMLInputElement).value);
-            if (!isNaN(width) && width >= 50 && width <= 150) {
-                updateContainerWidth(width);
-            }
-        });
-
         // 还原按钮点击事件
         if (resetListDisplayBtn) {
             resetListDisplayBtn.addEventListener('click', async () => {
@@ -773,7 +801,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 更新UI
                 columnCountInput.value = defaultColumnCount.toString();
                 containerWidthSlider.value = defaultContainerWidth.toString();
-                containerWidthInput.value = defaultContainerWidth.toString();
+                containerWidthValue.textContent = `${defaultContainerWidth}%`;
                 
                 // 保存到设置
                 const currentSettings = await getSettingsSafely();
