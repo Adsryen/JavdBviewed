@@ -1922,6 +1922,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 return;
             }
 
+            // 检查是否为"始终开启"的开关
+            const isAlwaysOn = toggle.hasAttribute('data-always-on');
+
             // 根据隐藏的checkbox状态设置开关状态
             const updateToggleState = () => {
                 const isChecked = hiddenCheckbox.checked;
@@ -1934,9 +1937,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 } else {
                     toggle.classList.remove('active');
                 }
+
+                // 如果是"始终开启"的开关，添加禁用样式
+                if (isAlwaysOn) {
+                    toggle.classList.add('always-on');
+                    toggle.setAttribute('disabled', 'true');
+                }
             };
 
             // 初始化状态
+            // 如果是"始终开启"的开关，强制设置为选中状态
+            if (isAlwaysOn) {
+                hiddenCheckbox.checked = true;
+            }
             updateToggleState();
 
             // 添加点击事件
@@ -1944,7 +1957,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (toggle.hasAttribute('disabled')) return;
+                // 如果是"始终开启"的开关，阻止点击
+                if (toggle.hasAttribute('disabled') || isAlwaysOn) return;
 
                 // 切换状态
                 hiddenCheckbox.checked = !hiddenCheckbox.checked;

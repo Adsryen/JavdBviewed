@@ -2800,6 +2800,29 @@ input:checked + .toggle-slider:before {
     opacity: 0.5;
 }
 
+/* 始终开启的开关样式 */
+#enhancement-settings .enhancement-toggle.always-on {
+    cursor: not-allowed;
+    background: #9ca3af !important;
+    opacity: 0.7;
+}
+
+#enhancement-settings .enhancement-toggle.always-on.active {
+    background: #6b7280 !important;
+}
+
+#enhancement-settings .enhancement-toggle.always-on:hover {
+    background: #9ca3af !important;
+}
+
+#enhancement-settings .enhancement-toggle.always-on.active:hover {
+    background: #6b7280 !important;
+}
+
+#enhancement-settings .enhancement-toggle.always-on::before {
+    background: #e5e7eb;
+}
+
 #enhancement-settings .enhancement-toggle::before {
     content: '';
     position: absolute;
@@ -3492,4 +3515,26 @@ input:checked + .toggle-slider:before {
         grid-template-columns: 1fr;
         gap: 20px;
     }
+}
+
+/* 深色主题下的始终开启开关样式 */
+[data-theme="dark"] #enhancement-settings .enhancement-toggle.always-on {
+    background: #4b5563 !important;
+    opacity: 0.7;
+}
+
+[data-theme="dark"] #enhancement-settings .enhancement-toggle.always-on.active {
+    background: #374151 !important;
+}
+
+[data-theme="dark"] #enhancement-settings .enhancement-toggle.always-on:hover {
+    background: #4b5563 !important;
+}
+
+[data-theme="dark"] #enhancement-settings .enhancement-toggle.always-on.active:hover {
+    background: #374151 !important;
+}
+
+[data-theme="dark"] #enhancement-settings .enhancement-toggle.always-on::before {
+    background: #6b7280;
 }
