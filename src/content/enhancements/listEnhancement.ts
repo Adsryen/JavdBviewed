@@ -32,6 +32,8 @@ export interface ListEnhancementConfig {
     columnCount: number; // 列数 (1-8)
     containerWidth: number; // 容器宽度百分比 (50-150)
   };
+  // 🆕 状态标签显示
+  showStatusBadge?: boolean; // 是否在列表卡片上显示状态标签（已观看/想看/已浏览）
 }
 
 interface VideoPreviewSource {
@@ -65,6 +67,8 @@ class ListEnhancementManager {
       columnCount: 4, // 默认4列
       containerWidth: 100, // 默认100%宽度
     },
+    // 🆕 状态标签显示默认配置
+    showStatusBadge: true, // 默认启用状态标签显示
   };
   
   // 保存上一次的列表显示控制配置，用于检测变化
@@ -261,7 +265,7 @@ class ListEnhancementManager {
     log('[LIST DISPLAY] ✓ List display styles applied successfully', {
       columnCount,
       containerWidth,
-      itemWidth: `${itemWidth}%`,
+      itemWidthCalc,
       margin: marginValue,
       containersProcessed: containers.length
     });

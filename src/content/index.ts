@@ -473,6 +473,8 @@ async function initialize(): Promise<void> {
                 columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
                 containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
             },
+            // 🆕 状态标签显示
+            showStatusBadge: (settings.listEnhancement as any)?.showStatusBadge !== false, // 默认启用
         });
         if (!isVideoPage) {
             // 优化：添加微延迟100ms，避免与隐私保护同时执行，优先级7（较高）

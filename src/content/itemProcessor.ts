@@ -166,25 +166,49 @@ function processItem(item: HTMLElement): void {
     // 减少日志输出，只在需要时记录
     // log(`Processing item: ${videoId}`);
 
+    // 清除旧的状态标签
     item.querySelectorAll('.custom-status-tag').forEach(tag => tag.remove());
 
-    const tagContainer = item.querySelector<HTMLElement>(SELECTORS.TAGS_CONTAINER);
-    if (!tagContainer) return;
+    // 检查是否启用状态标签显示功能
+    const showStatusBadge = STATE.settings?.listEnhancement?.showStatusBadge !== false; // 默认启用
+    
+    if (showStatusBadge) {
+        // 尝试多个可能的标签容器位置
+        let tagContainer = item.querySelector<HTMLElement>(SELECTORS.TAGS_CONTAINER);
+        
+        // 如果找不到 .tags.has-addons，尝试其他位置
+        if (!tagContainer) {
+            // 尝试找到 .tags 容器
+            tagContainer = item.querySelector<HTMLElement>('.tags');
+        }
+        
+        // 如果还是找不到，创建一个新的标签容器
+        if (!tagContainer) {
+            const videoTitle = item.querySelector('.video-title');
+            if (videoTitle) {
+                tagContainer = document.createElement('div');
+                tagContainer.className = 'tags has-addons';
+                videoTitle.appendChild(tagContainer);
+            }
+        }
 
-    const record = STATE.records[videoId];
+        if (tagContainer) {
+            const record = STATE.records[videoId];
 
-    if (record) {
-        log(`Found record for ${videoId}: status=${record.status}`);
-        switch (record.status) {
-            case VIDEO_STATUS.VIEWED:
-                addTag(tagContainer, '已观看', 'is-success');
-                break;
-            case VIDEO_STATUS.WANT:
-                addTag(tagContainer, '我想看', 'is-info');
-                break;
-            case VIDEO_STATUS.BROWSED:
-                addTag(tagContainer, '已浏览', 'is-warning');
-                break;
+            if (record) {
+                log(`Found record for ${videoId}: status=${record.status}`);
+                switch (record.status) {
+                    case VIDEO_STATUS.VIEWED:
+                        addTag(tagContainer, '已观看', 'is-success');
+                        break;
+                    case VIDEO_STATUS.WANT:
+                        addTag(tagContainer, '我想看', 'is-info');
+                        break;
+                    case VIDEO_STATUS.BROWSED:
+                        addTag(tagContainer, '已浏览', 'is-warning');
+                        break;
+                }
+            }
         }
     }
 
