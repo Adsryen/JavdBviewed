@@ -1028,8 +1028,8 @@
 .edit-modal-content {
     background: var(--surface-primary);
     border-radius: 16px;
-    max-width: 800px;
-    width: 100%;
+    width: 90%;
+    max-width: 1200px;
     max-height: 90vh;
     overflow: hidden;
     box-shadow: var(--shadow-xl);
@@ -1075,18 +1075,32 @@
 }
 
 .edit-modal-body {
-    padding: 24px;
+    padding: 20px;
     overflow-y: auto;
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
 }
 
-.edit-form {
+/* 表单容器 - 左右布局 - 演员库专用 */
+.edit-actor-modal .edit-form-container {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+
+/* JSON编辑器容器 - 演员库专用 */
+.edit-actor-modal .json-editor-container {
+    flex: 0 0 450px !important; /* 固定宽度450px，不伸缩 */
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.edit-actor-modal .edit-form {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0; /* 防止flex子元素溢出 */
 }
 
 .form-group {
@@ -1133,7 +1147,7 @@
 
 .json-editor label {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
@@ -1142,10 +1156,10 @@
     font-size: 12px;
     line-height: 1.5;
     padding: 12px;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--border-primary);
     border-radius: 8px;
-    background: #f8f9fa;
-    color: #495057;
+    background: var(--input-bg);
+    color: var(--text-primary);
     resize: vertical;
     min-height: 200px;
     transition: all 0.2s ease;
@@ -1153,9 +1167,8 @@
 
 .json-editor textarea:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    background: white;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 .json-editor-buttons {
@@ -1165,9 +1178,9 @@
 
 .btn-secondary {
     padding: 8px 16px;
-    background: #6c757d;
-    color: white;
-    border: none;
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
     font-size: 12px;
     cursor: pointer;
@@ -1175,22 +1188,22 @@
 }
 
 .btn-secondary:hover {
-    background: #5a6268;
+    background: var(--bg-secondary);
     transform: translateY(-1px);
 }
 
 .edit-modal-footer {
     padding: 20px 24px;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border-primary);
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    background: #f8f9fa;
+    background: var(--surface-secondary);
 }
 
 .btn-primary {
     padding: 10px 20px;
-    background: #007bff;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 8px;
@@ -1201,7 +1214,7 @@
 }
 
 .btn-primary:hover {
-    background: #0056b3;
+    background: var(--primary-hover);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
@@ -1223,6 +1236,61 @@
     .edit-modal-footer {
         padding: 16px 20px;
     }
+}
+
+/* ===================================================================
+   演员编辑弹窗深色主题适配 - Dark Theme for Actor Edit Modal
+   ================================================================ */
+
+[data-theme="dark"] .edit-actor-modal {
+    background-color: var(--surface-overlay);
+}
+
+[data-theme="dark"] .edit-modal-content {
+    background: var(--surface-primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .edit-modal-header {
+    background-color: var(--bg-secondary);
+    border-bottom-color: var(--border-primary);
+}
+
+[data-theme="dark"] .edit-modal-header h3 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .edit-modal-close {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .edit-modal-close:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .edit-modal-footer {
+    background-color: var(--bg-secondary);
+    border-top-color: var(--border-primary);
+}
+
+[data-theme="dark"] .btn-primary {
+    background-color: var(--primary);
+    color: var(--text-inverse);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+[data-theme="dark"] .btn-secondary {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background-color: var(--bg-secondary);
 }
 
 

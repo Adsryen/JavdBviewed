@@ -1613,7 +1613,7 @@
 
 /* JSON编辑器容器 */
 .json-editor-container {
-    flex: 1;
+    flex: 0 0 450px; /* 固定宽度450px，不伸缩 */
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1623,8 +1623,8 @@
 .edit-form h4 {
     margin: 16px 0 8px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid #e9ecef;
-    color: #495057;
+    border-bottom: 2px solid var(--border-primary);
+    color: var(--text-primary);
     font-size: 15px;
     font-weight: 600;
 }
@@ -1653,7 +1653,7 @@
 
 .form-group label {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -1692,11 +1692,11 @@
 .form-group select,
 .form-group textarea {
     padding: 8px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
     font-size: 14px;
     transition: border-color 0.2s ease;
-    background-color: var(--surface-primary);
+    background-color: var(--input-bg);
     color: var(--text-primary);
 }
 
@@ -1704,8 +1704,8 @@
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 .form-group textarea {
@@ -1762,7 +1762,7 @@
 
 .json-editor label {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
@@ -1776,13 +1776,15 @@
     resize: none; /* 禁止调整大小，让它填充容器 */
     flex: 1; /* 填充剩余空间 */
     min-height: 600px; /* 从500px增加到600px */
-    background-color: #f8f9fa;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
 }
 
 .json-editor textarea:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    border-color: var(--primary);
+    box-shadow: var(--ring);
 }
 
 /* 星星评分组样式 */
@@ -1880,11 +1882,11 @@
 
 .edit-modal-footer {
     padding: 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-primary);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    background-color: #f8f9fa;
+    background-color: var(--surface-secondary);
     border-radius: 0 0 8px 8px;
 }
 

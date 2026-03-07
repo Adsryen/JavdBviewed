@@ -1,4 +1,4 @@
-﻿// src/dashboard/tabs/actors.ts
+﻿﻿// src/dashboard/tabs/actors.ts
 // 演员库标签页
 
 import { actorManager } from '../../services/actorManager';
@@ -1129,218 +1129,329 @@ export class ActorsTab {
     /**
      * 显示演员编辑模态框
      */
-    private showActorEditModal(actor: ActorRecord): void {
-        // 创建modal元素
-        const modal = document.createElement('div');
-        modal.className = 'edit-actor-modal';
-        modal.innerHTML = `
-            <div class="edit-modal-content">
-                <div class="edit-modal-header">
-                    <h3>编辑演员: ${this.escapeHtml(actor.name)}</h3>
-                    <button class="edit-modal-close">&times;</button>
-                </div>
-                <div class="edit-modal-body">
-                    <div class="edit-form">
-                        <div class="form-group">
-                            <label for="edit-actor-id">演员ID:</label>
-                            <input type="text" id="edit-actor-id" value="${actor.id}" />
-                            <small class="form-hint">修改ID后会创建新记录，原记录将被删除</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-actor-name">姓名:</label>
-                            <input type="text" id="edit-actor-name" value="${this.escapeHtml(actor.name)}" />
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-actor-aliases">别名 (用逗号分隔):</label>
-                            <input type="text" id="edit-actor-aliases" value="${(actor.aliases || []).map(alias => this.escapeHtml(alias)).join(', ')}" />
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-actor-gender">性别:</label>
-                            <select id="edit-actor-gender">
-                                <option value="female" ${actor.gender === 'female' ? 'selected' : ''}>女性</option>
-                                <option value="male" ${actor.gender === 'male' ? 'selected' : ''}>男性</option>
-                                <option value="unknown" ${actor.gender === 'unknown' ? 'selected' : ''}>未知</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-actor-category">分类:</label>
-                            <select id="edit-actor-category">
-                                <option value="censored" ${actor.category === 'censored' ? 'selected' : ''}>有码</option>
-                                <option value="uncensored" ${actor.category === 'uncensored' ? 'selected' : ''}>无码</option>
-                                <option value="western" ${actor.category === 'western' ? 'selected' : ''}>欧美</option>
-                                <option value="unknown" ${actor.category === 'unknown' ? 'selected' : ''}>未知</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-actor-avatar">头像URL:</label>
-                            <input type="url" id="edit-actor-avatar" value="${actor.avatarUrl || ''}" />
-                        </div>
-                        <div class="form-group-checkbox">
-                            <input type="checkbox" id="edit-actor-blacklisted" ${actor.blacklisted ? 'checked' : ''} />
-                            <label for="edit-actor-blacklisted">加入黑名单</label>
-                            <small class="form-hint">仅本地偏好，不影响收藏同步</small>
-                        </div>
+    /**
+         * 显示演员编辑模态框
+         */
+        private showActorEditModal(actor: ActorRecord): void {
+            // 生成带锁图标的表单组
+            const generateFormGroupWithLock = (fieldName: string, label: string, inputHtml: string, isRequired: boolean = false) => {
+                const isLocked = actor.manuallyEditedFields?.includes(fieldName) || false;
+                const lockIcon = isLocked 
+                    ? '<i class="fas fa-lock field-lock locked" title="此字段已锁定，不会被自动同步覆盖。点击解锁"></i>'
+                    : '<i class="fas fa-lock-open field-lock unlocked" title="此字段会自动同步。编辑后将自动锁定"></i>';
+
+                return `
+                    <div class="form-group" data-field-name="${fieldName}">
+                        <label>
+                            ${label}${isRequired ? ': <span class="required">*</span>' : ':'}
+                            ${lockIcon}
+                        </label>
+                        ${inputHtml}
                     </div>
-                    <div class="json-editor">
-                        <label for="edit-actor-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
-                        <textarea id="edit-actor-json" rows="24">${JSON.stringify(actor, null, 2)}</textarea>
-                    </div>
-                </div>
-                <div class="edit-modal-footer">
-                    <button id="save-actor" class="btn-primary">保存</button>
-                    <button id="cancel-actor-edit" class="btn-secondary">取消</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // 获取表单元素
-        const idInput = modal.querySelector('#edit-actor-id') as HTMLInputElement;
-        const nameInput = modal.querySelector('#edit-actor-name') as HTMLInputElement;
-        const aliasesInput = modal.querySelector('#edit-actor-aliases') as HTMLInputElement;
-        const genderSelect = modal.querySelector('#edit-actor-gender') as HTMLSelectElement;
-        const categorySelect = modal.querySelector('#edit-actor-category') as HTMLSelectElement;
-        const avatarInput = modal.querySelector('#edit-actor-avatar') as HTMLInputElement;
-        const blacklistedCheckbox = modal.querySelector('#edit-actor-blacklisted') as HTMLInputElement;
-        const jsonTextarea = modal.querySelector('#edit-actor-json') as HTMLTextAreaElement;
-
-        // 防止循环更新的标志
-        let isUpdatingFromForm = false;
-        let isUpdatingFromJson = false;
-
-        // 表单到JSON的自动同步
-        const formToJson = () => {
-            if (isUpdatingFromJson) return; // 防止循环更新
-            isUpdatingFromForm = true;
-            
-            const formData = {
-                id: idInput.value.trim(),
-                name: nameInput.value.trim(),
-                aliases: aliasesInput.value.split(',').map(alias => alias.trim()).filter(alias => alias),
-                gender: genderSelect.value as 'female' | 'male' | 'unknown',
-                category: categorySelect.value as 'censored' | 'uncensored' | 'western' | 'unknown',
-                avatarUrl: avatarInput.value.trim() || undefined,
-                blacklisted: !!(blacklistedCheckbox && blacklistedCheckbox.checked),
-                profileUrl: actor.profileUrl,
-                details: actor.details,
-                syncInfo: actor.syncInfo,
-                createdAt: actor.createdAt,
-                updatedAt: Date.now()
+                `;
             };
-            jsonTextarea.value = JSON.stringify(formData, null, 2);
-            
-            isUpdatingFromForm = false;
-        };
 
-        // JSON到表单的自动同步
-        const jsonToForm = () => {
-            if (isUpdatingFromForm) return; // 防止循环更新
-            isUpdatingFromJson = true;
-            
-            try {
-                const jsonData = JSON.parse(jsonTextarea.value);
-                idInput.value = jsonData.id || '';
-                nameInput.value = jsonData.name || '';
-                aliasesInput.value = jsonData.aliases ? jsonData.aliases.join(', ') : '';
-                genderSelect.value = jsonData.gender || 'unknown';
-                categorySelect.value = jsonData.category || 'unknown';
-                avatarInput.value = jsonData.avatarUrl || '';
-                if (blacklistedCheckbox) blacklistedCheckbox.checked = !!jsonData.blacklisted;
-                
-                // 清除错误提示
-                jsonTextarea.style.borderColor = '';
-                jsonTextarea.title = '';
-            } catch (error) {
-                // JSON格式错误时显示视觉提示
-                jsonTextarea.style.borderColor = '#ff4444';
-                jsonTextarea.title = 'JSON格式错误';
-            }
-            
-            isUpdatingFromJson = false;
-        };
+            // 创建modal元素
+            const modal = document.createElement('div');
+            modal.className = 'edit-actor-modal';
 
-        // 监听所有表单字段的变化，自动同步到JSON
-        [idInput, nameInput, aliasesInput, genderSelect, categorySelect, avatarInput, blacklistedCheckbox].forEach(element => {
-            element.addEventListener('input', formToJson);
-            element.addEventListener('change', formToJson);
-        });
+            // Wiki数据显示
+            const wikiDataHtml = actor.wikiData ? `
+                <div class="wiki-data-section">
+                    <h4><i class="fas fa-info-circle"></i> Wiki数据</h4>
+                    <div class="wiki-data-grid">
+                        ${actor.wikiData.age ? `<div class="wiki-item"><span class="wiki-label">年龄:</span> <span class="wiki-value">${actor.wikiData.age}岁</span></div>` : ''}
+                        ${actor.wikiData.heightCm ? `<div class="wiki-item"><span class="wiki-label">身高:</span> <span class="wiki-value">${actor.wikiData.heightCm}cm</span></div>` : ''}
+                        ${actor.wikiData.cup ? `<div class="wiki-item"><span class="wiki-label">罩杯:</span> <span class="wiki-value">${actor.wikiData.cup}</span></div>` : ''}
+                        ${actor.wikiData.retired ? `<div class="wiki-item"><span class="wiki-label">状态:</span> <span class="wiki-value retired">已引退</span></div>` : ''}
+                        ${actor.wikiData.wikiUrl ? `<div class="wiki-item"><a href="${actor.wikiData.wikiUrl}" target="_blank" class="wiki-link"><i class="fas fa-external-link-alt"></i> Wikipedia</a></div>` : ''}
+                        ${actor.wikiData.ig ? `<div class="wiki-item"><a href="${actor.wikiData.ig}" target="_blank" class="social-link"><i class="fab fa-instagram"></i> Instagram</a></div>` : ''}
+                        ${actor.wikiData.tw ? `<div class="wiki-item"><a href="${actor.wikiData.tw}" target="_blank" class="social-link"><i class="fab fa-twitter"></i> Twitter</a></div>` : ''}
+                    </div>
+                </div>
+            ` : '';
 
-        // 监听JSON文本框的变化，自动同步到表单
-        jsonTextarea.addEventListener('input', jsonToForm);
+            modal.innerHTML = `
+                <div class="edit-modal-content">
+                    <div class="edit-modal-header">
+                        <h3><i class="fas fa-user-edit"></i> 编辑演员: ${this.escapeHtml(actor.name)}</h3>
+                        <button class="edit-modal-close">&times;</button>
+                    </div>
+                    <div class="edit-modal-body">
+                        <div class="edit-form-container">
+                            <div class="json-editor-container">
+                                <div class="json-editor">
+                                    <label for="edit-actor-json">原始JSON数据 <small style="color: #888;">(自动同步)</small>:</label>
+                                    <textarea id="edit-actor-json" rows="30">${JSON.stringify(actor, null, 2)}</textarea>
+                                </div>
+                            </div>
+                            <div class="edit-form">
+                                <h4><i class="fas fa-id-card"></i> 基本信息</h4>
+                                <div class="form-group">
+                                    <label for="edit-actor-id">演员ID: <span class="required">*</span></label>
+                                    <input type="text" id="edit-actor-id" value="${actor.id}" />
+                                    <small class="form-hint">修改ID后会创建新记录，原记录将被删除</small>
+                                </div>
+                                ${generateFormGroupWithLock('name', '姓名', `<input type="text" id="edit-actor-name" value="${this.escapeHtml(actor.name)}" />`, true)}
+                                ${generateFormGroupWithLock('aliases', '别名 (用逗号分隔)', `<textarea id="edit-actor-aliases" rows="2" placeholder="别名1, 别名2">${(actor.aliases || []).map(alias => this.escapeHtml(alias)).join(', ')}</textarea>`)}
 
-        // 关闭modal
-        const closeModal = () => {
-            document.body.removeChild(modal);
-        };
+                                <div class="form-row">
+                                    ${generateFormGroupWithLock('gender', '性别', `
+                                        <select id="edit-actor-gender">
+                                            <option value="female" ${actor.gender === 'female' ? 'selected' : ''}>女性</option>
+                                            <option value="male" ${actor.gender === 'male' ? 'selected' : ''}>男性</option>
+                                            <option value="unknown" ${actor.gender === 'unknown' ? 'selected' : ''}>未知</option>
+                                        </select>
+                                    `)}
+                                    ${generateFormGroupWithLock('category', '分类', `
+                                        <select id="edit-actor-category">
+                                            <option value="censored" ${actor.category === 'censored' ? 'selected' : ''}>有码</option>
+                                            <option value="uncensored" ${actor.category === 'uncensored' ? 'selected' : ''}>无码</option>
+                                            <option value="western" ${actor.category === 'western' ? 'selected' : ''}>欧美</option>
+                                            <option value="unknown" ${actor.category === 'unknown' ? 'selected' : ''}>未知</option>
+                                        </select>
+                                    `)}
+                                </div>
 
-        modal.querySelector('.edit-modal-close')?.addEventListener('click', closeModal);
-        modal.querySelector('#cancel-actor-edit')?.addEventListener('click', closeModal);
+                                ${generateFormGroupWithLock('avatarUrl', '头像URL', `<input type="url" id="edit-actor-avatar" value="${actor.avatarUrl || ''}" placeholder="https://..." />`)}
 
-        // 点击背景关闭
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+                                <div class="form-group-checkbox">
+                                    <input type="checkbox" id="edit-actor-blacklisted" ${actor.blacklisted ? 'checked' : ''} />
+                                    <label for="edit-actor-blacklisted">加入黑名单</label>
+                                    <small class="form-hint">仅本地偏好，不影响收藏同步</small>
+                                </div>
 
-        // 保存演员
-        modal.querySelector('#save-actor')?.addEventListener('click', async () => {
-            try {
-                // 先将当前表单内容同步到 JSON，防止用户未点击“表单 → JSON”时修改丢失
-                // 从 JSON 文本解析（已经通过自动同步保持最新）
-                const updatedActor = JSON.parse(jsonTextarea.value);
+                                ${wikiDataHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="edit-modal-footer">
+                        <button id="save-actor" class="btn-primary"><i class="fas fa-save"></i> 保存</button>
+                        <button id="cancel-actor-edit" class="btn-secondary"><i class="fas fa-times"></i> 取消</button>
+                    </div>
+                </div>
+            `;
 
-                if (!updatedActor.id || !updatedActor.name) {
-                    showMessage('ID和姓名是必填字段', 'error');
-                    return;
+            document.body.appendChild(modal);
+
+            // 获取表单元素
+            const idInput = modal.querySelector('#edit-actor-id') as HTMLInputElement;
+            const nameInput = modal.querySelector('#edit-actor-name') as HTMLInputElement;
+            const aliasesInput = modal.querySelector('#edit-actor-aliases') as HTMLTextAreaElement;
+            const genderSelect = modal.querySelector('#edit-actor-gender') as HTMLSelectElement;
+            const categorySelect = modal.querySelector('#edit-actor-category') as HTMLSelectElement;
+            const avatarInput = modal.querySelector('#edit-actor-avatar') as HTMLInputElement;
+            const blacklistedCheckbox = modal.querySelector('#edit-actor-blacklisted') as HTMLInputElement;
+            const jsonTextarea = modal.querySelector('#edit-actor-json') as HTMLTextAreaElement;
+
+            // 锁图标交互 - 点击切换锁定状态
+            const lockedFields = new Set<string>(actor.manuallyEditedFields || []);
+
+            modal.querySelectorAll('.field-lock').forEach(lockIcon => {
+                lockIcon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const formGroup = (e.target as HTMLElement).closest('.form-group') as HTMLElement;
+                    const fieldName = formGroup?.getAttribute('data-field-name');
+
+                    if (!fieldName) return;
+
+                    const isCurrentlyLocked = lockedFields.has(fieldName);
+
+                    if (isCurrentlyLocked) {
+                        // 解锁
+                        lockedFields.delete(fieldName);
+                        lockIcon.classList.remove('fas', 'fa-lock', 'locked');
+                        lockIcon.classList.add('fas', 'fa-lock-open', 'unlocked');
+                        lockIcon.setAttribute('title', '此字段会自动同步。编辑后将自动锁定');
+                    } else {
+                        // 锁定
+                        lockedFields.add(fieldName);
+                        lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
+                        lockIcon.classList.add('fas', 'fa-lock', 'locked');
+                        lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
+                    }
+
+                    formToJson();
+                });
+            });
+
+            // 监听字段变化，自动锁定
+            const trackableFields: Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> = {
+                'name': nameInput,
+                'aliases': aliasesInput,
+                'gender': genderSelect,
+                'category': categorySelect,
+                'avatarUrl': avatarInput
+            };
+
+            Object.entries(trackableFields).forEach(([fieldName, input]) => {
+                input.addEventListener('change', () => {
+                    // 检查字段是否真的被修改了
+                    const originalValue = (actor as any)[fieldName];
+                    let currentValue: any;
+
+                    if (input instanceof HTMLTextAreaElement && fieldName === 'aliases') {
+                        currentValue = input.value ? input.value.split(',').map(v => v.trim()).filter(Boolean) : [];
+                    } else {
+                        currentValue = input.value.trim() || undefined;
+                    }
+
+                    const hasChanged = JSON.stringify(originalValue) !== JSON.stringify(currentValue);
+
+                    if (hasChanged && !lockedFields.has(fieldName)) {
+                        // 自动锁定
+                        lockedFields.add(fieldName);
+                        const formGroup = modal.querySelector(`[data-field-name="${fieldName}"]`);
+                        const lockIcon = formGroup?.querySelector('.field-lock');
+                        if (lockIcon) {
+                            lockIcon.classList.remove('fas', 'fa-lock-open', 'unlocked');
+                            lockIcon.classList.add('fas', 'fa-lock', 'locked');
+                            lockIcon.setAttribute('title', '此字段已锁定，不会被自动同步覆盖。点击解锁');
+                        }
+                    }
+                });
+            });
+
+            // 防止循环更新的标志
+            let isUpdatingFromForm = false;
+            let isUpdatingFromJson = false;
+
+            // 表单到JSON的自动同步
+            const formToJson = () => {
+                if (isUpdatingFromJson) return; // 防止循环更新
+                isUpdatingFromForm = true;
+
+                const formData: any = {
+                    ...actor,
+                    id: idInput.value.trim(),
+                    name: nameInput.value.trim(),
+                    aliases: aliasesInput.value.split(',').map(alias => alias.trim()).filter(alias => alias),
+                    gender: genderSelect.value as 'female' | 'male' | 'unknown',
+                    category: categorySelect.value as 'censored' | 'uncensored' | 'western' | 'unknown',
+                    avatarUrl: avatarInput.value.trim() || undefined,
+                    blacklisted: !!(blacklistedCheckbox && blacklistedCheckbox.checked),
+                    manuallyEditedFields: Array.from(lockedFields),
+                    updatedAt: Date.now()
+                };
+                jsonTextarea.value = JSON.stringify(formData, null, 2);
+
+                isUpdatingFromForm = false;
+            };
+
+            // JSON到表单的自动同步
+            const jsonToForm = () => {
+                if (isUpdatingFromForm) return; // 防止循环更新
+                isUpdatingFromJson = true;
+
+                try {
+                    const jsonData = JSON.parse(jsonTextarea.value);
+                    idInput.value = jsonData.id || '';
+                    nameInput.value = jsonData.name || '';
+                    aliasesInput.value = jsonData.aliases ? jsonData.aliases.join(', ') : '';
+                    genderSelect.value = jsonData.gender || 'unknown';
+                    categorySelect.value = jsonData.category || 'unknown';
+                    avatarInput.value = jsonData.avatarUrl || '';
+                    if (blacklistedCheckbox) blacklistedCheckbox.checked = !!jsonData.blacklisted;
+
+                    // 清除错误提示
+                    jsonTextarea.style.borderColor = '';
+                    jsonTextarea.title = '';
+                } catch (error) {
+                    // JSON格式错误时显示视觉提示
+                    jsonTextarea.style.borderColor = '#ff4444';
+                    jsonTextarea.title = 'JSON格式错误';
                 }
 
-                // 确保更新时间
-                updatedActor.updatedAt = Date.now();
+                isUpdatingFromJson = false;
+            };
 
-                const originalId = actor.id;
-                const newId = updatedActor.id.trim();
+            // 监听所有表单字段的变化，自动同步到JSON
+            [idInput, nameInput, aliasesInput, genderSelect, categorySelect, avatarInput, blacklistedCheckbox].forEach(element => {
+                element.addEventListener('input', formToJson);
+                element.addEventListener('change', formToJson);
+            });
 
-                // 检查ID是否发生变化
-                if (originalId !== newId) {
-                    // ID发生变化，需要删除原记录并创建新记录
-                    const existingActor = await actorManager.getActorById(newId);
-                    if (existingActor) {
-                        showMessage(`ID "${newId}" 已存在，请使用其他ID`, 'error');
+            // 监听JSON文本框的变化，自动同步到表单
+            jsonTextarea.addEventListener('input', jsonToForm);
+
+            // 关闭modal
+            const closeModal = () => {
+                document.body.removeChild(modal);
+            };
+
+            modal.querySelector('.edit-modal-close')?.addEventListener('click', closeModal);
+            modal.querySelector('#cancel-actor-edit')?.addEventListener('click', closeModal);
+
+            // 点击背景关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            // 保存演员
+            modal.querySelector('#save-actor')?.addEventListener('click', async () => {
+                try {
+                    // 先将当前表单内容同步到 JSON，防止用户未点击"表单 → JSON"时修改丢失
+                    // 从 JSON 文本解析（已经通过自动同步保持最新）
+                    const updatedActor = JSON.parse(jsonTextarea.value);
+
+                    if (!updatedActor.id || !updatedActor.name) {
+                        showMessage('ID和姓名是必填字段', 'error');
                         return;
                     }
 
-                    // 删除原记录并添加新记录
-                    await actorManager.deleteActor(originalId);
-                    await actorManager.saveActor(updatedActor);
+                    // 确保更新时间和锁定字段
+                    updatedActor.updatedAt = Date.now();
+                    updatedActor.manuallyEditedFields = Array.from(lockedFields);
 
-                    showMessage(`演员ID从 "${originalId}" 更改为 "${newId}"`, 'success');
-                } else {
-                    // ID没有变化，直接更新记录
-                    await actorManager.saveActor(updatedActor);
-                    showMessage(`演员 "${updatedActor.name}" 已更新`, 'success');
+                    const originalId = actor.id;
+                    const newId = updatedActor.id.trim();
+
+                    // 检查ID是否发生变化
+                    if (originalId !== newId) {
+                        // ID发生变化，需要删除原记录并创建新记录
+                        const existingActor = await actorManager.getActorById(newId);
+                        if (existingActor) {
+                            showMessage(`ID "${newId}" 已存在，请使用其他ID`, 'error');
+                            return;
+                        }
+
+                        // 删除原记录并添加新记录
+                        await actorManager.deleteActor(originalId);
+                        await actorManager.saveActor(updatedActor);
+
+                        showMessage(`演员ID从 "${originalId}" 更改为 "${newId}"`, 'success');
+                    } else {
+                        // ID没有变化，直接更新记录
+                        await actorManager.saveActor(updatedActor);
+                        showMessage(`演员 "${updatedActor.name}" 已更新`, 'success');
+                    }
+
+                    // 关闭modal并刷新列表
+                    closeModal();
+                    await this.loadActors();
+                    await this.updateStats();
+                    // 广播全局事件，供其他模块感知变更
+                    document.dispatchEvent(new Event('actors-data-updated'));
+
+                    logAsync('INFO', '演员数据已更新', {
+                        actorId: updatedActor.id,
+                        actorName: updatedActor.name,
+                        originalId: originalId !== newId ? originalId : undefined,
+                        lockedFields: Array.from(lockedFields)
+                    });
+
+                } catch (error: any) {
+                    console.error('[Actor] Failed to save actor:', error);
+                    showMessage(`保存失败: ${error.message}`, 'error');
                 }
+            });
+        }
 
-                // 关闭modal并刷新列表
-                closeModal();
-                await this.loadActors();
-                await this.updateStats();
-                // 广播全局事件，供其他模块感知变更
-                document.dispatchEvent(new Event('actors-data-updated'));
 
-                logAsync('INFO', '演员数据已更新', {
-                    actorId: updatedActor.id,
-                    actorName: updatedActor.name,
-                    originalId: originalId !== newId ? originalId : undefined
-                });
-
-            } catch (error: any) {
-                console.error('[Actor] Failed to save actor:', error);
-                showMessage(`保存失败: ${error.message}`, 'error');
-            }
-        });
-    }
 
     /**
      * 刷新演员元数据
