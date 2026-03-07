@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 使用交流
-    url: https://github.com/Adsryen/JavdBviewed/discussions
-    about: 有使用问题？想和大家交流？去 Discussions 聊聊吧
+    url: https://t.me/javdbviewed
+    about: 有使用问题？想和大家交流？去 TG 聊聊吧
   - name: 📖 查看文档
     url: https://github.com/Adsryen/JavdBviewed#readme
     about: 先看看 README，说不定能找到答案
   - name: ⚠️ 温馨提示
     url: https://github.com/Adsryen/JavdBviewed
-    about: 这是个人项目，回复可能不及时，请见谅～
+    about: 这是个人项目，回复可能不及时，请见谅～（本意是自用项目，故不保证及时回复与故障处理。上班也不敢改这个呀）
