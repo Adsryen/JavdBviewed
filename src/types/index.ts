@@ -231,6 +231,9 @@ export interface ExtensionSettings {
         enableClickEnhancementList?: boolean; // 列表页点击增强
         enableClickEnhancementDetail?: boolean; // 详情页相关作品点击增强
         enableVideoPreview: boolean; // 启用视频预览
+        // 🆕 视频预览启用范围
+        enableVideoPreviewList?: boolean; // 列表页启用预览
+        enableVideoPreviewDetail?: boolean; // 详情页封面预览
         enableScrollPaging: boolean; // 启用滚动翻页
         enableListOptimization: boolean; // 启用列表优化
         previewDelay: number; // 预览延迟时间（毫秒）

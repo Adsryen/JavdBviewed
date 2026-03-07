@@ -11,6 +11,9 @@ export interface ListEnhancementConfig {
   enableClickEnhancementList?: boolean; // 列表页点击增强
   enableClickEnhancementDetail?: boolean; // 详情页相关作品点击增强
   enableVideoPreview: boolean;
+  // 🆕 视频预览启用范围
+  enableVideoPreviewList?: boolean; // 列表页启用预览
+  enableVideoPreviewDetail?: boolean; // 详情页封面预览
   enableListOptimization: boolean;
   enableScrollPaging: boolean;
   enableHighQualityCover: boolean; // 高质量封面
@@ -49,6 +52,9 @@ class ListEnhancementManager {
     enableClickEnhancementList: true,
     enableClickEnhancementDetail: true,
     enableVideoPreview: true,
+    // 🆕 视频预览启用范围默认配置
+    enableVideoPreviewList: true, // 默认启用列表页预览
+    enableVideoPreviewDetail: true, // 默认启用详情页预览
     enableListOptimization: true,
     enableScrollPaging: false,
     enableHighQualityCover: true,
@@ -731,7 +737,7 @@ class ListEnhancementManager {
       this.enhanceClicks(item, videoInfo);
     }
 
-    if (this.config.enableVideoPreview) {
+    if (this.config.enableVideoPreview && this.config.enableVideoPreviewList !== false) {
       this.enhanceVideoPreview(item, videoInfo);
     }
 
