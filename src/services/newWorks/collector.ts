@@ -24,9 +24,9 @@ export class NewWorksCollector {
         if (categoryFilters && categoryFilters.length > 0) {
             const filterParam = categoryFilters.join(',');
             url += `?t=${filterParam}&sort_type=0`;
-            console.log(`应用类别筛选: t=${filterParam}`);
+            console.log(`[CS] 应用类别筛选: t=${filterParam}`);
         } else {
-            console.log(`未应用类别筛选（显示所有类别）`);
+            console.log(`[CS] 未应用类别筛选（显示所有类别）`);
         }
         
         return url;
@@ -90,7 +90,7 @@ export class NewWorksCollector {
      */
     private async parseActorWorksPage(actorUrl: string, globalConfig: NewWorksGlobalConfig): Promise<any[]> {
         try {
-            console.log(`正在请求演员作品页面: ${actorUrl}`);
+            console.log(`[ACTOR] 正在请求演员作品页面: ${actorUrl}`);
 
             // 添加延迟以避免频繁请求
             await this.delay(this.BASE_DELAY);
@@ -100,28 +100,28 @@ export class NewWorksCollector {
 
             // 分页解析作品，遇到超出时间范围的作品时停止
             const works = await this.parseActorWorksWithPagination(actorUrl, dateThreshold);
-            console.log(`解析到 ${works.length} 个作品`);
+            console.log(`[CS] 解析到 ${works.length} 个作品`);
 
             return works;
             
         } catch (error) {
-            console.error('解析演员作品页面失败:', error);
+            console.error('[CS] 解析演员作品页面失败:', error);
 
             // 提供更详细的错误信息
             if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                console.error('网络请求失败，可能的原因:');
-                console.error('1. 网络连接问题');
-                console.error('2. CORS 跨域限制');
-                console.error('3. JavDB 网站访问限制');
-                console.error('4. 扩展权限不足');
+                console.error('[CS] 网络请求失败，可能的原因:');
+                console.error('[CS] 1. 网络连接问题');
+                console.error('[CS] 2. CORS 跨域限制');
+                console.error('[CS] 3. JavDB 网站访问限制');
+                console.error('[CS] 4. 扩展权限不足');
 
                 // 检查扩展是否有访问 JavDB 的权限
                 if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
                     const manifest = chrome.runtime.getManifest();
                     const permissions = manifest.permissions || [];
                     const hostPermissions = manifest.host_permissions || [];
-                    console.log('扩展权限:', permissions);
-                    console.log('主机权限:', hostPermissions);
+                    console.log('[CS] 扩展权限:', permissions);
+                    console.log('[CS] 主机权限:', hostPermissions);
                 }
             }
 
@@ -232,8 +232,8 @@ export class NewWorksCollector {
         works: any[],
         filters: NewWorksGlobalConfig['filters']
     ): Promise<{ filteredWorks: any[]; filteredCount: { dateRange: number; viewed: number; browsed: number; want: number; ar: number } }> {
-        console.log(`开始应用过滤条件(带统计)，原始作品数量: ${works.length}`);
-        console.log('过滤设置:', filters);
+        console.log(`[CS] 开始应用过滤条件(带统计)，原始作品数量: ${works.length}`);
+        console.log('[SETTINGS] 过滤设置:', filters);
 
         const filteredWorks: any[] = [];
         const filteredCount = {
@@ -249,9 +249,9 @@ export class NewWorksCollector {
         try {
             const all = await viewedGetAll();
             for (const r of all) { if (r?.id) recordMap.set(r.id, r); }
-            console.log(`IDB 番号库记录数量: ${recordMap.size}`);
+            console.log(`[CS] IDB 番号库记录数量: ${recordMap.size}`);
         } catch (e) {
-            console.warn('读取 IDB 番号库失败，过滤将退化为不过滤已看/已浏览/想看', e);
+            console.warn('[CS] 读取 IDB 番号库失败，过滤将退化为不过滤已看/已浏览/想看', e);
             // 留空 recordMap 相当于不触发状态过滤
         }
 
@@ -260,7 +260,7 @@ export class NewWorksCollector {
         if (filters.dateRange > 0) {
             dateThreshold = new Date();
             dateThreshold.setMonth(dateThreshold.getMonth() - filters.dateRange);
-            console.log(`日期过滤阈值: ${dateThreshold.toISOString()}`);
+            console.log(`[CS] 日期过滤阈值: ${dateThreshold.toISOString()}`);
         }
 
         for (const work of works) {
@@ -283,7 +283,7 @@ export class NewWorksCollector {
                 if (/\bAR\b/i.test(title) || title.includes('AR') || title.includes('ar')) {
                     shouldExclude = true;
                     excludeReason = 'ar';
-                    console.log(`  -> 排除原因: AR影片`);
+                    console.log(`[AR-FILTER] 作品 ${work.id} (${work.title}) -> 排除原因: AR影片`);
                 }
             }
 
@@ -291,25 +291,25 @@ export class NewWorksCollector {
             if (!shouldExclude) {
                 const localRecord = recordMap.get(work.id);
                 if (localRecord) {
-                    console.log(`作品 ${work.id} 在番号库中找到，状态: ${localRecord.status}，过滤设置: viewed=${filters.excludeViewed}, browsed=${filters.excludeBrowsed}, want=${filters.excludeWant}`);
+                    console.log(`[CS] 作品 ${work.id} 在番号库中找到，状态: ${localRecord.status}，过滤设置: viewed=${filters.excludeViewed}, browsed=${filters.excludeBrowsed}, want=${filters.excludeWant}`);
                     
                     if (filters.excludeViewed && localRecord.status === 'viewed') {
                         shouldExclude = true;
                         excludeReason = 'viewed';
-                        console.log(`  -> 排除原因: 已看过`);
+                        console.log(`[CS]   -> 排除原因: 已看过`);
                     } else if (filters.excludeBrowsed && localRecord.status === 'browsed') {
                         shouldExclude = true;
                         excludeReason = 'browsed';
-                        console.log(`  -> 排除原因: 已浏览`);
+                        console.log(`[CS]   -> 排除原因: 已浏览`);
                     } else if (filters.excludeWant && localRecord.status === 'want') {
                         shouldExclude = true;
                         excludeReason = 'want';
-                        console.log(`  -> 排除原因: 想看`);
+                        console.log(`[CS]   -> 排除原因: 想看`);
                     } else {
-                        console.log(`  -> 不排除（状态不匹配或未启用对应过滤）`);
+                        console.log(`[CS]   -> 不排除（状态不匹配或未启用对应过滤）`);
                     }
                 } else {
-                    console.log(`作品 ${work.id} 不在番号库中，不过滤`);
+                    console.log(`[CS] 作品 ${work.id} 不在番号库中，不过滤`);
                 }
             }
 
@@ -320,8 +320,8 @@ export class NewWorksCollector {
             }
         }
 
-        console.log('过滤统计(带统计):', filteredCount);
-        console.log(`过滤后作品数量: ${filteredWorks.length}`);
+        console.log('[CS] 过滤统计(带统计):', filteredCount);
+        console.log(`[CS] 过滤后作品数量: ${filteredWorks.length}`);
 
         return { filteredWorks, filteredCount };
     }
@@ -334,7 +334,7 @@ export class NewWorksCollector {
         globalConfig: NewWorksGlobalConfig
     ): Promise<{ works: NewWorkRecord[]; identified: number; effective: number }> {
         try {
-            console.log(`开始(详细)检查演员 ${subscription.actorName} 的新作品`);
+            console.log(`[ACTOR] 开始(详细)检查演员 ${subscription.actorName} 的新作品`);
 
             // 构建演员作品页面URL，应用类别筛选
             const actorWorksUrl = await this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
@@ -346,10 +346,10 @@ export class NewWorksCollector {
 
             const newWorks: NewWorkRecord[] = [];
             const now = Date.now();
-            console.log(`开始检查 ${filteredWorks.length} 个过滤后的作品是否已存在`);
+            console.log(`[NEWWORKS] 开始检查 ${filteredWorks.length} 个过滤后的作品是否已存在`);
             for (const work of filteredWorks.slice(0, globalConfig.maxWorksPerCheck)) {
                 const exists = await this.checkWorkExists(work.id);
-                console.log(`作品 ${work.id} (${work.title}) 存在性检查: ${exists ? '已存在' : '新作品'}`);
+                console.log(`[NEWWORKS] 作品 ${work.id} (${work.title}) 存在性检查: ${exists ? '已存在' : '新作品'}`);
                 if (!exists) {
                     newWorks.push({
                         id: work.id,
@@ -366,12 +366,12 @@ export class NewWorksCollector {
                     });
                 }
             }
-            console.log(`检查完成，发现 ${newWorks.length} 个新作品`);
+            console.log(`[NEWWORKS] 检查完成，发现 ${newWorks.length} 个新作品`);
 
 
             return { works: newWorks, identified, effective };
         } catch (error) {
-            console.error(`(详细)检查演员 ${subscription.actorName} 新作品失败:`, error);
+            console.error(`[ACTOR] (详细)检查演员 ${subscription.actorName} 新作品失败:`, error);
             return { works: [], identified: 0, effective: 0 };
         }
     }
@@ -399,7 +399,7 @@ export class NewWorksCollector {
         let currentPage = 1;
         let shouldContinue = true;
 
-        console.log(`开始分页解析演员作品，时间阈值: ${dateThreshold?.toISOString() || '无限制'}`);
+        console.log(`[ACTOR] 开始分页解析演员作品，时间阈值: ${dateThreshold?.toISOString() || '无限制'}`);
 
         while (shouldContinue) {
             // 构建分页URL，保留已有的查询参数
@@ -412,13 +412,13 @@ export class NewWorksCollector {
                 pageUrl = `${baseUrl}${separator}page=${currentPage}`;
             }
             
-            console.log(`解析第 ${currentPage} 页: ${pageUrl}`);
+            console.log(`[ACTOR] 解析第 ${currentPage} 页: ${pageUrl}`);
 
             try {
                 const pageWorks = await this.parseActorWorksInTab(pageUrl);
 
                 if (pageWorks.length === 0) {
-                    console.log(`第 ${currentPage} 页没有作品，停止解析`);
+                    console.log(`[ACTOR] 第 ${currentPage} 页没有作品，停止解析`);
                     break;
                 }
 
@@ -428,7 +428,7 @@ export class NewWorksCollector {
                     if (dateThreshold && work.releaseDate) {
                         const releaseDate = new Date(work.releaseDate);
                         if (releaseDate < dateThreshold) {
-                            console.log(`发现超出时间范围的作品: ${work.id} (${work.releaseDate})，停止解析后续页面`);
+                            console.log(`[ACTOR] 发现超出时间范围的作品: ${work.id} (${work.releaseDate})，停止解析后续页面`);
                             hasOldWorks = true;
                             break;
                         }
@@ -448,12 +448,12 @@ export class NewWorksCollector {
                 }
 
             } catch (error) {
-                console.error(`解析第 ${currentPage} 页失败:`, error);
+                console.error(`[ACTOR] 解析第 ${currentPage} 页失败:`, error);
                 break;
             }
         }
 
-        console.log(`分页解析完成，共获取 ${allWorks.length} 个作品，解析了 ${currentPage} 页`);
+        console.log(`[ACTOR] 分页解析完成，共获取 ${allWorks.length} 个作品，解析了 ${currentPage} 页`);
         return allWorks;
     }
 
@@ -522,9 +522,9 @@ export class NewWorksCollector {
                                         const codeMatch = title.match(/^([A-Z]+-\d+)/);
                                         if (codeMatch) {
                                             actualId = codeMatch[1]; // 使用番号作为ID
-                                            console.log(`提取番号: ${actualId} (JavDB ID: ${videoId})`);
+                                            console.log(`[ACTOR] 提取番号: ${actualId} (JavDB ID: ${videoId})`);
                                         } else {
-                                            console.log(`未能从标题提取番号，使用JavDB ID: ${videoId}, 标题: ${title}`);
+                                            console.log(`[ACTOR] 未能从标题提取番号，使用JavDB ID: ${videoId}, 标题: ${title}`);
                                         }
 
                                         // 获取封面图
@@ -563,7 +563,7 @@ export class NewWorksCollector {
                                         });
 
                                     } catch (error) {
-                                        console.warn('解析作品项失败:', error);
+                                        console.warn('[ACTOR] 解析作品项失败:', error);
                                     }
                                 });
 

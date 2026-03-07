@@ -105,6 +105,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 新增：演员页 影片分段显示
     private aeEnableTimeSegmentationDivider!: HTMLInputElement;
     private aeTimeSegmentationMonths!: HTMLInputElement;
+    // 新增：演员页 扫描新作品按钮
+    private aeEnableScanNewWorks!: HTMLInputElement;
 
     // 配置区域元素
     private translationConfig!: HTMLDivElement;
@@ -432,6 +434,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：演员页 影片分段显示元素
         this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
         this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
+        // 新增：演员页 扫描新作品按钮元素
+        this.aeEnableScanNewWorks = document.getElementById('aeEnableScanNewWorks') as HTMLInputElement;
 
         // 磁力搜索源配置
         this.magnetSourceSukebei = document.getElementById('magnetSourceSukebei') as HTMLInputElement;
@@ -1536,6 +1540,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：演员页 影片分段显示回填
         if (this.aeEnableTimeSegmentationDivider) this.aeEnableTimeSegmentationDivider.checked = (actorEnhancement as any).enableTimeSegmentationDivider === true;
         if (this.aeTimeSegmentationMonths) this.aeTimeSegmentationMonths.value = String((actorEnhancement as any).timeSegmentationMonths || 6);
+        // 新增：演员页 扫描新作品按钮回填
+        if (this.aeEnableScanNewWorks) this.aeEnableScanNewWorks.checked = (actorEnhancement as any).enableScanNewWorks === true;
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
         // 首次加载时更新"当前延迟"展示
         this.updateCurrentPreviewDelayDisplay();
@@ -1823,6 +1829,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 新增：演员页 影片分段显示
                     enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                     timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
+                    // 新增：演员页 扫描新作品按钮
+                    enableScanNewWorks: this.aeEnableScanNewWorks?.checked === true,
                 },
                 contentFilter: {
                     enabled: this.enableContentFilter.checked,
@@ -1933,6 +1941,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 defaultSortType: 0,
                 enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                 timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
+                enableScanNewWorks: this.aeEnableScanNewWorks?.checked === true,
             },
         };
     }
@@ -1966,6 +1975,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
                 if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
                 if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
+                if (this.aeEnableScanNewWorks && typeof ae.enableScanNewWorks === 'boolean') this.aeEnableScanNewWorks.checked = ae.enableScanNewWorks;
             }
             if (settings.videoEnhancement) {
                 const ve = settings.videoEnhancement as any;

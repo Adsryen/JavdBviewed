@@ -503,6 +503,8 @@ async function initialize(): Promise<void> {
             // 新增：演员页“影片分段显示”配置
             enableTimeSegmentationDivider: (settings.actorEnhancement as any)?.enableTimeSegmentationDivider === true,
             timeSegmentationMonths: (settings.actorEnhancement as any)?.timeSegmentationMonths || 6,
+            // 新增：演员页"扫描新作品按钮"配置
+            enableScanNewWorks: (settings.actorEnhancement as any)?.enableScanNewWorks === true,
         });
         initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
     }
