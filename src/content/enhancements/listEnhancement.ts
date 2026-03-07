@@ -31,6 +31,7 @@ export interface ListEnhancementConfig {
     enabled: boolean; // 是否启用列表显示控制
     columnCount: number; // 列数 (1-8)
     containerWidth: number; // 容器宽度百分比 (50-150)
+    enableContainerExpansion: boolean; // 是否启用搜索框和容器扩展到100%宽度
   };
   // 🆕 状态标签显示
   showStatusBadge?: boolean; // 是否在列表卡片上显示状态标签（已观看/想看/已浏览）
@@ -66,13 +67,14 @@ class ListEnhancementManager {
       enabled: true, // 默认启用
       columnCount: 4, // 默认4列
       containerWidth: 100, // 默认100%宽度
+      enableContainerExpansion: false, // 默认不启用容器扩展
     },
     // 🆕 状态标签显示默认配置
     showStatusBadge: true, // 默认启用状态标签显示
   };
   
   // 保存上一次的列表显示控制配置，用于检测变化
-  private lastDisplayControl: { enabled: boolean; columnCount: number; containerWidth: number } | null = null;
+  private lastDisplayControl: { enabled: boolean; columnCount: number; containerWidth: number; enableContainerExpansion: boolean } | null = null;
 
   private previewTimer: number | null = null;
   private currentPlayingVideo: HTMLVideoElement | null = null; // 追踪当前播放的视频
@@ -127,13 +129,16 @@ class ListEnhancementManager {
       lastColumnCount: lastControl?.columnCount,
       currentColumnCount: currentControl?.columnCount,
       lastContainerWidth: lastControl?.containerWidth,
-      currentContainerWidth: currentControl?.containerWidth
+      currentContainerWidth: currentControl?.containerWidth,
+      lastEnableContainerExpansion: lastControl?.enableContainerExpansion,
+      currentEnableContainerExpansion: currentControl?.enableContainerExpansion
     });
     
     const displayControlChanged = !lastControl || (
       lastControl.enabled !== currentControl?.enabled ||
       lastControl.columnCount !== currentControl?.columnCount ||
-      lastControl.containerWidth !== currentControl?.containerWidth
+      lastControl.containerWidth !== currentControl?.containerWidth ||
+      lastControl.enableContainerExpansion !== currentControl?.enableContainerExpansion
     );
     
     log('Display control changed:', displayControlChanged);
@@ -146,7 +151,8 @@ class ListEnhancementManager {
         this.lastDisplayControl = {
           enabled: currentControl.enabled,
           columnCount: currentControl.columnCount,
-          containerWidth: currentControl.containerWidth
+          containerWidth: currentControl.containerWidth,
+          enableContainerExpansion: currentControl.enableContainerExpansion ?? false
         };
       }
     }
@@ -180,7 +186,7 @@ class ListEnhancementManager {
       return;
     }
 
-    const { columnCount, containerWidth } = control;
+    const { columnCount, containerWidth, enableContainerExpansion } = control;
     
     // 移除旧样式
     const existingStyle = document.getElementById('x-list-display-control');
@@ -217,9 +223,15 @@ class ListEnhancementManager {
       : '0 auto';
     
     // 分两步实现：
-    // 第一步：搜索栏和内容容器都扩展到100%宽度，接近窗口边缘
-    // 第二步：只有影片容器的宽度受滑块控制，搜索框保持不变
-    style.textContent = `
+    // 第一步：搜索栏和内容容器扩展到100%宽度 - 覆盖Bulma的container限制（可选）
+    // 第二步：只有影片容器的宽度受滑块控制
+    
+    // 构建样式内容
+    let styleContent = '';
+    
+    // 第一步：如果启用了容器扩展，则应用搜索框和容器的100%宽度样式
+    if (enableContainerExpansion) {
+      styleContent += `
       /* 第一步：搜索栏和内容容器扩展到100%宽度 - 覆盖Bulma的container限制 */
       body #search-bar-wrap,
       body section .container,
@@ -232,7 +244,11 @@ class ListEnhancementManager {
         padding-right: 1.5rem !important;
         box-sizing: border-box !important;
       }
-      
+      `;
+    }
+    
+    // 第二步：影片容器的宽度控制（始终应用）
+    styleContent += `
       /* 第二步：只有影片容器的宽度受滑块控制 */
       .movie-list.h[data-x-cols-override] {
         width: ${containerWidth}% !important;
@@ -260,11 +276,13 @@ class ListEnhancementManager {
       }
     `;
     
+    style.textContent = styleContent;
     document.head.appendChild(style);
     
     log('[LIST DISPLAY] ✓ List display styles applied successfully', {
       columnCount,
       containerWidth,
+      enableContainerExpansion,
       itemWidthCalc,
       margin: marginValue,
       containersProcessed: containers.length
@@ -571,7 +589,8 @@ class ListEnhancementManager {
       this.lastDisplayControl = {
         enabled: this.config.listDisplayControl.enabled,
         columnCount: this.config.listDisplayControl.columnCount,
-        containerWidth: this.config.listDisplayControl.containerWidth
+        containerWidth: this.config.listDisplayControl.containerWidth,
+        enableContainerExpansion: this.config.listDisplayControl.enableContainerExpansion ?? false
       };
     }
 

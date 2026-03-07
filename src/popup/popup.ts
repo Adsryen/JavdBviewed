@@ -627,7 +627,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const control = settings.listEnhancement?.listDisplayControl || {
             enabled: true,
             columnCount: 4,
-            containerWidth: 100
+            containerWidth: 100,
+            enableContainerExpansion: false,
         };
 
         console.log('[Popup] Initial list display control:', control);
@@ -645,15 +646,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('[Popup] Column count changed:', count);
             columnCountInput.value = count.toString();
 
-            // 根据列数计算最大宽度限制
-            // 公式：最大宽度 = 100 * 列数 / 实际可显示列数
-            // 为了保证列数准确，最大宽度不能让实际列数超过设置的列数
-            const maxWidth = Math.floor(100 * count / (count - 0.5)); // 保守估计
+            // 获取当前容器扩展开关状态
+            const currentSettings = await getSettingsSafely();
+            const enableContainerExpansion = currentSettings?.listEnhancement?.listDisplayControl?.enableContainerExpansion === true;
+
+            // 根据列数和容器扩展状态计算最大宽度限制
+            let maxWidth: number;
+            
+            if (enableContainerExpansion) {
+                // 容器扩展开启：搜索框和容器都是100%宽度
+                // 公式：最大宽度 = 100 * 列数 / (列数 - 0.3)
+                // 缩小范围，避免超出太多
+                maxWidth = Math.floor(100 * count / (count - 0.3));
+                console.log('[Popup] Container expansion enabled, max width:', maxWidth);
+            } else {
+                // 容器扩展关闭：搜索框和容器保持 Bulma 默认宽度（约1344px）
+                // 允许更大的宽度范围，公式：最大宽度 = 100 * 列数 / (列数 - 0.8)
+                maxWidth = Math.floor(100 * count / (count - 0.8));
+                // 4-8列额外增加10%
+                if (count >= 4 && count <= 8) {
+                    maxWidth = Math.floor(maxWidth * 1.1);
+                }
+                console.log('[Popup] Container expansion disabled, max width:', maxWidth);
+            }
             
             // 更新滑块的最大值
             containerWidthSlider.max = maxWidth.toString();
             
-            console.log('[Popup] Max width updated to:', maxWidth, 'for column count:', count);
+            console.log('[Popup] Max width updated to:', maxWidth, 'for column count:', count, 'expansion:', enableContainerExpansion);
             
             // 如果当前宽度超过新的最大值，调整到最大值
             const currentWidth = parseInt(containerWidthSlider.value);
@@ -690,7 +710,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     currentSettings.listEnhancement.listDisplayControl = {
                         enabled: true,
                         columnCount: 4,
-                        containerWidth: 100
+                        containerWidth: 100,
+                        enableContainerExpansion: false
                     };
                 }
                 currentSettings.listEnhancement.listDisplayControl.columnCount = count;
@@ -726,10 +747,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateColumnCount(newValue);
         });
         
-        // 初始化时也要设置最大值
-        const initialMaxWidth = Math.floor(100 * control.columnCount / (control.columnCount - 0.5));
+        // 初始化时也要设置最大值（根据容器扩展状态）
+        const enableContainerExpansion = control.enableContainerExpansion === true;
+        let initialMaxWidth: number;
+        
+        if (enableContainerExpansion) {
+            // 容器扩展开启时的最大宽度（更保守）
+            initialMaxWidth = Math.floor(100 * control.columnCount / (control.columnCount - 0.3));
+        } else {
+            // 容器扩展关闭时，允许更大范围，公式：最大宽度 = 100 * 列数 / (列数 - 0.8)
+            initialMaxWidth = Math.floor(100 * control.columnCount / (control.columnCount - 0.8));
+            // 4-8列额外增加10%
+            if (control.columnCount >= 4 && control.columnCount <= 8) {
+                initialMaxWidth = Math.floor(initialMaxWidth * 1.1);
+            }
+        }
+        
         containerWidthSlider.max = initialMaxWidth.toString();
-        console.log('[Popup] Initial max width set to:', initialMaxWidth, 'for column count:', control.columnCount);
+        console.log('[Popup] Initial max width set to:', initialMaxWidth, 'for column count:', control.columnCount, 'expansion:', enableContainerExpansion);
+        
+        // 如果当前宽度超过最大值，调整到最大值
+        if (control.containerWidth > initialMaxWidth) {
+            containerWidthSlider.value = initialMaxWidth.toString();
+            containerWidthValue.textContent = `${initialMaxWidth}%`;
+            console.log('[Popup] Initial width adjusted to max:', initialMaxWidth);
+        }
 
         // 容器宽度变化事件
         let containerWidthTimeout: number | null = null;
@@ -765,7 +807,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     currentSettings.listEnhancement.listDisplayControl = {
                         enabled: true,
                         columnCount: 4,
-                        containerWidth: 100
+                        containerWidth: 100,
+                        enableContainerExpansion: false
                     };
                 }
                 currentSettings.listEnhancement.listDisplayControl.containerWidth = width;
@@ -825,7 +868,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     currentSettings.listEnhancement.listDisplayControl = {
                         enabled: true,
                         columnCount: defaultColumnCount,
-                        containerWidth: defaultContainerWidth
+                        containerWidth: defaultContainerWidth,
+                        enableContainerExpansion: false
                     };
                 } else {
                     currentSettings.listEnhancement.listDisplayControl.columnCount = defaultColumnCount;

@@ -88,6 +88,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private listColumnCountValue!: HTMLSpanElement;
     private listContainerWidth!: HTMLInputElement;
     private listContainerWidthValue!: HTMLSpanElement;
+    private enableContainerExpansion!: HTMLInputElement;
     // 🆕 状态标签显示
     private showStatusBadge!: HTMLInputElement;
 
@@ -276,6 +277,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const group = this.listColumnCount.closest('.form-group') as HTMLElement | null;
         const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
         if (trackFill) trackFill.style.width = `${((value - 1) / 7) * 100}%`;
+        
+        // 根据容器扩展状态动态调整容器宽度的最大值
+        this.updateContainerWidthMax();
+        
         this.handleSettingChange();
     }
 
@@ -290,6 +295,50 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
         if (trackFill) trackFill.style.width = `${((value - 50) / 100) * 100}%`;
         this.handleSettingChange();
+    }
+
+    /**
+     * 🆕 根据容器扩展状态和列数更新容器宽度的最大值
+     */
+    private updateContainerWidthMax(): void {
+        if (!this.listContainerWidth || !this.listColumnCount) return;
+        
+        const columnCount = parseInt(this.listColumnCount.value) || 4;
+        const enableContainerExpansion = this.enableContainerExpansion?.checked === true;
+        
+        let maxWidth: number;
+        
+        if (enableContainerExpansion) {
+            // 容器扩展开启：搜索框和容器都是100%宽度
+            // 公式：最大宽度 = 100 * 列数 / (列数 - 0.3)
+            // 缩小范围，避免超出太多
+            maxWidth = Math.floor(100 * columnCount / (columnCount - 0.3));
+        } else {
+            // 容器扩展关闭：搜索框和容器保持 Bulma 默认宽度
+            // 允许更大的宽度范围，公式：最大宽度 = 100 * 列数 / (列数 - 0.8)
+            maxWidth = Math.floor(100 * columnCount / (columnCount - 0.8));
+            // 4-8列额外增加10%
+            if (columnCount >= 4 && columnCount <= 8) {
+                maxWidth = Math.floor(maxWidth * 1.1);
+            }
+        }
+        
+        // 更新滑块的最大值
+        this.listContainerWidth.max = maxWidth.toString();
+        
+        // 如果当前宽度超过新的最大值，调整到最大值
+        const currentWidth = parseInt(this.listContainerWidth.value);
+        if (currentWidth > maxWidth) {
+            this.listContainerWidth.value = maxWidth.toString();
+            if (this.listContainerWidthValue) {
+                this.listContainerWidthValue.textContent = `${maxWidth}%`;
+            }
+            const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
+            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
+            if (trackFill) trackFill.style.width = `${((maxWidth - 50) / 100) * 100}%`;
+        }
+        
+        console.log('[Enhancement] Container width max updated to:', maxWidth, 'for column count:', columnCount, 'expansion:', enableContainerExpansion);
     }
 
     /**
@@ -433,6 +482,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.listColumnCountValue = document.getElementById('listColumnCountValue') as HTMLSpanElement;
         this.listContainerWidth = document.getElementById('listContainerWidth') as HTMLInputElement;
         this.listContainerWidthValue = document.getElementById('listContainerWidthValue') as HTMLSpanElement;
+        this.enableContainerExpansion = document.getElementById('enableContainerExpansion') as HTMLInputElement;
         // 🆕 状态标签显示
         this.showStatusBadge = document.getElementById('showStatusBadge') as HTMLInputElement;
         // 预览来源单选
@@ -568,6 +618,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 🆕 列表显示控制事件监听
         this.listColumnCount?.addEventListener('input', () => this.handleColumnCountChange());
         this.listContainerWidth?.addEventListener('input', () => this.handleContainerWidthChange());
+        this.enableContainerExpansion?.addEventListener('change', () => {
+            // 容器扩展开关变化时，更新容器宽度的最大值
+            this.updateContainerWidthMax();
+            this.handleSettingChange();
+        });
 
         // 内容过滤规则事件监听
         if (this.addFilterRuleBtn) {
@@ -1504,7 +1559,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         // 🆕 列表显示控制配置回填
-        const displayControl = (listEnhancement as any).listDisplayControl || { enabled: true, columnCount: 4, containerWidth: 100 };
+        const displayControl = (listEnhancement as any).listDisplayControl || { enabled: true, columnCount: 4, containerWidth: 100, enableContainerExpansion: false };
         if (this.listColumnCount) {
             this.listColumnCount.value = String(displayControl.columnCount || 4);
             if (this.listColumnCountValue) this.listColumnCountValue.textContent = `${displayControl.columnCount || 4} 列`;
@@ -1519,6 +1574,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
             if (trackFill) trackFill.style.width = `${(((displayControl.containerWidth || 100) - 50) / 100) * 100}%`;
         }
+        if (this.enableContainerExpansion) {
+            this.enableContainerExpansion.checked = displayControl.enableContainerExpansion === true;
+        }
+        
+        // 初始化容器宽度的最大值（根据容器扩展状态和列数）
+        this.updateContainerWidthMax();
 
         // 影片页增强配置
         const videoEnhancement = settings?.videoEnhancement || { 
@@ -1731,6 +1792,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         enabled: true, // 默认启用
                         columnCount: parseInt(this.listColumnCount?.value || '4'),
                         containerWidth: parseInt(this.listContainerWidth?.value || '100'),
+                        enableContainerExpansion: this.enableContainerExpansion?.checked === true,
                     },
                     // 🆕 状态标签显示
                     showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
@@ -1821,6 +1883,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enabled: true, // 默认启用
                     columnCount: parseInt(this.listColumnCount?.value || '4'),
                     containerWidth: parseInt(this.listContainerWidth?.value || '100'),
+                    enableContainerExpansion: this.enableContainerExpansion?.checked === true,
                 },
                 // 🆕 状态标签显示
                 showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
@@ -3250,7 +3313,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         
         // 最长耗时：显示任务名称
         if (metricMaxDuration) {
-            const taskName = metrics.maxDurationTask ? ` (${metrics.maxDurationTask})` : '';
             metricMaxDuration.textContent = formatDuration(metrics.maxDuration || 0);
             metricMaxDuration.title = metrics.maxDurationTask ? `最耗时任务: ${metrics.maxDurationTask}` : '';
         }
