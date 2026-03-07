@@ -757,18 +757,69 @@ export class VideoDetailEnhancer {
       await injectOnce();
 
       // 监听 tabs 切换导致的 DOM 重渲染，自动补回注入
-      const observer = new MutationObserver(() => {
+      const observer = new MutationObserver((mutations) => {
         const dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
-        // 若列表被重建且没有我们的注入项，则再次注入
-        if (dl && !dl.querySelector('.jhs-review-item')) {
-          this.displayNativeReviews((window as any).__JHS_REVIEWS_CACHE__ || [], dl);
+        if (!dl) return;
+        
+        const jhsReviews = dl.querySelectorAll('.jhs-review-item');
+        const nativeReviews = dl.querySelectorAll('.review-item:not(.jhs-review-item)');
+        
+        // 若列表被重建且没有我们的注入项，或者原生评论又出现了，则再次注入
+        if (jhsReviews.length === 0 && nativeReviews.length > 0) {
+          log('[ReviewBreaker] MutationObserver detected DOM was replaced by native script');
+          log(`[ReviewBreaker] Found ${nativeReviews.length} native reviews, re-injecting...`);
+          
+          const cachedReviews = (window as any).__JHS_REVIEWS_CACHE__ || [];
+          log(`[ReviewBreaker] Cached reviews count: ${cachedReviews.length}`);
+          
+          if (cachedReviews.length > 0) {
+            // 先隐藏原生评论
+            nativeReviews.forEach(el => {
+              (el as HTMLElement).style.display = 'none';
+            });
+            
+            this.displayNativeReviews(cachedReviews, dl);
+            log('[ReviewBreaker] Re-injection completed');
+          } else {
+            log('[ReviewBreaker] WARNING: No cached reviews to re-inject!');
+          }
         }
       });
+      
       try {
         observer.observe(reviewsRoot, { childList: true, subtree: true });
-      } catch {}
-      // 轻量缓存，供重渲染时快速还原（页面内作用域即可）
-      (window as any).__JHS_REVIEWS_CACHE__ = (window as any).__JHS_REVIEWS_CACHE__ || [];
+        log('[ReviewBreaker] MutationObserver started monitoring reviewsRoot');
+      } catch (e) {
+        log('[ReviewBreaker] Failed to start MutationObserver:', e);
+      }
+      
+      // 延迟检查：JavDB可能在我们注入后异步加载评论
+      setTimeout(() => {
+        const dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
+        if (!dl) return;
+        
+        const jhsReviews = dl.querySelectorAll('.jhs-review-item');
+        const nativeReviews = dl.querySelectorAll('.review-item:not(.jhs-review-item)');
+        
+        log(`[ReviewBreaker] Delayed check (500ms): JHS=${jhsReviews.length}, Native=${nativeReviews.length}`);
+        
+        if (jhsReviews.length === 0 && nativeReviews.length > 0) {
+          log('[ReviewBreaker] Delayed check detected DOM was replaced, re-injecting...');
+          
+          const cachedReviews = (window as any).__JHS_REVIEWS_CACHE__ || [];
+          if (cachedReviews.length > 0) {
+            nativeReviews.forEach(el => {
+              (el as HTMLElement).style.display = 'none';
+            });
+            
+            // 重新添加横幅
+            this.addReviewBreakerBanner(dl, cachedReviews.length, totalCount);
+            
+            this.displayNativeReviews(cachedReviews, dl);
+            log('[ReviewBreaker] Delayed re-injection completed');
+          }
+        }
+      }, 500);
       
       log('[ReviewBreaker] Reviews enhancement (native mount) ready');
     } catch (error) {
@@ -1002,19 +1053,133 @@ export class VideoDetailEnhancer {
       font-weight: 500;
       backdrop-filter: blur(10px);
       animation: slideInRight 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
     `;
-    indicator.textContent = '正在获取增强信息...';
+    
+    // 添加加载动画
+    const spinner = document.createElement('span');
+    spinner.className = 'enhancement-spinner';
+    spinner.style.cssText = `
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    `;
+    
+    const text = document.createElement('span');
+    text.className = 'enhancement-text';
+    text.textContent = '正在获取增强信息...';
+    
+    indicator.appendChild(spinner);
+    indicator.appendChild(text);
+    
+    // 添加动画样式
+    if (!document.getElementById('enhancement-loading-styles')) {
+      const style = document.createElement('style');
+      style.id = 'enhancement-loading-styles';
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
     document.body.appendChild(indicator);
   }
 
   /**
-   * 隐藏加载指示器
+   * 隐藏加载指示器（改为显示"增强完成"状态）
    */
   private hideLoadingIndicator(): void {
     const indicator = document.getElementById('enhancement-loading');
-    if (indicator) {
-      indicator.remove();
+    if (!indicator) return;
+    
+    // 移除加载动画
+    const spinner = indicator.querySelector('.enhancement-spinner');
+    if (spinner) {
+      spinner.remove();
     }
+    
+    // 更新文本
+    const text = indicator.querySelector('.enhancement-text');
+    if (text) {
+      text.textContent = '✓ 增强完成';
+    }
+    
+    // 更新样式为成功状态
+    indicator.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))';
+    indicator.style.cursor = 'pointer';
+    indicator.title = '点击关闭';
+    
+    // 添加关闭按钮
+    const closeBtn = document.createElement('span');
+    closeBtn.style.cssText = `
+      margin-left: 4px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    `;
+    closeBtn.textContent = '×';
+    closeBtn.onmouseenter = () => closeBtn.style.opacity = '1';
+    closeBtn.onmouseleave = () => closeBtn.style.opacity = '0.7';
+    indicator.appendChild(closeBtn);
+    
+    // 点击关闭
+    indicator.onclick = () => {
+      indicator.style.animation = 'slideOutRight 0.3s ease-out';
+      setTimeout(() => indicator.remove(), 300);
+    };
+    
+    // 添加滑出动画
+    if (!document.getElementById('enhancement-loading-styles')?.textContent?.includes('slideOutRight')) {
+      const style = document.getElementById('enhancement-loading-styles');
+      if (style) {
+        style.textContent += `
+          @keyframes slideOutRight {
+            from {
+              transform: translateX(0);
+              opacity: 1;
+            }
+            to {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+          }
+        `;
+      }
+    }
+    
+    // 5秒后自动淡出（可选）
+    setTimeout(() => {
+      if (indicator && indicator.parentElement) {
+        indicator.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => {
+          if (indicator.parentElement) {
+            indicator.remove();
+          }
+        }, 300);
+      }
+    }, 5000);
   }
 
   /**
@@ -1257,8 +1422,12 @@ export class VideoDetailEnhancer {
    * 将评论渲染为原生样式并挂载到 <dl class="review-items">，支持分页
    */
   private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement): void {
+    log(`[ReviewBreaker] displayNativeReviews called with ${reviews.length} reviews`);
+    
     const filterKeywords = reviewBreakerService.getFilterKeywords();
     const filtered = reviews.filter(r => !reviewBreakerService.shouldFilterReview(r, filterKeywords));
+    
+    log(`[ReviewBreaker] After filtering: ${filtered.length} reviews (filtered out: ${reviews.length - filtered.length})`);
 
     // 缓存供重渲染复用
     try { (window as any).__JHS_REVIEWS_CACHE__ = filtered; } catch {}
@@ -1267,23 +1436,30 @@ export class VideoDetailEnhancer {
     const pageSize = 10;
     const totalPages = Math.ceil(filtered.length / pageSize);
     let currentPage = 1;
+    
+    log(`[ReviewBreaker] Pagination: pageSize=${pageSize}, totalPages=${totalPages}`);
 
     // 隐藏所有原生评论（一次性处理，不在分页时重复）
     const hideNativeReviews = () => {
       const nativeReviews = dl.querySelectorAll('.review-item:not(.jhs-review-item)');
-      nativeReviews.forEach(el => {
+      log(`[ReviewBreaker] hideNativeReviews: found ${nativeReviews.length} native reviews to hide`);
+      nativeReviews.forEach((el, index) => {
         (el as HTMLElement).style.display = 'none';
+        log(`[ReviewBreaker] Hidden native review ${index + 1}: ${el.id}`);
       });
     };
 
     // 清空现有JHS评论
     const clearJhsReviews = () => {
       const existingJhsReviews = dl.querySelectorAll('.jhs-review-item');
+      log(`[ReviewBreaker] clearJhsReviews: found ${existingJhsReviews.length} existing JHS reviews to remove`);
       existingJhsReviews.forEach(el => el.remove());
     };
 
     // 渲染指定页的评论
     const renderPage = (page: number) => {
+      log(`[ReviewBreaker] renderPage called for page ${page}`);
+      
       // 清空JHS评论
       clearJhsReviews();
 
@@ -1294,11 +1470,26 @@ export class VideoDetailEnhancer {
       const startIndex = (page - 1) * pageSize;
       const endIndex = Math.min(startIndex + pageSize, filtered.length);
       const pageReviews = filtered.slice(startIndex, endIndex);
+      
+      log(`[ReviewBreaker] Rendering ${pageReviews.length} reviews (index ${startIndex} to ${endIndex})`);
 
       // 渲染当前页评论
-      pageReviews.forEach(review => {
-        dl.appendChild(this.createNativeReviewElement(review));
+      pageReviews.forEach((review, index) => {
+        const element = this.createNativeReviewElement(review);
+        dl.appendChild(element);
+        log(`[ReviewBreaker] Appended review ${index + 1}/${pageReviews.length}: ${review.id}, element.id=${element.id}, className=${element.className}`);
       });
+      
+      // 检查DOM状态
+      const allReviewItems = dl.querySelectorAll('.review-item');
+      const jhsReviewItems = dl.querySelectorAll('.jhs-review-item');
+      const nativeReviewItems = dl.querySelectorAll('.review-item:not(.jhs-review-item)');
+      
+      log(`[ReviewBreaker] DOM check after render:`);
+      log(`[ReviewBreaker]   - Total .review-item: ${allReviewItems.length}`);
+      log(`[ReviewBreaker]   - JHS reviews (.jhs-review-item): ${jhsReviewItems.length}`);
+      log(`[ReviewBreaker]   - Native reviews (not .jhs-review-item): ${nativeReviewItems.length}`);
+      log(`[ReviewBreaker]   - dl.children.length: ${dl.children.length}`);
 
       // 更新分页器状态
       updatePagination(page);
@@ -1404,17 +1595,38 @@ export class VideoDetailEnhancer {
 
     // 如果评论数量超过10条，添加分页器
     if (filtered.length > pageSize) {
+      log(`[ReviewBreaker] Adding pagination (${filtered.length} reviews > ${pageSize})`);
+      
       // 移除旧的分页器
       const oldPagination = document.getElementById('jhs-review-pagination');
-      if (oldPagination) oldPagination.remove();
+      if (oldPagination) {
+        oldPagination.remove();
+        log(`[ReviewBreaker] Removed old pagination`);
+      }
 
       // 添加新的分页器
       const pagination = createPagination();
-      dl.parentElement?.appendChild(pagination);
+      
+      // 尝试多种方式插入分页器
+      if (dl.parentElement) {
+        dl.parentElement.appendChild(pagination);
+        log(`[ReviewBreaker] Pagination added to parent element`);
+      } else if (dl.nextSibling) {
+        dl.parentNode?.insertBefore(pagination, dl.nextSibling);
+        log(`[ReviewBreaker] Pagination inserted after dl using nextSibling`);
+      } else {
+        // 如果都失败，直接插入到dl后面
+        dl.insertAdjacentElement('afterend', pagination);
+        log(`[ReviewBreaker] Pagination inserted using insertAdjacentElement`);
+      }
+    } else {
+      log(`[ReviewBreaker] No pagination needed (${filtered.length} reviews <= ${pageSize})`);
     }
 
     // 渲染第一页
+    log(`[ReviewBreaker] Starting to render first page`);
     renderPage(1);
+    log(`[ReviewBreaker] displayNativeReviews completed`);
   }
 
   /**
