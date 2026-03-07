@@ -3,7 +3,7 @@
 
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
-import type { ActorRecord, ActorSearchResult } from '../types';
+import type { ActorRecord, ActorPagedSearchResult } from '../types';
 import { dbActorsQuery, dbActorsGet, dbActorsPut, dbActorsDelete, dbActorsBulkPut, dbActorsStats, type ActorsQueryParams } from '../dashboard/dbClient';
 
 export class ActorManager {
@@ -94,7 +94,7 @@ export class ActorManager {
         genderFilter?: string,
         categoryFilter?: string,
         blacklistFilter: 'all' | 'exclude' | 'only' = 'all'
-    ): Promise<ActorSearchResult> {
+    ): Promise<ActorPagedSearchResult> {
         await this.initialize();
         // 优先使用 IDB 查询
         try {

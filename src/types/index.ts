@@ -27,6 +27,19 @@ export interface ActorRecord {
     worksCount?: number;
   };
   blacklisted?: boolean;
+  // Wiki数据
+  wikiData?: {
+    age?: number;
+    heightCm?: number;
+    cup?: string;
+    retired?: boolean;
+    ig?: string;
+    tw?: string;
+    wikiUrl?: string;
+    xslistUrl?: string;
+    source?: 'wikipedia' | 'xslist';
+    fetchedAt?: number;
+  };
 }
 
 /**
@@ -38,6 +51,17 @@ export interface ActorSearchResult {
   aliases: string[];
   avatarUrl?: string;
   profileUrl: string;
+}
+
+/**
+ * 演员分页搜索结果
+ */
+export interface ActorPagedSearchResult {
+  actors: ActorRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
 
 /**
