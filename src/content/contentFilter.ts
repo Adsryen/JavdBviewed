@@ -4,39 +4,10 @@
 import { STATE, log } from './state';
 import { showToast } from './toast';
 import { VIDEO_STATUS } from '../utils/config';
+import type { KeywordFilterRule, ContentFilterConfig } from '../types';
 
-export interface KeywordFilterRule {
-  id: string;
-  name: string;
-  keyword: string;
-  isRegex: boolean;
-  caseSensitive: boolean;
-  action: 'hide' | 'highlight' | 'blur' | 'mark';
-  enabled: boolean;
-  fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
-  style?: {
-    backgroundColor?: string;
-    color?: string;
-    border?: string;
-    opacity?: number;
-    filter?: string;
-  };
-  message?: string;
-  // 发行日期范围过滤
-  releaseDateRange?: {
-    enabled: boolean;
-    comparison?: 'between' | 'before' | 'after' | 'exact'; // 对比方式
-    startDate?: string; // YYYY-MM-DD 格式，用于 between 和 after
-    endDate?: string;   // YYYY-MM-DD 格式，用于 between 和 before
-    exactDate?: string; // YYYY-MM-DD 格式，用于 exact
-  };
-}
-
-export interface ContentFilterConfig {
-  enabled: boolean;
-  showFilteredCount: boolean;
-  keywordRules: KeywordFilterRule[];
-}
+// 重新导出类型以保持向后兼容性
+export type { KeywordFilterRule, ContentFilterConfig };
 
 export class ContentFilterManager {
   private config: ContentFilterConfig;
