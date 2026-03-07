@@ -229,22 +229,42 @@ class ListEnhancementManager {
     // 构建样式内容
     let styleContent = '';
     
+    // 判断是否为影片详情页
+    const isVideoDetailPage = window.location.pathname.startsWith('/v/');
+    
     // 第一步：如果启用了容器扩展，则应用搜索框和容器的100%宽度样式
     if (enableContainerExpansion) {
-      styleContent += `
-      /* 第一步：搜索栏和内容容器扩展到100%宽度 - 覆盖Bulma的container限制 */
-      body #search-bar-wrap,
-      body section .container,
-      body .section .container {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-        box-sizing: border-box !important;
+      if (isVideoDetailPage) {
+        // 影片详情页：只扩展搜索框
+        styleContent += `
+        /* 影片详情页：只扩展搜索框 */
+        body #search-bar-wrap {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding-left: 1.5rem !important;
+          padding-right: 1.5rem !important;
+          box-sizing: border-box !important;
+        }
+        `;
+      } else {
+        // 列表页：搜索框和内容容器都扩展
+        styleContent += `
+        /* 列表页：搜索栏和内容容器扩展到100%宽度 - 覆盖Bulma的container限制 */
+        body #search-bar-wrap,
+        body section .container,
+        body .section .container {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding-left: 1.5rem !important;
+          padding-right: 1.5rem !important;
+          box-sizing: border-box !important;
+        }
+        `;
       }
-      `;
     }
     
     // 第二步：影片容器的宽度控制（始终应用）
