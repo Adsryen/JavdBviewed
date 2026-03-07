@@ -470,6 +470,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableTimeSegmentationDivider: false,
         // 默认以 6 个月为阈值
         timeSegmentationMonths: 6,
+        // 新增：演员页"扫描新作品按钮"默认配置
+        enableScanNewWorks: false,
     },
 
     // 新增：隐私保护配置

@@ -23,6 +23,8 @@ interface ActorEnhancementConfig {
   // 新增：影片分段显示（仅演员页）
   enableTimeSegmentationDivider?: boolean;
   timeSegmentationMonths?: number; // 阈值（月），默认6
+  // 新增：扫描新作品按钮
+  enableScanNewWorks?: boolean;
 }
 
 class ActorEnhancementManager {
@@ -465,6 +467,94 @@ class ActorEnhancementManager {
       console.error('[ActorEnhancement] 注入订阅按钮失败:', e);
     }
   }
+  /**
+   * 在订阅按钮附近注入"扫描新作品"按钮
+   */
+  private async injectScanNewWorksButton(): Promise<void> {
+    try {
+      if (!this.config.enableScanNewWorks) return;
+
+      const subscribeBtn = document.getElementById('button-subscribe-actor') as HTMLAnchorElement | null;
+      if (!subscribeBtn) return;
+
+      // 避免重复注入
+      if (document.getElementById('button-scan-new-works')) return;
+
+      // 创建按钮
+      const btn = document.createElement('a');
+      btn.id = 'button-scan-new-works';
+      btn.href = 'javascript:void(0)';
+      btn.className = 'button is-warning ml-2';
+      btn.textContent = '扫描新作品';
+      btn.title = '立即扫描当前演员的新作品';
+      (btn as HTMLAnchorElement).style.display = 'inline-flex';
+      (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
+
+      // 插入到订阅按钮后面
+      subscribeBtn.parentElement?.insertBefore(btn, subscribeBtn.nextSibling);
+
+      // 点击事件：扫描当前演员的新作品
+      btn.addEventListener('click', async () => {
+        if (btn.getAttribute('data-busy') === '1') return;
+        btn.setAttribute('data-busy', '1');
+        const oldText = btn.textContent || '';
+        const oldClass = btn.className;
+        btn.classList.add('is-loading');
+        btn.textContent = '扫描中...';
+
+        try {
+          // 确保本地有演员记录
+          let record = await actorManager.getActorById(this.currentActorId);
+          if (!record) {
+            const parsed = this.parseActorFromPage();
+            if (parsed) {
+              await actorManager.saveActor(parsed);
+              record = parsed;
+            }
+          }
+
+          if (!record) {
+            showToast('未能获取演员信息，无法扫描', 'error');
+            return;
+          }
+
+          // 调用后台脚本扫描当前演员
+          const response = await new Promise<any>((resolve) => {
+            chrome.runtime.sendMessage(
+              {
+                type: 'new-works-check-single-actor',
+                actorId: this.currentActorId,
+                actorName: record.name || this.currentActorId
+              },
+              resolve
+            );
+          });
+
+          if (response.success) {
+            const result = response.result;
+            if (result.discovered > 0) {
+              showToast(`发现 ${result.discovered} 个新作品`, 'success');
+            } else {
+              showToast('未发现新作品', 'info');
+            }
+          } else {
+            throw new Error(response.error || '扫描失败');
+          }
+        } catch (e: any) {
+          console.error('[ActorEnhancement] 扫描新作品失败:', e);
+          const msg = (e && e.message) || String(e);
+          showToast(`扫描失败: ${msg}`, 'error');
+        } finally {
+          btn.classList.remove('is-loading');
+          btn.className = oldClass;
+          btn.textContent = oldText;
+          btn.removeAttribute('data-busy');
+        }
+      });
+    } catch (e) {
+      console.error('[ActorEnhancement] 注入扫描新作品按钮失败:', e);
+    }
+  }
 
   private getBlacklistBtnClass(blacklisted: boolean): string {
     // 颜色规范：
@@ -594,6 +684,9 @@ class ActorEnhancementManager {
 
     // 注入订阅/取消订阅按钮
     await this.injectSubscribeButton();
+
+    // 注入扫描新作品按钮
+    await this.injectScanNewWorksButton();
 
     // 应用保存的标签过滤器（延迟执行，确保页面加载完成）
     if (this.config.autoApplyTags) {
