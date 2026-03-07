@@ -1158,6 +1158,8 @@ async function handleClearTaskDetails(): Promise<any> {
   try {
     // 清空存储中的任务详细信息
     await setValue('orchestratorTaskDetails', []);
+    // 同时清空性能指标统计
+    await setValue('orchestratorMetrics', []);
     return { success: true };
   } catch (error) {
     console.error('[Background] Failed to clear task details:', error);
