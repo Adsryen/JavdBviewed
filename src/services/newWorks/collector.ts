@@ -144,7 +144,8 @@ export class NewWorksCollector {
             dateRange: 0,
             viewed: 0,
             browsed: 0,
-            want: 0
+            want: 0,
+            ar: 0
         };
 
         // 使用 IndexedDB 番号库做状态检查（更准确）
@@ -177,6 +178,17 @@ export class NewWorksCollector {
                     shouldExclude = true;
                     excludeReason = 'dateRange';
                     filteredCount.dateRange++;
+                }
+            }
+
+            // 检查AR影片（通过标题判断）
+            if (!shouldExclude && filters.excludeAR) {
+                const title = work.title || '';
+                // 检查标题中是否包含AR相关关键词
+                if (/\bAR\b/i.test(title) || title.includes('AR') || title.includes('ar')) {
+                    shouldExclude = true;
+                    excludeReason = 'ar';
+                    filteredCount.ar++;
                 }
             }
 
@@ -219,7 +231,7 @@ export class NewWorksCollector {
     private async applyGlobalFiltersWithStats(
         works: any[],
         filters: NewWorksGlobalConfig['filters']
-    ): Promise<{ filteredWorks: any[]; filteredCount: { dateRange: number; viewed: number; browsed: number; want: number } }> {
+    ): Promise<{ filteredWorks: any[]; filteredCount: { dateRange: number; viewed: number; browsed: number; want: number; ar: number } }> {
         console.log(`开始应用过滤条件(带统计)，原始作品数量: ${works.length}`);
         console.log('过滤设置:', filters);
 
@@ -228,7 +240,8 @@ export class NewWorksCollector {
             dateRange: 0,
             viewed: 0,
             browsed: 0,
-            want: 0
+            want: 0,
+            ar: 0
         };
 
         // 使用 IndexedDB 番号库做状态检查（更准确）
@@ -260,6 +273,17 @@ export class NewWorksCollector {
                 if (releaseDate < dateThreshold) {
                     shouldExclude = true;
                     excludeReason = 'dateRange';
+                }
+            }
+
+            // 检查AR影片（通过标题判断）
+            if (!shouldExclude && filters.excludeAR) {
+                const title = work.title || '';
+                // 检查标题中是否包含AR相关关键词
+                if (/\bAR\b/i.test(title) || title.includes('AR') || title.includes('ar')) {
+                    shouldExclude = true;
+                    excludeReason = 'ar';
+                    console.log(`  -> 排除原因: AR影片`);
                 }
             }
 

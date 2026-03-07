@@ -131,6 +131,14 @@ export class NewWorksConfigModal {
                                             排除已标记"想看"
                                         </label>
                                     </div>
+                                    
+                                    <div class="form-group form-group-inline">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="configExcludeAR" ${config.filters.excludeAR ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            排除AR影片
+                                        </label>
+                                    </div>
                                 </div>
                                 
                                 <div class="form-group">
@@ -340,7 +348,7 @@ export class NewWorksConfigModal {
         }
 
         // 过滤条件始终可用，不受启用状态影响
-        const filterInputs = this.modal.querySelectorAll('#configExcludeViewed, #configExcludeBrowsed, #configExcludeWant, #configDateRange');
+        const filterInputs = this.modal.querySelectorAll('#configExcludeViewed, #configExcludeBrowsed, #configExcludeWant, #configExcludeAR, #configDateRange');
         filterInputs.forEach(input => {
             (input as HTMLInputElement).disabled = false;
         });
@@ -414,6 +422,7 @@ export class NewWorksConfigModal {
                 excludeWant: getValue('configExcludeWant'),
                 dateRange: getValue('configDateRange'),
                 categoryFilters: categoryFilters.length > 0 ? categoryFilters : [],
+                excludeAR: getValue('configExcludeAR'),
             },
             maxWorksPerCheck: 100, // 固定值，不再通过UI配置
             autoCleanup: getValue('configAutoCleanup'),
