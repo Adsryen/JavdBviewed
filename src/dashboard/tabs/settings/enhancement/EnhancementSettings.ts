@@ -3402,7 +3402,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     private async clearTaskDetails(): Promise<void> {
         // 确认对话框
-        const confirmed = confirm('确定要清空所有任务执行记录吗？此操作不可恢复。');
+        const confirmed = confirm('确定要清空所有任务执行记录和性能指标吗？此操作不可恢复。');
         if (!confirmed) return;
 
         try {
@@ -3422,9 +3422,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
 
             if (resp && resp.success) {
-                showMessage('任务记录已清空', 'success');
-                // 刷新显示
+                showMessage('任务记录和性能指标已清空', 'success');
+                // 刷新任务明细显示
                 await this.fetchTaskDetails();
+                // 刷新性能指标显示
+                await this.fetchAndUpdateMetrics();
             } else {
                 showMessage('清空失败，请重试', 'error');
             }
@@ -3624,6 +3626,71 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6; text-decoration:none; cursor:pointer;" title="点击打开: ${url}">${displayUrl}</a>`;
         };
 
+        // 任务名称中英文映射
+        const getTaskDisplayName = (label: string): string => {
+            const taskNameMap: Record<string, string> = {
+                // 115功能
+                'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
+                'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
+                
+                // 观影标签
+                'insights:collector': '观影标签采集器 (insights:collector)',
+                
+                // 演员备注
+                'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
+                'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
+                
+                // 用户体验
+                'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
+                'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
+                
+                // 隐私保护
+                'privacy:init': '隐私保护初始化 (privacy:init)',
+                
+                // UI优化
+                'ui:remove-unwanted': '移除不需要的按钮 (ui:remove-unwanted)',
+                
+                // 磁力搜索
+                'magnetSearch:init': '磁力搜索初始化 (magnetSearch:init)',
+                
+                // 锚点优化
+                'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
+                
+                // 列表增强
+                'listEnhancement:init': '列表增强初始化 (listEnhancement:init)',
+                'listEnhancement:reprocess': '列表增强-二次处理 (listEnhancement:reprocess)',
+                
+                // 演员增强
+                'actorEnhancement:init': '演员增强初始化 (actorEnhancement:init)',
+                
+                // Emby增强
+                'emby:init': 'Emby增强初始化 (emby:init)',
+                'emby:badge': 'Emby徽标增强 (emby:badge)',
+                
+                // 密码助手
+                'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
+                
+                // 默认隐藏
+                'defaultHide:init': '默认隐藏初始化 (defaultHide:init)',
+                
+                // 内容过滤
+                'contentFilter:init': '内容过滤初始化 (contentFilter:init)',
+                'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
+                
+                // 视频增强
+                'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
+                'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
+                'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
+                'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
+                'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
+                'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
+                
+                // 视频收藏评分
+                'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
+            };
+            return taskNameMap[label] || `${label}`;
+        };
+
         const rows = sortedData.map((task) => {
             const durationMs = task.durationMs || 0;
             const duration = formatDuration(durationMs);
@@ -3633,10 +3700,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const phase = getPhaseBadge(task.phase || 'unknown');
             const pageLink = getPageLink(task.pageUrl || '');
             const label = task.label || 'unknown';
+            const displayName = getTaskDisplayName(label);
 
             return `
                 <tr style="background:var(--bg-primary); border-bottom:1px solid var(--border-color);">
-                    <td style="padding:10px 12px; color:var(--text-primary); font-weight:500;" title="${label}">${label}</td>
+                    <td style="padding:10px 12px; color:var(--text-primary); font-weight:500;" title="${label}">${displayName}</td>
                     <td style="padding:10px 12px;">${phase}</td>
                     <td style="padding:10px 12px;">${status}</td>
                     <td style="padding:10px 12px; text-align:right; color:${durationColor}; font-weight:600;">${duration}</td>

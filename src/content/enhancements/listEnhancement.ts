@@ -168,11 +168,34 @@ class ListEnhancementManager {
   private applyListDisplayStyles(): void {
     const control = this.config.listDisplayControl;
     
+    // 🆕 域名限制：只在 javdb.com 和 javdb570.com 上应用列表显示控制
+    const hostname = window.location.hostname;
+    const allowedDomains = ['javdb.com', 'javdb570.com'];
+    const isDomainAllowed = allowedDomains.some(domain => 
+      hostname === domain || hostname.endsWith('.' + domain)
+    );
+    
+    if (!isDomainAllowed) {
+      log('[LIST DISPLAY] Domain not allowed for list display control:', hostname);
+      // 移除自定义样式
+      const existingStyle = document.getElementById('x-list-display-control');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      // 恢复原始cols类
+      const containers = document.querySelectorAll('.movie-list.h') as NodeListOf<HTMLElement>;
+      containers.forEach(container => {
+        container.removeAttribute('data-x-cols-override');
+      });
+      return;
+    }
+    
     log('[LIST DISPLAY] Applying list display styles...', {
       control,
       enabled: control?.enabled,
       columnCount: control?.columnCount,
-      containerWidth: control?.containerWidth
+      containerWidth: control?.containerWidth,
+      hostname
     });
     
     // 找到所有容器（可能有多个，比如翻页后）
