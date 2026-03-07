@@ -27,6 +27,8 @@ export interface ActorRecord {
     worksCount?: number;
   };
   blacklisted?: boolean;
+  // 手动编辑锁定的字段列表
+  manuallyEditedFields?: string[];
   // Wiki数据
   wikiData?: {
     age?: number;
