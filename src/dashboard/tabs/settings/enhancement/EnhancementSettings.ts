@@ -179,7 +179,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPrevPage!: HTMLButtonElement | null;
     private taskDetailsNextPage!: HTMLButtonElement | null;
     private taskDetailsPagination!: HTMLElement | null;
+    private taskDetailsSearch!: HTMLInputElement | null;
     private taskDetailsData: any[] = [];
+    private taskDetailsFilteredData: any[] = [];
+    private taskDetailsSearchQuery: string = '';
     private taskDetailsCurrentPage: number = 1;
     private taskDetailsPageSize: number = 20;
     private taskDetailsSortField: string = 'timestamp';
@@ -563,6 +566,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsPrevPage = document.getElementById('taskDetailsPrevPage') as HTMLButtonElement | null;
         this.taskDetailsNextPage = document.getElementById('taskDetailsNextPage') as HTMLButtonElement | null;
         this.taskDetailsPagination = document.getElementById('taskDetailsPagination') as HTMLElement | null;
+        this.taskDetailsSearch = document.getElementById('taskDetailsSearch') as HTMLInputElement | null;
 
         if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
             throw new Error('功能增强设置相关的DOM元素未找到');
@@ -739,6 +743,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         if (this.taskDetailsNextPage) {
             this.taskDetailsNextPage.addEventListener('click', () => this.taskDetailsNextPageHandler());
+        }
+        // 搜索框事件
+        if (this.taskDetailsSearch) {
+            this.taskDetailsSearch.addEventListener('input', () => this.taskDetailsSearchHandler());
         }
         // 表格排序事件
         if (this.taskDetailsTable) {
@@ -3366,8 +3374,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsModal.classList.remove('hidden');
         this.taskDetailsModal.classList.add('visible');
         
-        // 重置分页
+        // 重置分页和搜索
         this.taskDetailsCurrentPage = 1;
+        this.taskDetailsSearchQuery = '';
+        this.taskDetailsFilteredData = [];
+        if (this.taskDetailsSearch) {
+            this.taskDetailsSearch.value = '';
+        }
         
         // 加载任务明细数据
         await this.fetchTaskDetails();
@@ -3462,14 +3475,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 `;
             }
 
-            // 从后台获取任务明细
+            // 从后台获取任务明细（一次性获取所有数据，最多5000条）
             const resp = await new Promise<any>((resolve) => {
                 try {
                     chrome.runtime.sendMessage({
                         type: 'orchestrator:getTaskDetails',
                         options: {
-                            page: this.taskDetailsCurrentPage,
-                            pageSize: this.taskDetailsPageSize,
+                            page: 1,
+                            pageSize: 5000, // 一次性获取最多5000条
                         }
                     }, (reply) => {
                         const err = chrome.runtime.lastError;
@@ -3488,8 +3501,18 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
             if (resp && resp.success && resp.details) {
                 this.taskDetailsData = resp.details.details || [];
-                this.renderTaskDetailsTable();
-                this.updateTaskDetailsPagination(resp.details.total, resp.details.totalPages);
+                
+                // 如果有搜索查询，重新应用过滤
+                if (this.taskDetailsSearchQuery) {
+                    this.taskDetailsSearchHandler();
+                } else {
+                    this.taskDetailsFilteredData = [];
+                    this.renderTaskDetailsTable();
+                    // 使用本地数据计算分页信息
+                    const total = this.taskDetailsData.length;
+                    const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+                    this.updateTaskDetailsPagination(total, totalPages);
+                }
             } else {
                 // 显示错误状态
                 if (this.taskDetailsTableBody) {
@@ -3522,11 +3545,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private renderTaskDetailsTable(): void {
         if (!this.taskDetailsTableBody) return;
 
-        if (this.taskDetailsData.length === 0) {
+        // 使用过滤后的数据
+        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
+            ? this.taskDetailsFilteredData 
+            : this.taskDetailsData;
+
+        if (dataToRender.length === 0) {
+            const emptyMessage = this.taskDetailsSearchQuery 
+                ? `<i class="fas fa-search"></i> 未找到匹配"${this.taskDetailsSearchQuery}"的任务记录`
+                : '<i class="fas fa-inbox"></i> 暂无任务记录';
             this.taskDetailsTableBody.innerHTML = `
                 <tr>
                     <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
-                        <i class="fas fa-inbox"></i> 暂无任务记录
+                        ${emptyMessage}
                     </td>
                 </tr>
             `;
@@ -3534,7 +3565,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         // 应用排序
-        const sortedData = [...this.taskDetailsData].sort((a, b) => {
+        const sortedData = [...dataToRender].sort((a, b) => {
             let aVal = a[this.taskDetailsSortField];
             let bVal = b[this.taskDetailsSortField];
 
@@ -3554,6 +3585,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     : bVal - aVal;
             }
         });
+
+        // 前端分页：计算当前页的数据
+        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
+        const endIndex = startIndex + this.taskDetailsPageSize;
+        const paginatedData = sortedData.slice(startIndex, endIndex);
 
         // 格式化时间显示
         const formatDuration = (ms: number): string => {
@@ -3701,7 +3737,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return taskNameMap[label] || `${label}`;
         };
 
-        const rows = sortedData.map((task) => {
+        const rows = paginatedData.map((task) => {
             const durationMs = task.durationMs || 0;
             const duration = formatDuration(durationMs);
             const durationColor = getDurationColor(durationMs);
@@ -3755,7 +3791,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPrevPageHandler(): void {
         if (this.taskDetailsCurrentPage > 1) {
             this.taskDetailsCurrentPage--;
-            this.fetchTaskDetails();
+            // 直接重新渲染，不需要重新获取数据
+            this.renderTaskDetailsTable();
+            const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
+                ? this.taskDetailsFilteredData 
+                : this.taskDetailsData;
+            const total = dataToRender.length;
+            const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+            this.updateTaskDetailsPagination(total, totalPages);
         }
     }
 
@@ -3764,7 +3807,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     private taskDetailsNextPageHandler(): void {
         this.taskDetailsCurrentPage++;
-        this.fetchTaskDetails();
+        // 直接重新渲染，不需要重新获取数据
+        this.renderTaskDetailsTable();
+        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
+            ? this.taskDetailsFilteredData 
+            : this.taskDetailsData;
+        const total = dataToRender.length;
+        const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+        this.updateTaskDetailsPagination(total, totalPages);
     }
 
     /**
@@ -3788,15 +3838,84 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const headers = this.taskDetailsTable.querySelectorAll('thead th[data-sort]');
             headers.forEach((header) => {
                 const icon = header.querySelector('i');
-                if (icon) {
-                    const sortField = header.getAttribute('data-sort');
-                    if (sortField === this.taskDetailsSortField) {
-                        icon.className = this.taskDetailsSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-                    } else {
-                        icon.className = 'fas fa-sort';
-                    }
+                if (!icon) return;
+
+                const headerField = header.getAttribute('data-sort');
+                if (headerField === field) {
+                    icon.className = this.taskDetailsSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                } else {
+                    icon.className = 'fas fa-sort';
                 }
             });
         }
+    }
+
+    /**
+     * 搜索处理
+     */
+    private taskDetailsSearchHandler(): void {
+        if (!this.taskDetailsSearch) return;
+
+        const query = this.taskDetailsSearch.value.trim().toLowerCase();
+        this.taskDetailsSearchQuery = query;
+
+        if (!query) {
+            // 清空搜索，显示所有数据
+            this.taskDetailsFilteredData = [];
+        } else {
+            // 过滤数据：匹配任务名称或页面URL
+            this.taskDetailsFilteredData = this.taskDetailsData.filter((task) => {
+                const label = (task.label || '').toLowerCase();
+                const pageUrl = (task.pageUrl || '').toLowerCase();
+                
+                // 获取任务显示名称
+                const taskNameMap: Record<string, string> = {
+                    'drive115:init:video': '115功能初始化-视频页',
+                    'drive115:init:list': '115功能初始化-列表页',
+                    'insights:collector': '观影标签采集器',
+                    'actorRemarks:actorPage': '演员备注-演员页',
+                    'actorRemarks:run': '演员备注-运行',
+                    'ux:shortcuts:init': '快捷键初始化',
+                    'ux:magnet:autoSearch': '磁力搜索自动检索',
+                    'privacy:init': '隐私保护初始化',
+                    'ui:remove-unwanted': '移除不需要的按钮',
+                    'magnetSearch:init': '磁力搜索初始化',
+                    'anchorOptimization:init': '锚点优化初始化',
+                    'listEnhancement:init': '列表增强初始化',
+                    'listEnhancement:reprocess': '列表增强-二次处理',
+                    'actorEnhancement:init': '演员增强初始化',
+                    'emby:init': 'Emby增强初始化',
+                    'emby:badge': 'Emby徽标增强',
+                    'passwordHelper:init': '密码助手初始化',
+                    'defaultHide:init': '默认隐藏初始化',
+                    'contentFilter:init': '内容过滤初始化',
+                    'contentFilter:initialize': '内容过滤初始化',
+                    'videoEnhancement:initCore': '视频增强-核心初始化',
+                    'videoEnhancement:runCover': '视频增强-封面处理',
+                    'videoEnhancement:runTitle': '视频增强-标题处理',
+                    'videoEnhancement:runReviewBreaker': '视频增强-评论破解',
+                    'videoEnhancement:runFC2Breaker': '视频增强-FC2破解',
+                    'videoEnhancement:finish': '视频增强-完成',
+                    'videoFavoriteRating:init': '视频收藏评分初始化',
+                };
+                const displayName = (taskNameMap[task.label] || task.label || '').toLowerCase();
+
+                return label.includes(query) || pageUrl.includes(query) || displayName.includes(query);
+            });
+        }
+
+        // 重置到第一页
+        this.taskDetailsCurrentPage = 1;
+
+        // 重新渲染表格
+        this.renderTaskDetailsTable();
+
+        // 更新分页信息
+        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
+            ? this.taskDetailsFilteredData 
+            : this.taskDetailsData;
+        const total = dataToRender.length;
+        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
+        this.updateTaskDetailsPagination(total, totalPages);
     }
 }

@@ -271,9 +271,18 @@
         <button class="modal-close" id="taskDetailsModalClose">&times;</button>
       </div>
       <div class="modal-body" style="flex:1; overflow:auto; display:flex; flex-direction:column;">
-        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+        <!-- 搜索框和统计信息 -->
+        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0;">
           <div style="color:var(--text-secondary); font-size:13px;">
             显示最近 <span id="taskDetailsCount">0</span> 条任务记录
+          </div>
+          <div style="flex:1; max-width:400px;">
+            <input 
+              id="taskDetailsSearch" 
+              type="search" 
+              placeholder="搜索任务名称或页面URL..." 
+              style="width:100%; padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; background:var(--bg-primary); color:var(--text-primary);"
+            />
           </div>
           <div style="display:flex; gap:8px;">
             <button id="taskDetailsPrevPage" class="button-like" style="font-size:12px; padding:4px 8px;" disabled>
