@@ -78,9 +78,11 @@ async function putToCache(name: string, data: ActorRemarks): Promise<void> {
 }
 
 async function fetchWikipedia(name: string): Promise<ActorRemarks | null> {
+  const startTime = Date.now();
   try {
     const url = `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
-    const doc = await defaultHttpClient.getDocument(url, { responseType: 'document', timeout: 10000 });
+    console.log(`[actorRemarks] 开始请求 Wikipedia: ${name}`);
+    const doc = await defaultHttpClient.getDocument(url, { responseType: 'document', timeout: 5000 });
     const info = (doc.querySelector('.infobox') || doc.querySelector('table.infobox')) as HTMLElement | null;
     if (!info) return null;
 
@@ -165,14 +167,20 @@ async function fetchWikipedia(name: string): Promise<ActorRemarks | null> {
       source: 'wikipedia',
       fetchedAt: Date.now(),
     };
+    console.log(`[actorRemarks] Wikipedia 成功: ${name}, 耗时: ${Date.now() - startTime}ms`);
     return data;
-  } catch { return null; }
+  } catch (err) {
+    console.log(`[actorRemarks] Wikipedia 失败: ${name}, 耗时: ${Date.now() - startTime}ms, 错误:`, err);
+    return null;
+  }
 }
 
 async function fetchXslist(name: string): Promise<ActorRemarks | null> {
+  const startTime = Date.now();
   try {
     const searchUrl = `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
-    const searchDoc = await defaultHttpClient.getDocument(searchUrl, { responseType: 'document', timeout: 10000 });
+    console.log(`[actorRemarks] 开始请求 xslist 搜索: ${name}`);
+    const searchDoc = await defaultHttpClient.getDocument(searchUrl, { responseType: 'document', timeout: 5000 });
     const links = Array.from(searchDoc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
     let targetUrl = '';
 
@@ -202,8 +210,12 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
         }
       }
     }
-    if (!targetUrl) return null;
-    const doc = await defaultHttpClient.getDocument(targetUrl, { responseType: 'document', timeout: 10000 });
+    if (!targetUrl) {
+      console.log(`[actorRemarks] xslist 未找到目标链接: ${name}, 耗时: ${Date.now() - startTime}ms`);
+      return null;
+    }
+    console.log(`[actorRemarks] 开始请求 xslist 详情: ${name}`);
+    const doc = await defaultHttpClient.getDocument(targetUrl, { responseType: 'document', timeout: 5000 });
     // 取首段或第二段（避开“别名”）
     let p = doc.querySelector('p');
     const ps = Array.from(doc.querySelectorAll('p')) as HTMLParagraphElement[];
@@ -230,7 +242,7 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
     if (cm && cm[1]) cup = cm[1].toUpperCase();
 
     if (typeof age === 'number' || typeof heightCm === 'number') {
-      return {
+      const result = {
         name,
         age,
         heightCm,
@@ -239,26 +251,41 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
         source: 'xslist',
         fetchedAt: Date.now(),
       } as ActorRemarks;
+      console.log(`[actorRemarks] xslist 成功: ${name}, 耗时: ${Date.now() - startTime}ms`);
+      return result;
     }
+    console.log(`[actorRemarks] xslist 无有效数据: ${name}, 耗时: ${Date.now() - startTime}ms`);
     return null;
-  } catch { return null; }
+  } catch (err) {
+    console.log(`[actorRemarks] xslist 失败: ${name}, 耗时: ${Date.now() - startTime}ms, 错误:`, err);
+    return null;
+  }
 }
 
 class ActorExtraInfoService {
   private memCache: Map<string, ActorRemarks> = new Map();
 
   async getActorRemarks(rawName: string, settings?: ExtensionSettings): Promise<ActorRemarks | null> {
+    const startTime = Date.now();
     const name = normalizeName(rawName);
     if (!name) return null;
 
-    if (this.memCache.has(name)) return this.memCache.get(name)!;
+    if (this.memCache.has(name)) {
+      console.log(`[actorRemarks] 内存缓存命中: ${name}`);
+      return this.memCache.get(name)!;
+    }
 
     // TTL：以原脚本为准，默认 0（不缓存）；若用户设置了 >0，则启用
     const ttlDays = Math.max(0, Number(((settings as any)?.videoEnhancement?.actorRemarksTTLDays) || 0));
 
     const cached = await getFromCache(name, ttlDays);
-    if (cached) { this.memCache.set(name, cached); return cached; }
+    if (cached) { 
+      console.log(`[actorRemarks] 存储缓存命中: ${name}`);
+      this.memCache.set(name, cached); 
+      return cached; 
+    }
 
+    console.log(`[actorRemarks] 开始获取演员信息: ${name}`);
     // 数据源顺序：以原脚本为准 Wikipedia -> xslist
     const wiki = await fetchWikipedia(name);
 
@@ -292,8 +319,11 @@ class ActorExtraInfoService {
         }
       : null;
     if (data) {
+      console.log(`[actorRemarks] 获取成功: ${name}, 总耗时: ${Date.now() - startTime}ms, 来源: ${data.source}`);
       this.memCache.set(name, data);
       if (ttlDays > 0) await putToCache(name, data);
+    } else {
+      console.log(`[actorRemarks] 获取失败: ${name}, 总耗时: ${Date.now() - startTime}ms`);
     }
     return data || null;
   }
