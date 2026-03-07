@@ -757,7 +757,7 @@ export class VideoDetailEnhancer {
       await injectOnce();
 
       // 监听 tabs 切换导致的 DOM 重渲染，自动补回注入
-      const observer = new MutationObserver((mutations) => {
+      const observer = new MutationObserver(() => {
         const dl = reviewsRoot.querySelector('dl.review-items') as HTMLElement | null;
         if (!dl) return;
         
