@@ -88,6 +88,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private listColumnCountValue!: HTMLSpanElement;
     private listContainerWidth!: HTMLInputElement;
     private listContainerWidthValue!: HTMLSpanElement;
+    // 🆕 状态标签显示
+    private showStatusBadge!: HTMLInputElement;
 
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
@@ -431,6 +433,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.listColumnCountValue = document.getElementById('listColumnCountValue') as HTMLSpanElement;
         this.listContainerWidth = document.getElementById('listContainerWidth') as HTMLInputElement;
         this.listContainerWidthValue = document.getElementById('listContainerWidthValue') as HTMLSpanElement;
+        // 🆕 状态标签显示
+        this.showStatusBadge = document.getElementById('showStatusBadge') as HTMLInputElement;
         // 预览来源单选
         this.previewSourceAuto = document.getElementById('previewSourceAuto') as HTMLInputElement;
         this.previewSourceJavDB = document.getElementById('previewSourceJavDB') as HTMLInputElement;
@@ -541,6 +545,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableActorWatermark?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.showStatusBadge?.addEventListener('change', this.handleSettingChange.bind(this));
 
         // 影片页增强事件监听
         this.enableVideoEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1442,6 +1447,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
         if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
         if (this.enableActorWatermark) this.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
+        // 🆕 状态标签显示
+        if (this.showStatusBadge) this.showStatusBadge.checked = (listEnhancement as any).showStatusBadge !== false; // 默认启用
 
         // 预览来源回填
         const preferred = (listEnhancement as any).preferredPreviewSource || 'auto';
@@ -1725,6 +1732,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         columnCount: parseInt(this.listColumnCount?.value || '4'),
                         containerWidth: parseInt(this.listContainerWidth?.value || '100'),
                     },
+                    // 🆕 状态标签显示
+                    showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
                 },
                 actorEnhancement: {
                     // 若任一子项启用即视为启用演员页增强
@@ -1813,6 +1822,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     columnCount: parseInt(this.listColumnCount?.value || '4'),
                     containerWidth: parseInt(this.listContainerWidth?.value || '100'),
                 },
+                // 🆕 状态标签显示
+                showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
             },
             anchorOptimization: {
                 enabled: this.enableAnchorOptimization.checked,

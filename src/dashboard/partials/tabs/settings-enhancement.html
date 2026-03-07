@@ -42,6 +42,7 @@
                                     <input type="checkbox" id="enablePasswordHelper">
                                     <input type="checkbox" id="enableVideoFavoriteRating">
                                     <input type="checkbox" id="enableListDisplayControl">
+                                    <input type="checkbox" id="showStatusBadge">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
                                     <input type="checkbox" id="veEnableReviewBreaker">
@@ -555,6 +556,27 @@
                                         </div>
                                     </div>
                                     <!-- 列表页显示控制 结束 -->
+
+                                    <!-- 🆕 状态标签显示 -->
+                                    <div class="form-group" data-subtab="list">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🏷️ 状态标签显示</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="showStatusBadge"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在列表页卡片上显示状态标签（已观看/想看/已浏览），方便快速识别观看状态。<br>
+                                            <strong>说明：</strong>标签会显示在影片卡片的标签区域，使用不同颜色区分状态。<br>
+                                            <strong>适用：</strong>所有影片列表页面。
+                                        </p>
+                                    </div>
+                                    <!-- 状态标签显示 结束 -->
 
                                     <!-- 新：📝 演员备注（Wiki/xslist）（独立区块） -->
                                     <div class="form-group" data-subtab="video">
