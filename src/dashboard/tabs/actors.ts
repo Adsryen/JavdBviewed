@@ -8,15 +8,15 @@ import { showMessage } from '../ui/toast';
 import { getSettings } from '../../utils/storage';
 import { showDanger } from '../components/confirmModal';
 import { logAsync } from '../logger';
-import type { ActorRecord, ActorSearchResult, ExtensionSettings } from '../../types';
+import type { ActorRecord, ActorPagedSearchResult, ExtensionSettings } from '../../types';
 import { buildJavDBUrl } from '../../utils/routeManager';
 
 export class ActorsTab {
     private currentPage = 1;
     private pageSize = 20;
     private currentQuery = '';
-    private currentSort = 'name';
-    private currentOrder: 'asc' | 'desc' = 'asc';
+    private currentSort = 'updatedAt';
+    private currentOrder: 'asc' | 'desc' = 'desc';
     private currentGenderFilter = '';
     private currentCategoryFilter = '';
     private currentBlacklistFilter: 'all' | 'exclude' | 'only' = 'all';
@@ -24,6 +24,7 @@ export class ActorsTab {
     private isLoading = false;
     public isInitialized = false;
     private settings?: ExtensionSettings;
+    private currentViewMode: 'list' | 'card' = 'list';
 
     /**
      * 初始化演员库标签页
@@ -68,6 +69,8 @@ export class ActorsTab {
         // 排序选择
         const sortSelect = document.getElementById('actorSortSelect') as HTMLSelectElement;
         if (sortSelect) {
+            // 设置默认值为最新更新时间
+            sortSelect.value = 'updatedAt_desc';
             sortSelect.addEventListener('change', () => {
                 const [sortBy, order] = sortSelect.value.split('_');
                 this.currentSort = sortBy;
@@ -180,6 +183,16 @@ export class ActorsTab {
                 this.updateStats();
             });
         }
+
+        // 视图模式切换按钮
+        const toggleViewModeBtn = document.getElementById('toggleActorViewModeBtn');
+        if (toggleViewModeBtn) {
+            toggleViewModeBtn.addEventListener('click', () => {
+                this.currentViewMode = this.currentViewMode === 'list' ? 'card' : 'list';
+                this.updateViewModeBtnUI();
+                this.loadActors();
+            });
+        }
     }
 
     /**
@@ -204,7 +217,7 @@ export class ActorsTab {
 
         try {
             if (!this.subscribedOnly) {
-                const result: ActorSearchResult = await actorManager.searchActors(
+                const result: ActorPagedSearchResult = await actorManager.searchActors(
                     this.currentQuery,
                     this.currentPage,
                     this.pageSize,
@@ -256,7 +269,7 @@ export class ActorsTab {
                 const total = actors.length;
                 const start = (this.currentPage - 1) * this.pageSize;
                 const pageActors = actors.slice(start, start + this.pageSize);
-                const result: ActorSearchResult = {
+                const result: ActorPagedSearchResult = {
                     actors: pageActors,
                     total,
                     page: this.currentPage,
@@ -277,9 +290,42 @@ export class ActorsTab {
     }
 
     /**
+     * 更新视图模式按钮状态
+     */
+    private updateViewModeBtnUI(): void {
+        const toggleViewModeBtn = document.getElementById('toggleActorViewModeBtn');
+        if (!toggleViewModeBtn) return;
+        
+        const icon = toggleViewModeBtn.querySelector('.view-icon') as HTMLElement;
+        const text = toggleViewModeBtn.querySelector('.view-text') as HTMLElement;
+        
+        if (this.currentViewMode === 'list') {
+            toggleViewModeBtn.classList.remove('card-mode');
+            toggleViewModeBtn.classList.add('list-mode');
+            if (icon) {
+                icon.className = 'fas fa-list view-icon';
+            }
+            if (text) {
+                text.textContent = '列表视图';
+            }
+            toggleViewModeBtn.title = '切换到卡片视图';
+        } else {
+            toggleViewModeBtn.classList.remove('list-mode');
+            toggleViewModeBtn.classList.add('card-mode');
+            if (icon) {
+                icon.className = 'fas fa-th-large view-icon';
+            }
+            if (text) {
+                text.textContent = '卡片视图';
+            }
+            toggleViewModeBtn.title = '切换到列表视图';
+        }
+    }
+
+    /**
      * 渲染演员列表
      */
-    private async renderActorList(result: ActorSearchResult): Promise<void> {
+    private async renderActorList(result: ActorPagedSearchResult): Promise<void> {
         const container = document.getElementById('actorListContainer');
         if (!container) return;
 
@@ -306,7 +352,17 @@ export class ActorsTab {
         }
 
         const actorCards = result.actors.map(actor => this.createActorCard(actor, subscribedSet.has(actor.id))).join('');
-        container.innerHTML = `<div class="actor-grid">${actorCards}</div>`;
+        
+        // 根据视图模式应用不同的容器类
+        const containerClass = this.currentViewMode === 'card' ? 'actor-grid' : 'actor-list';
+        container.innerHTML = `<div class="${containerClass}">${actorCards}</div>`;
+        
+        // 如果是列表视图，添加对应的类到容器
+        if (this.currentViewMode === 'list') {
+            container.classList.add('list-view');
+        } else {
+            container.classList.remove('list-view');
+        }
 
         // 为每个演员卡片添加头像和事件监听器
         result.actors.forEach(actor => {
@@ -404,6 +460,17 @@ export class ActorsTab {
                         </span>
                         ${worksCount > 0 ? `<span class="actor-works-count">${worksCount} 作品</span>` : ''}
                         ${blacklistBadge}
+                        ${actor.wikiData?.age ? `<span class="actor-wiki-age" title="年龄">🎂 ${actor.wikiData.age}岁</span>` : ''}
+                        ${actor.wikiData?.heightCm ? `<span class="actor-wiki-height" title="身高">📏 ${actor.wikiData.heightCm}cm</span>` : ''}
+                        ${actor.wikiData?.cup ? `<span class="actor-wiki-cup" title="罩杯">👙 ${actor.wikiData.cup}</span>` : ''}
+                        ${actor.wikiData?.retired ? `<span class="actor-wiki-retired" title="已引退">🚪 引退</span>` : ''}
+                        ${(actor.wikiData?.ig || actor.wikiData?.tw || actor.wikiData?.wikiUrl) ? `
+                            <div class="actor-social-links">
+                                ${actor.wikiData?.ig ? `<a href="${actor.wikiData.ig}" target="_blank" class="actor-social-link" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+                                ${actor.wikiData?.tw ? `<a href="${actor.wikiData.tw}" target="_blank" class="actor-social-link" title="Twitter/X"><i class="fab fa-twitter"></i></a>` : ''}
+                                ${actor.wikiData?.wikiUrl ? `<a href="${actor.wikiData.wikiUrl}" target="_blank" class="actor-social-link" title="Wikipedia"><i class="fab fa-wikipedia-w"></i></a>` : ''}
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="actor-card-sync">
                         <span class="sync-status sync-status-${actor.syncInfo?.syncStatus || 'unknown'}">
@@ -422,6 +489,11 @@ export class ActorsTab {
                             data-actor-id="${actor.id}"
                             title="编辑源数据">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="actor-action-btn actor-refresh-btn"
+                            data-actor-id="${actor.id}"
+                            title="刷新元数据">
+                        <i class="fas fa-sync-alt"></i>
                     </button>
                     <button class="actor-action-btn actor-delete-btn"
                             data-actor-id="${actor.id}"
@@ -487,6 +559,101 @@ export class ActorsTab {
                 e.preventDefault();
                 const actorId = (e.currentTarget as HTMLElement).dataset.actorId!;
                 this.editActorSourceData(actorId);
+            });
+        }
+
+        // 刷新元数据按钮事件
+        const refreshBtn = document.querySelector(`[data-actor-id="${actor.id}"].actor-refresh-btn`);
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const btn = e.currentTarget as HTMLButtonElement;
+                const actorId = btn.dataset.actorId!;
+                
+                // 防止重复点击
+                if (btn.classList.contains('refreshing')) return;
+                
+                try {
+                    btn.classList.add('refreshing');
+                    btn.disabled = true;
+                    
+                    // 调用刷新方法
+                    const result = await this.refreshActorMetadata(actorId);
+                    
+                    // 显示更新的详细信息
+                    const changesList: string[] = [];
+                    if (result.changes.nameChanged) {
+                        changesList.push(`名称: ${result.changes.oldName} → ${result.changes.newName}`);
+                    }
+                    if (result.changes.avatarChanged) {
+                        changesList.push('头像已更新');
+                    }
+                    if (result.changes.genderChanged) {
+                        const genderMap: Record<string, string> = {
+                            'female': '女性',
+                            'male': '男性',
+                            'unknown': '未知'
+                        };
+                        const oldGender = genderMap[result.changes.oldGender || 'unknown'] || result.changes.oldGender;
+                        const newGender = genderMap[result.changes.newGender || 'unknown'] || result.changes.newGender;
+                        changesList.push(`性别: ${oldGender} → ${newGender}`);
+                    }
+                    if (result.changes.categoryChanged) {
+                        const categoryMap: Record<string, string> = {
+                            'censored': '有码',
+                            'uncensored': '无码',
+                            'western': '欧美',
+                            'unknown': '未知'
+                        };
+                        const oldCategory = categoryMap[result.changes.oldCategory || 'unknown'] || result.changes.oldCategory;
+                        const newCategory = categoryMap[result.changes.newCategory || 'unknown'] || result.changes.newCategory;
+                        changesList.push(`分类: ${oldCategory} → ${newCategory}`);
+                    }
+                    
+                    // 显示Wiki数据
+                    if (result.wikiData) {
+                        changesList.push('\n📚 Wiki数据:');
+                        if (result.wikiData.age !== undefined) {
+                            changesList.push(`  年龄: ${result.wikiData.age}岁`);
+                        }
+                        if (result.wikiData.heightCm !== undefined) {
+                            changesList.push(`  身高: ${result.wikiData.heightCm}cm`);
+                        }
+                        if (result.wikiData.cup) {
+                            changesList.push(`  罩杯: ${result.wikiData.cup}`);
+                        }
+                        if (result.wikiData.retired !== undefined) {
+                            changesList.push(`  引退: ${result.wikiData.retired ? '是' : '否'}`);
+                        }
+                        if (result.wikiData.ig) {
+                            changesList.push(`  Instagram: ${result.wikiData.ig}`);
+                        }
+                        if (result.wikiData.tw) {
+                            changesList.push(`  Twitter: ${result.wikiData.tw}`);
+                        }
+                        if (result.wikiData.wikiUrl) {
+                            changesList.push(`  Wikipedia: ${result.wikiData.wikiUrl}`);
+                        }
+                        if (result.wikiData.xslistUrl) {
+                            changesList.push(`  XsList: ${result.wikiData.xslistUrl}`);
+                        }
+                        changesList.push(`  数据来源: ${result.wikiData.source || 'unknown'}`);
+                    } else {
+                        changesList.push('\n📚 Wiki数据: 未获取到数据');
+                    }
+                    
+                    if (changesList.length > 0) {
+                        showMessage(`演员元数据已刷新\n\n${changesList.join('\n')}`, 'success');
+                    } else {
+                        showMessage('演员元数据已刷新（无变化）', 'info');
+                    }
+                } catch (err) {
+                    console.error('[Actor] 刷新元数据失败:', err);
+                    showMessage('刷新元数据失败', 'error');
+                } finally {
+                    btn.classList.remove('refreshing');
+                    btn.disabled = false;
+                }
             });
         }
 
@@ -582,7 +749,7 @@ export class ActorsTab {
     /**
      * 渲染分页控件
      */
-    private renderPagination(result: ActorSearchResult): void {
+    private renderPagination(result: ActorPagedSearchResult): void {
         const container = document.getElementById('actorPaginationContainer');
         if (!container) return;
 
@@ -1056,7 +1223,6 @@ export class ActorsTab {
                 avatarUrl: avatarInput.value.trim() || undefined,
                 blacklisted: !!(blacklistedCheckbox && blacklistedCheckbox.checked),
                 profileUrl: actor.profileUrl,
-                worksUrl: actor.worksUrl,
                 details: actor.details,
                 syncInfo: actor.syncInfo,
                 createdAt: actor.createdAt,
@@ -1174,6 +1340,217 @@ export class ActorsTab {
                 showMessage(`保存失败: ${error.message}`, 'error');
             }
         });
+    }
+
+    /**
+     * 刷新演员元数据
+     */
+    async refreshActorMetadata(actorId: string): Promise<{
+        success: boolean;
+        changes: {
+            nameChanged: boolean;
+            oldName?: string;
+            newName?: string;
+            avatarChanged: boolean;
+            genderChanged: boolean;
+            oldGender?: string;
+            newGender?: string;
+            categoryChanged: boolean;
+            oldCategory?: string;
+            newCategory?: string;
+        };
+        wikiData?: {
+            age?: number;
+            heightCm?: number;
+            cup?: string;
+            retired?: boolean;
+            ig?: string;
+            tw?: string;
+            wikiUrl?: string;
+            xslistUrl?: string;
+            source?: string;
+        };
+    }> {
+        try {
+            // 获取当前演员信息
+            const actor = await actorManager.getActorById(actorId);
+            if (!actor) {
+                throw new Error('演员不存在');
+            }
+
+            // 构建JavDB演员页面URL
+            const actorUrl = await buildJavDBUrl(`/actors/${actorId}`);
+            
+            // 抓取演员页面HTML
+            const response = await fetch(actorUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const html = await response.text();
+            
+            // 清理HTML中的外部资源引用，避免CSP警告
+            const cleanHtml = html
+                .replace(/<link[^>]*>/gi, '') // 移除所有link标签
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // 移除所有script标签
+                .replace(/<script[^>]*>/gi, '') // 移除单独的script开始标签
+                .replace(/<\/script>/gi, ''); // 移除单独的script结束标签
+            
+            // 解析HTML获取演员信息
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(cleanHtml, 'text/html');
+            
+            // 解析演员名称
+            const nameEl = doc.querySelector('.actor-section-name') || doc.querySelector('.title.is-4');
+            let nameRaw = (nameEl?.textContent || '').trim();
+            nameRaw = nameRaw.replace(/\s+/g, ' ');
+            let nameText = nameRaw
+                .replace(/\d+\s*部\s*(影片|作品)/gi, '')
+                .replace(/共\s*\d+\s*部(?:\s*(影片|作品))?/gi, '')
+                .replace(/\d+\s*(个|件)?\s*(影片|作品)/gi, '')
+                .replace(/[·・•]\s*\d+\s*(部)?\s*(影片|作品)/gi, '')
+                .replace(/[\(（]\s*\d+\s*(部)?\s*(影片|作品)[^\)）]*[\)）]/gi, '')
+                .replace(/[·・•|｜]\s*$/, '')
+                .trim();
+            
+            // 按逗号分隔名字，第一个是主名字，其余是别名
+            let name = nameText;
+            let aliases: string[] = [];
+            
+            if (nameText.includes(',') || nameText.includes('，')) {
+                const nameParts = nameText.split(/[,，]/).map(part => part.trim()).filter(part => part);
+                if (nameParts.length > 0) {
+                    name = nameParts[0]; // 第一个作为主名字
+                    aliases = nameParts.slice(1); // 其余作为别名
+                }
+            }
+            
+            if (!name) name = actorId;
+            
+            // 解析头像
+            const avatarImg = doc.querySelector('.actor-section img, .performer-avatar img, .avatar img') as HTMLImageElement | null;
+            const avatarUrl = avatarImg?.src || actor.avatarUrl;
+            
+            // 检测性别 - 默认为女性，只有明确标注男優才是男性
+            let gender: 'female' | 'male' | 'unknown' = 'female';
+            const genderTags = doc.querySelectorAll('.panel-block .tag');
+            for (const tag of Array.from(genderTags)) {
+                const text = tag.textContent?.trim().toLowerCase() || '';
+                if (text.includes('♂') || text.includes('男') || text.includes('male') || text.includes('男優') || text.includes('男优')) {
+                    gender = 'male';
+                    break;
+                }
+            }
+            
+            // 检测分类
+            let category: 'censored' | 'uncensored' | 'western' | 'unknown' = 'unknown';
+            if (actor.category === 'censored' || actor.category === 'uncensored' || actor.category === 'western') {
+                category = actor.category;
+            }
+            for (const tag of Array.from(genderTags)) {
+                const text = tag.textContent?.trim() || '';
+                if (text.includes('無碼') || text.includes('无码')) {
+                    category = 'uncensored';
+                    break;
+                } else if (text.includes('有碼') || text.includes('有码')) {
+                    category = 'censored';
+                    break;
+                } else if (text.includes('歐美') || text.includes('欧美')) {
+                    category = 'western';
+                    break;
+                }
+            }
+            
+            // 获取Wiki数据
+            let wikiData: any = undefined;
+            try {
+                logAsync('INFO', '开始获取Wiki数据', { actorName: name });
+                const { actorExtraInfoService } = await import('../../services/actorRemarks/index');
+                const remarks = await actorExtraInfoService.getActorRemarks(name);
+                if (remarks) {
+                    wikiData = {
+                        age: remarks.age,
+                        heightCm: remarks.heightCm,
+                        cup: remarks.cup,
+                        retired: remarks.retired,
+                        ig: remarks.ig,
+                        tw: remarks.tw,
+                        wikiUrl: remarks.wikiUrl,
+                        xslistUrl: remarks.xslistUrl,
+                        source: remarks.source,
+                        fetchedAt: Date.now()
+                    };
+                    logAsync('INFO', 'Wiki数据获取成功', { actorName: name, wikiData });
+                } else {
+                    logAsync('INFO', 'Wiki数据获取失败或无数据', { actorName: name });
+                }
+            } catch (wikiError) {
+                logAsync('WARN', 'Wiki数据获取出错', { actorName: name, error: wikiError });
+            }
+            
+            // 记录变更信息
+            const changes = {
+                nameChanged: actor.name !== name,
+                oldName: actor.name,
+                newName: name,
+                avatarChanged: actor.avatarUrl !== avatarUrl,
+                genderChanged: actor.gender !== gender,
+                oldGender: actor.gender,
+                newGender: gender,
+                categoryChanged: actor.category !== category,
+                oldCategory: actor.category,
+                newCategory: category
+            };
+            
+            // 合并别名：保留原有别名，添加新解析的别名（去重）
+            const existingAliases = actor.aliases || [];
+            const allAliases = [...new Set([...existingAliases, ...aliases])];
+            
+            // 更新演员记录
+            const updatedActor: ActorRecord = {
+                ...actor,
+                name,
+                aliases: allAliases,
+                avatarUrl,
+                gender,
+                category,
+                updatedAt: Date.now(),
+                syncInfo: {
+                    ...actor.syncInfo,
+                    source: 'javdb',
+                    lastSyncAt: Date.now(),
+                    syncStatus: 'success'
+                },
+                // 保存Wiki数据
+                wikiData: wikiData || actor.wikiData
+            };
+            
+            // 保存更新后的演员信息
+            await actorManager.saveActor(updatedActor);
+            
+            // 刷新列表和统计
+            await this.loadActors();
+            await this.updateStats();
+            
+            // 广播全局事件
+            document.dispatchEvent(new Event('actors-data-updated'));
+            
+            logAsync('INFO', '演员元数据已刷新', {
+                actorId,
+                actorName: name,
+                changes,
+                wikiData
+            });
+            
+            return {
+                success: true,
+                changes,
+                wikiData
+            };
+        } catch (error: any) {
+            console.error('[Actor] Failed to refresh actor metadata:', error);
+            throw error;
+        }
     }
 
     /**

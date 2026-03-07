@@ -5,7 +5,7 @@
 /* 搜索和过滤区域 */
 .search-and-filter {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr auto;
     gap: 12px;
     margin-bottom: 24px;
     padding: 20px;
@@ -259,6 +259,14 @@
     margin-top: 24px;
 }
 
+/* 卡片视图下的别名居左对齐 */
+.actor-grid .actor-card-aliases {
+    align-items: flex-start;
+}
+
+.actor-grid .actor-aliases-list {
+    justify-content: flex-start;
+}
 
 
 /* 演员卡片 */
@@ -406,7 +414,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    align-items: center;
+    align-items: flex-start;
     position: relative;
     /* 默认不限制高度，让内容自然显示 */
 }
@@ -427,7 +435,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    justify-content: center;
+    justify-content: flex-start;
     max-width: 100%;
     /* 默认不限制高度 */
 }
@@ -502,8 +510,8 @@
     transform: scale(1.05);
 }
 
-/* 渐变遮罩效果（当有溢出时） */
-.actor-card-aliases.has-overflow:not(.expanded)::after {
+/* 渐变遮罩效果（当有溢出时） - 已移除 */
+/* .actor-card-aliases.has-overflow:not(.expanded)::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -513,7 +521,7 @@
     background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
     pointer-events: none;
     z-index: 3;
-}
+} */
 
 /* 展开状态下的最大高度限制 */
 .actor-card-aliases.expanded {
@@ -758,7 +766,7 @@
     z-index: 3;
     display: flex;
     justify-content: center;
-    gap: 12px;
+    gap: 8px;
     padding: 16px;
     background: var(--surface-primary);
     backdrop-filter: blur(10px);
@@ -784,31 +792,110 @@
 }
 
 .actor-action-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
 
-/* 查看作品按钮特殊样式 */
+/* 查看作品按钮 - 蓝色 */
+.actor-works-btn {
+    background: var(--info-light);
+    color: var(--info);
+    border-color: var(--info);
+}
+
 .actor-works-btn:hover {
-    background: rgba(231, 243, 255, 0.9);
-    color: #0066cc;
-    border-color: rgba(179, 217, 255, 0.8);
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
 }
 
-/* 编辑按钮特殊样式 */
+/* 编辑按钮 - 橙色 */
+.actor-edit-btn {
+    background: var(--warning-light);
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
 .actor-edit-btn:hover {
-    background: rgba(255, 243, 205, 0.9);
-    color: #856404;
-    border-color: rgba(255, 226, 128, 0.8);
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
 }
 
-/* 删除按钮特殊样式 */
+/* 删除按钮 - 红色 */
+.actor-delete-btn {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
 .actor-delete-btn:hover {
-    background: rgba(248, 215, 218, 0.9);
-    color: #721c24;
-    border-color: rgba(245, 198, 203, 0.8);
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+/* 拉黑/取消拉黑按钮 - 灰色/黑色 */
+.actor-blacklist-toggle-btn {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.actor-blacklist-toggle-btn:hover {
+    background: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.actor-card[data-blacklisted="true"] .actor-blacklist-toggle-btn {
+    background: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.actor-card[data-blacklisted="true"] .actor-blacklist-toggle-btn:hover {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+/* 订阅按钮 - 绿色 */
+.actor-subscribe-toggle-btn {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.actor-subscribe-toggle-btn:hover {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+.actor-subscribe-toggle-btn[data-sub="1"] {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+.actor-subscribe-toggle-btn[data-sub="1"]:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+/* 刷新元数据按钮 - 紫色 */
+.actor-refresh-btn {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.actor-refresh-btn:hover {
+    background: #6f42c1;
+    color: white;
+    border-color: #6f42c1;
 }
 
 /* 无演员状态 */
@@ -1189,4 +1276,691 @@
 
 .stats-section .stat-card.clickable:hover::after {
     opacity: 0.6;
+}
+
+/* ===================================================================
+   列表视图样式 - List View Styles
+   ================================================================ */
+
+/* 列表容器 */
+.actor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 列表视图下的演员卡片 */
+.actor-list .actor-card {
+    height: auto;
+    min-height: 100px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 16px 20px;
+    gap: 20px;
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+}
+
+.actor-list .actor-card:hover {
+    transform: translateX(4px);
+    border-left-color: var(--primary);
+    box-shadow: var(--shadow-lg);
+}
+
+/* 列表视图下不显示背景图 */
+.actor-list .actor-card::before,
+.actor-list .actor-card::after {
+    display: none;
+}
+
+/* 列表视图下的头像容器 */
+.actor-list .actor-card-avatar {
+    margin: 0;
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    position: relative;
+}
+
+/* 列表视图下的头像改为方形圆角 */
+.actor-list .actor-card-avatar .actor-avatar {
+    border-radius: 12px !important;
+}
+
+/* 列表视图下的头像添加边框效果 */
+.actor-list .actor-card-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary), var(--success));
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.actor-list .actor-card:hover .actor-card-avatar::after {
+    opacity: 0.3;
+}
+
+/* 列表视图下的信息区域 - 优化为更清晰的三列布局 */
+.actor-list .actor-card-info {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(200px, auto) 1fr minmax(200px, auto);
+    grid-template-rows: auto auto;
+    gap: 12px 20px;
+    padding: 0;
+    align-items: start;
+}
+
+/* 列表视图下的名字 - 第一行第一列 */
+.actor-list .actor-card-name {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+}
+
+/* 列表视图下的元信息 - 第一行第二列 */
+.actor-list .actor-card-meta {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.actor-list .actor-card-meta > * {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* 社交媒体链接容器 - 在元信息区域内 */
+.actor-list .actor-card-meta .actor-social-links {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 0;
+    margin-left: 4px;
+}
+
+/* 列表视图下的同步信息 - 第一行第三列 */
+.actor-list .actor-card-sync {
+    grid-column: 3;
+    grid-row: 1;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
+}
+
+.actor-list .actor-card-sync .sync-status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.actor-list .actor-card-sync .sync-time {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.actor-list .actor-card-sync .sync-time::before {
+    content: '🕐';
+    font-size: 14px;
+}
+
+/* 列表视图下的别名 - 第二行，跨三列 */
+.actor-list .actor-card-aliases {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-bottom: 0;
+    max-height: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+}
+
+/* 列表视图下移除渐变遮罩效果 */
+.actor-list .actor-card-aliases::after {
+    display: none;
+}
+
+/* 列表视图下隐藏"别名"标签 */
+.actor-list .actor-card-aliases::before {
+    display: none;
+}
+
+.actor-list .actor-card-aliases .actor-aliases-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: none;
+    flex: 1;
+    justify-content: flex-start;
+}
+
+.actor-list .actor-card-aliases .actor-alias {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
+    white-space: nowrap;
+}
+
+/* 列表视图下隐藏别名展开按钮 */
+.actor-list .actor-card-aliases .aliases-toggle-btn {
+    display: none;
+}
+
+/* 列表视图下的操作按钮 */
+.actor-list .actor-card-actions {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin-left: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.actor-list .actor-action-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    padding: 0;
+    min-width: 36px;
+}
+
+/* 查看作品按钮 - 蓝色 */
+.actor-list .actor-works-btn {
+    background: var(--info-light);
+    color: var(--info);
+    border-color: var(--info);
+}
+
+.actor-list .actor-works-btn:hover {
+    background: var(--info);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* 编辑按钮 - 橙色 */
+.actor-list .actor-edit-btn {
+    background: var(--warning-light);
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
+.actor-list .actor-edit-btn:hover {
+    background: var(--warning);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* 删除按钮 - 红色 */
+.actor-list .actor-delete-btn {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.actor-list .actor-delete-btn:hover {
+    background: var(--danger);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* 拉黑/取消拉黑按钮 - 灰色/黑色 */
+.actor-list .actor-blacklist-toggle-btn {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.actor-list .actor-blacklist-toggle-btn:hover {
+    background: #6c757d;
+    color: white;
+    transform: scale(1.1);
+}
+
+.actor-list .actor-card[data-blacklisted="true"] .actor-blacklist-toggle-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.actor-list .actor-card[data-blacklisted="true"] .actor-blacklist-toggle-btn:hover {
+    background: var(--success);
+    color: white;
+}
+
+/* 订阅按钮 - 绿色 */
+.actor-list .actor-subscribe-toggle-btn {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.actor-list .actor-subscribe-toggle-btn:hover {
+    background: var(--success);
+    color: white;
+    transform: scale(1.1);
+}
+
+.actor-list .actor-subscribe-toggle-btn[data-sub="1"] {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+.actor-list .actor-subscribe-toggle-btn[data-sub="1"]:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* 刷新元数据按钮 - 紫色 */
+.actor-list .actor-refresh-btn {
+    background: rgba(111, 66, 193, 0.1);
+    color: #6f42c1;
+    border-color: #6f42c1;
+}
+
+.actor-list .actor-refresh-btn:hover {
+    background: #6f42c1;
+    color: white;
+    transform: scale(1.1);
+}
+
+.actor-list .actor-refresh-btn.refreshing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 列表视图下的性别标签样式优化 */
+.actor-list .actor-gender {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actor-list .actor-gender::before {
+    font-size: 14px;
+}
+
+.actor-list .actor-gender-female::before {
+    content: '♀';
+}
+
+.actor-list .actor-gender-male::before {
+    content: '♂';
+}
+
+.actor-list .actor-gender-unknown::before {
+    content: '?';
+}
+
+/* 列表视图下的分类标签样式优化 */
+.actor-list .actor-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actor-list .actor-category::before {
+    font-size: 12px;
+}
+
+.actor-list .actor-category-censored::before {
+    content: '🔒';
+}
+
+.actor-list .actor-category-uncensored::before {
+    content: '🔓';
+}
+
+.actor-list .actor-category-western::before {
+    content: '🌍';
+}
+
+/* 列表视图下的作品数量样式 */
+.actor-list .actor-works-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--info-light);
+    color: var(--info);
+}
+
+.actor-list .actor-works-count::before {
+    content: '🎬';
+    font-size: 12px;
+}
+
+/* 列表视图下的黑名单徽章 */
+.actor-list .actor-badge-blacklisted {
+    background: var(--danger-light);
+    color: var(--danger);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actor-list .actor-badge-blacklisted::before {
+    content: '🚫';
+    font-size: 12px;
+}
+
+/* 列表视图下的订阅按钮高亮 */
+.actor-list .actor-subscribe-toggle-btn[data-sub="1"] {
+    background: var(--warning-light);
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
+/* 列表视图下的拉黑状态卡片样式 */
+.actor-list .actor-card[data-blacklisted="true"] {
+    opacity: 0.7;
+    background: var(--surface-secondary);
+}
+
+/* 列表视图下添加分隔线效果 */
+.actor-list .actor-card:not(:last-child) {
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 0;
+}
+
+/* 视图切换按钮样式 */
+.view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    font-size: 14px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+}
+
+.view-toggle:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.view-toggle.list-mode {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary-lighter));
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.view-toggle.card-mode {
+    background: linear-gradient(135deg, var(--success-light), var(--success-lighter));
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.view-icon {
+    font-size: 16px;
+}
+
+.view-text {
+    font-weight: 500;
+}
+
+/* 响应式 - 列表视图 */
+@media (max-width: 1024px) {
+    .actor-list .actor-card {
+        grid-template-columns: auto 1fr;
+        gap: 16px;
+    }
+
+    .actor-list .actor-card-actions {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        align-self: start;
+        margin-left: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 768px) {
+    .actor-list .actor-card {
+        grid-template-columns: auto 1fr;
+        padding: 12px 16px;
+        gap: 12px;
+    }
+
+    .actor-list .actor-card-avatar {
+        width: 60px;
+        height: 60px;
+    }
+
+    .actor-list .actor-card-info {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .actor-list .actor-card-name {
+        grid-column: 1;
+        font-size: 16px;
+    }
+
+    .actor-list .actor-card-meta {
+        grid-column: 1;
+        grid-row: 2;
+        margin-left: 0;
+    }
+
+    .actor-list .actor-card-aliases {
+        grid-row: 3;
+    }
+
+    .actor-list .actor-card-sync {
+        grid-row: 4;
+        flex-wrap: wrap;
+    }
+
+    .actor-list .actor-card-actions {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        gap: 6px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .actor-list .actor-action-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+}
+
+@media (max-width: 480px) {
+    .actor-list .actor-card {
+        grid-template-columns: 1fr;
+    }
+
+    .actor-list .actor-card-avatar {
+        margin: 0 auto;
+    }
+
+    .actor-list .actor-card-actions {
+        grid-column: 1;
+        grid-row: auto;
+        flex-direction: row;
+        justify-content: center;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+}
+
+/* 搜索和过滤区域响应式 - 添加视图切换按钮后 */
+@media (max-width: 1400px) {
+    .search-and-filter {
+        grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 1fr auto;
+    }
+}
+
+@media (max-width: 1200px) {
+    .search-and-filter {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .search-and-filter {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}
+
+/* Wiki数据样式 */
+.actor-wiki-age,
+.actor-wiki-height,
+.actor-wiki-cup,
+.actor-wiki-retired {
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--info-light);
+    color: var(--info);
+}
+
+.actor-wiki-retired {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+/* 社交媒体链接样式 */
+.actor-social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    margin-left: 4px;
+}
+
+.actor-social-link:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+.actor-social-link i {
+    font-size: 12px;
+}
+
+/* 列表视图下的Wiki数据样式 */
+.actor-list .actor-wiki-age,
+.actor-list .actor-wiki-height,
+.actor-list .actor-wiki-cup,
+.actor-list .actor-wiki-retired {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.actor-list .actor-social-link {
+    width: 28px;
+    height: 28px;
+}
+
+.actor-list .actor-social-link i {
+    font-size: 14px;
+}
+
+/* 夜间模式下的别名样式优化 */
+[data-theme="dark"] .actor-alias {
+    background: rgba(51, 65, 85, 0.3);
+    border-color: rgba(71, 85, 105, 0.5);
+}
+
+[data-theme="dark"] .actor-alias:hover {
+    background: rgba(71, 85, 105, 0.5);
+    border-color: rgba(100, 116, 139, 0.7);
+}
+
+/* 夜间模式下的卡片渐变遮罩优化 */
+[data-theme="dark"] .actor-card::after {
+    background: linear-gradient(180deg,
+        rgba(0, 0, 0, 0.1) 0%,
+        rgba(0, 0, 0, 0.2) 30%,
+        rgba(0, 0, 0, 0.4) 60%,
+        rgba(15, 23, 42, 0.8) 85%,
+        rgba(15, 23, 42, 0.95) 100%);
+}
+
+[data-theme="dark"] .actor-card:hover::after {
+    background: linear-gradient(180deg,
+        rgba(0, 0, 0, 0.05) 0%,
+        rgba(0, 0, 0, 0.15) 30%,
+        rgba(0, 0, 0, 0.3) 60%,
+        rgba(15, 23, 42, 0.85) 85%,
+        rgba(15, 23, 42, 0.98) 100%);
+}
+
+/* 夜间模式下的演员名字容器优化 */
+[data-theme="dark"] .actor-card-name {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .actor-card-name:hover {
+    background: rgba(71, 85, 105, 0.3);
+    border-color: rgba(100, 116, 139, 0.5);
 }

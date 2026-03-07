@@ -31,10 +31,10 @@
             <option value="sub_exclude">已订阅且排除拉黑</option>
         </select>
         <select id="actorSortSelect">
-            <option value="name_asc">按姓名排序 (A-Z)</option>
-            <option value="name_desc">按姓名排序 (Z-A)</option>
             <option value="updatedAt_desc">按更新时间排序 (最新)</option>
             <option value="updatedAt_asc">按更新时间排序 (最旧)</option>
+            <option value="name_asc">按姓名排序 (A-Z)</option>
+            <option value="name_desc">按姓名排序 (Z-A)</option>
             <option value="worksCount_desc">按作品数量排序 (多到少)</option>
             <option value="worksCount_asc">按作品数量排序 (少到多)</option>
         </select>
@@ -44,6 +44,10 @@
             <option value="60">每页 60 个</option>
             <option value="100">每页 100 个</option>
         </select>
+        <button id="toggleActorViewModeBtn" class="button-like view-toggle list-mode" title="切换到卡片视图">
+            <i class="fas fa-list view-icon"></i>
+            <span class="view-text">列表视图</span>
+        </button>
     </div>
 
     <!-- 演员列表容器 -->
