@@ -1,26 +1,62 @@
 ---
-name: Bug Report
-about: Describe the issue you encountered with clear and detailed language
-title: ''
+name: 🐛 Bug Report
+about: Found a bug? Let us know!
+title: '[Bug] '
 labels: bug
 assignees: ''
 
 ---
 
-**Routine Checks**
+## 📋 Environment
 
-[//]: # (Remove the space in the box and fill with an x)
-+ [ ] I have confirmed there are no similar issues currently
-+ [ ] I have confirmed I have upgraded to the latest version
-+ [ ] I have thoroughly read the project README, especially the FAQ section
-+ [ ] I understand and am willing to follow up on this issue, assist with testing and provide feedback 
-+ [ ] I understand and acknowledge the above, and understand that project maintainers have limited time and energy, **issues that do not follow the rules may be ignored or closed directly**
+**Extension Version:** 
+<!-- You can find this in your browser's extension management page -->
 
-**Issue Description**
+**Browser:**
+<!-- e.g., Chrome 120 / Edge 120 / Firefox 120 -->
 
-**Steps to Reproduce**
+**Operating System:**
+<!-- e.g., Windows 11 / macOS 14 / Linux Ubuntu 22.04 -->
 
-**Expected Result**
+## 🐛 Bug Description
 
-**Related Screenshots**
-If none, please delete this section.
+<!-- A clear and concise description of what the bug is -->
+
+
+## 📝 Steps to Reproduce
+
+<!-- Tell us how to reproduce this behavior -->
+
+1. 
+2. 
+3. 
+
+## ✅ Expected Behavior
+
+<!-- What did you expect to happen? -->
+
+
+## 📷 Screenshots or Screen Recording
+
+<!-- If applicable, add screenshots or a screen recording to help explain your problem -->
+
+
+## 📄 Console Logs
+
+<!-- Press F12 to open DevTools, check if there are any error messages in the console -->
+
+```
+Paste console error messages here (if any)
+```
+
+## 💡 Additional Context
+
+<!-- Add any other context about the problem here. When did this start happening? Was it working before? -->
+
+
+---
+
+**Before submitting:**
+- [ ] I have searched for similar issues
+- [ ] I am using the latest version
+- [ ] I am willing to provide additional information if needed
