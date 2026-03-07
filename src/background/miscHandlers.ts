@@ -187,7 +187,7 @@ export function registerMiscRouter(): void {
                     // 立即更新进度（每个演员完成时）
                     identifiedTotal += det.identified || 0;
                     effectiveTotal += det.effective || 0;
-                    discovered += det.discovered || 0;
+                    discovered += det.works.length;
                     processed++;
                     
                     // 发送单个演员完成的进度更新
@@ -759,41 +759,6 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
       }
     };
 
-    const parseTotalFromHtml = (html: string): number | undefined => {
-      try {
-        // 常见“总数”文案匹配：共有/共/合计/合計/總計 等
-        const m = html.match(/(?:共(?:有)?|合(?:计|計)|總(?:計)?|总计)\s*([0-9][0-9,\.]*)\s*(?:部|条|項|项|个|個|影片|作品)/i);
-        if (m && m[1]) {
-          const n = Number(String(m[1]).replace(/[\s,]/g, ''));
-          if (isFinite(n)) return n;
-        }
-      } catch {}
-      return undefined;
-    };
-
-    const extractMaxPage = (html: string): number | undefined => {
-      try {
-        const nums = Array.from(html.matchAll(/\?page=(\d+)/g)).map(m => Number(m[1])).filter(n => isFinite(n));
-        if (nums.length) return Math.max(...nums);
-      } catch {}
-      return undefined;
-    };
-
-    const countItemsOnPage = (html: string): number => {
-      try {
-        // 与同步模块保持一致：匹配 /v/<id> 且排除 reviews 链接
-        const set = new Set<string>();
-        const re = /href="\/v\/([a-zA-Z0-9\-_]+)"(?![^>]*reviews)/g;
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(html)) !== null) set.add(m[1]);
-        if (set.size > 0) return set.size;
-        // 兜底：统计列表项 class="item" 的出现次数
-        const it = html.match(/class="[^"]*\bitem\b[^"]*"/g);
-        return it ? it.length : 0;
-      } catch {
-        return 0;
-      }
-    };
 
     // 仅从 /users/profile 页面解析计数（暂停其他来源）
     const parseWantCountFromHtml = (html: string): number | undefined => {
@@ -819,22 +784,6 @@ async function fetchUserProfileFromJavDB(): Promise<any> {
       return undefined;
     };
 
-    const computeCount = async (baseUrl: string, htmlFirst: string): Promise<number> => {
-      // 优先使用“总数”文案
-      const direct = parseTotalFromHtml(htmlFirst);
-      if (typeof direct === 'number') return direct;
-
-      const totalPages = extractMaxPage(htmlFirst);
-      if (typeof totalPages === 'number' && totalPages > 1) {
-        // 抓取末页，计算最后一页条目数
-        const last = await fetchHtml(`${baseUrl}?page=${totalPages}`);
-        const lastCount = last.ok && last.html ? countItemsOnPage(last.html) : countItemsOnPage(htmlFirst);
-        // JavDB 列表通常每页 20 条
-        return (totalPages - 1) * 20 + lastCount;
-      }
-      // 单页或无法解析分页时，直接统计当前页项目数
-      return countItemsOnPage(htmlFirst);
-    };
 
     const profileUrl = 'https://javdb.com/users/profile';
     const profileRes = await fetchHtml(profileUrl);
@@ -1129,6 +1078,12 @@ async function handleGetTaskDetails(options: any = {}): Promise<any> {
     
     // 按时间戳倒序排序（最新的在前）
     filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    // 限制最多返回 5000 条记录
+    const maxRecords = 5000;
+    if (filtered.length > maxRecords) {
+      filtered = filtered.slice(0, maxRecords);
+    }
     
     // 分页
     const page = options.page || 1;
