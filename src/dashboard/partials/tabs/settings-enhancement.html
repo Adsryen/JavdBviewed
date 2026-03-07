@@ -385,6 +385,24 @@
                                                 <p class="sub-description">控制悬停预览的延迟、音量和来源。</p>
                                             </div>
 
+                                            <!-- 🆕 启用范围选项 -->
+                                            <div class="form-group">
+                                                <label>启用范围</label>
+                                                <div class="checkbox-group">
+                                                    <label class="checkbox-label">
+                                                        <input type="checkbox" id="enableVideoPreviewList" checked>
+                                                        <span class="checkmark"></span>
+                                                        列表页启用预览
+                                                    </label>
+                                                    <label class="checkbox-label">
+                                                        <input type="checkbox" id="enableVideoPreviewDetail" checked>
+                                                        <span class="checkmark"></span>
+                                                        详情页封面预览
+                                                    </label>
+                                                </div>
+                                                <p class="input-description">选择在哪些页面启用视频预览功能。详情页预览会在封面图片上悬停时触发。</p>
+                                            </div>
+
                                             <div class="form-group">
                                                 <label for="previewDelay">预览延迟时间 (毫秒):</label>
                                                 <input type="number" id="previewDelay" class="number-input" min="100" max="5000" value="1000">

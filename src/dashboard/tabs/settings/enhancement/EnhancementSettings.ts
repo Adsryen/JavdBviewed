@@ -68,6 +68,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableClickEnhancementList!: HTMLInputElement;
     private enableClickEnhancementDetail!: HTMLInputElement;
     private enableListVideoPreview!: HTMLInputElement;
+    // 🆕 视频预览启用范围
+    private enableVideoPreviewList!: HTMLInputElement;
+    private enableVideoPreviewDetail!: HTMLInputElement;
     private enableScrollPaging!: HTMLInputElement;
     private previewDelay!: HTMLInputElement;
     private previewVolume!: HTMLInputElement;
@@ -452,6 +455,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancementList = document.getElementById('enableClickEnhancementList') as HTMLInputElement;
         this.enableClickEnhancementDetail = document.getElementById('enableClickEnhancementDetail') as HTMLInputElement;
         this.enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
+        // 🆕 视频预览启用范围
+        this.enableVideoPreviewList = document.getElementById('enableVideoPreviewList') as HTMLInputElement;
+        this.enableVideoPreviewDetail = document.getElementById('enableVideoPreviewDetail') as HTMLInputElement;
         this.enableScrollPaging = document.getElementById('enableScrollPaging') as HTMLInputElement;
         this.enableActorWatermark = document.getElementById('enableActorWatermark') as HTMLInputElement;
         this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
@@ -593,6 +599,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.enableClickEnhancementList?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableClickEnhancementDetail?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
+        // 🆕 视频预览启用范围
+        this.enableVideoPreviewList?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.enableVideoPreviewDetail?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
         this.enableActorWatermark?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showStatusBadge?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1500,6 +1509,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.enableClickEnhancementList) this.enableClickEnhancementList.checked = (listEnhancement as any).enableClickEnhancementList !== false;
         if (this.enableClickEnhancementDetail) this.enableClickEnhancementDetail.checked = (listEnhancement as any).enableClickEnhancementDetail !== false;
         if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
+        // 🆕 视频预览启用范围
+        if (this.enableVideoPreviewList) this.enableVideoPreviewList.checked = (listEnhancement as any).enableVideoPreviewList !== false;
+        if (this.enableVideoPreviewDetail) this.enableVideoPreviewDetail.checked = (listEnhancement as any).enableVideoPreviewDetail !== false;
         if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
         if (this.enableActorWatermark) this.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
         // 🆕 状态标签显示
@@ -1778,6 +1790,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
                     enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
+                    // 🆕 视频预览启用范围
+                    enableVideoPreviewList: this.enableVideoPreviewList?.checked !== false,
+                    enableVideoPreviewDetail: this.enableVideoPreviewDetail?.checked !== false,
                     enableScrollPaging: this.enableScrollPaging?.checked === true,
                     enableListOptimization: true, // 总是启用列表优化
                     previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
@@ -1869,6 +1884,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
                 enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
                 enableVideoPreview: this.enableListVideoPreview?.checked !== false,
+                // 🆕 视频预览启用范围
+                enableVideoPreviewList: this.enableVideoPreviewList?.checked !== false,
+                enableVideoPreviewDetail: this.enableVideoPreviewDetail?.checked !== false,
                 enableScrollPaging: this.enableScrollPaging?.checked === true,
                 enableListOptimization: true,
                 previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
@@ -2012,11 +2030,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     toggle.classList.remove('active');
                 }
 
-                // 如果是"始终开启"的开关，添加禁用样式
-                if (isAlwaysOn) {
-                    toggle.classList.add('always-on');
-                    toggle.setAttribute('disabled', 'true');
-                }
+                // 🆕 始终开启的开关不添加禁用样式，保持正常外观
             };
 
             // 初始化状态
@@ -2031,8 +2045,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // 如果是"始终开启"的开关，阻止点击
-                if (toggle.hasAttribute('disabled') || isAlwaysOn) return;
+                // 🆕 如果是"始终开启"的开关，显示红色提示并阻止关闭
+                if (isAlwaysOn) {
+                    // 显示红色提示
+                    showMessage('此功能为核心功能，不允许关闭', 'error');
+                    return;
+                }
+                
+                // 如果是禁用状态，阻止点击
+                if (toggle.hasAttribute('disabled')) return;
 
                 // 切换状态
                 hiddenCheckbox.checked = !hiddenCheckbox.checked;

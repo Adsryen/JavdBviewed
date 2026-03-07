@@ -16,12 +16,16 @@ export interface EnhancementOptions {
   showLoadingIndicator: boolean;
   enableReviewBreaker: boolean;
   enableFC2Breaker: boolean;
+  enableVideoPreview: boolean; // 🆕 视频预览功能
 }
 
 export class VideoDetailEnhancer {
   private videoId: string | null = null;
   private enhancedData: VideoMetadata | null = null;
   private options: EnhancementOptions;
+  // 🆕 视频预览相关属性
+  private previewTimer: number | null = null;
+  private currentPlayingVideo: HTMLVideoElement | null = null;
   
 
   constructor(options: Partial<EnhancementOptions> = {}) {
@@ -31,8 +35,18 @@ export class VideoDetailEnhancer {
       showLoadingIndicator: true,
       enableReviewBreaker: true,
       enableFC2Breaker: true,
+      enableVideoPreview: true, // 🆕 默认启用视频预览
       ...options,
     };
+    
+    // 🆕 注入视频预览样式
+    if (typeof document !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => this.injectVideoPreviewStyles());
+      } else {
+        this.injectVideoPreviewStyles();
+      }
+    }
   }
 
   /**
@@ -47,6 +61,9 @@ export class VideoDetailEnhancer {
       this.options.showLoadingIndicator = cfg.showLoadingIndicator !== false;
       this.options.enableReviewBreaker = cfg.enableReviewBreaker === true;
       this.options.enableFC2Breaker = cfg.enableFC2Breaker === true;
+      // 🆕 从列表增强配置中读取视频预览设置（详情页专用）
+      const listCfg = STATE.settings?.listEnhancement;
+      this.options.enableVideoPreview = listCfg?.enableVideoPreview !== false && listCfg?.enableVideoPreviewDetail !== false;
     } catch {}
   }
 
@@ -212,9 +229,14 @@ export class VideoDetailEnhancer {
    * 单独运行封面增强（供外部编排 deferred 调用）
    */
   async runCover(): Promise<void> {
-    if (!this.enhancedData) return;
-    if (this.options.enableCoverImage && this.enhancedData.images) {
+    // 如果有增强数据且启用了封面增强，则处理高质量封面
+    if (this.enhancedData && this.options.enableCoverImage && this.enhancedData.images) {
       await this.enhanceCoverImage(this.enhancedData.images);
+    }
+    
+    // 🆕 即使没有增强数据，也为原生封面添加视频预览功能
+    if (this.options.enableVideoPreview && this.videoId) {
+      this.enhanceNativeCoverPreview();
     }
   }
 
@@ -328,6 +350,77 @@ export class VideoDetailEnhancer {
       log('Cover image enhanced');
     } catch (error) {
       log('Error enhancing cover image:', error);
+    }
+    
+    // 注意：不在这里调用 enhanceNativeCoverPreview()，由 runCover() 统一处理
+  }
+
+  /**
+   * 🆕 为原生封面元素添加视频预览功能
+   */
+  private enhanceNativeCoverPreview(): void {
+    try {
+      // 查找原生的封面容器
+      const nativeCoverContainer = document.querySelector('.column-video-cover') as HTMLElement;
+      
+      if (!nativeCoverContainer || !this.videoId) {
+        return;
+      }
+
+      // 如果已经有增强容器，则跳过
+      if (nativeCoverContainer.querySelector('.enhanced-cover-container')) {
+        return;
+      }
+
+      // 添加预览类
+      nativeCoverContainer.classList.add('x-cover', 'x-preview');
+      
+      // 确保容器有正确的定位和尺寸
+      const computedStyle = window.getComputedStyle(nativeCoverContainer);
+      if (computedStyle.position === 'static') {
+        nativeCoverContainer.style.position = 'relative';
+      }
+      
+      // 🆕 确保容器有明确的尺寸，避免视频错位
+      // 获取封面图片的实际尺寸
+      const coverImg = nativeCoverContainer.querySelector('img') as HTMLImageElement;
+      if (coverImg) {
+        // 等待图片加载完成后设置容器尺寸
+        if (coverImg.complete) {
+          this.setContainerSize(nativeCoverContainer, coverImg);
+        } else {
+          coverImg.addEventListener('load', () => {
+            this.setContainerSize(nativeCoverContainer, coverImg);
+          });
+        }
+      }
+
+      // 添加视频预览功能
+      this.enhanceVideoPreview(nativeCoverContainer, this.videoId);
+      
+      log('Native cover preview enhanced');
+    } catch (error) {
+      log('Error enhancing native cover preview:', error);
+    }
+  }
+
+  /**
+   * 🆕 设置容器尺寸以匹配封面图片
+   */
+  private setContainerSize(container: HTMLElement, img: HTMLImageElement): void {
+    try {
+      // 使用图片的显示尺寸（而非自然尺寸）
+      const width = img.offsetWidth || img.clientWidth;
+      const height = img.offsetHeight || img.clientHeight;
+      
+      if (width > 0 && height > 0) {
+        container.style.width = `${width}px`;
+        container.style.height = `${height}px`;
+        container.style.overflow = 'hidden';
+        log(`Container size set to: ${width}x${height}`);
+      }
+    } catch (error) {
+      log('Error setting container size:', error);
     }
   }
 
@@ -766,7 +859,7 @@ export class VideoDetailEnhancer {
    */
   private createEnhancedCoverContainer(coverImage: ImageData, originalSrc: string): HTMLElement {
     const container = document.createElement('div');
-    container.className = 'enhanced-cover-container';
+    container.className = 'enhanced-cover-container x-cover x-preview'; // 🆕 添加预览类
     container.style.cssText = `
       position: relative;
       display: inline-block;
@@ -804,11 +897,18 @@ export class VideoDetailEnhancer {
         border-radius: 4px;
         font-size: 12px;
         font-weight: bold;
+        z-index: 5;
       `;
       container.appendChild(qualityBadge);
     }
 
     container.appendChild(img);
+    
+    // 🆕 添加视频预览功能
+    if (this.options.enableVideoPreview && this.videoId) {
+      this.enhanceVideoPreview(container, this.videoId);
+    }
+    
     return container;
   }
 
@@ -1648,6 +1748,439 @@ export class VideoDetailEnhancer {
     } catch (error) {
       log('[RelatedVideos] Error enhancing related video clicks:', error);
     }
+  }
+
+  // ==================== 🆕 视频预览功能 ====================
+  
+  /**
+   * 注入视频预览样式
+   */
+  private injectVideoPreviewStyles(): void {
+    const styleId = 'video-detail-preview-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      /* 视频详情页预览样式 */
+      .column-video-cover.x-cover,
+      .enhanced-cover-container.x-cover {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .column-video-cover.x-preview,
+      .enhanced-cover-container.x-preview {
+        position: relative;
+        display: block;
+        overflow: hidden;
+      }
+
+      .column-video-cover.x-preview video,
+      .enhanced-cover-container.x-preview video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        z-index: 10;
+        background-color: inherit;
+        opacity: 0;
+        transition: opacity 0.25s ease-in !important;
+      }
+
+      /* 加载状态 */
+      .column-video-cover.x-holding::after,
+      .enhanced-cover-container.x-holding::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #fff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: video-preview-spin 1s linear infinite;
+        z-index: 3;
+      }
+
+      @keyframes video-preview-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+
+    document.head.appendChild(style);
+    log('Video preview styles injected');
+  }
+  
+  /**
+   * 为封面容器添加视频预览功能
+   */
+  private enhanceVideoPreview(coverElement: HTMLElement, videoCode: string): void {
+    // 鼠标悬浮事件
+    coverElement.addEventListener('mouseenter', () => {
+      this.showPreview(coverElement, videoCode);
+    });
+
+    coverElement.addEventListener('mouseleave', (e) => {
+      // 检查是否真的离开了元素
+      const relatedTarget = e.relatedTarget as Node;
+      if (relatedTarget && coverElement.contains(relatedTarget)) {
+        return;
+      }
+      this.hidePreview(coverElement);
+    });
+  }
+
+  /**
+   * 显示视频预览
+   */
+  private showPreview(coverElement: HTMLElement, videoCode: string): void {
+    coverElement.classList.add('x-holding');
+    
+    // 从设置中获取预览延迟
+    const settings = STATE.settings;
+    const delay = Number(settings?.listEnhancement?.previewDelay || 1000);
+    
+    if (delay <= 0) {
+      coverElement.classList.remove('x-holding');
+      return;
+    }
+
+    // 暂停之前正在播放的视频
+    if (this.currentPlayingVideo && this.currentPlayingVideo.parentElement) {
+      this.currentPlayingVideo.pause();
+      this.currentPlayingVideo.style.opacity = '0';
+    }
+
+    // 如果已有视频，直接显示
+    const existingVideo = coverElement.querySelector('video');
+    if (existingVideo) {
+      existingVideo.style.opacity = '1';
+      existingVideo.play().catch(() => {});
+      this.currentPlayingVideo = existingVideo;
+      return;
+    }
+
+    this.previewTimer = window.setTimeout(() => {
+      this.loadVideoPreview(coverElement, videoCode);
+    }, delay < 100 ? 100 : delay);
+  }
+
+  /**
+   * 隐藏视频预览
+   */
+  private hidePreview(coverElement: HTMLElement): void {
+    coverElement.classList.remove('x-holding');
+    
+    if (this.previewTimer) {
+      clearTimeout(this.previewTimer);
+      this.previewTimer = null;
+    }
+
+    const video = coverElement.querySelector('video');
+    if (!video) return;
+
+    video.pause();
+    video.style.opacity = '0';
+    
+    if (this.currentPlayingVideo === video) {
+      this.currentPlayingVideo = null;
+    }
+  }
+
+  /**
+   * 加载视频预览
+   */
+  private async loadVideoPreview(coverElement: HTMLElement, videoCode: string): Promise<void> {
+    if (!coverElement.classList.contains('x-holding')) {
+      return;
+    }
+
+    const existingVideo = coverElement.querySelector('video');
+    if (existingVideo) {
+      existingVideo.style.opacity = '1';
+      existingVideo.play().catch(() => {});
+      this.currentPlayingVideo = existingVideo;
+      return;
+    }
+
+    // 检查localStorage缓存
+    const cacheKey = `video_preview_${videoCode}`;
+    let cachedUrl = null;
+    try {
+      cachedUrl = localStorage.getItem(cacheKey);
+    } catch (e) {
+      log(`Failed to read from localStorage:`, e);
+    }
+
+    if (cachedUrl) {
+      log(`Using cached video URL for ${videoCode}: ${cachedUrl}`);
+      const video = this.createVideoElement([{ url: cachedUrl, type: 'video/mp4' }]);
+      coverElement.appendChild(video);
+      this.currentPlayingVideo = video;
+      video.load();
+      return;
+    }
+
+    try {
+      const videoSources = await this.fetchVideoPreview(videoCode);
+      
+      if (!coverElement.classList.contains('x-holding')) {
+        return;
+      }
+      
+      if (videoSources.length === 0) {
+        log(`No preview sources found for ${videoCode}`);
+        return;
+      }
+
+      // 缓存URL
+      try {
+        localStorage.setItem(cacheKey, videoSources[0].url);
+      } catch (e) {
+        log(`Failed to cache video URL:`, e);
+      }
+
+      const video = this.createVideoElement(videoSources);
+      coverElement.appendChild(video);
+      this.currentPlayingVideo = video;
+      video.load();
+
+    } catch (error) {
+      log(`Failed to load video preview for ${videoCode}:`, error);
+    }
+  }
+
+  /**
+   * 获取视频预览源
+   */
+  private async fetchVideoPreview(videoCode: string): Promise<Array<{ url: string; type: string }>> {
+    const sources: Array<{ url: string; type: string }> = [];
+
+    try {
+      log(`Fetching video preview for code: ${videoCode}`);
+
+      // 获取首选来源配置
+      const settings = STATE.settings;
+      const preferredSource = settings?.listEnhancement?.preferredPreviewSource || 'auto';
+      
+      const autoOrder = ['javdb', 'vbgfl', 'javspyl', 'avpreview'] as const;
+      const order = preferredSource === 'auto' ? autoOrder : ([preferredSource, ...autoOrder.filter(x => x !== preferredSource)] as const);
+      
+      const fetchMethods = order.map((key) => {
+        switch (key) {
+          case 'javspyl':
+            return { name: 'JavSpyl', method: () => this.fetchFromJavSpyl(videoCode) };
+          case 'avpreview':
+            return { name: 'AVPreview', method: () => this.fetchFromAVPreview(videoCode) };
+          case 'vbgfl':
+            return { name: 'VBGFL', method: () => this.fetchFromVBGFL(videoCode) };
+          case 'javdb':
+          default:
+            return { name: 'JavDB', method: () => this.fetchFromJavDB(window.location.href) };
+        }
+      });
+
+      for (const { name, method } of fetchMethods) {
+        try {
+          log(`Trying ${name} for ${videoCode}...`);
+          const url = await method();
+
+          if (url) {
+            log(`${name} returned URL: ${url}`);
+            sources.push({ url, type: 'video/mp4' });
+            break;
+          }
+        } catch (error) {
+          log(`${name} failed for ${videoCode}:`, error);
+        }
+      }
+
+    } catch (error) {
+      log(`Error fetching video preview for ${videoCode}:`, error);
+    }
+
+    return sources;
+  }
+
+  /**
+   * 从VBGFL源获取视频
+   */
+  private async fetchFromVBGFL(code: string): Promise<string | null> {
+    try {
+      const normalizedCode = code.replace(/HEYZO-/gi, "").toLowerCase();
+      const urls: string[] = [];
+
+      // Tokyo Hot
+      const isTokyoHot = /^n\d{3,6}$/i.test(normalizedCode);
+      if (isTokyoHot) {
+        urls.push(`https://my.cdn.tokyo-hot.com/media/samples/${normalizedCode}.mp4`);
+      }
+
+      // Caribbeancom
+      if (code.includes('-') && /^\d{6}-\d{3}$/.test(code)) {
+        urls.push(`https://smovie.caribbeancom.com/sample/movies/${normalizedCode}/720p.mp4`);
+      }
+
+      // 1Pondo
+      if (code.includes('_') || code.includes('-')) {
+        const pondo = code.replace('-', '_').toLowerCase();
+        urls.push(`https://smovie.1pondo.tv/sample/movies/${pondo}/1080p.mp4`);
+      }
+
+      // Heyzo
+      if (code.toLowerCase().includes('heyzo') || /^\d{4}$/.test(normalizedCode)) {
+        const heyzoCode = normalizedCode.replace('heyzo-', '');
+        urls.push(`https://sample.heyzo.com/contents/3000/${heyzoCode}/heyzo_hd_${heyzoCode}_sample.mp4`);
+      }
+
+      if (urls.length > 0) {
+        return urls[0];
+      }
+    } catch (error) {
+      log(`VBGFL fetch error for ${code}:`, error);
+    }
+    return null;
+  }
+
+  /**
+   * 从JavSpyl获取视频
+   */
+  private async fetchFromJavSpyl(code: string): Promise<string | null> {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'FETCH_JAVSPYL_PREVIEW',
+        code: code
+      });
+
+      if (response?.success && response?.videoUrl) {
+        return response.videoUrl;
+      }
+    } catch (error) {
+      log(`JavSpyl fetch error for ${code}:`, error);
+    }
+    return null;
+  }
+
+  /**
+   * 从AVPreview获取视频
+   */
+  private async fetchFromAVPreview(code: string): Promise<string | null> {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'FETCH_AVPREVIEW_PREVIEW',
+        code: code
+      });
+
+      if (response?.success && response?.videoUrl) {
+        return response.videoUrl;
+      }
+    } catch (error) {
+      log(`AVPreview fetch error for ${code}:`, error);
+    }
+    return null;
+  }
+
+  /**
+   * 从JavDB获取视频
+   */
+  private async fetchFromJavDB(detailUrl: string): Promise<string | null> {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'FETCH_JAVDB_PREVIEW',
+        url: detailUrl
+      });
+
+      if (response?.success && response?.videoUrl) {
+        return response.videoUrl;
+      }
+    } catch (error) {
+      log(`JavDB fetch error:`, error);
+    }
+    return null;
+  }
+
+  /**
+   * 创建视频元素
+   */
+  private createVideoElement(sources: Array<{ url: string; type: string }>): HTMLVideoElement {
+    const video = document.createElement('video');
+
+    // 从设置中获取音量配置
+    const settings = STATE.settings;
+    const volume = Number(settings?.listEnhancement?.previewVolume ?? 0.2);
+
+    video.autoplay = true;
+    video.muted = false;
+    video.loop = true;
+    video.playsInline = true;
+    video.controls = true;
+    video.preload = 'metadata';
+    video.volume = Math.max(0, Math.min(1, volume)); // 确保音量在 0-1 范围内
+    video.disablePictureInPicture = true;
+    video.disableRemotePlayback = true;
+    
+    video.setAttribute('controlsList', 'nodownload noremoteplayback');
+    video.className = 'fancybox-video x-preview-video';
+    
+    video.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.25s ease-in;
+      background-color: inherit;
+    `;
+
+    sources.forEach(source => {
+      const sourceElement = document.createElement('source');
+      sourceElement.src = source.url;
+      sourceElement.type = source.type;
+      video.appendChild(sourceElement);
+    });
+
+    video.addEventListener('loadeddata', () => {
+      log(`Video loaded successfully: ${sources[0]?.url}`);
+    });
+
+    video.addEventListener('canplay', () => {
+      log(`Video canplay event triggered, parentElement: ${!!video.parentElement}`);
+      if (video.parentElement) {
+        video.style.opacity = '1';
+        video.play().catch(err => {
+          log(`Video play failed in canplay: ${err.message}`);
+        });
+      }
+    });
+    
+    // 🆕 添加 loadedmetadata 事件，更早触发播放
+    video.addEventListener('loadedmetadata', () => {
+      log(`Video metadata loaded: ${sources[0]?.url}`);
+      if (video.parentElement && video.readyState >= 2) {
+        video.style.opacity = '1';
+        video.play().catch(err => {
+          log(`Video play failed in loadedmetadata: ${err.message}`);
+        });
+      }
+    });
+
+    video.addEventListener('error', () => {
+      log(`Video error for ${sources[0]?.url}`);
+      if (video.parentNode) {
+        video.remove();
+      }
+    });
+
+    return video;
   }
 }
 
