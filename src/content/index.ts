@@ -17,6 +17,7 @@ import { showToast } from './toast';
 import { initializeContentPrivacy } from './privacy';
 import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
+import { actorQuickActionsManager } from './enhancements/actorQuickActions';
 import { embyEnhancementManager } from './embyEnhancement';
 import { initOrchestrator } from './initOrchestrator';
 import { initInsightsCollector } from './insightsCollector';
@@ -507,6 +508,16 @@ async function initialize(): Promise<void> {
             enableScanNewWorks: (settings.actorEnhancement as any)?.enableScanNewWorks === true,
         });
         initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
+    }
+
+    // 初始化演员标记增强功能（仅影片页 high）
+    if ((settings.videoEnhancement as any)?.enableActorQuickActions !== false && isVideoPage) {
+        actorQuickActionsManager.updateConfig({
+            enabled: true,
+            showDelay: 300,
+            hideDelay: 200,
+        });
+        initOrchestrator.add('high', () => actorQuickActionsManager.init(), { label: 'actorQuickActions:init', delayMs: 500, priority: 6 });
     }
 
     // 初始化Emby增强功能（延后执行）

@@ -43,6 +43,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
     private veEnableVideoFavoriteRating!: HTMLInputElement; // 新增：影片页收藏与评分
+    private enableActorQuickActions!: HTMLInputElement; // 新增：演员标记增强
     // 新增：状态标记增强子项
     private veEnableWantSync!: HTMLInputElement;
     private veAutoMarkWatchedAfter115!: HTMLInputElement;
@@ -481,6 +482,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
         // 新增：影片页收藏与评分
         this.veEnableVideoFavoriteRating = document.getElementById('enableVideoFavoriteRating') as HTMLInputElement;
+        // 新增：演员标记增强
+        this.enableActorQuickActions = document.getElementById('enableActorQuickActions') as HTMLInputElement;
         // 新增：本地同步类子项
         this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
         this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
@@ -1636,6 +1639,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
         // 新增：影片页收藏与评分（默认启用）
         if (this.veEnableVideoFavoriteRating) this.veEnableVideoFavoriteRating.checked = (videoEnhancement as any).enableVideoFavoriteRating !== false;
+        // 新增：演员标记增强（默认启用）
+        if (this.enableActorQuickActions) this.enableActorQuickActions.checked = (videoEnhancement as any).enableActorQuickActions !== false;
 
         // 内容过滤规则
         const contentFilter = settings?.contentFilter || {};
@@ -1743,7 +1748,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         this.veShowLoadingIndicator?.checked === true ||
                         this.veEnableReviewBreaker?.checked === true ||
                         this.veEnableFC2Breaker?.checked === true ||
-                        this.veEnableVideoFavoriteRating?.checked === true
+                        this.veEnableVideoFavoriteRating?.checked === true ||
+                        this.enableActorQuickActions?.checked === true
                     ),
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
                     // 与"翻译"总开关保持一致，避免两处状态不一致
@@ -1761,6 +1767,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
                     // 新增：影片页收藏与评分
                     enableVideoFavoriteRating: this.veEnableVideoFavoriteRating?.checked === true,
+                    // 新增：演员标记增强
+                    enableActorQuickActions: this.enableActorQuickActions?.checked === true,
                 } as any,
                 translation: {
                     provider: (this.translationProviderSel?.value as 'traditional' | 'ai') || 'traditional',
