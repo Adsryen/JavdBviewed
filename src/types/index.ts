@@ -252,7 +252,10 @@ export interface ExtensionSettings {
             enabled: boolean; // 是否启用列表显示控制
             columnCount: number; // 列数 (1-8)
             containerWidth: number; // 容器宽度百分比 (50-150)
+            enableContainerExpansion: boolean; // 是否启用搜索框和容器扩展到100%宽度
         };
+        // 🆕 状态标签显示
+        showStatusBadge?: boolean; // 是否在列表卡片上显示状态标签（已观看/想看/已浏览）
     };
 
     // 新增：演员页增强配置

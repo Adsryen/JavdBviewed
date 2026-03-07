@@ -42,6 +42,7 @@
                                     <input type="checkbox" id="enablePasswordHelper">
                                     <input type="checkbox" id="enableVideoFavoriteRating">
                                     <input type="checkbox" id="enableListDisplayControl">
+                                    <input type="checkbox" id="enableContainerExpansion">
                                     <input type="checkbox" id="showStatusBadge">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
@@ -552,6 +553,19 @@
                                                     <div class="range-track-fill"></div>
                                                 </div>
                                                 <p class="input-description">设置列表容器的宽度百分比（50%-150%），超过100%时会居中显示。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <span>启用搜索框和容器扩展</span>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="enableContainerExpansion"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">
+                                                    开启后，搜索框和内容容器将扩展到100%宽度（接近浏览器窗口边缘），覆盖 Bulma 框架的默认宽度限制。<br>
+                                                    <strong>注意：</strong>关闭此选项后，搜索框和容器将保持原始宽度，只有影片列表容器受上方"容器宽度"滑块控制。
+                                                </p>
                                             </div>
                                         </div>
                                     </div>

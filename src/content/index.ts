@@ -472,6 +472,7 @@ async function initialize(): Promise<void> {
                 enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,
                 columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
                 containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
+                enableContainerExpansion: (settings.listEnhancement as any)?.listDisplayControl?.enableContainerExpansion === true,
             },
             // 🆕 状态标签显示
             showStatusBadge: (settings.listEnhancement as any)?.showStatusBadge !== false, // 默认启用
@@ -634,7 +635,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
                     treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
                     // 🆕 同步列表显示控制配置
-                    listDisplayControl: (settings.listEnhancement as any)?.listDisplayControl,
+                    listDisplayControl: {
+                        enabled: (settings.listEnhancement as any)?.listDisplayControl?.enabled !== false,
+                        columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
+                        containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
+                        enableContainerExpansion: (settings.listEnhancement as any)?.listDisplayControl?.enableContainerExpansion === true,
+                    },
                 });
                 listEnhancementManager.reapplyActorHidingForAll?.();
             } catch (e) {
