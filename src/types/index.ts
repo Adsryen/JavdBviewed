@@ -116,6 +116,69 @@ export interface ExtensionSettings {
 }
 
 // ============================================================
+// 内容过滤相关类型
+// ============================================================
+
+/**
+ * 关键字过滤规则
+ */
+export interface KeywordFilterRule {
+  id: string;
+  name: string;
+  keyword: string;
+  isRegex: boolean;
+  caseSensitive: boolean;
+  action: 'hide' | 'highlight' | 'blur' | 'mark';
+  enabled: boolean;
+  fields: ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
+  style?: {
+    backgroundColor?: string;
+    color?: string;
+    border?: string;
+    opacity?: number;
+    filter?: string;
+  };
+  message?: string;
+  // 发行日期范围过滤
+  releaseDateRange?: {
+    enabled: boolean;
+    comparison?: 'between' | 'before' | 'after' | 'exact'; // 对比方式
+    startDate?: string; // YYYY-MM-DD 格式，用于 between 和 after
+    endDate?: string;   // YYYY-MM-DD 格式，用于 between 和 before
+    exactDate?: string; // YYYY-MM-DD 格式，用于 exact
+  };
+}
+
+/**
+ * 内容过滤配置
+ */
+export interface ContentFilterConfig {
+  enabled: boolean;
+  showFilteredCount: boolean;
+  keywordRules: KeywordFilterRule[];
+}
+
+// ============================================================
+// 用户资料相关类型
+// ============================================================
+
+/**
+ * 用户资料
+ */
+export interface UserProfile {
+  email: string;
+  username: string;
+  userType: string;
+  isLoggedIn: boolean;
+  lastUpdated: number;
+  serverStats?: {
+    wantCount: number;
+    watchedCount: number;
+    lastSyncTime: number;
+  };
+}
+
+// ============================================================
 // 导出其他类型模块
 // ============================================================
 
