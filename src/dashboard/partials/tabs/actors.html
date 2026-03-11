@@ -38,16 +38,20 @@
             <option value="worksCount_desc">按作品数量排序 (多到少)</option>
             <option value="worksCount_asc">按作品数量排序 (少到多)</option>
         </select>
-        <select id="actorPageSizeSelect">
-            <option value="20">每页 20 个</option>
-            <option value="40">每页 40 个</option>
-            <option value="60">每页 60 个</option>
-            <option value="100">每页 100 个</option>
-        </select>
         <button id="toggleActorViewModeBtn" class="button-like view-toggle list-mode" title="切换到卡片视图">
             <i class="fas fa-list view-icon"></i>
             <span class="view-text">列表视图</span>
         </button>
+        <div class="page-size-wrapper">
+            <span class="page-size-label">每页</span>
+            <select id="actorPageSizeSelect">
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="60">60</option>
+                <option value="100">100</option>
+            </select>
+            <span class="page-size-label">个</span>
+        </div>
     </div>
 
     <!-- 演员列表容器 -->
