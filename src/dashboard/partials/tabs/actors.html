@@ -54,6 +54,37 @@
         </div>
     </div>
 
+    <!-- 批量操作栏 -->
+    <div id="actorBatchOperations" class="batch-operations" style="display: none;">
+        <div class="batch-operations-left">
+            <input type="checkbox" id="actorSelectAllCheckbox" class="select-all-checkbox">
+            <label for="actorSelectAllCheckbox" class="select-all-label">全选</label>
+            <span id="actorSelectedCount" class="selected-count">已选择 0 项</span>
+        </div>
+        <div class="batch-operations-right">
+            <button id="actorBatchRefreshBtn" class="batch-btn batch-refresh-btn" title="批量刷新元数据">
+                <i class="fas fa-sync-alt"></i>
+                刷新元数据
+            </button>
+            <button id="actorBatchBlacklistBtn" class="batch-btn batch-blacklist-btn" title="批量拉黑/取消拉黑">
+                <i class="fas fa-ban"></i>
+                拉黑管理
+            </button>
+            <button id="actorBatchSubscribeBtn" class="batch-btn batch-subscribe-btn" title="批量订阅/取消订阅">
+                <i class="fas fa-bell"></i>
+                订阅管理
+            </button>
+            <button id="actorBatchDeleteBtn" class="batch-btn batch-delete-btn" title="批量删除">
+                <i class="fas fa-trash"></i>
+                删除
+            </button>
+            <button id="actorCancelBatchBtn" class="batch-btn batch-cancel-btn" title="取消选择">
+                <i class="fas fa-times"></i>
+                取消
+            </button>
+        </div>
+    </div>
+
     <!-- 演员列表容器 -->
     <div class="actor-list-wrapper">
         <div id="actorListLoading" class="loading-indicator" style="display: none;">
