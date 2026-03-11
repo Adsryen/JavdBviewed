@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggleWantContainer = document.getElementById('toggleWantContainer') as HTMLDivElement;
     const toggleHideBlacklistedActorsContainer = document.getElementById('toggleHideBlacklistedActorsContainer') as HTMLDivElement;
     const toggleHideNonFavoritedActorsContainer = document.getElementById('toggleHideNonFavoritedActorsContainer') as HTMLDivElement;
+    const toggleHideUnrecognizedActorsContainer = document.getElementById('toggleHideUnrecognizedActorsContainer') as HTMLDivElement;
     const toggleTreatSubscribedContainer = document.getElementById('toggleTreatSubscribedContainer') as HTMLDivElement;
     const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
     const volumeValue = document.getElementById('volumeValue') as HTMLSpanElement;
@@ -901,6 +902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 演员过滤开关（列表）
         await createListEnhancementToggle('hideBlacklistedActorsInList', toggleHideBlacklistedActorsContainer, '隐藏含黑名单演员', '显示含黑名单演员');
         await createListEnhancementToggle('hideNonFavoritedActorsInList', toggleHideNonFavoritedActorsContainer, '隐藏未收藏演员的作品', '显示未收藏演员的作品');
+        await createListEnhancementToggle('hideUnrecognizedActorsInList', toggleHideUnrecognizedActorsContainer, '隐藏无法识别演员的作品', '显示无法识别演员的作品');
         await createListEnhancementToggle('treatSubscribedAsFavorited', toggleTreatSubscribedContainer, '订阅视为收藏', '订阅不视为收藏');
 
         await setupVolumeControl();
