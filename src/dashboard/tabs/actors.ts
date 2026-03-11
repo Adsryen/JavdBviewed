@@ -1,4 +1,4 @@
-﻿﻿// src/dashboard/tabs/actors.ts
+﻿// src/dashboard/tabs/actors.ts
 // 演员库标签页
 
 import { actorManager } from '../../services/actorManager';
@@ -6,7 +6,7 @@ import { newWorksManager } from '../../services/newWorks';
 import { SimpleActorAvatar } from '../../components/SimpleActorAvatar';
 import { showMessage } from '../ui/toast';
 import { getSettings } from '../../utils/storage';
-import { showDanger } from '../components/confirmModal';
+import { showConfirm } from '../components/confirmModal';
 import { logAsync } from '../logger';
 import type { ActorRecord, ActorPagedSearchResult, ExtensionSettings } from '../../types';
 import { buildJavDBUrl } from '../../utils/routeManager';
@@ -25,6 +25,9 @@ export class ActorsTab {
     public isInitialized = false;
     private settings?: ExtensionSettings;
     private currentViewMode: 'list' | 'card' = 'list';
+    
+    // 批量操作相关
+    private selectedActors = new Set<string>();
 
     /**
      * 初始化演员库标签页
@@ -199,6 +202,45 @@ export class ActorsTab {
                 this.updateViewModeBtnUI();
                 this.loadActors();
             });
+        }
+
+        // 批量操作事件监听器
+        this.setupBatchOperationListeners();
+    }
+
+    /**
+     * 设置批量操作事件监听器
+     */
+    private setupBatchOperationListeners(): void {
+        const selectAllCheckbox = document.getElementById('actorSelectAllCheckbox') as HTMLInputElement;
+        const batchRefreshBtn = document.getElementById('actorBatchRefreshBtn') as HTMLButtonElement;
+        const batchBlacklistBtn = document.getElementById('actorBatchBlacklistBtn') as HTMLButtonElement;
+        const batchSubscribeBtn = document.getElementById('actorBatchSubscribeBtn') as HTMLButtonElement;
+        const batchDeleteBtn = document.getElementById('actorBatchDeleteBtn') as HTMLButtonElement;
+        const cancelBatchBtn = document.getElementById('actorCancelBatchBtn') as HTMLButtonElement;
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', () => this.handleSelectAll());
+        }
+
+        if (batchRefreshBtn) {
+            batchRefreshBtn.addEventListener('click', () => this.handleBatchRefresh());
+        }
+
+        if (batchBlacklistBtn) {
+            batchBlacklistBtn.addEventListener('click', () => this.handleBatchBlacklist());
+        }
+
+        if (batchSubscribeBtn) {
+            batchSubscribeBtn.addEventListener('click', () => this.handleBatchSubscribe());
+        }
+
+        if (batchDeleteBtn) {
+            batchDeleteBtn.addEventListener('click', () => this.handleBatchDelete());
+        }
+
+        if (cancelBatchBtn) {
+            cancelBatchBtn.addEventListener('click', () => this.clearAllSelection());
         }
     }
 
@@ -376,6 +418,25 @@ export class ActorsTab {
             const actorCard = document.querySelector(`[data-actor-id="${actor.id}"].actor-card`) as HTMLElement;
             const avatarContainer = document.getElementById(`actor-avatar-${actor.id}`);
 
+            // 设置选中状态
+            if (this.selectedActors.has(actor.id)) {
+                actorCard?.classList.add('selected');
+            }
+
+            // 添加点击选择事件监听器
+            if (actorCard) {
+                actorCard.addEventListener('click', (e) => {
+                    // 如果点击的是按钮、链接等，不触发选择
+                    if ((e.target as HTMLElement).closest('button, a, .actor-social-link')) {
+                        return;
+                    }
+
+                    // 切换选择状态
+                    const isSelected = this.selectedActors.has(actor.id);
+                    this.handleActorSelection(actor.id, !isSelected);
+                });
+            }
+
             if (avatarContainer) {
                 // 使用简化的头像组件
                 const avatarElement = SimpleActorAvatar.create(
@@ -405,6 +466,9 @@ export class ActorsTab {
             // 添加演员名字复制事件监听器
             this.setupActorCardEventListeners(actor);
         });
+
+        // 更新批量操作UI状态
+        this.updateBatchUI();
     }
 
     /**
@@ -423,10 +487,11 @@ export class ActorsTab {
         const isBlacklisted = !!actor.blacklisted;
         const showBadge = !!this.settings?.actorLibrary.blacklist.showBadge;
         const blacklistBadge = isBlacklisted && showBadge ? `<span class="actor-badge actor-badge-blacklisted" title="已拉黑">黑名单</span>` : '';
+        const subscribedBadge = isSubscribed ? `<i class="fas fa-bell actor-subscribed-icon" title="已订阅新作品"></i>` : '';
         const cardStyle = isBlacklisted ? 'style="opacity:0.5;"' : '';
 
         return `
-            <div class="actor-card" data-actor-id="${actor.id}" data-blacklisted="${isBlacklisted}" ${cardStyle}>
+            <div class="actor-card batch-mode" data-actor-id="${actor.id}" data-blacklisted="${isBlacklisted}" ${cardStyle}>
                 <div class="actor-card-avatar" id="actor-avatar-${actor.id}">
                     <!-- 头像将通过JS添加 -->
                 </div>
@@ -436,6 +501,7 @@ export class ActorsTab {
                          data-actor-id="${actor.id}"
                          data-actor-name="${escapeForJs(actor.name)}">
                         <span class="actor-name-text">${escapeName(actor.name)}</span>
+                        ${subscribedBadge}
                         <i class="fas fa-copy actor-name-copy-icon"></i>
                     </div>
                     ${(actor.aliases && actor.aliases.length > 0) ? `
@@ -1675,7 +1741,14 @@ export class ActorsTab {
      * 删除演员
      */
     async deleteActor(actorId: string): Promise<void> {
-        const confirmed = await showDanger('确定要删除这个演员吗？', '删除演员');
+        const confirmed = await showConfirm({
+            title: '删除演员',
+            message: '确定要删除这个演员吗？\n\n此操作不可撤销！',
+            confirmText: '确认删除',
+            cancelText: '取消',
+            type: 'danger'
+        });
+        
         if (!confirmed) {
             return;
         }
@@ -1769,6 +1842,350 @@ export class ActorsTab {
                 }
             }
         }, 100);
+    }
+
+    /**
+     * 处理演员选择
+     */
+    private handleActorSelection(actorId: string, isSelected: boolean): void {
+        if (isSelected) {
+            this.selectedActors.add(actorId);
+        } else {
+            this.selectedActors.delete(actorId);
+        }
+
+        // 更新UI
+        const actorCard = document.querySelector(`[data-actor-id="${actorId}"].actor-card`) as HTMLElement;
+        if (actorCard) {
+            if (isSelected) {
+                actorCard.classList.add('selected');
+            } else {
+                actorCard.classList.remove('selected');
+            }
+        }
+
+        this.updateBatchUI();
+    }
+
+    /**
+     * 处理全选/取消全选
+     */
+    private handleSelectAll(): void {
+        const selectAllCheckbox = document.getElementById('actorSelectAllCheckbox') as HTMLInputElement;
+        const isChecked = selectAllCheckbox.checked;
+
+        // 获取当前页面的演员
+        const currentActorCards = document.querySelectorAll('.actor-card[data-actor-id]');
+        
+        if (isChecked) {
+            // 选择当前页面的所有演员
+            currentActorCards.forEach(card => {
+                const actorId = (card as HTMLElement).dataset.actorId!;
+                this.selectedActors.add(actorId);
+                card.classList.add('selected');
+            });
+        } else {
+            // 取消选择当前页面的所有演员
+            currentActorCards.forEach(card => {
+                const actorId = (card as HTMLElement).dataset.actorId!;
+                this.selectedActors.delete(actorId);
+                card.classList.remove('selected');
+            });
+        }
+
+        this.updateBatchUI();
+    }
+
+    /**
+     * 清除所有选择
+     */
+    private clearAllSelection(): void {
+        this.selectedActors.clear();
+        document.querySelectorAll('.actor-card.selected').forEach(card => {
+            card.classList.remove('selected');
+        });
+        this.updateBatchUI();
+    }
+
+    /**
+     * 更新批量操作UI
+     */
+    private updateBatchUI(): void {
+        const batchOperations = document.getElementById('actorBatchOperations') as HTMLDivElement;
+        const selectAllCheckbox = document.getElementById('actorSelectAllCheckbox') as HTMLInputElement;
+        const selectedCount = document.getElementById('actorSelectedCount') as HTMLSpanElement;
+
+        const count = this.selectedActors.size;
+        
+        if (selectedCount) {
+            selectedCount.textContent = `已选择 ${count} 项`;
+        }
+
+        // 根据选择数量显示/隐藏批量操作栏
+        if (batchOperations) {
+            if (count > 0) {
+                batchOperations.style.display = 'flex';
+            } else {
+                batchOperations.style.display = 'none';
+            }
+        }
+
+        // 更新全选复选框状态
+        if (selectAllCheckbox) {
+            const currentActorCards = document.querySelectorAll('.actor-card[data-actor-id]');
+            const currentSelectedCount = Array.from(currentActorCards).filter(card => 
+                this.selectedActors.has((card as HTMLElement).dataset.actorId!)
+            ).length;
+
+            if (currentSelectedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (currentSelectedCount === currentActorCards.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
+    /**
+     * 批量刷新元数据
+     */
+    private async handleBatchRefresh(): Promise<void> {
+        if (this.selectedActors.size === 0) return;
+
+        const selectedIds = Array.from(this.selectedActors);
+        
+        const confirmed = await showConfirm({
+            title: '批量刷新确认',
+            message: `确定要刷新选中的 ${selectedIds.length} 个演员的元数据吗？\n\n此操作将从JavDB重新获取演员信息，可能需要较长时间。`,
+            confirmText: '确认刷新',
+            cancelText: '取消',
+            type: 'warning'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            showMessage('开始批量刷新演员元数据...', 'info');
+            
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const actorId of selectedIds) {
+                try {
+                    await this.refreshActorMetadata(actorId);
+                    successCount++;
+                } catch (error) {
+                    console.error(`[Actor] Failed to refresh actor ${actorId}:`, error);
+                    failCount++;
+                }
+            }
+
+            // 清空选择并刷新显示
+            this.clearAllSelection();
+            await this.loadActors();
+            await this.updateStats();
+
+            showMessage(
+                `批量刷新完成！成功: ${successCount}，失败: ${failCount}`,
+                failCount > 0 ? 'warning' : 'success'
+            );
+
+        } catch (error) {
+            console.error('[Actor] Batch refresh failed:', error);
+            showMessage('批量刷新失败', 'error');
+        }
+    }
+
+    /**
+     * 批量拉黑管理
+     */
+    private async handleBatchBlacklist(): Promise<void> {
+        if (this.selectedActors.size === 0) return;
+
+        const selectedIds = Array.from(this.selectedActors);
+        
+        // 检查选中演员的拉黑状态
+        const actors: ActorRecord[] = [];
+        for (const id of selectedIds) {
+            const actor = await actorManager.getActorById(id);
+            if (actor) {
+                actors.push(actor);
+            }
+        }
+
+        const blacklistedCount = actors.filter(actor => actor.blacklisted).length;
+        const notBlacklistedCount = actors.length - blacklistedCount;
+
+        let message: string;
+
+        if (blacklistedCount === 0) {
+            message = `确定要拉黑选中的 ${selectedIds.length} 个演员吗？`;
+        } else if (notBlacklistedCount === 0) {
+            message = `确定要取消拉黑选中的 ${selectedIds.length} 个演员吗？`;
+        } else {
+            message = `选中的演员中有 ${blacklistedCount} 个已拉黑，${notBlacklistedCount} 个未拉黑。\n\n点击确认将：\n- 拉黑未拉黑的演员\n- 取消拉黑已拉黑的演员`;
+        }
+
+        const confirmed = await showConfirm({
+            title: '批量拉黑管理',
+            message: message,
+            confirmText: '确认操作',
+            cancelText: '取消',
+            type: 'warning'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const actor of actors) {
+                try {
+                    const newBlacklistState = !actor.blacklisted;
+                    await actorManager.setBlacklisted(actor.id, newBlacklistState);
+                    successCount++;
+                } catch (error) {
+                    console.error(`[Actor] Failed to update blacklist for actor ${actor.id}:`, error);
+                    failCount++;
+                }
+            }
+
+            // 清空选择并刷新显示
+            this.clearAllSelection();
+            await this.loadActors();
+            await this.updateStats();
+
+            showMessage(
+                `批量拉黑管理完成！成功: ${successCount}，失败: ${failCount}`,
+                failCount > 0 ? 'warning' : 'success'
+            );
+
+        } catch (error) {
+            console.error('[Actor] Batch blacklist failed:', error);
+            showMessage('批量拉黑管理失败', 'error');
+        }
+    }
+
+    /**
+     * 批量订阅管理
+     */
+    private async handleBatchSubscribe(): Promise<void> {
+        if (this.selectedActors.size === 0) return;
+
+        const selectedIds = Array.from(this.selectedActors);
+        
+        try {
+            // 获取当前订阅状态
+            const subscriptions = await newWorksManager.getSubscriptions();
+            const subscribedSet = new Set(subscriptions.map(s => s.actorId));
+            
+            const subscribedCount = selectedIds.filter(id => subscribedSet.has(id)).length;
+            const notSubscribedCount = selectedIds.length - subscribedCount;
+
+            let message: string;
+            if (subscribedCount === 0) {
+                message = `确定要订阅选中的 ${selectedIds.length} 个演员吗？`;
+            } else if (notSubscribedCount === 0) {
+                message = `确定要取消订阅选中的 ${selectedIds.length} 个演员吗？`;
+            } else {
+                message = `选中的演员中有 ${subscribedCount} 个已订阅，${notSubscribedCount} 个未订阅。\n\n点击确认将：\n- 订阅未订阅的演员\n- 取消订阅已订阅的演员`;
+            }
+
+            const confirmed = await showConfirm({
+                title: '批量订阅管理',
+                message: message,
+                confirmText: '确认操作',
+                cancelText: '取消',
+                type: 'info'
+            });
+
+            if (!confirmed) return;
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const actorId of selectedIds) {
+                try {
+                    const isSubscribed = subscribedSet.has(actorId);
+                    if (isSubscribed) {
+                        await newWorksManager.removeSubscription(actorId);
+                    } else {
+                        await newWorksManager.addSubscription(actorId);
+                    }
+                    successCount++;
+                } catch (error) {
+                    console.error(`[Actor] Failed to update subscription for actor ${actorId}:`, error);
+                    failCount++;
+                }
+            }
+
+            // 清空选择并刷新显示
+            this.clearAllSelection();
+            await this.loadActors();
+            await this.updateStats();
+
+            showMessage(
+                `批量订阅管理完成！成功: ${successCount}，失败: ${failCount}`,
+                failCount > 0 ? 'warning' : 'success'
+            );
+
+        } catch (error) {
+            console.error('[Actor] Batch subscribe failed:', error);
+            showMessage('批量订阅管理失败', 'error');
+        }
+    }
+
+    /**
+     * 批量删除
+     */
+    private async handleBatchDelete(): Promise<void> {
+        if (this.selectedActors.size === 0) return;
+
+        const selectedIds = Array.from(this.selectedActors);
+        
+        const confirmed = await showConfirm({
+            title: '批量删除确认',
+            message: `确定要删除选中的 ${selectedIds.length} 个演员吗？\n\n此操作不可撤销！`,
+            confirmText: '确认删除',
+            cancelText: '取消',
+            type: 'danger'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const actorId of selectedIds) {
+                try {
+                    await actorManager.deleteActor(actorId);
+                    successCount++;
+                } catch (error) {
+                    console.error(`[Actor] Failed to delete actor ${actorId}:`, error);
+                    failCount++;
+                }
+            }
+
+            // 清空选择并刷新显示
+            this.clearAllSelection();
+            await this.loadActors();
+            await this.updateStats();
+
+            showMessage(
+                `批量删除完成！成功: ${successCount}，失败: ${failCount}`,
+                failCount > 0 ? 'warning' : 'success'
+            );
+
+        } catch (error) {
+            console.error('[Actor] Batch delete failed:', error);
+            showMessage('批量删除失败', 'error');
+        }
     }
 }
 
