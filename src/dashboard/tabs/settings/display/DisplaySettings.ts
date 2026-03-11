@@ -20,6 +20,7 @@ export class DisplaySettings extends BaseSettingsPanel {
     // 新增：演员过滤（列表）
     private hideBlacklistedActorsInListCheckbox: HTMLInputElement | null = null;
     private hideNonFavoritedActorsInListCheckbox: HTMLInputElement | null = null;
+    private hideUnrecognizedActorsInListCheckbox: HTMLInputElement | null = null;
     private treatSubscribedAsFavoritedCheckbox: HTMLInputElement | null = null;
 
     constructor() {
@@ -43,6 +44,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         // 可选：若页面存在则接入
         this.hideBlacklistedActorsInListCheckbox = document.getElementById('hideBlacklistedActorsInList') as HTMLInputElement | null;
         this.hideNonFavoritedActorsInListCheckbox = document.getElementById('hideNonFavoritedActorsInList') as HTMLInputElement | null;
+        this.hideUnrecognizedActorsInListCheckbox = document.getElementById('hideUnrecognizedActorsInList') as HTMLInputElement | null;
         this.treatSubscribedAsFavoritedCheckbox = document.getElementById('treatSubscribedAsFavorited') as HTMLInputElement | null;
 
         if (!this.hideViewedCheckbox || !this.hideBrowsedCheckbox || !this.hideVRCheckbox || !this.hideWantCheckbox) {
@@ -61,6 +63,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         // 仅当存在对应元素时绑定
         this.hideBlacklistedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
         this.hideNonFavoritedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.hideUnrecognizedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
         this.treatSubscribedAsFavoritedCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
     }
 
@@ -74,6 +77,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         this.hideWantCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideBlacklistedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.hideNonFavoritedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.hideUnrecognizedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
         this.treatSubscribedAsFavoritedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
     }
 
@@ -96,6 +100,10 @@ export class DisplaySettings extends BaseSettingsPanel {
         if (this.hideNonFavoritedActorsInListCheckbox) {
             this.hideNonFavoritedActorsInListCheckbox.checked = !!listEnhancement.hideNonFavoritedActorsInList;
         }
+        if (this.hideUnrecognizedActorsInListCheckbox) {
+            // 默认 true（若未配置）
+            this.hideUnrecognizedActorsInListCheckbox.checked = listEnhancement.hideUnrecognizedActorsInList !== false;
+        }
         if (this.treatSubscribedAsFavoritedCheckbox) {
             // 默认 true（若未配置）
             this.treatSubscribedAsFavoritedCheckbox.checked = listEnhancement.treatSubscribedAsFavorited !== false;
@@ -111,6 +119,7 @@ export class DisplaySettings extends BaseSettingsPanel {
             const newListEnh: any = { ...(current.listEnhancement || {}) };
             if (this.hideBlacklistedActorsInListCheckbox) newListEnh.hideBlacklistedActorsInList = this.hideBlacklistedActorsInListCheckbox.checked;
             if (this.hideNonFavoritedActorsInListCheckbox) newListEnh.hideNonFavoritedActorsInList = this.hideNonFavoritedActorsInListCheckbox.checked;
+            if (this.hideUnrecognizedActorsInListCheckbox) newListEnh.hideUnrecognizedActorsInList = this.hideUnrecognizedActorsInListCheckbox.checked;
             if (this.treatSubscribedAsFavoritedCheckbox) newListEnh.treatSubscribedAsFavorited = this.treatSubscribedAsFavoritedCheckbox.checked;
 
             const newSettings: ExtensionSettings = {
@@ -172,6 +181,7 @@ export class DisplaySettings extends BaseSettingsPanel {
         const le: any = {};
         if (this.hideBlacklistedActorsInListCheckbox) le.hideBlacklistedActorsInList = this.hideBlacklistedActorsInListCheckbox.checked;
         if (this.hideNonFavoritedActorsInListCheckbox) le.hideNonFavoritedActorsInList = this.hideNonFavoritedActorsInListCheckbox.checked;
+        if (this.hideUnrecognizedActorsInListCheckbox) le.hideUnrecognizedActorsInList = this.hideUnrecognizedActorsInListCheckbox.checked;
         if (this.treatSubscribedAsFavoritedCheckbox) le.treatSubscribedAsFavorited = this.treatSubscribedAsFavoritedCheckbox.checked;
         if (Object.keys(le).length > 0) (out as any).listEnhancement = le;
         return out;
@@ -202,6 +212,9 @@ export class DisplaySettings extends BaseSettingsPanel {
         }
         if (this.hideNonFavoritedActorsInListCheckbox && le.hideNonFavoritedActorsInList !== undefined) {
             this.hideNonFavoritedActorsInListCheckbox.checked = !!le.hideNonFavoritedActorsInList;
+        }
+        if (this.hideUnrecognizedActorsInListCheckbox && le.hideUnrecognizedActorsInList !== undefined) {
+            this.hideUnrecognizedActorsInListCheckbox.checked = !!le.hideUnrecognizedActorsInList;
         }
         if (this.treatSubscribedAsFavoritedCheckbox && le.treatSubscribedAsFavorited !== undefined) {
             this.treatSubscribedAsFavoritedCheckbox.checked = !!le.treatSubscribedAsFavorited;

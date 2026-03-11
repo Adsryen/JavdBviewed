@@ -28,6 +28,7 @@ export interface ListEnhancementConfig {
   // 基于演员偏好的过滤
   hideBlacklistedActorsInList?: boolean; // 隐藏含黑名单演员的作品
   hideNonFavoritedActorsInList?: boolean; // 隐藏未收藏演员的作品（通过标题近似识别）
+  hideUnrecognizedActorsInList?: boolean; // 隐藏无法识别演员的作品（默认true）
   treatSubscribedAsFavorited?: boolean; // 订阅视为收藏
   // 🆕 列表页显示控制
   listDisplayControl?: {
@@ -64,9 +65,10 @@ class ListEnhancementManager {
     enableActorWatermark: false,
     actorWatermarkPosition: 'top-right',
     actorWatermarkOpacity: 0.8,
-    // 默认：不开启演员过滤；将订阅视为收藏
+    // 默认：不开启演员过滤；将订阅视为收藏；隐藏无法识别演员的作品
     hideBlacklistedActorsInList: false,
     hideNonFavoritedActorsInList: false,
+    hideUnrecognizedActorsInList: true, // 默认隐藏无法识别演员的作品
     treatSubscribedAsFavorited: true,
     // 🆕 列表页显示控制默认配置
     listDisplayControl: {
@@ -96,6 +98,10 @@ class ListEnhancementManager {
   private subscribedActorIds: Set<string> | null = null;
   private loadingActorIndex = false;
   private loadingSubscriptions = false;
+  // 缓存时间戳（用于TTL机制）
+  private actorIndexTimestamp: number = 0;
+  private subscribedActorIdsTimestamp: number = 0;
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存有效期
   // 演员水印样式注入标记
   private watermarkStylesInjected = false;
 
@@ -115,13 +121,15 @@ class ListEnhancementManager {
       }
     }
 
-    // 若演员过滤配置变化，重应用一次
+    // 若演员过滤配置变化，重应用一次（不清除缓存，避免所有影片被误判）
     const actorFlagsChanged = (
       oldConfig.hideBlacklistedActorsInList !== this.config.hideBlacklistedActorsInList ||
       oldConfig.hideNonFavoritedActorsInList !== this.config.hideNonFavoritedActorsInList ||
+      oldConfig.hideUnrecognizedActorsInList !== this.config.hideUnrecognizedActorsInList ||
       oldConfig.treatSubscribedAsFavorited !== this.config.treatSubscribedAsFavorited
     );
     if (actorFlagsChanged) {
+      log('Actor filter config changed, reapplying filters...');
       this.reapplyActorHidingForAll();
     }
 
@@ -363,7 +371,28 @@ class ListEnhancementManager {
     }
   }
   private async ensureActorIndex(): Promise<void> {
-    if (this.actorIndex || this.loadingActorIndex === true) return;
+    // 检查缓存是否过期
+    const now = Date.now();
+    const isCacheExpired = this.actorIndexTimestamp > 0 && (now - this.actorIndexTimestamp) > this.CACHE_TTL;
+    
+    if (isCacheExpired) {
+      log('Actor index cache expired, clearing...');
+      this.actorIndex = null;
+      this.actorIndexTimestamp = 0;
+    }
+    
+    // 如果正在加载，等待加载完成
+    if (this.loadingActorIndex) {
+      // 等待加载完成（最多等待5秒）
+      const startTime = Date.now();
+      while (this.loadingActorIndex && (Date.now() - startTime) < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return;
+    }
+    
+    if (this.actorIndex) return;
+    
     this.loadingActorIndex = true;
     try {
       const actors = await actorManager.getAllActors();
@@ -378,26 +407,70 @@ class ListEnhancementManager {
         (a.aliases || []).forEach(al => pushKey(al));
       });
       this.actorIndex = idx;
+      this.actorIndexTimestamp = Date.now(); // 记录缓存时间
+      log(`Actor index loaded: ${idx.size} entries`);
     } catch (e) {
       log('Failed to build actor index:', e);
       this.actorIndex = new Map();
+      this.actorIndexTimestamp = Date.now();
     } finally {
       this.loadingActorIndex = false;
     }
   }
 
   private async ensureSubscriptions(): Promise<void> {
-    if (this.subscribedActorIds || this.loadingSubscriptions) return;
+    // 检查缓存是否过期
+    const now = Date.now();
+    const isCacheExpired = this.subscribedActorIdsTimestamp > 0 && (now - this.subscribedActorIdsTimestamp) > this.CACHE_TTL;
+    
+    if (isCacheExpired) {
+      log('Subscriptions cache expired, clearing...');
+      this.subscribedActorIds = null;
+      this.subscribedActorIdsTimestamp = 0;
+    }
+    
+    // 如果正在加载，等待加载完成
+    if (this.loadingSubscriptions) {
+      // 等待加载完成（最多等待5秒）
+      const startTime = Date.now();
+      while (this.loadingSubscriptions && (Date.now() - startTime) < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return;
+    }
+    
+    if (this.subscribedActorIds) return;
+    
     this.loadingSubscriptions = true;
     try {
       const subs = await newWorksManager.getSubscriptions();
       this.subscribedActorIds = new Set(subs.map(s => s.actorId));
+      this.subscribedActorIdsTimestamp = Date.now(); // 记录缓存时间
+      log(`Subscriptions loaded: ${this.subscribedActorIds.size} actors`);
     } catch (e) {
       log('Failed to load subscriptions:', e);
       this.subscribedActorIds = new Set();
+      this.subscribedActorIdsTimestamp = Date.now();
     } finally {
       this.loadingSubscriptions = false;
     }
+  }
+
+  /**
+   * 清除演员相关缓存
+   * 在以下情况调用：
+   * 1. 翻页前
+   * 2. 配置变化时
+   * 3. 手动刷新时
+   */
+  private clearActorCaches(): void {
+    log('Clearing actor caches...');
+    this.actorIndex = null;
+    this.subscribedActorIds = null;
+    this.loadingActorIndex = false;
+    this.loadingSubscriptions = false;
+    this.actorIndexTimestamp = 0;
+    this.subscribedActorIdsTimestamp = 0;
   }
 
   private normalizeText(s: string): string {
@@ -409,18 +482,14 @@ class ListEnhancementManager {
 
   private extractActorsFromTitle(title: string): import('../../types').ActorRecord[] {
     if (!this.actorIndex) {
-      log('[ActorWM] extractActorsFromTitle: actor index not ready');
       return [];
     }
     const raw = title || '';
     const norm = this.normalizeText(title).toLowerCase();
     if (!norm) {
-      log(`[ActorWM] extractActorsFromTitle: empty/invalid title -> "${raw}"`);
       return [];
     }
     const tokens = norm.split(' ').filter(Boolean);
-    const peek = tokens.slice(Math.max(0, tokens.length - 6)).join(' | ');
-    log(`[ActorWM] Title tokens (last6): ${peek}`);
 
     const results: import('../../types').ActorRecord[] = [];
     const seen = new Set<string>();
@@ -434,7 +503,6 @@ class ListEnhancementManager {
         const phrase = tokens.slice(start, end).join(' ');
         const rec = this.actorIndex.get(phrase);
         if (rec && !seen.has(rec.id)) {
-          log(`[ActorWM] Matched phrase: "${phrase}" -> ${rec.name}(${rec.id})`);
           results.push(rec);
           seen.add(rec.id);
           break; // 命中后不再尝试更短的片段
@@ -444,7 +512,6 @@ class ListEnhancementManager {
 
     if (results.length === 0) {
       // 加权混合（方案D）：全局滑窗 + 位置与括注加权
-      log('[ActorWM] No actors matched from title end. Start weighted scan...');
       const scores: Map<string, number> = new Map(); // actorId -> score
       const bestPhrase: Map<string, string> = new Map();
 
@@ -488,9 +555,7 @@ class ListEnhancementManager {
         .sort((a, b) => b[1] - a[1])
         .map(([actorId, score]) => ({ actorId, score }));
 
-      if (ranked.length === 0) {
-        log('[ActorWM] Weighted scan found no actors');
-      } else {
+      if (ranked.length > 0) {
         for (const r of ranked) {
           // 通过短语反查记录（actorIndex仅按名称/别名建索引，已命中代表可取）
           const phrase = bestPhrase.get(r.actorId) || '';
@@ -498,12 +563,9 @@ class ListEnhancementManager {
           if (rec && !seen.has(rec.id)) {
             results.push(rec);
             seen.add(rec.id);
-            log(`[ActorWM] Weighted matched: ${rec.name}(${rec.id}) score=${r.score} by "${phrase}"`);
           }
         }
       }
-    } else {
-      log(`[ActorWM] Matched actors (end-only): ${results.map(a => `${a.name}(${a.id})`).join(', ')}`);
     }
     return results;
   }
@@ -518,17 +580,27 @@ class ListEnhancementManager {
       if (m && m[1]) ids.add(m[1]);
     }
     if (ids.size === 0) {
-      log('[ActorWM] DOM actors: none');
       return [];
     }
     try {
       const list = await Promise.all(Array.from(ids).slice(0, 8).map(id => actorManager.getActorById(id).catch(() => null)));
       const actors = list.filter(Boolean) as import('../../types').ActorRecord[];
-      log(`[ActorWM] DOM actors found: ${actors.map(a => a.name + '(' + a.id + ')').join(', ')}`);
       return actors;
     } catch {
       return [];
     }
+  }
+
+  // 从DOM提取所有演员ID（不查询数据库，仅提取ID）
+  private extractActorIdsFromDOM(item: HTMLElement): Set<string> {
+    const anchors = Array.from(item.querySelectorAll('a[href*="/actors/"]')) as HTMLAnchorElement[];
+    const ids = new Set<string>();
+    for (const a of anchors) {
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/\/actors\/([^\/?#]+)/);
+      if (m && m[1]) ids.add(m[1]);
+    }
+    return ids;
   }
 
   private async applyActorWatermark(item: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
@@ -543,26 +615,20 @@ class ListEnhancementManager {
       const existing = coverElement.querySelector('.x-actor-wm');
       if (existing) existing.remove();
 
-      log(`[ActorWM] Applying watermark for ${videoInfo.code}, title="${videoInfo.title}"`);
       // 1) 优先DOM抓取（列表/首页可靠）
       let actors = await this.extractActorsFromDOM(item);
       if (actors.length === 0) {
         // 2) 回退：标题解析（快速路径A -> 加权D）
         actors = this.extractActorsFromTitle(videoInfo.title);
-        log(`[ActorWM] Extracted ${actors.length} candidate(s) from title`);
       }
       // 演员页兜底：若标题未能匹配到演员，则使用当前演员ID
       if ((actors.length === 0) && /^\/actors\//.test(window.location.pathname)) {
         const m = window.location.pathname.match(/\/actors\/(\w+)/);
         if (m && m[1]) {
           try {
-            log(`[ActorWM] Fallback to current actor page id: ${m[1]}`);
             const rec = await actorManager.getActorById(m[1]);
             if (rec) {
               actors = [rec];
-              log(`[ActorWM] Fallback matched: ${rec.name}(${rec.id})`);
-            } else {
-              log('[ActorWM] Fallback actor not found in local DB');
             }
           } catch {}
         }
@@ -575,7 +641,6 @@ class ListEnhancementManager {
         const isSub = !!this.subscribedActorIds?.has(a.id);
         // 显示策略：红=黑名单、绿=订阅、琥珀=收藏（本地存在记录）
         const type = isBlack ? 'black' : (isSub ? 'sub' : 'fav');
-        log(`[ActorWM] Badge -> ${a.name}(${a.id}): ${type}`);
         return { actor: a, isBlack, isSub, type };
       });
 
@@ -779,56 +844,135 @@ class ListEnhancementManager {
 
   // ====== 基于演员的隐藏逻辑 ======
   private async applyActorBasedHiding(item: HTMLElement, videoInfo: { code: string; title: string; url: string }): Promise<void> {
-    try {
-      const hideByBlacklist = !!this.config.hideBlacklistedActorsInList;
-      const hideByNonFavorited = !!this.config.hideNonFavoritedActorsInList;
-      if (!hideByBlacklist && !hideByNonFavorited) {
-        // 若之前由“演员原因”隐藏，现在需要清除（不影响其他默认隐藏原因）
-        this.clearActorOnlyHiding(item);
-        return;
-      }
-
-      await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
-      // 先DOM，再标题
-      let actors = await this.extractActorsFromDOM(item);
-      if (actors.length === 0) {
-        actors = this.extractActorsFromTitle(videoInfo.title);
-      }
-
-      // 是否命中黑名单
-      const matchedBlack = hideByBlacklist && actors.some(a => !!a.blacklisted);
-
-      // 是否“未收藏”（无收藏/订阅的命中）
-      let matchedNonFav = false;
-      if (hideByNonFavorited) {
-        const treatSubs = this.config.treatSubscribedAsFavorited !== false; // 默认将订阅视为收藏
-        const subscribed = this.subscribedActorIds || new Set<string>();
-        // 规则：
-        // - 若标题无法匹配到任何本地演员（actors.length === 0），按“未收藏”处理（近似，允许误差）
-        // - 若匹配到了演员，但均为黑名单且未订阅，则也按“未收藏”处理
-        if (actors.length === 0) {
-          matchedNonFav = true;
-        } else {
-          const anyNonBlackFavoritedOrSubscribed = actors.some(a => {
-            const isBlack = !!a.blacklisted;
-            const isSubscribed = treatSubs && !!subscribed.has(a.id);
-            return (!isBlack) || isSubscribed;
-          });
-          matchedNonFav = !anyNonBlackFavoritedOrSubscribed;
+      try {
+        const hideByBlacklist = !!this.config.hideBlacklistedActorsInList;
+        const hideByNonFavorited = !!this.config.hideNonFavoritedActorsInList;
+        const hideUnrecognized = this.config.hideUnrecognizedActorsInList !== false; // 默认true
+        
+        log(`[ActorHiding] ${videoInfo.code}: hideByBlacklist=${hideByBlacklist}, hideByNonFavorited=${hideByNonFavorited}, hideUnrecognized=${hideUnrecognized}`);
+        
+        if (!hideByBlacklist && !hideByNonFavorited) {
+          // 若之前由"演员原因"隐藏，现在需要清除（不影响其他默认隐藏原因）
+          this.clearActorOnlyHiding(item);
+          return;
         }
-      }
 
-      if (matchedBlack) {
-        this.hideItemByActor(item, 'ACTOR_BLACKLIST');
-      } else if (matchedNonFav) {
-        this.hideItemByActor(item, 'ACTOR_NOT_FAVORITED');
-      } else {
-        this.clearActorOnlyHiding(item);
+        await Promise.all([this.ensureActorIndex(), this.ensureSubscriptions()]);
+        
+        // 1. 先从DOM提取所有演员ID（不管是否在本地数据库）
+        const allActorIds = this.extractActorIdsFromDOM(item);
+        log(`[ActorHiding] ${videoInfo.code}: Found ${allActorIds.size} actor IDs in DOM: ${Array.from(allActorIds).join(', ')}`);
+        
+        // 2. 查询这些演员在本地数据库中的记录
+        const actorRecords: import('../../types').ActorRecord[] = [];
+        if (allActorIds.size > 0) {
+          try {
+            const list = await Promise.all(
+              Array.from(allActorIds).slice(0, 8).map(id => actorManager.getActorById(id).catch(() => null))
+            );
+            actorRecords.push(...(list.filter(Boolean) as import('../../types').ActorRecord[]));
+            log(`[ActorHiding] ${videoInfo.code}: Found ${actorRecords.length} actors in local DB: ${actorRecords.map(a => `${a.name}(${a.id})`).join(', ')}`);
+          } catch (e) {
+            log(`[ActorHiding] ${videoInfo.code}: Failed to fetch actor records:`, e);
+          }
+        }
+        
+        // 3. 如果DOM中没有演员链接，尝试从标题解析
+        let actors = actorRecords;
+        if (actors.length === 0 && allActorIds.size === 0) {
+          actors = this.extractActorsFromTitle(videoInfo.title);
+          log(`[ActorHiding] ${videoInfo.code}: Extracted ${actors.length} actors from title`);
+        }
+
+        // 是否命中黑名单
+        const matchedBlack = hideByBlacklist && actors.some(a => !!a.blacklisted);
+        log(`[ActorHiding] ${videoInfo.code}: matchedBlack=${matchedBlack}`);
+
+        // 是否"未收藏"（有演员但都不在收藏/订阅中）
+        let matchedNonFav = false;
+        if (hideByNonFavorited) {
+          const treatSubs = this.config.treatSubscribedAsFavorited !== false; // 默认将订阅视为收藏
+          const subscribed = this.subscribedActorIds || new Set<string>();
+          log(`[ActorHiding] ${videoInfo.code}: treatSubs=${treatSubs}, subscribed count=${subscribed.size}`);
+
+          // 规则：
+          // 1. 若DOM中有演员链接，但本地数据库中一个都没有 -> 未收藏，隐藏
+          // 2. 若DOM中有演员链接，本地数据库中有部分演员：
+          //    - 检查是否至少有一个"收藏"或"订阅"的非黑名单演员
+          //    - 若都是黑名单或都不在订阅中，则隐藏
+          // 3. 若DOM中没有演员链接，标题也解析不出 -> 根据 hideUnrecognized 配置决定
+          // 4. 若标题解析出演员，检查是否有"值得显示"的演员
+
+          if (allActorIds.size > 0) {
+            // DOM中有演员链接
+            if (actors.length === 0) {
+              // 但本地数据库中一个都没有 -> 未收藏
+              matchedNonFav = true;
+              log(`[ActorHiding] ${videoInfo.code}: All ${allActorIds.size} actors are non-favorited (not in local DB)`);
+            } else {
+              // 本地数据库中有部分演员，检查是否有"值得显示"的演员
+              const hasAnyFavoritedActor = actors.some(a => {
+                const isBlack = !!a.blacklisted;
+                if (isBlack) {
+                  log(`[ActorHiding] ${videoInfo.code}: Actor ${a.name}(${a.id}) is blacklisted, skip`);
+                  return false; // 黑名单演员不算
+                }
+
+                // 演员在本地数据库中就算收藏
+                const isFavorited = true;
+
+                // 检查是否订阅（仅当 treatSubs=true 时生效）
+                const isSubscribed = treatSubs && subscribed.has(a.id);
+                
+                log(`[ActorHiding] ${videoInfo.code}: Actor ${a.name}(${a.id}) - isFavorited=${isFavorited}, isSubscribed=${isSubscribed}`);
+
+                // 收藏或订阅任一满足即可
+                return isFavorited || isSubscribed;
+              });
+
+              matchedNonFav = !hasAnyFavoritedActor;
+              log(`[ActorHiding] ${videoInfo.code}: hasAnyFavoritedActor=${hasAnyFavoritedActor}, matchedNonFav=${matchedNonFav}`);
+            }
+          } else if (actors.length > 0) {
+            // DOM中没有演员链接，但标题解析出了演员（这些演员必然在本地数据库中）
+            // 检查是否有"值得显示"的演员
+            const hasAnyFavoritedActor = actors.some(a => {
+              const isBlack = !!a.blacklisted;
+              if (isBlack) {
+                log(`[ActorHiding] ${videoInfo.code}: Actor ${a.name}(${a.id}) is blacklisted, skip`);
+                return false;
+              }
+              const isFavorited = true;
+              const isSubscribed = treatSubs && subscribed.has(a.id);
+              log(`[ActorHiding] ${videoInfo.code}: Actor ${a.name}(${a.id}) - isFavorited=${isFavorited}, isSubscribed=${isSubscribed}, result=${isFavorited || isSubscribed}`);
+              return isFavorited || isSubscribed;
+            });
+            matchedNonFav = !hasAnyFavoritedActor;
+            log(`[ActorHiding] ${videoInfo.code}: Title-based check, matchedNonFav=${matchedNonFav}`);
+          } else {
+            // 既没有DOM演员链接，标题也解析不出 -> 根据 hideUnrecognized 配置决定
+            matchedNonFav = hideUnrecognized;
+            log(`[ActorHiding] ${videoInfo.code}: No actors found, hideUnrecognized=${hideUnrecognized}, matchedNonFav=${matchedNonFav}`);
+          }
+        }
+
+        log(`[ActorHiding] ${videoInfo.code}: Final decision - matchedBlack=${matchedBlack}, matchedNonFav=${matchedNonFav}`);
+
+        if (matchedBlack) {
+          this.hideItemByActor(item, 'ACTOR_BLACKLIST');
+          log(`[ActorHiding] ${videoInfo.code}: Hidden by ACTOR_BLACKLIST`);
+        } else if (matchedNonFav) {
+          this.hideItemByActor(item, 'ACTOR_NOT_FAVORITED');
+          log(`[ActorHiding] ${videoInfo.code}: Hidden by ACTOR_NOT_FAVORITED`);
+        } else {
+          this.clearActorOnlyHiding(item);
+          log(`[ActorHiding] ${videoInfo.code}: Not hidden, clearing actor-only hiding`);
+        }
+      } catch (e) {
+        log('applyActorBasedHiding failed:', e);
       }
-    } catch (e) {
-      log('applyActorBasedHiding failed:', e);
     }
-  }
+
 
   private hideItemByActor(item: HTMLElement, reason: 'ACTOR_BLACKLIST' | 'ACTOR_NOT_FAVORITED'): void {
     // 不覆盖其他原因，仅追加我们的标记
@@ -1498,6 +1642,10 @@ class ListEnhancementManager {
     try {
       log(`Loading page ${nextPage}...`);
       this.showLoadingIndicator();
+
+      // 🔧 翻页前清除演员缓存，确保使用最新数据
+      log('Clearing actor caches before loading next page...');
+      this.clearActorCaches();
 
       const nextUrl = this.buildNextPageUrl(nextPage);
       const response = await fetch(nextUrl);

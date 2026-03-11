@@ -465,6 +465,7 @@ async function initialize(): Promise<void> {
             // 新增：演员过滤
             hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
             hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
+            hideUnrecognizedActorsInList: (settings.listEnhancement as any)?.hideUnrecognizedActorsInList !== false, // 默认true
             treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
             // 高质量封面
             enableHighQualityCover: settings.listEnhancement?.enableHighQualityCover !== false,
@@ -646,6 +647,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 listEnhancementManager.updateConfig({
                     hideBlacklistedActorsInList: (settings.listEnhancement as any)?.hideBlacklistedActorsInList === true,
                     hideNonFavoritedActorsInList: (settings.listEnhancement as any)?.hideNonFavoritedActorsInList === true,
+                    hideUnrecognizedActorsInList: (settings.listEnhancement as any)?.hideUnrecognizedActorsInList !== false, // 默认true
                     treatSubscribedAsFavorited: (settings.listEnhancement as any)?.treatSubscribedAsFavorited !== false,
                     // 🆕 同步列表显示控制配置
                     listDisplayControl: {
