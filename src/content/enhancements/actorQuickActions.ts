@@ -605,12 +605,8 @@ class ActorQuickActionsManager {
       this.scheduleHide();
     });
 
-    // 点击事件：阻止默认行为，保持提示框显示
-    actorLink.addEventListener('click', (e) => {
-      if (this.currentTooltip) {
-        e.preventDefault();
-      }
-    });
+    // 点击事件：如果点击的是演员链接本身（不是提示框），允许正常跳转
+    // 不需要阻止默认行为，让用户可以正常点击演员名字跳转
   }
 
   /**
