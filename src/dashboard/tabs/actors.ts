@@ -188,6 +188,13 @@ export class ActorsTab {
         const toggleViewModeBtn = document.getElementById('toggleActorViewModeBtn');
         if (toggleViewModeBtn) {
             toggleViewModeBtn.addEventListener('click', () => {
+                // 添加切换动画
+                toggleViewModeBtn.classList.add('switching');
+                setTimeout(() => {
+                    toggleViewModeBtn.classList.remove('switching');
+                }, 500);
+                
+                // 切换模式
                 this.currentViewMode = this.currentViewMode === 'list' ? 'card' : 'list';
                 this.updateViewModeBtnUI();
                 this.loadActors();
