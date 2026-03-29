@@ -116,7 +116,7 @@ export interface ActorSyncResult {
 export interface VideoRecord {
   id: string;
   title: string;
-  status: 'viewed' | 'browsed' | 'want';
+  status: 'viewed' | 'browsed' | 'want' | 'untracked';
   tags?: string[];
   createdAt: number;
   updatedAt: number;
@@ -128,6 +128,26 @@ export interface VideoRecord {
   genres?: string[];
   rating?: number;
   notes?: string;
+  // 手动编辑锁定的字段列表
+  manuallyEditedFields?: string[];
+  // 扩展字段
+  videoCode?: string;
+  duration?: number;
+  director?: string;
+  directorUrl?: string;
+  maker?: string;
+  makerUrl?: string;
+  publisher?: string;
+  publisherUrl?: string;
+  series?: string;
+  seriesUrl?: string;
+  ratingCount?: number;
+  wantToWatchCount?: number;
+  watchedCount?: number;
+  categories?: string[];
+  userRating?: number;
+  userNotes?: string;
+  isFavorite?: boolean;
 }
 
 // ============================================================

@@ -1740,17 +1740,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableVideoPreview: this.enableListVideoPreview?.checked !== false,
                     enableTranslation: this.enableTranslation.checked,
                 },
-                // 影片页增强配置保存（启用状态由任一子项或"标题翻译"开启决定）
+                // 影片页增强配置保存（启用状态由主开关决定）
                 videoEnhancement: {
-                    enabled: (
-                        this.veEnableCoverImage?.checked === true ||
-                        this.enableTranslation?.checked === true ||
-                        this.veShowLoadingIndicator?.checked === true ||
-                        this.veEnableReviewBreaker?.checked === true ||
-                        this.veEnableFC2Breaker?.checked === true ||
-                        this.veEnableVideoFavoriteRating?.checked === true ||
-                        this.enableActorQuickActions?.checked === true
-                    ),
+                    enabled: this.enableVideoEnhancement?.checked === true,
                     enableCoverImage: this.veEnableCoverImage?.checked !== false,
                     // 与"翻译"总开关保持一致，避免两处状态不一致
                     enableTranslation: this.enableTranslation?.checked === true,
@@ -1972,6 +1964,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.enableAnchorOptimization && typeof ux.enableAnchorOptimization === 'boolean') this.enableAnchorOptimization.checked = ux.enableAnchorOptimization;
                 if (this.enableListEnhancement && typeof ux.enableListEnhancement === 'boolean') this.enableListEnhancement.checked = ux.enableListEnhancement;
                 if (this.enableActorEnhancement && typeof ux.enableActorEnhancement === 'boolean') this.enableActorEnhancement.checked = ux.enableActorEnhancement;
+                if (this.enablePasswordHelper && typeof ux.enablePasswordHelper === 'boolean') this.enablePasswordHelper.checked = ux.enablePasswordHelper;
             }
             if (settings.listEnhancement) {
                 const le = settings.listEnhancement as any;
@@ -1979,12 +1972,21 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.enableClickEnhancementList && typeof le.enableClickEnhancementList === 'boolean') this.enableClickEnhancementList.checked = le.enableClickEnhancementList;
                 if (this.enableClickEnhancementDetail && typeof le.enableClickEnhancementDetail === 'boolean') this.enableClickEnhancementDetail.checked = le.enableClickEnhancementDetail;
                 if (this.enableListVideoPreview && typeof le.enableVideoPreview === 'boolean') this.enableListVideoPreview.checked = le.enableVideoPreview;
+                if (this.enableVideoPreviewList && typeof le.enableVideoPreviewList === 'boolean') this.enableVideoPreviewList.checked = le.enableVideoPreviewList;
+                if (this.enableVideoPreviewDetail && typeof le.enableVideoPreviewDetail === 'boolean') this.enableVideoPreviewDetail.checked = le.enableVideoPreviewDetail;
                 if (this.enableScrollPaging && typeof le.enableScrollPaging === 'boolean') this.enableScrollPaging.checked = le.enableScrollPaging;
                 if (this.previewDelay && typeof le.previewDelay === 'number') this.previewDelay.value = String(le.previewDelay);
                 if (this.previewVolume && typeof le.previewVolume === 'number') this.previewVolume.value = String(le.previewVolume);
                 if (this.enableActorWatermark && typeof le.enableActorWatermark === 'boolean') this.enableActorWatermark.checked = le.enableActorWatermark;
                 if (this.actorWatermarkPosition && le.actorWatermarkPosition) this.actorWatermarkPosition.value = le.actorWatermarkPosition;
                 if (this.actorWatermarkOpacity && typeof le.actorWatermarkOpacity === 'number') this.actorWatermarkOpacity.value = String(le.actorWatermarkOpacity);
+                if (this.showStatusBadge && typeof le.showStatusBadge === 'boolean') this.showStatusBadge.checked = le.showStatusBadge;
+                if (le.listDisplayControl) {
+                    const ldc = le.listDisplayControl;
+                    if (this.listColumnCount && typeof ldc.columnCount === 'number') this.listColumnCount.value = String(ldc.columnCount);
+                    if (this.listContainerWidth && typeof ldc.containerWidth === 'number') this.listContainerWidth.value = String(ldc.containerWidth);
+                    if (this.enableContainerExpansion && typeof ldc.enableContainerExpansion === 'boolean') this.enableContainerExpansion.checked = ldc.enableContainerExpansion;
+                }
             }
             if (settings.actorEnhancement) {
                 const ae = settings.actorEnhancement as any;
@@ -1995,6 +1997,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
             }
             if (settings.videoEnhancement) {
                 const ve = settings.videoEnhancement as any;
+                if (this.enableVideoEnhancement && typeof ve.enabled === 'boolean') this.enableVideoEnhancement.checked = ve.enabled;
+                if (this.veEnableCoverImage && typeof ve.enableCoverImage === 'boolean') this.veEnableCoverImage.checked = ve.enableCoverImage;
+                if (this.enableTranslation && typeof ve.enableTranslation === 'boolean') this.enableTranslation.checked = ve.enableTranslation;
+                if (this.veShowLoadingIndicator && typeof ve.showLoadingIndicator === 'boolean') this.veShowLoadingIndicator.checked = ve.showLoadingIndicator;
+                if (this.veEnableReviewBreaker && typeof ve.enableReviewBreaker === 'boolean') this.veEnableReviewBreaker.checked = ve.enableReviewBreaker;
+                if (this.veEnableFC2Breaker && typeof ve.enableFC2Breaker === 'boolean') this.veEnableFC2Breaker.checked = ve.enableFC2Breaker;
+                if (this.veEnableWantSync && typeof ve.enableWantSync === 'boolean') this.veEnableWantSync.checked = ve.enableWantSync;
+                if (this.veAutoMarkWatchedAfter115 && typeof ve.autoMarkWatchedAfter115 === 'boolean') this.veAutoMarkWatchedAfter115.checked = ve.autoMarkWatchedAfter115;
+                if (this.veAutoMarkWatchedStars && typeof ve.autoMarkWatchedStars !== 'undefined') this.veAutoMarkWatchedStars.value = String(ve.autoMarkWatchedStars ?? 4);
                 if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
                 if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
                 if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);

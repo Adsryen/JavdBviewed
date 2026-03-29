@@ -366,10 +366,10 @@ async function initialize(): Promise<void> {
     const isVideoPage = path.startsWith('/v/');
     const isActorPage = path.startsWith('/actors/');
 
-    // 演员页：演员备注（不依赖 videoEnhancement.enabled，也不触发其它重型增强）
+    // 演员页：演员备注（受主开关控制）
     // 优化：缩短延迟到500ms
     try {
-        const enabledActorRemarks = (settings as any)?.videoEnhancement?.enableActorRemarks === true;
+        const enabledActorRemarks = (settings as any)?.videoEnhancement?.enabled === true && (settings as any)?.videoEnhancement?.enableActorRemarks === true;
         if (enabledActorRemarks && isActorPage) {
             const FLAG = '__jdb_actorRemarks_actorPage_scheduled__';
             if (!(window as any)[FLAG]) {
