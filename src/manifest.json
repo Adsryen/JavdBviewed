@@ -105,17 +105,17 @@
     "action": {
         "default_popup": "popup/popup.html",
         "default_icon": {
-            "16": "assets/favicons/light/favicon-16x16.png",
-            "32": "assets/favicons/light/favicon-32x32.png",
-            "48": "assets/favicons/light/favicon-48x48.png",
-            "128": "assets/favicons/light/favicon-128x128.png"
+            "16": "assets/favicons/dark/favicon-16x16.png",
+            "32": "assets/favicons/dark/favicon-32x32.png",
+            "48": "assets/favicons/dark/favicon-48x48.png",
+            "128": "assets/favicons/dark/favicon-128x128.png"
         }
     },
     "icons": {
-        "16": "assets/favicons/light/favicon-16x16.png",
-        "32": "assets/favicons/light/favicon-32x32.png",
-        "48": "assets/favicons/light/favicon-48x48.png",
-        "128": "assets/favicons/light/favicon-128x128.png"
+        "16": "assets/favicons/dark/favicon-16x16.png",
+        "32": "assets/favicons/dark/favicon-32x32.png",
+        "48": "assets/favicons/dark/favicon-48x48.png",
+        "128": "assets/favicons/dark/favicon-128x128.png"
     },
     "options_ui": {
         "page": "dashboard/dashboard.html",
