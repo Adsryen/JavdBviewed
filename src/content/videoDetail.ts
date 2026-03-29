@@ -583,9 +583,9 @@ async function runActorRemarksQuick(): Promise<void> {
             }
         }
 
-        // 独立：演员备注（不依赖 videoEnhancement.enabled，也不触发其它重型增强）
+        // 独立：演员备注（受主开关控制）
         try {
-            const enabledActorRemarks = ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
+            const enabledActorRemarks = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
             if (enabledActorRemarks) {
                 const FLAG = '__jdb_actorRemarks_scheduled__';
                 if (!(window as any)[FLAG]) {
@@ -597,9 +597,9 @@ async function runActorRemarksQuick(): Promise<void> {
             }
         } catch {}
 
-        // 独立：影片页收藏与评分（不依赖 videoEnhancement.enabled）
+        // 独立：影片页收藏与评分（受主开关控制）
         try {
-            const enabledVideoFavoriteRating = ((STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true);
+            const enabledVideoFavoriteRating = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true);
             if (enabledVideoFavoriteRating) {
                 const FLAG = '__jdb_videoFavoriteRating_scheduled__';
                 if (!(window as any)[FLAG]) {
