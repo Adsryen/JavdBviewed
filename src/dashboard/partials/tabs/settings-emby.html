@@ -16,10 +16,15 @@
         <div class="settings-card settings-section">
             <h4>基本设置</h4>
             <div class="setting-item">
-                <label class="setting-label">
-                    <input type="checkbox" id="emby-enabled">
-                    <span class="setting-title">启用Emby增强功能</span>
-                </label>
+                <div class="drive115-toggle-wrapper" style="display:flex; align-items:center; gap:10px;">
+                    <span class="drive115-toggle-text">启用Emby增强功能</span>
+                    <label class="drive115-toggle-label" style="margin:0;">
+                        <div class="drive115-toggle-switch">
+                            <input type="checkbox" id="emby-enabled" class="drive115-toggle-input">
+                            <span class="drive115-toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
                 <p class="setting-description">
                     启用后，扩展将在匹配的网站上自动识别番号并转换为可点击的链接。
                 </p>
