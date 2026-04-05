@@ -197,6 +197,51 @@ try {
 // --- Utility Functions ---
 
 /**
+ * 在顶栏注入"插件已生效"标识
+ */
+function injectNavbarBadge(): void {
+    try {
+        if (document.getElementById('javdb-ext-badge')) return;
+
+        // JavDB 的用户区域在 #navbar-menu-user > .navbar-end
+        const navbarEnd = document.querySelector('#navbar-menu-user .navbar-end') as HTMLElement | null;
+        if (!navbarEnd) return;
+
+        const badge = document.createElement('div');
+        badge.id = 'javdb-ext-badge';
+        badge.className = 'navbar-item';
+        badge.innerHTML = `
+            <span style="
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 12px;
+                padding: 3px 8px;
+                border-radius: 12px;
+                background: rgba(59, 130, 246, 0.15);
+                color: #60a5fa;
+                border: 1px solid rgba(59, 130, 246, 0.3);
+                white-space: nowrap;
+                cursor: default;
+                user-select: none;
+            " title="Jav 助手已启用">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style="flex-shrink:0">
+                    <circle cx="4" cy="4" r="4" fill="#3b82f6" opacity="0.4"/>
+                    <circle cx="4" cy="4" r="2.5" fill="#60a5fa"/>
+                </svg>
+                Jav 助手已启用
+            </span>
+        `;
+
+        // 插到第一个子元素前面
+        navbarEnd.insertBefore(badge, navbarEnd.firstChild);
+        log('Navbar badge injected');
+    } catch (error) {
+        log('Error injecting navbar badge:', error);
+    }
+}
+
+/**
  * 移除不需要的按钮（官方App和Telegram频道）
  */
 function removeUnwantedButtons(): void {
@@ -631,6 +676,8 @@ export function onExecute() {
     isInitialized = true;
     // 标记已注入，供 background executeScript 检查防重复
     (window as any).__javdbExtensionInjected = true;
+    // 立即注入顶栏标识，不等待编排器
+    injectNavbarBadge();
     initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
 }
 
