@@ -1,4 +1,4 @@
-// src/background/miscHandlers.ts
+﻿// src/background/miscHandlers.ts
 // 抽离杂项 handlers 与消息路由
 
 import { getValue, setValue } from '../utils/storage';
@@ -416,6 +416,13 @@ export function registerMiscRouter(): void {
         if (area === 'local' && changes['settings']) {
           applySchedulerConfigFromSettings().catch(() => {});
           setupAlarms().catch(() => {});
+          // 如果 Emby 设置发生变化，重新注册动态内容脚本
+          const newSettings = changes['settings'].newValue;
+          const oldSettings = changes['settings'].oldValue;
+          const embyChanged = JSON.stringify(newSettings?.emby) !== JSON.stringify(oldSettings?.emby);
+          if (embyChanged) {
+            registerEmbyDynamicScripts(newSettings?.emby).catch(() => {});
+          }
         }
       });
     } catch {}
@@ -1119,5 +1126,112 @@ async function handleClearTaskDetails(): Promise<any> {
   } catch (error) {
     console.error('[Background] Failed to clear task details:', error);
     return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * 根据 Emby 设置动态注册/注销内容脚本（导出供 background.ts 启动时调用）
+ * 使用 tabs.onUpdated + executeScript 方式，绕过 registerContentScripts 对 URL 格式的限制
+ */
+export async function registerEmbyDynamicScripts(embyConfig: any): Promise<void> {
+  // 此函数现在只是一个入口，实际注入由 setupEmbyTabListener 完成
+  // 每次设置变化时重新设置监听器
+  setupEmbyTabListener(embyConfig);
+}
+
+// 保存当前的 Emby tab 监听器，方便移除
+let embyTabListener: ((tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => void) | null = null;
+
+/**
+ * 设置 Emby 页面的 tab 监听器
+ * 当用户访问匹配的 URL 时，动态注入 content script
+ */
+function setupEmbyTabListener(embyConfig: any): void {
+  // 移除旧的监听器
+  if (embyTabListener) {
+    chrome.tabs.onUpdated.removeListener(embyTabListener);
+    embyTabListener = null;
+  }
+
+  if (!embyConfig?.enabled || !embyConfig?.matchUrls?.length) {
+    console.info('[Background] Emby 未启用或无 URL，移除 tab 监听器');
+    return;
+  }
+
+  const matchPatterns: string[] = embyConfig.matchUrls
+    .map((u: string) => u.trim())
+    .filter((u: string) => u.length > 0);
+
+  if (matchPatterns.length === 0) return;
+
+  // 获取 manifest 中主 content script 的实际文件名
+  const manifest = chrome.runtime.getManifest();
+  const mainScript = manifest.content_scripts?.find(
+    (cs: any) => cs.js?.some((j: string) => j.includes('index.ts-loader'))
+  );
+  const jsFiles: string[] = mainScript?.js || [];
+  const cssFiles: string[] = mainScript?.css || [];
+
+  if (jsFiles.length === 0) {
+    console.warn('[Background] 未找到主 content script JS 文件');
+    return;
+  }
+
+  embyTabListener = (tabId, changeInfo, tab) => {
+    if (changeInfo.status !== 'complete' || !tab.url) return;
+
+    const tabUrl = tab.url;
+    const matched = matchPatterns.some(pattern => urlMatchesPattern(tabUrl, pattern));
+    if (!matched) return;
+
+    // 注入 CSS
+    if (cssFiles.length > 0) {
+      chrome.scripting.insertCSS({ target: { tabId }, files: cssFiles }).catch(() => {});
+    }
+
+    // 注入 JS（检查是否已注入，避免重复）
+    chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => !!(window as any).__javdbExtensionInjected
+    }).then(results => {
+      const alreadyInjected = results?.[0]?.result;
+      if (alreadyInjected) return;
+
+      chrome.scripting.executeScript({
+        target: { tabId },
+        files: jsFiles
+      }).then(() => {
+        console.info(`[Background] Emby content script 已注入: ${tabUrl}`);
+      }).catch((e) => {
+        console.warn(`[Background] Emby content script 注入失败: ${e?.message || e}`);
+      });
+    }).catch(() => {
+      // 检查失败时直接尝试注入
+      chrome.scripting.executeScript({
+        target: { tabId },
+        files: jsFiles
+      }).catch(() => {});
+    });
+  };
+
+  chrome.tabs.onUpdated.addListener(embyTabListener);
+  console.info('[Background] Emby tab 监听器已设置，匹配模式:', matchPatterns);
+}
+
+/**
+ * 将用户填写的 URL 模式（支持 * 通配符）转为正则，测试是否匹配
+ * 不加末尾 $ 允许 URL 有额外路径/参数
+ */
+function urlMatchesPattern(url: string, pattern: string): boolean {
+  try {
+    const p = pattern.trim();
+    if (!p) return false;
+    const regexStr = p
+      .replace(/\*/g, '\x00')
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\x00/g, '.*');
+    return new RegExp('^' + regexStr).test(url);
+  } catch {
+    return false;
   }
 }

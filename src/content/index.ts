@@ -629,6 +629,8 @@ export function onExecute() {
         return;
     }
     isInitialized = true;
+    // 标记已注入，供 background executeScript 检查防重复
+    (window as any).__javdbExtensionInjected = true;
     initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
 }
 
