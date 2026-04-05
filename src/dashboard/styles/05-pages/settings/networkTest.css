@@ -442,6 +442,52 @@
     min-height: 32px;
 }
 
+.route-actions .btn-secondary {
+    background: var(--surface-secondary);
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary);
+}
+
+.route-actions .btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary) !important;
+}
+
+.route-actions .btn-warning {
+    background: var(--warning-light);
+    color: var(--warning) !important;
+    border: 1px solid var(--warning);
+}
+
+.route-actions .btn-warning:hover {
+    background: var(--warning);
+    color: #fff !important;
+}
+
+.route-actions .btn-success {
+    background: var(--success-light);
+    color: var(--success) !important;
+    border: 1px solid var(--success);
+}
+
+.route-actions .btn-success:hover {
+    background: var(--success);
+    color: #fff !important;
+}
+
+.route-disabled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--error-light);
+    color: var(--error);
+    margin-left: 6px;
+}
+
 .route-actions .btn-danger {
     background: transparent;
     color: var(--error);
