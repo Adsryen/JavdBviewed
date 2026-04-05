@@ -30,150 +30,99 @@ ensureMigrationsStart();
  * 这样当用户添加新的备用线路时，不需要重新编译扩展
  * @param showNotification 是否显示通知（用户手动添加时显示）
  */
-async function registerDynamicContentScripts(showNotification: boolean = false): Promise<void> {
+// 保存线路管理的 tab 监听器
+let routesTabListener: ((tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => void) | null = null;
+
+export async function registerDynamicContentScripts(showNotification: boolean = false): Promise<void> {
   try {
     const settings = await getSettings();
     const routes = settings?.routes;
-    
-    if (!routes) {
-      console.debug('[Background] No routes config found, skipping dynamic content scripts');
+
+    // 收集所有需要注入的 URL 前缀（用于前缀匹配）
+    const urlPrefixes: string[] = [];
+    const prefixSet = new Set<string>();
+
+    if (routes?.javdb) {
+      [routes.javdb.primary, ...(routes.javdb.alternatives?.filter((a: any) => a.enabled && a.url).map((a: any) => a.url) || [])]
+        .forEach((u: string) => {
+          try {
+            const { origin } = new URL(u);
+            prefixSet.add(origin + '/');
+          } catch {}
+        });
+    }
+    if (routes?.javbus) {
+      [routes.javbus.primary, ...(routes.javbus.alternatives?.filter((a: any) => a.enabled && a.url).map((a: any) => a.url) || [])]
+        .forEach((u: string) => {
+          try {
+            const { origin } = new URL(u);
+            prefixSet.add(origin + '/');
+          } catch {}
+        });
+    }
+
+    urlPrefixes.push(...Array.from(prefixSet));
+
+    // 移除旧监听器
+    if (routesTabListener) {
+      chrome.tabs.onUpdated.removeListener(routesTabListener);
+      routesTabListener = null;
+    }
+
+    if (urlPrefixes.length === 0) {
+      console.debug('[Background] No route domains to watch');
       return;
     }
 
-    // 收集所有需要注入的域名
-    const domains: string[] = [];
-    const domainSet = new Set<string>(); // 用于去重
-    
-    // JavDB 主域名和备用域名
-    if (routes.javdb) {
-      // 添加主域名
-      try {
-        const url = new URL(routes.javdb.primary);
-        const domain = url.hostname;
-        domainSet.add(`*://${domain}/*`);
-        if (!domain.startsWith('www.')) {
-          domainSet.add(`*://*.${domain}/*`);
-        }
-      } catch (e) {
-        console.warn('[Background] Invalid primary URL:', routes.javdb.primary);
-      }
-      
-      // 添加所有启用的备用域名
-      if (routes.javdb.alternatives) {
-        routes.javdb.alternatives
-          .filter(alt => alt.enabled && alt.url)
-          .forEach(alt => {
-            try {
-              const url = new URL(alt.url);
-              const domain = url.hostname;
-              domainSet.add(`*://${domain}/*`);
-              if (!domain.startsWith('www.')) {
-                domainSet.add(`*://*.${domain}/*`);
-              }
-            } catch (e) {
-              console.warn('[Background] Invalid alternative URL:', alt.url);
-            }
-          });
-      }
-    }
-    
-    // JavBus 主域名和备用域名
-    if (routes.javbus) {
-      // 添加主域名
-      try {
-        const url = new URL(routes.javbus.primary);
-        const domain = url.hostname;
-        domainSet.add(`*://${domain}/*`);
-        if (!domain.startsWith('www.')) {
-          domainSet.add(`*://*.${domain}/*`);
-        }
-      } catch (e) {
-        console.warn('[Background] Invalid primary URL:', routes.javbus.primary);
-      }
-      
-      // 添加所有启用的备用域名
-      if (routes.javbus.alternatives) {
-        routes.javbus.alternatives
-          .filter(alt => alt.enabled && alt.url)
-          .forEach(alt => {
-            try {
-              const url = new URL(alt.url);
-              const domain = url.hostname;
-              domainSet.add(`*://${domain}/*`);
-              if (!domain.startsWith('www.')) {
-                domainSet.add(`*://*.${domain}/*`);
-              }
-            } catch (e) {
-              console.warn('[Background] Invalid alternative URL:', alt.url);
-            }
-          });
-      }
-    }
-    
-    // 转换为数组
-    domains.push(...Array.from(domainSet));
+    // 获取 manifest 中主 content script 的实际文件名
+    const manifest = chrome.runtime.getManifest();
+    const mainScript = manifest.content_scripts?.find(
+      (cs: any) => cs.js?.some((j: string) => j.includes('index.ts-loader'))
+    );
+    const jsFiles: string[] = mainScript?.js || [];
+    const cssFiles: string[] = mainScript?.css || [];
 
-    // 加入 Emby 用户自定义 URL
-    const embyUrls = settings?.emby?.matchUrls || [];
-    if (settings?.emby?.enabled && embyUrls.length > 0) {
-      embyUrls.forEach((pattern: string) => {
-        // 将用户填写的 URL 模式转为 chrome match pattern
-        // 例如 http://192.168.1.6:8096/* 直接可用，http://192.168.*.*:8096/* 也可用
-        const trimmed = pattern.trim();
-        if (trimmed) {
-          domainSet.add(trimmed);
-        }
+    if (jsFiles.length === 0) {
+      console.warn('[Background] 未找到主 content script JS 文件');
+      return;
+    }
+
+    routesTabListener = (tabId, changeInfo, tab) => {
+      if (changeInfo.status !== 'complete' || !tab.url) return;
+      const tabUrl = tab.url;
+      const matched = urlPrefixes.some(prefix => tabUrl.startsWith(prefix));
+      if (!matched) return;
+
+      if (cssFiles.length > 0) {
+        chrome.scripting.insertCSS({ target: { tabId }, files: cssFiles }).catch(() => {});
+      }
+
+      chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => !!(window as any).__javdbExtensionInjected
+      }).then(results => {
+        if (results?.[0]?.result) return;
+        chrome.scripting.executeScript({ target: { tabId }, files: jsFiles })
+          .then(() => console.info(`[Background] 线路 content script 已注入: ${tabUrl}`))
+          .catch((e) => console.warn(`[Background] 线路 content script 注入失败: ${e?.message || e}`));
+      }).catch(() => {
+        chrome.scripting.executeScript({ target: { tabId }, files: jsFiles }).catch(() => {});
       });
-      // 重新同步（emby URL 可能有新增）
-      domains.length = 0;
-      domains.push(...Array.from(domainSet));
-    }
+    };
 
-    if (domains.length === 0) {
-      console.debug('[Background] No additional domains to register');
-      return;
-    }
+    chrome.tabs.onUpdated.addListener(routesTabListener);
+    console.info('[Background] 线路 tab 监听器已设置，前缀:', urlPrefixes);
 
-    // 注册动态内容脚本
-    try {
-      // 先清除旧的动态脚本
-      const existingScripts = await chrome.scripting.getRegisteredContentScripts();
-      const dynamicScriptIds = existingScripts
-        .filter(s => s.id?.startsWith('dynamic-'))
-        .map(s => s.id!);
-      
-      if (dynamicScriptIds.length > 0) {
-        await chrome.scripting.unregisterContentScripts({ ids: dynamicScriptIds });
-      }
-
-      // 注册新的动态脚本
-      await chrome.scripting.registerContentScripts([
-        {
-          id: 'dynamic-javdb-javbus',
-          matches: domains,
-          js: ['content/index.ts'],
-          runAt: 'document_end'
-        }
-      ]);
-
-      console.info('[Background] 动态内容脚本已注册，支持的域名:', domains);
-      
-      // 如果是用户手动触发的（通过设置更改），显示通知
-      if (showNotification && domains.length > 0) {
-        try {
-          await chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'assets/favicons/light/favicon-128x128.png',
-            title: 'Jav 助手 - 线路已更新',
-            message: `已为 ${domains.length} 个域名启用扩展功能，请刷新页面使用`,
-            priority: 1
-          });
-        } catch (e) {
-          // 通知失败不影响主流程
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Background] Failed to register dynamic content scripts:', e?.message || e);
+    if (showNotification && urlPrefixes.length > 0) {
+      try {
+        await chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'assets/favicons/light/favicon-128x128.png',
+          title: 'Jav 助手 - 线路已更新',
+          message: `已为 ${urlPrefixes.length} 个域名启用扩展功能，请刷新页面使用`,
+          priority: 1
+        });
+      } catch {}
     }
   } catch (e: any) {
     console.warn('[Background] Error in registerDynamicContentScripts:', e?.message || e);

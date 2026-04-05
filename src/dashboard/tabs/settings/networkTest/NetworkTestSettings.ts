@@ -576,11 +576,11 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             const latencyHtml = latencyInfo ? this.renderLatencyBadge(latencyInfo) : '';
             
             routeItem.innerHTML = `
-                <input type="checkbox" ${route.enabled ? 'checked' : ''} data-url="${route.url}" data-is-primary="${route.isPrimary}" class="route-checkbox">
                 <div class="route-info">
                     <div class="route-url">
                         ${route.url}
                         ${isPreferred ? '<span class="route-preferred-badge"><i class="fas fa-star"></i> 首选</span>' : ''}
+                        ${!route.enabled && !route.isPrimary ? '<span class="route-disabled-badge"><i class="fas fa-ban"></i> 已禁用</span>' : ''}
                         ${latencyHtml}
                     </div>
                     ${route.description ? `<div class="route-description">${route.description}</div>` : ''}
@@ -592,17 +592,28 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                     <button class="btn btn-sm btn-secondary" data-action="test" data-url="${route.url}">
                         <i class="fas fa-vial"></i> 测试
                     </button>
+                    ${!route.isPrimary ? `<button class="btn btn-sm ${route.enabled ? 'btn-warning' : 'btn-success'}" data-action="toggle" data-url="${route.url}" data-enabled="${route.enabled}">
+                        <i class="fas ${route.enabled ? 'fa-ban' : 'fa-check'}"></i> ${route.enabled ? '禁用' : '启用'}
+                    </button>` : ''}
                     ${!route.isPrimary ? `<button class="btn btn-sm btn-danger" data-action="delete" data-url="${route.url}">
                         <i class="fas fa-trash"></i>
                     </button>` : ''}
                 </div>
             `;
+            
+            // 禁用的线路整体变灰
+            if (!route.enabled && !route.isPrimary) {
+                routeItem.style.opacity = '0.5';
+            }
 
-            // 绑定复选框事件
-            const checkbox = routeItem.querySelector('input[type="checkbox"]') as HTMLInputElement;
-            checkbox.addEventListener('change', () => {
-                this.handleToggleRoute(service, route.url, route.isPrimary, checkbox.checked);
-            });
+            // 绑定禁用/启用按钮事件
+            const toggleBtn = routeItem.querySelector('[data-action="toggle"]') as HTMLButtonElement;
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const currentEnabled = toggleBtn.dataset.enabled === 'true';
+                    this.handleToggleRoute(service, route.url, route.isPrimary, !currentEnabled);
+                });
+            }
 
             // 绑定设为首选按钮事件
             const preferredBtn = routeItem.querySelector('[data-action="set-preferred"]') as HTMLButtonElement;
@@ -796,9 +807,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      */
     private async handleToggleRoute(service: 'javdb', url: string, isPrimary: boolean, enabled: boolean): Promise<void> {
         if (isPrimary) {
-            // 主线路不能禁用
             showMessage('主线路不能禁用', 'warn');
-            await this.loadRoutesConfig();
             return;
         }
 
@@ -809,6 +818,8 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         if (route) {
             route.enabled = enabled;
             await this.saveStoredSettings(settings);
+            await this.loadRoutesConfig();
+            showMessage(enabled ? `已启用 ${url}` : `已禁用 ${url}`, 'success');
         }
     }
 
