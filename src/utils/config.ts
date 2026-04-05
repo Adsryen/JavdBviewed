@@ -433,15 +433,17 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     emby: {
         enabled: false, // 默认关闭，需要用户手动配置
         matchUrls: [
-            '*.emby.com/*',
-            '*.jellyfin.org/*',
-            'localhost:8096/*',
-            '192.168.*.*:8096/*'
+            'http://localhost:8096/*',
+            'https://localhost:8920/*',
+            'http://127.0.0.1:8096/*',
+            'http://192.168.*.*:8096/*',
+            'https://*.emby.com/*',
+            'https://*.jellyfin.org/*'
         ], // 默认匹配常见的Emby/Jellyfin地址
         videoCodePatterns: [
-            '[A-Z]{2,6}\\d{2,6}', // 标准格式: ABC-123, ABCD-123
-            '\\d{4,8}_\\d{1,3}', // 数字格式: 123456_01
+            '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
             'FC2-PPV-\\d+', // FC2格式
+            '\\d{4,8}_\\d{1,3}', // 数字格式: 123456_01
             '\\d{6,12}', // 纯数字格式
             '[a-z0-9]+-\\d+_\\d+' // 带字母的数字格式
         ],
