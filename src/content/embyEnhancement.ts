@@ -34,6 +34,32 @@ class EmbyEnhancementManager {
     private config: EmbyConfig | null = null;
     private quickActions: HTMLElement | null = null;
 
+    private _onHashChange = () => {
+        this.renderQuickActions();
+    };
+
+    // 兜底：轮询检测 URL 变化（应对 Emby 不触发 hashchange 的情况）
+    private _urlWatchTimer: ReturnType<typeof setInterval> | null = null;
+    private _lastUrl = '';
+
+    private startUrlWatch(): void {
+        this._lastUrl = window.location.href;
+        this._urlWatchTimer = setInterval(() => {
+            const current = window.location.href;
+            if (current !== this._lastUrl) {
+                this._lastUrl = current;
+                this.renderQuickActions();
+            }
+        }, 500);
+    }
+
+    private stopUrlWatch(): void {
+        if (this._urlWatchTimer) {
+            clearInterval(this._urlWatchTimer);
+            this._urlWatchTimer = null;
+        }
+    }
+
     /**
      * 初始化Emby增强功能
      */
@@ -55,8 +81,11 @@ class EmbyEnhancementManager {
 
             this.setupMutationObserver();
             this.processExistingContent();
-            // 渲染右侧悬浮快捷框（搜番号 / 搜演员）
             this.renderQuickActions();
+            // 监听 hash/popstate 变化 + 轮询兜底（Emby SPA 路由）
+            window.addEventListener('hashchange', this._onHashChange);
+            window.addEventListener('popstate', this._onHashChange);
+            this.startUrlWatch();
             this.isInitialized = true;
 
             log('Emby enhancement initialized successfully');
@@ -73,6 +102,9 @@ class EmbyEnhancementManager {
             this.observer.disconnect();
             this.observer = null;
         }
+        window.removeEventListener('hashchange', this._onHashChange);
+        window.removeEventListener('popstate', this._onHashChange);
+        this.stopUrlWatch();
         this.isInitialized = false;
         this.processedElements = new WeakSet();
         this.removeQuickActions();
@@ -391,6 +423,13 @@ class EmbyEnhancementManager {
     /** 渲染右侧悬浮快捷框（搜番号 / 搜演员） */
     private renderQuickActions(): void {
         if (!this.config?.enabled || !this.isCurrentPageMatched()) return;
+
+        // 视频播放界面（videoosd）隐藏快捷按钮
+        if (window.location.href.includes('videoosd')) {
+            this.removeQuickActions();
+            return;
+        }
+
         // 根据配置判断是否需要显示
         const showCode = this.config.showQuickSearchCode !== false;
         const showActor = this.config.showQuickSearchActor !== false;
