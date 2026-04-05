@@ -113,6 +113,22 @@ async function registerDynamicContentScripts(showNotification: boolean = false):
     // 转换为数组
     domains.push(...Array.from(domainSet));
 
+    // 加入 Emby 用户自定义 URL
+    const embyUrls = settings?.emby?.matchUrls || [];
+    if (settings?.emby?.enabled && embyUrls.length > 0) {
+      embyUrls.forEach((pattern: string) => {
+        // 将用户填写的 URL 模式转为 chrome match pattern
+        // 例如 http://192.168.1.6:8096/* 直接可用，http://192.168.*.*:8096/* 也可用
+        const trimmed = pattern.trim();
+        if (trimmed) {
+          domainSet.add(trimmed);
+        }
+      });
+      // 重新同步（emby URL 可能有新增）
+      domains.length = 0;
+      domains.push(...Array.from(domainSet));
+    }
+
     if (domains.length === 0) {
       console.debug('[Background] No additional domains to register');
       return;
@@ -166,6 +182,19 @@ async function registerDynamicContentScripts(showNotification: boolean = false):
 
 // 启动时注册动态内容脚本
 registerDynamicContentScripts();
+
+// 启动时注册 Emby 动态内容脚本
+(async () => {
+  try {
+    const settings = await getSettings();
+    if (settings?.emby?.enabled) {
+      const { registerEmbyDynamicScripts } = await import('./miscHandlers');
+      await registerEmbyDynamicScripts(settings.emby);
+    }
+  } catch (e: any) {
+    console.warn('[Background] 启动时注册 Emby 脚本失败:', e?.message || e);
+  }
+})();
 
 /**
  * 自动更新线路配置
