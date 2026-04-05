@@ -324,7 +324,13 @@ export class EmbySettings extends BaseSettingsPanel {
                     'https://*.emby.com/*',
                     'https://*.jellyfin.org/*'
                 ],
-                videoCodePatterns: [],
+                videoCodePatterns: [
+                    '[A-Z]{2,6}-\\d{2,6}', // 标准格式: ABC-123, ABCD-123
+                    'FC2-PPV-\\d+', // FC2格式
+                    '\\d{4,8}_\\d{1,3}', // 数字格式: 123456_01
+                    '\\d{6,12}', // 纯数字格式
+                    '[a-z0-9]+-\\d+_\\d+' // 带字母的数字格式
+                ],
                 linkBehavior: 'javdb-search',
                 enableAutoDetection: true,
                 highlightStyle: {
