@@ -204,6 +204,10 @@ function bindUserProfileEvents(): void {
         });
     }
 
+    // 监听来自设置页的用户信息刷新事件（settings 页刷新后同步更新侧边栏）
+    window.addEventListener('drive115:refreshUserInfo', () => {
+        loadDrive115UserInfo({ allowNetwork: true });
+    });
 }
 
 /**
@@ -594,8 +598,8 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         }
 
         // 检查 refresh_token 状态
-        const rtStatus = drv?.v2RefreshTokenStatus;
-        const rtLastError = drv?.v2RefreshTokenLastError;
+        const rtStatus = s?.v2RefreshTokenStatus;
+        const rtLastError = s?.v2RefreshTokenLastError;
         if (rtStatus === 'invalid' || rtStatus === 'expired') {
             set115Status('refresh_token 已失效', 'error');
             const statusText = rtStatus === 'expired' ? '已过期' : '已失效';

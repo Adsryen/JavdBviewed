@@ -303,53 +303,6 @@ export class Drive115V2Pane implements IDrive115Pane {
       }
     });
 
-    // 刷新用户信息
-    const fetchBtn = document.getElementById('drive115V2FetchUserInfo') as HTMLButtonElement | null;
-    const boxEl = document.getElementById('drive115V2UserInfoBox');
-    fetchBtn?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const token = (((v2AccessTokenInput as any)?.value) || '').trim();
-      if (!token) {
-        this.setUserInfoStatus('请先填写 access_token', 'error');
-        return;
-      }
-      this.setUserInfoStatus('加载中…');
-      if (boxEl) boxEl.innerHTML = '<p style="margin:0; color:#888;">加载中…</p>';
-      try {
-        const svc = getDrive115V2Service();
-        const ret = await svc.fetchUserInfo(token);
-        if (!ret.success || !ret.data) {
-          const msg = describe115Error((ret as any).raw) || ret.message || '获取失败';
-          this.setUserInfoStatus(msg, 'error');
-          if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
-          showToast(msg, 'error');
-          return;
-        }
-        this.setUserInfoStatus('已更新', 'ok');
-        showToast('已获取用户信息', 'success');
-        this.renderUserInfo(ret.data);
-        // 持久化保存用户信息
-        try {
-          const settings: any = await getSettings();
-          const ns: any = { ...settings };
-          ns.drive115 = {
-            ...(settings?.drive115 || {}),
-            v2UserInfo: ret.data,
-            v2UserInfoUpdatedAt: Date.now(),
-            v2UserInfoExpired: false,
-          };
-          await saveSettings(ns);
-          // 用户信息成功后触发侧边栏配额刷新
-          try { window.dispatchEvent(new Event('drive115:refreshQuota')); } catch {}
-        } catch {}
-      } catch (err: any) {
-        const msg = describe115Error(err) || err?.message || '发生错误';
-        this.setUserInfoStatus(msg, 'error');
-        if (boxEl) boxEl.innerHTML = `<p style="margin:0; color:#d00;">${msg}</p>`;
-        showToast(msg, 'error');
-      }
-    });
-
     // 添加云下载任务（多链接）
     const addUrlsTextarea = document.getElementById('drive115V2AddUrls') as HTMLTextAreaElement | null;
     const wpPathIdInput = document.getElementById('drive115V2WpPathId') as HTMLInputElement | null;
