@@ -1,4 +1,4 @@
-// src/background/background.ts
+﻿// src/background/background.ts
 // 背景入口：装配与注册各模块
 
 // 确保 Service Worker 上下文已准备好
@@ -19,7 +19,7 @@ import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
 import { registerMonthlyAlarm, handleAlarm, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
-import { getSettings } from '../utils/storage';
+import { getSettings, saveSettings } from '../utils/storage';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
@@ -31,7 +31,7 @@ ensureMigrationsStart();
  * @param showNotification 是否显示通知（用户手动添加时显示）
  */
 // 保存线路管理的 tab 监听器
-let routesTabListener: ((tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => void) | null = null;
+let routesTabListener: ((tabId: number, changeInfo: any, tab: chrome.tabs.Tab) => void) | null = null;
 
 export async function registerDynamicContentScripts(showNotification: boolean = false): Promise<void> {
   try {
@@ -247,15 +247,112 @@ try {
     }
   });
 } catch {}
+// ── 115 用户信息后台自动刷新 ──────────────────────────────────────────────────
+
+const DRIVE115_USER_REFRESH_ALARM = 'drive115.daily_user_refresh';
+
+/**
+ * 向所有打开的 dashboard 页面广播消息，触发 115 用户信息 UI 刷新
+ */
+async function broadcastDrive115RefreshUserInfo(): Promise<void> {
+  try {
+    const extUrl = chrome.runtime.getURL('');
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id && tab.url && tab.url.startsWith(extUrl)) {
+        chrome.tabs.sendMessage(tab.id, { type: 'drive115.refresh_user_info' }).catch(() => {});
+      }
+    }
+  } catch {}
+}
+
+/**
+ * 后台执行 115 用户信息刷新（刷新 token + 拉取用户信息并持久化）
+ * 仅在 refresh_token 有效时执行
+ */
+async function backgroundRefreshDrive115UserInfo(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const drv = (settings as any)?.drive115 || {};
+    const enabled: boolean = !!drv.enabled && !!drv.enableV2;
+    const rtStatus: string = drv.v2RefreshTokenStatus || 'unknown';
+    const refreshToken: string = (drv.v2RefreshToken || '').trim();
+
+    if (!enabled || !refreshToken) return;
+    if (rtStatus === 'invalid' || rtStatus === 'expired') return;
+
+    console.info('[Background] 115 后台自动刷新用户信息开始');
+
+    const { getDrive115V2Service } = await import('../services/drive115v2');
+    const svc = getDrive115V2Service();
+
+    const result = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
+    if (!result.success || !result.data) {
+      console.warn('[Background] 115 后台刷新用户信息失败:', result.message);
+      return;
+    }
+
+    const latest = await getSettings();
+    const ns: any = { ...(latest || {}) };
+    ns.drive115 = {
+      ...((latest as any)?.drive115 || {}),
+      v2UserInfo: result.data,
+      v2UserInfoUpdatedAt: Date.now(),
+      v2UserInfoExpired: false,
+    };
+    await saveSettings(ns);
+
+    console.info('[Background] 115 后台刷新用户信息成功，已持久化');
+    await broadcastDrive115RefreshUserInfo();
+  } catch (e: any) {
+    console.warn('[Background] 115 后台刷新用户信息异常:', e?.message || e);
+  }
+}
+
+/**
+ * 注册每日定时刷新 alarm（每 24 小时触发一次）
+ */
+function registerDrive115DailyAlarm(): void {
+  try {
+    chrome.alarms.get(DRIVE115_USER_REFRESH_ALARM, (existing) => {
+      if (!existing) {
+        chrome.alarms.create(DRIVE115_USER_REFRESH_ALARM, {
+          delayInMinutes: 60,
+          periodInMinutes: 1440,
+        });
+        console.info('[Background] 115 每日用户信息刷新 alarm 已注册');
+      }
+    });
+  } catch {}
+}
+
+// 启动时按需注册每日刷新 alarm
+try {
+  (async () => {
+    const settings = await getSettings();
+    const drv = (settings as any)?.drive115 || {};
+    if (drv.enabled && drv.enableV2 && drv.v2RefreshToken) {
+      registerDrive115DailyAlarm();
+    }
+  })();
+} catch {}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // 监听 Alarm 回调
 try {
   chrome.alarms.onAlarm.addListener((alarm) => {
-    try { handleAlarm(alarm?.name || ''); } catch {}
+    try {
+      if (alarm?.name === DRIVE115_USER_REFRESH_ALARM) {
+        backgroundRefreshDrive115UserInfo();
+        return;
+      }
+      handleAlarm(alarm?.name || '');
+    } catch {}
   });
 } catch {}
 
-// 监听设置变化：动态应用“自动月报”开关
+// 监听设置变化：动态应用"自动月报"开关 + drive115 token 状态变化
 try {
   chrome.storage.onChanged.addListener(async (changes, area) => {
     if (area === 'local' && changes['settings']) {
@@ -268,7 +365,7 @@ try {
         } else {
           try { chrome.alarms?.clear?.(INSIGHTS_ALARM); } catch {}
         }
-        
+
         // 如果线路配置发生变化，重新注册动态内容脚本
         const oldSettings = changes['settings']?.oldValue as any;
         const newSettings = changes['settings']?.newValue as any;
@@ -276,7 +373,26 @@ try {
         const newRoutes = newSettings?.routes;
         if (JSON.stringify(oldRoutes) !== JSON.stringify(newRoutes)) {
           console.info('[Background] Routes config changed, re-registering dynamic content scripts');
-          await registerDynamicContentScripts(true); // 显示通知
+          await registerDynamicContentScripts(true);
+        }
+
+        // 检测 refresh_token 状态：从非 valid 变为 valid 时立即刷新用户信息
+        const oldDrv = oldSettings?.drive115 || {};
+        const newDrv = newSettings?.drive115 || {};
+        const wasValid = oldDrv.v2RefreshTokenStatus === 'valid';
+        const isNowValid = newDrv.v2RefreshTokenStatus === 'valid';
+        if (!wasValid && isNowValid) {
+          console.info('[Background] 115 refresh_token 变为有效，立即刷新用户信息');
+          setTimeout(() => { backgroundRefreshDrive115UserInfo(); }, 1500);
+        }
+
+        // 根据 drive115 启用状态动态管理每日 alarm
+        const newEnabled = !!newDrv.enabled && !!newDrv.enableV2 && !!newDrv.v2RefreshToken;
+        const oldEnabled = !!oldDrv.enabled && !!oldDrv.enableV2 && !!oldDrv.v2RefreshToken;
+        if (newEnabled && !oldEnabled) {
+          registerDrive115DailyAlarm();
+        } else if (!newEnabled && oldEnabled) {
+          try { chrome.alarms?.clear?.(DRIVE115_USER_REFRESH_ALARM); } catch {}
         }
       } catch {}
     }
