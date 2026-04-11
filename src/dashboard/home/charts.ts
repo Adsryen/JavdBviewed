@@ -791,6 +791,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
         let data = ([] as any[]).concat(
           nw.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
           nw.map((p: any) => ({ date: p.date, type: '未读', value: p.unread })),
+          nw.map((p: any) => ({ date: p.date, type: '已读', value: Math.max(0, (p.total || 0) - (p.unread || 0)) })),
         );
         const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
         // 若无数据点，构造起止两点的0值基线，确保折线可绘制
@@ -800,12 +801,14 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
             { date: r.end,   type: '总记录', value: 0 },
             { date: r.start, type: '未读',   value: 0 },
             { date: r.end,   type: '未读',   value: 0 },
+            { date: r.start, type: '已读',   value: 0 },
+            { date: r.end,   type: '已读',   value: 0 },
           ];
         }
         try { newWorksTrendEl.style.display = ''; } catch {}
         const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
         const plot = new Line(newWorksTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
-          const m: any = { '总记录': COLORS.primary, '未读': COLORS.warning }; return m[t?.type] || COLORS.primary; } });
+          const m: any = { '总记录': COLORS.primary, '未读': COLORS.warning, '已读': COLORS.success }; return m[t?.type] || COLORS.primary; } });
         plot.render();
         HC['newWorksTrend'] = plot;
       }
