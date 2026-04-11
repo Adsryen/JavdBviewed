@@ -410,3 +410,7 @@ export async function dbTrendsNewWorksRange(startDate: string, endDate: string, 
   // @ts-ignore
   return resp.points || [];
 }
+
+export async function dbNewWorksDailyStatRefresh(): Promise<void> {
+  await sendMessage('DB:NEWWORKS_DAILY_STAT_REFRESH');
+}

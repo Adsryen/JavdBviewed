@@ -152,55 +152,133 @@ export async function trendsActorsRange(startDate: string, endDate: string, mode
   return points;
 }
 
+// ----- newWorksDailyStats API -----
+
+export async function newWorksDailyStatGet(date: string): Promise<NewWorksDailyStat | undefined> {
+  const db = await initDB();
+  return db.get('newWorksDailyStats', date);
+}
+
+export async function newWorksDailyStatPut(stat: NewWorksDailyStat): Promise<void> {
+  const db = await initDB();
+  await db.put('newWorksDailyStats', stat);
+}
+
+export async function newWorksDailyStatsRange(startDate: string, endDate: string): Promise<NewWorksDailyStat[]> {
+  const db = await initDB();
+  const all = await db.getAll('newWorksDailyStats');
+  return all.filter(s => s.date >= startDate && s.date <= endDate);
+}
+
+/**
+ * 更新当日快照：统计 IDB 中今日发现的作品数量（total/unread），
+ * 并与已有快照取最大值（防止清理后数值下降）。
+ */
+export async function newWorksDailyStatRefreshToday(): Promise<void> {
+  try {
+    const db = await initDB();
+    const today = fmtDateYMD(new Date());
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date();
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // 统计今日 IDB 中的数据
+    const store = db.transaction('newWorks').store;
+    const idxDisc = store.index('by_discoveredAt');
+    // @ts-ignore
+    const todayRecords = await idxDisc.getAll(IDBKeyRange.bound(dayStart.getTime(), dayEnd.getTime()));
+    const liveTotal = todayRecords.length;
+    const liveUnread = todayRecords.filter((w: any) => !w.isRead).length;
+
+    // 与已有快照取最大值（已读/清理不会让快照数值下降）
+    const existing = await db.get('newWorksDailyStats', today);
+    const stat: NewWorksDailyStat = {
+      date: today,
+      total: Math.max(liveTotal, existing?.total ?? 0),
+      unread: Math.max(liveUnread, existing?.unread ?? 0),
+    };
+    await db.put('newWorksDailyStats', stat);
+  } catch {}
+}
+
 export interface NewWorksTrendPoint { date: string; total: number; unread: number; }
 export async function trendsNewWorksRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<NewWorksTrendPoint[]> {
   const db = await initDB();
-  const store = db.transaction('newWorks').store;
-  const idxDisc = store.index('by_discoveredAt');
-  const points: NewWorksTrendPoint[] = [];
   const dates = eachDate(startDate, endDate);
-  
+  const points: NewWorksTrendPoint[] = [];
+
+  // 读取快照数据（key 为 date 字符串，直接范围过滤）
+  const snapshots = await db.getAll('newWorksDailyStats');
+  const snapMap = new Map<string, NewWorksDailyStat>();
+  for (const s of snapshots) {
+    if (s.date >= startDate && s.date <= endDate) snapMap.set(s.date, s);
+  }
+
   if (mode === 'daily') {
-    // 每日模式：只查询一次所有数据
+    // 每日模式：优先用快照，快照没有的日期从 IDB 实时查
+    const store = db.transaction('newWorks').store;
+    const idxDisc = store.index('by_discoveredAt');
     const firstDate = dates[0];
     const lastDate = dates[dates.length - 1];
     // @ts-ignore
     const allRecords = await idxDisc.getAll(IDBKeyRange.bound(firstDate.startMs, lastDate.endMs));
-    
+
     for (const d of dates) {
-      let total = 0, unread = 0;
-      for (const w of allRecords) {
-        const ts = (w as any)?.discoveredAt || 0;
-        if (ts >= d.startMs && ts <= d.endMs) {
-          total++;
-          if (!(w as any)?.isRead) unread++;
+      const snap = snapMap.get(d.date);
+      if (snap) {
+        points.push({ date: d.date, total: snap.total, unread: snap.unread });
+      } else {
+        let total = 0, unread = 0;
+        for (const w of allRecords) {
+          const ts = (w as any)?.discoveredAt || 0;
+          if (ts >= d.startMs && ts <= d.endMs) {
+            total++;
+            if (!(w as any)?.isRead) unread++;
+          }
         }
+        points.push({ date: d.date, total, unread });
       }
-      points.push({ date: d.date, total, unread });
     }
   } else {
-    // 累计模式：查询一次所有数据，排序后累加
+    // 累计模式：先用快照补全每日数据，再累加
+    // 对于没有快照的日期，从 IDB 实时查
+    const store = db.transaction('newWorks').store;
+    const idxDisc = store.index('by_discoveredAt');
     const lastDate = dates[dates.length - 1];
     // @ts-ignore
     const allRecords = await idxDisc.getAll(IDBKeyRange.upperBound(lastDate.endMs));
-    
-    // 按 discoveredAt 排序
     allRecords.sort((a: any, b: any) => ((a?.discoveredAt || 0) - (b?.discoveredAt || 0)));
-    
-    let recordIndex = 0;
-    let cumulativeTotal = 0, cumulativeUnread = 0;
-    
+
+    // 构建每日数据（快照优先）
+    const dailyMap = new Map<string, { total: number; unread: number }>();
     for (const d of dates) {
-      while (recordIndex < allRecords.length && (allRecords[recordIndex] as any)?.discoveredAt <= d.endMs) {
-        const w = allRecords[recordIndex];
-        cumulativeTotal++;
-        if (!(w as any)?.isRead) cumulativeUnread++;
-        recordIndex++;
+      const snap = snapMap.get(d.date);
+      if (snap) {
+        dailyMap.set(d.date, { total: snap.total, unread: snap.unread });
+      } else {
+        let total = 0, unread = 0;
+        for (const w of allRecords) {
+          const ts = (w as any)?.discoveredAt || 0;
+          if (ts >= d.startMs && ts <= d.endMs) {
+            total++;
+            if (!(w as any)?.isRead) unread++;
+          }
+        }
+        dailyMap.set(d.date, { total, unread });
       }
+    }
+
+    // 累加
+    let cumulativeTotal = 0, cumulativeUnread = 0;
+    for (const d of dates) {
+      const day = dailyMap.get(d.date)!;
+      cumulativeTotal += day.total;
+      cumulativeUnread += day.unread;
       points.push({ date: d.date, total: cumulativeTotal, unread: cumulativeUnread });
     }
   }
-  
+
   return points;
 }
 
@@ -468,10 +546,22 @@ interface JavdbDB extends DBSchema {
       by_createdAt: number;
     };
   };
+  newWorksDailyStats: {
+    key: string; // date YYYY-MM-DD
+    value: NewWorksDailyStat;
+    indexes: Record<string, never>;
+  };
+}
+
+// 新作品每日快照
+export interface NewWorksDailyStat {
+  date: string;    // YYYY-MM-DD
+  total: number;   // 当日累计发现总量（含已读）
+  unread: number;  // 当日未读量
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -583,6 +673,12 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
             if (!existingIndexes.includes('by_source')) {
               try { listsStore.createIndex('by_source', 'source'); } catch {}
             }
+          } catch {}
+        }
+        // v9 -> 新增 newWorksDailyStats，用于新作品趋势快照（防止已读/清理后数据丢失）
+        if (oldVersion < 9) {
+          try {
+            db.createObjectStore('newWorksDailyStats', { keyPath: 'date' });
           } catch {}
         }
       }
@@ -1459,6 +1555,7 @@ export interface NewWorksQueryParams {
 export async function newWorksPut(record: NewWorkRecord): Promise<void> {
   const db = await initDB();
   await db.put('newWorks', record);
+  await newWorksDailyStatRefreshToday();
 }
 
 export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
@@ -1481,6 +1578,8 @@ export async function newWorksBulkPut(records: NewWorkRecord[]): Promise<void> {
     try { await tx.done; } catch {}
     throw e;
   }
+  // 写入后刷新当日快照，确保趋势数据不因后续已读/清理而丢失
+  await newWorksDailyStatRefreshToday();
 }
 
 export async function newWorksDelete(id: string): Promise<void> {
