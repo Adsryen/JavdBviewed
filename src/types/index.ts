@@ -107,8 +107,36 @@ export interface ActorSyncResult {
 }
 
 // ============================================================
+// 清单相关类型
+// ============================================================
+
+/**
+ * 清单记录
+ */
+export interface ListRecord {
+  id: string;
+  name: string;
+  /** 清单类型：'mine' = 我的清单，'favorite' = 收藏清单，'local' = 本地自定义清单 */
+  type: 'mine' | 'favorite' | 'local';
+  /**
+   * 清单来源：
+   * - 'javdb'：从 JavDB 同步的清单（默认值，兼容旧数据）
+   * - 'local'：用户在扩展内手动创建的本地清单
+   */
+  source: 'javdb' | 'local';
+  moviesCount?: number;
+  clickedCount?: number;
+  url?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ============================================================
 // 视频记录相关类型
 // ============================================================
+
+/** 视频状态类型 */
+export type VideoStatus = 'viewed' | 'browsed' | 'want' | 'untracked';
 
 /**
  * 视频记录
@@ -116,7 +144,7 @@ export interface ActorSyncResult {
 export interface VideoRecord {
   id: string;
   title: string;
-  status: 'viewed' | 'browsed' | 'want' | 'untracked';
+  status: VideoStatus;
   tags?: string[];
   createdAt: number;
   updatedAt: number;
@@ -148,6 +176,12 @@ export interface VideoRecord {
   userRating?: number;
   userNotes?: string;
   isFavorite?: boolean;
+  /** 该视频所属的清单 ID 列表 */
+  listIds?: string[];
+  /** 收藏时间戳 */
+  favoritedAt?: number;
+  /** 增强数据（封面等） */
+  enhancedData?: { coverImage?: string; [key: string]: any };
 }
 
 // ============================================================
