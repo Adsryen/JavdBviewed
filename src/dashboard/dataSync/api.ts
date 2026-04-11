@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 数据同步API调用模块
  */
 
@@ -1500,16 +1500,18 @@ export class ApiClient {
             }
         }
 
-        // === 预检查：比对本地和远程清单 ===
+        // === 预检查：比对本地和远程清单（只比对 JavDB 清单，本地清单不参与） ===
         let oldLists: ListRecord[] = [];
         try {
-            const resp = await this.sendDbMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL', {});
+            const resp = await this.sendDbMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL_NORMALIZED', {});
             oldLists = ((resp as any).records || []);
         } catch (e: any) {
             logAsync('WARN', '获取旧清单列表失败', { error: e?.message });
         }
 
-        const oldListMap = new Map(oldLists.map(l => [l.id, l]));
+        // 只对 JavDB 清单做增删比对，本地清单不受影响
+        const oldJavdbLists = oldLists.filter(l => !l.source || l.source === 'javdb');
+        const oldListMap = new Map(oldJavdbLists.map(l => [l.id, l]));
         const newListMap = new Map(listRecords.map(l => [l.id, l]));
 
         // 分类清单
@@ -1525,7 +1527,7 @@ export class ApiClient {
             }
         }
 
-        for (const oldList of oldLists) {
+        for (const oldList of oldJavdbLists) {
             if (!newListMap.has(oldList.id)) {
                 listsToDelete.push(oldList);
             }
@@ -1561,20 +1563,35 @@ export class ApiClient {
             }
         }
 
-        // === 执行清单更新 ===
+        // === 执行清单更新（增量 upsert，保留本地清单） ===
         try {
-            // 删除已移除的清单
+            // 只删除已从 JavDB 移除的清单（source === 'javdb'），本地清单不受影响
             if (listsToDelete.length > 0) {
-                logAsync('INFO', `准备删除 ${listsToDelete.length} 个清单`, { 
-                    listIds: listsToDelete.map(l => l.id) 
+                const javdbListsToDelete = listsToDelete.filter(l => !l.source || l.source === 'javdb');
+                logAsync('INFO', `准备删除 ${javdbListsToDelete.length} 个 JavDB 清单`, {
+                    listIds: javdbListsToDelete.map(l => l.id)
                 });
-                await this.sendDbMessage('DB:LISTS_CLEAR', {});
+                for (const listToDelete of javdbListsToDelete) {
+                    // 先级联清理所有视频中对该清单 ID 的引用
+                    try {
+                        await this.sendDbMessage('DB:VIEWED_BULK_PATCH_LIST', {
+                            videoIds: 'all',
+                            listId: listToDelete.id,
+                            action: 'remove'
+                        });
+                    } catch (e: any) {
+                        logAsync('WARN', '级联清理清单 listIds 失败', { listId: listToDelete.id, error: e?.message });
+                    }
+                    // 再删除清单记录
+                    await this.sendDbMessage('DB:LISTS_DELETE', { id: listToDelete.id });
+                }
             }
-            
-            // 写入所有清单（新增+更新）
-            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: listRecords });
-            
-            logAsync('INFO', `清单列表已更新`, {
+
+            // 写入所有 JavDB 清单（新增+更新），为每条记录标记 source: 'javdb'
+            const javdbListRecords = listRecords.map(l => ({ ...l, source: 'javdb' as const }));
+            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: javdbListRecords });
+
+            logAsync('INFO', `清单列表已更新（增量）`, {
                 added: listsToAdd.length,
                 updated: listsToUpdate.length,
                 deleted: listsToDelete.length,
@@ -1807,7 +1824,7 @@ export class ApiClient {
             }
         }
 
-        // 归属“以远端为准”：对已同步到的影片进行覆盖写入
+        // 归属“只添加不覆盖”：对已同步到的影片，只添加 JavDB 清单 ID，保留用户手动添加的其他 ID
         for (const [videoId, set] of videoToLists.entries()) {
             if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
             try {
@@ -1824,7 +1841,10 @@ export class ApiClient {
                     skippedCount++;
                     continue;
                 }
-                record.listIds = Array.from(set);
+                // 合并：保留现有 listIds，再添加本次同步到的 JavDB 清单 ID
+                const existingIds = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
+                for (const id of set) existingIds.add(id);
+                record.listIds = Array.from(existingIds);
                 record.updatedAt = Date.now();
                 await dbViewedPut(record);
             } catch (e: any) {
@@ -1853,9 +1873,15 @@ export class ApiClient {
 
             // 找出有 listIds 但不在本次同步中的影片（孤儿影片）
             const syncedVideoIds = new Set(videoToLists.keys());
-            const orphanRecords = allRecords.filter(r => 
-                r.listIds && r.listIds.length > 0 && !syncedVideoIds.has(r.id)
-            );
+            // 获取本次同步涉及的所有 JavDB 清单 ID 集合
+            const syncedJavdbListIds = new Set(listIndex.map(l => l.id));
+            // 只处理有 JavDB 清单 ID 但不在本次同步中的影片
+            const orphanRecords = allRecords.filter(r => {
+                if (!r.listIds || r.listIds.length === 0) return false;
+                if (syncedVideoIds.has(r.id)) return false;
+                // 只有当影片的 listIds 中包含 JavDB 清单 ID 时才需要清理
+                return r.listIds.some(id => syncedJavdbListIds.has(id));
+            });
 
             if (orphanRecords.length > 0) {
                 logAsync('INFO', `检测到 ${orphanRecords.length} 个影片不再属于任何清单，清空其 listIds`);
@@ -1864,7 +1890,8 @@ export class ApiClient {
                 for (const record of orphanRecords) {
                     if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
                     try {
-                        record.listIds = [];
+                        // 只移除 JavDB 清单 ID，保留用户手动添加的本地清单 ID
+                        record.listIds = (record.listIds || []).filter(id => !syncedJavdbListIds.has(id));
                         record.updatedAt = Date.now();
                         await dbViewedPut(record);
                         cleanedCount++;
