@@ -141,6 +141,17 @@ export class NewWorksConfigModal {
                                     </div>
                                 </div>
                                 
+                                <div class="form-group form-group-inline" style="align-items:center;gap:8px;display:flex;flex-wrap:wrap;">
+                                    <label class="checkbox-label" style="margin:0;">
+                                        <input type="checkbox" id="configApplyContentFilter" ${config.filters.applyContentFilter ? 'checked' : ''}>
+                                        <span class="checkmark"></span>
+                                        应用智能内容过滤（隐藏规则）
+                                    </label>
+                                    <a href="#" id="configGoToContentFilter" class="btn-link" style="font-size:12px;white-space:nowrap;" title="跳转到功能增强-智能内容过滤设置">
+                                        <i class="fas fa-external-link-alt"></i> 去设置
+                                    </a>
+                                </div>
+                                
                                 <div class="form-group">
                                     <label for="configDateRange">
                                         <span>
@@ -255,6 +266,22 @@ export class NewWorksConfigModal {
             }
         });
 
+        // 跳转到智能内容过滤设置
+        const goToContentFilterBtn = this.modal.querySelector('#configGoToContentFilter') as HTMLAnchorElement | null;
+        goToContentFilterBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.handleCancel();
+            // 切换到功能增强 tab，并滚动到内容过滤区域
+            try {
+                const enhancementTab = document.querySelector('[data-tab="tab-enhancement"]') as HTMLElement | null;
+                enhancementTab?.click();
+                setTimeout(() => {
+                    const contentFilterSection = document.getElementById('contentFilterSection') || document.querySelector('.content-filter-section');
+                    contentFilterSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            } catch {}
+        });
+
         // 类别筛选的全选/半选逻辑
         this.setupCategoryFilterListeners();
 
@@ -348,7 +375,7 @@ export class NewWorksConfigModal {
         }
 
         // 过滤条件始终可用，不受启用状态影响
-        const filterInputs = this.modal.querySelectorAll('#configExcludeViewed, #configExcludeBrowsed, #configExcludeWant, #configExcludeAR, #configDateRange');
+        const filterInputs = this.modal.querySelectorAll('#configExcludeViewed, #configExcludeBrowsed, #configExcludeWant, #configExcludeAR, #configApplyContentFilter, #configDateRange');
         filterInputs.forEach(input => {
             (input as HTMLInputElement).disabled = false;
         });
@@ -423,6 +450,7 @@ export class NewWorksConfigModal {
                 dateRange: getValue('configDateRange'),
                 categoryFilters: categoryFilters.length > 0 ? categoryFilters : [],
                 excludeAR: getValue('configExcludeAR'),
+                applyContentFilter: getValue('configApplyContentFilter'),
             },
             maxWorksPerCheck: 100, // 固定值，不再通过UI配置
             autoCleanup: getValue('configAutoCleanup'),

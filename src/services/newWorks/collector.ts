@@ -7,8 +7,10 @@ import type {
     NewWorkRecord
 } from './types';
 import type { VideoRecord } from '../../types';
+import type { KeywordFilterRule } from '../../types';
 import { viewedGetAll, newWorksGet } from '../../background/db';
 import { buildJavDBUrl } from '../../utils/routeManager';
+import { getSettings } from '../../utils/storage';
 
 export class NewWorksCollector {
     private readonly BASE_DELAY = 3000; // 基础延迟3秒
@@ -156,7 +158,17 @@ export class NewWorksCollector {
             console.log(`IDB 番号库记录数量: ${recordMap.size}`);
         } catch (e) {
             console.warn('读取 IDB 番号库失败，过滤将退化为不过滤已看/已浏览/想看', e);
-            // 留空 recordMap 相当于不触发状态过滤
+        }
+
+        // 加载智能内容过滤隐藏规则
+        let hideRules: KeywordFilterRule[] = [];
+        if (filters.applyContentFilter) {
+            try {
+                const settings = await getSettings();
+                hideRules = (settings.contentFilter?.keywordRules || []).filter(
+                    (r: KeywordFilterRule) => r.enabled && r.action === 'hide'
+                );
+            } catch {}
         }
 
         // 计算日期范围
@@ -184,12 +196,17 @@ export class NewWorksCollector {
             // 检查AR影片（通过标题判断）
             if (!shouldExclude && filters.excludeAR) {
                 const title = work.title || '';
-                // 检查标题中是否包含AR相关关键词
-                if (/\bAR\b/i.test(title) || title.includes('AR') || title.includes('ar')) {
+                if (/\bAR\b/.test(title)) {
                     shouldExclude = true;
                     excludeReason = 'ar';
                     filteredCount.ar++;
                 }
+            }
+
+            // 应用智能内容过滤隐藏规则
+            if (!shouldExclude && hideRules.length > 0) {
+                shouldExclude = this.matchesHideRules(work, hideRules);
+                if (shouldExclude) excludeReason = 'contentFilter';
             }
 
             // 检查番号库状态
@@ -226,6 +243,31 @@ export class NewWorksCollector {
     }
 
     /**
+     * 检查作品是否匹配内容过滤隐藏规则
+     */
+    private matchesHideRules(work: any, rules: KeywordFilterRule[]): boolean {
+        for (const rule of rules) {
+            const keyword = rule.keyword || '';
+            if (!keyword) continue;
+            const fields = rule.fields && rule.fields.length > 0 ? rule.fields : ['title'];
+            const candidates: string[] = [];
+            if (fields.includes('title')) candidates.push(work.title || '');
+            if (fields.includes('video-id')) candidates.push(work.id || '');
+            if (fields.includes('actor')) candidates.push(work.actorName || '');
+            if (fields.includes('tag') && Array.isArray(work.tags)) candidates.push(...work.tags);
+            for (const text of candidates) {
+                try {
+                    const pattern = rule.isRegex
+                        ? new RegExp(keyword, rule.caseSensitive ? '' : 'i')
+                        : new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), rule.caseSensitive ? '' : 'i');
+                    if (pattern.test(text)) return true;
+                } catch {}
+            }
+        }
+        return false;
+    }
+
+    /**
      * 应用全局过滤条件（返回过滤统计）
      */
     private async applyGlobalFiltersWithStats(
@@ -255,6 +297,17 @@ export class NewWorksCollector {
             // 留空 recordMap 相当于不触发状态过滤
         }
 
+        // 加载智能内容过滤隐藏规则
+        let hideRules: KeywordFilterRule[] = [];
+        if (filters.applyContentFilter) {
+            try {
+                const settings = await getSettings();
+                hideRules = (settings.contentFilter?.keywordRules || []).filter(
+                    (r: KeywordFilterRule) => r.enabled && r.action === 'hide'
+                );
+            } catch {}
+        }
+
         // 计算日期范围
         let dateThreshold: Date | null = null;
         if (filters.dateRange > 0) {
@@ -279,11 +332,19 @@ export class NewWorksCollector {
             // 检查AR影片（通过标题判断）
             if (!shouldExclude && filters.excludeAR) {
                 const title = work.title || '';
-                // 检查标题中是否包含AR相关关键词
-                if (/\bAR\b/i.test(title) || title.includes('AR') || title.includes('ar')) {
+                // 精确匹配独立的 "AR" 词（大写），避免误匹配含 "ar" 的普通单词
+                if (/\bAR\b/.test(title)) {
                     shouldExclude = true;
                     excludeReason = 'ar';
                     console.log(`[AR-FILTER] 作品 ${work.id} (${work.title}) -> 排除原因: AR影片`);
+                }
+            }
+
+            // 应用智能内容过滤隐藏规则
+            if (!shouldExclude && hideRules.length > 0) {
+                if (this.matchesHideRules(work, hideRules)) {
+                    shouldExclude = true;
+                    console.log(`[CS] 作品 ${work.id} (${work.title}) -> 排除原因: 内容过滤规则`);
                 }
             }
 
