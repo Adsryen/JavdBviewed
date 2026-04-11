@@ -26,6 +26,7 @@ export interface NewWorksGlobalConfig {
     dateRange: number;        // 时间范围（月数，0表示不限制）
     categoryFilters?: string[];  // 类别筛选（多选，对应actorFilterTags中的类别ID数组）
     excludeAR?: boolean;      // 排除AR影片
+    applyContentFilter?: boolean; // 应用智能内容过滤（隐藏规则）
   };
 
   // 管理设置

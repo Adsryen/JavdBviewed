@@ -38,6 +38,11 @@ export class NewWorksManager {
             const migrated: NewWorksGlobalConfig = {
                 ...DEFAULT_NEW_WORKS_CONFIG,
                 ...raw,
+                // 深度合并 filters，确保新增字段（如 excludeAR）有默认值
+                filters: {
+                    ...DEFAULT_NEW_WORKS_CONFIG.filters,
+                    ...(raw?.filters || {}),
+                },
                 autoCheckEnabled: (
                     raw?.autoCheckEnabled !== undefined
                         ? !!raw.autoCheckEnabled
