@@ -199,3 +199,313 @@
         max-width: 100%;
     }
 }
+
+/* ===== 内嵌输入行（新建/重命名）===== */
+.lists-item-inline-edit {
+    border: 1px dashed var(--primary) !important;
+    background: var(--surface-secondary) !important;
+    cursor: default !important;
+    gap: 8px;
+}
+
+.lists-item-inline-edit:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.lists-inline-input {
+    flex: 1;
+    padding: 5px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--surface-primary);
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.15s;
+}
+
+.lists-inline-input:focus {
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+}
+
+.list-inline-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.list-inline-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.list-inline-confirm {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+}
+
+.list-inline-confirm:hover {
+    background: rgba(34, 197, 94, 0.3);
+}
+
+.list-inline-cancel {
+    background: rgba(220, 53, 69, 0.1);
+    color: #f87171;
+}
+
+.list-inline-cancel:hover {
+    background: rgba(220, 53, 69, 0.2);
+}
+
+/* ===== 来源徽章 ===== */
+.list-source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+    line-height: 1.6;
+}
+
+.list-source-javdb {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.list-source-local {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* ===== 本地清单操作按钮 ===== */
+.list-item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.lists-item:hover .list-item-actions {
+    opacity: 1;
+}
+
+.list-rename-btn,
+.list-delete-btn {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+}
+
+.list-rename-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+}
+
+.list-delete-btn:hover {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+/* ===== 清单选择浮层（番号库用）===== */
+.list-picker-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 60px;
+}
+
+.list-picker-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.list-picker-content {
+    position: relative;
+    background: var(--surface-primary);
+    border-radius: 12px;
+    width: 380px;
+    max-width: 90vw;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.list-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-primary);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.list-picker-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+.list-picker-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.list-picker-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.list-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.list-picker-item:hover {
+    background: var(--bg-hover);
+}
+
+.list-picker-item.selected {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+}
+
+.list-picker-item i {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.list-picker-item-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+}
+
+.batch-list-add-btn,
+.batch-list-remove-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.batch-list-add-btn {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.batch-list-remove-btn {
+    background: rgba(220, 53, 69, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(220, 53, 69, 0.25);
+}
+
+.list-picker-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.list-picker-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ===== 批量操作下拉菜单 ===== */
+.batch-actions-dropdown-wrap {
+    position: relative;
+}
+
+.batch-actions-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 1000;
+    min-width: 160px;
+    overflow: hidden;
+}
+
+.batch-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.batch-dropdown-item:hover {
+    background: var(--bg-hover);
+}
+
+.batch-dropdown-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+}
