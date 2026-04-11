@@ -172,6 +172,44 @@ export async function dbListsGetAll(): Promise<ListRecord[]> {
   return resp.records || [];
 }
 
+// ----- Lists 增强 APIs -----
+
+/** 新增或更新单条清单记录 */
+export async function dbListsPut(record: ListRecord): Promise<void> {
+  await sendMessage('DB:LISTS_PUT', { record });
+}
+
+/** 删除指定 ID 的清单记录 */
+export async function dbListsDelete(id: string): Promise<void> {
+  await sendMessage('DB:LISTS_DELETE', { id });
+}
+
+/** 获取所有清单（自动补全缺失的 source 字段为 'javdb'） */
+export async function dbListsGetAllNormalized(): Promise<ListRecord[]> {
+  const resp = await sendMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL_NORMALIZED');
+  // @ts-ignore
+  return resp.records || [];
+}
+
+/** 原子更新单个视频的 listIds（添加或移除指定清单 ID） */
+export async function dbViewedPatchList(videoId: string, listId: string, action: 'add' | 'remove'): Promise<void> {
+  await sendMessage('DB:VIEWED_PATCH_LIST', { videoId, listId, action });
+}
+
+/** 批量更新多个视频的 listIds，支持 videoIds 传 'all' 表示所有视频 */
+export async function dbViewedBulkPatchList(
+  videoIds: string[] | 'all',
+  listId: string,
+  action: 'add' | 'remove'
+): Promise<{ successCount: number; failCount: number }> {
+  const resp = await sendMessage<{ success: true; successCount: number; failCount: number }>(
+    'DB:VIEWED_BULK_PATCH_LIST',
+    { videoIds, listId, action }
+  );
+  // @ts-ignore
+  return { successCount: resp.successCount ?? 0, failCount: resp.failCount ?? 0 };
+}
+
 // ----- Logs APIs -----
 export interface LogsQueryParams {
   level?: LogEntry['level'];
