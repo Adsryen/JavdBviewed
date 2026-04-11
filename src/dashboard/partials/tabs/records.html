@@ -152,14 +152,26 @@
             <span class="selected-count" id="selectedCount">已选择 0 项</span>
         </div>
         <div class="batch-actions">
-            <button class="batch-btn refresh-btn" id="batchRefreshBtn" disabled>
-                <i class="fas fa-sync-alt"></i>
-                批量刷新
-            </button>
-            <button class="batch-btn delete-btn" id="batchDeleteBtn" disabled>
-                <i class="fas fa-trash"></i>
-                批量删除
-            </button>
+            <div class="batch-actions-dropdown-wrap">
+                <button class="batch-btn actions-btn" id="batchActionsBtn" disabled>
+                    <i class="fas fa-ellipsis-h"></i>
+                    批量操作 <i class="fas fa-caret-down"></i>
+                </button>
+                <div id="batchActionsDropdown" class="batch-actions-dropdown" style="display:none;">
+                    <button class="batch-dropdown-item" id="batchRefreshBtn">
+                        <i class="fas fa-sync-alt"></i> 批量刷新
+                    </button>
+                    <button class="batch-dropdown-item" id="batchDeleteBtn">
+                        <i class="fas fa-trash"></i> 批量删除
+                    </button>
+                    <button class="batch-dropdown-item" id="batchModifyListBtn">
+                        <i class="fas fa-list-ul"></i> 批量修改清单
+                    </button>
+                    <button class="batch-dropdown-item" id="batchAddTagBtn">
+                        <i class="fas fa-tag"></i> 批量添加标签
+                    </button>
+                </div>
+            </div>
             <button class="batch-btn cancel-btn" id="cancelBatchBtn">
                 <i class="fas fa-times"></i>
                 取消选择
@@ -180,6 +192,21 @@
     <div class="pagination-controls">
         <div class="pagination">
             <!-- 分页控件将由 JS 动态填充 -->
+        </div>
+    </div>
+
+    <!-- 清单选择浮层（单条/批量共用） -->
+    <div id="listPickerPanel" class="list-picker-panel" style="display:none;">
+        <div class="list-picker-backdrop"></div>
+        <div class="list-picker-content">
+            <div class="list-picker-header">
+                <span id="listPickerTitle">选择清单</span>
+                <button id="listPickerCloseBtn" class="list-picker-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="listPickerList" class="list-picker-list"></div>
+            <div class="list-picker-footer" id="listPickerBatchFooter" style="display:none;">
+                <button id="listPickerDoneBtn" class="button-like button-primary">完成</button>
+            </div>
         </div>
     </div>
 </div>

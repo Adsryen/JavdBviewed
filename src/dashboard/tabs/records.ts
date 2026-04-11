@@ -3,7 +3,8 @@ import { VIDEO_STATUS, STORAGE_KEYS } from '../../utils/config';
 import type { VideoRecord, VideoStatus } from '../../types';
 import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
-import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, dbListsGetAll, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
+import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
+import { dbListsGetAllNormalized, dbViewedPatchList, dbViewedBulkPatchList } from '../dbClient';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -70,6 +71,10 @@ export function initRecordsTab(): void {
     const batchOperations = document.getElementById('batchOperations') as HTMLDivElement;
     const selectAllCheckbox = document.getElementById('selectAllCheckbox') as HTMLInputElement;
     const selectedCount = document.getElementById('selectedCount') as HTMLSpanElement;
+    const batchActionsBtn = document.getElementById('batchActionsBtn') as HTMLButtonElement;
+    const batchActionsDropdown = document.getElementById('batchActionsDropdown') as HTMLDivElement;
+    const batchModifyListBtn = document.getElementById('batchModifyListBtn') as HTMLButtonElement;
+    const batchAddTagBtn = document.getElementById('batchAddTagBtn') as HTMLButtonElement;
     const batchRefreshBtn = document.getElementById('batchRefreshBtn') as HTMLButtonElement;
     const batchDeleteBtn = document.getElementById('batchDeleteBtn') as HTMLButtonElement;
     const cancelBatchBtn = document.getElementById('cancelBatchBtn') as HTMLButtonElement;
@@ -113,15 +118,20 @@ export function initRecordsTab(): void {
     let listMetaLoaded = false;
     let listMetaLoading = false;
     const listIdToName = new Map<string, string>();
+    const listIdToSource = new Map<string, string>(); // 存储清单来源
     const ensureListMetaLoaded = () => {
         if (listMetaLoaded || listMetaLoading) return;
 
         listMetaLoading = true;
-        dbListsGetAll()
+        dbListsGetAllNormalized()
             .then((lists) => {
                 listIdToName.clear();
+                listIdToSource.clear();
                 (lists || []).forEach((l: any) => {
-                    if (l && l.id) listIdToName.set(String(l.id), String(l.name || l.id));
+                    if (l && l.id) {
+                        listIdToName.set(String(l.id), String(l.name || l.id));
+                        listIdToSource.set(String(l.id), String(l.source || 'javdb'));
+                    }
                 });
                 listMetaLoaded = true;
             })
@@ -1148,8 +1158,7 @@ export function initRecordsTab(): void {
                     favoriteButton.className = `action-button favorite-button${record.isFavorite ? ' favorited' : ''}`;
                     favoriteButton.innerHTML = `<i class="${record.isFavorite ? 'fas' : 'far'} fa-heart"></i>`;
                     favoriteButton.title = record.isFavorite ? '取消收藏' : '添加到收藏';
-                    favoriteButton.addEventListener('click', async (e) => {
-                        e.stopPropagation();
+                    favoriteButton.addEventListener('click', async (e) => {                        e.stopPropagation();
                         try {
                             // 切换收藏状态
                             const newFavoriteState = !record.isFavorite;
@@ -1184,6 +1193,18 @@ export function initRecordsTab(): void {
                     actionButtonsContainer.appendChild(editButton);
                     actionButtonsContainer.appendChild(refreshButton);
                     actionButtonsContainer.appendChild(deleteButton);
+
+                    // 添加到清单按钮
+                    const addToListButton = document.createElement('button');
+                    addToListButton.className = 'action-button add-to-list-btn';
+                    addToListButton.setAttribute('data-record-id', record.id);
+                    addToListButton.innerHTML = '<i class="fas fa-list-ul"></i>';
+                    addToListButton.title = '添加到清单';
+                    addToListButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openListPicker(record);
+                    });
+                    actionButtonsContainer.appendChild(addToListButton);
 
                     const controlsContainer = document.createElement('div');
                     controlsContainer.className = 'video-controls';
@@ -1893,16 +1914,21 @@ export function initRecordsTab(): void {
         ensureListMetaLoaded();
         const q = String(listsSearchInput?.value || '').trim().toLowerCase();
         const items = Array.from(listIdToName.entries())
-            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
+            .map(([id, name]) => ({ id: String(id), name: String(name || id), source: listIdToSource.get(String(id)) || 'javdb' }))
             .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
             .sort((a, b) => a.name.localeCompare(b.name));
 
-        listsFilterList.innerHTML = items.map(it => `
-            <div class="tag-option ${selectedListIds.has(it.id) ? 'selected' : ''}" data-list-id="${it.id}">
-                <input type="checkbox" ${selectedListIds.has(it.id) ? 'checked' : ''}>
-                <span>${escapeHtml(it.name)}</span>
-            </div>
-        `).join('');
+        listsFilterList.innerHTML = items.map(it => {
+            const badge = it.source === 'local'
+                ? `<span class="list-source-badge list-source-local">本地</span>`
+                : `<span class="list-source-badge list-source-javdb">JavDB</span>`;
+            return `
+                <div class="tag-option ${selectedListIds.has(it.id) ? 'selected' : ''}" data-list-id="${it.id}">
+                    <input type="checkbox" ${selectedListIds.has(it.id) ? 'checked' : ''}>
+                    <span>${escapeHtml(it.name)}</span>${badge}
+                </div>
+            `;
+        }).join('');
 
         updateSelectedListsDisplay();
         updateListsFilterInput();
@@ -2317,9 +2343,36 @@ export function initRecordsTab(): void {
 
     // 批量操作事件监听器
     selectAllCheckbox.addEventListener('change', handleSelectAll);
-    batchRefreshBtn.addEventListener('click', handleBatchRefresh);
-    batchDeleteBtn.addEventListener('click', handleBatchDelete);
-    cancelBatchBtn.addEventListener('click', clearAllSelection);
+    batchActionsBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = batchActionsDropdown?.style.display !== 'none';
+        if (batchActionsDropdown) batchActionsDropdown.style.display = isOpen ? 'none' : 'block';
+    });
+    document.addEventListener('click', () => {
+        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
+    });
+    batchRefreshBtn?.addEventListener('click', () => {
+        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
+        handleBatchRefresh();
+    });
+    batchDeleteBtn?.addEventListener('click', () => {
+        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
+        handleBatchDelete();
+    });
+    batchModifyListBtn?.addEventListener('click', () => {
+        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
+        openBatchListPicker();
+    });
+    batchAddTagBtn?.addEventListener('click', () => {
+        if (batchActionsDropdown) batchActionsDropdown.style.display = 'none';
+        openBatchAddTag();
+    });
+    cancelBatchBtn?.addEventListener('click', clearAllSelection);
+
+    // 清单浮层关闭事件
+    document.getElementById('listPickerCloseBtn')?.addEventListener('click', closeListPicker);
+    document.getElementById('listPickerDoneBtn')?.addEventListener('click', closeListPicker);
+    document.querySelector('#listPickerPanel .list-picker-backdrop')?.addEventListener('click', closeListPicker);
 
     // 初始化
     ensureImageTooltipElement();
@@ -2871,8 +2924,7 @@ export function initRecordsTab(): void {
         }
 
         // 更新按钮状态
-        batchRefreshBtn.disabled = count === 0;
-        batchDeleteBtn.disabled = count === 0;
+        if (batchActionsBtn) batchActionsBtn.disabled = count === 0;
 
         // 更新全选复选框状态（IDB 分页或内存分页）
         const currentRecords = serverModeActive
@@ -3390,6 +3442,246 @@ export function initRecordsTab(): void {
             console.error('[Records] 导出CSV失败:', error);
             showMessage(`导出失败: ${error.message}`, 'error');
         }
+    }
+
+    // ===== 清单选择浮层 =====
+
+    function closeListPicker(): void {
+        const panel = document.getElementById('listPickerPanel');
+        if (panel) panel.style.display = 'none';
+    }
+
+    async function openListPicker(record: VideoRecord): Promise<void> {
+        const panel = document.getElementById('listPickerPanel');
+        const listEl = document.getElementById('listPickerList');
+        const titleEl = document.getElementById('listPickerTitle');
+        const batchFooter = document.getElementById('listPickerBatchFooter');
+        if (!panel || !listEl) return;
+
+        if (titleEl) titleEl.textContent = `添加到清单：${record.id}`;
+        if (batchFooter) batchFooter.style.display = 'none';
+
+        let lists: any[] = [];
+        try { lists = await dbListsGetAllNormalized(); } catch {}
+
+        const currentListIds = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
+
+        listEl.innerHTML = lists.length === 0
+            ? '<div class="list-picker-empty">暂无清单</div>'
+            : lists.map(l => {
+                const isSelected = currentListIds.has(String(l.id));
+                const badge = l.source === 'local'
+                    ? '<span class="list-source-badge list-source-local">本地</span>'
+                    : '<span class="list-source-badge list-source-javdb">JavDB</span>';
+                return `<div class="list-picker-item ${isSelected ? 'selected' : ''}" data-list-id="${l.id}" data-record-id="${record.id}">
+                    <i class="fas ${isSelected ? 'fa-check-square' : 'fa-square'}"></i>
+                    <span>${escapeHtml(String(l.name || l.id))}</span>${badge}
+                </div>`;
+            }).join('');
+
+        listEl.querySelectorAll('.list-picker-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const listId = (item as HTMLElement).getAttribute('data-list-id') || '';
+                const recId = (item as HTMLElement).getAttribute('data-record-id') || '';
+                const isSelected = item.classList.contains('selected');
+                const action: 'add' | 'remove' = isSelected ? 'remove' : 'add';
+                try {
+                    await dbViewedPatchList(recId, listId, action);
+                    item.classList.toggle('selected', !isSelected);
+                    const icon = item.querySelector('i');
+                    if (icon) icon.className = `fas ${!isSelected ? 'fa-check-square' : 'fa-square'}`;
+                    const allItems = serverModeActive ? serverPageItems : filteredRecords;
+                    const r = allItems.find(r => r.id === recId);
+                    if (r) {
+                        const ids = new Set<string>(Array.isArray(r.listIds) ? r.listIds : []);
+                        if (action === 'add') ids.add(listId); else ids.delete(listId);
+                        r.listIds = Array.from(ids);
+                    }
+                    render();
+                } catch {
+                    showMessage('操作失败', 'error');
+                }
+            });
+        });
+
+        panel.style.display = '';
+    }
+
+    async function openBatchListPicker(): Promise<void> {
+        if (selectedRecords.size === 0) return;
+        const panel = document.getElementById('listPickerPanel');
+        const listEl = document.getElementById('listPickerList');
+        const titleEl = document.getElementById('listPickerTitle');
+        const batchFooter = document.getElementById('listPickerBatchFooter');
+        if (!panel || !listEl) return;
+
+        if (titleEl) titleEl.textContent = `批量修改清单（已选 ${selectedRecords.size} 项）`;
+        if (batchFooter) batchFooter.style.display = '';
+
+        let lists: any[] = [];
+        try { lists = await dbListsGetAllNormalized(); } catch {}
+
+        listEl.innerHTML = lists.length === 0
+            ? '<div class="list-picker-empty">暂无清单</div>'
+            : lists.map(l => {
+                const badge = l.source === 'local'
+                    ? '<span class="list-source-badge list-source-local">本地</span>'
+                    : '<span class="list-source-badge list-source-javdb">JavDB</span>';
+                return `<div class="list-picker-item" data-list-id="${l.id}">
+                    <span>${escapeHtml(String(l.name || l.id))}</span>${badge}
+                    <div class="list-picker-item-actions">
+                        <button class="batch-list-add-btn button-like" data-list-id="${l.id}">添加</button>
+                        <button class="batch-list-remove-btn button-like" data-list-id="${l.id}">移除</button>
+                    </div>
+                </div>`;
+            }).join('');
+
+        listEl.querySelectorAll('.batch-list-add-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const listId = (btn as HTMLElement).getAttribute('data-list-id') || '';
+                await executeBatchListChange(Array.from(selectedRecords), listId, 'add');
+            });
+        });
+        listEl.querySelectorAll('.batch-list-remove-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const listId = (btn as HTMLElement).getAttribute('data-list-id') || '';
+                await executeBatchListChange(Array.from(selectedRecords), listId, 'remove');
+            });
+        });
+
+        panel.style.display = '';
+    }
+
+    async function executeBatchListChange(videoIds: string[], listId: string, action: 'add' | 'remove'): Promise<void> {
+        const actionText = action === 'add' ? '添加' : '移除';
+        try {
+            const result = await dbViewedBulkPatchList(videoIds, listId, action);
+            const msg = result.failCount > 0
+                ? `${actionText}完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`
+                : `已${actionText} ${result.successCount} 条视频到清单`;
+            showMessage(msg, result.failCount > 0 ? 'warning' : 'success');
+            const allItems = serverModeActive ? serverPageItems : filteredRecords;
+            for (const id of videoIds) {
+                const r = allItems.find(r => r.id === id);
+                if (r) {
+                    const ids = new Set<string>(Array.isArray(r.listIds) ? r.listIds : []);
+                    if (action === 'add') ids.add(listId); else ids.delete(listId);
+                    r.listIds = Array.from(ids);
+                }
+            }
+            render();
+        } catch {
+            showMessage(`批量${actionText}清单失败`, 'error');
+        }
+    }
+
+    // ===== 批量添加标签 =====
+
+    function openBatchAddTag(): void {
+        if (selectedRecords.size === 0) return;
+
+        const modal = document.createElement('div');
+        modal.className = 'custom-confirm-modal';
+        modal.innerHTML = `
+            <div class="custom-confirm-overlay"></div>
+            <div class="custom-confirm-content">
+                <div class="custom-confirm-header">
+                    <h3>批量添加标签</h3>
+                </div>
+                <div class="custom-confirm-body">
+                    <p>将为已选 <strong>${selectedRecords.size}</strong> 条视频追加标签（不影响已有标签）。</p>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-top:6px;">操作完成后，这些视频的标签字段将被锁定，防止同步时被覆盖。</p>
+                    <input id="batchTagInput" type="text" placeholder="输入标签，多个用逗号分隔"
+                        style="width:100%;margin-top:12px;padding:8px 12px;border:1px solid var(--border-primary);border-radius:8px;font-size:14px;color:var(--text-primary);background:var(--surface-secondary);box-sizing:border-box;" />
+                </div>
+                <div class="custom-confirm-footer">
+                    <button class="custom-confirm-cancel">取消</button>
+                    <button class="custom-confirm-ok">确认添加</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const input = modal.querySelector('#batchTagInput') as HTMLInputElement;
+        const overlay = modal.querySelector('.custom-confirm-overlay') as HTMLElement;
+        const cancelBtn = modal.querySelector('.custom-confirm-cancel') as HTMLButtonElement;
+        const okBtn = modal.querySelector('.custom-confirm-ok') as HTMLButtonElement;
+
+        setTimeout(() => input?.focus(), 50);
+
+        const close = () => modal.remove();
+
+        overlay.addEventListener('click', close);
+        cancelBtn.addEventListener('click', close);
+        okBtn.addEventListener('click', async () => {
+            const raw = (input?.value || '').trim();
+            if (!raw) { showMessage('请输入至少一个标签', 'warning'); return; }
+            const newTags = raw.split(/[，,;；]/).map((t: string) => t.trim()).filter(Boolean);
+            if (newTags.length === 0) { showMessage('请输入有效标签', 'warning'); return; }
+            close();
+            await executeBatchAddTag(Array.from(selectedRecords), newTags);
+        });
+
+        input?.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Enter') okBtn.click();
+            if (e.key === 'Escape') close();
+        });
+
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handleEsc); }
+        };
+        document.addEventListener('keydown', handleEsc);
+    }
+
+    async function executeBatchAddTag(videoIds: string[], newTags: string[]): Promise<void> {
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const id of videoIds) {
+            try {
+                const allItems = serverModeActive ? serverPageItems : filteredRecords;
+                let record: VideoRecord | undefined = allItems.find(r => r.id === id);
+                if (!record) {
+                    const { dbViewedGet } = await import('../dbClient');
+                    record = await dbViewedGet(id);
+                }
+                if (!record) { failCount++; continue; }
+
+                // 追加新标签（去重）
+                const existingTags = new Set<string>(Array.isArray(record.tags) ? record.tags : []);
+                for (const t of newTags) existingTags.add(t);
+
+                // 锁定 tags 字段
+                const lockedFields = new Set<string>(Array.isArray(record.manuallyEditedFields) ? record.manuallyEditedFields : []);
+                lockedFields.add('tags');
+
+                const updated: VideoRecord = {
+                    ...record,
+                    tags: Array.from(existingTags),
+                    manuallyEditedFields: Array.from(lockedFields),
+                    updatedAt: Date.now(),
+                };
+
+                await dbViewedPut(updated);
+
+                // 同步内存
+                record.tags = updated.tags;
+                record.manuallyEditedFields = updated.manuallyEditedFields;
+                record.updatedAt = updated.updatedAt;
+
+                successCount++;
+            } catch {
+                failCount++;
+            }
+        }
+
+        const msg = failCount > 0
+            ? `标签添加完成：成功 ${successCount} 条，失败 ${failCount} 条`
+            : `已为 ${successCount} 条视频追加标签`;
+        showMessage(msg, failCount > 0 ? 'warning' : 'success');
+        render();
     }
 
 }
