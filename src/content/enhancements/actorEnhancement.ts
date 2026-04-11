@@ -8,6 +8,8 @@ import { showToast } from '../toast';
 import type { ActorRecord } from '../../types';
 import { actorManager } from '../../services/actorManager';
 import { newWorksManager } from '../../services/newWorks';
+import { actorExtraInfoService } from '../../services/actorRemarks';
+import { getSettings } from '../../utils/storage';
 
 interface ActorTagFilter {
   tags: string[];
@@ -658,6 +660,72 @@ class ActorEnhancementManager {
     }
   }
 
+  /**
+   * 若演员在库内，后台静默同步基本信息和 wiki 数据
+   */
+  private async syncActorIfInLibrary(): Promise<void> {
+    try {
+      const existing = await actorManager.getActorById(this.currentActorId);
+      if (!existing) return; // 不在库内，不同步
+
+      showToast(`正在同步演员数据：${existing.name}`, 'info');
+
+      // 1. 从页面解析最新基本信息
+      const parsed = this.parseActorFromPage();
+      if (!parsed) {
+        showToast('演员数据解析失败', 'error');
+        return;
+      }
+
+      const now = Date.now();
+
+      // 合并：保留库内已有字段（黑名单、手动编辑字段、分类等），只更新可从页面获取的字段
+      const updated: ActorRecord = {
+        ...existing,
+        name: parsed.name || existing.name,
+        avatarUrl: parsed.avatarUrl || existing.avatarUrl,
+        profileUrl: parsed.profileUrl || existing.profileUrl,
+        gender: (parsed.gender !== 'unknown' ? parsed.gender : existing.gender),
+        updatedAt: now,
+        syncInfo: {
+          source: 'javdb',
+          lastSyncAt: now,
+          syncStatus: 'success',
+        },
+      };
+
+      // 2. 抓取 wiki 数据
+      let wikiOk = false;
+      try {
+        const settings = await getSettings();
+        const remarks = await actorExtraInfoService.getActorRemarks(updated.name, settings);
+        if (remarks) {
+          updated.wikiData = {
+            age: remarks.age,
+            heightCm: remarks.heightCm,
+            cup: remarks.cup,
+            retired: remarks.retired,
+            ig: remarks.ig,
+            tw: remarks.tw,
+            wikiUrl: remarks.wikiUrl,
+            xslistUrl: remarks.xslistUrl,
+            source: remarks.source,
+            fetchedAt: remarks.fetchedAt,
+          };
+          wikiOk = true;
+        }
+      } catch (wikiErr) {
+        console.warn('[ActorEnhancement] wiki 数据获取失败:', wikiErr);
+      }
+
+      await actorManager.saveActor(updated);
+      showToast(`${updated.name} 同步完成${wikiOk ? '（含 Wiki）' : ''}`, 'success');
+    } catch (e) {
+      console.warn('[ActorEnhancement] 后台同步演员数据失败:', e);
+      showToast('演员数据同步失败', 'error');
+    }
+  }
+
   async init(): Promise<void> {
     // 检查是否为演员页面
     this.isActorPage = /\/actors\/\w+/.test(window.location.pathname);
@@ -699,6 +767,9 @@ class ActorEnhancementManager {
       setTimeout(() => this.applyTimeSegmentationDivider(), 800);
       this.observeListForSegmentation();
     }
+
+    // 后台静默同步：若演员在库内，更新基本信息和 wiki 数据
+    setTimeout(() => this.syncActorIfInLibrary(), 1500);
   }
 
   private parseAvailableTags(): void {
