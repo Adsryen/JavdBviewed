@@ -410,6 +410,7 @@ interface JavdbDB extends DBSchema {
     indexes: {
       by_type: string;
       by_updatedAt: number;
+      by_source: string;
     };
   };
   logs: {
@@ -470,7 +471,7 @@ interface JavdbDB extends DBSchema {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -574,6 +575,16 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
             }
           } catch {}
         }
+        // v8 -> 为 lists 新增 by_source 索引，支持按来源查询清单
+        if (oldVersion < 8) {
+          try {
+            const listsStore = tx.objectStore('lists');
+            const existingIndexes = Array.from(listsStore.indexNames);
+            if (!existingIndexes.includes('by_source')) {
+              try { listsStore.createIndex('by_source', 'source'); } catch {}
+            }
+          } catch {}
+        }
       }
     });
   }
@@ -620,6 +631,99 @@ export async function listsClear(): Promise<void> {
 export async function listsDelete(id: string): Promise<void> {
   const db = await initDB();
   await db.delete('lists', id);
+}
+
+/**
+ * 规范化清单记录：对缺失 source 字段的旧数据补全为 'javdb'，不修改其他字段
+ */
+function normalizeListRecord(r: any): ListRecord {
+  return { ...r, source: r.source ?? 'javdb' };
+}
+
+/**
+ * 获取所有清单并规范化 source 字段（兼容旧数据）
+ */
+export async function listsGetAllNormalized(): Promise<ListRecord[]> {
+  const records = await listsGetAll();
+  return records.map(normalizeListRecord);
+}
+
+/**
+ * 按 ID 获取单条清单并规范化 source 字段（兼容旧数据）
+ */
+export async function listsGetNormalized(id: string): Promise<ListRecord | undefined> {
+  const record = await listsGet(id);
+  if (!record) return undefined;
+  return normalizeListRecord(record);
+}
+
+/**
+ * 按来源查询清单（使用 by_source 索引）
+ */
+export async function listsGetBySource(source: 'javdb' | 'local'): Promise<ListRecord[]> {
+  const db = await initDB();
+  const idx = db.transaction('lists').store.index('by_source');
+  // @ts-ignore
+  const records = await idx.getAll(IDBKeyRange.only(source));
+  return records.map(normalizeListRecord);
+}
+
+/**
+ * 原子更新单个视频的 listIds（在单个 IndexedDB 事务中完成读取-修改-写入）
+ * 使用 Set 保证幂等性：add 时不重复添加，remove 时安全删除
+ */
+export async function viewedPatchListIds(
+  videoId: string,
+  listId: string,
+  action: 'add' | 'remove'
+): Promise<void> {
+  const db = await initDB();
+  const tx = db.transaction('viewedRecords', 'readwrite');
+  const record = await tx.store.get(videoId);
+  if (!record) { await tx.done; return; }
+  const ids = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
+  if (action === 'add') ids.add(listId);
+  else ids.delete(listId);
+  record.listIds = Array.from(ids);
+  record.updatedAt = Date.now();
+  await tx.store.put(record);
+  await tx.done;
+}
+
+/**
+ * 批量更新多个视频的 listIds
+ * @param videoIds 视频 ID 数组，或 'all' 表示所有视频
+ * @param listId 目标清单 ID
+ * @param action 'add' 或 'remove'
+ * @returns 成功与失败计数
+ */
+export async function viewedBulkPatchListIds(
+  videoIds: string[] | 'all',
+  listId: string,
+  action: 'add' | 'remove'
+): Promise<{ successCount: number; failCount: number }> {
+  let ids: string[];
+  if (videoIds === 'all') {
+    const db = await initDB();
+    ids = await db.getAllKeys('viewedRecords') as string[];
+  } else {
+    ids = videoIds;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  // 串行执行，单条失败不中断整体流程
+  for (const videoId of ids) {
+    try {
+      await viewedPatchListIds(videoId, listId, action);
+      successCount++;
+    } catch {
+      failCount++;
+    }
+  }
+
+  return { successCount, failCount };
 }
 
 // ----- viewedRecords API -----
