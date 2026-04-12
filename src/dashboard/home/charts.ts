@@ -177,6 +177,7 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       success: getVar('--success', '#22c55e'),
       info: getVar('--info', '#14b8a6'),
       warning: getVar('--warning', '#f59e0b'),
+      danger: getVar('--danger', '#ef4444'),
       text: getVar('--text', '#111827'),
       muted: getVar('--muted', '#6b7280'),
       border: getVar('--border', '#e5e7eb'),
@@ -427,6 +428,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       success: getVar('--success', '#22c55e'),
       info: getVar('--info', '#14b8a6'),
       warning: getVar('--warning', '#f59e0b'),
+      danger: getVar('--danger', '#ef4444'),
       text: getVar('--text', '#111827'),
       muted: getVar('--muted', '#6b7280'),
       border: getVar('--border', '#e5e7eb'),
@@ -758,6 +760,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
           act.map((p: any) => ({ date: p.date, type: '总演员数', value: p.total })),
           act.map((p: any) => ({ date: p.date, type: '女性', value: p.female })),
           act.map((p: any) => ({ date: p.date, type: '男性', value: p.male })),
+          act.map((p: any) => ({ date: p.date, type: '拉黑', value: p.blacklisted })),
         );
         const sum = data.reduce((s, d) => s + Number(d.value || 0), 0);
         // 若无数据点，构造起止两点的0值基线，确保折线可绘制
@@ -769,12 +772,14 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
             { date: r.end,   type: '女性',     value: 0 },
             { date: r.start, type: '男性',     value: 0 },
             { date: r.end,   type: '男性',     value: 0 },
+            { date: r.start, type: '拉黑',     value: 0 },
+            { date: r.end,   type: '拉黑',     value: 0 },
           ];
         }
         try { actorsTrendEl.style.display = ''; } catch {}
         const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
         const plot = new Line(actorsTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
-          const m: any = { '总演员数': COLORS.primary, '女性': COLORS.success, '男性': COLORS.info }; return m[t?.type] || COLORS.primary; } });
+          const m: any = { '总演员数': COLORS.primary, '女性': COLORS.success, '男性': COLORS.info, '拉黑': COLORS.danger }; return m[t?.type] || COLORS.primary; } });
         plot.render();
         HC['actorsTrend'] = plot;
       }
