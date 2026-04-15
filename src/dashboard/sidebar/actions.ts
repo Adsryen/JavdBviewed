@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { STATE } from '../state';
 import { logAsync } from '../logger';
 import { showMessage } from '../ui/toast';
@@ -164,25 +164,32 @@ export function initSidebarActions(): void {
 
   if (exportBtn) {
     exportBtn.addEventListener('click', async () => {
-      logAsync('INFO', '用户点击了“导出到本地”按钮');
-      const userProfile = await getValue(STORAGE_KEYS.USER_PROFILE, null);
-      const actorRecords = await getValue(STORAGE_KEYS.ACTOR_RECORDS, {});
-      const dataToExport = {
-        settings: STATE.settings,
-        data: STATE.records.reduce((acc: any, record: any) => { acc[record.id] = record; return acc; }, {} as Record<string, any>),
-        userProfile,
-        actorRecords
-      };
-      const dataStr = JSON.stringify(dataToExport, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      showMessage('数据导出成功（包含账号信息与演员库）', 'success');
-      logAsync('INFO', '本地数据导出成功（包含账号信息与演员库）');
+      logAsync('INFO', '用户点击了"导出到本地"按钮');
+      exportBtn.disabled = true;
+      const originalText = exportBtn.textContent;
+      exportBtn.textContent = '正在导出...';
+      try {
+        const response = await new Promise<any>((resolve) => {
+          chrome.runtime.sendMessage({ type: 'collect-backup-data' }, resolve);
+        });
+        if (!response?.success) throw new Error(response?.error || '获取备份数据失败');
+        const dataStr = JSON.stringify(response.data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `javdb-extension-backup-${new Date().toISOString().split('T')[0]}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showMessage('数据导出成功', 'success');
+        logAsync('INFO', '本地数据导出成功');
+      } catch (err: any) {
+        showMessage(`导出失败: ${err?.message}`, 'error');
+        logAsync('ERROR', '本地数据导出失败', { error: err?.message });
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = originalText;
+      }
     });
   }
 

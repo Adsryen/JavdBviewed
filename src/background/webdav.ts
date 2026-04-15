@@ -259,6 +259,7 @@ async function collectBackupData(): Promise<any> {
 
   const snapshot = {
     version: '2.1',
+    extensionVersion: chrome.runtime.getManifest().version,
     timestamp: new Date().toISOString(),
     // 兼容旧版字段（优先从 storage 读取）
     settings,
@@ -470,6 +471,172 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
   } catch (error: any) {
     bgLog('ERROR', 'WebDAV upload failed.', { error: error.message });
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 直接从已解析的 JSON 对象恢复数据（供本地导入使用，与 WebDAV 恢复逻辑完全一致）
+ */
+async function applyImportDataDirect(importData: any, options?: {
+  categories?: {
+    settings?: boolean;
+    userProfile?: boolean;
+    viewed?: boolean;
+    actors?: boolean;
+    newWorks?: boolean;
+    magnets?: boolean;
+    logs?: boolean;
+    importStats?: boolean;
+  };
+}): Promise<{ success: boolean; error?: string; summary?: any }> {
+  const defaults = {
+    categories: {
+      settings: true,
+      userProfile: true,
+      viewed: true,
+      actors: true,
+      newWorks: true,
+      importStats: true,
+      logs: false,
+      magnets: false,
+    },
+  } as const;
+  const opts = {
+    categories: { ...defaults.categories, ...(options?.categories || {}) },
+  };
+
+  if (restoreInProgress) return { success: false, error: '另一个恢复任务正在进行，请稍后再试' };
+  restoreInProgress = true;
+  const tStart = Date.now();
+  const summary: any = { categories: {}, startedAt: new Date().toISOString() };
+  try {
+    const db = await initDB();
+    const mark = (name: string, info: any) => { summary.categories[name] = info; };
+
+    if (opts.categories.settings) {
+      const c0 = Date.now();
+      try {
+        if (importData?.settings) {
+          await saveSettings(importData.settings);
+          mark('settings', { replaced: true, durationMs: Date.now() - c0 });
+        } else {
+          mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        }
+      } catch (e: any) {
+        mark('settings', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.userProfile) {
+      const c0 = Date.now();
+      try {
+        const val = importData?.userProfile ?? importData?.storageAll?.[STORAGE_KEYS.USER_PROFILE];
+        if (val != null) {
+          await setValue(STORAGE_KEYS.USER_PROFILE, val);
+          mark('userProfile', { replaced: true, durationMs: Date.now() - c0 });
+        } else {
+          mark('userProfile', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+        }
+      } catch (e: any) {
+        mark('userProfile', { replaced: false, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.viewed) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.viewedRecords)) items = importData.idb.viewedRecords;
+        else if (importData?.data) items = toArrayFromObjMap(importData.data);
+        else if (importData?.viewed) items = toArrayFromObjMap(importData.viewed);
+        else if (importData?.storageAll?.[STORAGE_KEYS.VIEWED_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.VIEWED_RECORDS]);
+        await clearStore(db, 'viewedRecords');
+        const written = await putRecordsInBatches(db, 'viewedRecords', items);
+        mark('viewed', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('viewed', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.actors) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.actors)) items = importData.idb.actors;
+        else if (importData?.actorRecords) items = toArrayFromObjMap(importData.actorRecords);
+        else if (importData?.storageAll?.[STORAGE_KEYS.ACTOR_RECORDS]) items = toArrayFromObjMap(importData.storageAll[STORAGE_KEYS.ACTOR_RECORDS]);
+        await clearStore(db, 'actors');
+        const written = await putRecordsInBatches(db, 'actors', items);
+        mark('actors', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('actors', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.newWorks) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.newWorks)) items = importData.idb.newWorks;
+        else if (importData?.newWorks?.records) items = toArrayFromObjMap(importData.newWorks.records);
+        await clearStore(db, 'newWorks');
+        const written = await putRecordsInBatches(db, 'newWorks', items);
+        const subs = importData?.newWorks?.subscriptions ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS];
+        const recs = importData?.newWorks?.records ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_RECORDS];
+        const cfg = importData?.newWorks?.config ?? importData?.storageAll?.[STORAGE_KEYS.NEW_WORKS_CONFIG];
+        if (subs != null) await setValue(STORAGE_KEYS.NEW_WORKS_SUBSCRIPTIONS, subs);
+        if (recs != null) await setValue(STORAGE_KEYS.NEW_WORKS_RECORDS, recs);
+        if (cfg != null) await setValue(STORAGE_KEYS.NEW_WORKS_CONFIG, cfg);
+        mark('newWorks', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('newWorks', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.magnets) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.magnets)) items = importData.idb.magnets;
+        await clearStore(db, 'magnets');
+        const written = await putRecordsInBatches(db, 'magnets', items);
+        mark('magnets', { cleared: true, written, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('magnets', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.logs) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.logs)) items = importData.idb.logs;
+        else if (Array.isArray(importData?.logs)) items = importData.logs;
+        try { await idbLogsClear(); } catch {}
+        if (items.length > 0) { try { await idbLogsBulkAdd(items as any); } catch {} }
+        mark('logs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('logs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
+    if (opts.categories.importStats) {
+      const c0 = Date.now();
+      const val = importData?.importStats ?? importData?.storageAll?.[STORAGE_KEYS.LAST_IMPORT_STATS];
+      if (val != null) {
+        await setValue(STORAGE_KEYS.LAST_IMPORT_STATS, val);
+        mark('importStats', { replaced: true, durationMs: Date.now() - c0 });
+      } else {
+        mark('importStats', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
+      }
+    }
+
+    summary.totalDurationMs = Date.now() - tStart;
+    return { success: true, summary };
+  } catch (e: any) {
+    return { success: false, error: e?.message, summary };
+  } finally {
+    restoreInProgress = false;
   }
 }
 
@@ -1142,6 +1309,23 @@ export function registerWebDAVRouter(): void {
         case 'webdav-upload':
           performUpload().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
+        case 'collect-backup-data':
+          collectBackupData()
+            .then((data) => sendResponse({ success: true, data }))
+            .catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'restore-from-json': {
+          const { jsonData, categories } = message;
+          let importData: any;
+          try { importData = JSON.parse(jsonData); } catch (e: any) {
+            sendResponse({ success: false, error: `JSON 解析失败: ${e?.message}` });
+            return true;
+          }
+          applyImportDataDirect(importData, { categories })
+            .then(sendResponse)
+            .catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        }
         default:
           return false;
       }
