@@ -263,6 +263,23 @@ export class WebDAVSettings extends BaseSettingsPanel {
 
         // 更新UI状态
         this.updateWebDAVControlsState();
+
+        // 显示下次同步时间
+        const nextSyncEl = document.getElementById('webdav-next-sync-time');
+        if (nextSyncEl) {
+            if (webdav.enabled && webdav.autoSync) {
+                chrome.runtime.sendMessage({ type: 'get-next-sync-time' }, (resp) => {
+                    if (resp?.scheduledTime) {
+                        const d = new Date(resp.scheduledTime);
+                        nextSyncEl.textContent = `下次：${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+                    } else {
+                        nextSyncEl.textContent = '';
+                    }
+                });
+            } else {
+                nextSyncEl.textContent = '（未启用）';
+            }
+        }
     }
 
     /**
@@ -329,8 +346,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
 
             const days = parseInt(this.webdavRetentionDays.value, 10);
-            if (isNaN(days) || days < 0 || days > 3650) {
-                errors.push('保留备份天数必须在0-3650之间');
+            if (isNaN(days) || days < 0 || days > 9999) {
+                errors.push('保留备份数量必须在0-9999之间');
             }
 
             const warnDays = parseInt(this.webdavWarningDays.value, 10);
@@ -409,6 +426,23 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
 
             this.updateWebDAVControlsState();
+
+            // 显示下次同步时间
+            const nextSyncEl = document.getElementById('webdav-next-sync-time');
+            if (nextSyncEl) {
+                if (webdav.enabled && webdav.autoSync) {
+                    chrome.runtime.sendMessage({ type: 'get-next-sync-time' }, (resp) => {
+                        if (resp?.scheduledTime) {
+                            const d = new Date(resp.scheduledTime);
+                            nextSyncEl.textContent = `下次：${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+                        } else {
+                            nextSyncEl.textContent = '';
+                        }
+                    });
+                } else {
+                    nextSyncEl.textContent = '（未启用）';
+                }
+            }
         }
     }
 
