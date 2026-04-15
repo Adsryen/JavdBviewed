@@ -4,6 +4,7 @@ import type { VideoRecord, OldVideoRecord, VideoStatus } from '../types';
 import { STORAGE_KEYS } from '../utils/config';
 import { setValue } from '../utils/storage';
 import { dbActorsBulkPut } from './dbClient';
+import { showConfirm } from './components/confirmModal';
 
 /**
  * 检测备份数据的版本
@@ -223,5 +224,45 @@ export function initModal(): void {
 }
 
 export function showImportModal(jsonData: string): void {
-  showMessage('导入对话框暂时不可用（正在修复中）。你仍可在设置页使用导入。', 'warn');
+  // 解析并预览备份信息
+  let importData: any;
+  try {
+    importData = JSON.parse(jsonData);
+  } catch (e: any) {
+    showMessage(`JSON 解析失败：${e?.message}`, 'error');
+    return;
+  }
+
+  const extVersion = importData?.extensionVersion ? `v${importData.extensionVersion}` : '未知';
+  const timestamp = importData?.timestamp ? new Date(importData.timestamp).toLocaleString('zh-CN') : '未知';
+  const viewedCount = Array.isArray(importData?.idb?.viewedRecords)
+    ? importData.idb.viewedRecords.length
+    : Object.keys(importData?.data || {}).length;
+  const actorCount = Array.isArray(importData?.idb?.actors)
+    ? importData.idb.actors.length
+    : Object.keys(importData?.actorRecords || {}).length;
+
+  const message = `即将导入本地备份文件，此操作将覆盖当前数据，无法撤销。\n\n备份信息：\n• 扩展版本：${extVersion}\n• 备份时间：${timestamp}\n• 观看记录：${viewedCount} 条\n• 演员库：${actorCount} 条\n\n确认导入？`;
+
+  showConfirm({ title: '导入本地备份', message, confirmText: '确认导入', cancelText: '取消' }).then((confirmed) => {
+    if (!confirmed) return;
+
+    showMessage('正在导入数据，请稍候...', 'info');
+    logAsync('INFO', '用户确认导入本地备份', { viewedCount, actorCount });
+
+    chrome.runtime.sendMessage({ type: 'restore-from-json', jsonData }, (response) => {
+      if (response?.success) {
+        const s = response.summary?.categories || {};
+        const viewedWritten = s.viewed?.written ?? 0;
+        const actorsWritten = s.actors?.written ?? 0;
+        showMessage(`导入成功：观看记录 ${viewedWritten} 条，演员库 ${actorsWritten} 条`, 'success');
+        logAsync('INFO', '本地备份导入成功', response.summary);
+        // 刷新页面以加载新数据
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showMessage(`导入失败：${response?.error || '未知错误'}`, 'error');
+        logAsync('ERROR', '本地备份导入失败', { error: response?.error });
+      }
+    });
+  });
 }
