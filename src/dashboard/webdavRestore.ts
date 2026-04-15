@@ -1731,7 +1731,44 @@ async function displayFileList(files: WebDAVFile[]): Promise<void> {
                     <span class="file-size">${formatFileSize(file.size)}</span>
                 </div>
             </div>
+            <button class="btn btn-sm btn-outline file-download-btn" title="下载此备份到本地" data-filepath="${file.path}" data-filename="${file.name}">
+                <i class="fas fa-download"></i>
+            </button>
         `;
+
+        // 下载按钮点击不触发选中
+        const dlBtn = li.querySelector('.file-download-btn') as HTMLButtonElement;
+        if (dlBtn) {
+            dlBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fp = dlBtn.dataset.filepath!;
+                const fn = dlBtn.dataset.filename!;
+                dlBtn.disabled = true;
+                dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                chrome.runtime.sendMessage({ type: 'webdav-download-file', filename: fp }, (resp) => {
+                    dlBtn.disabled = false;
+                    dlBtn.innerHTML = '<i class="fas fa-download"></i>';
+                    if (!resp?.success) {
+                        showMessage(`下载失败: ${resp?.error || '未知错误'}`, 'error');
+                        return;
+                    }
+                    // base64 → Blob → 下载
+                    const binary = atob(resp.base64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    const isZip = /\.zip$/i.test(fn);
+                    const mime = isZip ? 'application/zip' : 'application/json';
+                    const blob = new Blob([bytes], { type: mime });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fn;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showMessage('备份下载成功', 'success');
+                });
+            });
+        }
 
         li.addEventListener('click', () => selectFile(file, li));
         fileList.appendChild(li);
