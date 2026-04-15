@@ -18,7 +18,7 @@ import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
-import { registerMonthlyAlarm, handleAlarm, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
+import { registerMonthlyAlarm, handleAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
 import { getSettings, saveSettings } from '../utils/storage';
 
 // 启动期安装/初始化
@@ -342,13 +342,19 @@ try {
 // 监听 Alarm 回调
 try {
   chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm?.name === DRIVE115_USER_REFRESH_ALARM) {
+      try { backgroundRefreshDrive115UserInfo(); } catch {}
+      return;
+    }
+    // 用 chrome.storage 操作延长 SW 生命周期，确保异步任务能完成
+    const keepAlive = setInterval(() => {
+      try { chrome.storage.local.get('_keepalive', () => {}); } catch {}
+    }, 20000);
+    const done = () => clearInterval(keepAlive);
     try {
-      if (alarm?.name === DRIVE115_USER_REFRESH_ALARM) {
-        backgroundRefreshDrive115UserInfo();
-        return;
-      }
-      handleAlarm(alarm?.name || '');
-    } catch {}
+      const p = (async () => { await handleAlarmAsync(alarm?.name || ''); })();
+      p.then(done).catch(done);
+    } catch { done(); }
   });
 } catch {}
 

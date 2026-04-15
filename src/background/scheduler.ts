@@ -186,10 +186,12 @@ export function registerMonthlyAlarm(settings: SchedulerSettings = { enabled: tr
 }
 
 export function handleAlarm(name: string): void {
+  handleAlarmAsync(name).catch(() => {});
+}
+
+export async function handleAlarmAsync(name: string): Promise<void> {
   if (name === WEBDAV_SYNC_ALARM) {
-    try {
-      triggerWebDAVAutoUpload().catch(() => {});
-    } catch {}
+    await triggerWebDAVAutoUpload().catch(() => {});
     return;
   }
   if (name !== INSIGHTS_ALARM) return;
