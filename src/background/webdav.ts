@@ -449,7 +449,7 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     // 同时更新当前激活配置的 lastSync
     const activeConfigId = updatedSettings.webdav.activeConfigId;
     if (activeConfigId && updatedSettings.webdav.configs) {
-      const configIndex = updatedSettings.webdav.configs.findIndex(c => c.id === activeConfigId);
+      const configIndex = updatedSettings.webdav.configs.findIndex((c: { id: string }) => c.id === activeConfigId);
       if (configIndex !== -1) {
         updatedSettings.webdav.configs[configIndex].lastSync = updatedSettings.webdav.lastSync;
       }
@@ -459,9 +459,9 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     bgLog('INFO', 'WebDAV upload successful, updated last sync time.');
 
     try {
-      const retentionDays = Number(updatedSettings.webdav.retentionDays ?? 7);
-      if (!isNaN(retentionDays) && retentionDays > 0) {
-        await cleanupOldBackups(retentionDays);
+      const retentionCount = Number(updatedSettings.webdav.retentionDays ?? 10);
+      if (!isNaN(retentionCount) && retentionCount > 0) {
+        await cleanupOldBackups(retentionCount);
       }
     } catch (e: any) {
       bgLog('WARN', 'Failed to cleanup old WebDAV backups', { error: e?.message });
@@ -1039,50 +1039,50 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
   }
 }
 
-async function cleanupOldBackups(retentionDays: number): Promise<void> {
+async function cleanupOldBackups(retentionCount: number): Promise<void> {
   const settings = await getSettings();
   if (!settings.webdav.enabled || !settings.webdav.url) return;
   try {
+    bgLog('INFO', 'cleanupOldBackups started', { retentionCount });
     const result = await listFiles();
-    if (!result.success || !result.files || result.files.length === 0) return;
+    if (!result.success || !result.files || result.files.length === 0) {
+      bgLog('WARN', 'cleanupOldBackups: listFiles returned no files', { success: result.success, fileCount: result.files?.length });
+      return;
+    }
     const files = result.files
       .filter((f) => f.name.includes('javdb-extension-backup-') && (f.name.endsWith('.json') || f.name.endsWith('.zip')))
-      .sort((a, b) => (a.name > b.name ? -1 : 1));
-    const nowMs = Date.now();
-    const maxAgeMs = retentionDays * 24 * 60 * 60 * 1000;
-    for (const file of files) {
-      let fileTime = 0;
-      if (file.lastModified && file.lastModified !== 'N/A') {
-        const parsed = Date.parse(file.lastModified);
-        if (!isNaN(parsed)) fileTime = parsed;
-      }
-      if (!fileTime) {
-        const match = file.name.match(/javdb-extension-backup-(\d{4}-\d{2}-\d{2})(?:-(\d{2})-(\d{2})-(\d{2}))?\.(json|zip)$/);
-        if (match) {
-          const datePart = match[1];
-          const h = match[2] || '00';
-          const m = match[3] || '00';
-          const s = match[4] || '00';
-          const iso = `${datePart}T${h}:${m}:${s}Z`;
-          const parsed = Date.parse(iso);
-          if (!isNaN(parsed)) fileTime = parsed;
+      .sort((a, b) => (a.name > b.name ? -1 : 1)); // 按文件名降序（最新在前）
+
+    bgLog('INFO', 'cleanupOldBackups: filtered backup files', { total: files.length, retentionCount, toDelete: Math.max(0, files.length - retentionCount) });
+
+    if (retentionCount <= 0 || files.length <= retentionCount) {
+      bgLog('INFO', 'cleanupOldBackups: no cleanup needed', { files: files.length, retentionCount });
+      return;
+    }
+
+    const toDelete = files.slice(retentionCount); // 保留前 N 个，删除剩余
+    bgLog('INFO', 'cleanupOldBackups: deleting files', { count: toDelete.length, names: toDelete.map(f => f.name) });
+    for (const file of toDelete) {
+      try {
+        let fileUrl: string;
+        if (file.path.startsWith('http://') || file.path.startsWith('https://')) {
+          fileUrl = file.path;
+        } else {
+          const origin = new URL(settings.webdav.url).origin;
+          fileUrl = origin + (file.path.startsWith('/') ? file.path : '/' + file.path);
         }
-      }
-      if (!fileTime) continue;
-      const ageMs = nowMs - fileTime;
-      if (ageMs > maxAgeMs) {
-        try {
-          let base = settings.webdav.url;
-          if (!base.endsWith('/')) base += '/';
-          const fileUrl = new URL(file.path.startsWith('/') ? file.path.substring(1) : file.path, base).href;
-          await fetch(fileUrl, {
-            method: 'DELETE',
-            headers: { Authorization: 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`), 'User-Agent': 'JavDB-Extension/1.0' },
-          });
-          bgLog('INFO', 'Deleted expired WebDAV backup', { name: file.name, url: fileUrl });
-        } catch (e: any) {
-          bgLog('WARN', 'Failed to delete expired WebDAV backup', { name: file.name, error: e?.message });
+        bgLog('INFO', 'cleanupOldBackups: deleting', { name: file.name, url: fileUrl });
+        const deleteResp = await fetch(fileUrl, {
+          method: 'DELETE',
+          headers: { Authorization: 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`), 'User-Agent': 'JavDB-Extension/1.0' },
+        });
+        if (deleteResp.ok || deleteResp.status === 204 || deleteResp.status === 404) {
+          bgLog('INFO', 'Deleted old WebDAV backup', { name: file.name, url: fileUrl, status: deleteResp.status });
+        } else {
+          bgLog('WARN', 'DELETE request failed', { name: file.name, url: fileUrl, status: deleteResp.status });
         }
+      } catch (e: any) {
+        bgLog('WARN', 'Failed to delete old WebDAV backup', { name: file.name, error: e?.message });
       }
     }
   } catch (e: any) {
@@ -1127,7 +1127,10 @@ function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
         for (const timePattern of timePatterns) {
           const timeMatch = responseXml.match(timePattern);
           if (timeMatch && timeMatch[1]) {
-            try { lastModified = new Date(timeMatch[1]).toLocaleString(); break; } catch {}
+            try {
+              const d = new Date(timeMatch[1]);
+              if (!isNaN(d.getTime())) { lastModified = d.toISOString(); break; }
+            } catch {}
           }
         }
         let size: number | undefined;
@@ -1309,11 +1312,40 @@ export function registerWebDAVRouter(): void {
         case 'webdav-upload':
           performUpload().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
+        case 'get-next-sync-time':
+          chrome.alarms.get('webdav-auto-sync', (alarm) => {
+            sendResponse({ scheduledTime: alarm?.scheduledTime ?? null });
+          });
+          return true;
         case 'collect-backup-data':
           collectBackupData()
             .then((data) => sendResponse({ success: true, data }))
             .catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
+        case 'webdav-download-file': {
+          const { filename } = message;
+          (async () => {
+            try {
+              const s = await getSettings();
+              const url = resolveWebDavUrl(filename, s.webdav.url);
+              const resp = await fetch(url, {
+                method: 'GET',
+                headers: { Authorization: 'Basic ' + btoa(`${s.webdav.username}:${s.webdav.password}`) },
+              });
+              if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+              const buf = await resp.arrayBuffer();
+              // 转为 base64 传回 dashboard（ArrayBuffer 无法直接跨消息传递）
+              const bytes = new Uint8Array(buf);
+              let binary = '';
+              for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+              const base64 = btoa(binary);
+              sendResponse({ success: true, base64, filename });
+            } catch (e: any) {
+              sendResponse({ success: false, error: e?.message });
+            }
+          })();
+          return true;
+        }
         case 'restore-from-json': {
           const { jsonData, categories } = message;
           let importData: any;
