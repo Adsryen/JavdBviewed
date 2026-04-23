@@ -409,8 +409,8 @@ export class NewApiClient {
             errors.push('最大token数必须在1-1,000,000之间');
         }
 
-        if (this.settings.timeout < 5 || this.settings.timeout > 300) {
-            errors.push('超时时间必须在5-300秒之间');
+        if (this.settings.timeout < 5 || this.settings.timeout > 600) {
+            errors.push('超时时间必须在5-600秒之间');
         }
 
         return {
