@@ -1,4 +1,4 @@
-﻿import { renderTemplate, generateReportHTML } from "../../services/insights/reportGenerator";
+﻿import { buildInsightsVisualFields, renderTemplate, generateReportHTML } from "../../services/insights/reportGenerator";
 import { aiService } from "../../services/ai/aiService";
 import { dbInsReportsPut, dbInsReportsList, dbInsReportsGet, dbInsReportsDelete, dbInsReportsExport, dbInsReportsImport } from "../dbClient";
 import type { ReportMonthly } from "../../types/insights";
@@ -921,8 +921,7 @@ function prepareForPreview(html: string): string {
     
     // 获取当前主题
     const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-    const bgColor = isDarkMode ? '#1e293b' : '#ffffff';
-    const textColor = isDarkMode ? '#f1f5f9' : '#111827';
+    const themeName = isDarkMode ? 'dark' : 'light';
     
     // 1) 移除全部脚本（内联与外链），避免 about:srcdoc 下 CSP 报错
     try { res = res.replace(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi, ''); } catch {}
@@ -936,66 +935,22 @@ function prepareForPreview(html: string): string {
       // 若意外缺少 head，则加一个简单的头部
       res = res.replace(/<html[^>]*>/i, (m) => `${m}\n<head><base href="${base}"></head>`);
     }
-    // 2.0) 预清理：将任何显式白色字体替换为主题色，避免白底白字（仅作用于预览）
-    try {
-      const whiteColorRe = /color\s*:\s*(?:#fff(?:fff)?|white|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)|rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*(?:0?\.\d+|1)\s*\))\s*(!important)?/ig;
-      res = res.replace(whiteColorRe, `color:${textColor}$1`);
-    } catch {}
-    // 2.0.1) 强制为 <body> 注入内联样式，并确保有唯一 root id（优先级最高）
+    // 2.0) 为 body 注入预览 root id 与当前主题，让模板自行切换明暗样式
     try {
       res = res.replace(/<body([^>]*)>/i, (m, attrs) => {
         void m;
-        const styleRe = /style=("|')([\s\S]*?)\1/i;
-        const m2 = attrs.match(styleRe);
-        // 确保 root id 存在
-        let addId = '';
-        if (!/\bid\s*=/.test(attrs)) addId = ' id="__ins_preview_root__"';
-        if (m2) {
-          const quote = m2[1];
-          let style = m2[2] || '';
-          // 规范化并覆写 color/background
-          if (/color\s*:/i.test(style)) style = style.replace(/color\s*:[^;]*/i, `color:${textColor} !important`);
-          else style += `; color:${textColor} !important`;
-          if (/background\s*:/i.test(style)) style = style.replace(/background\s*:[^;]*/i, `background:${bgColor} !important`);
-          else style += `; background:${bgColor} !important`;
-          attrs = attrs.replace(styleRe, `style=${quote}${style}${quote}`);
-          return `<body${attrs}${addId}>`;
-        } else {
-          return `<body${attrs}${addId} style="background:${bgColor} !important; color:${textColor} !important">`;
-        }
+        let nextAttrs = attrs || '';
+        if (/\bid\s*=/.test(nextAttrs)) nextAttrs = nextAttrs.replace(/\bid=(["']).*?\1/i, 'id="__ins_preview_root__"');
+        else nextAttrs += ' id="__ins_preview_root__"';
+        if (/\bdata-theme\s*=/.test(nextAttrs)) nextAttrs = nextAttrs.replace(/\bdata-theme=(["']).*?\1/i, `data-theme="${themeName}"`);
+        else nextAttrs += ` data-theme="${themeName}"`;
+        return `<body${nextAttrs}>`;
       });
     } catch {}
-    // 2.0.2) 进一步清理：移除任意元素内联的 color 声明并统一为主题色（防止 inline !important 覆盖）
-    try {
-      res = res.replace(/style=("|')([\s\S]*?)\1/ig, (all, q, style) => {
-        void all;
-        let s = String(style || '');
-        // 删除所有 color 与 -webkit-text-fill-color（不影响 border-color/outline-color 等）
-        s = s.replace(/(^|;)\s*color\s*:\s*[^;]*;?/ig, (m0, p1) => { void m0; return (p1 || ''); });
-        s = s.replace(/(^|;)\s*-webkit-text-fill-color\s*:\s*[^;]*;?/ig, (m0, p1) => { void m0; return (p1 || ''); });
-        // 收敛多余分号
-        s = s.replace(/;;+/g, ';').replace(/^\s*;|;\s*$/g, '');
-        // 重新追加主题色字体
-        const sep = s ? '; ' : '';
-        return `style=${q}${s}${sep}color:${textColor} !important; -webkit-text-fill-color:${textColor} !important${q}`;
-      });
-    } catch {}
-    // 2.1) 注入兜底样式，强制使用主题色，避免出现白底白字
+    // 2.1) 注入少量预览专用样式，避免 srcdoc 下边界差异
     try {
       const hasFallback = /insights-preview-fallback/i.test(res);
-      // 免责声明的主题颜色
-      const noticeColors = isDarkMode 
-        ? { bg: '#422006', border: '#78350f', text: '#fef3c7' }  // 深色模式：深棕背景，浅黄文字
-        : { bg: '#fff7ed', border: '#fdba74', text: '#92400e' }; // 浅色模式：浅橙背景，深棕文字
-      // 表格主题颜色
-      const tableColors = isDarkMode
-        ? { border: '#334155', thBg: '#1e293b', thColor: '#cbd5e1' }  // 深色模式
-        : { border: '#e5e7eb', thBg: '#f8fafc', thColor: '#475569' }; // 浅色模式
-      // 数据概览卡片主题颜色
-      const kpiColors = isDarkMode
-        ? { bg: '#1e293b', border: '#334155', labelColor: '#94a3b8', valueColor: '#f1f5f9' }  // 深色模式
-        : { bg: '#fff', border: '#e5e7eb', labelColor: '#64748b', valueColor: '#0f172a' }; // 浅色模式
-      const fallback = `\n<style id="insights-preview-fallback">\n  #__ins_preview_root__, #__ins_preview_root__ *:not(svg):not(path):not(canvas) { color:${textColor} !important; -webkit-text-fill-color:${textColor} !important; filter: none !important; mix-blend-mode: normal !important; }\n  #__ins_preview_root__ { background:${bgColor} !important; }\n  /* 免责声明主题适配 */\n  .notice { background: ${noticeColors.bg} !important; border-color: ${noticeColors.border} !important; color: ${noticeColors.text} !important; }\n  .notice * { color: ${noticeColors.text} !important; }\n  /* 表格主题适配 */\n  .table th, .table td { border-bottom-color: ${tableColors.border} !important; color: ${textColor} !important; }\n  .table th { background: ${tableColors.thBg} !important; color: ${tableColors.thColor} !important; }\n  /* 数据概览卡片主题适配 */\n  .kpi { background: ${kpiColors.bg} !important; border-color: ${kpiColors.border} !important; }\n  .kpi .label { color: ${kpiColors.labelColor} !important; }\n  .kpi .value { color: ${kpiColors.valueColor} !important; }\n  /* 其他补充覆盖 */\n  body, p, div, span, li, td, th, small, strong, em, code, pre, blockquote { color:${textColor} !important; }\n  :where(body *) :where(*):not(svg):not(path):not(canvas) { color:${textColor} !important; }\n  .text-white, .text-light, [class*="text-white"] { color:${textColor} !important; }\n  [style*="color:#fff"], [style*="color: #fff"], [style*="color:#ffffff"], [style*="color: #ffffff"], [style*="color:white"], [style*="color: white"], [style*="color:rgb(255,255,255)"], [style*="color: rgb(255, 255, 255)"], [style*="color:rgba(255,255,255"], [style*="color: rgba(255, 255, 255"] { color:${textColor} !important; }\n</style>`;
+      const fallback = `\n<style id="insights-preview-fallback">\n  :root { color-scheme: ${themeName}; }\n  #__ins_preview_root__ { min-height: 100vh; }\n</style>`;
       if (!hasFallback) {
         if (/<\/body>/i.test(res)) {
           res = res.replace(/<\/body>/i, (m) => `${fallback}\n${m}`);
@@ -1331,24 +1286,70 @@ async function previewSample() {
   const p = (extSettings as any)?.insights?.prompts || {};
   const usePersona: PersonaId = ['doctor', 'default', 'maid', 'tsundere', 'yandere', 'analyst', 'friend', 'bro'].includes(p?.persona) ? p.persona : 'doctor';
   const personaName = getPersonaName(usePersona);
+  const sampleStats = {
+    tagsTop: [
+      { name: '剧情', count: 18, ratio: 0.24 },
+      { name: '制服', count: 14, ratio: 0.19 },
+      { name: '素人', count: 11, ratio: 0.15 },
+      { name: '企划', count: 9, ratio: 0.12 },
+      { name: '高清', count: 8, ratio: 0.11 },
+      { name: '收藏向', count: 6, ratio: 0.08 },
+    ],
+    trend: [
+      { date: '2026-04-01', total: 3 },
+      { date: '2026-04-05', total: 8 },
+      { date: '2026-04-09', total: 5 },
+      { date: '2026-04-13', total: 12 },
+      { date: '2026-04-17', total: 9 },
+      { date: '2026-04-21', total: 16 },
+    ],
+    changes: {
+      newTags: ['收藏向', '企划'],
+      rising: ['剧情', '制服'],
+      falling: ['高清'],
+      newTagsDetailed: [{ name: '收藏向', count: 6 }, { name: '企划', count: 9 }],
+      risingDetailed: [
+        { name: '剧情', cur: 18, prev: 9, curRatio: 0.24, prevRatio: 0.12, diffRatio: 0.12 },
+        { name: '制服', cur: 14, prev: 8, curRatio: 0.19, prevRatio: 0.11, diffRatio: 0.08 },
+      ],
+      fallingDetailed: [
+        { name: '高清', cur: 8, prev: 16, curRatio: 0.11, prevRatio: 0.22, diffRatio: -0.11 },
+      ],
+    },
+    metrics: {
+      totalAll: 74,
+      concentrationTop3: 0.58,
+      hhi: 0.17,
+      entropy: 1.72,
+      trendSlope: 1.8,
+      daysCount: 6,
+    },
+  } as any;
+  const sampleRankingRows = sampleStats.tagsTop.map((item: any, index: number) => {
+    const ratio = typeof item.ratio === 'number' ? item.ratio : 0;
+    return `<tr><td>${index + 1}</td><td>${item.name}</td><td>${item.count}</td><td>${(ratio * 100).toFixed(1)}%</td></tr>`;
+  }).join('');
   const fields = {
     reportTitle: '我的观影标签月报（示例）',
-    periodText: '统计范围：示例',
-    summary: '这里将展示由 AI 生成的摘要文本示例占位。',
-    insightList: '<li>示例洞察 A</li><li>示例洞察 B</li>',
-    methodology: '仅演示用途，真实报告会根据本地统计与模板填充。',
+    periodText: '统计范围：2026-04-01 ~ 2026-04-30（示例数据）',
+    summary: '这个示例展示的是新版 Wrapped 风格：本月主打标签是「剧情」，Top3 占比 58.0%，说明偏好比较集中但还保留了一点探索空间。中后段热度明显升温，「剧情」比上期多了 12.0 个百分点，「收藏向」和「企划」也开始冒头。真实报告会把这里替换成你的本地统计与 AI 文案。',
+    insightList: [
+      '<li>【主打标签】剧情 18 次，占 24.0%，是这个月最突出的关键词。</li>',
+      '<li>【集中度】Top3 占比 58.0%，口味比较集中，但不是完全单一路线。</li>',
+      '<li>【变化】剧情 +12.0 个百分点，计数 9→18，明显升温。</li>',
+      '<li>【新鲜感】收藏向 6 次，属于本月新出现的小探索。</li>',
+      '<li>【节奏】月中后段趋势升温，观看节奏比月初更密集。</li>',
+    ].join(''),
+    methodology: '示例数据仅用于展示新版模板效果；真实报告会按本地观看记录去重后统计标签次数、占比、趋势和与上一周期的变化。',
     disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
     generatedAt: now.toLocaleString(),
     version: '0.0.1',
     personaName,
     baseHref: chrome.runtime.getURL('') || './',
-    statsJSON: '{}',
-    rankingRows: '<tr><td>1</td><td>示例标签</td><td>10</td><td>50.0%</td></tr>',
-    totalViews: '20',
-    activeDays: '5',
-    avgPerDay: '4.0',
-    totalTags: '10',
-    viewerProfile: '基于你的观影习惯，你是一个多元探索型观影者。建议后续可以尝试相关类型的影片。',
+    statsJSON: JSON.stringify(sampleStats),
+    rankingRows: sampleRankingRows,
+    viewerProfile: '示例画像：你像是“有主线的探索型观影者”——会围绕剧情和制服这类稳定偏好深入，同时也会被新鲜企划吸引。真实报告会结合你的标签变化，给出更贴近个人口味的画像和下月方向。',
+    ...buildInsightsVisualFields(sampleStats, { activeDays: 6, modeLabel: 'Sample Wrapped' }),
   } as Record<string, string>;
   const tpl = await loadTemplate();
   const html = renderTemplate({ templateHTML: tpl, fields });
@@ -1556,6 +1557,10 @@ async function handleGenerate() {
       avgPerDay: (totalAllNum / Math.max(days.length, 1)).toFixed(1),
       totalTags: String(topList.length),
       viewerProfile: '基于你的观影习惯，你是一个多元探索型观影者。建议后续可以尝试相关类型的影片。',
+      ...buildInsightsVisualFields(stats as any, {
+        activeDays: modeUsed === 'compare' ? Number((stats as any)?.metrics?.daysCount || 0) : days.length,
+        modeLabel: modeUsed === 'compare' ? 'Compare Wrapped' : 'Monthly Wrapped',
+      }),
     } as Record<string, string>;
     const tpl = await loadTemplate();
     const modelSel = getEl<HTMLSelectElement>('insights-model-select');
@@ -2050,6 +2055,22 @@ export const insightsTab = {
       if (Array.isArray(ch.newTags) && ch.newTags.length) changeIns.push(`新出现标签：${ch.newTags.slice(0,5).join('、')}`);
       if (Array.isArray(ch.rising) && ch.rising.length) changeIns.push(`明显上升：${ch.rising.slice(0,5).join('、')}`);
       if (Array.isArray(ch.falling) && ch.falling.length) changeIns.push(`明显下降：${ch.falling.slice(0,5).join('、')}`);
+      const topList: any[] = Array.isArray((stats as any)?.tagsTop) ? (stats as any).tagsTop : [];
+      const totalAllNum = Number((stats as any)?.metrics?.totalAll) || topList.reduce((sum, item) => sum + (Number(item?.count) || 0), 0) || 1;
+      const escapeCell = (value: any) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      const rankingRows = topList.map((item, index) => {
+        const ratio = typeof item?.ratio === 'number' && isFinite(item.ratio) ? item.ratio : ((Number(item?.count) || 0) / totalAllNum);
+        return `<tr><td>${index + 1}</td><td>${escapeCell(item?.name)}</td><td>${Number(item?.count) || 0}</td><td>${(ratio * 100).toFixed(1)}%</td></tr>`;
+      }).join('');
+      const settings = await getSettings();
+      const personaId: PersonaId = ['doctor', 'default', 'maid', 'tsundere', 'yandere', 'analyst', 'friend', 'bro'].includes((settings as any)?.insights?.prompts?.persona)
+        ? (settings as any).insights.prompts.persona
+        : 'doctor';
       const fields = {
         reportTitle: `我的观影标签报告`,
         periodText: `统计范围：${periodStart} ~ ${periodEnd}`,
@@ -2060,10 +2081,15 @@ export const insightsTab = {
           ...changeIns,
         ].map(s => `<li>${s}</li>`).join(''),
         methodology: '仅统计标签，按影片去重，图表本地渲染。',
+        disclaimerHTML: '<b>免责声明</b>：本报告仅用于个人研究与学术讨论。<br/>涉及“成人/色情”相关标签的统计仅为客观数据分析，不构成鼓励或引导。<br/>报告严格面向成年语境，不涉及未成年人或非法情境；如发现不当内容请立即停止并删除。<br/>可在设置中关闭相关分析或隐藏敏感内容。',
         generatedAt: now.toLocaleString(),
         version: '0.0.1',
+        personaName: getPersonaName(personaId),
         baseHref: chrome.runtime.getURL('') || './',
         statsJSON: JSON.stringify(stats || {}),
+        rankingRows,
+        viewerProfile: '基于你的观影习惯生成的画像会展示在这里；建议先生成预览，再保存为月报。',
+        ...buildInsightsVisualFields(stats as any, { activeDays: days.length, modeLabel: 'Monthly Wrapped' }),
       } as Record<string, string>;
       const modelSel = getEl<HTMLSelectElement>('insights-model-select');
       const modelInput = getEl<HTMLInputElement>('insights-model-custom');

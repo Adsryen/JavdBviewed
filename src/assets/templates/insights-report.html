@@ -6,62 +6,290 @@
   <title>{{reportTitle}}</title>
   <base href="{{baseHref}}">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; margin: 16px; }
-    main { max-width: 960px; margin: 0 auto; }
-    header h1 { margin: 0 0 8px; font-size: 20px; }
-    header p { color: #666; margin: 0 0 12px; }
-    section { margin: 16px 0; }
-    #insights { padding-left: 18px; }
-    #insights li { margin: 6px 0; }
-    footer { color: #888; margin-top: 16px; }
-    .chart { width: 100%; height: 320px; margin: 8px 0; }
-    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 12px 0; }
-    .kpi { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; background: #fff; }
-    .kpi .label { color: #64748b; font-size: 12px; }
-    .kpi .value { font-weight: 700; font-size: 18px; color: #0f172a; }
-    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .table th, .table td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; }
-    .table th { color: #475569; font-weight: 600; background: #f8fafc; }
-    /* 免责声明样式 - 注意：这些颜色会被 prepareForPreview 函数动态覆盖以支持主题切换 */
-    .notice { background: #fff7ed; border: 1px solid #fdba74; color: #92400e; padding: 10px 12px; border-radius: 8px; font-size: 12px; }
+    :root { --green: #1ed760; --cyan: #22d3ee; --violet: #a855f7; --pink: #ec4899; --orange: #f97316; }
+    * { box-sizing: border-box; }
+    body {
+      color-scheme: light;
+      --page-bg:
+        radial-gradient(circle at 15% 5%, rgba(30,215,96,.18), transparent 28%),
+        radial-gradient(circle at 92% 14%, rgba(168,85,247,.14), transparent 30%),
+        radial-gradient(circle at 50% 100%, rgba(34,211,238,.12), transparent 36%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2ff 48%, #e0f2fe 100%);
+      --ink: #101827;
+      --muted: #64748b;
+      --line: rgba(148,163,184,.28);
+      --panel-bg: rgba(255,255,255,.9);
+      --panel-border: rgba(255,255,255,.72);
+      --panel-shadow: 0 18px 50px rgba(15,23,42,.12);
+      --hero-gradient: linear-gradient(135deg, rgba(30,215,96,.95), rgba(34,211,238,.82) 42%, rgba(168,85,247,.92) 100%);
+      --hero-glow-a: rgba(255,255,255,.34);
+      --hero-glow-b: rgba(255,255,255,.2);
+      --wrapped-card-bg: linear-gradient(145deg, #111827, #312e81 54%, #7e22ce);
+      --wrapped-card-subtle: rgba(255,255,255,.7);
+      --hero-orb-bg: radial-gradient(circle at 30% 28%, #fff, #bef264 18%, #1ed760 48%, #0891b2 72%, #581c87 100%);
+      --hero-orb-shadow: inset -20px -24px 60px rgba(2,6,23,.25), 0 24px 80px rgba(15,23,42,.2);
+      --hero-orb-inner-bg: rgba(2,6,23,.7);
+      --notice-bg: #fff7ed;
+      --notice-border: #fdba74;
+      --notice-text: #92400e;
+      --kpi-bg: #ffffff;
+      --kpi-label: #64748b;
+      --kpi-value: #0f172a;
+      --top-bar-rank-bg: #111827;
+      --top-bar-rank-text: #ffffff;
+      --top-bar-track-bg: #e2e8f0;
+      --change-card-bg: #ffffff;
+      --spark-bg: linear-gradient(135deg, rgba(30,215,96,.1), rgba(168,85,247,.1));
+      --spark-fill: rgba(30,215,96,.12);
+      --table-border: #e5e7eb;
+      --table-th-bg: #f8fafc;
+      --table-th-text: #475569;
+      --chart-bg: rgba(255,255,255,.74);
+      --footer-text: rgba(15,23,42,.62);
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--page-bg);
+      transition: background-color .2s ease, color .2s ease;
+    }
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --page-bg:
+        radial-gradient(circle at 15% 5%, rgba(30,215,96,.35), transparent 28%),
+        radial-gradient(circle at 92% 14%, rgba(168,85,247,.32), transparent 30%),
+        radial-gradient(circle at 50% 100%, rgba(34,211,238,.28), transparent 36%),
+        linear-gradient(135deg, #020617 0%, #111827 48%, #172554 100%);
+      --ink: #e5eefb;
+      --muted: #94a3b8;
+      --line: rgba(148,163,184,.24);
+      --panel-bg: rgba(15,23,42,.78);
+      --panel-border: rgba(51,65,85,.82);
+      --panel-shadow: 0 18px 50px rgba(2,6,23,.32);
+      --hero-gradient: linear-gradient(135deg, rgba(34,197,94,.86), rgba(6,182,212,.75) 42%, rgba(126,34,206,.9) 100%);
+      --hero-glow-a: rgba(255,255,255,.26);
+      --hero-glow-b: rgba(255,255,255,.14);
+      --wrapped-card-bg: linear-gradient(145deg, #020617, #1e1b4b 54%, #581c87);
+      --wrapped-card-subtle: rgba(255,255,255,.72);
+      --hero-orb-bg: radial-gradient(circle at 30% 28%, #f8fafc, #86efac 18%, #22c55e 48%, #0891b2 72%, #4c1d95 100%);
+      --hero-orb-shadow: inset -20px -24px 60px rgba(2,6,23,.42), 0 24px 80px rgba(2,6,23,.4);
+      --hero-orb-inner-bg: rgba(2,6,23,.78);
+      --notice-bg: #422006;
+      --notice-border: #78350f;
+      --notice-text: #fef3c7;
+      --kpi-bg: rgba(15,23,42,.9);
+      --kpi-label: #94a3b8;
+      --kpi-value: #f8fafc;
+      --top-bar-rank-bg: #e2e8f0;
+      --top-bar-rank-text: #0f172a;
+      --top-bar-track-bg: rgba(51,65,85,.9);
+      --change-card-bg: rgba(15,23,42,.9);
+      --spark-bg: linear-gradient(135deg, rgba(30,215,96,.12), rgba(168,85,247,.14));
+      --spark-fill: rgba(34,197,94,.16);
+      --table-border: rgba(51,65,85,.9);
+      --table-th-bg: rgba(30,41,59,.92);
+      --table-th-text: #cbd5e1;
+      --chart-bg: rgba(15,23,42,.54);
+      --footer-text: rgba(226,232,240,.72);
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        color-scheme: dark;
+        --page-bg:
+          radial-gradient(circle at 15% 5%, rgba(30,215,96,.35), transparent 28%),
+          radial-gradient(circle at 92% 14%, rgba(168,85,247,.32), transparent 30%),
+          radial-gradient(circle at 50% 100%, rgba(34,211,238,.28), transparent 36%),
+          linear-gradient(135deg, #020617 0%, #111827 48%, #172554 100%);
+        --ink: #e5eefb;
+        --muted: #94a3b8;
+        --line: rgba(148,163,184,.24);
+        --panel-bg: rgba(15,23,42,.78);
+        --panel-border: rgba(51,65,85,.82);
+        --panel-shadow: 0 18px 50px rgba(2,6,23,.32);
+        --hero-gradient: linear-gradient(135deg, rgba(34,197,94,.86), rgba(6,182,212,.75) 42%, rgba(126,34,206,.9) 100%);
+        --hero-glow-a: rgba(255,255,255,.26);
+        --hero-glow-b: rgba(255,255,255,.14);
+        --wrapped-card-bg: linear-gradient(145deg, #020617, #1e1b4b 54%, #581c87);
+        --wrapped-card-subtle: rgba(255,255,255,.72);
+        --hero-orb-bg: radial-gradient(circle at 30% 28%, #f8fafc, #86efac 18%, #22c55e 48%, #0891b2 72%, #4c1d95 100%);
+        --hero-orb-shadow: inset -20px -24px 60px rgba(2,6,23,.42), 0 24px 80px rgba(2,6,23,.4);
+        --hero-orb-inner-bg: rgba(2,6,23,.78);
+        --notice-bg: #422006;
+        --notice-border: #78350f;
+        --notice-text: #fef3c7;
+        --kpi-bg: rgba(15,23,42,.9);
+        --kpi-label: #94a3b8;
+        --kpi-value: #f8fafc;
+        --top-bar-rank-bg: #e2e8f0;
+        --top-bar-rank-text: #0f172a;
+        --top-bar-track-bg: rgba(51,65,85,.9);
+        --change-card-bg: rgba(15,23,42,.9);
+        --spark-bg: linear-gradient(135deg, rgba(30,215,96,.12), rgba(168,85,247,.14));
+        --spark-fill: rgba(34,197,94,.16);
+        --table-border: rgba(51,65,85,.9);
+        --table-th-bg: rgba(30,41,59,.92);
+        --table-th-text: #cbd5e1;
+        --chart-bg: rgba(15,23,42,.54);
+        --footer-text: rgba(226,232,240,.72);
+      }
+    }
+    main { max-width: 1040px; margin: 0 auto; }
+    section { margin: 18px 0; }
+    h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em; }
+    p { line-height: 1.75; }
+    .wrapped-hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 340px;
+      padding: 30px;
+      border-radius: 28px;
+      color: #fff;
+      background: var(--hero-gradient);
+      box-shadow: 0 24px 80px rgba(2,6,23,.36);
+    }
+    .wrapped-hero::before {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background:
+        radial-gradient(circle at 18% 20%, var(--hero-glow-a), transparent 20%),
+        radial-gradient(circle at 78% 20%, var(--hero-glow-b), transparent 18%),
+        repeating-linear-gradient(120deg, rgba(255,255,255,.12) 0 2px, transparent 2px 18px);
+      transform: rotate(-6deg);
+      pointer-events: none;
+    }
+    .hero-content { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.2fr) 280px; gap: 24px; align-items: end; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 8px 12px; border: 1px solid rgba(255,255,255,.48); border-radius: 999px; background: rgba(15,23,42,.18); backdrop-filter: blur(8px); font-size: 13px; font-weight: 700; }
+    header h1 { max-width: 680px; margin: 18px 0 12px; font-size: clamp(34px, 6vw, 64px); line-height: .95; letter-spacing: -.06em; }
+    header p { margin: 0; color: rgba(255,255,255,.86); }
+    .hero-mood { margin-top: 18px; font-size: 14px; color: rgba(255,255,255,.92); }
+    .hero-orb { display: grid; place-items: center; width: 230px; height: 230px; justify-self: center; border-radius: 50%; background: var(--hero-orb-bg); box-shadow: var(--hero-orb-shadow); }
+    .hero-orb-inner { width: 160px; height: 160px; border-radius: 50%; display: grid; place-items: center; text-align: center; padding: 18px; background: var(--hero-orb-inner-bg); color: #fff; }
+    .hero-orb-inner b { display: block; font-size: 32px; line-height: 1; }
+    .hero-orb-inner span { display: block; margin-top: 8px; font-size: 13px; opacity: .82; }
+    .panel { padding: 22px; border: 1px solid var(--panel-border); border-radius: 24px; background: var(--panel-bg); box-shadow: var(--panel-shadow); backdrop-filter: blur(14px); }
+    .notice { background: var(--notice-bg); border: 1px solid var(--notice-border); color: var(--notice-text); padding: 12px 14px; border-radius: 16px; font-size: 12px; }
+    .summary-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr); gap: 18px; }
+    #summary-text, #viewer-profile-text, #methodology-text { margin: 0; }
+    #insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; padding: 0; margin: 14px 0 0; list-style: none; }
+    #insights li { padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(30,215,96,.12), rgba(34,211,238,.1)); border: 1px solid var(--line); line-height: 1.55; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .kpi { min-height: 110px; border: 1px solid var(--line); border-radius: 20px; padding: 14px; background: var(--kpi-bg); }
+    .kpi .label { display: flex; align-items: center; gap: 8px; color: var(--kpi-label); font-size: 13px; }
+    .kpi .value { margin-top: 12px; font-weight: 900; font-size: 30px; letter-spacing: -.04em; color: var(--kpi-value); }
+    .visual-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .78fr); gap: 18px; }
+    .wrapped-card { min-height: 100%; padding: 20px; border-radius: 24px; color: #fff; background: var(--wrapped-card-bg); overflow: hidden; }
+    .wrapped-card h2, .wrapped-card p { color: #fff; }
+    .wrapped-card small { color: var(--wrapped-card-subtle); }
+    .top-tag-name { margin: 10px 0 0; font-size: clamp(34px, 5vw, 56px); line-height: 1; letter-spacing: -.05em; font-weight: 900; }
+    .top-tag-meta { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .pill { padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.24); font-weight: 700; }
+    .top-bars { display: grid; gap: 11px; margin-top: 12px; }
+    .top-bar-row { display: grid; grid-template-columns: 28px minmax(72px, 120px) minmax(120px, 1fr) 88px; gap: 10px; align-items: center; font-size: 13px; }
+    .top-bar-rank { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--top-bar-rank-bg); color: var(--top-bar-rank-text); font-weight: 800; }
+    .top-bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+    .top-bar-track { height: 12px; border-radius: 999px; background: var(--top-bar-track-bg); overflow: hidden; }
+    .top-bar-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--cyan), var(--violet)); }
+    .top-bar-value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .change-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .change-card { padding: 16px; border-radius: 20px; border: 1px solid var(--line); background: var(--change-card-bg); }
+    .change-icon { font-size: 28px; }
+    .change-title { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .change-text { margin-top: 6px; font-weight: 900; font-size: 18px; }
+    .sparkline-wrap { padding: 18px; border-radius: 20px; background: var(--spark-bg); border: 1px solid var(--line); }
+    .sparkline-svg { width: 100%; height: 130px; }
+    .sparkline-line { fill: none; stroke: url(#sparkGradient); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+    .sparkline-fill { fill: var(--spark-fill); stroke: none; }
+    .sparkline-empty, .visual-empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; overflow: hidden; border-radius: 16px; }
+    .table th, .table td { border-bottom: 1px solid var(--table-border); padding: 10px 8px; text-align: left; }
+    .table th { color: var(--table-th-text); font-weight: 700; background: var(--table-th-bg); }
+    .chart { width: 100%; height: 320px; margin: 8px 0; border: 1px dashed var(--line); border-radius: 20px; background: var(--chart-bg); }
+    footer { color: var(--footer-text); margin: 18px 4px 0; text-align: center; }
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      .wrapped-hero { padding: 22px; }
+      .hero-content, .summary-grid, .visual-grid { grid-template-columns: 1fr; }
+      .hero-orb { width: 190px; height: 190px; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .top-bar-row { grid-template-columns: 28px minmax(70px, 1fr) 90px; }
+      .top-bar-track { grid-column: 2 / -1; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1 id="report-title">{{reportTitle}}</h1>
-      <p id="period-text">{{periodText}}</p>
-      <p style="color: var(--text-secondary); font-size: 14px; margin: 4px 0 0;">
-        <i class="fas fa-user-circle"></i> 人设：<span style="color: var(--text-primary); font-weight: 500;">{{personaName}}</span>
-      </p>
+    <header class="wrapped-hero">
+      <div class="hero-content">
+        <div>
+          <div class="badge">🎧 {{reportBadge}}</div>
+          <h1 id="report-title">{{reportTitle}}</h1>
+          <p id="period-text">{{periodText}}</p>
+          <p class="hero-mood">本月关键词：{{wrappedMood}} · 人设：{{personaName}}</p>
+        </div>
+        <div class="hero-orb" aria-hidden="true">
+          <div class="hero-orb-inner">
+            <b>{{topTagPercent}}</b>
+            <span>Top 标签占比</span>
+          </div>
+        </div>
+      </div>
     </header>
 
     <section id="disclaimer">
       <div class="notice" id="disclaimer-block">{{disclaimerHTML}}</div>
     </section>
     
-    <section id="summary">
-      <h2>摘要</h2>
-      <p id="summary-text">{{summary}}</p>
-      <ul id="insights">{{insightList}}</ul>
+    <section id="summary" class="summary-grid">
+      <div class="panel">
+        <h2>本月一句话</h2>
+        <p id="summary-text">{{summary}}</p>
+        <ul id="insights">{{insightList}}</ul>
+      </div>
+      <div class="wrapped-card">
+        <small>你的本月主打</small>
+        <div class="top-tag-name">{{topTagName}}</div>
+        <div class="top-tag-meta">
+          <span class="pill">{{topTagCount}} 次</span>
+          <span class="pill">{{topTagPercent}}</span>
+          <span class="pill">{{trendEmoji}} {{trendLabel}}</span>
+        </div>
+      </div>
     </section>
 
-    <section id="viewer-profile">
+    <section id="overview" class="panel">
+      <h2>数据概览</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="label">🎬 总标签次数</div><div class="value">{{totalViews}}</div></div>
+        <div class="kpi"><div class="label">📅 活跃天数</div><div class="value">{{activeDays}}</div></div>
+        <div class="kpi"><div class="label">⚡ 日均热度</div><div class="value">{{avgPerDay}}</div></div>
+        <div class="kpi"><div class="label">🎯 Top3 占比</div><div class="value">{{top3Share}}</div></div>
+      </div>
+    </section>
+
+    <section id="visuals" class="visual-grid">
+      <div class="panel">
+        <h2>Top 标签能量条</h2>
+        <div class="top-bars">{{visualTopBars}}</div>
+      </div>
+      <div class="panel">
+        <h2>偏好变化卡片</h2>
+        <div class="change-grid">{{changeCards}}</div>
+      </div>
+    </section>
+
+    <section id="trend-static" class="panel">
+      <h2>本月节奏</h2>
+      <div class="sparkline-wrap">{{sparklineSVG}}</div>
+    </section>
+
+    <section id="viewer-profile" class="panel">
       <h2>观影者画像</h2>
       <p id="viewer-profile-text">{{viewerProfile}}</p>
     </section>
 
-    <section id="overview">
-      <h2>数据概览</h2>
-      <div class="kpis">
-        <div class="kpi"><div class="label">总观看次数</div><div class="value">{{totalViews}}</div></div>
-        <div class="kpi"><div class="label">活跃天数</div><div class="value">{{activeDays}}</div></div>
-        <div class="kpi"><div class="label">日均观看</div><div class="value">{{avgPerDay}}</div></div>
-        <div class="kpi"><div class="label">标签总数</div><div class="value">{{totalTags}}</div></div>
-      </div>
-    </section>
-
-    <section id="ranking">
+    <section id="ranking" class="panel">
       <h2>标签排行 Top 10</h2>
       <table class="table">
         <thead><tr><th>#</th><th>标签</th><th>次数</th><th>占比</th></tr></thead>
@@ -69,14 +297,15 @@
       </table>
     </section>
 
-    <section id="charts">
+    <section id="charts" class="panel">
+      <h2>动态图表</h2>
       <template id="insights-data">{{statsJSON}}</template>
       <div id="tags-pie" class="chart"></div>
       <div id="tags-top-bar" class="chart"></div>
       <div id="trend-line" class="chart"></div>
     </section>
 
-    <section id="methodology">
+    <section id="methodology" class="panel">
       <h2>方法说明</h2>
       <p id="methodology-text">{{methodology}}</p>
     </section>
