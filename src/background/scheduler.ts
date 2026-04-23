@@ -1,6 +1,6 @@
 import { insViewsRange, insReportsGet, insReportsPut } from './db';
 import { aggregateMonthly } from '../services/insights/aggregator';
-import { generateReportHTML } from '../services/insights/reportGenerator';
+import { buildInsightsVisualFields, generateReportHTML } from '../services/insights/reportGenerator';
 import { getSettings } from '../utils/storage';
 import { triggerWebDAVAutoUpload } from './webdav';
 
@@ -160,6 +160,7 @@ async function ensureReportForMonth(month: string): Promise<boolean> {
     avgPerDay: (totalAllNum / Math.max(days.length, 1)).toFixed(1),
     totalTags: String(topList.length),
     changesContent,
+    ...buildInsightsVisualFields(stats as any, { activeDays: days.length, modeLabel: 'Auto Monthly Wrapped' }),
   };
   const html = await generateReportHTML({ templateHTML: tpl, stats, baseFields: fields });
   const now = Date.now();
