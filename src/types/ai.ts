@@ -193,7 +193,7 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
     maxTokens: 2048,
     streamEnabled: true,
     systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
-    timeout: 120,
+    timeout: 600,
     autoRetryEmpty: false,
     autoRetryMax: 2,
     errorRetryEnabled: false,

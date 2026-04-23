@@ -40,6 +40,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
     // 对话参数 - 自动重试（可选，因为HTML中可能不存在）
     private autoRetryEmptyEl?: HTMLInputElement;
     private autoRetryMaxEl?: HTMLInputElement;
+    private conversationParamsSaveTimeout?: number;
+    private eventController?: AbortController;
 
     // 按钮元素
     private testConnectionBtn!: HTMLButtonElement;
@@ -66,7 +68,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
         maxTokens: 2048,
         streamEnabled: true,
         systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
-        timeout: 120,
+        timeout: 600,
         autoRetryEmpty: false,
         autoRetryMax: 2
     };
@@ -81,7 +83,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
     }
 
     /**
-     * 确保“请求超时时间(秒)”的说明文案更新为建议30-240秒
+     * 确保“请求超时时间(秒)”的说明文案更新为建议30-600秒
      */
     private ensureTimeoutHintUpdate(): void {
         try {
@@ -89,7 +91,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
             if (!input) return;
             const group = input.closest('.form-group') as HTMLElement | null;
             const p = group?.querySelector('p.input-description') as HTMLParagraphElement | null;
-            if (p) p.textContent = 'API请求的超时时间，建议30-240秒。';
+            if (p) p.textContent = 'API请求的超时时间，建议30-600秒。';
         } catch {}
     }
 
@@ -210,49 +212,58 @@ export class AISettingsPanel extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
+        this.unbindEvents();
+        const signal = (this.eventController = new AbortController()).signal;
+
         // AI配置事件
-        this.enableAI?.addEventListener('change', this.handleAIToggle.bind(this));
-        this.apiProvider?.addEventListener('change', this.handleProviderChange.bind(this));
-        this.apiKey?.addEventListener('input', this.handleSettingChange.bind(this));
-        this.apiEndpoint?.addEventListener('input', this.handleSettingChange.bind(this));
-        this.selectedModel?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.maxTokens?.addEventListener('input', this.handleSettingChange.bind(this));
-        this.temperature?.addEventListener('input', this.handleTemperatureChange.bind(this));
-        this.timeoutEl?.addEventListener('input', this.handleSettingChange.bind(this));
-        this.streamEnabled?.addEventListener('change', this.handleStreamEnabledChange.bind(this));
-        this.systemPrompt?.addEventListener('blur', this.handleSystemPromptChange.bind(this));
+        this.enableAI?.addEventListener('change', this.handleAIToggle.bind(this), { signal });
+        this.apiProvider?.addEventListener('change', this.handleProviderChange.bind(this), { signal });
+        this.apiKey?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.apiEndpoint?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.selectedModel?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.maxTokens?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.maxTokens?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.temperature?.addEventListener('input', this.handleTemperatureChange.bind(this), { signal });
+        this.temperature?.addEventListener('change', this.handleTemperatureChange.bind(this), { signal });
+        this.timeoutEl?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.timeoutEl?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.streamEnabled?.addEventListener('change', this.handleStreamEnabledChange.bind(this), { signal });
+        this.systemPrompt?.addEventListener('input', this.handleSystemPromptChange.bind(this), { signal });
+        this.systemPrompt?.addEventListener('blur', this.handleSystemPromptChange.bind(this), { signal });
 
         // 功能配置事件
-        this.enableAutoTranslation?.addEventListener('change', this.handleFeatureToggle.bind(this));
-        this.enableSummary?.addEventListener('change', this.handleFeatureToggle.bind(this));
-        this.enableRecommendation?.addEventListener('change', this.handleFeatureToggle.bind(this));
-        this.enableChatbot?.addEventListener('change', this.handleFeatureToggle.bind(this));
+        this.enableAutoTranslation?.addEventListener('change', this.handleFeatureToggle.bind(this), { signal });
+        this.enableSummary?.addEventListener('change', this.handleFeatureToggle.bind(this), { signal });
+        this.enableRecommendation?.addEventListener('change', this.handleFeatureToggle.bind(this), { signal });
+        this.enableChatbot?.addEventListener('change', this.handleFeatureToggle.bind(this), { signal });
 
         // 自动重试（空回复）
-        this.autoRetryEmptyEl?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.autoRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this));
+        this.autoRetryEmptyEl?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.autoRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.autoRetryMaxEl?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
         // 错误重试
-        this.errorRetryEnabledEl?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.errorRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this));
+        this.errorRetryEnabledEl?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.errorRetryMaxEl?.addEventListener('input', this.handleSettingChange.bind(this), { signal });
+        this.errorRetryMaxEl?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
 
         // 按钮事件
-        this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this));
-        this.loadModelsBtn?.addEventListener('click', this.handleLoadModels.bind(this));
-        this.saveAISettingsBtn?.addEventListener('click', this.handleManualSave.bind(this));
-        this.resetAISettingsBtn?.addEventListener('click', this.handleResetSettings.bind(this));
-        this.sendTestMessageBtn?.addEventListener('click', this.handleSendTestMessage.bind(this));
-        this.exportAISettingsBtn?.addEventListener('click', this.handleExportSettings.bind(this));
-        this.importAISettingsBtn?.addEventListener('click', this.handleImportSettings.bind(this));
-        this.clearTestResultsBtn?.addEventListener('click', this.handleClearTestResults.bind(this));
-        this.toggleApiKeyVisibilityBtn?.addEventListener('click', this.handleToggleApiKeyVisibility.bind(this));
+        this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this), { signal });
+        this.loadModelsBtn?.addEventListener('click', this.handleLoadModels.bind(this), { signal });
+        this.saveAISettingsBtn?.addEventListener('click', this.handleManualSave.bind(this), { signal });
+        this.resetAISettingsBtn?.addEventListener('click', this.handleResetSettings.bind(this), { signal });
+        this.sendTestMessageBtn?.addEventListener('click', this.handleSendTestMessage.bind(this), { signal });
+        this.exportAISettingsBtn?.addEventListener('click', this.handleExportSettings.bind(this), { signal });
+        this.importAISettingsBtn?.addEventListener('click', this.handleImportSettings.bind(this), { signal });
+        this.clearTestResultsBtn?.addEventListener('click', this.handleClearTestResults.bind(this), { signal });
+        this.toggleApiKeyVisibilityBtn?.addEventListener('click', this.handleToggleApiKeyVisibility.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        // 由于使用了bind，需要保存引用才能正确解绑
-        // 为简化起见，暂时省略
+        this.eventController?.abort();
+        this.eventController = undefined;
     }
 
     /**
@@ -260,6 +271,9 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     protected async doLoadSettings(): Promise<void> {
         try {
+            // 设置页切换时 DOM 可能被重建，这里确保监听重新绑定到当前节点
+            this.bindEvents();
+
             // 从AI服务获取设置
             this.aiSettings = aiService.getSettings();
 
@@ -277,6 +291,12 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 this.temperatureValue.textContent = this.aiSettings.temperature.toString();
             }
             this.timeoutEl.value = String(this.aiSettings.timeout);
+            if (this.streamEnabled) {
+                this.streamEnabled.checked = this.aiSettings.streamEnabled;
+            }
+            if (this.systemPrompt) {
+                this.systemPrompt.value = this.aiSettings.systemPrompt;
+            }
 
             // 自动重试（空回复）
             if (this.autoRetryEmptyEl) {
@@ -343,8 +363,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
                 selectedModel: this.selectedModel.value,
                 temperature: parseFloat(this.temperature.value),
                 maxTokens: parseInt(this.maxTokens.value, 10),
-                streamEnabled: true,
-                systemPrompt: '你是一个有用的AI助手，请用中文回答问题。',
+                streamEnabled: this.streamEnabled?.checked ?? this.aiSettings.streamEnabled ?? true,
+                systemPrompt: this.systemPrompt?.value ?? '',
                 timeout: parseInt(this.timeoutEl.value, 10),
                 autoRetryEmpty: this.autoRetryEmptyEl ? this.autoRetryEmptyEl.checked : (this.aiSettings.autoRetryEmpty ?? false),
                 autoRetryMax: this.autoRetryMaxEl ? (parseInt(this.autoRetryMaxEl.value, 10) || 0) : (this.aiSettings.autoRetryMax ?? 0),
@@ -399,8 +419,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
             // 验证超时时间（秒）
             const timeout = parseInt(this.timeoutEl.value, 10);
-            if (isNaN(timeout) || timeout < 5 || timeout > 300) {
-                errors.push('请求超时时间必须在5-300秒之间');
+            if (isNaN(timeout) || timeout < 5 || timeout > 600) {
+                errors.push('请求超时时间必须在5-600秒之间');
             }
 
             // 验证自动重试次数
@@ -485,17 +505,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
             this.temperatureValue.textContent = this.temperature.value;
         }
         this.emit('change');
-        
-        // 自动保存温度设置
-        try {
-            const temperature = parseFloat(this.temperature.value);
-            this.aiSettings.temperature = temperature;
-            await aiService.saveSettings({ temperature });
-            showMessage('温度设置已保存', 'success');
-        } catch (error) {
-            log.warn('[AI] 保存温度设置失败', error);
-            showMessage('保存温度设置失败', 'error');
-        }
+
+        this.scheduleConversationParamsAutoSave();
     }
 
     /**
@@ -503,16 +514,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     private async handleStreamEnabledChange(): Promise<void> {
         this.emit('change');
-        
-        try {
-            const streamEnabled = this.streamEnabled?.checked ?? true;
-            this.aiSettings.streamEnabled = streamEnabled;
-            await aiService.saveSettings({ streamEnabled });
-            showMessage('流式输出设置已保存', 'success');
-        } catch (error) {
-            log.warn('[AI] 保存流式输出设置失败', error);
-            showMessage('保存失败', 'error');
-        }
+
+        this.scheduleConversationParamsAutoSave();
     }
 
     /**
@@ -520,16 +523,8 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     private async handleSystemPromptChange(): Promise<void> {
         this.emit('change');
-        
-        try {
-            const systemPrompt = this.systemPrompt?.value ?? '';
-            this.aiSettings.systemPrompt = systemPrompt;
-            await aiService.saveSettings({ systemPrompt });
-            showMessage('系统提示词已保存', 'success');
-        } catch (error) {
-            log.warn('[AI] 保存系统提示词失败', error);
-            showMessage('保存失败', 'error');
-        }
+
+        this.scheduleConversationParamsAutoSave();
     }
 
     /**
@@ -547,6 +542,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
         const target = ev?.target as HTMLElement | undefined;
         const id = target?.id;
+        const eventType = ev?.type;
 
         // 若为模型选择变化，立即保存
         if (id === 'aiSelectedModel' && this.selectedModel && this.selectedModel.value !== this.aiSettings.selectedModel) {
@@ -562,38 +558,99 @@ export class AISettingsPanel extends BaseSettingsPanel {
 
         // 对话参数自动保存
         if (id === 'aiMaxTokens') {
-            try {
-                const maxTokens = parseInt(this.maxTokens.value, 10);
-                if (!isNaN(maxTokens) && maxTokens >= 1 && maxTokens <= 1000000) {
-                    this.aiSettings.maxTokens = maxTokens;
-                    await aiService.saveSettings({ maxTokens });
-                    showMessage('最大回复长度已保存', 'success');
-                }
-            } catch (error) {
-                log.warn('[AI] 保存最大回复长度失败', error);
-                showMessage('保存失败', 'error');
+            if (eventType === 'change') {
+                await this.saveConversationParamsImmediately();
+                return;
             }
+            this.scheduleConversationParamsAutoSave();
             return;
         }
 
         // 自动重试或超时相关控件，立即保存
         if (id === 'aiAutoRetryEmpty' || id === 'aiAutoRetryMax' || id === 'aiTimeout' || id === 'aiErrorRetryEnabled' || id === 'aiErrorRetryMax') {
-            try {
-                const partial: Partial<AISettings> = {
-                    autoRetryEmpty: this.autoRetryEmptyEl ? this.autoRetryEmptyEl.checked : this.aiSettings.autoRetryEmpty,
-                    autoRetryMax: this.autoRetryMaxEl ? (parseInt(this.autoRetryMaxEl.value, 10) || 0) : this.aiSettings.autoRetryMax,
-                    timeout: this.timeoutEl ? (parseInt(this.timeoutEl.value, 10) || this.aiSettings.timeout) : this.aiSettings.timeout,
-                    errorRetryEnabled: this.errorRetryEnabledEl ? this.errorRetryEnabledEl.checked : this.aiSettings.errorRetryEnabled,
-                    errorRetryMax: this.errorRetryMaxEl ? (parseInt(this.errorRetryMaxEl.value, 10) || 0) : this.aiSettings.errorRetryMax
-                };
-                this.aiSettings = { ...this.aiSettings, ...partial } as AISettings;
-                await aiService.saveSettings(partial);
-                showMessage('设置已保存', 'success');
-            } catch (e) {
-                log.warn('[AI] 自动保存设置失败', e);
-                showMessage('保存设置失败', 'error');
+            if (eventType === 'change') {
+                await this.saveConversationParamsImmediately();
+                return;
             }
+            this.scheduleConversationParamsAutoSave();
         }
+    }
+
+    private scheduleConversationParamsAutoSave(): void {
+        if (this.conversationParamsSaveTimeout) {
+            clearTimeout(this.conversationParamsSaveTimeout);
+        }
+
+        this.conversationParamsSaveTimeout = window.setTimeout(() => {
+            this.saveConversationParams().catch(error => {
+                log.warn('[AI] 自动保存对话参数失败', error);
+                showMessage('对话参数保存失败', 'error');
+            });
+            this.conversationParamsSaveTimeout = undefined;
+        }, 400);
+    }
+
+    private async saveConversationParamsImmediately(): Promise<void> {
+        if (this.conversationParamsSaveTimeout) {
+            clearTimeout(this.conversationParamsSaveTimeout);
+            this.conversationParamsSaveTimeout = undefined;
+        }
+
+        try {
+            await this.saveConversationParams();
+        } catch (error) {
+            log.warn('[AI] 立即保存对话参数失败', error);
+            showMessage('对话参数保存失败', 'error');
+        }
+    }
+
+    private getConversationParamsPartial(): Partial<AISettings> {
+        const parseInteger = (
+            input: HTMLInputElement | undefined,
+            fallback: number,
+            min: number,
+            max: number
+        ): number => {
+            if (!input) {
+                return fallback;
+            }
+
+            const value = parseInt(input.value, 10);
+            return !isNaN(value) && value >= min && value <= max ? value : fallback;
+        };
+
+        const temperature = parseFloat(this.temperature.value);
+
+        return {
+            temperature: !isNaN(temperature) && temperature >= 0 && temperature <= 2
+                ? temperature
+                : this.aiSettings.temperature,
+            maxTokens: parseInteger(this.maxTokens, this.aiSettings.maxTokens, 1, 1000000),
+            timeout: parseInteger(this.timeoutEl, this.aiSettings.timeout, 5, 600),
+            streamEnabled: this.streamEnabled?.checked ?? this.aiSettings.streamEnabled ?? true,
+            systemPrompt: this.systemPrompt?.value ?? this.aiSettings.systemPrompt ?? '',
+            autoRetryEmpty: this.autoRetryEmptyEl?.checked ?? this.aiSettings.autoRetryEmpty ?? false,
+            autoRetryMax: parseInteger(this.autoRetryMaxEl, this.aiSettings.autoRetryMax ?? 2, 0, 10),
+            errorRetryEnabled: this.errorRetryEnabledEl?.checked ?? this.aiSettings.errorRetryEnabled ?? false,
+            errorRetryMax: parseInteger(this.errorRetryMaxEl, this.aiSettings.errorRetryMax ?? 2, 0, 10)
+        };
+    }
+
+    private async saveConversationParams(): Promise<void> {
+        const partial = this.getConversationParamsPartial();
+        const hasChanges = Object.entries(partial).some(([key, value]) => this.aiSettings[key as keyof AISettings] !== value);
+
+        if (!hasChanges) {
+            return;
+        }
+
+        this.aiSettings = {
+            ...this.aiSettings,
+            ...partial
+        };
+
+        await aiService.saveSettings(partial);
+        showMessage('对话参数已自动保存', 'success');
     }
 
     /**

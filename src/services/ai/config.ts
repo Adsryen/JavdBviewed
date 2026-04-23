@@ -13,7 +13,7 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   model: 'gpt-3.5-turbo',
   maxTokens: 1000,
   temperature: 0.7,
-  timeout: 120000,
+  timeout: 600000,
   streamEnabled: true,
   features: {
     titleTranslation: false,
@@ -131,8 +131,8 @@ export function validateAIConfig(config: AIConfig): { valid: boolean; errors: st
     errors.push('温度参数必须在0-2之间');
   }
 
-  if (config.timeout < 1000 || config.timeout > 300000) {
-    errors.push('超时时间必须在1-300秒之间');
+  if (config.timeout < 1000 || config.timeout > 600000) {
+    errors.push('超时时间必须在1-600秒之间');
   }
 
   if (config.rateLimit.requestsPerMinute < 1 || config.rateLimit.requestsPerMinute > 1000) {
