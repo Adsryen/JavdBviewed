@@ -46,24 +46,59 @@
         </div>
       </div>
     </div>
-  </div>
-  
-  <div class="card home-stats">
-    <div class="home-stats-header">
-      <h3>数据概览</h3>
-    </div>
-    <div class="home-sections">
-      <div class="stats-section">
-        <h4>番号库概览</h4>
-        <div id="homeRecordsStatsContainer" class="stats-grid"></div>
-      </div>
-      <div class="stats-section">
-        <h4>演员库概览</h4>
-        <div id="homeActorsStatsContainer" class="stats-grid"></div>
-      </div>
-      <div class="stats-section">
-        <h4>新作品概览</h4>
-        <div id="homeNewWorksStatsContainer" class="stats-grid"></div>
+    <div class="home-stats">
+      <div class="home-stats-shell">
+        <div class="home-stats-header">
+          <div class="home-stats-copy">
+            <h3>数据概览</h3>
+            <p>主面板总览</p>
+          </div>
+          <div class="home-stats-live">
+            <span class="home-stats-live-dot"></span>
+            实时
+          </div>
+        </div>
+
+        <div class="home-kpi-hero">
+          <div class="home-kpi-main">
+            <div class="home-kpi-main-label">总记录</div>
+            <div id="homeHeroTotal" class="home-kpi-main-value">0</div>
+            <div id="homeHeroSnapshot" class="home-kpi-main-note">演员 0 · 新作品 0</div>
+          </div>
+          <div class="home-kpi-side">
+            <div class="home-kpi-side-item">
+              <span>已观看</span>
+              <strong id="homeHeroViewed">0</strong>
+            </div>
+            <div class="home-kpi-side-item">
+              <span>已浏览</span>
+              <strong id="homeHeroBrowsed">0</strong>
+            </div>
+            <div class="home-kpi-side-item">
+              <span>想看</span>
+              <strong id="homeHeroWant">0</strong>
+            </div>
+            <div class="home-kpi-side-item">
+              <span>近7天</span>
+              <strong id="homeHeroLast7">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-sections">
+          <div class="stats-section">
+            <h4>番号库概览</h4>
+            <div id="homeRecordsStatsContainer" class="stats-grid"></div>
+          </div>
+          <div class="stats-section">
+            <h4>演员库概览</h4>
+            <div id="homeActorsStatsContainer" class="stats-grid"></div>
+          </div>
+          <div class="stats-section">
+            <h4>新作品概览</h4>
+            <div id="homeNewWorksStatsContainer" class="stats-grid"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
