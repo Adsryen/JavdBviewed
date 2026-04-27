@@ -414,3 +414,12 @@ export async function dbTrendsNewWorksRange(startDate: string, endDate: string, 
 export async function dbNewWorksDailyStatRefresh(): Promise<void> {
   await sendMessage('DB:NEWWORKS_DAILY_STAT_REFRESH');
 }
+
+export async function dbNewWorksManualCheck(): Promise<{ success: boolean; result?: { discovered: number; errors: string[]; cancelled?: boolean; identifiedTotal?: number; effectiveTotal?: number }; error?: string }> {
+  const resp = await sendMessage<{ success: boolean; result?: { discovered: number; errors: string[]; cancelled?: boolean; identifiedTotal?: number; effectiveTotal?: number }; error?: string }>(
+    'new-works-manual-check',
+    undefined,
+    300000,
+  );
+  return resp;
+}
