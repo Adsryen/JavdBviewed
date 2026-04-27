@@ -24,8 +24,14 @@ import { initInsightsCollector } from './insightsCollector';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
 import { actorExtraInfoService } from '../services/actorRemarks';
-import { waitForElement } from './utils';
+import { createTaskTimeoutGuard, isTaskTimeoutError, waitForElement } from './utils';
 import { PasswordHelper } from './passwordHelper';
+
+function getActorRemarksTaskTimeoutMs(settings: any): number {
+    const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) return 120000;
+    return Math.max(1000, Math.round(seconds * 1000));
+}
 
 // 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
 let currentVolume: number = 0.2;
@@ -70,15 +76,23 @@ async function applyConsoleSettingsFromStorage_CS() {
     }
 }
 
-async function runActorRemarksOnActorPage(settings: any): Promise<void> {
+async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Promise<void> {
     try {
         const enabled = settings?.videoEnhancement?.enableActorRemarks === true;
         if (!enabled) return;
 
+        const taskTimeoutMs = typeof timeoutMs === 'number' && timeoutMs > 0
+            ? timeoutMs
+            : getActorRemarksTaskTimeoutMs(settings);
+        const timeoutGuard = createTaskTimeoutGuard(taskTimeoutMs);
         const mode = (settings?.videoEnhancement?.actorRemarksMode === 'inline') ? 'inline' : 'panel';
 
         // 演员页标题区有别名/作品数等 meta，必须优先取 .actor-section-name（主名）
-        const nameEl = (await waitForElement('.actor-section-name', 8000, 200)) as HTMLElement | null;
+        const nameEl = (await waitForElement(
+            '.actor-section-name',
+            timeoutGuard.timeoutMs > 0 ? Math.min(8000, timeoutGuard.timeoutMs) : 8000,
+            200
+        )) as HTMLElement | null;
         if (!nameEl) {
             log('actorRemarks(actorPage): .actor-section-name not found');
             return;
@@ -101,7 +115,9 @@ async function runActorRemarksOnActorPage(settings: any): Promise<void> {
             return txt;
         };
 
+        timeoutGuard.throwIfTimedOut();
         const data = await actorExtraInfoService.getActorRemarks(name, settings);
+        timeoutGuard.throwIfTimedOut();
         const badgeText = data ? buildBadgeText(data) : '';
         const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
         const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
@@ -180,6 +196,7 @@ async function runActorRemarksOnActorPage(settings: any): Promise<void> {
 
         log('actorRemarks(actorPage): injected', { mode, hasBadge: Boolean(badgeText) });
     } catch (e) {
+        if (isTaskTimeoutError(e)) throw e;
         log('actorRemarks(actorPage): failed', e);
     }
 }
@@ -419,9 +436,10 @@ async function initialize(): Promise<void> {
             const FLAG = '__jdb_actorRemarks_actorPage_scheduled__';
             if (!(window as any)[FLAG]) {
                 (window as any)[FLAG] = true;
+                const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
                 initOrchestrator.add('deferred', async () => {
-                    await runActorRemarksOnActorPage(settings as any);
-                }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 500 });
+                    await runActorRemarksOnActorPage(settings as any, actorRemarksTaskTimeoutMs);
+                }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 500, timeout: actorRemarksTaskTimeoutMs });
             }
         }
     } catch {}

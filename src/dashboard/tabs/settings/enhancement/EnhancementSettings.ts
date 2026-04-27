@@ -42,6 +42,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableActorRemarks!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
+    private veActorRemarksTaskTimeout!: HTMLInputElement;
     private veEnableVideoFavoriteRating!: HTMLInputElement; // 新增：影片页收藏与评分
     private enableActorQuickActions!: HTMLInputElement; // 新增：演员标记增强
     // 新增：状态标记增强子项
@@ -480,6 +481,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableActorRemarks = document.getElementById('veEnableActorRemarks') as HTMLInputElement;
         this.veActorRemarksMode = document.getElementById('veActorRemarksMode') as HTMLSelectElement;
         this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
+        this.veActorRemarksTaskTimeout = document.getElementById('veActorRemarksTaskTimeout') as HTMLInputElement;
         // 新增：影片页收藏与评分
         this.veEnableVideoFavoriteRating = document.getElementById('enableVideoFavoriteRating') as HTMLInputElement;
         // 新增：演员标记增强
@@ -628,6 +630,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableActorRemarks?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veActorRemarksMode?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veActorRemarksTTL?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veActorRemarksTaskTimeout?.addEventListener('change', this.handleSettingChange.bind(this));
         // 新增：本地同步子项
 
         // 锚点优化配置事件监听
@@ -1617,7 +1620,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
             enableTranslation: true, 
             showLoadingIndicator: true,
             enableReviewBreaker: false,
-            enableFC2Breaker: false
+            enableFC2Breaker: false,
+            actorRemarksTaskTimeoutSeconds: 120
         };
         if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
         if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
@@ -1637,6 +1641,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
         if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
         if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
+        if (this.veActorRemarksTaskTimeout) this.veActorRemarksTaskTimeout.value = String((videoEnhancement as any).actorRemarksTaskTimeoutSeconds ?? 120);
         // 新增：影片页收藏与评分（默认启用）
         if (this.veEnableVideoFavoriteRating) this.veEnableVideoFavoriteRating.checked = (videoEnhancement as any).enableVideoFavoriteRating !== false;
         // 新增：演员标记增强（默认启用）
@@ -1757,6 +1762,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
+                    actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '120', 10) || 120,
                     // 新增：影片页收藏与评分
                     enableVideoFavoriteRating: this.veEnableVideoFavoriteRating?.checked === true,
                     // 新增：演员标记增强
@@ -1939,6 +1945,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                 actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                 actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
+                actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '120', 10) || 120,
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
@@ -2009,6 +2016,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
                 if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
                 if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
+                if (this.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') this.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 120);
             }
             this.updateAllToggleStates();
         } catch {}

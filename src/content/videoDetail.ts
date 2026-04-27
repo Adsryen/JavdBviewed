@@ -8,7 +8,7 @@ import { STATE, SELECTORS, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { getRandomDelay, waitForElement } from './utils';
+import { createTaskTimeoutGuard, isTaskTimeoutError, getRandomDelay, waitForElement } from './utils';
 import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
@@ -16,6 +16,12 @@ import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
 import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
+
+function getActorRemarksTaskTimeoutMs(settings: any): number {
+    const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) return 120000;
+    return Math.max(1000, Math.round(seconds * 1000));
+}
 
 // 全局变量：状态监听器
 let statusObserver: MutationObserver | null = null;
@@ -361,15 +367,19 @@ async function markActorsOnPage(): Promise<void> {
 }
 
 // 轻量版“演员备注”注入（面板模式，默认关闭，通过 settings.videoEnhancement.enableActorRemarks 开启）
-async function runActorRemarksQuick(): Promise<void> {
+async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
     try {
         const enabled = ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
         if (!enabled) return;
 
+        const taskTimeoutMs = typeof timeoutMs === 'number' && timeoutMs > 0
+            ? timeoutMs
+            : getActorRemarksTaskTimeoutMs(STATE.settings as any);
+        const timeoutGuard = createTaskTimeoutGuard(taskTimeoutMs);
         const mode = (((STATE.settings as any)?.videoEnhancement?.actorRemarksMode) === 'inline') ? 'inline' : 'panel';
 
         // 等待演员链接出现（页面结构可能变动，避免过早执行导致无效果）
-        const firstActorLink = await waitForElement('a[href^="/actors/"]', 8000, 200);
+        const firstActorLink = await waitForElement('a[href^="/actors/"]', timeoutGuard.timeoutMs > 0 ? Math.min(8000, timeoutGuard.timeoutMs) : 8000, 200);
         if (!firstActorLink) {
             log('actorRemarks: no actor links found (timeout)');
             return;
@@ -432,7 +442,24 @@ async function runActorRemarksQuick(): Promise<void> {
         });
 
         // 等待所有查询完成
-        const results = await Promise.all(actorTasks);
+        let taskTimedOut = false;
+        const timeoutPromise = timeoutGuard.timeoutMs > 0
+            ? new Promise<never>((_, reject) => {
+                window.setTimeout(() => {
+                    taskTimedOut = true;
+                    reject(new Error(`Task timeout after ${timeoutGuard.timeoutMs}ms`));
+                }, timeoutGuard.timeoutMs);
+            })
+            : null;
+
+        const results = timeoutPromise
+            ? await Promise.race([Promise.all(actorTasks), timeoutPromise]) as Array<{ element: HTMLAnchorElement; name: string; data: any } | null>
+            : await Promise.all(actorTasks);
+
+        timeoutGuard.throwIfTimedOut();
+        if (taskTimedOut) {
+            throw new Error(`Task timeout after ${timeoutGuard.timeoutMs}ms`);
+        }
 
         // 统一渲染结果
         for (const result of results) {
@@ -520,7 +547,9 @@ async function runActorRemarksQuick(): Promise<void> {
         }
 
         log('actorRemarks: done', { mode, rendered: renderedCount });
-    } catch {}
+    } catch (e) {
+        if (isTaskTimeoutError(e)) throw e;
+    }
 }
 
     // 并发控制：检查是否已经在处理这个视频
@@ -590,9 +619,14 @@ async function runActorRemarksQuick(): Promise<void> {
                 const FLAG = '__jdb_actorRemarks_scheduled__';
                 if (!(window as any)[FLAG]) {
                     (window as any)[FLAG] = true;
+                    const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(STATE.settings as any);
                     initOrchestrator.add('deferred', async () => {
-                        try { await runActorRemarksQuick(); } catch {}
-                    }, { label: 'actorRemarks:run', idle: true, idleTimeout: 5000, delayMs: 1200 });
+                        try {
+                            await runActorRemarksQuick(actorRemarksTaskTimeoutMs);
+                        } catch (e) {
+                            if (isTaskTimeoutError(e)) throw e;
+                        }
+                    }, { label: 'actorRemarks:run', idle: true, idleTimeout: 5000, delayMs: 1200, timeout: actorRemarksTaskTimeoutMs });
                 }
             }
         } catch {}
