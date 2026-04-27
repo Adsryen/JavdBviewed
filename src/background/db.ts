@@ -4,6 +4,7 @@
 import { openDB, type IDBPDatabase, type DBSchema } from 'idb';
 import type { VideoRecord, ActorRecord, LogEntry, ListRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
+import { buildNewWorksTrendPointsFromDailyMap, mergeNewWorksDailyStatForTrend } from './trendUtils';
 import { getSettings } from '../utils/storage';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 
@@ -206,7 +207,18 @@ export interface NewWorksTrendPoint { date: string; total: number; unread: numbe
 export async function trendsNewWorksRange(startDate: string, endDate: string, mode: DateMode = 'cumulative'): Promise<NewWorksTrendPoint[]> {
   const db = await initDB();
   const dates = eachDate(startDate, endDate);
-  const points: NewWorksTrendPoint[] = [];
+  const dailyMap = new Map<string, { total: number; unread: number }>();
+  const countDay = (records: any[], d: { startMs: number; endMs: number }) => {
+    let total = 0, unread = 0;
+    for (const w of records) {
+      const ts = (w as any)?.discoveredAt || 0;
+      if (ts >= d.startMs && ts <= d.endMs) {
+        total++;
+        if (!(w as any)?.isRead) unread++;
+      }
+    }
+    return { total, unread };
+  };
 
   // 读取快照数据（key 为 date 字符串，直接范围过滤）
   const snapshots = await db.getAll('newWorksDailyStats');
@@ -226,19 +238,7 @@ export async function trendsNewWorksRange(startDate: string, endDate: string, mo
 
     for (const d of dates) {
       const snap = snapMap.get(d.date);
-      if (snap) {
-        points.push({ date: d.date, total: snap.total, unread: snap.unread });
-      } else {
-        let total = 0, unread = 0;
-        for (const w of allRecords) {
-          const ts = (w as any)?.discoveredAt || 0;
-          if (ts >= d.startMs && ts <= d.endMs) {
-            total++;
-            if (!(w as any)?.isRead) unread++;
-          }
-        }
-        points.push({ date: d.date, total, unread });
-      }
+      dailyMap.set(d.date, mergeNewWorksDailyStatForTrend(snap, countDay(allRecords, d)));
     }
   } else {
     // 累计模式：先用快照补全每日数据，再累加
@@ -251,35 +251,15 @@ export async function trendsNewWorksRange(startDate: string, endDate: string, mo
     allRecords.sort((a: any, b: any) => ((a?.discoveredAt || 0) - (b?.discoveredAt || 0)));
 
     // 构建每日数据（快照优先）
-    const dailyMap = new Map<string, { total: number; unread: number }>();
     for (const d of dates) {
       const snap = snapMap.get(d.date);
-      if (snap) {
-        dailyMap.set(d.date, { total: snap.total, unread: snap.unread });
-      } else {
-        let total = 0, unread = 0;
-        for (const w of allRecords) {
-          const ts = (w as any)?.discoveredAt || 0;
-          if (ts >= d.startMs && ts <= d.endMs) {
-            total++;
-            if (!(w as any)?.isRead) unread++;
-          }
-        }
-        dailyMap.set(d.date, { total, unread });
-      }
+      dailyMap.set(d.date, mergeNewWorksDailyStatForTrend(snap, countDay(allRecords, d)));
     }
 
     // 累加
-    let cumulativeTotal = 0, cumulativeUnread = 0;
-    for (const d of dates) {
-      const day = dailyMap.get(d.date)!;
-      cumulativeTotal += day.total;
-      cumulativeUnread += day.unread;
-      points.push({ date: d.date, total: cumulativeTotal, unread: cumulativeUnread });
-    }
   }
 
-  return points;
+  return buildNewWorksTrendPointsFromDailyMap(dates, dailyMap, mode);
 }
 
 export interface ViewedQueryParams {

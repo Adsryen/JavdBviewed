@@ -1,6 +1,6 @@
 // src/dashboard/home/charts.ts
 
-import { dbViewedStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, ensureBackgroundReady } from '../dbClient';
+import { dbViewedStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, dbNewWorksDailyStatRefresh, ensureBackgroundReady } from '../dbClient';
 import { aggregateMonthly } from '../../services/insights/aggregator';
 import { initStatsOverview, initHomeSectionsOverview } from './overview';
 import { themeManager } from '../services/themeManager';
@@ -148,6 +148,7 @@ function getChartBody(shell: HTMLElement | null): HTMLElement | null {
 }
 
 let homeChartsThemeListenerBound = false;
+let homeOverviewRefreshPromise: Promise<void> | null = null;
 function bindHomeChartsThemeListener(): void {
   if (homeChartsThemeListenerBound) return;
   homeChartsThemeListenerBound = true;
@@ -453,6 +454,9 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
     const actorsTrendEl = getChartBody(actorsTrendShell);
     const newWorksTrendEl = getChartBody(newWorksTrendShell);
     if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl) return;
+    if (newWorksTrendEl) {
+      try { await dbNewWorksDailyStatRefresh(); } catch {}
+    }
     
     // 显示加载动画（使用绝对定位覆盖层，不清空容器）
     const showLoading = (el: HTMLElement) => {
@@ -834,9 +838,9 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
         
         hideLoading(newWorksTrendEl);
         
-        const nw = await dbTrendsNewWorksRange(r.start, r.end, 'cumulative');
+        const nw = await dbTrendsNewWorksRange(r.start, r.end, 'daily');
         let data = ([] as any[]).concat(
-          nw.map((p: any) => ({ date: p.date, type: '总记录', value: p.total })),
+          nw.map((p: any) => ({ date: p.date, type: '当天总量', value: p.total })),
           nw.map((p: any) => ({ date: p.date, type: '未读', value: p.unread })),
           nw.map((p: any) => ({ date: p.date, type: '已读', value: Math.max(0, (p.total || 0) - (p.unread || 0)) })),
         );
@@ -844,8 +848,8 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
         // 若无数据点，构造起止两点的0值基线，确保折线可绘制
         if (!data.length) {
           data = [
-            { date: r.start, type: '总记录', value: 0 },
-            { date: r.end,   type: '总记录', value: 0 },
+            { date: r.start, type: '当天总量', value: 0 },
+            { date: r.end,   type: '当天总量', value: 0 },
             { date: r.start, type: '未读',   value: 0 },
             { date: r.end,   type: '未读',   value: 0 },
             { date: r.start, type: '已读',   value: 0 },
@@ -855,7 +859,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
         try { newWorksTrendEl.style.display = ''; } catch {}
         const yAxisCfg: any = (sum <= 0) ? { min: 0, max: 1 } : { min: 0, nice: true };
         const plot = new Line(newWorksTrendEl, { data, xField: 'date', yField: 'value', seriesField: 'type', smooth: true, autoFit: true, legend: { position: 'top' }, tooltip: { shared: true }, yAxis: yAxisCfg, color: (t: any) => {
-          const m: any = { '总记录': COLORS.primary, '未读': COLORS.warning, '已读': COLORS.success }; return m[t?.type] || COLORS.primary; } });
+          const m: any = { '当天总量': COLORS.primary, '未读': COLORS.warning, '已读': COLORS.success }; return m[t?.type] || COLORS.primary; } });
         plot.render();
         HC['newWorksTrend'] = plot;
       }
@@ -864,9 +868,17 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
 }
 
 export async function refreshHomeOverview(): Promise<void> {
-  await initStatsOverview();
-  await initHomeSectionsOverview();
-  try { await initOrUpdateHomeCharts(); } catch {}
+  if (homeOverviewRefreshPromise) return homeOverviewRefreshPromise;
+  homeOverviewRefreshPromise = (async () => {
+    try {
+      await initStatsOverview();
+      await initHomeSectionsOverview();
+      try { await initOrUpdateHomeCharts(); } catch {}
+    } finally {
+      homeOverviewRefreshPromise = null;
+    }
+  })();
+  return homeOverviewRefreshPromise;
 }
 
 export function bindHomeRefreshButton(): void {

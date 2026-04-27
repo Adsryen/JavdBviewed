@@ -32,8 +32,7 @@ import { initSidebarActions as initSidebarActionsModule, updateSyncStatus as upd
 import { setupDashboardPrivacyMonitoring as setupDashboardPrivacyMonitoringModule } from './privacy/dashboardMonitor';
 import { runQASelfCheck as runQASelfCheckModule } from './qa/selfCheck';
 import { bindUiListeners } from './listeners/ui';
-import { initStatsOverview, initHomeSectionsOverview } from './home/overview';
-import { initOrUpdateHomeCharts, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
+import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
@@ -358,9 +357,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!(window as any).__HOME_INIT_REQUIRED_BOUND__) {
             window.addEventListener('home:init-required' as any, async () => {
                 try { bindHomeChartsRangeControls(); } catch {}
-                try { await initStatsOverview(); } catch {}
-                try { await initHomeSectionsOverview(); } catch {}
-                try { await initOrUpdateHomeCharts(); } catch {}
+                try { await refreshHomeOverview(); } catch {}
                 try { bindHomeRefreshButton(); } catch {}
             });
             (window as any).__HOME_INIT_REQUIRED_BOUND__ = true;
@@ -408,7 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const id = e?.detail?.tabId;
                 if (id === 'tab-home') {
                     try { bindHomeChartsRangeControls(); } catch {}
-                    try { await initOrUpdateHomeCharts(); } catch {}
+                    try { await refreshHomeOverview(); } catch {}
                 }
             });
             (window as any).__HOME_TAB_SHOW_BOUND__ = true;
