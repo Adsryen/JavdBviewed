@@ -23,27 +23,42 @@
       </button>
     </div>
     <div class="trend-row">
-      <div id="homeRecordsTrend" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">番号库数据量趋势</div>
+      <div id="homeRecordsTrend" class="chart-card">
+        <div class="chart-card-head">
+          <div class="chart-title">番号库数据量趋势</div>
+        </div>
+        <div class="chart-card-body"></div>
       </div>
-      <div id="homeActorsTrend" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">演员库数据量趋势</div>
+      <div id="homeActorsTrend" class="chart-card">
+        <div class="chart-card-head">
+          <div class="chart-title">演员库数据量趋势</div>
+        </div>
+        <div class="chart-card-body"></div>
       </div>
-      <div id="homeNewWorksTrend" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">新作品数据量趋势</div>
+      <div id="homeNewWorksTrend" class="chart-card">
+        <div class="chart-card-head">
+          <div class="chart-title">新作品数据量趋势</div>
+        </div>
+        <div class="chart-card-body"></div>
       </div>
     </div>
     <div class="home-charts-grid">
-      <div id="homeStatusDonut" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">状态分布</div>
-      </div>
-      <div id="homeTagsTop" class="chart-card" style="position:relative;">
-        <div class="chart-title" style="position:absolute;top:6px;left:8px;z-index:1;font-size:12px;color:var(--muted);pointer-events:none;">标签 Top 50</div>
-        <div id="homeTagsPager" class="chart-pager" style="position:absolute;top:6px;right:8px;z-index:2;display:flex;align-items:center;gap:6px;">
-          <button id="homeTagsPrevBtn" class="chart-pager-btn" title="上一页">‹</button>
-          <span id="homeTagsPageText" class="chart-pager-text">1/1</span>
-          <button id="homeTagsNextBtn" class="chart-pager-btn" title="下一页">›</button>
+      <div id="homeStatusDonut" class="chart-card">
+        <div class="chart-card-head">
+          <div class="chart-title">状态分布</div>
         </div>
+        <div class="chart-card-body"></div>
+      </div>
+      <div id="homeTagsTop" class="chart-card">
+        <div class="chart-card-head">
+          <div class="chart-title">标签 Top 50</div>
+          <div id="homeTagsPager" class="chart-pager">
+            <button id="homeTagsPrevBtn" class="chart-pager-btn" title="上一页">‹</button>
+            <span id="homeTagsPageText" class="chart-pager-text">1/1</span>
+            <button id="homeTagsNextBtn" class="chart-pager-btn" title="下一页">›</button>
+          </div>
+        </div>
+        <div class="chart-card-body"></div>
       </div>
     </div>
     <div class="home-stats">
