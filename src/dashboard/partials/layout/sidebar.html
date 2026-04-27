@@ -3,16 +3,16 @@
   <div id="user-profile-section"></div>
 </div>
 
-<div class="sidebar-section">
+<div class="sidebar-section sidebar-section--action">
   <h4>本地备份</h4>
   <div class="button-group-vertical">
-    <label for="importFile" class="button-like">导入本地备份 (JSON)</label>
+    <label for="importFile" class="button-like sidebar-action-btn sidebar-action-btn--primary">导入本地备份 (JSON)</label>
     <input type="file" id="importFile" accept=".json" style="display: none;">
-    <button id="exportBtn">导出本地备份 (JSON)</button>
+    <button id="exportBtn" class="sidebar-action-btn sidebar-action-btn--primary">导出本地备份 (JSON)</button>
   </div>
 </div>
 
-<div class="sidebar-section">
+<div class="sidebar-section sidebar-section--action">
   <h4>WebDAV 备份</h4>
   <div class="webdav-sync-container">
     <!-- 预警横幅 -->
@@ -25,8 +25,8 @@
     </div>
     
     <div class="button-group-vertical">
-      <button id="syncNow">立即上传至云端</button>
-      <button id="syncDown">从云端恢复</button>
+      <button id="syncNow" class="sidebar-action-btn sidebar-action-btn--primary">立即上传至云端</button>
+      <button id="syncDown" class="sidebar-action-btn sidebar-action-btn--success">从云端恢复</button>
     </div>
     <div class="sync-status">
       <div class="sync-time-info">

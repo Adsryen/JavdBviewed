@@ -63,13 +63,11 @@ export function initUserProfileSection(): void {
                         <i class="fas fa-user-circle"></i>
                     </div>
                     <div class="user-details">
-                        <div class="user-email">
-                            <i class="fas fa-envelope"></i>
-                            <span id="user-email-text">-</span>
-                        </div>
-                        <div class="user-name">
-                            <i class="fas fa-user"></i>
-                            <span id="user-name-text">-</span>
+                        <div class="user-top-row">
+                            <div class="user-type-badge">
+                                <i class="fas fa-crown"></i>
+                                <span id="user-type-text">-</span>
+                            </div>
                             <div class="user-actions">
                                 <button id="refresh-profile-btn" class="refresh-btn" title="刷新账号信息">
                                     <i class="fas fa-sync-alt"></i>
@@ -79,9 +77,15 @@ export function initUserProfileSection(): void {
                                 </button>
                             </div>
                         </div>
-                        <div class="user-type">
-                            <i class="fas fa-crown"></i>
-                            <span id="user-type-text">-</span>
+                        <div class="user-meta-row">
+                            <div class="user-identity">
+                                <i class="fas fa-user"></i>
+                                <span id="user-name-text">-</span>
+                            </div>
+                            <span id="user-email-badge" class="user-email-badge" title="邮箱：-">
+                                <i class="fas fa-envelope"></i>
+                                <span class="badge-text">邮箱</span>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -372,7 +376,7 @@ function displayUserProfile(profile: UserProfile): void {
     if (!infoContainer || !loginPrompt) return;
 
     // 更新用户信息
-    const emailElement = document.getElementById('user-email-text');
+    const emailBadge = document.getElementById('user-email-badge');
     const nameElement = document.getElementById('user-name-text');
     const typeElement = document.getElementById('user-type-text');
 
@@ -381,7 +385,10 @@ function displayUserProfile(profile: UserProfile): void {
     const usernameText = (profile.username && profile.username.trim()) ? profile.username : 'JavDB 账号';
     const userTypeText = (profile.userType && profile.userType.trim()) ? profile.userType : '已登录';
 
-    if (emailElement) emailElement.textContent = emailText;
+    if (emailBadge) {
+        emailBadge.setAttribute('title', `邮箱：${emailText}`);
+        emailBadge.setAttribute('aria-label', `邮箱：${emailText}`);
+    }
     if (nameElement) nameElement.textContent = usernameText;
     if (typeElement) typeElement.textContent = userTypeText;
 
