@@ -390,6 +390,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableActorRemarks: false,
         actorRemarksMode: 'panel' as const,
         actorRemarksTTLDays: 0,
+        actorRemarksTaskTimeoutSeconds: 120,
         // 新增：影片页收藏与评分
         enableVideoFavoriteRating: true, // 默认启用
     },
