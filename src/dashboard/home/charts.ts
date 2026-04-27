@@ -3,6 +3,7 @@
 import { dbViewedStats, dbNewWorksStats, dbInsViewsRange, dbTrendsRecordsRange, dbTrendsActorsRange, dbTrendsNewWorksRange, ensureBackgroundReady } from '../dbClient';
 import { aggregateMonthly } from '../../services/insights/aggregator';
 import { initStatsOverview, initHomeSectionsOverview } from './overview';
+import { themeManager } from '../services/themeManager';
 
 function installCanvasDirectionGuard(): void {
   try {
@@ -129,24 +130,60 @@ async function ensureG2PlotLoaded(): Promise<any> {
   return g2plotLoadingPromise.then(() => ((window as any).G2Plot || null));
 }
 
+function clearChartHost(el: HTMLElement | null): void {
+  if (!el) return;
+  Array.from(el.children).forEach((child) => {
+    if (!child.classList.contains('chart-title') && !child.classList.contains('chart-pager')) {
+      child.remove();
+    }
+  });
+}
+
+function getChartShell(id: string): HTMLElement | null {
+  return document.getElementById(id);
+}
+
+function getChartBody(shell: HTMLElement | null): HTMLElement | null {
+  return shell?.querySelector('.chart-card-body') as HTMLElement | null;
+}
+
+let homeChartsThemeListenerBound = false;
+function bindHomeChartsThemeListener(): void {
+  if (homeChartsThemeListenerBound) return;
+  homeChartsThemeListenerBound = true;
+  try {
+    themeManager.onThemeChange(() => {
+      try { initOrUpdateHomeCharts(); } catch {}
+    });
+  } catch {}
+}
+
 async function renderHomeChartsWithEcharts(): Promise<void> {
   try {
     installCanvasDirectionGuard();
     try { await ensureBackgroundReady(); } catch {}
-    const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
-    const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
-    const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
-    const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
-    const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
-    const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
-    const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
-    const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
+    const statusShell = getChartShell('homeStatusDonut') as HTMLDivElement | null;
+    const barsShell = getChartShell('homeNewWorksBars') as HTMLDivElement | null;
+    const recordsTrendShell = getChartShell('homeRecordsTrend') as HTMLDivElement | null;
+    const actorsTrendShell = getChartShell('homeActorsTrend') as HTMLDivElement | null;
+    const newWorksTrendShell = getChartShell('homeNewWorksTrend') as HTMLDivElement | null;
+    const tagsShell = getChartShell('homeTagsTop') as HTMLDivElement | null;
+    const changeShell = getChartShell('homeTagsChange') as HTMLDivElement | null;
+    const newTagsShell = getChartShell('homeNewTagsTop') as HTMLDivElement | null;
+    const statusEl = getChartBody(statusShell);
+    const barsEl = getChartBody(barsShell);
+    const recordsTrendEl = getChartBody(recordsTrendShell);
+    const actorsTrendEl = getChartBody(actorsTrendShell);
+    const newWorksTrendEl = getChartBody(newWorksTrendShell);
+    const tagsEl = getChartBody(tagsShell);
+    const changeEl = getChartBody(changeShell);
+    const newTagsEl = getChartBody(newTagsShell);
     if (!statusEl && !barsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl && !tagsEl && !changeEl && !newTagsEl) return;
     const ech = await ensureEchartsLoaded();
     if (!ech) return;
     const W: any = window as any;
     const HC: any = (W.__HOME_CHARTS__ = W.__HOME_CHARTS__ || {});
-    const getChart = (el: HTMLDivElement | null, key: string) => {
+    const getChart = (el: HTMLElement | null, key: string) => {
       if (!el) return null;
       const cur = HC[key];
       if (cur && cur.getDom && cur.getDom() === el) return cur;
@@ -213,15 +250,24 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
       if (statusEl) {
         const c = getChart(statusEl, 'statusDonut');
         if (c) {
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
           const data = [
-            { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: COLORS.success },
-            { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: COLORS.info },
-            { name: '想看', value: s?.byStatus?.want ?? 0, color: COLORS.warning },
+            { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: isDark ? '#4ade80' : COLORS.success },
+            { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: isDark ? '#2dd4bf' : COLORS.info },
+            { name: '想看', value: s?.byStatus?.want ?? 0, color: isDark ? '#fbbf24' : COLORS.warning },
           ];
           const total = data.reduce((s, d) => s + Number(d.value || 0), 0);
           c.setOption({
-            tooltip: { trigger: 'item' },
-            legend: { orient: 'vertical', left: 'left', textStyle: { color: COLORS.muted } },
+            tooltip: { trigger: 'item', confine: true },
+            legend: {
+              orient: 'horizontal',
+              left: 'center',
+              bottom: 2,
+              itemWidth: 10,
+              itemHeight: 10,
+              icon: 'circle',
+              textStyle: { color: COLORS.muted, fontSize: 12 },
+            },
             graphic: [{
               type: 'text', left: 'center', top: 'middle', z: 10,
               style: {
@@ -230,16 +276,24 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
                 fill: COLORS.text,
                 lineHeight: 18,
                 fontSize: 14,
-                fontWeight: 'bold',
+                fontWeight: 700,
               }
             }],
             series: [
               {
-                type: 'pie', radius: ['40%', '70%'],
+                type: 'pie',
+                radius: ['46%', '72%'],
+                center: ['50%', '42%'],
                 avoidLabelOverlap: false,
                 minAngle: 6,
-                itemStyle: { borderRadius: 10, borderWidth: 0 },
-                label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
+                itemStyle: {
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: COLORS.pieBorder,
+                  shadowBlur: isDark ? 10 : 6,
+                  shadowColor: isDark ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.10)',
+                },
+                label: { show: true, position: 'inside', color: '#fff', fontWeight: 700, formatter: ({ value }: any) => `${value ?? 0}` },
                 labelLine: { show: false },
                 emphasis: { label: { show: true, fontWeight: 'bold' } },
                 data: data.map(d => ({ name: d.name, value: d.value, itemStyle: { color: d.color } }))
@@ -378,17 +432,27 @@ async function renderHomeChartsWithEcharts(): Promise<void> {
 export async function initOrUpdateHomeCharts(): Promise<void> {
   try {
     installCanvasDirectionGuard();
+    bindHomeChartsThemeListener();
     try { await ensureBackgroundReady(); } catch {}
-    const statusEl = document.getElementById('homeStatusDonut') as HTMLDivElement | null;
-    const barsEl = document.getElementById('homeNewWorksBars') as HTMLDivElement | null;
-    const trendEl = document.getElementById('homeActivityTrend') as HTMLDivElement | null;
-    const tagsEl = document.getElementById('homeTagsTop') as HTMLDivElement | null;
-    const changeEl = document.getElementById('homeTagsChange') as HTMLDivElement | null;
-    const newTagsEl = document.getElementById('homeNewTagsTop') as HTMLDivElement | null;
-    const recordsTrendEl = document.getElementById('homeRecordsTrend') as HTMLDivElement | null;
-    const actorsTrendEl = document.getElementById('homeActorsTrend') as HTMLDivElement | null;
-    const newWorksTrendEl = document.getElementById('homeNewWorksTrend') as HTMLDivElement | null;
-    if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl) return;
+    const statusShell = getChartShell('homeStatusDonut') as HTMLDivElement | null;
+    const barsShell = getChartShell('homeNewWorksBars') as HTMLDivElement | null;
+    const trendShell = getChartShell('homeActivityTrend') as HTMLDivElement | null;
+    const tagsShell = getChartShell('homeTagsTop') as HTMLDivElement | null;
+    const changeShell = getChartShell('homeTagsChange') as HTMLDivElement | null;
+    const newTagsShell = getChartShell('homeNewTagsTop') as HTMLDivElement | null;
+    const recordsTrendShell = getChartShell('homeRecordsTrend') as HTMLDivElement | null;
+    const actorsTrendShell = getChartShell('homeActorsTrend') as HTMLDivElement | null;
+    const newWorksTrendShell = getChartShell('homeNewWorksTrend') as HTMLDivElement | null;
+    const statusEl = getChartBody(statusShell);
+    const barsEl = getChartBody(barsShell);
+    const trendEl = getChartBody(trendShell);
+    const tagsEl = getChartBody(tagsShell);
+    const changeEl = getChartBody(changeShell);
+    const newTagsEl = getChartBody(newTagsShell);
+    const recordsTrendEl = getChartBody(recordsTrendShell);
+    const actorsTrendEl = getChartBody(actorsTrendShell);
+    const newWorksTrendEl = getChartBody(newWorksTrendShell);
+    if (!statusEl && !barsEl && !trendEl && !tagsEl && !changeEl && !newTagsEl && !recordsTrendEl && !actorsTrendEl && !newWorksTrendEl) return;
     
     // 显示加载动画（使用绝对定位覆盖层，不清空容器）
     const showLoading = (el: HTMLElement) => {
@@ -472,23 +536,27 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
             if (HC['statusDonut']?.dispose) { HC['statusDonut'].dispose(); }
           } catch {}
           
-          // 先移除加载动画，保留标题
           hideLoading(statusEl);
-          // 只清除图表内容，保留标题
-          const titleEl = statusEl.querySelector('.chart-title');
-          statusEl.innerHTML = '';
-          if (titleEl) statusEl.appendChild(titleEl);
           
           const inst = ech.init(statusEl);
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
           const data = [
-            { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: COLORS.success },
-            { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: COLORS.info },
-            { name: '想看', value: s?.byStatus?.want ?? 0, color: COLORS.warning },
+            { name: '已观看', value: s?.byStatus?.viewed ?? 0, color: isDark ? '#4ade80' : COLORS.success },
+            { name: '已浏览', value: s?.byStatus?.browsed ?? 0, color: isDark ? '#2dd4bf' : COLORS.info },
+            { name: '想看', value: s?.byStatus?.want ?? 0, color: isDark ? '#fbbf24' : COLORS.warning },
           ];
           const total = data.reduce((s, d) => s + Number(d.value || 0), 0);
           inst.setOption({
-            tooltip: { trigger: 'item' },
-            legend: { orient: 'vertical', left: 'left', textStyle: { color: COLORS.muted } },
+            tooltip: { trigger: 'item', confine: true },
+            legend: {
+              orient: 'horizontal',
+              left: 'center',
+              bottom: 2,
+              itemWidth: 10,
+              itemHeight: 10,
+              icon: 'circle',
+              textStyle: { color: COLORS.muted, fontSize: 12 }
+            },
             graphic: [{
               type: 'text', left: 'center', top: 'middle', z: 10,
               style: {
@@ -497,16 +565,24 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
                 fill: COLORS.text,
                 lineHeight: 18,
                 fontSize: 14,
-                fontWeight: 'bold',
+                fontWeight: 700,
               }
             }],
             series: [
               {
-                type: 'pie', radius: ['40%', '70%'],
+                type: 'pie',
+                radius: ['46%', '72%'],
+                center: ['50%', '42%'],
                 avoidLabelOverlap: false,
                 minAngle: 6,
-                itemStyle: { borderRadius: 10, borderWidth: 0 },
-                label: { show: true, position: 'inside', color: '#fff', formatter: ({ value }: any) => `${value ?? 0}` },
+                itemStyle: {
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: COLORS.pieBorder,
+                  shadowBlur: isDark ? 10 : 6,
+                  shadowColor: isDark ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.10)',
+                },
+                label: { show: true, position: 'inside', color: '#fff', fontWeight: 700, formatter: ({ value }: any) => `${value ?? 0}` },
                 labelLine: { show: false },
                 emphasis: { label: { show: true, fontWeight: 'bold' } },
                 data: data.map(d => ({ name: d.name, value: d.value, itemStyle: { color: d.color } }))
@@ -530,11 +606,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (barsEl) {
         if (HC['newWorksBars']?.destroy) { try { HC['newWorksBars'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(barsEl);
-        const titleEl = barsEl.querySelector('.chart-title');
-        barsEl.innerHTML = '';
-        if (titleEl) barsEl.appendChild(titleEl);
         
         const plot = new Column(barsEl, {
           data: [
@@ -580,14 +652,9 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
               } else {
                 if (HC['tagsTop']?.destroy) { try { HC['tagsTop'].destroy(); } catch {} }
                 
-                // 首次渲染时先移除加载动画，保留标题和分页器
+                // 首次渲染时先移除加载动画
                 if (this.isFirstRender) {
                   hideLoading(tagsEl);
-                  const titleEl = tagsEl.querySelector('.chart-title');
-                  const pagerEl = tagsEl.querySelector('.chart-pager');
-                  tagsEl.innerHTML = '';
-                  if (titleEl) tagsEl.appendChild(titleEl);
-                  if (pagerEl) tagsEl.appendChild(pagerEl);
                   this.isFirstRender = false;
                 }
                 
@@ -603,14 +670,9 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
             } catch {
               try { if (HC['tagsTop']?.destroy) { HC['tagsTop'].destroy(); } } catch {}
               
-              // 首次渲染时先移除加载动画，保留标题和分页器
+              // 首次渲染时先移除加载动画
               if (this.isFirstRender) {
                 hideLoading(tagsEl);
-                const titleEl = tagsEl.querySelector('.chart-title');
-                const pagerEl = tagsEl.querySelector('.chart-pager');
-                tagsEl.innerHTML = '';
-                if (titleEl) tagsEl.appendChild(titleEl);
-                if (pagerEl) tagsEl.appendChild(pagerEl);
                 this.isFirstRender = false;
               }
               
@@ -657,11 +719,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (changeEl) {
         if (HC['tagsChange']?.destroy) { try { HC['tagsChange'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(changeEl);
-        const titleEl = changeEl.querySelector('.chart-title');
-        changeEl.innerHTML = '';
-        if (titleEl) changeEl.appendChild(titleEl);
         
         const rising = Array.isArray((ins as any)?.changes?.risingDetailed) ? (ins as any).changes.risingDetailed : [];
         const falling = Array.isArray((ins as any)?.changes?.fallingDetailed) ? (ins as any).changes.fallingDetailed : [];
@@ -687,11 +745,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (newTagsEl) {
         if (HC['newTagsTop']?.destroy) { try { HC['newTagsTop'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(newTagsEl);
-        const titleEl = newTagsEl.querySelector('.chart-title');
-        newTagsEl.innerHTML = '';
-        if (titleEl) newTagsEl.appendChild(titleEl);
         
         const list = Array.isArray((ins as any)?.changes?.newTagsDetailed) ? (ins as any).changes.newTagsDetailed : [];
         const top = list.slice(0, 5).map((d: any, i: number) => ({ name: d.name, value: Number(d.count || 0), color: ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa'][i % 5] }));
@@ -712,11 +766,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (recordsTrendEl) {
         if (HC['recordsTrend']?.destroy) { try { HC['recordsTrend'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(recordsTrendEl);
-        const titleEl = recordsTrendEl.querySelector('.chart-title');
-        recordsTrendEl.innerHTML = '';
-        if (titleEl) recordsTrendEl.appendChild(titleEl);
         
         const rec = await dbTrendsRecordsRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
@@ -749,11 +799,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (actorsTrendEl) {
         if (HC['actorsTrend']?.destroy) { try { HC['actorsTrend'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(actorsTrendEl);
-        const titleEl = actorsTrendEl.querySelector('.chart-title');
-        actorsTrendEl.innerHTML = '';
-        if (titleEl) actorsTrendEl.appendChild(titleEl);
         
         const act = await dbTrendsActorsRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
@@ -786,11 +832,7 @@ export async function initOrUpdateHomeCharts(): Promise<void> {
       if (newWorksTrendEl) {
         if (HC['newWorksTrend']?.destroy) { try { HC['newWorksTrend'].destroy(); } catch {} }
         
-        // 先移除加载动画，保留标题
         hideLoading(newWorksTrendEl);
-        const titleEl = newWorksTrendEl.querySelector('.chart-title');
-        newWorksTrendEl.innerHTML = '';
-        if (titleEl) newWorksTrendEl.appendChild(titleEl);
         
         const nw = await dbTrendsNewWorksRange(r.start, r.end, 'cumulative');
         let data = ([] as any[]).concat(
