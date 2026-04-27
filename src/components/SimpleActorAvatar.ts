@@ -16,6 +16,8 @@ export class SimpleActorAvatar {
     ): HTMLElement {
         const container = document.createElement('div');
         container.className = `actor-avatar actor-avatar-${size}`;
+        container.style.width = '100%';
+        container.style.height = '100%';
         
         if (onClick) {
             container.style.cursor = 'pointer';
@@ -24,6 +26,10 @@ export class SimpleActorAvatar {
 
         const img = document.createElement('img');
         img.className = 'actor-avatar-img';
+        img.style.display = 'block';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
         img.alt = '演员头像';
 
         // 先设置默认头像

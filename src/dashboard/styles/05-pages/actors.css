@@ -1487,23 +1487,24 @@
 
 /* 列表视图下的头像改为方形圆角 */
 .actor-list .actor-card-avatar .actor-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
     border-radius: 12px !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-/* 列表视图下的头像添加边框效果 */
-.actor-list .actor-card-avatar::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary), var(--success));
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+.actor-list .actor-card-avatar .actor-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
-.actor-list .actor-card:hover .actor-card-avatar::after {
-    opacity: 0.3;
+.actor-list .actor-card:hover .actor-card-avatar .actor-avatar {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+    filter: saturate(1.03);
 }
 
 /* 列表视图下的信息区域 - 优化为更清晰的三列布局 */
