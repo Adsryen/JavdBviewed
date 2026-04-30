@@ -2689,3 +2689,70 @@
 .stats-section .stat-card.clickable:hover::after {
     opacity: 0.6;
 }
+
+/* 番号库概览：沿用首页色系，但保留卡片布局 */
+#recordsStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+}
+
+#recordsStatsContainer .stat-card.new-works-stat .stat-value {
+    color: var(--records-stat-accent, var(--text-primary));
+}
+
+#recordsStatsContainer .stat-card.new-works-stat .stat-label {
+    color: var(--text-secondary);
+}
+
+#recordsStatsContainer .stat-card[data-filter="all"] {
+    --records-stat-accent: var(--primary);
+}
+
+#recordsStatsContainer .stat-card[data-filter="viewed"] {
+    --records-stat-accent: var(--success);
+}
+
+#recordsStatsContainer .stat-card[data-filter="browsed"] {
+    --records-stat-accent: var(--info);
+}
+
+#recordsStatsContainer .stat-card[data-filter="want"] {
+    --records-stat-accent: var(--warning);
+}
+
+#recordsStatsContainer .stat-card[data-filter="thisWeek"] {
+    --records-stat-accent: var(--primary-hover);
+}
+
+#recordsStatsContainer .stat-card[data-filter="thisMonth"] {
+    --records-stat-accent: var(--text-secondary);
+}
+
+#recordsStatsContainer .stat-card.clickable:hover {
+    border-color: var(--records-stat-accent, var(--primary));
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+#recordsStatsContainer .stat-card.clickable.active {
+    outline-color: var(--primary-light);
+    border-color: var(--records-stat-accent, var(--primary));
+    background: color-mix(in srgb, var(--surface-primary) 88%, var(--records-stat-accent, var(--primary)) 12%);
+    box-shadow: 0 12px 28px rgba(59, 130, 246, 0.16);
+}
+
+[data-theme="dark"] #recordsStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border-color: var(--border-primary);
+    box-shadow: 0 8px 20px rgba(2, 6, 23, 0.24);
+}
+
+[data-theme="dark"] #recordsStatsContainer .stat-card.clickable:hover {
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.30);
+}
+
+[data-theme="dark"] #recordsStatsContainer .stat-card.clickable.active {
+    outline-color: rgba(96, 165, 250, 0.32);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.38);
+}

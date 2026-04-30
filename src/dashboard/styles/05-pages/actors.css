@@ -1440,6 +1440,77 @@
     opacity: 0.6;
 }
 
+/* 演员库概览：沿用首页色系，但保留卡片布局 */
+#actorStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+}
+
+#actorStatsContainer .stat-card.new-works-stat .stat-value {
+    color: var(--actor-stat-accent, var(--text-primary));
+}
+
+#actorStatsContainer .stat-card.new-works-stat .stat-label {
+    color: var(--text-secondary);
+}
+
+#actorStatsContainer .stat-card[data-filter="all"] {
+    --actor-stat-accent: var(--primary);
+}
+
+#actorStatsContainer .stat-card[data-filter="female"] {
+    --actor-stat-accent: #d63384;
+}
+
+#actorStatsContainer .stat-card[data-filter="male"] {
+    --actor-stat-accent: #0d6efd;
+}
+
+#actorStatsContainer .stat-card[data-filter="censored"] {
+    --actor-stat-accent: #fd7e14;
+}
+
+#actorStatsContainer .stat-card[data-filter="uncensored"] {
+    --actor-stat-accent: var(--info);
+}
+
+#actorStatsContainer .stat-card[data-filter="blacklisted"] {
+    --actor-stat-accent: #dc3545;
+}
+
+#actorStatsContainer .stat-card[data-filter="recentlyAdded"] {
+    --actor-stat-accent: var(--success);
+}
+
+#actorStatsContainer .stat-card.clickable:hover {
+    border-color: var(--actor-stat-accent, var(--primary));
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+#actorStatsContainer .stat-card.clickable.active {
+    outline-color: var(--primary-light);
+    border-color: var(--actor-stat-accent, var(--primary));
+    background: color-mix(in srgb, var(--surface-primary) 88%, var(--actor-stat-accent, var(--primary)) 12%);
+    box-shadow: 0 12px 28px rgba(59, 130, 246, 0.16);
+}
+
+[data-theme="dark"] #actorStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border-color: var(--border-primary);
+    box-shadow: 0 8px 20px rgba(2, 6, 23, 0.24);
+}
+
+[data-theme="dark"] #actorStatsContainer .stat-card.clickable:hover {
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.30);
+}
+
+[data-theme="dark"] #actorStatsContainer .stat-card.clickable.active {
+    outline-color: rgba(96, 165, 250, 0.32);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.38);
+}
+
 /* ===================================================================
    列表视图样式 - List View Styles
    ================================================================ */
