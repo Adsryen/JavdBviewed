@@ -1679,3 +1679,66 @@ input:checked + .toggle-slider:before {
 .stats-section .stat-card.clickable:hover::after {
     opacity: 0.6;
 }
+
+/* 新作品概览：沿用首页色系，但保留卡片布局 */
+#newWorksStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+}
+
+#newWorksStatsContainer .stat-card.new-works-stat .stat-value {
+    color: var(--new-works-stat-accent, var(--text-primary));
+}
+
+#newWorksStatsContainer .stat-card.new-works-stat .stat-label {
+    color: var(--text-secondary);
+}
+
+#newWorksStatsContainer .stat-card[data-filter="all"] {
+    --new-works-stat-accent: var(--primary);
+}
+
+#newWorksStatsContainer .stat-card[data-filter="active"] {
+    --new-works-stat-accent: var(--success);
+}
+
+#newWorksStatsContainer .stat-card[data-filter="allWorks"] {
+    --new-works-stat-accent: var(--primary-hover);
+}
+
+#newWorksStatsContainer .stat-card[data-filter="unread"] {
+    --new-works-stat-accent: var(--warning);
+}
+
+#newWorksStatsContainer .stat-card[data-filter="today"] {
+    --new-works-stat-accent: #ff5722;
+}
+
+#newWorksStatsContainer .stat-card.clickable:hover {
+    border-color: var(--new-works-stat-accent, var(--primary));
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+#newWorksStatsContainer .stat-card.clickable.active {
+    outline-color: var(--primary-light);
+    border-color: var(--new-works-stat-accent, var(--primary));
+    background: color-mix(in srgb, var(--surface-primary) 88%, var(--new-works-stat-accent, var(--primary)) 12%);
+    box-shadow: 0 12px 28px rgba(59, 130, 246, 0.16);
+}
+
+[data-theme="dark"] #newWorksStatsContainer .stat-card.new-works-stat {
+    background: var(--surface-primary);
+    border-color: var(--border-primary);
+    box-shadow: 0 8px 20px rgba(2, 6, 23, 0.24);
+}
+
+[data-theme="dark"] #newWorksStatsContainer .stat-card.clickable:hover {
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.30);
+}
+
+[data-theme="dark"] #newWorksStatsContainer .stat-card.clickable.active {
+    outline-color: rgba(96, 165, 250, 0.32);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.38);
+}
