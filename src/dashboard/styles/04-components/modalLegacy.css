@@ -137,7 +137,7 @@
     padding: 25px 30px;
     margin: 0;
     border-bottom: 1px solid #e8e8e8;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7dd3fc 0%, #93c5fd 100%);
     color: white;
     border-radius: 16px 16px 0 0;
 }
@@ -185,7 +185,7 @@
     margin-top: 0;
 }
 #helpPanel h3 i {
-    color: #667eea;
+    color: #38bdf8;
     font-size: 20px;
 }
 #helpPanel ul {

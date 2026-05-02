@@ -16,8 +16,8 @@
 #helpPanel .help-sidebar {
     width: 240px;
     min-width: 240px;
-    background: var(--surface-secondary, #f8f9fa);
-    border-right: 1px solid var(--border-primary, #e8e8e8);
+    background: linear-gradient(180deg, #f7fcff 0%, #fbfdff 100%);
+    border-right: 1px solid rgba(186, 230, 253, 0.9);
     overflow-y: auto;
     padding: 20px 0;
     flex-shrink: 0;
@@ -60,7 +60,7 @@
 
 #helpPanel .help-category-item i {
     font-size: 16px;
-    color: var(--primary, #667eea);
+    color: #7dd3fc;
     width: 20px;
     text-align: center;
     flex-shrink: 0;
@@ -72,17 +72,17 @@
 
 /* 悬停效果 */
 #helpPanel .help-category-item:hover {
-    background: var(--surface-hover, #e3f2fd);
+    background: rgba(224, 242, 254, 0.72);
     color: var(--text-primary, #333);
     transform: translateX(3px);
 }
 
 /* 选中状态 */
 #helpPanel .help-category-item.active {
-    background: linear-gradient(135deg, var(--primary, #667eea) 0%, var(--primary-dark, #764ba2) 100%);
+    background: linear-gradient(135deg, #7dd3fc 0%, #93c5fd 100%);
     color: white;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 6px 14px rgba(125, 211, 252, 0.22);
 }
 
 #helpPanel .help-category-item.active i {
@@ -91,7 +91,7 @@
 
 /* 焦点指示器 */
 #helpPanel .help-category-item:focus {
-    outline: 2px solid var(--primary, #667eea);
+    outline: 2px solid #7dd3fc;
     outline-offset: 2px;
 }
 
@@ -161,7 +161,7 @@
 }
 
 #helpPanel .help-category-content h3 i {
-    color: var(--primary, #667eea);
+    color: #7dd3fc;
     font-size: 22px;
     flex-shrink: 0;
 }
@@ -194,8 +194,22 @@
     top: 10px;
     width: 6px;
     height: 6px;
-    background: var(--primary, #667eea);
+    background: #38bdf8;
     border-radius: 50%;
+}
+
+[data-theme="dark"] #helpPanel .help-sidebar {
+    background: linear-gradient(180deg, #15263a 0%, #1b314a 100%);
+    border-right-color: rgba(96, 165, 250, 0.22);
+}
+
+[data-theme="dark"] #helpPanel .help-category-item:hover {
+    background: rgba(56, 189, 248, 0.14);
+}
+
+[data-theme="dark"] #helpPanel .help-category-item.active {
+    background: linear-gradient(135deg, #38bdf8 0%, #60a5fa 100%);
+    box-shadow: 0 8px 18px rgba(56, 189, 248, 0.24);
 }
 
 /* 移除悬停效果的背景变化 */
