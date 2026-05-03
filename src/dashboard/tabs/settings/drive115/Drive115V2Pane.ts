@@ -523,7 +523,7 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
-      const enabled = !!s.enabled;
+      const enabled = !!(s.enabled ?? s.enableV2);
       const autoRefresh = s.v2AutoRefresh !== false; // 默认开启
       const cachedUser: Drive115V2UserInfo | undefined = s.v2UserInfo;
       const expired: boolean = !!s.v2UserInfoExpired;
