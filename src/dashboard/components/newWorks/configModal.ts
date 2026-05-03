@@ -199,6 +199,14 @@ export class NewWorksConfigModal {
                                         </label>
                                     </div>
                                 </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="configShowActorPageScanButton" ${config.showActorPageScanButton ? 'checked' : ''}>
+                                        <span class="checkmark"></span>
+                                        在演员页显示“扫描新作品”按钮
+                                    </label>
+                                    <p class="input-description">这是“新作品”功能的快捷入口，扫描结果仍使用当前新作品设置里的类别过滤和其它过滤规则。</p>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -443,6 +451,7 @@ export class NewWorksConfigModal {
             requestInterval: getValue('configRequestInterval'),
             autoCheckEnabled: getValue('configAutoCheckEnabled'),
             concurrency: getValue('configConcurrency') || 1,
+            showActorPageScanButton: getValue('configShowActorPageScanButton'),
             filters: {
                 excludeViewed: getValue('configExcludeViewed'),
                 excludeBrowsed: getValue('configExcludeBrowsed'),

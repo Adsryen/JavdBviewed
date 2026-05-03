@@ -298,9 +298,10 @@ async function initialize(): Promise<void> {
     // 首先初始化性能优化器
     performanceOptimizer.initialize();
 
-    const [settings, records] = await Promise.all([
+    const [settings, records, newWorksConfig] = await Promise.all([
         getSettings(),
         getValue<Record<string, VideoRecord>>('viewed', {}),
+        getValue<any>('new_works_config', {}),
     ]);
     STATE.settings = settings;
     STATE.records = records;
@@ -560,6 +561,8 @@ async function initialize(): Promise<void> {
 
     // 初始化演员页增强功能（仅演员页 critical）
     if (settings.actorEnhancement?.enabled !== false && isActorPage) {
+        const legacyScanButtonEnabled = (settings.actorEnhancement as any)?.enableScanNewWorks === true;
+        const showActorPageScanButton = newWorksConfig?.showActorPageScanButton === true || legacyScanButtonEnabled;
         actorEnhancementManager.updateConfig({
             enabled: true,
             autoApplyTags: settings.actorEnhancement?.autoApplyTags !== false,
@@ -569,7 +572,7 @@ async function initialize(): Promise<void> {
             enableTimeSegmentationDivider: (settings.actorEnhancement as any)?.enableTimeSegmentationDivider === true,
             timeSegmentationMonths: (settings.actorEnhancement as any)?.timeSegmentationMonths || 6,
             // 新增：演员页"扫描新作品按钮"配置
-            enableScanNewWorks: (settings.actorEnhancement as any)?.enableScanNewWorks === true,
+            enableScanNewWorks: showActorPageScanButton,
         });
         initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
     }

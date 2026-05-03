@@ -47,6 +47,11 @@ export class NewWorksManager {
                     raw?.autoCheckEnabled !== undefined
                         ? !!raw.autoCheckEnabled
                         : (raw?.enabled !== undefined ? !!raw.enabled : DEFAULT_NEW_WORKS_CONFIG.autoCheckEnabled)
+                ),
+                showActorPageScanButton: (
+                    raw?.showActorPageScanButton !== undefined
+                        ? !!raw.showActorPageScanButton
+                        : DEFAULT_NEW_WORKS_CONFIG.showActorPageScanButton
                 )
             };
             // 清理遗留字段
