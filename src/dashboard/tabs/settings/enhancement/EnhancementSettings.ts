@@ -659,14 +659,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.setupCheckboxGroupStyles();
 
         // 子标签切换
-        if (this.subtabLinks && this.subtabLinks.length > 0) {
-            this.subtabLinks.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor' | 'other';
-                    this.switchSubtab(sub);
-                });
-            });
-        }
+        this.bindSubtabLinks();
 
         // 编排可视化按钮事件
         if (this.showOrchestratorBtn) {
@@ -1661,6 +1654,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 强制更新所有滑块状态以确保与存储同步
         this.updateAllToggleStates();
 
+        // 页面 DOM 可能被重新 replace，补绑新的子标签按钮事件
+        this.bindSubtabLinks();
+
         // 初始化子标签（读取最近一次选择）
         try {
             const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | 'other' | null;
@@ -1677,6 +1673,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
         void this.lastAppliedTagsDisplay;
         void this.listEnhancementConfig;
         void this.currentSubtab;
+    }
+
+    /**
+     * 幂等绑定子标签点击事件
+     * 设置页子页面会被 replace 重建，因此需要在重新加载后对新按钮补绑事件
+     */
+    private bindSubtabLinks(): void {
+        if (!this.subtabLinks || this.subtabLinks.length === 0) return;
+
+        this.subtabLinks.forEach(btn => {
+            if (btn.dataset.subtabBound === '1') return;
+
+            btn.dataset.subtabBound = '1';
+            btn.addEventListener('click', () => {
+                const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor' | 'other';
+                this.switchSubtab(sub);
+            });
+        });
     }
 
     /**
