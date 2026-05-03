@@ -130,15 +130,6 @@ async function ensureG2PlotLoaded(): Promise<any> {
   return g2plotLoadingPromise.then(() => ((window as any).G2Plot || null));
 }
 
-function clearChartHost(el: HTMLElement | null): void {
-  if (!el) return;
-  Array.from(el.children).forEach((child) => {
-    if (!child.classList.contains('chart-title') && !child.classList.contains('chart-pager')) {
-      child.remove();
-    }
-  });
-}
-
 function getChartShell(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
