@@ -31,18 +31,7 @@ async function main() {
     try {
         console.log('Starting build process...');
 
-        // 0. 更新 manifest.json 中的域名配置（从 routes.json）
-        try {
-            console.log('[build] 正在从 routes.json 更新 manifest.json 域名配置...');
-            execSync('node --import tsx scripts/updateManifestRoutes.ts', {
-                cwd: root,
-                stdio: 'inherit',
-            });
-        } catch (e) {
-            console.warn('[build] 更新 manifest 域名配置失败，继续构建...', e);
-        }
-
-        // 1. Refresh version/build identifiers for this build
+        // Refresh version/build identifiers for this build
         try {
             execSync('node --import tsx scripts/version.ts', {
                 cwd: root,
@@ -51,12 +40,12 @@ async function main() {
         } catch (e) {
             console.warn('[build] Failed to refresh build id via scripts/version.ts. Proceeding with existing env/version files.');
         }
-        
-        // 1. Run Vite build (it will clean and create the dist directory)
+
+        // Run Vite build (it will clean and create the dist directory)
         await build();
         console.log('Vite build finished successfully.');
 
-        // 2. Ensure external runtime assets are present in dist
+        // Ensure external runtime assets are present in dist
         const distTemplatesDir = resolve(distDir, 'assets/templates');
         await fs.ensureDir(distTemplatesDir);
         const g2plotDistPath = resolve(distTemplatesDir, 'g2plot.min.js');
@@ -78,19 +67,19 @@ async function main() {
             console.warn('[build] g2plot.min.js not found in src/public/node_modules. G2Plot will fallback to ECharts at runtime.');
         }
 
-        // 3. Get version and define zip path
+        // Get version and define zip path
         const version = await getVersion();
         const zipName = `javdb-extension-v${version}.zip`;
         const zipPath = resolve(distZipDir, zipName);
 
-        // 4. Create a zip file of the dist directory contents
+        // Create a zip file of the dist directory contents
         console.log(`\nCreating zip file at ${zipPath}...`);
-        
+
         await fs.ensureDir(distZipDir); // Ensure the zip output directory exists
 
         const output = fs.createWriteStream(zipPath);
         const archive = archiver('zip', {
-            zlib: { level: 9 } // Set the compression level
+            zlib: { level: 9 }, // Set the compression level
         });
 
         // Listen for all archive data to be written
@@ -116,14 +105,13 @@ async function main() {
         // Append files from the 'dist' directory, excluding any potential zips
         archive.glob('**/*', {
             cwd: distDir,
-            ignore: ['*.zip'] // Exclude any zip files from being included
+            ignore: ['*.zip'], // Exclude any zip files from being included
         });
 
         // Finalize the archive (this is when the zip is actually written)
         await archive.finalize();
 
         console.log('\nBuild and packaging process completed.');
-
     } catch (e) {
         console.error('\nAn error occurred during the build process:');
         console.error(e);
@@ -131,4 +119,4 @@ async function main() {
     }
 }
 
-main(); 
+main();
