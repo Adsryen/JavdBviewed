@@ -76,6 +76,7 @@ export const DEFAULT_NEW_WORKS_CONFIG: NewWorksGlobalConfig = {
     requestInterval: 3, // 请求间隔3秒
     autoCheckEnabled: false, // 默认不开启自动检查
     concurrency: 1, // 默认并发数为1
+    showActorPageScanButton: false, // 默认不在演员页显示快捷扫描入口
     filters: {
         excludeViewed: true, // 默认排除已看
         excludeBrowsed: true, // 默认排除已浏览
@@ -475,8 +476,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         enableTimeSegmentationDivider: false,
         // 默认以 6 个月为阈值
         timeSegmentationMonths: 6,
-        // 新增：演员页"扫描新作品按钮"默认配置
-        enableScanNewWorks: false,
     },
 
     // 新增：隐私保护配置

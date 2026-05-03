@@ -107,9 +107,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 新增：演员页 影片分段显示
     private aeEnableTimeSegmentationDivider!: HTMLInputElement;
     private aeTimeSegmentationMonths!: HTMLInputElement;
-    // 新增：演员页 扫描新作品按钮
-    private aeEnableScanNewWorks!: HTMLInputElement;
-
     // 配置区域元素
     private translationConfig!: HTMLDivElement;
     // 翻译相关元素
@@ -439,9 +436,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：演员页 影片分段显示元素
         this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
         this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
-        // 新增：演员页 扫描新作品按钮元素
-        this.aeEnableScanNewWorks = document.getElementById('aeEnableScanNewWorks') as HTMLInputElement;
-
         // 磁力搜索源配置
         this.magnetSourceSukebei = document.getElementById('magnetSourceSukebei') as HTMLInputElement;
         this.magnetSourceBtdig = document.getElementById('magnetSourceBtdig') as HTMLInputElement;
@@ -1554,8 +1548,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 新增：演员页 影片分段显示回填
         if (this.aeEnableTimeSegmentationDivider) this.aeEnableTimeSegmentationDivider.checked = (actorEnhancement as any).enableTimeSegmentationDivider === true;
         if (this.aeTimeSegmentationMonths) this.aeTimeSegmentationMonths.value = String((actorEnhancement as any).timeSegmentationMonths || 6);
-        // 新增：演员页 扫描新作品按钮回填
-        if (this.aeEnableScanNewWorks) this.aeEnableScanNewWorks.checked = (actorEnhancement as any).enableScanNewWorks === true;
         if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
         // 首次加载时更新"当前延迟"展示
         this.updateCurrentPreviewDelayDisplay();
@@ -1715,10 +1707,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
-            const actorEnabledDerived = (
-                this.enableAutoApplyTags?.checked === true ||
-                (this.actorDefaultTagInputs && Array.from(this.actorDefaultTagInputs).some((i: HTMLInputElement) => i.checked))
-            );
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 // 磁力资源搜索设置保存
@@ -1790,8 +1778,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableMagnetSearch: this.enableMagnetSearch.checked,
                     enableAnchorOptimization: this.enableAnchorOptimization.checked,
                     enableListEnhancement: this.enableListEnhancement.checked,
-                    // 与派生的演员页增强状态保持一致
-                    enableActorEnhancement: actorEnabledDerived,
+                    // 演员页增强主开关是唯一权威来源
+                    enableActorEnhancement: this.enableActorEnhancement.checked,
                     showEnhancedTooltips: false, // 开发中，强制禁用
                     enablePasswordHelper: this.enablePasswordHelper?.checked === true,
                 },
@@ -1833,8 +1821,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
                 },
                 actorEnhancement: {
-                    // 若任一子项启用即视为启用演员页增强
-                    enabled: actorEnabledDerived,
+                    // 演员页增强运行总开关与主开关保持一致
+                    enabled: this.enableActorEnhancement.checked,
                     autoApplyTags: this.enableAutoApplyTags?.checked !== false,
                     defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
                         ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
@@ -1843,8 +1831,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 新增：演员页 影片分段显示
                     enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                     timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
-                    // 新增：演员页 扫描新作品按钮
-                    enableScanNewWorks: this.aeEnableScanNewWorks?.checked === true,
                 },
                 contentFilter: {
                     enabled: this.enableContentFilter.checked,
@@ -1956,7 +1942,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 defaultSortType: 0,
                 enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                 timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
-                enableScanNewWorks: this.aeEnableScanNewWorks?.checked === true,
             },
         };
     }
@@ -2000,7 +1985,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
                 if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
                 if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
-                if (this.aeEnableScanNewWorks && typeof ae.enableScanNewWorks === 'boolean') this.aeEnableScanNewWorks.checked = ae.enableScanNewWorks;
             }
             if (settings.videoEnhancement) {
                 const ve = settings.videoEnhancement as any;
