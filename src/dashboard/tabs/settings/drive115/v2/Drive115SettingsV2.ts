@@ -191,7 +191,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
 
     // 禁用策略：由总开关 enabled 控制交互
     const enableInteractive = !!this.settings.enabled;
-    const allowIds = new Set<string>([]);
+    const allowIds = new Set<string>(['drive115Enabled']);
 
     // 1) 容器内批量处理
     const v2PaneRoot = document.getElementById('drive115V2Pane');
