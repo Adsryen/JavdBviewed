@@ -10,8 +10,7 @@ export interface Drive115Settings {
   maxFailures: number;        // 最大失败数
   autoNotify: boolean;        // 自动通知
   
-  // v2: 基于 token 的新版配置（与旧版解耦）
-  enableV2?: boolean;         // 是否启用新版（token 模式）
+  // v2: 基于 token 的新版配置
   v2AccessToken?: string;     // 新版 access_token
   v2RefreshToken?: string;    // 新版 refresh_token
   v2TokenExpiresAt?: number | null; // access_token 过期时间（时间戳，秒）
@@ -21,9 +20,7 @@ export interface Drive115Settings {
   v2ApiBaseUrl?: string;      // 新版 API 基础域名（例如：https://proapi.115.com）
   v2AutoRefresh?: boolean;    // 是否在过期时自动刷新 access_token
   v2AutoRefreshSkewSec?: number; // 提前刷新的阈值（秒），如 60 表示提前 60 秒刷新
-  
-  // UI：用户选择的子版本（用于持久化 v1/v2 子页与全局路由）
-  lastSelectedVersion?: 'v1' | 'v2';
+
 
   // 配额缓存（需要随设置同步的只读镜像）
   quotaCache?: {

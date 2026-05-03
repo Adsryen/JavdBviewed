@@ -790,7 +790,7 @@ export class FC2BreakerService {
             const { getSettings } = await import('../../utils/storage');
             
             // 检查115功能是否启用
-            if (!isDrive115Enabled()) {
+            if (!(await isDrive115Enabled())) {
               showToast('115网盘功能未启用，请先在设置中启用', 'error');
               push115Btn.classList.remove('is-loading');
               push115Btn.disabled = false;

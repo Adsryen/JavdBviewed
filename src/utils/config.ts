@@ -1,6 +1,6 @@
 ﻿import { ExtensionSettings, KeywordFilterRule, ActorSyncConfig, NewWorksGlobalConfig } from '../types';
 import { PrivacyConfig } from '../types/privacy';
-import { DEFAULT_DRIVE115_SETTINGS } from '../services/drive115/config';
+import { normalizeDrive115Settings } from '../services/drive115App';
 import { DEFAULT_AI_SETTINGS } from '../types/ai';
 
 export const STORAGE_KEYS = {
@@ -269,7 +269,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         },
     },
 
-    drive115: DEFAULT_DRIVE115_SETTINGS,
+    drive115: normalizeDrive115Settings({}),
 
     // 新增：数据增强默认配置
     dataEnhancement: {

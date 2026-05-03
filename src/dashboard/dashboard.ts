@@ -35,6 +35,7 @@ import { bindUiListeners } from './listeners/ui';
 import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
+import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
 // 主题系统
 import { themeManager } from './services/themeManager';
@@ -92,13 +93,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?: boolean): void {
+function updateDrive115SidebarVisibility(enabledParam?: boolean): void {
     const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
     if (!section) return;
-    const enabled = typeof enabledParam === 'boolean' ? enabledParam : !!STATE.settings?.drive115?.enabled;
-    const enableV2 = typeof enableV2Param === 'boolean' ? enableV2Param : !!STATE.settings?.drive115?.enableV2;
-    // 只要任一开启就显示
-    section.style.display = (enabled || enableV2) ? '' : 'none';
+    const state = normalizeDrive115Settings(STATE.settings?.drive115 || {});
+    const enabled = typeof enabledParam === 'boolean' ? enabledParam : isDrive115EnabledState(state);
+    section.style.display = enabled ? '' : 'none';
 }
 
 // 预置一个全局占位，避免在真实函数绑定前被调用导致 ReferenceError
@@ -112,18 +112,11 @@ function updateDrive115SidebarVisibility(enabledParam?: boolean, enableV2Param?:
 
 async function initDrive115QuotaSidebar(): Promise<void> {
     try {
-        const enabled = !!STATE.settings?.drive115?.enabled;
-        const enableV2 = !!STATE.settings?.drive115?.enableV2;
+        const state = normalizeDrive115Settings(STATE.settings?.drive115 || {});
+        const enabled = isDrive115EnabledState(state);
         const section = document.getElementById('drive115SidebarSection') as HTMLDivElement | null;
-        if (!(enabled || enableV2)) {
+        if (!enabled) {
             if (section) section.style.display = 'none';
-            return;
-        }
-
-        if (enabled && !enableV2) {
-            if (section) section.style.display = '';
-            const box = document.getElementById('drive115QuotaSidebar');
-            if (box) box.innerHTML = '';
             return;
         }
 
@@ -381,7 +374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initModal();
     // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
     updateDrive115SidebarVisibility();
-    if (STATE.settings?.drive115?.enableV2) {
+    if (isDrive115EnabledState(normalizeDrive115Settings(STATE.settings?.drive115 || {}))) {
         (window as any).initDrive115QuotaSidebar?.();
     }
     updateSyncStatusModule();
@@ -392,11 +385,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 监听 115 启用状态变更，动态显示侧边栏并在启用（V2）时加载配额
     window.addEventListener('drive115:enabled-changed' as any, (e: any) => {
         const enabled = !!(e?.detail?.enabled);
-        const enableV2 = !!(e?.detail?.enableV2);
-        updateDrive115SidebarVisibility(enabled, enableV2);
-        if (enableV2 || enabled) {
-            // V1 或 V2 任一启用先更新容器；仅在 V2 时加载配额
-            if (enableV2) (window as any).initDrive115QuotaSidebar?.();
+        updateDrive115SidebarVisibility(enabled);
+        if (enabled) {
+            (window as any).initDrive115QuotaSidebar?.();
         }
     });
     try {
