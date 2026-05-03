@@ -26,7 +26,7 @@ const DEFAULT_DRIVE115_RUNTIME_SETTINGS: NormalizedDrive115Settings = {
 export function normalizeDrive115Settings(raw: any): NormalizedDrive115Settings {
   return {
     ...DEFAULT_DRIVE115_RUNTIME_SETTINGS,
-    enabled: !!(raw?.enabled ?? raw?.enableV2 ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.enabled),
+    enabled: !!(raw?.enabled ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.enabled),
     downloadDir: String(raw?.downloadDir ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.downloadDir),
     verifyCount: Number(raw?.verifyCount ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount,
     maxFailures: Number(raw?.maxFailures ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures,

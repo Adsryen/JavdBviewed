@@ -124,6 +124,21 @@ export class Drive115AppLogger {
     }
   }
 
+  async getLogsByVideoId(videoId: string): Promise<Drive115LogEntryUnified[]> {
+    const logs = await this.getLogs();
+    return logs.filter(log => log.videoId === videoId);
+  }
+
+  async getLogsByType(type: Drive115LogType): Promise<Drive115LogEntryUnified[]> {
+    const logs = await this.getLogs();
+    return logs.filter(log => log.type === type);
+  }
+
+  async getRecentLogs(count: number = 50): Promise<Drive115LogEntryUnified[]> {
+    const logs = await this.getLogs();
+    return logs.slice(0, count);
+  }
+
   async clearLogs(): Promise<void> {
     await setValue(DRIVE115_LOG_STORAGE_KEY as any, []);
   }
@@ -153,6 +168,29 @@ export class Drive115AppLogger {
   async exportLogs(): Promise<string> {
     const logs = await this.getLogs();
     return JSON.stringify(logs, null, 2);
+  }
+
+  async importLogs(jsonData: string): Promise<void> {
+    const importedLogs = JSON.parse(jsonData) as Drive115LogEntryUnified[];
+    if (!Array.isArray(importedLogs)) {
+      throw new Error('导入数据格式错误');
+    }
+
+    const validLogs = importedLogs.filter(log =>
+      log?.type && log?.message && typeof log?.timestamp === 'number'
+    );
+
+    const existingLogs = await this.getLogs();
+    const mergedLogs = [...validLogs, ...existingLogs];
+    const uniqueLogs = mergedLogs.filter((log, index, arr) =>
+      arr.findIndex(item => item.timestamp === log.timestamp && item.message === log.message) === index
+    );
+    uniqueLogs.sort((a, b) => b.timestamp - a.timestamp);
+    if (uniqueLogs.length > DRIVE115_LOG_CONFIG.maxEntries) {
+      uniqueLogs.splice(DRIVE115_LOG_CONFIG.maxEntries);
+    }
+
+    await setValue(DRIVE115_LOG_STORAGE_KEY as any, uniqueLogs);
   }
 }
 
