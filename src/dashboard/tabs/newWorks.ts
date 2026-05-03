@@ -1490,6 +1490,14 @@ export class NewWorksTab {
                         </button>
                     </div>
                     <div class="modal-body">
+                        <div class="subscription-management-toolbar">
+                            <div class="actor-selector-search subscription-search">
+                                <input type="text" id="subscriptionManagementSearch" placeholder="搜索演员姓名..." />
+                            </div>
+                            <button class="btn-success" id="subscriptionManagementAddActor" type="button">
+                                <i class="fas fa-user-plus"></i> 添加演员
+                            </button>
+                        </div>
                         <div class="subscription-list">
                             ${subscriptions.map(sub => `
                                 <div class="subscription-item" data-actor-id="${sub.actorId}">
@@ -1508,6 +1516,9 @@ export class NewWorksTab {
                                         </div>
                                     </div>
                                     <div class="subscription-actions">
+                                        <button class="btn-check-single" data-action="check-single" data-actor-id="${sub.actorId}" title="立即检查此演员的新作品">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
                                         <label class="ui-toggle">
                                             <input class="ui-toggle__input" type="checkbox" ${sub.enabled ? 'checked' : ''} data-action="toggle">
                                             <span class="ui-toggle__slider"></span>
@@ -1521,6 +1532,7 @@ export class NewWorksTab {
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <span class="subscription-management-summary">共 ${subscriptions.length} 个订阅演员</span>
                         <button class="btn-secondary" id="subscriptionManagementClose">关闭</button>
                     </div>
                 </div>
@@ -1558,6 +1570,16 @@ export class NewWorksTab {
         footerCloseBtn?.setAttribute('type', 'button');
         footerCloseBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(); }, { once: true });
 
+        const addActorBtn = modal.querySelector('#subscriptionManagementAddActor') as HTMLButtonElement | null;
+        addActorBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeModal();
+            window.setTimeout(() => {
+                this.showAddSubscriptionModal();
+            }, 220);
+        });
+
         const overlayEl = modal.querySelector('.modal-overlay');
         overlayEl?.addEventListener('click', (e) => {
             if (e.target === overlayEl) {
@@ -1566,8 +1588,31 @@ export class NewWorksTab {
         });
         document.addEventListener('keydown', escHandler);
 
+        const searchInput = modal.querySelector('#subscriptionManagementSearch') as HTMLInputElement | null;
+        const subscriptionItems = Array.from(modal.querySelectorAll('.subscription-item')) as HTMLElement[];
+        const applySearchFilter = () => {
+            const keyword = (searchInput?.value || '').trim().toLowerCase();
+            let visibleCount = 0;
+
+            subscriptionItems.forEach((item) => {
+                const nameEl = item.querySelector('.subscription-name');
+                const actorName = (nameEl?.textContent || '').trim().toLowerCase();
+                const matched = !keyword || actorName.includes(keyword);
+                item.style.display = matched ? '' : 'none';
+                if (matched) visibleCount++;
+            });
+
+            const summaryEl = modal.querySelector('.subscription-management-summary');
+            if (summaryEl) {
+                summaryEl.textContent = keyword
+                    ? `搜索结果 ${visibleCount} / ${subscriptions.length}`
+                    : `共 ${subscriptions.length} 个订阅演员`;
+            }
+        };
+        searchInput?.addEventListener('input', applySearchFilter);
+
         // 订阅项操作
-        modal.querySelectorAll('.subscription-item').forEach(item => {
+        subscriptionItems.forEach(item => {
             const actorId = item.getAttribute('data-actor-id');
             if (!actorId) return;
 
@@ -1622,6 +1667,19 @@ export class NewWorksTab {
                 }
             });
 
+            // 单独检查演员
+            const checkBtn = item.querySelector('[data-action="check-single"]') as HTMLButtonElement | null;
+            checkBtn?.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const subscription = subscriptions.find(sub => sub.actorId === actorId);
+                if (!subscription) {
+                    showMessage('未找到演员订阅信息', 'error');
+                    return;
+                }
+                await this.handleSingleSubscriptionCheck(subscription, checkBtn);
+            });
+
             // 移除订阅
             const removeBtn = item.querySelector('[data-action="remove"]');
             removeBtn?.addEventListener('click', async () => {
@@ -1634,6 +1692,9 @@ export class NewWorksTab {
                     try {
                         await newWorksManager.removeSubscription(actorId);
                         item.remove();
+                        const index = subscriptionItems.indexOf(item);
+                        if (index >= 0) subscriptionItems.splice(index, 1);
+                        applySearchFilter();
                         await this.render();
                         showMessage(`已移除演员 ${actorName} 的订阅`, 'success');
                     } catch (error) {
@@ -1653,6 +1714,56 @@ export class NewWorksTab {
         if (overlay) {
             overlay.classList.add('visible');
             console.log('管理订阅弹窗: 已添加visible类，弹窗应该可见');
+        }
+    }
+
+    /**
+     * 手动检查单个订阅演员的新作品
+     */
+    private async handleSingleSubscriptionCheck(subscription: ActorSubscription, button: HTMLButtonElement): Promise<void> {
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            showMessage(`已开始检查 ${subscription.actorName}`, 'info');
+
+            const response = await new Promise<any>((resolve) => {
+                chrome.runtime.sendMessage(
+                    {
+                        type: 'new-works-check-single-actor',
+                        actorId: subscription.actorId,
+                        actorName: subscription.actorName
+                    },
+                    resolve
+                );
+            });
+
+            if (!response?.success) {
+                throw new Error(response?.error || '检查失败');
+            }
+
+            const result = response.result || {};
+            const statsParts: string[] = [];
+            if (typeof result.identified === 'number') {
+                statsParts.push(`识别 ${result.identified}`);
+            }
+            if (typeof result.effective === 'number') {
+                statsParts.push(`有效 ${result.effective}`);
+            }
+            statsParts.push(`新增 ${result.discovered || 0}`);
+
+            await this.render();
+            showMessage(
+                `${subscription.actorName}: ${statsParts.join('，')}`,
+                (result.discovered || 0) > 0 ? 'success' : 'info'
+            );
+        } catch (error) {
+            console.error(`检查演员 ${subscription.actorName} 失败:`, error);
+            showMessage(`检查 ${subscription.actorName} 失败: ${(error as Error).message}`, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
         }
     }
 }
