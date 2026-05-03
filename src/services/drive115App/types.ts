@@ -23,6 +23,9 @@ export interface NormalizedDrive115Settings {
   v2RefreshTokenStatus?: 'valid' | 'invalid' | 'expired' | 'unknown';
   v2RefreshTokenLastError?: string;
   v2RefreshTokenLastErrorCode?: number;
+  v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
+  v2AccessTokenLastError?: string;
+  v2AccessTokenLastErrorCode?: number;
   defaultWpPathId: string;
   quotaCache?: {
     data?: any;

@@ -508,6 +508,9 @@ class Drive115V2Service {
         newSettings.drive115.v2RefreshTokenStatus = 'valid';
         newSettings.drive115.v2RefreshTokenLastError = undefined;
         newSettings.drive115.v2RefreshTokenLastErrorCode = undefined;
+        newSettings.drive115.v2AccessTokenStatus = 'valid';
+        newSettings.drive115.v2AccessTokenLastError = undefined;
+        newSettings.drive115.v2AccessTokenLastErrorCode = undefined;
         // 记录最近刷新时间戳，便于限频逻辑协同
         newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
         await saveSettings(newSettings);
@@ -519,6 +522,19 @@ class Drive115V2Service {
       await addLogV2({ timestamp: Date.now(), level: 'error', message: `刷新 access_token 异常：${msg}` });
       return { success: false, message: msg };
     }
+  }
+
+  private async updateAccessTokenStatus(status: 'valid' | 'expired' | 'rate_limited' | 'unknown', errorResponse?: any): Promise<void> {
+    try {
+      const settings = await getSettings();
+      const newSettings: any = { ...settings };
+      newSettings.drive115 = { ...(settings.drive115 || {}) };
+      newSettings.drive115.v2AccessTokenStatus = status;
+      newSettings.drive115.v2AccessTokenLastError = errorResponse ? (describe115Error(errorResponse) || errorResponse?.message || errorResponse?.error) : undefined;
+      const code = Number(errorResponse?.code ?? errorResponse?.errNo ?? errorResponse?.errno ?? NaN);
+      newSettings.drive115.v2AccessTokenLastErrorCode = Number.isFinite(code) ? code : undefined;
+      await saveSettings(newSettings);
+    } catch {}
   }
 
   /**
@@ -797,6 +813,7 @@ class Drive115V2Service {
       if (!res.ok) {
         const msg = `获取用户信息网络错误: ${res.status} ${res.statusText}`;
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+        await this.updateAccessTokenStatus('unknown', { message: msg, code: res.status });
         return { success: false, message: msg };
       }
 

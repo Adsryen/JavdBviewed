@@ -19,6 +19,9 @@ type Drive115V2LocalSettings = {
   v2AccessToken?: string;
   v2RefreshToken?: string;
   v2TokenExpiresAt?: number | null;
+  v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
+  v2AccessTokenLastError?: string;
+  v2AccessTokenLastErrorCode?: number;
 };
 
 const DEFAULT_DRIVE115_V2_SETTINGS: Drive115V2LocalSettings = {
@@ -182,8 +185,12 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         expiryEl.textContent = `${dateTimeText}（${remainText}）`;
         expiryEl.style.color = remain > 0 ? (remain <= 3600 ? '#ef6c00' : '#2e7d32') : '#c62828';
         this.startExpiryCountdown(ts);
+      } else if ((this.settings.v2AccessToken || '').trim()) {
+        expiryEl.textContent = '已填写（待验证）';
+        expiryEl.style.color = '#888';
+        this.stopExpiryCountdown();
       } else {
-        expiryEl.textContent = '未知';
+        expiryEl.textContent = '未填写';
         expiryEl.style.color = '#888';
         this.stopExpiryCountdown();
       }
@@ -513,6 +520,18 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         }
         if (typeof drv.v2TokenExpiresAt !== 'undefined' && prev.v2TokenExpiresAt !== drv.v2TokenExpiresAt) {
           prev.v2TokenExpiresAt = (typeof drv.v2TokenExpiresAt === 'number' ? drv.v2TokenExpiresAt : null);
+          changed = true;
+        }
+        if (typeof drv.v2AccessTokenStatus !== 'undefined' && (prev as any).v2AccessTokenStatus !== drv.v2AccessTokenStatus) {
+          (prev as any).v2AccessTokenStatus = drv.v2AccessTokenStatus || 'unknown';
+          changed = true;
+        }
+        if (typeof drv.v2AccessTokenLastError !== 'undefined' && (prev as any).v2AccessTokenLastError !== drv.v2AccessTokenLastError) {
+          (prev as any).v2AccessTokenLastError = drv.v2AccessTokenLastError;
+          changed = true;
+        }
+        if (typeof drv.v2AccessTokenLastErrorCode !== 'undefined' && (prev as any).v2AccessTokenLastErrorCode !== drv.v2AccessTokenLastErrorCode) {
+          (prev as any).v2AccessTokenLastErrorCode = (typeof drv.v2AccessTokenLastErrorCode === 'number' ? drv.v2AccessTokenLastErrorCode : undefined);
           changed = true;
         }
         // 同步启用状态，避免 UI 与开关不一致
