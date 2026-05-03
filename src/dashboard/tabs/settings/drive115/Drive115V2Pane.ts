@@ -223,6 +223,58 @@ export class Drive115V2Pane implements IDrive115Pane {
     // 事件绑定完成后，兜底隐藏旧版字段（防模板异步渲染）
     this.hideLegacyDownloadDirByText();
 
+    const validateTokenBtn = document.getElementById('drive115V2ValidateToken') as HTMLButtonElement | null;
+    validateTokenBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const originalText = validateTokenBtn.textContent || '验证有效性';
+      try {
+        validateTokenBtn.disabled = true;
+        validateTokenBtn.textContent = '验证中...';
+        this.setUserInfoStatus('获取用户信息中…', 'info');
+        const svc = getDrive115V2Service();
+        const userInfo = await svc.fetchUserInfoAuto({ forceAutoRefresh: true });
+        if (!userInfo.success || !userInfo.data) {
+          const msg = describe115Error((userInfo as any).raw) || userInfo.message || '验证失败';
+          this.setUserInfoStatus(msg, 'error');
+          showToast(msg, 'error');
+          this.updateRefreshTokenStatusUI();
+          this.updateAccessTokenStatusUI();
+          return;
+        }
+
+        const latestSettings = await getSettings();
+        const drv = (latestSettings?.drive115 || {}) as any;
+        if (v2AccessTokenInput) (v2AccessTokenInput as any).value = drv.v2AccessToken || '';
+        if (v2RefreshTokenInput) (v2RefreshTokenInput as any).value = drv.v2RefreshToken || '';
+        this.ctx?.update?.({
+          v2AccessToken: (drv.v2AccessToken || '').trim(),
+          v2RefreshToken: (drv.v2RefreshToken || '').trim(),
+          v2TokenExpiresAt: (typeof drv.v2TokenExpiresAt === 'number' ? drv.v2TokenExpiresAt : null),
+          v2RefreshTokenStatus: 'valid',
+          v2RefreshTokenLastError: undefined,
+          v2RefreshTokenLastErrorCode: undefined,
+          v2AccessTokenStatus: 'valid',
+          v2AccessTokenLastError: undefined,
+          v2AccessTokenLastErrorCode: undefined,
+        } as any);
+        await this.ctx?.save?.();
+        this.ctx?.updateUI?.();
+        this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
+        this.updateRefreshTokenStatusUI();
+        this.updateAccessTokenStatusUI();
+        this.renderUserInfo(userInfo.data);
+        this.setUserInfoStatus('已验证并更新用户信息', 'ok');
+        showToast('已验证有效性', 'success');
+      } catch (err: any) {
+        const msg = describe115Error(err) || err?.message || '验证失败';
+        this.setUserInfoStatus(msg, 'error');
+        showToast(msg, 'error');
+      } finally {
+        validateTokenBtn.disabled = false;
+        validateTokenBtn.textContent = originalText;
+      }
+    });
+
     // 手动刷新按钮：调用刷新接口，成功后回填两个 token 并记录过期时间
     const manualRefreshBtn = document.getElementById('drive115V2ManualRefresh') as HTMLButtonElement | null;
     manualRefreshBtn?.addEventListener('click', async (e) => {
@@ -265,7 +317,13 @@ export class Drive115V2Pane implements IDrive115Pane {
         this.ctx?.update({ 
           v2AccessToken: (access_token || '').trim(), 
           v2RefreshToken: (refresh_token || '').trim(),
-          v2TokenExpiresAt: (typeof expires_at === 'number' ? expires_at : null)
+          v2TokenExpiresAt: (typeof expires_at === 'number' ? expires_at : null),
+          v2RefreshTokenStatus: 'valid',
+          v2RefreshTokenLastError: undefined,
+          v2RefreshTokenLastErrorCode: undefined,
+          v2AccessTokenStatus: 'valid',
+          v2AccessTokenLastError: undefined,
+          v2AccessTokenLastErrorCode: undefined,
         });
         this.ctx?.save?.();
         // 写入“最近接口刷新时间”，并确保最小间隔配置不低于30
@@ -290,6 +348,7 @@ export class Drive115V2Pane implements IDrive115Pane {
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
         // 更新 refresh_token 状态显示
         this.updateRefreshTokenStatusUI();
+        this.updateAccessTokenStatusUI();
         this.setUserInfoStatus('已刷新 access_token', 'ok');
         showToast('已刷新 access_token', 'success');
       } catch (err: any) {
@@ -531,9 +590,6 @@ export class Drive115V2Pane implements IDrive115Pane {
       const refreshToken = (drv.v2RefreshToken || '').trim();
       const expiresAt = drv.v2TokenExpiresAt;
       const nowSec = Math.floor(Date.now() / 1000);
-      const expiryText = (typeof expiresAt === 'number' && expiresAt > nowSec)
-        ? `（${new Date(expiresAt * 1000).toLocaleString('zh-CN')}）`
-        : '';
       
       // 智能推断：如果 refresh_token 已有预估过期时间且已过期，则提示需要刷新
       const isAccessTokenExpired = typeof expiresAt === 'number' && expiresAt < nowSec;
@@ -547,17 +603,19 @@ export class Drive115V2Pane implements IDrive115Pane {
       const formGroup = document.getElementById('drive115V2RefreshToken')?.closest('.form-group');
       const label = formGroup?.querySelector('label[for="drive115V2RefreshToken"]');
       if (!label) return;
-      label.childNodes[0] && ((label.childNodes[0] as any).textContent = `refresh_token:${expiryText}`);
+      label.childNodes[0] && ((label.childNodes[0] as any).textContent = 'refresh_token:');
+      const statusRow = document.getElementById('drive115V2RefreshTokenStatusRow');
+      if (!statusRow) return;
       
       let statusEl = document.getElementById('drive115V2RefreshTokenStatus') as HTMLSpanElement | null;
       if (!statusEl) {
         // 创建状态显示元素
         statusEl = document.createElement('span');
         statusEl.id = 'drive115V2RefreshTokenStatus';
-        statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px;';
+        statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px; vertical-align:middle;';
         
-        // 插入到 label 的末尾
-        label.appendChild(statusEl);
+        // 插入到“状态”行的末尾
+        statusRow.appendChild(statusEl);
       }
       
       // 根据状态设置样式和文本

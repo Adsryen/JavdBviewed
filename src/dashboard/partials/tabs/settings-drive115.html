@@ -43,17 +43,19 @@
                     <div class="form-group">
                         <label for="drive115V2AccessToken">access_token:</label>
                         <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
-                        <p class="input-description" style="margin-top:6px;">
-                            状态：<span id="drive115V2TokenExpiry">未填写</span>
-                        </p>
                     </div>
 
                     <div class="form-group">
                         <label for="drive115V2RefreshToken">refresh_token:</label>
+                        <p id="drive115V2RefreshTokenStatusRow" class="input-description" style="margin:6px 0;">
+                            状态：<span id="drive115V2TokenExpiry">未填写</span>
+                        </p>
                         <div class="form-group-inline">
                             <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
-                            
-                            <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button id="drive115V2ValidateToken" class="button-like">验证有效性</button>
+                                <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
+                            </div>
                         </div>
                         <p class="input-description">点击“手动刷新 access_token”会在当前页面直接尝试刷新；同时会复制 refresh_token 到剪贴板作为备用。若未填写 refresh_token，会提示先填写。</p>
                     </div>
