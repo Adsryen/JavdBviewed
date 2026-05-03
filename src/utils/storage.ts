@@ -212,13 +212,49 @@ export function getValue<T>(key: string, defaultValue: T): Promise<T> {
   });
 }
 
+function migrateLegacyDrive115Settings(raw: any): { drive115: Record<string, any>; changed: boolean } {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const next = { ...source } as Record<string, any>;
+  let changed = false;
+
+  if (!Object.prototype.hasOwnProperty.call(next, 'enabled') && typeof next.enableV2 === 'boolean') {
+    next.enabled = next.enableV2;
+    changed = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(next, 'enableV2')) {
+    delete next.enableV2;
+    changed = true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(next, 'lastSelectedVersion')) {
+    delete next.lastSelectedVersion;
+    changed = true;
+  }
+
+  return { drive115: next, changed };
+}
+
+function normalizeSettingsForSave<T extends Partial<ExtensionSettings>>(settings: T): T {
+  if (!settings || typeof settings !== 'object') return settings;
+  if (!('drive115' in settings)) return settings;
+
+  const migrated = migrateLegacyDrive115Settings((settings as any).drive115);
+  return {
+    ...settings,
+    drive115: migrated.drive115,
+  } as T;
+}
+
 export async function getSettings(): Promise<ExtensionSettings> {
   const storedSettings = await getValue<Partial<ExtensionSettings>>(STORAGE_KEYS.SETTINGS, {});
+  const { drive115: migratedDrive115, changed: drive115Migrated } = migrateLegacyDrive115Settings((storedSettings as any).drive115);
 
   log.storage('Loading settings from storage', {
     key: STORAGE_KEYS.SETTINGS,
     hasStoredSettings: !!storedSettings,
-    hasPrivacy: !!storedSettings.privacy
+    hasPrivacy: !!storedSettings.privacy,
+    drive115Migrated,
   });
 
   const mergedSettings: ExtensionSettings = {
@@ -278,7 +314,7 @@ export async function getSettings(): Promise<ExtensionSettings> {
     },
     drive115: {
       ...DEFAULT_SETTINGS.drive115,
-      ...(storedSettings.drive115 || {}),
+      ...migratedDrive115,
     },
     actorSync: {
       ...DEFAULT_SETTINGS.actorSync,
