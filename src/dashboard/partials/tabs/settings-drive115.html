@@ -37,14 +37,14 @@
                     </div>
                 </div>
 
-                <!-- 分组：凭据与有效期 -->
+                <!-- 分组：凭据与状态 -->
                 <div class="settings-card settings-group">
-                    <h4>凭据与有效期</h4>
+                    <h4>凭据与状态</h4>
                     <div class="form-group">
                         <label for="drive115V2AccessToken">access_token:</label>
                         <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
                         <p class="input-description" style="margin-top:6px;">
-                            到期：<span id="drive115V2TokenExpiry">未知</span>
+                            状态：<span id="drive115V2TokenExpiry">未填写</span>
                         </p>
                     </div>
 
@@ -55,7 +55,7 @@
                             
                             <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
                         </div>
-                        <p class="input-description">点击"手动刷新"会复制 refresh_token，并打开帮助页面以指导刷新流程。</p>
+                        <p class="input-description">点击“手动刷新 access_token”会在当前页面直接尝试刷新；同时会复制 refresh_token 到剪贴板作为备用。若未填写 refresh_token，会提示先填写。</p>
                     </div>
 
                     <div class="form-group">

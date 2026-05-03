@@ -14,6 +14,9 @@ export interface Drive115Settings {
   v2RefreshTokenStatus?: 'valid' | 'invalid' | 'expired' | 'unknown';
   v2RefreshTokenLastError?: string;
   v2RefreshTokenLastErrorCode?: number;
+  v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
+  v2AccessTokenLastError?: string;
+  v2AccessTokenLastErrorCode?: number;
   v2ApiBaseUrl?: string;
   v2AutoRefresh?: boolean;
   v2AutoRefreshSkewSec?: number;
