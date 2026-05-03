@@ -19,6 +19,9 @@ type Drive115V2LocalSettings = {
   v2AccessToken?: string;
   v2RefreshToken?: string;
   v2TokenExpiresAt?: number | null;
+  v2RefreshTokenStatus?: 'valid' | 'invalid' | 'expired' | 'unknown';
+  v2RefreshTokenLastError?: string;
+  v2RefreshTokenLastErrorCode?: number;
   v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
   v2AccessTokenLastError?: string;
   v2AccessTokenLastErrorCode?: number;
@@ -220,6 +223,7 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       'drive115V2RefreshToken',
       'testSearchInput',
       'testDrive115Search',
+      'drive115V2ValidateToken',
       'drive115V2ManualRefresh',
       // 已移除设置页日志功能的相关按钮ID
     ];
@@ -520,6 +524,18 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         }
         if (typeof drv.v2TokenExpiresAt !== 'undefined' && prev.v2TokenExpiresAt !== drv.v2TokenExpiresAt) {
           prev.v2TokenExpiresAt = (typeof drv.v2TokenExpiresAt === 'number' ? drv.v2TokenExpiresAt : null);
+          changed = true;
+        }
+        if (typeof drv.v2RefreshTokenStatus !== 'undefined' && (prev as any).v2RefreshTokenStatus !== drv.v2RefreshTokenStatus) {
+          (prev as any).v2RefreshTokenStatus = drv.v2RefreshTokenStatus || 'unknown';
+          changed = true;
+        }
+        if (typeof drv.v2RefreshTokenLastError !== 'undefined' && (prev as any).v2RefreshTokenLastError !== drv.v2RefreshTokenLastError) {
+          (prev as any).v2RefreshTokenLastError = drv.v2RefreshTokenLastError;
+          changed = true;
+        }
+        if (typeof drv.v2RefreshTokenLastErrorCode !== 'undefined' && (prev as any).v2RefreshTokenLastErrorCode !== drv.v2RefreshTokenLastErrorCode) {
+          (prev as any).v2RefreshTokenLastErrorCode = (typeof drv.v2RefreshTokenLastErrorCode === 'number' ? drv.v2RefreshTokenLastErrorCode : undefined);
           changed = true;
         }
         if (typeof drv.v2AccessTokenStatus !== 'undefined' && (prev as any).v2AccessTokenStatus !== drv.v2AccessTokenStatus) {

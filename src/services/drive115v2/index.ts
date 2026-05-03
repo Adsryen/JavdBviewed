@@ -164,6 +164,12 @@ class Drive115V2Service {
   private static instance: Drive115V2Service | null = null;
   // 并发刷新保护：避免多处同时触发 refresh 导致频繁请求
   private refreshingPromise: Promise<{ success: boolean; message?: string; token?: TokenPair; raw?: any }> | null = null;
+  private getUserDisplayName(user?: Drive115V2UserInfo | null): string {
+    const u: any = user || {};
+    const uid = u.uid || u.user_id || u.id || '-';
+    const name = u.user_name || u.name || u.nick || u.username || '';
+    return name ? `${name} (UID ${uid})` : `UID ${uid}`;
+  }
   // 基础域名：从设置读取（默认 https://proapi.115.com）
   private async getBaseURL(): Promise<string> {
     try {
@@ -850,7 +856,7 @@ class Drive115V2Service {
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: '获取用户信息成功但数据为空' });
         return { success: false, message: '未获取到用户数据', raw: json };
       }
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: '获取用户信息成功（v2）' });
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `获取用户信息成功（v2）：${this.getUserDisplayName(user)}` });
       return { success: true, data: user, raw: json };
     } catch (e: any) {
       const msg = describe115Error(e) || e?.message || '获取用户信息失败';
