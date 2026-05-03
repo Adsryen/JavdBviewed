@@ -482,13 +482,22 @@ class ActorEnhancementManager {
       // 避免重复注入
       if (document.getElementById('button-scan-new-works')) return;
 
+      let dateRangeMonths = 0;
+      try {
+        const newWorksConfig = await newWorksManager.getGlobalConfig();
+        dateRangeMonths = Number(newWorksConfig?.filters?.dateRange || 0);
+      } catch {}
+      const buttonText = this.buildScanNewWorksButtonText(dateRangeMonths);
+
       // 创建按钮
       const btn = document.createElement('a');
       btn.id = 'button-scan-new-works';
       btn.href = 'javascript:void(0)';
       btn.className = 'button is-warning ml-2';
-      btn.textContent = '扫描新作品';
-      btn.title = '立即扫描当前演员的新作品';
+      btn.textContent = buttonText;
+      btn.title = dateRangeMonths > 0
+        ? `立即扫描当前演员近 ${dateRangeMonths} 个月内的新作品`
+        : '立即扫描当前演员全部时间范围内的新作品';
       (btn as HTMLAnchorElement).style.display = 'inline-flex';
       (btn as HTMLAnchorElement).style.verticalAlign = 'middle';
 
@@ -565,6 +574,17 @@ class ActorEnhancementManager {
     return blacklisted
       ? 'button is-white has-text-black ml-2'
       : 'button is-black ml-2';
+  }
+
+  /**
+   * 根据新作品时间范围配置生成快捷扫描按钮文案
+   */
+  private buildScanNewWorksButtonText(dateRangeMonths?: number): string {
+    const months = Number(dateRangeMonths || 0);
+    if (months > 0) {
+      return `扫描新作品（${months}月内）`;
+    }
+    return '扫描新作品（全部）';
   }
 
   private updateCollectButtonsVisibility(blacklisted: boolean): void {
