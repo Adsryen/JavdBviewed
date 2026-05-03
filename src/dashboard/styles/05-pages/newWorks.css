@@ -1742,3 +1742,378 @@ input:checked + .toggle-slider:before {
     outline-color: rgba(96, 165, 250, 0.32);
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.38);
 }
+
+
+/* NewWorks config modal redesign */
+.new-works-config-modal .modal-content {
+    width: min(980px, calc(100vw - 48px));
+    max-height: min(88vh, 920px);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 56px rgba(0, 0, 0, 0.18);
+    background: var(--surface-primary);
+}
+
+.new-works-config-modal .modal-header {
+    padding: 24px 28px 18px;
+    align-items: flex-start;
+    background: var(--surface-primary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.new-works-config-modal .modal-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.new-works-config-modal .modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.new-works-config-modal .modal-header h3 i {
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.new-works-config-modal .modal-subtitle {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.new-works-config-modal .modal-close-btn {
+    margin-left: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-primary);
+}
+
+.new-works-config-modal .modal-body {
+    padding: 20px 28px 20px;
+    background: var(--surface-primary);
+}
+
+.new-works-config-modal .config-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.new-works-config-modal .config-section {
+    position: relative;
+    margin: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--border-primary);
+    border-radius: 14px;
+    background: var(--surface-primary);
+    box-shadow: none;
+}
+
+.new-works-config-modal .config-section::before {
+    display: none;
+}
+
+.new-works-config-modal .config-section-hero {
+    background: var(--surface-primary);
+}
+
+.new-works-config-modal .config-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.new-works-config-modal .config-section-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    box-shadow: none;
+}
+
+.new-works-config-modal .config-section-copy {
+    min-width: 0;
+}
+
+.new-works-config-modal .config-section-copy h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.new-works-config-modal .section-description {
+    display: none;
+}
+
+.new-works-config-modal .config-option-grid,
+.new-works-config-modal .config-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.new-works-config-modal .config-metric-grid {
+    margin-top: 0;
+}
+
+.new-works-config-modal .config-metric-grid-wide {
+    grid-template-columns: 1fr 1fr;
+}
+
+.new-works-config-modal .config-feature-card,
+.new-works-config-modal .config-metric-card {
+    border: 1px solid var(--border-secondary);
+    border-radius: 12px;
+    background: var(--surface-primary);
+    box-shadow: none;
+}
+
+.new-works-config-modal .config-feature-card-highlight,
+.new-works-config-modal .config-feature-card-note {
+    background: var(--surface-primary);
+}
+
+.new-works-config-modal .config-feature-card-note {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+}
+
+.new-works-config-modal .config-switch-card {
+    display: grid !important;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 14px 16px;
+    margin: 0 !important;
+}
+
+.new-works-config-modal .config-switch-card.compact {
+    align-items: start;
+    padding: 14px 16px;
+}
+
+.new-works-config-modal .config-switch-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.new-works-config-modal .config-switch-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.new-works-config-modal .config-switch-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.new-works-config-modal .config-metric-card {
+    padding: 14px 16px;
+}
+
+.new-works-config-modal .config-metric-card label {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+}
+
+.new-works-config-modal .metric-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.new-works-config-modal .config-metric-card input[type="number"] {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid var(--border-primary);
+    background: var(--input-bg);
+}
+
+.new-works-config-modal .config-metric-card small {
+    margin: 0;
+    line-height: 1.5;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.new-works-config-modal .category-panel {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-secondary);
+    box-shadow: none;
+}
+
+.new-works-config-modal .category-panel-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.new-works-config-modal .category-panel-header h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.new-works-config-modal .category-panel-header p {
+    display: none;
+}
+
+.new-works-config-modal .category-panel-meta {
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--surface-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.new-works-config-modal .category-panel-toolbar {
+    margin-bottom: 12px;
+}
+
+.new-works-config-modal .category-pill {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.new-works-config-modal .category-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.new-works-config-modal .category-checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    background: var(--surface-primary);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.new-works-config-modal .category-checkbox:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
+    transform: none;
+}
+
+.new-works-config-modal .config-link {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.new-works-config-modal .modal-footer {
+    padding: 16px 28px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: var(--surface-primary);
+    border-top: 1px solid var(--border-primary);
+}
+
+.new-works-config-modal .modal-footer-note {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 360px;
+}
+
+.new-works-config-modal .modal-footer .btn-secondary,
+.new-works-config-modal .modal-footer .btn-primary {
+    min-width: 124px;
+    min-height: 40px;
+    border-radius: 10px;
+}
+
+@media (max-width: 900px) {
+    .new-works-config-modal .modal-content {
+        width: calc(100vw - 24px);
+        max-height: 92vh;
+    }
+
+    .new-works-config-modal .modal-header,
+    .new-works-config-modal .modal-body,
+    .new-works-config-modal .modal-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .new-works-config-modal .config-option-grid,
+    .new-works-config-modal .config-metric-grid,
+    .new-works-config-modal .config-metric-grid-wide,
+    .new-works-config-modal .category-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .new-works-config-modal .category-panel-header,
+    .new-works-config-modal .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .new-works-config-modal .modal-footer-note {
+        max-width: none;
+    }
+}

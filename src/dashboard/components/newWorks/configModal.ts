@@ -48,169 +48,219 @@ export class NewWorksConfigModal {
         // 移除已存在的弹窗
         this.removeModal();
 
+        const totalCategoryCount = ACTOR_FILTER_TAGS.filter(tag =>
+            tag.group === 'basic' || tag.group === 'quality' || tag.group === 'category'
+        ).length;
+        const selectedCategoryCount = config.filters.categoryFilters && config.filters.categoryFilters.length > 0
+            ? config.filters.categoryFilters.length
+            : totalCategoryCount;
+
         this.modal = document.createElement('div');
         this.modal.className = 'new-works-config-modal';
         this.modal.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3><i class="fas fa-cog"></i> 新作品设置</h3>
+                        <div class="modal-header-main">
+                            <h3><i class="fas fa-cog"></i> 新作品设置</h3>
+                            <p class="modal-subtitle">调整新作品扫描与入口行为。</p>
+                        </div>
                         <button class="modal-close-btn" type="button">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     <div class="modal-body">
                         <form id="newWorksConfigForm">
-                            <!-- 自动检查 -->
-                            <div class="config-section">
-                                <h4><i class="fas fa-sliders-h"></i> 自动检查</h4>
-                                <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configAutoCheckEnabled" ${config.autoCheckEnabled ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        启用自动检查
-                                    </label>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group form-group-inline">
-                                        <label for="configCheckInterval">
-                                            <span>
-                                                检查间隔 (小时)
-                                                <i class="fas fa-question-circle help-icon" title="建议设置为24小时或更长"></i>
+                            <div class="config-layout">
+                                <section class="config-section config-section-hero">
+                                    <div class="config-section-header">
+                                        <div class="config-section-icon"><i class="fas fa-sliders-h"></i></div>
+                                        <div class="config-section-copy">
+                                            <h4>扫描</h4>
+                                            
+                                        </div>
+                                    </div>
+                                    <div class="config-feature-card config-feature-card-highlight">
+                                        <label class="checkbox-label config-switch-card">
+                                            <input type="checkbox" id="configAutoCheckEnabled" ${config.autoCheckEnabled ? 'checked' : ''}>
+                                            <span class="checkmark"></span>
+                                            <span class="config-switch-copy">
+                                                <span class="config-switch-title">启用自动检查</span>
+                                                <span class="config-switch-desc">在后台按设定周期扫描所有已启用订阅的演员。</span>
                                             </span>
-                                            <input type="number" id="configCheckInterval" min="1" max="168" value="${config.checkInterval}">
                                         </label>
                                     </div>
-                                    <div class="form-group form-group-inline">
-                                        <label for="configRequestInterval">
-                                            <span>
-                                                请求间隔 (秒)
-                                                <i class="fas fa-question-circle help-icon" title="避免频繁请求，建议至少3秒"></i>
-                                            </span>
-                                            <input type="number" id="configRequestInterval" min="1" max="60" value="${config.requestInterval}">
-                                        </label>
+                                    <div class="config-metric-grid">
+                                        <div class="config-metric-card">
+                                            <label for="configCheckInterval">
+                                                <span class="metric-label">检查间隔（小时） <i class="fas fa-question-circle help-icon" title="建议设置为24小时或更长"></i></span>
+                                                <input type="number" id="configCheckInterval" min="1" max="168" value="${config.checkInterval}">
+                                                <small>建议按天级别扫描，减少无效请求。</small>
+                                            </label>
+                                        </div>
+                                        <div class="config-metric-card">
+                                            <label for="configRequestInterval">
+                                                <span class="metric-label">请求间隔（秒） <i class="fas fa-question-circle help-icon" title="避免频繁请求，建议至少3秒"></i></span>
+                                                <input type="number" id="configRequestInterval" min="1" max="60" value="${config.requestInterval}">
+                                                <small>请求越平稳，越不容易触发站点限制。</small>
+                                            </label>
+                                        </div>
+                                        <div class="config-metric-card">
+                                            <label for="configConcurrency">
+                                                <span class="metric-label">并发数量 <i class="fas fa-question-circle help-icon" title="同时检查多少个演员的新作品，建议1-3个，过高可能导致请求失败"></i></span>
+                                                <input type="number" id="configConcurrency" min="1" max="5" value="${config.concurrency || 1}">
+                                                <small>建议从 1 开始，确认稳定后再逐步提升。</small>
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="form-group">
-                                    <label for="configConcurrency">
-                                        <span>
-                                            并发数量
-                                            <i class="fas fa-question-circle help-icon" title="同时检查多少个演员的新作品，建议1-3个，过高可能导致请求失败"></i>
-                                        </span>
-                                        <input type="number" id="configConcurrency" min="1" max="5" value="${config.concurrency || 1}">
-                                    </label>
-                                </div>
-                            </div>
+                                </section>
 
-                            <!-- 过滤条件 -->
-                            <div class="config-section">
-                                <h4><i class="fas fa-filter"></i> 过滤条件</h4>
-                                <p class="section-description">以下条件将应用于所有订阅演员的新作品检查。这些设置始终生效，可随时调整。</p>
-                                
-                                <div class="form-row">
-                                    <div class="form-group form-group-inline">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="configExcludeViewed" ${config.filters.excludeViewed ? 'checked' : ''}>
-                                            <span class="checkmark"></span>
-                                            排除已标记"看过"
-                                        </label>
+                                <section class="config-section">
+                                    <div class="config-section-header">
+                                        <div class="config-section-icon"><i class="fas fa-bolt"></i></div>
+                                        <div class="config-section-copy">
+                                            <h4>入口</h4>
+                                            
+                                        </div>
                                     </div>
-                                    
-                                    <div class="form-group form-group-inline">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="configExcludeBrowsed" ${config.filters.excludeBrowsed ? 'checked' : ''}>
+                                    <div class="config-feature-card">
+                                        <label class="checkbox-label config-switch-card">
+                                            <input type="checkbox" id="configShowActorPageScanButton" ${config.showActorPageScanButton ? 'checked' : ''}>
                                             <span class="checkmark"></span>
-                                            排除已浏览详情页
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-group form-group-inline">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="configExcludeWant" ${config.filters.excludeWant ? 'checked' : ''}>
-                                            <span class="checkmark"></span>
-                                            排除已标记"想看"
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-group form-group-inline">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="configExcludeAR" ${config.filters.excludeAR ? 'checked' : ''}>
-                                            <span class="checkmark"></span>
-                                            排除AR影片
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div class="form-group form-group-inline" style="align-items:center;gap:8px;display:flex;flex-wrap:wrap;">
-                                    <label class="checkbox-label" style="margin:0;">
-                                        <input type="checkbox" id="configApplyContentFilter" ${config.filters.applyContentFilter ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        应用智能内容过滤（隐藏规则）
-                                    </label>
-                                    <a href="#" id="configGoToContentFilter" class="btn-link" style="font-size:12px;white-space:nowrap;" title="跳转到功能增强-智能内容过滤设置">
-                                        <i class="fas fa-external-link-alt"></i> 去设置
-                                    </a>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="configDateRange">
-                                        <span>
-                                            时间范围 (月数)
-                                            <i class="fas fa-question-circle help-icon" title="0表示不限制时间范围，建议设置为3-6个月"></i>
-                                        </span>
-                                        <input type="number" id="configDateRange" min="0" max="24" value="${config.filters.dateRange}">
-                                    </label>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>类别筛选:</label>
-                                    <div class="category-filter-grid">
-                                        <label class="checkbox-label category-all-checkbox">
-                                            <input type="checkbox" id="categoryFilterAll">
-                                            <span class="checkmark"></span>
-                                            不限制
-                                        </label>
-                                        ${this.generateCategoryCheckboxes(config.filters.categoryFilters)}
-                                    </div>
-                                    <small>可多选类别，不选择任何类别则显示所有类别</small>
-                                </div>
-                            </div>
-
-                            <!-- 清理与限制 -->
-                            <div class="config-section">
-                                <h4><i class="fas fa-tasks"></i> 自动清理</h4>
-                                
-                                <div class="form-row">
-                                    <div class="form-group form-group-inline">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="configAutoCleanup" ${config.autoCleanup ? 'checked' : ''}>
-                                            <span class="checkmark"></span>
-                                            启用自动清理
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-group form-group-inline">
-                                        <label for="configCleanupDays">
-                                            <span>
-                                                清理天数
-                                                <i class="fas fa-question-circle help-icon" title="自动清理已读且超过指定天数的作品"></i>
+                                            <span class="config-switch-copy">
+                                                <span class="config-switch-title">在演员页显示“扫描新作品”按钮</span>
+                                                <span class="config-switch-desc">这是快捷入口。点击后仍会使用这里配置的类别过滤、状态过滤和去重规则。</span>
                                             </span>
-                                            <input type="number" id="configCleanupDays" min="7" max="365" value="${config.cleanupDays}">
                                         </label>
                                     </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="configShowActorPageScanButton" ${config.showActorPageScanButton ? 'checked' : ''}>
-                                        <span class="checkmark"></span>
-                                        在演员页显示“扫描新作品”按钮
-                                    </label>
-                                    <p class="input-description">这是“新作品”功能的快捷入口，扫描结果仍使用当前新作品设置里的类别过滤和其它过滤规则。</p>
-                                </div>
+                                </section>
+
+                                <section class="config-section">
+                                    <div class="config-section-header">
+                                        <div class="config-section-icon"><i class="fas fa-filter"></i></div>
+                                        <div class="config-section-copy">
+                                            <h4>过滤</h4>
+                                            
+                                        </div>
+                                    </div>
+                                    <div class="config-option-grid">
+                                        <div class="config-feature-card">
+                                            <label class="checkbox-label config-switch-card compact">
+                                                <input type="checkbox" id="configExcludeViewed" ${config.filters.excludeViewed ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">排除已标记“看过”</span>
+                                                    <span class="config-switch-desc">避免重复收集已经确认看过的作品。</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div class="config-feature-card">
+                                            <label class="checkbox-label config-switch-card compact">
+                                                <input type="checkbox" id="configExcludeBrowsed" ${config.filters.excludeBrowsed ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">排除已浏览详情页</span>
+                                                    <span class="config-switch-desc">减少对已经点进去看过详情作品的重复提醒。</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div class="config-feature-card">
+                                            <label class="checkbox-label config-switch-card compact">
+                                                <input type="checkbox" id="configExcludeWant" ${config.filters.excludeWant ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">排除已标记“想看”</span>
+                                                    <span class="config-switch-desc">把已加入待看清单的作品从新作品结果中剔除。</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div class="config-feature-card">
+                                            <label class="checkbox-label config-switch-card compact">
+                                                <input type="checkbox" id="configExcludeAR" ${config.filters.excludeAR ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">排除 AR 影片</span>
+                                                    <span class="config-switch-desc">过滤掉你不想纳入追踪范围的 AR 类型作品。</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="config-metric-grid config-metric-grid-wide">
+                                        <div class="config-metric-card">
+                                            <label for="configDateRange">
+                                                <span class="metric-label">时间范围（月） <i class="fas fa-question-circle help-icon" title="仅检查最近几个月内发行的作品，0 表示不限制"></i></span>
+                                                <input type="number" id="configDateRange" min="0" max="24" value="${config.filters.dateRange}">
+                                                <small>0 表示不限时间范围，适合第一次全量整理时使用。</small>
+                                            </label>
+                                        </div>
+                                        <div class="config-feature-card config-feature-card-note">
+                                            <label class="checkbox-label config-switch-card compact">
+                                                <input type="checkbox" id="configApplyContentFilter" ${config.filters.applyContentFilter ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">应用智能内容过滤</span>
+                                                    <span class="config-switch-desc">联动“功能增强 → 内容过滤”中的隐藏规则，一起过滤不想追踪的作品。</span>
+                                                </span>
+                                            </label>
+                                            <a href="#" id="configGoToContentFilter" class="config-link">前往内容过滤设置</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="category-panel">
+                                        <div class="category-panel-header">
+                                            <div>
+                                                <h5>类别筛选</h5>
+                                                <p>仅扫描你关心的类别；如果不限制，就保持全选状态。</p>
+                                            </div>
+                                            <div class="category-panel-meta">已选 <strong id="categorySelectedCount">${selectedCategoryCount}</strong> 项</div>
+                                        </div>
+                                        <div class="category-panel-toolbar">
+                                            <label class="checkbox-label category-all-checkbox category-pill">
+                                                <input type="checkbox" id="categoryFilterAll">
+                                                <span class="checkmark"></span>
+                                                不限制（全选）
+                                            </label>
+                                        </div>
+                                        <div class="category-filter-grid">
+                                            ${this.generateCategoryCheckboxes(config.filters.categoryFilters)}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="config-section">
+                                    <div class="config-section-header">
+                                        <div class="config-section-icon"><i class="fas fa-broom"></i></div>
+                                        <div class="config-section-copy">
+                                            <h4>清理</h4>
+                                            
+                                        </div>
+                                    </div>
+                                    <div class="config-metric-grid config-metric-grid-wide">
+                                        <div class="config-feature-card config-feature-card-highlight">
+                                            <label class="checkbox-label config-switch-card">
+                                                <input type="checkbox" id="configAutoCleanup" ${config.autoCleanup ? 'checked' : ''}>
+                                                <span class="checkmark"></span>
+                                                <span class="config-switch-copy">
+                                                    <span class="config-switch-title">启用自动清理</span>
+                                                    <span class="config-switch-desc">自动移除已经处理且超过保留时间的新作品记录。</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div class="config-metric-card">
+                                            <label for="configCleanupDays">
+                                                <span class="metric-label">清理天数 <i class="fas fa-question-circle help-icon" title="自动清理已读且超过指定天数的作品"></i></span>
+                                                <input type="number" id="configCleanupDays" min="7" max="365" value="${config.cleanupDays}">
+                                                <small>建议按你的追新节奏设置，例如 30～90 天。</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
+                        <div class="modal-footer-note">保存后会立即影响新作品页面与演员页快捷扫描入口。</div>
                         <button class="btn-secondary" id="configCancel">
                             <i class="fas fa-times"></i> 取消
                         </button>
@@ -344,6 +394,10 @@ export class NewWorksConfigModal {
 
         const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
         const totalCount = categoryCheckboxes.length;
+        const selectedCountEl = this.modal.querySelector('#categorySelectedCount') as HTMLElement | null;
+        if (selectedCountEl) {
+            selectedCountEl.textContent = String(checkedCount || totalCount);
+        }
 
         if (checkedCount === 0) {
             // 全不选
