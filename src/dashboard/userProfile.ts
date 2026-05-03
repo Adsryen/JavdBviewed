@@ -7,6 +7,7 @@ import { getSettings, saveSettings } from '../utils/storage';
 import { getDrive115V2Service, type Drive115V2UserInfo, type Drive115V2QuotaInfo } from '../services/drive115v2';
 import { describe115Error } from '../services/drive115v2/errorCodes';
 import { showToast } from '../content/toast';
+import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
 
 // 115 加载并发保护
 let isLoadingDrive115 = false;
@@ -553,11 +554,10 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
 
         // 读取设置（仅判断开关）
         const settings = await getSettings();
-        const s = (settings as any)?.drive115 || {};
+        const s = normalizeDrive115Settings((settings as any)?.drive115 || {});
         // 初始化/刷新“刷新按钮”的悬浮提示（上次刷新、最小间隔、剩余冷却、2小时次数）
         try { updateRefreshTitleFromSettings(s); } catch {}
-        const enabled = !!s.enabled;
-        const enableV2 = !!s.enableV2;
+        const enabled = isDrive115EnabledState(s);
 
         if (!enabled) {
             // 显示空状态提示
@@ -595,12 +595,6 @@ async function loadDrive115UserInfo(opts?: { allowNetwork?: boolean }): Promise<
         // 如果不允许网络请求，则到此为止（仅展示缓存）
         if (!(opts?.allowNetwork === true)) {
             // 仅展示缓存：已在上方尝试渲染 quotaCache
-            return;
-        }
-
-        if (!enableV2) {
-            set115Status('未启用新版 115', 'warn');
-            if (basic) basic.innerHTML = '<p style="margin:0; color:#888;">请在设置中启用新版 115（Token 模式）</p>';
             return;
         }
 

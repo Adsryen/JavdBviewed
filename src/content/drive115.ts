@@ -2,7 +2,7 @@
  * 115网盘内容脚本集成
  */
 
-import { isDrive115Enabled, isV2Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
+import { isDrive115Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
 // getDrive115V2Service 已移除，配额功能已迁移至dashboard
 import { addLogV2 } from '../services/drive115v2/logs';
 import { waitForElement } from './utils';
@@ -225,44 +225,30 @@ export async function handlePushToDrive115(
 
         log(`推送磁链到115网盘: ${magnetName} (${videoId})`);
 
-        // 根据版本选择推送方式：v2 直接调用 API；否则走跨域（v1）
+        // 单版本：统一走 v2 应用服务
         let result: { success: boolean; data?: any; error?: string };
-        if (await isV2Enabled()) {
-            // v2 支持一次多个URL，这里单个拼接即可
-            const urls = magnetUrl; // 单条
+        const urls = magnetUrl;
+        try {
+            await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 115 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
+            let wpPathId: string | undefined;
             try {
-                await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 v2 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
-                // 读取默认保存目录（如未设置则传 '0' 表示根目录）
-                let wpPathId: string | undefined;
-                try {
-                    const settings: any = await getSettings();
-                    const def = (settings?.drive115?.defaultWpPathId ?? '').toString().trim();
-                    if (def === '') {
-                        wpPathId = '0';
-                    } else {
-                        wpPathId = def;
-                    }
-                    currentWpPathId = wpPathId;
-                } catch {}
+                const settings: any = await getSettings();
+                const def = (settings?.drive115?.defaultWpPathId ?? '').toString().trim();
+                wpPathId = def === '' ? '0' : def;
+                currentWpPathId = wpPathId;
+            } catch {}
 
-                const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId });
-                result = { success: res.success, data: res.data, error: res.message };
-                if (res.success) {
-                    const returned = Array.isArray(res.data) ? res.data.length : 0;
-                    await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：v2 推送成功，返回 ${returned} 项，videoId=${videoId}` });
-                } else {
-                    await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：v2 推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
-                }
-            } catch (e: any) {
-                result = { success: false, error: e?.message || '推送失败' };
-                await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：v2 推送异常：${e?.message || e || '未知异常'}，videoId=${videoId}，magnet=${magnetUrl}，page=${window.location.href}` });
+            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId });
+            result = { success: res.success, data: res.data, error: res.message };
+            if (res.success) {
+                const returned = Array.isArray(res.data) ? res.data.length : 0;
+                await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：推送成功，返回 ${returned} 项，videoId=${videoId}` });
+            } else {
+                await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
             }
-        } else {
-            result = await pushToDrive115ViaCrossDomain({
-                videoId,
-                magnetUrl,
-                magnetName
-            });
+        } catch (e: any) {
+            result = { success: false, error: e?.message || '推送失败' };
+            await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送异常：${e?.message || e || '未知异常'}，videoId=${videoId}，magnet=${magnetUrl}，page=${window.location.href}` });
         }
 
         if (result.success) {

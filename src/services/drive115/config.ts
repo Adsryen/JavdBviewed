@@ -26,7 +26,6 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   maxFailures: 5,              // 默认最大失败5次
   autoNotify: true,            // 默认开启通知
   // v2: 基于 token 的新版配置默认值
-  enableV2: true,
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
@@ -37,8 +36,6 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   v2AutoRefreshSkewSec: 60,    // 默认提前60秒刷新
   // v2: 接口基础域名（可在设置中修改）
   v2ApiBaseUrl: 'https://proapi.115.com',
-  // UI 默认选择 v2（首次使用无历史选择时生效）
-  lastSelectedVersion: 'v2',
   // 持久化的配额镜像（默认无）
   quotaCache: null,
 };

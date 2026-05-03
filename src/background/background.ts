@@ -20,6 +20,7 @@ import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
 import { registerMonthlyAlarm, handleAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
 import { getSettings, saveSettings } from '../utils/storage';
+import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../services/drive115App';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
@@ -273,8 +274,8 @@ async function broadcastDrive115RefreshUserInfo(): Promise<void> {
 async function backgroundRefreshDrive115UserInfo(): Promise<void> {
   try {
     const settings = await getSettings();
-    const drv = (settings as any)?.drive115 || {};
-    const enabled: boolean = !!drv.enabled && !!drv.enableV2;
+    const drv = normalizeDrive115Settings((settings as any)?.drive115 || {});
+    const enabled: boolean = isDrive115EnabledState(drv);
     const rtStatus: string = drv.v2RefreshTokenStatus || 'unknown';
     const refreshToken: string = (drv.v2RefreshToken || '').trim();
 
@@ -330,8 +331,8 @@ function registerDrive115DailyAlarm(): void {
 try {
   (async () => {
     const settings = await getSettings();
-    const drv = (settings as any)?.drive115 || {};
-    if (drv.enabled && drv.enableV2 && drv.v2RefreshToken) {
+    const drv = normalizeDrive115Settings((settings as any)?.drive115 || {});
+    if (isDrive115EnabledState(drv) && hasDrive115V2Credentials(drv) && drv.v2RefreshToken) {
       registerDrive115DailyAlarm();
     }
   })();
@@ -383,8 +384,8 @@ try {
         }
 
         // 检测 refresh_token 状态：从非 valid 变为 valid 时立即刷新用户信息
-        const oldDrv = oldSettings?.drive115 || {};
-        const newDrv = newSettings?.drive115 || {};
+        const oldDrv = normalizeDrive115Settings(oldSettings?.drive115 || {});
+        const newDrv = normalizeDrive115Settings(newSettings?.drive115 || {});
         const wasValid = oldDrv.v2RefreshTokenStatus === 'valid';
         const isNowValid = newDrv.v2RefreshTokenStatus === 'valid';
         if (!wasValid && isNowValid) {
@@ -393,8 +394,8 @@ try {
         }
 
         // 根据 drive115 启用状态动态管理每日 alarm
-        const newEnabled = !!newDrv.enabled && !!newDrv.enableV2 && !!newDrv.v2RefreshToken;
-        const oldEnabled = !!oldDrv.enabled && !!oldDrv.enableV2 && !!oldDrv.v2RefreshToken;
+        const newEnabled = isDrive115EnabledState(newDrv) && hasDrive115V2Credentials(newDrv) && !!newDrv.v2RefreshToken;
+        const oldEnabled = isDrive115EnabledState(oldDrv) && hasDrive115V2Credentials(oldDrv) && !!oldDrv.v2RefreshToken;
         if (newEnabled && !oldEnabled) {
           registerDrive115DailyAlarm();
         } else if (!newEnabled && oldEnabled) {

@@ -1,4 +1,10 @@
-import type { IDrive115Pane } from './Drive115TabsController';
+interface IDrive115Pane {
+  mount(): void;
+  unmount(): void;
+  show(): void;
+  hide(): void;
+  validate?(): string[];
+}
 import { getDrive115V2Service, type Drive115V2UserInfo } from '../../../../services/drive115v2';
 import { getSettings, saveSettings } from '../../../../utils/storage';
 import { addTaskUrlsV2 } from '../../../../services/drive115Router';
@@ -118,16 +124,6 @@ export class Drive115V2Pane implements IDrive115Pane {
   }
 
   private bindEvents(): void {
-    // 新版开关
-    const enableV2Checkbox = document.getElementById('drive115EnableV2') as HTMLInputElement | null;
-    enableV2Checkbox?.addEventListener('change', () => {
-      const enableV2 = !!enableV2Checkbox.checked;
-      // 仅更新开关状态，不改变 lastSelectedVersion，避免关闭时跳到 v1
-      this.ctx?.update({ enableV2 });
-      this.ctx?.updateUI();
-      this.ctx?.save?.();
-    });
-
     // 工具：自适应高度（封装为类方法）
 
     // v2 接口域名输入
@@ -528,14 +524,13 @@ export class Drive115V2Pane implements IDrive115Pane {
       const settings: any = await getSettings();
       const s = settings?.drive115 || {};
       const enabled = !!s.enabled;
-      const enableV2 = !!s.enableV2;
       const autoRefresh = s.v2AutoRefresh !== false; // 默认开启
       const cachedUser: Drive115V2UserInfo | undefined = s.v2UserInfo;
       const expired: boolean = !!s.v2UserInfoExpired;
       const tokenExpiresAt = s.v2TokenExpiresAt || 0;
       const skewSec = Math.max(0, Number(s.v2AutoRefreshSkewSec ?? 60) || 0);
 
-      if (!enabled || !enableV2) return;
+      if (!enabled) return;
       
       // 先渲染缓存
       if (cachedUser && Object.keys(cachedUser).length > 0) {
@@ -727,8 +722,7 @@ export class Drive115V2Pane implements IDrive115Pane {
   validate?(): string[] {
     const errors: string[] = [];
     const enabled = (document.getElementById('drive115Enabled') as HTMLInputElement | null)?.checked ?? false;
-    const enableV2 = (document.getElementById('drive115EnableV2') as HTMLInputElement | null)?.checked ?? false;
-    if (!enabled || !enableV2) return errors;
+    if (!enabled) return errors;
 
     // 基础域名校验（可留空；若填写需 http(s) 且不可以/结尾）
     const baseUrl = ((document.getElementById('drive115V2ApiBaseUrl') as any)?.value || '').trim();
