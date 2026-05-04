@@ -313,6 +313,124 @@
     padding: 12px;
 }
 
+#drive115-settings .drive115-user-info-empty {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+#drive115-settings .drive115-inline-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+#drive115-settings .drive115-auth-tips-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px dashed var(--drive115-settings-border);
+    border-radius: 10px;
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+#drive115-settings .drive115-auth-inline {
+    align-items: stretch;
+}
+
+#drive115-settings .drive115-auth-inline input {
+    flex: 1 1 260px;
+}
+
+#drive115-settings .drive115-auth-panel {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+    margin-top: 14px;
+}
+
+#drive115-settings .drive115-auth-qr {
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(255, 107, 53, 0.08), rgba(255, 204, 188, 0.3));
+    border: 1px dashed var(--drive115-settings-border);
+    border-radius: 14px;
+    padding: 12px;
+}
+
+#drive115-settings .drive115-auth-qr img {
+    width: min(100%, 280px);
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(230, 81, 0, 0.12);
+}
+
+[data-theme="dark"] #drive115-settings .drive115-auth-qr img {
+    background: #fffaf7;
+}
+
+#drive115-settings .drive115-auth-placeholder {
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.6;
+    max-width: 200px;
+}
+
+#drive115-settings .drive115-auth-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+#drive115-settings .drive115-auth-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#drive115-settings .drive115-auth-device {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+    min-height: 18px;
+}
+
+#drive115-settings .drive115-auth-tips {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+    #drive115-settings .drive115-auth-panel {
+        grid-template-columns: 1fr;
+    }
+
+    #drive115-settings .drive115-auth-qr {
+        min-height: 240px;
+    }
+}
+
 /* 设置项样式 */
 #drive115-settings .setting-item {
     margin-bottom: 15px;

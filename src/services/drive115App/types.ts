@@ -15,6 +15,8 @@ export interface NormalizedDrive115Settings {
   maxFailures: number;
   autoNotify: boolean;
   v2ApiBaseUrl: string;
+  v2AuthMode?: 'openlist_manual' | 'openlist_scan' | 'self_app';
+  v2ClientId?: string;
   v2AccessToken: string;
   v2RefreshToken: string;
   v2TokenExpiresAt: number | null;

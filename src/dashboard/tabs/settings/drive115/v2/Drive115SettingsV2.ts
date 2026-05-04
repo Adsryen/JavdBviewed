@@ -16,6 +16,8 @@ import { addLogV2 } from '../../../../../services/drive115v2/logs';
 type Drive115V2LocalSettings = {
   enabled: boolean;
   v2ApiBaseUrl?: string;
+  v2AuthMode?: 'openlist_manual' | 'openlist_scan' | 'self_app';
+  v2ClientId?: string;
   v2AccessToken?: string;
   v2RefreshToken?: string;
   v2TokenExpiresAt?: number | null;
@@ -31,6 +33,8 @@ type Drive115V2LocalSettings = {
 const DEFAULT_DRIVE115_V2_SETTINGS: Drive115V2LocalSettings = {
   enabled: true,
   v2ApiBaseUrl: 'https://proapi.115.com',
+  v2AuthMode: 'openlist_manual',
+  v2ClientId: '',
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
@@ -158,6 +162,15 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       const val = (this.settings.v2ApiBaseUrl || DEFAULT_DRIVE115_V2_SETTINGS.v2ApiBaseUrl || '').toString();
       v2ApiBaseUrlInput.value = val;
     }
+    const authModeSelect = document.getElementById('drive115V2AuthMode') as HTMLSelectElement | null;
+    const authMode = this.settings.v2AuthMode === 'self_app'
+      ? 'self_app'
+      : this.settings.v2AuthMode === 'openlist_scan'
+        ? 'openlist_scan'
+        : 'openlist_manual';
+    if (authModeSelect) authModeSelect.value = authMode;
+    const v2ClientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
+    if (v2ClientIdInput) v2ClientIdInput.value = this.settings.v2ClientId || '';
     const v2AccessTokenInput = document.getElementById('drive115V2AccessToken') as HTMLInputElement | null;
     if (v2AccessTokenInput) v2AccessTokenInput.value = this.settings.v2AccessToken || '';
     const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as HTMLInputElement | null;
@@ -221,12 +234,16 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
     // 2) 可能不在容器内或被选择器遗漏的已知控件（按 ID 明确设置）
     const knownIds = [
       'drive115V2ApiBaseUrl',
+      'drive115V2AuthMode',
+      'drive115V2ClientId',
       'drive115V2AccessToken',
       'drive115V2RefreshToken',
       'testSearchInput',
       'testDrive115Search',
       'drive115V2ValidateToken',
       'drive115V2ManualRefresh',
+      'drive115V2StartAuth',
+      'drive115V2CancelAuth',
       // 已移除设置页日志功能的相关按钮ID
     ];
     knownIds.forEach(id => {
@@ -518,6 +535,18 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         // 同步关键字段
         if (typeof drv.v2AccessToken !== 'undefined' && prev.v2AccessToken !== drv.v2AccessToken) {
           prev.v2AccessToken = drv.v2AccessToken || '';
+          changed = true;
+        }
+        if (typeof drv.v2AuthMode !== 'undefined' && prev.v2AuthMode !== drv.v2AuthMode) {
+          prev.v2AuthMode = drv.v2AuthMode === 'self_app'
+            ? 'self_app'
+            : drv.v2AuthMode === 'openlist_scan'
+              ? 'openlist_scan'
+              : 'openlist_manual';
+          changed = true;
+        }
+        if (typeof drv.v2ClientId !== 'undefined' && prev.v2ClientId !== drv.v2ClientId) {
+          prev.v2ClientId = drv.v2ClientId || '';
           changed = true;
         }
         if (typeof drv.v2RefreshToken !== 'undefined' && prev.v2RefreshToken !== drv.v2RefreshToken) {

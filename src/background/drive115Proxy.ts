@@ -72,6 +72,97 @@ export function installDrive115V2Proxy(): void {
             sendResponse({ success: false, message: e?.message || '后台刷新异常' });
             return true;
           }
+        } else if (message.type === 'drive115.auth_device_code_v2') {
+          try {
+            const clientId = String(message?.payload?.clientId || '').trim();
+            const codeChallenge = String(message?.payload?.codeChallenge || '').trim();
+            const codeChallengeMethod = String(message?.payload?.codeChallengeMethod || 'sha256').trim() || 'sha256';
+            if (!clientId || !codeChallenge) {
+              sendResponse({ success: false, message: '缺少 client_id 或 code_challenge' });
+              return true;
+            }
+            const fd = new URLSearchParams();
+            fd.set('client_id', clientId);
+            fd.set('code_challenge', codeChallenge);
+            fd.set('code_challenge_method', codeChallengeMethod);
+            fetch('https://passportapi.115.com/open/authDeviceCode', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+              body: fd.toString(),
+            })
+              .then(async (res) => {
+                const raw = await res.json().catch(() => ({} as any));
+                const ok = !!(raw?.data?.uid) || (typeof raw?.state === 'boolean' ? raw.state : res.ok);
+                sendResponse({ success: ok, message: raw?.message || raw?.error, raw });
+              })
+              .catch((err) => {
+                sendResponse({ success: false, message: err?.message || '后台获取扫码信息失败' });
+              });
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台获取扫码信息异常' });
+            return true;
+          }
+        } else if (message.type === 'drive115.poll_auth_status_v2') {
+          try {
+            const uid = String(message?.payload?.uid || '').trim();
+            const time = String(message?.payload?.time || '').trim();
+            const sign = String(message?.payload?.sign || '').trim();
+            if (!uid || !time || !sign) {
+              sendResponse({ success: false, message: '缺少 uid、time 或 sign' });
+              return true;
+            }
+            const url = new URL('https://qrcodeapi.115.com/get/status/');
+            url.searchParams.set('uid', uid);
+            url.searchParams.set('time', time);
+            url.searchParams.set('sign', sign);
+            fetch(url.toString(), {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+            })
+              .then(async (res) => {
+                const raw = await res.json().catch(() => ({} as any));
+                const ok = raw?.state !== undefined || (typeof raw?.code === 'number') || res.ok;
+                sendResponse({ success: ok, message: raw?.message || raw?.error, raw });
+              })
+              .catch((err) => {
+                sendResponse({ success: false, message: err?.message || '后台轮询扫码状态失败' });
+              });
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台轮询扫码状态异常' });
+            return true;
+          }
+        } else if (message.type === 'drive115.exchange_device_code_v2') {
+          try {
+            const uid = String(message?.payload?.uid || '').trim();
+            const codeVerifier = String(message?.payload?.codeVerifier || '').trim();
+            if (!uid || !codeVerifier) {
+              sendResponse({ success: false, message: '缺少 uid 或 code_verifier' });
+              return true;
+            }
+            const fd = new URLSearchParams();
+            fd.set('uid', uid);
+            fd.set('code_verifier', codeVerifier);
+            fetch('https://passportapi.115.com/open/deviceCodeToToken', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+              body: fd.toString(),
+            })
+              .then(async (res) => {
+                const raw = await res.json().catch(() => ({} as any));
+                const token = raw?.data || raw;
+                const ok = !!token?.access_token || (typeof raw?.state === 'boolean' ? raw.state : res.ok);
+                sendResponse({ success: ok, message: raw?.message || raw?.error, raw });
+              })
+              .catch((err) => {
+                sendResponse({ success: false, message: err?.message || '后台换取 token 失败' });
+              });
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台换取 token 异常' });
+            return true;
+          }
         } else if (message.type === 'drive115.get_quota_info_v2') {
           try {
             const accessToken = String(message?.payload?.accessToken || '').trim();

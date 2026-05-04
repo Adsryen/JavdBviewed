@@ -8,6 +8,8 @@ const DEFAULT_DRIVE115_RUNTIME_SETTINGS: NormalizedDrive115Settings = {
   maxFailures: 5,
   autoNotify: true,
   v2ApiBaseUrl: 'https://proapi.115.com',
+  v2AuthMode: 'openlist_manual',
+  v2ClientId: '',
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
@@ -35,6 +37,12 @@ export function normalizeDrive115Settings(raw: any): NormalizedDrive115Settings 
     maxFailures: Number(raw?.maxFailures ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures,
     autoNotify: raw?.autoNotify !== false,
     v2ApiBaseUrl: String(raw?.v2ApiBaseUrl ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2ApiBaseUrl),
+    v2AuthMode: raw?.v2AuthMode === 'self_app'
+      ? 'self_app'
+      : raw?.v2AuthMode === 'openlist_scan'
+        ? 'openlist_scan'
+        : 'openlist_manual',
+    v2ClientId: String(raw?.v2ClientId ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2ClientId ?? ''),
     v2AccessToken: String(raw?.v2AccessToken ?? ''),
     v2RefreshToken: String(raw?.v2RefreshToken ?? ''),
     v2TokenExpiresAt: typeof raw?.v2TokenExpiresAt === 'number' ? raw.v2TokenExpiresAt : null,
