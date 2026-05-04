@@ -70,30 +70,25 @@
                     </div>
                 </div>
 
-                <div class="settings-card settings-group" id="drive115V2OpenlistScanPanel">
-                    <h4>OpenList 扫码</h4>
-                    <div class="form-group">
-                        <p class="input-description">
-                            这个入口先预留。后续会补上“借用 OpenList 应用进行扫码授权”的完整流程。
-                        </p>
-                        <div class="drive115-auth-tips-box">
-                            <div>1. 当前版本先保留入口和模式切换。</div>
-                            <div>2. token 仍然可以直接在下方手动填写。</div>
-                            <div>3. 后续接入后，这里会显示扫码指引和状态。</div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="settings-card settings-group" id="drive115V2SelfAppPanel">
                     <h4>扫码授权（PKCE）</h4>
                     <div class="form-group">
-                        <label for="drive115V2ClientId">APP ID:</label>
-                        <div class="form-group-inline drive115-auth-inline">
-                            <input type="text" id="drive115V2ClientId" placeholder="请输入 115 开放平台 APP ID" />
-                            <button id="drive115V2StartAuth" class="button-like">生成二维码</button>
-                            <button id="drive115V2CancelAuth" class="button-like secondary">取消授权</button>
+                        <div id="drive115V2ClientIdRow">
+                            <label for="drive115V2ClientId">APP ID:</label>
+                            <div class="form-group-inline drive115-auth-inline">
+                                <input type="text" id="drive115V2ClientId" placeholder="请输入 115 开放平台 APP ID" />
+                                <button id="drive115V2StartAuth" class="button-like">生成二维码</button>
+                                <button id="drive115V2CancelAuth" class="button-like secondary">取消授权</button>
+                            </div>
                         </div>
-                        <p class="input-description">流程：输入 APP ID → 生成二维码 → 用 115 手机客户端扫码并确认 → 自动保存新 token。</p>
+                        <div id="drive115V2OpenlistScanHint" class="input-description" style="display:none; margin-bottom:8px;">
+                            当前使用内置 OpenList APP ID 进行扫码授权，无需手动填写。
+                        </div>
+                        <div id="drive115V2SharedAuthActionRow" class="form-group-inline drive115-auth-inline" style="display:none; margin-bottom:8px;">
+                            <button id="drive115V2StartAuthShared" class="button-like" type="button">生成二维码</button>
+                            <button id="drive115V2CancelAuthShared" class="button-like secondary" type="button">取消授权</button>
+                        </div>
+                        <p id="drive115V2AuthFlowDesc" class="input-description">流程：输入 APP ID → 生成二维码 → 用 115 手机客户端扫码并确认 → 自动保存新 token。</p>
                     </div>
                     <div class="drive115-auth-panel" id="drive115V2AuthPanel">
                         <div class="drive115-auth-qr">
