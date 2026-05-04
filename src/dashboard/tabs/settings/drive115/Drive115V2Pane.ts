@@ -43,6 +43,71 @@ export class Drive115V2Pane implements IDrive115Pane {
     private readonly ctx?: Drive115PaneContext
   ) {}
 
+  private getOpenlistScanSeedParts(): number[] {
+    return [5 + 6, 10 - 3, 20 - 1, 1 + 2];
+  }
+
+  private getOpenlistScanMaskAt(index: number): number {
+    return [0x30 + 0x0a, 0x2f + 0x0b, 0x38 + 0x02][index % 3];
+  }
+
+  private getOpenlistScanCipherParts(): number[] {
+    const left = [141, 135, 158];
+    const middle = [144, 161, 164];
+    const right = [185, 189, 183];
+    return left.concat(middle, right);
+  }
+
+  private getOpenlistScanKeyBase(): number {
+    return this.getOpenlistScanSeedParts()
+      .reduce((acc, value, index) => acc + value * (index + 2), 0);
+  }
+
+  private decodeOpenlistScanChar(value: number, index: number): string {
+    const key = (this.getOpenlistScanKeyBase() + index * 7) & 0xff;
+    return String.fromCharCode((value ^ key) ^ this.getOpenlistScanMaskAt(index));
+  }
+
+  private decodeOpenlistScanClientId(): string {
+    return this.getOpenlistScanCipherParts()
+      .map((value, index) => this.decodeOpenlistScanChar(value, index))
+      .join('');
+  }
+
+  private getCurrentAuthMode(): 'openlist_manual' | 'openlist_scan' | 'self_app' {
+    const select = document.getElementById('drive115V2AuthMode') as HTMLSelectElement | null;
+    const value = String(select?.value || '').trim();
+    return value === 'self_app'
+      ? 'self_app'
+      : value === 'openlist_scan'
+        ? 'openlist_scan'
+        : 'openlist_manual';
+  }
+
+  private syncAuthClientIdUi(mode?: 'openlist_manual' | 'openlist_scan' | 'self_app'): void {
+    const currentMode = mode || this.getCurrentAuthMode();
+    const clientIdRow = document.getElementById('drive115V2ClientIdRow') as HTMLDivElement | null;
+    const openlistScanHint = document.getElementById('drive115V2OpenlistScanHint') as HTMLDivElement | null;
+    const sharedAuthActionRow = document.getElementById('drive115V2SharedAuthActionRow') as HTMLDivElement | null;
+    const authFlowDesc = document.getElementById('drive115V2AuthFlowDesc') as HTMLParagraphElement | null;
+    const clientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
+
+    if (clientIdRow) clientIdRow.style.display = currentMode === 'self_app' ? '' : 'none';
+    if (openlistScanHint) openlistScanHint.style.display = currentMode === 'openlist_scan' ? '' : 'none';
+    if (sharedAuthActionRow) sharedAuthActionRow.style.display = currentMode === 'openlist_scan' ? '' : 'none';
+
+    if (authFlowDesc) {
+      authFlowDesc.textContent = currentMode === 'openlist_scan'
+        ? '流程：使用内置 OpenList APP ID → 生成二维码 → 用 115 手机客户端扫码并确认 → 自动保存新 token。'
+        : '流程：输入 APP ID → 生成二维码 → 用 115 手机客户端扫码并确认 → 自动保存新 token。';
+    }
+
+    if (!clientIdInput) return;
+    if (currentMode === 'openlist_scan') {
+      clientIdInput.value = this.decodeOpenlistScanClientId();
+    }
+  }
+
   private autoResize(el?: HTMLTextAreaElement | null) {
     if (!el) return;
     // 先重置再按内容撑开
@@ -192,12 +257,11 @@ export class Drive115V2Pane implements IDrive115Pane {
         ? 'openlist_scan'
         : 'openlist_manual';
     const openlistPanel = document.getElementById('drive115V2OpenlistPanel') as HTMLDivElement | null;
-    const openlistScanPanel = document.getElementById('drive115V2OpenlistScanPanel') as HTMLDivElement | null;
     const selfAppPanel = document.getElementById('drive115V2SelfAppPanel') as HTMLDivElement | null;
     if (openlistPanel) openlistPanel.style.display = currentMode === 'openlist_manual' ? '' : 'none';
-    if (openlistScanPanel) openlistScanPanel.style.display = currentMode === 'openlist_scan' ? '' : 'none';
-    if (selfAppPanel) selfAppPanel.style.display = currentMode === 'self_app' ? '' : 'none';
-    if (currentMode !== 'self_app') {
+    if (selfAppPanel) selfAppPanel.style.display = currentMode === 'self_app' || currentMode === 'openlist_scan' ? '' : 'none';
+    this.syncAuthClientIdUi(currentMode);
+    if (currentMode === 'openlist_manual') {
       this.clearAuthPolling();
     }
   }
@@ -235,10 +299,13 @@ export class Drive115V2Pane implements IDrive115Pane {
     }
   }
 
-  private async persistAuthTokens(token: { access_token: string; refresh_token: string; expires_at: number | null }, clientId: string): Promise<void> {
+  private async persistAuthTokens(
+    token: { access_token: string; refresh_token: string; expires_at: number | null },
+    clientId: string,
+    options?: { persistClientId?: boolean }
+  ): Promise<void> {
     const nowSec = Math.floor(Date.now() / 1000);
     const patch: any = {
-      v2ClientId: clientId,
       v2AccessToken: (token.access_token || '').trim(),
       v2RefreshToken: (token.refresh_token || '').trim(),
       v2TokenExpiresAt: typeof token.expires_at === 'number' ? token.expires_at : null,
@@ -250,6 +317,9 @@ export class Drive115V2Pane implements IDrive115Pane {
       v2AccessTokenLastError: undefined,
       v2AccessTokenLastErrorCode: undefined,
     };
+    if (options?.persistClientId !== false) {
+      patch.v2ClientId = clientId;
+    }
     this.ctx?.update?.(patch);
     await this.ctx?.save?.();
     this.ctx?.updateUI?.();
@@ -265,8 +335,11 @@ export class Drive115V2Pane implements IDrive115Pane {
   }
 
   private async startPkceAuthFlow(): Promise<void> {
+    const currentMode = this.getCurrentAuthMode();
     const clientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
-    const clientId = String(clientIdInput?.value || '').trim();
+    const clientId = currentMode === 'openlist_scan'
+      ? this.decodeOpenlistScanClientId()
+      : String(clientIdInput?.value || '').trim();
     if (!clientId) {
       this.setAuthStatus('请先填写 APP ID', 'error');
       showToast('请先填写 APP ID', 'error');
@@ -274,8 +347,10 @@ export class Drive115V2Pane implements IDrive115Pane {
     }
 
     try {
-      this.syncClientIdValue(clientId);
-      await this.ctx?.save?.();
+      if (currentMode === 'self_app') {
+        this.syncClientIdValue(clientId);
+        await this.ctx?.save?.();
+      }
       this.resetAuthSession({ keepStatus: true });
       this.setAuthStatus('正在生成二维码…', 'info');
       this.setAuthDeviceMeta('');
@@ -305,7 +380,9 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       this.setAuthStatus('授权已确认，正在换取 token…', 'info');
       const token = await exchangeDrive115DeviceCode(session.uid, session.codeVerifier);
-      await this.persistAuthTokens(token, session.clientId);
+      await this.persistAuthTokens(token, session.clientId, {
+        persistClientId: this.getCurrentAuthMode() === 'self_app',
+      });
 
       const svc = getDrive115V2Service();
       const userInfo = await svc.fetchUserInfo(token.access_token);
@@ -376,6 +453,7 @@ export class Drive115V2Pane implements IDrive115Pane {
     // 自动刷新开关
     const v2ClientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
     v2ClientIdInput?.addEventListener('input', () => {
+      if (this.getCurrentAuthMode() !== 'self_app') return;
       const val = (v2ClientIdInput?.value || '').trim();
       this.syncClientIdValue(val);
       this.ctx?.save?.();
@@ -422,21 +500,30 @@ export class Drive115V2Pane implements IDrive115Pane {
     });
 
     const startAuthBtn = document.getElementById('drive115V2StartAuth') as HTMLButtonElement | null;
-    startAuthBtn?.addEventListener('click', async (e) => {
+    const onStartAuth = async (e: Event) => {
       e.preventDefault();
-      startAuthBtn.disabled = true;
+      if (startAuthBtn) startAuthBtn.disabled = true;
+      const sharedStartBtn = document.getElementById('drive115V2StartAuthShared') as HTMLButtonElement | null;
+      if (sharedStartBtn) sharedStartBtn.disabled = true;
       try {
         await this.startPkceAuthFlow();
       } finally {
-        startAuthBtn.disabled = false;
+        if (startAuthBtn) startAuthBtn.disabled = false;
+        if (sharedStartBtn) sharedStartBtn.disabled = false;
       }
-    });
+    };
+    startAuthBtn?.addEventListener('click', onStartAuth);
+    const startAuthSharedBtn = document.getElementById('drive115V2StartAuthShared') as HTMLButtonElement | null;
+    startAuthSharedBtn?.addEventListener('click', onStartAuth);
 
     const cancelAuthBtn = document.getElementById('drive115V2CancelAuth') as HTMLButtonElement | null;
-    cancelAuthBtn?.addEventListener('click', (e) => {
+    const onCancelAuth = (e: Event) => {
       e.preventDefault();
       this.resetAuthSession();
-    });
+    };
+    cancelAuthBtn?.addEventListener('click', onCancelAuth);
+    const cancelAuthSharedBtn = document.getElementById('drive115V2CancelAuthShared') as HTMLButtonElement | null;
+    cancelAuthSharedBtn?.addEventListener('click', onCancelAuth);
 
     const v2AutoRefreshCheckbox = document.getElementById('drive115V2AutoRefresh') as HTMLInputElement | null;
     v2AutoRefreshCheckbox?.addEventListener('change', () => {
