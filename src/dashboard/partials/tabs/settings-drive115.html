@@ -41,17 +41,20 @@
                 <div class="settings-card settings-group">
                     <h4>凭据与状态</h4>
                     <div class="form-group">
-                        <label for="drive115V2AccessToken">access_token:</label>
-                        <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                        <label for="drive115V2RefreshToken">refresh_token:</label>
+                        <p id="drive115V2RefreshTokenStatusRow" class="input-description" style="margin:6px 0;">
+                            状态：
+                        </p>
+                        <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="drive115V2RefreshToken">refresh_token:</label>
-                        <p id="drive115V2RefreshTokenStatusRow" class="input-description" style="margin:6px 0;">
+                        <label for="drive115V2AccessToken">access_token:</label>
+                        <p class="input-description" style="margin:6px 0;">
                             状态：<span id="drive115V2TokenExpiry">未填写</span>
                         </p>
                         <div class="form-group-inline">
-                            <textarea id="drive115V2RefreshToken" class="textarea-input" placeholder="粘贴 refresh_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
+                            <textarea id="drive115V2AccessToken" class="textarea-input" placeholder="粘贴 access_token" rows="3" style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; overflow:hidden; resize: none; line-height:1.4;"></textarea>
                             <div style="display:flex; flex-direction:column; gap:8px;">
                                 <button id="drive115V2ValidateToken" class="button-like">验证有效性</button>
                                 <button id="drive115V2ManualRefresh" class="button-like">手动刷新 access_token</button>
