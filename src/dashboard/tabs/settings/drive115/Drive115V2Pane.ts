@@ -11,6 +11,13 @@ import { addTaskUrlsV2 } from '../../../../services/drive115Router';
 import { describe115Error } from '../../../../services/drive115v2/errorCodes';
 import { showToast } from '../../../../content/toast';
 import { addLogV2 } from '../../../../services/drive115v2/logs';
+import {
+  buildDrive115QrImageUrl,
+  exchangeDrive115DeviceCode,
+  generateDrive115PkcePair,
+  pollDrive115DeviceStatus,
+  requestDrive115DeviceCode,
+} from '../../../../services/drive115v2/pkce';
 
 type Drive115PaneContext = {
   update: (patch: Partial<any>) => void;
@@ -20,6 +27,15 @@ type Drive115PaneContext = {
 
 export class Drive115V2Pane implements IDrive115Pane {
   private el: HTMLElement | null = null;
+  private authPollingTimer: number | undefined;
+  private authSession: {
+    clientId: string;
+    codeVerifier: string;
+    uid: string;
+    time: string;
+    sign: string;
+    qrcode: string;
+  } | null = null;
   constructor(
     private readonly elId: string = 'drive115V2Pane',
     private readonly ctx?: Drive115PaneContext
@@ -123,6 +139,227 @@ export class Drive115V2Pane implements IDrive115Pane {
     return this.el;
   }
 
+  private syncClientIdValue(value?: string): void {
+    const clientId = String(value || '').trim();
+    this.ctx?.update?.({ v2ClientId: clientId } as any);
+    const input = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
+    if (input && input.value !== clientId) input.value = clientId;
+  }
+
+  private setAuthStatus(message: string, kind: 'idle' | 'info' | 'success' | 'error' = 'idle'): void {
+    const el = document.getElementById('drive115V2AuthStatus') as HTMLDivElement | null;
+    if (!el) return;
+    el.textContent = message;
+    const palette = {
+      idle: { color: '#616161', bg: '#f5f5f5' },
+      info: { color: '#1565c0', bg: '#e3f2fd' },
+      success: { color: '#2e7d32', bg: '#e8f5e9' },
+      error: { color: '#c62828', bg: '#ffebee' },
+    } as const;
+    const style = palette[kind];
+    el.style.color = style.color;
+    el.style.background = style.bg;
+  }
+
+  private setAuthDeviceMeta(text: string): void {
+    const el = document.getElementById('drive115V2DeviceCodeMeta') as HTMLDivElement | null;
+    if (el) el.textContent = text;
+  }
+
+  private setAuthQrContent(qrImageUrl?: string): void {
+    const img = document.getElementById('drive115V2QrImage') as HTMLImageElement | null;
+    const placeholder = document.getElementById('drive115V2QrPlaceholder') as HTMLDivElement | null;
+    if (img) {
+      if (qrImageUrl) {
+        img.src = qrImageUrl;
+        img.style.display = '';
+      } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+      }
+    }
+    if (placeholder) {
+      placeholder.style.display = qrImageUrl ? 'none' : '';
+    }
+  }
+
+  private updateAuthModePanels(mode?: 'openlist_manual' | 'openlist_scan' | 'self_app'): void {
+    const currentMode = mode === 'self_app'
+      ? 'self_app'
+      : mode === 'openlist_scan'
+        ? 'openlist_scan'
+        : 'openlist_manual';
+    const openlistPanel = document.getElementById('drive115V2OpenlistPanel') as HTMLDivElement | null;
+    const openlistScanPanel = document.getElementById('drive115V2OpenlistScanPanel') as HTMLDivElement | null;
+    const selfAppPanel = document.getElementById('drive115V2SelfAppPanel') as HTMLDivElement | null;
+    if (openlistPanel) openlistPanel.style.display = currentMode === 'openlist_manual' ? '' : 'none';
+    if (openlistScanPanel) openlistScanPanel.style.display = currentMode === 'openlist_scan' ? '' : 'none';
+    if (selfAppPanel) selfAppPanel.style.display = currentMode === 'self_app' ? '' : 'none';
+    if (currentMode !== 'self_app') {
+      this.clearAuthPolling();
+    }
+  }
+
+  private async syncAuthModePanelsFromStorage(): Promise<void> {
+    try {
+      const settings = await getSettings();
+      const mode = settings?.drive115?.v2AuthMode === 'self_app'
+        ? 'self_app'
+        : settings?.drive115?.v2AuthMode === 'openlist_scan'
+          ? 'openlist_scan'
+          : 'openlist_manual';
+      this.updateAuthModePanels(mode);
+    } catch {
+      this.updateAuthModePanels('openlist_manual');
+    }
+  }
+
+  private clearAuthPolling(): void {
+    if (this.authPollingTimer) {
+      clearTimeout(this.authPollingTimer);
+      this.authPollingTimer = undefined;
+    }
+  }
+
+  private resetAuthSession(options?: { keepQr?: boolean; keepStatus?: boolean }): void {
+    this.clearAuthPolling();
+    this.authSession = null;
+    if (!options?.keepQr) {
+      this.setAuthQrContent('');
+      this.setAuthDeviceMeta('');
+    }
+    if (!options?.keepStatus) {
+      this.setAuthStatus('未开始授权', 'idle');
+    }
+  }
+
+  private async persistAuthTokens(token: { access_token: string; refresh_token: string; expires_at: number | null }, clientId: string): Promise<void> {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const patch: any = {
+      v2ClientId: clientId,
+      v2AccessToken: (token.access_token || '').trim(),
+      v2RefreshToken: (token.refresh_token || '').trim(),
+      v2TokenExpiresAt: typeof token.expires_at === 'number' ? token.expires_at : null,
+      v2RefreshTokenIssuedAtSec: nowSec,
+      v2RefreshTokenStatus: 'valid',
+      v2RefreshTokenLastError: undefined,
+      v2RefreshTokenLastErrorCode: undefined,
+      v2AccessTokenStatus: 'valid',
+      v2AccessTokenLastError: undefined,
+      v2AccessTokenLastErrorCode: undefined,
+    };
+    this.ctx?.update?.(patch);
+    await this.ctx?.save?.();
+    this.ctx?.updateUI?.();
+
+    const accessTokenInput = document.getElementById('drive115V2AccessToken') as HTMLTextAreaElement | HTMLInputElement | null;
+    const refreshTokenInput = document.getElementById('drive115V2RefreshToken') as HTMLTextAreaElement | HTMLInputElement | null;
+    if (accessTokenInput) (accessTokenInput as any).value = patch.v2AccessToken;
+    if (refreshTokenInput) (refreshTokenInput as any).value = patch.v2RefreshToken;
+    this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
+    await this.updateRefreshIntervalUIFromStorage();
+    await this.updateRefreshTokenStatusUI();
+    await this.updateAccessTokenStatusUI();
+  }
+
+  private async startPkceAuthFlow(): Promise<void> {
+    const clientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
+    const clientId = String(clientIdInput?.value || '').trim();
+    if (!clientId) {
+      this.setAuthStatus('请先填写 APP ID', 'error');
+      showToast('请先填写 APP ID', 'error');
+      return;
+    }
+
+    try {
+      this.syncClientIdValue(clientId);
+      await this.ctx?.save?.();
+      this.resetAuthSession({ keepStatus: true });
+      this.setAuthStatus('正在生成二维码…', 'info');
+      this.setAuthDeviceMeta('');
+      const { codeVerifier, codeChallenge } = await generateDrive115PkcePair();
+      const deviceCode = await requestDrive115DeviceCode(clientId, codeChallenge, 'sha256');
+      this.authSession = {
+        clientId,
+        codeVerifier,
+        uid: deviceCode.uid,
+        time: deviceCode.time,
+        sign: deviceCode.sign,
+        qrcode: deviceCode.qrcode,
+      };
+      this.setAuthQrContent(buildDrive115QrImageUrl(deviceCode.qrcode));
+      this.setAuthStatus('二维码已生成，请使用 115 手机客户端扫码', 'info');
+      this.setAuthDeviceMeta(`设备码：${deviceCode.uid}`);
+      this.pollPkceAuthStatus().catch(() => {});
+    } catch (error: any) {
+      const message = describe115Error(error) || error?.message || '生成二维码失败';
+      this.resetAuthSession({ keepQr: false, keepStatus: true });
+      this.setAuthStatus(message, 'error');
+      showToast(message, 'error');
+    }
+  }
+
+  private async finalizePkceAuth(session: NonNullable<Drive115V2Pane['authSession']>): Promise<void> {
+    try {
+      this.setAuthStatus('授权已确认，正在换取 token…', 'info');
+      const token = await exchangeDrive115DeviceCode(session.uid, session.codeVerifier);
+      await this.persistAuthTokens(token, session.clientId);
+
+      const svc = getDrive115V2Service();
+      const userInfo = await svc.fetchUserInfo(token.access_token);
+      if (userInfo.success && userInfo.data) {
+        this.renderUserInfo(userInfo.data);
+        this.setUserInfoStatus('账号信息已更新', 'ok');
+      } else {
+        this.setUserInfoStatus(userInfo.message || 'token 已保存，账号信息待刷新', 'info');
+      }
+
+      this.setAuthStatus('授权成功，token 已保存', 'success');
+      showToast('115 授权成功，token 已保存', 'success');
+      this.resetAuthSession({ keepQr: true, keepStatus: true });
+    } catch (error: any) {
+      const message = describe115Error(error) || error?.message || '换取 token 失败';
+      this.setAuthStatus(message, 'error');
+      showToast(message, 'error');
+      this.clearAuthPolling();
+    }
+  }
+
+  private async pollPkceAuthStatus(): Promise<void> {
+    const session = this.authSession;
+    if (!session) return;
+
+    try {
+      const result = await pollDrive115DeviceStatus(session.uid, session.time, session.sign);
+      if (!this.authSession || this.authSession.uid !== session.uid) return;
+
+      if (result.state === 0) {
+        this.setAuthStatus(result.msg || '二维码已失效，请重新生成', 'error');
+        this.clearAuthPolling();
+        return;
+      }
+
+      if (result.status === 1) {
+        this.setAuthStatus(result.msg || '已扫码，请在 115 客户端确认授权', 'info');
+      } else if (result.status === 2) {
+        this.clearAuthPolling();
+        await this.finalizePkceAuth(session);
+        return;
+      } else if (result.msg) {
+        this.setAuthStatus(result.msg, 'info');
+      }
+    } catch (error: any) {
+      const message = describe115Error(error) || error?.message || '轮询扫码状态失败';
+      this.setAuthStatus(message, 'error');
+      this.clearAuthPolling();
+      return;
+    }
+
+    this.authPollingTimer = window.setTimeout(() => {
+      this.pollPkceAuthStatus().catch(() => {});
+    }, 1500);
+  }
+
   private bindEvents(): void {
     // 工具：自适应高度（封装为类方法）
 
@@ -135,6 +372,47 @@ export class Drive115V2Pane implements IDrive115Pane {
     });
 
     // 自动刷新开关
+    const v2ClientIdInput = document.getElementById('drive115V2ClientId') as HTMLInputElement | null;
+    v2ClientIdInput?.addEventListener('input', () => {
+      const val = (v2ClientIdInput?.value || '').trim();
+      this.syncClientIdValue(val);
+      this.ctx?.save?.();
+    });
+
+    const authModeSelect = document.getElementById('drive115V2AuthMode') as HTMLSelectElement | null;
+    const onAuthModeChange = async (mode: 'openlist_manual' | 'openlist_scan' | 'self_app') => {
+      this.ctx?.update?.({ v2AuthMode: mode } as any);
+      this.updateAuthModePanels(mode);
+      await this.ctx?.save?.();
+      this.ctx?.updateUI?.();
+    };
+    authModeSelect?.addEventListener('change', () => {
+      const value = authModeSelect.value;
+      const mode = value === 'self_app'
+        ? 'self_app'
+        : value === 'openlist_scan'
+          ? 'openlist_scan'
+          : 'openlist_manual';
+      onAuthModeChange(mode).catch(() => {});
+    });
+
+    const startAuthBtn = document.getElementById('drive115V2StartAuth') as HTMLButtonElement | null;
+    startAuthBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      startAuthBtn.disabled = true;
+      try {
+        await this.startPkceAuthFlow();
+      } finally {
+        startAuthBtn.disabled = false;
+      }
+    });
+
+    const cancelAuthBtn = document.getElementById('drive115V2CancelAuth') as HTMLButtonElement | null;
+    cancelAuthBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.resetAuthSession();
+    });
+
     const v2AutoRefreshCheckbox = document.getElementById('drive115V2AutoRefresh') as HTMLInputElement | null;
     v2AutoRefreshCheckbox?.addEventListener('change', () => {
       const v = !!v2AutoRefreshCheckbox.checked;
@@ -206,6 +484,7 @@ export class Drive115V2Pane implements IDrive115Pane {
       } as any);
       this.ctx?.save?.();
       this.updateRefreshTokenStatusUI();
+      this.updateAccessTokenStatusUI();
       this.scheduleRefreshTokenValidation();
       if (v2RefreshTokenInput && 'rows' in v2RefreshTokenInput) this.autoResize(v2RefreshTokenInput as HTMLTextAreaElement);
     });
@@ -477,12 +756,17 @@ export class Drive115V2Pane implements IDrive115Pane {
   mount(): void {
     this.getElement();
     this.bindEvents();
+    this.syncAuthModePanelsFromStorage().catch(() => {});
+    this.setAuthStatus('未开始授权', 'idle');
+    this.setAuthQrContent('');
+    this.setAuthDeviceMeta('');
     // v2 生效时，尽量隐藏旧版“下载目录ID”一组
     this.hideLegacyDownloadDirRow();
     this.hideLegacyDownloadDirByText();
   }
 
   unmount(): void {
+    this.resetAuthSession();
     // 目前为直接绑定，卸载时不做特殊清理（面板整体销毁时由容器负责）
   }
 
@@ -490,6 +774,7 @@ export class Drive115V2Pane implements IDrive115Pane {
     const el = this.getElement();
     if (el) {
       el.style.display = '';
+      this.syncAuthModePanelsFromStorage().catch(() => {});
       // 面板从隐藏转为可见后再计算高度，避免 hidden 状态下 scrollHeight 过小
       setTimeout(() => {
         this.scheduleAutoResize(['drive115V2AccessToken', 'drive115V2RefreshToken']);
@@ -666,11 +951,46 @@ export class Drive115V2Pane implements IDrive115Pane {
   private async updateAccessTokenStatusUI(): Promise<void> {
     const statusEl = document.getElementById('drive115V2AccessTokenStatus') as HTMLSpanElement | null;
     if (!statusEl) return;
-    statusEl.textContent = '';
-    statusEl.style.display = 'none';
+    const settings = await getSettings();
+    const drv = (settings?.drive115 || {}) as any;
+    const token = String(drv.v2AccessToken || '').trim();
+    const status = drv.v2AccessTokenStatus || 'unknown';
+
+    if (!token) {
+      statusEl.textContent = '';
+      statusEl.style.display = 'none';
+      return;
+    }
+
+    statusEl.style.display = 'inline-flex';
+    if (status === 'valid') {
+      statusEl.textContent = '可用';
+      statusEl.style.color = '#2e7d32';
+      statusEl.style.background = '#e8f5e9';
+      return;
+    }
+
+    if (status === 'expired') {
+      statusEl.textContent = '已过期';
+      statusEl.style.color = '#d84315';
+      statusEl.style.background = '#fbe9e7';
+      return;
+    }
+
+    if (status === 'rate_limited') {
+      statusEl.textContent = '刷新受限';
+      statusEl.style.color = '#8d6e63';
+      statusEl.style.background = '#efebe9';
+      return;
+    }
+
+    statusEl.textContent = '待验证';
+    statusEl.style.color = '#616161';
+    statusEl.style.background = '#f5f5f5';
   }
 
   hide(): void {
+    this.clearAuthPolling();
     const el = this.getElement();
     if (el) el.style.display = 'none';
   }
