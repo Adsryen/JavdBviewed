@@ -510,6 +510,7 @@ class Drive115V2Service {
         newSettings.drive115.v2AccessToken = token.access_token;
         newSettings.drive115.v2RefreshToken = token.refresh_token;
         newSettings.drive115.v2TokenExpiresAt = token.expires_at ?? null;
+        newSettings.drive115.v2RefreshTokenIssuedAtSec = nowSec;
         // 刷新成功，标记 refresh_token 为有效
         newSettings.drive115.v2RefreshTokenStatus = 'valid';
         newSettings.drive115.v2RefreshTokenLastError = undefined;
@@ -707,6 +708,7 @@ class Drive115V2Service {
     newSettings.drive115.v2RefreshToken = newRt;
     newSettings.drive115.v2TokenExpiresAt = newExp;
     newSettings.drive115.v2LastTokenRefreshAtSec = nowSec;
+    newSettings.drive115.v2RefreshTokenIssuedAtSec = nowSec;
     // 保存时进行范围保护（60-120）
     newSettings.drive115.v2MinRefreshIntervalMin = Math.min(120, Math.max(60, Number(newSettings.drive115.v2MinRefreshIntervalMin ?? cfgMinMin) || cfgMinMin));
     // 刷新历史：更新并限制长度（仅保留最近 20 条）

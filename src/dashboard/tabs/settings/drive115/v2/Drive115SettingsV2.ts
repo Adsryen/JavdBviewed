@@ -22,6 +22,7 @@ type Drive115V2LocalSettings = {
   v2RefreshTokenStatus?: 'valid' | 'invalid' | 'expired' | 'unknown';
   v2RefreshTokenLastError?: string;
   v2RefreshTokenLastErrorCode?: number;
+  v2RefreshTokenIssuedAtSec?: number | null;
   v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
   v2AccessTokenLastError?: string;
   v2AccessTokenLastErrorCode?: number;
@@ -185,7 +186,8 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
         const remain = ts - now;
         const dateTimeText = this.formatDateTime(ts) || '';
         const remainText = remain > 0 ? this.formatRemain(remain) : '已过期';
-        expiryEl.textContent = `${dateTimeText}（${remainText}）`;
+        expiryEl.textContent = remain > 0 ? `（${remainText}）有效` : '已过期';
+        expiryEl.title = dateTimeText || '';
         expiryEl.style.color = remain > 0 ? (remain <= 3600 ? '#ef6c00' : '#2e7d32') : '#c62828';
         this.startExpiryCountdown(ts);
       } else if ((this.settings.v2AccessToken || '').trim()) {
@@ -573,7 +575,8 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       const remain = ts - now;
       const dateTimeText = this.formatDateTime(ts) || '';
       const remainText = remain > 0 ? this.formatRemain(remain) : '已过期';
-      el.textContent = `${dateTimeText}（${remainText}）`;
+      el.textContent = remain > 0 ? `（${remainText}）有效` : '已过期';
+      el.title = dateTimeText || '';
       el.style.color = remain > 0 ? (remain <= 3600 ? '#ef6c00' : '#2e7d32') : '#c62828';
       if (remain <= -1) {
         this.stopExpiryCountdown();

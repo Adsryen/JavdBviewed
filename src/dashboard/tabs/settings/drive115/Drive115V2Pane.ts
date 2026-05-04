@@ -195,8 +195,11 @@ export class Drive115V2Pane implements IDrive115Pane {
     const v2RefreshTokenInput = document.getElementById('drive115V2RefreshToken') as (HTMLInputElement | HTMLTextAreaElement | null);
     v2RefreshTokenInput?.addEventListener('input', () => {
       const val = (v2RefreshTokenInput as any).value || '';
+      const trimmed = (val as string).trim();
+      const nowSec = Math.floor(Date.now() / 1000);
       this.ctx?.update({ 
-        v2RefreshToken: (val as string).trim(),
+        v2RefreshToken: trimmed,
+        v2RefreshTokenIssuedAtSec: trimmed ? nowSec : null,
         v2RefreshTokenStatus: 'unknown',
         v2RefreshTokenLastError: undefined,
         v2RefreshTokenLastErrorCode: undefined,
@@ -250,6 +253,7 @@ export class Drive115V2Pane implements IDrive115Pane {
           v2AccessToken: (drv.v2AccessToken || '').trim(),
           v2RefreshToken: (drv.v2RefreshToken || '').trim(),
           v2TokenExpiresAt: (typeof drv.v2TokenExpiresAt === 'number' ? drv.v2TokenExpiresAt : null),
+          v2RefreshTokenIssuedAtSec: Number(drv.v2RefreshTokenIssuedAtSec || drv.v2LastTokenRefreshAtSec || 0) || null,
           v2RefreshTokenStatus: 'valid',
           v2RefreshTokenLastError: undefined,
           v2RefreshTokenLastErrorCode: undefined,
@@ -318,6 +322,7 @@ export class Drive115V2Pane implements IDrive115Pane {
           v2AccessToken: (access_token || '').trim(), 
           v2RefreshToken: (refresh_token || '').trim(),
           v2TokenExpiresAt: (typeof expires_at === 'number' ? expires_at : null),
+          v2RefreshTokenIssuedAtSec: Math.floor(Date.now() / 1000),
           v2RefreshTokenStatus: 'valid',
           v2RefreshTokenLastError: undefined,
           v2RefreshTokenLastErrorCode: undefined,
@@ -336,6 +341,7 @@ export class Drive115V2Pane implements IDrive115Pane {
           ns.drive115 = {
             ...(settings?.drive115 || {}),
             v2LastTokenRefreshAtSec: nowSec,
+            v2RefreshTokenIssuedAtSec: nowSec,
             v2MinRefreshIntervalMin: minMin,
           };
           await saveSettings(ns);
@@ -584,21 +590,14 @@ export class Drive115V2Pane implements IDrive115Pane {
     try {
       const settings = await getSettings();
       const drv = (settings?.drive115 || {}) as any;
-      let status = drv.v2RefreshTokenStatus || 'unknown';
+      const status = drv.v2RefreshTokenStatus || 'unknown';
       const lastError = drv.v2RefreshTokenLastError;
       const lastErrorCode = drv.v2RefreshTokenLastErrorCode;
       const refreshToken = (drv.v2RefreshToken || '').trim();
-      const expiresAt = drv.v2TokenExpiresAt;
       const nowSec = Math.floor(Date.now() / 1000);
-      
-      // 智能推断：如果 refresh_token 已有预估过期时间且已过期，则提示需要刷新
-      const isAccessTokenExpired = typeof expiresAt === 'number' && expiresAt < nowSec;
-      
-      // 如果 access_token 已过期，refresh_token 存在，但状态是 unknown，则显示警告
-      if (status === 'unknown' && isAccessTokenExpired && refreshToken) {
-        status = 'needs-refresh';
-      }
-      
+      const issuedAt = Number(drv.v2RefreshTokenIssuedAtSec || drv.v2LastTokenRefreshAtSec || 0) || 0;
+      const refreshExpireAt = issuedAt > 0 ? (issuedAt + 365 * 24 * 60 * 60) : 0;
+
       // 查找 label 元素
       const formGroup = document.getElementById('drive115V2RefreshToken')?.closest('.form-group');
       const label = formGroup?.querySelector('label[for="drive115V2RefreshToken"]');
@@ -609,97 +608,66 @@ export class Drive115V2Pane implements IDrive115Pane {
       
       let statusEl = document.getElementById('drive115V2RefreshTokenStatus') as HTMLSpanElement | null;
       if (!statusEl) {
-        // 创建状态显示元素
         statusEl = document.createElement('span');
         statusEl.id = 'drive115V2RefreshTokenStatus';
         statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px; vertical-align:middle;';
-        
-        // 插入到“状态”行的末尾
         statusRow.appendChild(statusEl);
       }
-      
-      // 根据状态设置样式和文本
-      if (status === 'valid') {
-        statusEl.textContent = '✓ 有效';
-        statusEl.style.color = '#2e7d32';
-        statusEl.style.background = '#e8f5e9';
-        statusEl.title = '刷新令牌状态正常';
-      } else if (status === 'invalid') {
-        statusEl.textContent = '✗ 已失效';
-        statusEl.style.color = '#c62828';
-        statusEl.style.background = '#ffebee';
-        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : '需要重新授权';
-      } else if (status === 'expired') {
-        statusEl.textContent = '⏱ 已过期';
-        statusEl.style.color = '#d84315';
-        statusEl.style.background = '#fbe9e7';
-        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : '需要重新授权';
-      } else if (status === 'needs-refresh') {
-        statusEl.textContent = '⚠ 待刷新';
-        statusEl.style.color = '#e65100';
-        statusEl.style.background = '#fff3e0';
-        statusEl.title = 'access_token 已过期，请点击“手动刷新 access_token”重新换取新令牌';
-      } else if (refreshToken) {
-        statusEl.textContent = '• 已填写，待验证';
-        statusEl.style.color = '#8d6e63';
-        statusEl.style.background = '#efebe9';
-        statusEl.title = '手动填写 refresh_token 后，系统无法立即判断其是否有效；首次刷新成功后会标记为已验证';
-      } else {
-        statusEl.textContent = '— 未填写';
+
+      if (!refreshToken) {
+        statusEl.textContent = '未填写';
         statusEl.style.color = '#757575';
         statusEl.style.background = '#f5f5f5';
-        statusEl.title = '填写 refresh_token 后可用于刷新 access_token';
+        statusEl.title = '请填写 refresh_token 以便刷新 access_token';
+        return;
       }
+
+      if (status === 'invalid') {
+        statusEl.textContent = '无效';
+        statusEl.style.color = '#c62828';
+        statusEl.style.background = '#ffebee';
+        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码 ${lastErrorCode})` : ''}` : '需要重新授权获取 refresh_token';
+        return;
+      }
+
+      if (status === 'expired') {
+        statusEl.textContent = '已过期';
+        statusEl.style.color = '#d84315';
+        statusEl.style.background = '#fbe9e7';
+        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码 ${lastErrorCode})` : ''}` : '需要重新授权获取 refresh_token';
+        return;
+      }
+
+      if (refreshExpireAt > nowSec) {
+        statusEl.textContent = `${this.formatDateOnly(refreshExpireAt)}（${this.formatRemainingDays(refreshExpireAt - nowSec)}）有效`;
+        statusEl.style.color = '#2e7d32';
+        statusEl.style.background = '#e8f5e9';
+        statusEl.title = `refresh_token 预计有效至 ${this.formatLocalDateTime(refreshExpireAt)}`;
+        return;
+      }
+
+      if (status === 'valid') {
+        statusEl.textContent = '有效';
+        statusEl.style.color = '#2e7d32';
+        statusEl.style.background = '#e8f5e9';
+        statusEl.title = 'refresh_token 当前可用于刷新 access_token';
+        return;
+      }
+
+      statusEl.textContent = '未验证';
+      statusEl.style.color = '#8d6e63';
+      statusEl.style.background = '#efebe9';
+      statusEl.title = '已填写 refresh_token，但尚未通过脚本校验；你可以点击验证有效性，或在自动刷新 access_token 时触发校验';
     } catch (e) {
       // 静默失败
     }
   }
 
   private async updateAccessTokenStatusUI(): Promise<void> {
-    try {
-      const settings = await getSettings();
-      const drv = (settings?.drive115 || {}) as any;
-      const status = drv.v2AccessTokenStatus || 'unknown';
-      const lastError = drv.v2AccessTokenLastError;
-      const lastErrorCode = drv.v2AccessTokenLastErrorCode;
-      const accessToken = (drv.v2AccessToken || '').trim();
-      const formGroup = document.getElementById('drive115V2AccessToken')?.closest('.form-group');
-      const label = formGroup?.querySelector('label[for="drive115V2AccessToken"]');
-      if (!label) return;
-      let statusEl = document.getElementById('drive115V2AccessTokenStatus') as HTMLSpanElement | null;
-      if (!statusEl) {
-        statusEl = document.createElement('span');
-        statusEl.id = 'drive115V2AccessTokenStatus';
-        statusEl.style.cssText = 'display:inline-block; margin-left:8px; font-size:11px; padding:2px 8px; border-radius:4px;';
-        label.appendChild(statusEl);
-      }
-      if (status === 'valid') {
-        statusEl.textContent = '✓ 可用';
-        statusEl.style.color = '#2e7d32';
-        statusEl.style.background = '#e8f5e9';
-        statusEl.title = 'access_token 当前可用';
-      } else if (status === 'expired') {
-        statusEl.textContent = '⏱ 已过期';
-        statusEl.style.color = '#d84315';
-        statusEl.style.background = '#fbe9e7';
-        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : 'access_token 已过期';
-      } else if (status === 'rate_limited') {
-        statusEl.textContent = '⚠ 调用过频';
-        statusEl.style.color = '#e65100';
-        statusEl.style.background = '#fff3e0';
-        statusEl.title = lastError ? `${lastError}${lastErrorCode ? ` (错误码: ${lastErrorCode})` : ''}` : 'access_token 调用过于频繁';
-      } else if (accessToken) {
-        statusEl.textContent = '• 已填写';
-        statusEl.style.color = '#8d6e63';
-        statusEl.style.background = '#efebe9';
-        statusEl.title = 'access_token 已填写，等待真实接口调用确认可用性';
-      } else {
-        statusEl.textContent = '— 未填写';
-        statusEl.style.color = '#757575';
-        statusEl.style.background = '#f5f5f5';
-        statusEl.title = '填写 access_token 后可直接尝试调用接口';
-      }
-    } catch {}
+    const statusEl = document.getElementById('drive115V2AccessTokenStatus') as HTMLSpanElement | null;
+    if (!statusEl) return;
+    statusEl.textContent = '';
+    statusEl.style.display = 'none';
   }
 
   hide(): void {
@@ -1201,6 +1169,20 @@ export class Drive115V2Pane implements IDrive115Pane {
     const mm = `${d.getMinutes()}`.padStart(2, '0');
     const ss = `${d.getSeconds()}`.padStart(2, '0');
     return `${Y}/${M}/${D}  ${hh}:${mm}:${ss}`;
+  }
+
+  private formatDateOnly(tsSec: number): string {
+    if (!tsSec || isNaN(tsSec as any)) return '-';
+    const d = new Date(tsSec * 1000);
+    const y = d.getFullYear();
+    const m = `${d.getMonth() + 1}`.padStart(2, '0');
+    const day = `${d.getDate()}`.padStart(2, '0');
+    return `${y}/${m}/${day}`;
+  }
+
+  private formatRemainingDays(sec: number): string {
+    if (!Number.isFinite(sec) || sec <= 0) return '0天';
+    return `${Math.ceil(sec / 86400)}天`;
   }
 
   // 手动刷新限频判断（与服务层自动刷新一致，最小间隔不低于30分钟）
