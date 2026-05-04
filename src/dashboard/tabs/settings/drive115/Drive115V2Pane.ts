@@ -19,6 +19,8 @@ import {
   requestDrive115DeviceCode,
 } from '../../../../services/drive115v2/pkce';
 
+const OPENLIST_MANUAL_URL = 'https://api.oplist.org/';
+
 type Drive115PaneContext = {
   update: (patch: Partial<any>) => void;
   updateUI: () => void;
@@ -394,6 +396,29 @@ export class Drive115V2Pane implements IDrive115Pane {
           ? 'openlist_scan'
           : 'openlist_manual';
       onAuthModeChange(mode).catch(() => {});
+    });
+
+    const openlistManualOpenBtn = document.getElementById('drive115V2OpenlistManualOpen') as HTMLButtonElement | null;
+    openlistManualOpenBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
+          chrome.tabs.create({ url: OPENLIST_MANUAL_URL, active: true });
+          return;
+        }
+      } catch {}
+      window.open(OPENLIST_MANUAL_URL, '_blank');
+    });
+
+    const openlistManualCopyBtn = document.getElementById('drive115V2OpenlistManualCopy') as HTMLButtonElement | null;
+    openlistManualCopyBtn?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        await navigator.clipboard.writeText(OPENLIST_MANUAL_URL);
+        showToast('已复制 OpenList 获取地址', 'success');
+      } catch {
+        showToast('复制失败，请手动复制地址', 'error');
+      }
     });
 
     const startAuthBtn = document.getElementById('drive115V2StartAuth') as HTMLButtonElement | null;

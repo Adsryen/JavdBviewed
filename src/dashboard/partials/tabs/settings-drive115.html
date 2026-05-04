@@ -21,7 +21,7 @@
                                 </div>
                             </label>
                         </div>
-                        <p class="input-description">支持三种入口：借用 OpenList 手动获取、借用 OpenList 扫码、或使用自有 115 应用扫码授权。</p>
+                        <p class="input-description">支持三种入口：借用 OpenList（ <a href="https://github.com/OpenListTeam/OpenList">开源项目</a> ） 手动获取、借用 OpenList 扫码、或使用自有 115 应用扫码授权。</p>
                     </div>
 
                     <div class="form-group">
@@ -48,10 +48,24 @@
                             适合没有自有 115 开放平台应用的用户。先通过 OpenList 的相关工具拿到
                             <code>refresh_token</code> / <code>access_token</code>，再粘贴到下方“凭据与状态”区域。
                         </p>
+                        <div class="drive115-auth-tips-box" style="margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                                <div style="display:flex; flex-direction:column; gap:4px; min-width:0; flex:1;">
+                                    <span style="font-size:12px; color:#666;">获取地址</span>
+                                    <code id="drive115V2OpenlistManualUrl" style="display:block; word-break:break-all;">https://api.oplist.org/</code>
+                                </div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button id="drive115V2OpenlistManualOpen" class="button-like" type="button">前往获取</button>
+                                    <button id="drive115V2OpenlistManualCopy" class="button-like" type="button">复制地址</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="drive115-auth-tips-box">
-                            <div>1. 先借用 OpenList 的 115 授权/获取 token 工具拿到 token。</div>
-                            <div>2. 把得到的 <code>refresh_token</code> 和 <code>access_token</code> 粘贴到下方。</div>
-                            <div>3. 点击“验证有效性”，确认当前 token 可用。</div>
+                            <div>1. 打开上方地址后，选择 <code>115 网盘 (OAuth2)</code>。</div>
+                            <div>2. 按页面提示跳转并登录 115 账号。</div>
+                            <div>3. 勾选 <code>使用 OpenList 提供的参数</code>，再获取 token。</div>
+                            <div>4. 把得到的 <code>refresh_token</code> 和 <code>access_token</code> 粘贴到下方。</div>
+                            <div>5. 点击“验证有效性”，确认当前 token 可用。</div>
                         </div>
                     </div>
                 </div>
