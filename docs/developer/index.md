@@ -4,11 +4,11 @@
 
 ## 推荐阅读
 
-1. [二次开发指南](https://javd-bviewed-docs.vercel.app/developer/development)
-2. [架构说明](https://javd-bviewed-docs.vercel.app/developer/architecture)
-3. [数据同步模块](https://javd-bviewed-docs.vercel.app/developer/data-sync)
-4. [115 模块说明](https://javd-bviewed-docs.vercel.app/developer/drive115-module)
-5. [UI 组件说明](https://javd-bviewed-docs.vercel.app/developer/ui-components)
+1. [二次开发指南](/developer/development)
+2. [架构说明](/developer/architecture)
+3. [数据同步模块](/developer/data-sync)
+4. [115 模块说明](/developer/drive115-module)
+5. [UI 组件说明](/developer/ui-components)
 
 ## 适用人群
 
@@ -22,3 +22,4 @@
 - 页面脚本与后台脚本的协作方式
 - 存储、同步与外部服务接入说明
 - 构建、调试、发布与常见开发问题
+

@@ -1,4 +1,4 @@
-# 数据分析与报告
+﻿# 数据分析与报告
 
 🔧 **测试中**: 数据分析功能正在测试阶段，部分功能可能不稳定。
 
@@ -380,8 +380,4 @@
 ### 数据会上传到服务器吗？
 
 不会，所有数据都在本地处理，只有使用 AI 功能时会发送统计数据。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：页面增强](https://javd-bviewed-docs.vercel.app/guide/page-enhancement) | [下一篇：Emby集成](https://javd-bviewed-docs.vercel.app/guide/emby-integration)
 

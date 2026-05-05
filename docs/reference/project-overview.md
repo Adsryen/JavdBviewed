@@ -30,12 +30,15 @@ Jav 助手是一个面向 JavDB 等站点的浏览器扩展，提供视频状态
 4. 打开扩展管理页：`chrome://extensions/` 或 `edge://extensions/`
 5. 开启开发者模式并加载解压后的目录
 
+如需先了解版本节奏与最近更新，可先阅读 [版本发布](/reference/changelog)。
+
 ## 使用入口
 
-- 新用户建议先阅读 [快速开始](https://javd-bviewed-docs.vercel.app/guide/quick-start)
-- 功能细节请查看 [使用教程](https://javd-bviewed-docs.vercel.app/guide/)
-- 完整能力清单请查看 [功能总览](https://javd-bviewed-docs.vercel.app/reference/features)
-- 需要源码级说明时进入 [开发文档](https://javd-bviewed-docs.vercel.app/developer/)
+- 新用户建议先阅读 [快速开始](/guide/quick-start)
+- 功能细节请查看 [使用教程](/guide/)
+- 版本历史请查看 [版本发布](/reference/changelog)
+- 完整能力清单请查看 [功能总览](/reference/features)
+- 需要源码级说明时进入 [开发文档](/developer/)
 
 ## 开发相关
 
@@ -45,6 +48,7 @@ Jav 助手是一个面向 JavDB 等站点的浏览器扩展，提供视频状态
 
 ## 相关页面
 
-- [功能总览](https://javd-bviewed-docs.vercel.app/reference/features)
-- [隐私政策](https://javd-bviewed-docs.vercel.app/reference/privacy-policy)
-- [二次开发指南](https://javd-bviewed-docs.vercel.app/developer/development)
+- [版本发布](/reference/changelog)
+- [功能总览](/reference/features)
+- [隐私政策](/reference/privacy-policy)
+- [二次开发指南](/developer/development)

@@ -4,10 +4,10 @@
 
 ## 建议阅读顺序
 
-1. 先看 [架构说明](https://javd-bviewed-docs.vercel.app/developer/architecture)
+1. 先看 [架构说明](/developer/architecture)
 2. 再看本页的开发环境与项目结构
-3. 接着按需阅读 [数据同步模块](https://javd-bviewed-docs.vercel.app/developer/data-sync) 与 [115 模块说明](https://javd-bviewed-docs.vercel.app/developer/drive115-module)
-4. 涉及 Dashboard 交互时，再看 [UI 组件说明](https://javd-bviewed-docs.vercel.app/developer/ui-components)
+3. 接着按需阅读 [数据同步模块](/developer/data-sync) 与 [115 模块说明](/developer/drive115-module)
+4. 涉及 Dashboard 交互时，再看 [UI 组件说明](/developer/ui-components)
 
 ## 你会在这里解决什么问题
 
@@ -308,11 +308,8 @@ npm run docs:build
 
 ## 延伸阅读
 
-- [架构说明](https://javd-bviewed-docs.vercel.app/developer/architecture)
-- [数据同步模块](https://javd-bviewed-docs.vercel.app/developer/data-sync)
-- [115 模块说明](https://javd-bviewed-docs.vercel.app/developer/drive115-module)
-- [UI 组件说明](https://javd-bviewed-docs.vercel.app/developer/ui-components)
+- [架构说明](/developer/architecture)
+- [数据同步模块](/developer/data-sync)
+- [115 模块说明](/developer/drive115-module)
+- [UI 组件说明](/developer/ui-components)
 
----
-
-[返回开发文档首页](https://javd-bviewed-docs.vercel.app/developer/)

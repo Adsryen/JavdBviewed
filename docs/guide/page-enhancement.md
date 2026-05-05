@@ -1,4 +1,4 @@
-# 页面增强
+﻿# 页面增强
 
 页面增强功能优化 JavDB 的浏览体验，提供更多便捷功能和视觉优化。
 
@@ -105,7 +105,7 @@
 2. 打开详情页自动搜索
 3. 显示多源搜索结果
 
-详见 [磁力搜索教程](https://javd-bviewed-docs.vercel.app/guide/magnet-search)
+详见 [磁力搜索教程](/guide/magnet-search)
 
 ### 高质量封面
 
@@ -123,7 +123,7 @@
 2. 点击标题旁的"翻译"按钮
 3. 显示翻译结果
 
-详见 [AI翻译教程](https://javd-bviewed-docs.vercel.app/guide/ai-translation)
+详见 [AI翻译教程](/guide/ai-translation)
 
 ### 评分聚合
 
@@ -193,7 +193,7 @@
 2. 推送成功后自动标记
 3. 无需手动标记
 
-详见 [115网盘教程](https://javd-bviewed-docs.vercel.app/guide/115-drive)
+详见 [115网盘教程](/guide/115-drive)
 
 ### 相关推荐
 
@@ -464,8 +464,4 @@
 2. 清除浏览器缓存
 3. 重新加载扩展
 4. 检查CSS语法
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：隐私保护](https://javd-bviewed-docs.vercel.app/guide/privacy-protection) | [下一篇：数据分析](https://javd-bviewed-docs.vercel.app/guide/data-insights)
 

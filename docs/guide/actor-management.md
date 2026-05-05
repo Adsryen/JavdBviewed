@@ -1,4 +1,4 @@
-# 演员管理
+﻿# 演员管理
 
 演员管理功能帮助你收藏喜欢的演员、订阅新作品、屏蔽不感兴趣的演员，并智能过滤列表内容。
 
@@ -440,8 +440,4 @@
 1. 确认已开启"隐藏黑名单演员"
 2. 演员页面不会隐藏（设计如此）
 3. 检查演员是否真的在黑名单中
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：115网盘集成](https://javd-bviewed-docs.vercel.app/guide/115-drive) | [下一篇：新作品监控](https://javd-bviewed-docs.vercel.app/guide/new-works)
 

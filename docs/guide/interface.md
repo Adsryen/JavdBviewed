@@ -1,4 +1,4 @@
-# 界面介绍
+﻿# 界面介绍
 
 本文档介绍 Jav 助手的各个界面和功能区域。
 
@@ -447,8 +447,4 @@
 - 根据使用习惯调整设置
 - 自定义快捷键
 - 配置过滤规则
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：快速开始](https://javd-bviewed-docs.vercel.app/guide/quick-start) | [下一篇：视频标记](https://javd-bviewed-docs.vercel.app/guide/video-marking)
 

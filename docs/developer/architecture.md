@@ -207,7 +207,7 @@ graph LR
 
 推荐顺序：
 
-1. 先看 [二次开发指南](https://javd-bviewed-docs.vercel.app/developer/development)
+1. 先看 [二次开发指南](/developer/development)
 2. 再看 `content/` 与 `background/` 的职责边界
 3. 再看你关心的具体模块，例如同步、115、Dashboard
 4. 最后再看某个细节实现
@@ -225,7 +225,8 @@ graph LR
 
 ## 继续往下读什么
 
-- [二次开发指南](https://javd-bviewed-docs.vercel.app/developer/development)
-- [数据同步模块](https://javd-bviewed-docs.vercel.app/developer/data-sync)
-- [115 模块说明](https://javd-bviewed-docs.vercel.app/developer/drive115-module)
-- [UI 组件说明](https://javd-bviewed-docs.vercel.app/developer/ui-components)
+- [二次开发指南](/developer/development)
+- [数据同步模块](/developer/data-sync)
+- [115 模块说明](/developer/drive115-module)
+- [UI 组件说明](/developer/ui-components)
+

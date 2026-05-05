@@ -1,4 +1,4 @@
-# 视频标记功能
+﻿# 视频标记功能
 
 视频标记是 Jav 助手的核心功能，帮助你记录和管理观看状态。
 
@@ -170,7 +170,7 @@
 
 配置 WebDAV 后，标记状态可以在多个设备间同步：
 
-1. 参考 [云端同步教程](https://javd-bviewed-docs.vercel.app/guide/webdav-sync) 配置 WebDAV
+1. 参考 [云端同步教程](/guide/webdav-sync) 配置 WebDAV
 2. 启用自动同步
 3. 所有设备的标记状态会自动保持一致
 
@@ -216,8 +216,4 @@
 1. 确保焦点在页面上（不在输入框中）
 2. 检查是否与其他扩展冲突
 3. 尝试刷新页面
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：快速开始](https://javd-bviewed-docs.vercel.app/guide/quick-start) | [下一篇：数据管理](https://javd-bviewed-docs.vercel.app/guide/data-management)
 
