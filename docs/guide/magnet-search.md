@@ -323,4 +323,5 @@ https://example.com/search?q={query}
 
 ---
 
-[返回目录](./README.md) | [上一篇：新作品监控](./new-works.md) | [下一篇：隐私保护](./privacy-protection.md)
+[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：新作品监控](https://javd-bviewed-docs.vercel.app/guide/new-works) | [下一篇：隐私保护](https://javd-bviewed-docs.vercel.app/guide/privacy-protection)
+

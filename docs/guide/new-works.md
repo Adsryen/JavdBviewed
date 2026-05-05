@@ -16,7 +16,7 @@
 
 首先需要订阅感兴趣的演员：
 
-1. 参考 [演员管理教程](./actor-management.md)
+1. 参考 [演员管理教程](https://javd-bviewed-docs.vercel.app/guide/actor-management)
 2. 将演员标记为"订阅"
 3. 订阅的演员会自动监控新作品
 
@@ -424,4 +424,5 @@
 
 ---
 
-[返回目录](./README.md) | [上一篇：演员管理](./actor-management.md) | [下一篇：磁力搜索](./magnet-search.md)
+[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：演员管理](https://javd-bviewed-docs.vercel.app/guide/actor-management) | [下一篇：磁力搜索](https://javd-bviewed-docs.vercel.app/guide/magnet-search)
+
