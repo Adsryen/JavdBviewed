@@ -1,4 +1,4 @@
-# 115 网盘集成
+﻿# 115 网盘集成
 
 115 网盘集成功能允许你在视频详情页直接把磁力链接推送到 115 的离线下载中，减少手动复制、切换页面和重复操作。
 
@@ -350,8 +350,4 @@
 ### 支持其他网盘吗？
 
 当前文档只说明 115 集成。其他网盘如有支持，建议以后续版本文档为准。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：云端同步](https://javd-bviewed-docs.vercel.app/guide/webdav-sync) | [下一篇：演员管理](https://javd-bviewed-docs.vercel.app/guide/actor-management)
 

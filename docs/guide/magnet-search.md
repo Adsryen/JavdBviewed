@@ -1,4 +1,4 @@
-# 磁力搜索
+﻿# 磁力搜索
 
 磁力搜索功能帮助你从多个来源自动搜索视频的磁力链接，快速找到高质量资源。
 
@@ -320,8 +320,4 @@ https://example.com/search?q={query}
 ### 支持 BT 种子下载吗？
 
 目前只支持磁力链接，BT 种子功能计划中。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：新作品监控](https://javd-bviewed-docs.vercel.app/guide/new-works) | [下一篇：隐私保护](https://javd-bviewed-docs.vercel.app/guide/privacy-protection)
 

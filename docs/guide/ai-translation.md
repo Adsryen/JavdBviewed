@@ -1,4 +1,4 @@
-# AI 翻译
+﻿# AI 翻译
 
 AI 翻译功能使用人工智能模型翻译视频标题、简介、标签等内容，帮助你更好地理解日文内容。
 
@@ -383,8 +383,4 @@ AI 翻译（如 GPT-4、Claude）质量最好，但需要付费。
 ### 翻译数据会上传吗？
 
 使用 AI 翻译时会发送内容到 API 服务器，传统翻译也需要联网。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：Emby集成](https://javd-bviewed-docs.vercel.app/guide/emby-integration) | [下一步：开发文档](https://javd-bviewed-docs.vercel.app/developer/)
 

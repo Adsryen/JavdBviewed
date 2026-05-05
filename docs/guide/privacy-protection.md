@@ -1,4 +1,4 @@
-# 隐私保护
+﻿# 隐私保护
 
 隐私保护功能帮助你在截图或分享时保护敏感信息，避免隐私泄露。
 
@@ -348,8 +348,4 @@
 ### 可以自定义模糊样式吗？
 
 可以，在高级设置中自定义 CSS 样式。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：磁力搜索](https://javd-bviewed-docs.vercel.app/guide/magnet-search) | [下一篇：页面增强](https://javd-bviewed-docs.vercel.app/guide/page-enhancement)
 

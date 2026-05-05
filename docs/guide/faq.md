@@ -1,4 +1,4 @@
-# 常见问题
+﻿# 常见问题
 
 本页面汇总了使用 Jav 助手时的常见问题和解决方案。
 
@@ -19,7 +19,7 @@
 
 1. 从 GitHub Releases 下载预编译版本
 2. 手动加载到浏览器
-3. 参考 [快速开始教程](https://javd-bviewed-docs.vercel.app/guide/quick-start)
+3. 参考 [快速开始教程](/guide/quick-start)
 
 ### Q: 扩展会自动更新吗？
 
@@ -400,18 +400,14 @@
 **A**: 完全可以：
 
 - 项目开源，遵循 GPL-3.0 许可证
-- 参考 [二次开发指南](https://javd-bviewed-docs.vercel.app/developer/development)
+- 参考 [二次开发指南](/developer/development)
 - 欢迎提交 Pull Request
 
 ## 获取帮助
 
 如果以上内容没有解决你的问题：
 
-1. 📖 查看 [完整文档](https://javd-bviewed-docs.vercel.app/guide/)
+1. 📖 查看 [完整文档](/guide/)
 2. 💬 在 [GitHub Issues](https://github.com/Adsryen/JavdBviewed/issues) 提问
 3. 🗨️ 参与 [GitHub Discussions](https://github.com/Adsryen/JavdBviewed/discussions) 讨论
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/)
 

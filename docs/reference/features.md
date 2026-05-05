@@ -1,4 +1,4 @@
-# JavdBviewed 完整功能清单
+﻿# JavdBviewed 完整功能清单
 
 > 本文档详细列出了 JavdBviewed 扩展的所有功能特性。
 
@@ -1777,11 +1777,11 @@
 
 ## 📝 相关文档
 
-- [README](https://javd-bviewed-docs.vercel.app/reference/project-overview) - 项目简介和快速开始
-- [安装指南](https://javd-bviewed-docs.vercel.app/reference/project-overview#安装方式) - 详细安装步骤
-- [使用说明](https://javd-bviewed-docs.vercel.app/guide/) - 基本使用方法
-- [开发指南](https://javd-bviewed-docs.vercel.app/developer/development) - 二次开发文档
-- [常见问题](https://javd-bviewed-docs.vercel.app/guide/faq) - 常见问题解答
+- [README](/reference/project-overview) - 项目简介和快速开始
+- [安装指南](/reference/project-overview#安装方式) - 详细安装步骤
+- [使用说明](/guide/) - 基本使用方法
+- [开发指南](/developer/development) - 二次开发文档
+- [常见问题](/guide/faq) - 常见问题解答
 - [开发计划](https://github.com/Adsryen/JavdBviewed/blob/main/todo/todo.md) - 功能开发计划
 
 ---
@@ -1799,3 +1799,4 @@
 **最后更新**: 2025-02-13
 
 </div>
+

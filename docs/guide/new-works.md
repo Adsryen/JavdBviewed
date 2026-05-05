@@ -1,4 +1,4 @@
-# 新作品监控
+﻿# 新作品监控
 
 新作品监控功能帮助你自动追踪订阅演员的最新作品，第一时间发现感兴趣的内容。
 
@@ -16,7 +16,7 @@
 
 首先需要订阅感兴趣的演员：
 
-1. 参考 [演员管理教程](https://javd-bviewed-docs.vercel.app/guide/actor-management)
+1. 参考 [演员管理教程](/guide/actor-management)
 2. 将演员标记为"订阅"
 3. 订阅的演员会自动监控新作品
 
@@ -421,8 +421,4 @@
 ### 新作品会自动下载吗？
 
 不会，需要手动推送到115网盘。
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：演员管理](https://javd-bviewed-docs.vercel.app/guide/actor-management) | [下一篇：磁力搜索](https://javd-bviewed-docs.vercel.app/guide/magnet-search)
 

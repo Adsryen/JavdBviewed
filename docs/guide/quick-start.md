@@ -1,4 +1,4 @@
-# 快速开始
+﻿# 快速开始
 
 欢迎使用 Jav 助手！本指南将帮助你快速安装和配置扩展。
 
@@ -15,6 +15,8 @@
 5. 开启右上角的"开发者模式"开关
 6. 点击"加载已解压的扩展程序"按钮
 7. 选择刚才解压的文件夹
+
+如果你想先确认最近更新内容，可以先看 [版本发布](/reference/changelog)。
 
 ### 方式二：从源码构建
 
@@ -107,9 +109,10 @@ npm run build
 
 现在你已经掌握了基本操作，可以继续学习：
 
-- [视频标记](https://javd-bviewed-docs.vercel.app/guide/video-marking) - 深入了解标记功能
-- [数据管理](https://javd-bviewed-docs.vercel.app/guide/data-management) - 学习数据导入导出
-- [云端同步](https://javd-bviewed-docs.vercel.app/guide/webdav-sync) - 配置多设备同步
+- [视频标记](/guide/video-marking) - 深入了解标记功能
+- [数据管理](/guide/data-management) - 学习数据导入导出
+- [云端同步](/guide/webdav-sync) - 配置多设备同步
+- [版本发布](/reference/changelog) - 了解最近版本与下载入口
 
 ## 常见问题
 
@@ -132,8 +135,4 @@ npm run build
 1. 定期导出数据备份
 2. 配置 WebDAV 云端同步
 3. 不要随意清除浏览器数据
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [下一篇：界面介绍](https://javd-bviewed-docs.vercel.app/guide/interface)
 

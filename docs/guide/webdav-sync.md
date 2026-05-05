@@ -1,4 +1,4 @@
-# 云端同步 (WebDAV)
+﻿# 云端同步 (WebDAV)
 
 通过 WebDAV 配置，你可以在多个设备间自动同步数据，再也不用担心数据丢失。
 
@@ -354,8 +354,4 @@ javdb-backup-YYYYMMDD-HHMMSS.json
 2. **多设备验证**: 在不同设备上验证数据一致性
 3. **保留本地备份**: 除了云端同步，还要定期导出本地备份
 4. **监控空间**: 注意云端存储空间使用情况
-
----
-
-[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：数据管理](https://javd-bviewed-docs.vercel.app/guide/data-management) | [下一篇：115网盘集成](https://javd-bviewed-docs.vercel.app/guide/115-drive)
 
