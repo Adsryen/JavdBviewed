@@ -521,7 +521,7 @@ async function initialize(): Promise<void> {
             enableListOptimization: settings.listEnhancement?.enableListOptimization !== false,
             enableScrollPaging: settings.listEnhancement?.enableScrollPaging === true,
             previewDelay: settings.listEnhancement?.previewDelay || 1000,
-            previewVolume: settings.listEnhancement?.previewVolume || 0.2,
+            previewVolume: settings.listEnhancement?.previewVolume ?? 0.2,
             enableRightClickBackground: settings.listEnhancement?.enableRightClickBackground !== false,
             enableActorWatermark: settings.listEnhancement?.enableActorWatermark === true,
             actorWatermarkPosition: (settings.listEnhancement as any)?.actorWatermarkPosition || 'top-right',
@@ -807,7 +807,7 @@ async function initVolumeControl() {
     try {
         // 从设置对象中获取音量设置
         const settings = await getSettings();
-        currentVolume = settings.listEnhancement?.previewVolume || 0.2;
+        currentVolume = settings.listEnhancement?.previewVolume ?? 0.2;
         log(`🎵 Volume control init: ${Math.round(currentVolume * 100)}%`);
 
         // 监听popup消息
