@@ -1777,12 +1777,12 @@
 
 ## 📝 相关文档
 
-- [README](README.md) - 项目简介和快速开始
-- [安装指南](README.md#-安装方式) - 详细安装步骤
-- [使用说明](README.md#-使用说明) - 基本使用方法
-- [开发指南](README.md#-二次开发指南) - 二次开发文档
-- [常见问题](README.md#常见问题) - 常见问题解答
-- [开发计划](todo/todo.md) - 功能开发计划
+- [README](https://javd-bviewed-docs.vercel.app/reference/project-overview) - 项目简介和快速开始
+- [安装指南](https://javd-bviewed-docs.vercel.app/reference/project-overview#安装方式) - 详细安装步骤
+- [使用说明](https://javd-bviewed-docs.vercel.app/guide/) - 基本使用方法
+- [开发指南](https://javd-bviewed-docs.vercel.app/developer/development) - 二次开发文档
+- [常见问题](https://javd-bviewed-docs.vercel.app/guide/faq) - 常见问题解答
+- [开发计划](https://github.com/Adsryen/JavdBviewed/blob/main/todo/todo.md) - 功能开发计划
 
 ---
 
