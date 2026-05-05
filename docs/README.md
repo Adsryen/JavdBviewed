@@ -32,9 +32,11 @@ npm run docs:preview
 
 建议在 Vercel 中使用下面的配置：
 
-- Build Command: `npm run docs:build`
-- Output Directory: `docs/.vitepress/dist`
+- Build Command: `npm run docs:build:vercel`
+- Output Directory: `dist`
 - Install Command: `npm install`
+
+之所以输出到根目录 `dist`，是因为部分 Vercel 项目即使配置了自定义输出目录，仍可能按默认规则查找 `dist`。当前仓库已通过构建脚本把 `docs/.vitepress/dist` 复制到根目录 `dist`，兼容性更稳。
 
 ## 下一步建议
 
