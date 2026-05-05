@@ -45,6 +45,10 @@ javdb-backup_*.json
 !todo/*.md
 !scripts/*.md
 !tutorial/*.md
+!docs/*.md
+!docs/**/*.md
+!docs/.vitepress/
+!docs/.vitepress/**
 
 # 参考文档
 !reference/
