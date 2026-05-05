@@ -1545,7 +1545,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 首次加载时更新"当前延迟"展示
         this.updateCurrentPreviewDelayDisplay();
         if (this.previewVolume) {
-            const volumeValue = listEnhancement.previewVolume || 0.2;
+            const volumeValue = listEnhancement.previewVolume ?? 0.2;
             this.previewVolume.value = String(volumeValue);
             const percentage = Math.round(volumeValue * 100);
 
