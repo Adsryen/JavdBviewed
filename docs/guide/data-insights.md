@@ -383,4 +383,5 @@
 
 ---
 
-[返回目录](./README.md) | [上一篇：页面增强](./page-enhancement.md) | [下一篇：Emby集成](./emby-integration.md)
+[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：页面增强](https://javd-bviewed-docs.vercel.app/guide/page-enhancement) | [下一篇：Emby集成](https://javd-bviewed-docs.vercel.app/guide/emby-integration)
+

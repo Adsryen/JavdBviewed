@@ -351,4 +351,5 @@
 
 ---
 
-[返回目录](./README.md) | [上一篇：磁力搜索](./magnet-search.md) | [下一篇：页面增强](./page-enhancement.md)
+[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：磁力搜索](https://javd-bviewed-docs.vercel.app/guide/magnet-search) | [下一篇：页面增强](https://javd-bviewed-docs.vercel.app/guide/page-enhancement)
+

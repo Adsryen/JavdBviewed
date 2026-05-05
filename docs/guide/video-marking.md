@@ -170,7 +170,7 @@
 
 配置 WebDAV 后，标记状态可以在多个设备间同步：
 
-1. 参考 [云端同步教程](./webdav-sync.md) 配置 WebDAV
+1. 参考 [云端同步教程](https://javd-bviewed-docs.vercel.app/guide/webdav-sync) 配置 WebDAV
 2. 启用自动同步
 3. 所有设备的标记状态会自动保持一致
 
@@ -219,4 +219,5 @@
 
 ---
 
-[返回目录](./README.md) | [上一篇：快速开始](./quick-start.md) | [下一篇：数据管理](./data-management.md)
+[返回教程总览](https://javd-bviewed-docs.vercel.app/guide/) | [上一篇：快速开始](https://javd-bviewed-docs.vercel.app/guide/quick-start) | [下一篇：数据管理](https://javd-bviewed-docs.vercel.app/guide/data-management)
+
