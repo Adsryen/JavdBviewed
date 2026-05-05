@@ -5,6 +5,7 @@ export default defineConfig({
   title: 'JavdBviewed',
   description: 'JavdBviewed 使用文档与帮助中心',
   cleanUrls: true,
+  outDir: '../dist',
   themeConfig: {
     nav: [
       { text: '首页', link: '/' },

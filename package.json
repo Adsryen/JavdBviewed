@@ -6,7 +6,6 @@
   "scripts": {
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:build:vercel": "vitepress build docs && node --input-type=module -e \"import fs from 'fs-extra'; await fs.remove('dist'); await fs.copy('docs/.vitepress/dist','dist')\"",
     "docs:preview": "vitepress preview docs",
     "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
     "version": "npm version"
