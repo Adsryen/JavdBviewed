@@ -9,7 +9,7 @@ export function runQASelfCheck(): void {
     const modalsRoot = document.getElementById('dashboard-modals-root');
     const modalIds = [
       'confirmationModal', 'smartRestoreModal', 'import-modal', 'migration-modal',
-      'data-check-modal', 'helpPanel', 'webdavRestoreModal', 'conflictResolutionModal',
+      'data-check-modal', 'webdavRestoreModal', 'conflictResolutionModal',
       'restoreResultModal', 'dataViewModal', 'filterRuleModal', 'orchestratorModal',
     ];
     const missingModals: string[] = [];

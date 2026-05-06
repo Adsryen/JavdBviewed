@@ -1,6 +1,8 @@
 import { getSettings, saveSettings } from '../utils/storage';
 import type { ExtensionSettings } from '../types';
 
+const DOCS_URL = 'https://javd-bviewed-docs.vercel.app/';
+
 // 安全获取设置，带重试机制
 async function getSettingsSafely(maxRetries = 3): Promise<ExtensionSettings | null> {
     for (let i = 0; i < maxRetries; i++) {
@@ -161,7 +163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const popupLockBtn = document.getElementById('popup-lock-btn') as HTMLButtonElement;
     const themeSwitcherBtn = document.getElementById('theme-switcher-btn') as HTMLButtonElement;
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
-    const helpPanel = document.getElementById('helpPanel') as HTMLDivElement;
     const toggleWatchedContainer = document.getElementById('toggleWatchedContainer') as HTMLDivElement;
     const toggleViewedContainer = document.getElementById('toggleViewedContainer') as HTMLDivElement;
     const toggleVRContainer = document.getElementById('toggleVRContainer') as HTMLDivElement;
@@ -429,28 +430,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Help Panel
     function setupHelpPanel() {
-        const helpContent = `
-            <div class="help-header">
-                <h2>功能说明</h2>
-                <span id="closeHelpBtn" title="关闭">&times;</span>
-            </div>
-            <div class="help-body">
-                <p><strong>显示/隐藏开关:</strong> 快速切换在JavDB网站上是否隐藏特定类型的影片。更改后会自动刷新当前页面。</p>
-                <p><strong>预览视频音量:</strong> 设置详情页预览视频的默认音量。网站默认静音，扩展会自动应用您设置的音量。</p>
-                <p><strong>高级设置:</strong> 点击进入功能更全面的仪表盘，进行数据管理、WebDAV备份同步、日志查看等高级操作。</p>
-            </div>`;
-        helpPanel.innerHTML = helpContent;
-        
         helpBtn.addEventListener('click', () => {
-            helpPanel.style.display = 'block';
+            window.open(DOCS_URL, '_blank');
         });
-
-        const closeBtn = helpPanel.querySelector('#closeHelpBtn') as HTMLSpanElement;
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                helpPanel.style.display = 'none';
-            });
-        }
     }
     
     // Volume Control
