@@ -370,7 +370,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initUserProfileSection();
     // initDataSyncSection(); // 移除重复调用，由 initSyncTab 处理
     initInfoContainer();
-    initHelpSystem();
     initModal();
     // 根据设置控制 115 侧边栏显示，并在启用时（V2）加载配额
     updateDrive115SidebarVisibility();
@@ -482,76 +481,4 @@ function initInfoContainer(): void {
         </div>${buildLine}
     `;
 }
-
-async function initHelpSystem(): Promise<void> {
-    const helpBtn = document.getElementById('helpBtn');
-    const helpPanel = document.getElementById('helpPanel');
-    const closeHelpBtn = document.getElementById('closeHelpBtn');
-
-    if (!helpBtn || !helpPanel || !closeHelpBtn) return;
-
-    // 动态导入 HelpPanelManager
-    const { HelpPanelManager } = await import('./help/helpPanelManager');
-
-    // 从 partial 动态加载帮助内容
-    let html = '';
-    try {
-        html = await loadPartial('help/feature-help.html');
-    } catch (error) {
-        console.error('[initHelpSystem] 加载帮助内容失败:', error);
-        html = '';
-    }
-
-    // 创建帮助面板管理器
-    const helpManager = new HelpPanelManager(helpPanel);
-
-    // 初始化管理器
-    try {
-        await helpManager.init(html);
-    } catch (error) {
-        console.error('[initHelpSystem] 初始化帮助面板失败:', error);
-        // 降级：显示错误提示
-        const bodyContainer = helpPanel.querySelector('.help-body-container');
-        if (bodyContainer) {
-            bodyContainer.innerHTML = '<div style="padding:30px;color:#888;">帮助内容加载失败，请刷新页面重试。</div>';
-        }
-    }
-
-    // 显示帮助面板
-    helpBtn.addEventListener('click', () => {
-        helpManager.show();
-    });
-
-    // 关闭帮助面板
-    const closeHelp = () => {
-        helpManager.hide();
-    };
-
-    closeHelpBtn.addEventListener('click', closeHelp);
-
-    // 点击背景关闭
-    helpPanel.addEventListener('click', (e) => {
-        if (e.target === helpPanel) {
-            closeHelp();
-        }
-    });
-
-    // ESC 关闭
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && helpPanel.classList.contains('visible')) {
-            closeHelp();
-        }
-    });
-}
-
-
-
-
-
-
-
-
-
-
-
 

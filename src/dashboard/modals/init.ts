@@ -13,8 +13,7 @@ export async function ensureModalsMounted(): Promise<void> {
       || !!document.getElementById('dataViewModal')
       || !!document.getElementById('import-modal')
       || !!document.getElementById('migration-modal')
-      || !!document.getElementById('data-check-modal')
-      || !!document.getElementById('helpPanel');
+      || !!document.getElementById('data-check-modal');
 
     if (!haveInlineModals) {
       await ensureMounted('#dashboard-modals-root', 'modals/dashboard-modals.html');
