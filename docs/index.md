@@ -3,42 +3,95 @@ layout: home
 
 hero:
   name: JavdBviewed
-  text: 文档中心
-  tagline: 集中承载安装说明、使用教程、版本发布、隐私政策与开发文档
+  text: 一个更完整的 JavDB 浏览增强扩展
+  tagline: 集中提供安装说明、使用教程、版本发布、隐私政策与开发文档
+  image:
+    src: /home-hero.png
+    alt: JavdBviewed 夜晚图标
   actions:
     - theme: brand
-      text: 快速开始
+      text: 立即开始
       link: /guide/quick-start
     - theme: alt
-      text: 使用教程
+      text: 查看教程
       link: /guide/
     - theme: alt
       text: 版本发布
       link: /reference/changelog
 
 features:
-  - title: 完整教程
-    details: 用户使用文档现已统一迁入文档中心，并按功能模块集中维护。
-  - title: 发布可追踪
-    details: GitHub Releases 中的版本历史整理为站内页面，方便查看版本节奏与下载入口。
-  - title: 技术参考
-    details: 根目录技术型 README、功能总览与隐私政策整理为可检索的站点页面。
-  - title: 更易维护
-    details: 统一导航、侧边栏与搜索入口，便于后续扩展和持续补全文档。
+  - title: 快速上手
+    details: 从安装、首次配置到基本操作，几分钟内完成扩展启用。
+  - title: 功能完整
+    details: 覆盖视频标记、数据管理、WebDAV、115 网盘、演员订阅、磁力搜索、AI 翻译等能力。
+  - title: 发布透明
+    details: 最近版本、标签节奏与下载入口统一整理到站内，升级路线更清楚。
+  - title: 面向维护
+    details: 同时提供架构说明、模块文档与二次开发指南，方便长期维护和扩展。
 ---
 
-## 文档分区
+## 我可以用它做什么？
 
-- [开始使用](/guide/quick-start)：安装、配置、基础操作与常见问题
-- [使用教程](/guide/)：覆盖标记、同步、115、增强、演员、新作品等模块
-- [版本发布](/reference/changelog)：查看版本历史、当前版本与 GitHub Releases 入口
-- [参考资料](/reference/features)：查看完整功能清单与隐私政策
-- [开发文档](/developer/)：面向开发者的结构、模块与实现说明
+- 在 JavDB 页面上快速标记 **已浏览 / 已观看 / 想看**
+- 管理本地数据，并通过 **WebDAV** 进行多设备同步
+- 配合 **115 网盘**、**磁力搜索**、**演员订阅** 提高整理效率
+- 使用 **页面增强**、**隐私保护**、**AI 翻译** 优化日常浏览体验
+- 查看 **版本发布** 与 **开发文档**，便于持续升级和二次开发
 
-## 推荐阅读顺序
+## 从哪里开始？
 
-1. 先看 [快速开始](/guide/quick-start)
-2. 再看 [界面介绍](/guide/interface)
-3. 然后按需阅读各功能教程
-4. 关注升级时查看 [版本发布](/reference/changelog)
-5. 需要开发时进入 [开发文档](/developer/)
+### 新用户
+
+1. 阅读 [快速开始](/guide/quick-start)
+2. 继续查看 [界面介绍](/guide/interface)
+3. 再按需阅读 [视频标记](/guide/video-marking) 与 [数据管理](/guide/data-management)
+
+### 想了解能力边界
+
+- 查看 [使用教程](/guide/)
+- 查看 [功能总览](/reference/features)
+- 查看 [版本发布](/reference/changelog)
+
+### 想自行构建或扩展
+
+- 阅读 [开发文档](/developer/)
+- 查看 [二次开发指南](/developer/development)
+- 再进入 [架构说明](/developer/architecture)
+
+## 文档入口
+
+### 使用文档
+
+- [快速开始](/guide/quick-start)：安装、加载扩展、首次配置
+- [使用教程](/guide/)：按功能模块阅读全部使用说明
+- [常见问题](/guide/faq)：集中查看常见问题与排查方式
+
+### 参考资料
+
+- [项目概览](/reference/project-overview)：项目介绍、安装方式与相关入口
+- [版本发布](/reference/changelog)：查看最近版本、发布节奏与下载入口
+- [功能总览](/reference/features)：浏览完整能力清单
+- [隐私政策](/reference/privacy-policy)：了解数据使用与隐私说明
+
+### 开发相关
+
+- [开发文档](/developer/)：开发内容总入口
+- [二次开发指南](/developer/development)：本地开发、调试、构建与发布
+- [架构说明](/developer/architecture)：理解模块分层与核心流程
+
+## 推荐阅读路线
+
+| 你的目标 | 建议入口 |
+| --- | --- |
+| 安装并开始使用 | [快速开始](/guide/quick-start) |
+| 熟悉主要界面 | [界面介绍](/guide/interface) |
+| 配置同步与备份 | [WebDAV 同步](/guide/webdav-sync) |
+| 整理演员和新作品 | [演员管理](/guide/actor-management) / [新作品监控](/guide/new-works) |
+| 升级到最新版本 | [版本发布](/reference/changelog) |
+| 参与开发维护 | [开发文档](/developer/) |
+
+## 项目链接
+
+- [GitHub 仓库](https://github.com/Adsryen/JavdBviewed)
+- [GitHub Releases](https://github.com/Adsryen/JavdBviewed/releases)
+- [GitHub Issues](https://github.com/Adsryen/JavdBviewed/issues)
