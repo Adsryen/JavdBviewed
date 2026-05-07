@@ -14,6 +14,7 @@ import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
 import { initOrchestrator } from './initOrchestrator';
 import { actorManager } from '../services/actorManager';
+import { newWorksManager } from '../services/newWorks';
 import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
 
@@ -314,6 +315,8 @@ export async function handleVideoDetailPage(): Promise<void> {
 async function markActorsOnPage(): Promise<void> {
     try {
         await actorManager.initialize();
+        const subscriptions = await newWorksManager.getSubscriptions();
+        const subscribedActorIds = new Set(subscriptions.map(sub => sub.actorId));
 
         // 查找包含“演員/演员”的信息块
         const blocks = Array.from(document.querySelectorAll<HTMLElement>('.panel-block'));
@@ -336,6 +339,7 @@ async function markActorsOnPage(): Promise<void> {
 
         const colorCollected = '#2e7d32'; // 绿色（已收藏）
         const colorBlacklisted = '#d32f2f'; // 红色（黑名单）
+        const subscribedColor = '#f59e0b'; // 橙黄（已订阅）
 
         for (const a of Array.from(linkNodes)) {
             try {
@@ -344,17 +348,33 @@ async function markActorsOnPage(): Promise<void> {
                 const actorId = idPart.split('?')[0].split('#')[0];
                 if (!actorId) continue;
 
-                const record = await actorManager.getActorById(actorId);
-                if (!record) continue; // 未收藏/未同步
+                const isSubscribed = subscribedActorIds.has(actorId);
 
-                if (record.blacklisted) {
+                const record = await actorManager.getActorById(actorId);
+                if (!record && !isSubscribed) continue; // 无本地状态也未订阅
+
+                if (record?.blacklisted) {
                     a.style.color = colorBlacklisted;
                     a.style.textDecoration = 'line-through';
                     a.title = a.title ? `${a.title}（黑名单）` : '黑名单';
-                } else {
+                } else if (record) {
                     a.style.color = colorCollected;
                     a.style.textDecoration = 'none';
                     a.title = a.title ? `${a.title}（已收藏）` : '已收藏';
+                }
+
+                if (isSubscribed && !a.parentElement?.querySelector(`.actor-subscribe-badge[data-actor-id="${actorId}"]`)) {
+                    const badge = document.createElement('span');
+                    badge.className = 'actor-subscribe-badge';
+                    badge.dataset.actorId = actorId;
+                    badge.title = '已订阅';
+                    badge.setAttribute('aria-label', '已订阅');
+                    badge.textContent = '🔔';
+                    badge.style.color = subscribedColor;
+                    badge.style.marginRight = '4px';
+                    badge.style.fontSize = '0.95em';
+                    badge.style.verticalAlign = 'text-top';
+                    a.insertAdjacentElement('beforebegin', badge);
                 }
             } catch {
                 // 单个失败不阻断
