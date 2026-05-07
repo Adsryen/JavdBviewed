@@ -1,6 +1,7 @@
 ﻿import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   lang: 'zh-CN',
   title: 'JavdBviewed 文档中心',
   description: 'JavdBviewed 的使用文档、功能说明、隐私政策与开发参考',
@@ -12,6 +13,9 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' }],
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }]
   ],
+  mermaid: {
+    theme: 'neutral'
+  },
   outDir: '../docs-dist',
   themeConfig: {
     nav: [
@@ -172,4 +176,4 @@ export default defineConfig({
       copyright: 'Copyright © 2026 Adsryen'
     }
   }
-})
+}))
