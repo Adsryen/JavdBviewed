@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+﻿import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -34,30 +34,151 @@ export default defineConfig({
           ]
         },
         {
-          text: '核心功能',
+          text: '首页',
+          items: [
+            { text: '界面介绍', link: '/guide/interface' }
+          ]
+        },
+        {
+          text: '番号库',
           items: [
             { text: '视频标记', link: '/guide/video-marking' },
-            { text: '数据管理', link: '/guide/data-management' },
+            { text: '数据管理', link: '/guide/data-management' }
+          ]
+        },
+        {
+          text: '清单',
+          items: [
+            { text: '数据管理', link: '/guide/data-management' }
+          ]
+        },
+        {
+          text: '演员库',
+          items: [
+            { text: '演员管理', link: '/guide/actor-management' }
+          ]
+        },
+        {
+          text: '新作品',
+          items: [
+            { text: '新作品监控', link: '/guide/new-works' }
+          ]
+        },
+        {
+          text: '数据同步',
+          items: [
             { text: 'WebDAV 同步', link: '/guide/webdav-sync' },
+            { text: '同步设置', link: '/guide/settings-sync' }
+          ]
+        },
+        {
+          text: '115任务',
+          items: [
             { text: '115 网盘集成', link: '/guide/115-drive' }
           ]
         },
         {
-          text: '增强功能',
+          text: '报告',
           items: [
-            { text: '演员管理', link: '/guide/actor-management' },
-            { text: '新作品监控', link: '/guide/new-works' },
-            { text: '磁力搜索', link: '/guide/magnet-search' },
-            { text: '隐私保护', link: '/guide/privacy-protection' },
-            { text: '页面增强', link: '/guide/page-enhancement' }
+            { text: '数据分析与报告', link: '/guide/data-insights' },
+            { text: '报告设置', link: '/guide/settings-report' }
           ]
         },
         {
-          text: '高级能力',
+          text: '设置总览',
           items: [
-            { text: '数据分析', link: '/guide/data-insights' },
-            { text: 'Emby 集成', link: '/guide/emby-integration' },
+            { text: '设置导航', link: '/guide/settings-index' }
+          ]
+        },
+        {
+          text: '设置 / 显示设置',
+          items: [
+            { text: '显示设置', link: '/guide/settings-display' }
+          ]
+        },
+        {
+          text: '设置 / 功能增强',
+          items: [
+            { text: '功能增强', link: '/guide/page-enhancement' }
+          ]
+        },
+        {
+          text: '设置 / 搜索引擎',
+          items: [
+            { text: '搜索引擎与磁力搜索', link: '/guide/magnet-search' }
+          ]
+        },
+        {
+          text: '设置 / AI设置',
+          items: [
             { text: 'AI 翻译', link: '/guide/ai-translation' }
+          ]
+        },
+        {
+          text: '设置 / 隐私保护',
+          items: [
+            { text: '隐私保护', link: '/guide/privacy-protection' }
+          ]
+        },
+        {
+          text: '设置 / WebDAV同步',
+          items: [
+            { text: 'WebDAV 同步', link: '/guide/webdav-sync' }
+          ]
+        },
+        {
+          text: '设置 / 同步设置',
+          items: [
+            { text: '同步设置', link: '/guide/settings-sync' }
+          ]
+        },
+        {
+          text: '设置 / 115网盘',
+          items: [
+            { text: '115 网盘集成', link: '/guide/115-drive' }
+          ]
+        },
+        {
+          text: '设置 / Emby增强',
+          items: [
+            { text: 'Emby 集成', link: '/guide/emby-integration' }
+          ]
+        },
+        {
+          text: '设置 / 报告',
+          items: [
+            { text: '报告设置', link: '/guide/settings-report' },
+            { text: '数据分析与报告', link: '/guide/data-insights' }
+          ]
+        },
+        {
+          text: '设置 / 日志设置',
+          items: [
+            { text: '日志设置', link: '/guide/settings-log' }
+          ]
+        },
+        {
+          text: '设置 / 高级配置',
+          items: [
+            { text: '高级配置', link: '/guide/settings-advanced' }
+          ]
+        },
+        {
+          text: '设置 / 网络配置',
+          items: [
+            { text: '网络配置', link: '/guide/settings-network' }
+          ]
+        },
+        {
+          text: '设置 / 全局操作',
+          items: [
+            { text: '全局操作', link: '/guide/settings-global-actions' }
+          ]
+        },
+        {
+          text: '设置 / 检查更新',
+          items: [
+            { text: '检查更新', link: '/guide/settings-update' }
           ]
         }
       ],
