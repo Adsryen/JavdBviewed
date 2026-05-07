@@ -394,92 +394,76 @@
   </thead>
   <tbody>
     <tr>
-      <td colspan="3"><strong>磁力推送</strong></td>
+      <td colspan="3"><strong>授权与接入</strong></td>
     </tr>
     <tr>
-      <td>一键推送</td>
-      <td>在视频详情页直接推送磁力链接到115网盘</td>
+      <td>启用 115 离线下载</td>
+      <td>在设置页开启 115 v2 离线下载能力</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>批量推送</td>
-      <td>支持快速连续推送多个磁力链接</td>
+      <td>OpenList 手动获取</td>
+      <td>通过 OpenList 辅助获取 <code>refresh_token</code> / <code>access_token</code></td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>自动标记</td>
-      <td>推送成功后自动标记视频为已观看</td>
+      <td>扫码授权</td>
+      <td>支持借用 OpenList 扫码或自有应用扫码授权</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>推送历史</td>
-      <td>记录所有推送操作历史</td>
+      <td>token 状态验证</td>
+      <td>显示并验证 <code>refresh_token</code> / <code>access_token</code> 状态</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td colspan="3"><strong>智能验证</strong></td>
+      <td colspan="3"><strong>详情页推送</strong></td>
     </tr>
     <tr>
-      <td>自动验证码处理</td>
-      <td>自动处理115网盘的验证码流程</td>
+      <td>推送115按钮</td>
+      <td>在影片详情页为磁力链接提供推送到 115 离线下载的入口</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>验证状态提示</td>
-      <td>实时显示验证状态</td>
+      <td>自动标记联动</td>
+      <td>推送成功后可联动标记“已看”，开关属于视频增强相关设置</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>重试机制</td>
-      <td>验证失败自动重试</td>
+      <td>推送日志</td>
+      <td>记录推送成功、失败及相关状态信息</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td colspan="3"><strong>推送配置</strong></td>
+      <td colspan="3"><strong>任务与配置</strong></td>
     </tr>
     <tr>
-      <td>下载目录设置</td>
-      <td>自定义115网盘下载目录</td>
+      <td>115任务页面</td>
+      <td>支持手动添加任务、搜索、刷新、清空、分页查看任务</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>自动标记开关</td>
-      <td>控制推送后是否自动标记</td>
+      <td>默认目录 ID</td>
+      <td>通过目录 ID 指定离线任务默认保存位置</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>推送通知</td>
-      <td>推送成功/失败的通知提示</td>
+      <td>验证次数 / 最大失败数</td>
+      <td>控制任务验证重试与连续任务失败上限</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td>Cookie 管理</td>
-      <td>自动管理115网盘登录状态<br><span style="color:#f59e0b;">⚠️ 待优化：refreshtoken 自动刷新机制</span></td>
+      <td>自动通知</td>
+      <td>任务完成后自动显示通知</td>
       <td>✅</td>
     </tr>
     <tr>
-      <td colspan="3"><strong>任务管理</strong></td>
-    </tr>
-    <tr>
-      <td>任务列表</td>
-      <td>查看所有推送任务状态</td>
+      <td>测试搜索与日志</td>
+      <td>提供测试搜索、日志刷新、清空和导出能力</td>
       <td>✅</td>
     </tr>
-    <tr>
-      <td>任务重试</td>
-      <td>失败任务可重新推送</td>
-      <td>✅</td>
-    </tr>
-    <tr>
-      <td>任务取消</td>
-      <td>取消正在进行的推送任务</td>
-      <td>✅</td>
-    </tr>
-    <tr>
-      <td>任务统计</td>
-      <td>显示成功/失败任务数量</td>
-      <td>✅</td>
-    </tr>
+  </tbody>
+</table>
   </tbody>
 </table>
 
@@ -584,7 +568,7 @@
     </tr>
     <tr>
       <td>115推送自动标记</td>
-      <td>115推送成功后自动标记为"已看"</td>
+      <td>115 推送成功后自动标记为“已看”，开关位于视频增强相关设置</td>
       <td>✅</td>
     </tr>
     <tr>
@@ -833,7 +817,7 @@
     </tr>
     <tr>
       <td>批量推送</td>
-      <td>批量推送到115网盘</td>
+      <td>当前以详情页逐条推送或 115任务 页面手动加任务为主</td>
       <td>🚧</td>
     </tr>
     <tr>
@@ -1799,4 +1783,5 @@
 **最后更新**: 2025-02-13
 
 </div>
+
 
