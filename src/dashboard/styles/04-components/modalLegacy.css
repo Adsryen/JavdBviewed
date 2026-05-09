@@ -706,9 +706,11 @@ body.modal-open {
 
 /* WebDAV 恢复弹窗样式 - 优化版 */
 .webdav-restore-modal {
-    max-width: 900px;
-    width: 95%;
-    max-height: 85vh;
+    max-width: 1080px;
+    width: min(96vw, 1080px);
+    height: min(92vh, 980px);
+    min-height: 760px;
+    max-height: 92vh;
     display: flex;
     flex-direction: column;
     background: var(--surface-primary);
@@ -868,6 +870,8 @@ body.modal-open {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    flex: 1;
+    min-height: 0;
 }
 
 .restore-description {
@@ -901,6 +905,10 @@ body.modal-open {
     overflow: hidden;
     background: var(--surface-primary);
     box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 .file-list-header {
@@ -930,7 +938,8 @@ body.modal-open {
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 240px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--surface-primary);
@@ -1245,11 +1254,46 @@ body.modal-open {
 #webdavRestoreConfirm {
   display: none !important;
 }
+
 #webdavRestoreModal .modal-footer #webdavRestoreBack,
 #webdavRestoreModal .modal-footer #webdavRestoreCancel,
-#webdavRestoreModal .modal-footer #webdavRestoreConfirm,
 #webdavRestoreModal .modal-footer #webdavRestoreAnalyze {
   display: inline-flex !important;
+}
+
+#webdavRestoreModal .restore-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+#webdavRestoreModal .restore-actions #webdavRestoreConfirm {
+    min-width: 180px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.28);
+}
+
+#webdavRestoreModal .restore-actions #webdavRestoreConfirm:not(.hidden) {
+    display: inline-flex !important;
+}
+
+#webdavRestoreModal .restore-actions #webdavRestoreConfirm:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.38);
+}
+
+[data-theme="dark"] #webdavRestoreModal .restore-actions #webdavRestoreConfirm {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(248, 113, 113, 0.28);
+}
+
+[data-theme="dark"] #webdavRestoreModal .restore-actions #webdavRestoreConfirm:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 22px rgba(248, 113, 113, 0.34);
 }
 
 /* 当弹窗未可见时，确保其页脚不显示（防“页脚悬浮”错觉） */
@@ -1377,15 +1421,32 @@ body.modal-open {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
+    left: 0;
+    opacity: 0;
+    transform: translateX(-120%);
+    pointer-events: none;
 }
 
 .webdav-restore-modal .btn:hover::before {
-    left: 100%;
+    opacity: 1;
+    animation: webdav-button-shine 0.6s ease forwards;
+}
+
+@keyframes webdav-button-shine {
+    from {
+        opacity: 0;
+        transform: translateX(-120%);
+    }
+    15% {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+        transform: translateX(120%);
+    }
 }
 
 .webdav-restore-modal .btn:disabled {
@@ -1426,6 +1487,8 @@ body.modal-open {
 @media (max-width: 768px) {
     .webdav-restore-modal {
         width: 96%;
+        height: auto;
+        min-height: 0;
         max-height: 92vh;
         margin: 20px auto;
     }
@@ -1494,6 +1557,8 @@ body.modal-open {
 @media (max-width: 480px) {
     .webdav-restore-modal {
         width: 98%;
+        height: auto;
+        min-height: 0;
         margin: 10px auto;
     }
 

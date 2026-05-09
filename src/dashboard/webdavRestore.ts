@@ -205,7 +205,7 @@ function ensureFooterInModal(): void {
         }
     }
 
-    const ids = ['webdavRestoreBack', 'webdavRestoreCancel', 'webdavRestoreConfirm'];
+    const ids = ['webdavRestoreBack', 'webdavRestoreCancel'];
     ids.forEach(id => {
         // 优先在当前弹窗作用域内查找（避免误操作弹窗外的同 ID 节点）
         const scopedNodes = Array.from((modal || document).querySelectorAll(`[id="${id}"]`)) as HTMLElement[];
@@ -295,16 +295,9 @@ function createCorrectButtons(): void {
     cancelBtn.className = 'btn btn-secondary';
     cancelBtn.innerHTML = '取消';
     
-    const confirmBtn = document.createElement('button');
-    confirmBtn.id = 'webdavRestoreConfirm';
-    confirmBtn.className = 'btn btn-primary';
-    confirmBtn.disabled = true;
-    confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始覆盖式恢复';
-    
     // 添加到footer
     modalFooter.appendChild(backBtn);
     modalFooter.appendChild(cancelBtn);
-    modalFooter.appendChild(confirmBtn);
 }
 
 let currentCloudData: any = null;
@@ -1425,7 +1418,10 @@ function showRestoreResults(summary: any): void {
     const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
     const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
     const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
-    if (confirmBtn) confirmBtn.style.display = 'none';
+    if (confirmBtn) {
+        confirmBtn.style.display = 'none';
+        confirmBtn.classList.add('hidden');
+    }
     if (backBtn) backBtn.style.display = 'none';
     if (cancelBtn) cancelBtn.style.display = 'none';
 
@@ -1490,7 +1486,10 @@ function showRestoreResults(summary: any): void {
             const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
             const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
             const cancelBtn = mq<HTMLButtonElement>('#webdavRestoreCancel');
-            if (confirmBtn) confirmBtn.style.display = '';
+            if (confirmBtn) {
+                confirmBtn.style.display = '';
+                confirmBtn.classList.add('hidden');
+            }
             if (backBtn) backBtn.style.display = '';
             if (cancelBtn) cancelBtn.style.display = '';
         };
@@ -1574,6 +1573,9 @@ export function showWebDAVRestoreModal(): void {
 }
 
 function resetModalState(): void {
+    const modal = getRestoreModal();
+    modal?.classList.remove('preview-active');
+
     // 隐藏所有内容区域
     hideElement('webdavRestoreContent');
     hideElement('webdavRestoreError');
@@ -1586,6 +1588,7 @@ function resetModalState(): void {
     const confirmBtn = mq<HTMLButtonElement>('#webdavRestoreConfirm');
     if (confirmBtn) {
         confirmBtn.disabled = true;
+        confirmBtn.classList.add('hidden');
     }
 
     // 清空文件列表
@@ -1633,7 +1636,10 @@ function bindModalEvents(): void {
             if (fileListContainer) fileListContainer.classList.remove('hidden');
 
             // 更新按钮状态
-            if (confirmBtn) confirmBtn.disabled = true;
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('hidden');
+            }
             backBtn.classList.add('hidden');
         };
     }
@@ -1835,6 +1841,7 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
 
     if (confirmBtn) {
       confirmBtn.disabled = true;
+      confirmBtn.classList.add('hidden');
       confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始覆盖式恢复';
       confirmBtn.title = '选择备份后即可恢复';
     }
@@ -1852,6 +1859,9 @@ function selectFile(file: WebDAVFile, element: HTMLElement): void {
  */
 async function loadCloudPreview(): Promise<void> {
     if (!selectedFile) return;
+
+    const modal = getRestoreModal();
+    modal?.classList.remove('preview-active');
 
     // 显示加载
     const loading = document.getElementById('webdavRestoreLoading');
@@ -1948,6 +1958,7 @@ async function loadCloudPreview(): Promise<void> {
         const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
         if (restoreDescription) restoreDescription.classList.add('hidden');
         if (fileListContainer) fileListContainer.classList.add('hidden');
+        modal?.classList.add('preview-active');
         showElement('webdavRestoreContent');
         showElement('webdavDataPreview');
 
@@ -1964,6 +1975,7 @@ async function loadCloudPreview(): Promise<void> {
         const backBtn = mq<HTMLButtonElement>('#webdavRestoreBack');
         if (confirmBtn) {
             confirmBtn.disabled = false;
+            confirmBtn.classList.remove('hidden');
             confirmBtn.innerHTML = '<i class=\"fas fa-download\"></i> 开始覆盖式恢复';
             confirmBtn.title = '开始执行覆盖式恢复';
         }
@@ -1988,6 +2000,9 @@ async function loadCloudPreview(): Promise<void> {
  */
 async function performDataAnalysis(): Promise<void> {
     if (!selectedFile) return;
+
+    const modal = getRestoreModal();
+    modal?.classList.remove('preview-active');
 
     logAsync('INFO', '开始分析数据差异', { filename: selectedFile.name });
 
@@ -2034,6 +2049,7 @@ async function performDataAnalysis(): Promise<void> {
         const fileListContainer = modal?.querySelector('#webdavRestoreContent .file-list-container');
         if (restoreDescription) restoreDescription.classList.add('hidden');
         if (fileListContainer) fileListContainer.classList.add('hidden');
+        modal?.classList.add('preview-active');
 
         // 验证父容器状态
         logAsync('INFO', 'webdavRestoreContent容器状态', {
@@ -2078,6 +2094,7 @@ async function performDataAnalysis(): Promise<void> {
         if (analyzeBtn) analyzeBtn.classList.add('hidden');
         if (confirmBtn) {
             confirmBtn.disabled = false;
+            confirmBtn.classList.remove('hidden');
             confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
             confirmBtn.title = '开始执行覆盖式恢复';
         }
@@ -2723,6 +2740,7 @@ async function handleConfirmRestore(): Promise<void> {
 
         if (confirmBtn) {
             confirmBtn.disabled = false;
+            confirmBtn.classList.remove('hidden');
             confirmBtn.innerHTML = '<i class="fas fa-download"></i> 开始恢复';
         }
 
