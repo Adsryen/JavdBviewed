@@ -305,6 +305,21 @@
     margin: 4px 0 0;
 }
 
+.sidebar-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="dark"] .sidebar-info-container {
+    background: rgba(15, 23, 42, 0.56);
+}
+
 .sidebar-section--action .github-link,
 .sidebar-section--action .telegram-link {
     background: rgba(255, 255, 255, 0.7);
@@ -442,7 +457,7 @@
 
 /* Sidebar Version Info */
 #versionInfoSidebar {
-    padding-top: 8px;
+    padding-top: 0;
     font-family: monospace;
     font-size: 12px;
     color: var(--text-muted);
@@ -452,6 +467,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    justify-content: space-between;
+}
+
+#versionInfoSidebar .info-item + .info-item {
+    margin-top: 6px;
 }
 
 #versionInfoSidebar .info-label {
@@ -463,6 +483,7 @@
     padding: 0;
     margin-left: 6px;
     font-weight: 700;
+    text-align: right;
 }
 
 /* GitHub Link */
