@@ -1040,6 +1040,139 @@
     gap: 12px;
 }
 
+.webdav-client-profile,
+.webdav-clients-list {
+    display: grid;
+    gap: 8px;
+}
+
+.webdav-client-card {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--card-bg, #fff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.webdav-client-card.current {
+    border-color: var(--primary-color, #3b82f6);
+}
+
+.webdav-client-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--text-color, #111827);
+}
+
+.webdav-client-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 12px;
+    font-size: 12px;
+    color: var(--text-color, #374151);
+    line-height: 1.4;
+}
+
+.webdav-client-actions {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: end;
+}
+
+.webdav-client-actions input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-color, #111827);
+    box-sizing: border-box;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    cursor: text;
+}
+
+.webdav-client-actions input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.webdav-client-form {
+    display: grid;
+    gap: 4px;
+}
+
+.webdav-client-form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-color, #374151);
+}
+
+#webdavClientsSection .button-like,
+#webdavClientsSection input,
+#webdavClientsSection button {
+    pointer-events: auto;
+}
+
+#webdavClientsSection .button-like[data-action="save-device-label"],
+#refreshWebdavClients {
+    padding: 8px 12px !important;
+    min-height: 36px;
+    line-height: 1.2;
+}
+
+.webdav-client-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    word-break: break-all;
+}
+
+.webdav-client-placeholder {
+    font-size: 12px;
+    color: var(--text-muted, #6b7280);
+    padding: 6px 0;
+}
+
+@media (max-width: 720px) {
+    .webdav-client-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .webdav-client-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+[data-theme="dark"] .webdav-client-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+[data-theme="dark"] .webdav-client-title,
+[data-theme="dark"] .webdav-client-meta,
+[data-theme="dark"] .webdav-client-form-label {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .webdav-client-actions input[type="text"] {
+    background: #111827;
+    color: #f9fafb;
+    border-color: #4b5563;
+    caret-color: #f9fafb;
+}
+
+[data-theme="dark"] .webdav-client-actions input[type="text"]::placeholder {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .webdav-client-id {
+    color: #d1d5db;
+}
+
 .webdav-config-item {
     display: flex;
     align-items: center;

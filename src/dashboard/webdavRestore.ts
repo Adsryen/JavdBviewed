@@ -180,6 +180,10 @@ interface WebDAVFile {
     name: string;
     lastModified: string;
     size?: number;
+    uploaderClientId?: string;
+    uploaderDeviceLabel?: string;
+    uploaderBrowserName?: string;
+    uploadId?: string;
 }
 
 /**
@@ -221,6 +225,16 @@ function ensureFooterInModal(): void {
             }
         });
     });
+}
+
+function getUploaderMeta(file: WebDAVFile): { device: string; browser: string; isUnknown: boolean } {
+    const device = String(file.uploaderDeviceLabel || file.uploaderClientId || '').trim();
+    const browser = String(file.uploaderBrowserName || '').trim();
+    return {
+        device: device || '未知设备',
+        browser: browser || '未知浏览器',
+        isUnknown: !device && !browser,
+    };
 }
 
 // 全局变量
@@ -1718,6 +1732,9 @@ async function displayFileList(files: WebDAVFile[]): Promise<void> {
         const latestBadge = isLatest ? '<span class="latest-badge">最新</span>' : '';
         const recentBadge = isRecent && !isLatest ? '<span class="recent-badge">最近</span>' : '';
 
+        const uploaderMeta = getUploaderMeta(file);
+        const uploaderClass = uploaderMeta.isUnknown ? 'file-uploader unknown' : 'file-uploader';
+
         li.innerHTML = `
             <i class="fas fa-file-alt file-icon"></i>
             <div class="file-info">
@@ -1729,6 +1746,8 @@ async function displayFileList(files: WebDAVFile[]): Promise<void> {
                 <div class="file-meta">
                     <span class="file-date">${formatRelativeTime(file.lastModified)}</span>
                     <span class="file-size">${formatFileSize(file.size)}</span>
+                    <span class="${uploaderClass}">设备：${uploaderMeta.device}</span>
+                    <span class="${uploaderClass}">浏览器：${uploaderMeta.browser}</span>
                 </div>
             </div>
             <button class="btn btn-sm btn-outline file-download-btn" title="下载此备份到本地" data-filepath="${file.path}" data-filename="${file.name}">

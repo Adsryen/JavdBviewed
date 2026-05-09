@@ -6,6 +6,7 @@ import { getSettings, setValue, getValue, saveSettings } from '../utils/storage'
 import { STORAGE_KEYS } from '../utils/config';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
 import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, initDB, logsClear as idbLogsClear } from './db';
+import type { WebDAVClientProfile, WebDAVUploadIndex, WebDAVUploadIndexItem } from '../types';
 
 // 背景日志封装：转发到 background 的 log-message 处理
 function bgLog(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): void {
@@ -23,6 +24,381 @@ function byteSizeOf(value: any): number {
 }
 
 let webdavAutoUploadInProgress = false;
+
+const WEBDAV_CLIENTS_DIR = 'clients';
+const WEBDAV_UPLOAD_INDEX_FILE = 'upload-index.json';
+const WEBDAV_UPLOAD_INDEX_VERSION = 1;
+const DEFAULT_UPLOAD_INDEX_LIMIT = 50;
+
+function createUuidLike(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    const randomPart = Math.random().toString(36).slice(2, 10);
+    return `wd-${Date.now().toString(36)}-${randomPart}`;
+  }
+}
+
+function detectBrowserName(): string {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/Edg\//i.test(ua)) return 'Edge';
+    if (/OPR\//i.test(ua)) return 'Opera';
+    if (/Brave\//i.test(ua)) return 'Brave';
+    if (/Chrome\//i.test(ua)) return 'Chrome';
+  } catch {}
+  return 'Unknown Chromium';
+}
+
+function getPlatformName(): string {
+  try {
+    const platform = navigator.platform || '';
+    return platform || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function getExtensionVersion(): string {
+  try {
+    return chrome.runtime.getManifest()?.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function normalizeWebDavBaseUrl(url: string): string {
+  let finalUrl = String(url || '').trim();
+  if (finalUrl && !finalUrl.endsWith('/')) finalUrl += '/';
+  return finalUrl;
+}
+
+function joinWebDavUrl(baseUrl: string, relativePath: string): string {
+  const normalizedBase = normalizeWebDavBaseUrl(baseUrl);
+  return normalizedBase + relativePath.replace(/^\/+/, '');
+}
+
+function buildUploadId(clientId: string, uploadedAt: string): string {
+  const compactTime = uploadedAt.replace(/[-:.]/g, '').replace('T', '_').replace('Z', 'Z');
+  const safeClientId = String(clientId || '').trim() || 'anonymous';
+  return `${compactTime}_${safeClientId.slice(0, 8)}`;
+}
+
+function sanitizeDeviceLabel(value: string): string {
+  const trimmed = String(value || '').trim();
+  return trimmed || detectBrowserName();
+}
+
+async function ensureWebDAVClientIdentity(): Promise<any> {
+  const settings = await getSettings();
+  const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}) } } as any;
+  let changed = false;
+
+  if (!nextSettings.webdav.clientId) {
+    nextSettings.webdav.clientId = createUuidLike();
+    changed = true;
+  }
+  if (!nextSettings.webdav.clientInstalledAt) {
+    nextSettings.webdav.clientInstalledAt = new Date().toISOString();
+    changed = true;
+  }
+
+  const detectedBrowser = detectBrowserName();
+  if (!nextSettings.webdav.browserName) {
+    nextSettings.webdav.browserName = detectedBrowser;
+    changed = true;
+  }
+
+  if (!nextSettings.webdav.deviceLabel) {
+    nextSettings.webdav.deviceLabel = detectedBrowser;
+    changed = true;
+  }
+
+  if (changed) {
+    await saveSettings(nextSettings);
+    return nextSettings;
+  }
+  return settings;
+}
+
+function getWebDAVClientProfile(settings: any, overrides?: Partial<WebDAVClientProfile>): WebDAVClientProfile {
+  const webdav = settings?.webdav || {};
+  const resolvedClientId = String(overrides?.clientId || webdav.clientId || createUuidLike()).trim();
+  return {
+    clientId: resolvedClientId,
+    deviceLabel: sanitizeDeviceLabel(String(overrides?.deviceLabel || webdav.deviceLabel || '')),
+    browserName: String(overrides?.browserName || webdav.browserName || detectBrowserName()).trim() || 'Unknown Chromium',
+    platform: String(overrides?.platform || getPlatformName()).trim(),
+    extensionVersion: String(overrides?.extensionVersion || getExtensionVersion()).trim(),
+    installedAt: String(overrides?.installedAt || webdav.clientInstalledAt || new Date().toISOString()),
+    lastSeenAt: String(overrides?.lastSeenAt || webdav.clientLastSeenAt || '').trim() || undefined,
+    lastSyncAt: String(overrides?.lastSyncAt || webdav.clientLastSyncAt || '').trim() || undefined,
+    lastSyncStatus: (overrides?.lastSyncStatus || webdav.clientLastSyncStatus || undefined) as any,
+    lastUploadId: String(overrides?.lastUploadId || webdav.clientLastUploadId || '').trim() || undefined,
+    disabled: overrides?.disabled || false,
+  };
+}
+
+function getClientFilePath(clientId: string): string {
+  const safeClientId = String(clientId || '').trim() || createUuidLike();
+  return `${WEBDAV_CLIENTS_DIR}/${safeClientId}.json`;
+}
+
+async function webDavReadJsonFile<T>(baseUrl: string, auth: { username: string; password: string }, relativePath: string): Promise<T | null> {
+  const url = joinWebDavUrl(baseUrl, relativePath);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: 'Basic ' + btoa(`${auth.username}:${auth.password}`),
+    },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Read ${relativePath} failed with status: ${response.status}`);
+  return await response.json() as T;
+}
+
+async function webDavWriteJsonFile(baseUrl: string, auth: { username: string; password: string }, relativePath: string, data: any): Promise<void> {
+  const url = joinWebDavUrl(baseUrl, relativePath);
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: 'Basic ' + btoa(`${auth.username}:${auth.password}`),
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify(data, null, 2),
+  });
+  if (!response.ok) throw new Error(`Write ${relativePath} failed with status: ${response.status}`);
+}
+
+async function ensureWebDAVSupportDirs(baseUrl: string, username: string, password: string): Promise<void> {
+  await ensureWebDAVDirectoryExists(baseUrl, username, password);
+  await ensureWebDAVDirectoryExists(joinWebDavUrl(baseUrl, WEBDAV_CLIENTS_DIR), username, password);
+}
+
+async function updateWebDAVClientRegistry(baseUrl: string, auth: { username: string; password: string }, profile: WebDAVClientProfile): Promise<void> {
+  const now = new Date().toISOString();
+  const safeClientId = String(profile.clientId || '').trim() || createUuidLike();
+  const payload: WebDAVClientProfile = {
+    ...profile,
+    clientId: safeClientId,
+    lastSeenAt: now,
+  };
+  await webDavWriteJsonFile(baseUrl, auth, getClientFilePath(safeClientId), payload);
+}
+
+function createEmptyUploadIndex(): WebDAVUploadIndex {
+  return {
+    version: WEBDAV_UPLOAD_INDEX_VERSION,
+    updatedAt: new Date(0).toISOString(),
+    lastUploadId: '',
+    items: [],
+  };
+}
+
+async function appendWebDAVUploadIndex(baseUrl: string, auth: { username: string; password: string }, item: WebDAVUploadIndexItem, limit: number): Promise<void> {
+  const existing = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
+  const index = existing && typeof existing === 'object' ? existing : createEmptyUploadIndex();
+  const deduped = (index.items || []).filter(entry => entry.uploadId !== item.uploadId);
+  const finalLimit = Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_UPLOAD_INDEX_LIMIT;
+  const items = [item, ...deduped].slice(0, finalLimit);
+  const nextIndex: WebDAVUploadIndex = {
+    version: WEBDAV_UPLOAD_INDEX_VERSION,
+    updatedAt: item.uploadedAt,
+    lastUploadId: item.uploadId,
+    items,
+  };
+  await webDavWriteJsonFile(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE, nextIndex);
+}
+
+async function enrichFilesWithUploadIndex(baseUrl: string, auth: { username: string; password: string }, files: WebDAVFile[]): Promise<WebDAVFile[]> {
+  if (!Array.isArray(files) || files.length === 0) return files;
+  const index = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
+  const items = Array.isArray(index?.items) ? index.items : [];
+  if (items.length === 0) return files;
+
+  const byFile = new Map<string, WebDAVUploadIndexItem>();
+  for (const item of items) {
+    if (item?.file) byFile.set(String(item.file), item);
+  }
+
+  return files.map((file) => {
+    const matched = byFile.get(file.name);
+    if (!matched) return file;
+    return {
+      ...file,
+      uploaderClientId: matched.clientId,
+      uploaderDeviceLabel: matched.deviceLabel,
+      uploaderBrowserName: matched.browserName,
+      uploadId: matched.uploadId,
+    };
+  });
+}
+
+function isUserBackupFile(file: WebDAVFile): boolean {
+  if (!file || file.isDirectory) return false;
+  const name = String(file.name || '').trim();
+  if (!name) return false;
+  if (name === WEBDAV_UPLOAD_INDEX_FILE) return false;
+  if (/^clients$/i.test(name)) return false;
+  if (/^javdb-extension-backup-.*\.(zip|json)$/i.test(name)) return true;
+  return false;
+}
+
+async function listWebDAVClients(): Promise<{ success: boolean; clients?: WebDAVClientProfile[]; error?: string }> {
+  const settings = await ensureWebDAVClientIdentity();
+  const webdav = settings.webdav || {};
+  if (!webdav.enabled || !webdav.url || !webdav.username || !webdav.password) {
+    return { success: false, error: 'WebDAV connection details are not fully configured.' };
+  }
+
+  const baseUrl = normalizeWebDavBaseUrl(webdav.url);
+  try {
+    const dirUrl = joinWebDavUrl(baseUrl, WEBDAV_CLIENTS_DIR);
+    const response = await fetch(dirUrl, {
+      method: 'PROPFIND',
+      headers: {
+        Authorization: 'Basic ' + btoa(`${webdav.username}:${webdav.password}`),
+        Depth: '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
+      body: `<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:"><D:prop><D:displayname/><D:getlastmodified/><D:getcontentlength/><D:resourcetype/></D:prop></D:propfind>`,
+    });
+    if (response.status === 404) return { success: true, clients: [] };
+    if (!response.ok) throw new Error(`List clients failed with status: ${response.status}`);
+    const xml = await response.text();
+    const files = parseWebDAVResponse(xml).filter(file => !file.isDirectory && /\.json$/i.test(file.name));
+    const clients = await Promise.all(files.map(async (file) => {
+      try {
+        return await webDavReadJsonFile<WebDAVClientProfile>(baseUrl, { username: webdav.username, password: webdav.password }, `${WEBDAV_CLIENTS_DIR}/${file.name}`);
+      } catch {
+        return null;
+      }
+    }));
+    return {
+      success: true,
+      clients: clients.filter((client): client is WebDAVClientProfile => !!client && !!String(client.clientId || '').trim())
+    };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Failed to list WebDAV clients.' };
+  }
+}
+
+async function getCurrentWebDAVClientProfile(): Promise<{ success: boolean; profile?: WebDAVClientProfile; error?: string }> {
+  try {
+    const settings = await ensureWebDAVClientIdentity();
+    let profile = getWebDAVClientProfile(settings);
+    const webdav = settings.webdav || {};
+
+    const needsCloudHydrate = !profile.lastSeenAt || !profile.lastSyncAt;
+    if (needsCloudHydrate && webdav.enabled && webdav.url && webdav.username && webdav.password) {
+      try {
+        const cloudProfile = await webDavReadJsonFile<WebDAVClientProfile>(
+          normalizeWebDavBaseUrl(webdav.url),
+          { username: webdav.username, password: webdav.password },
+          getClientFilePath(profile.clientId)
+        );
+        if (cloudProfile) {
+          profile = {
+            ...profile,
+            deviceLabel: String(cloudProfile.deviceLabel || profile.deviceLabel || '').trim() || profile.deviceLabel,
+            lastSeenAt: profile.lastSeenAt || cloudProfile.lastSeenAt,
+            lastSyncAt: profile.lastSyncAt || cloudProfile.lastSyncAt,
+            lastSyncStatus: profile.lastSyncStatus || cloudProfile.lastSyncStatus,
+            lastUploadId: profile.lastUploadId || cloudProfile.lastUploadId,
+          };
+          if (profile.deviceLabel && profile.deviceLabel !== settings.webdav?.deviceLabel) {
+            const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: profile.deviceLabel } } as any;
+            await saveSettings(nextSettings);
+          }
+        }
+      } catch {}
+    }
+
+    return { success: true, profile };
+  } catch (error: any) {
+    return { success: false, error: error?.message || '获取当前客户端信息失败。' };
+  }
+}
+
+async function updateCurrentWebDAVDeviceLabel(deviceLabel: string): Promise<{ success: boolean; profile?: WebDAVClientProfile; error?: string }> {
+  try {
+    const trimmedLabel = String(deviceLabel || '').trim();
+    if (!trimmedLabel) return { success: false, error: '设备名称不能为空。' };
+
+    const settings = await ensureWebDAVClientIdentity();
+    const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: trimmedLabel } } as any;
+    await saveSettings(nextSettings);
+
+    const profile = getWebDAVClientProfile(nextSettings, {
+      deviceLabel: trimmedLabel,
+      lastSeenAt: new Date().toISOString(),
+    });
+
+    const webdav = nextSettings.webdav || {};
+    if (webdav.enabled && webdav.url && webdav.username && webdav.password) {
+      try {
+        const baseUrl = normalizeWebDavBaseUrl(webdav.url);
+        await ensureWebDAVSupportDirs(baseUrl, webdav.username, webdav.password);
+        await updateWebDAVClientRegistry(baseUrl, { username: webdav.username, password: webdav.password }, profile);
+      } catch (error: any) {
+        bgLog('WARN', 'Failed to sync device label to WebDAV client registry', { error: error?.message });
+      }
+    }
+
+    return { success: true, profile };
+  } catch (error: any) {
+    return { success: false, error: error?.message || '更新设备名称失败。' };
+  }
+}
+
+async function updateWebDAVClientDeviceLabel(clientId: string, deviceLabel: string): Promise<{ success: boolean; profile?: WebDAVClientProfile; error?: string }> {
+  try {
+    const trimmedClientId = String(clientId || '').trim();
+    const trimmedLabel = String(deviceLabel || '').trim();
+    if (!trimmedClientId) return { success: false, error: '设备 ID 不能为空。' };
+    if (!trimmedLabel) return { success: false, error: '设备名称不能为空。' };
+
+    const settings = await ensureWebDAVClientIdentity();
+    const webdav = settings.webdav || {};
+    if (!webdav.enabled || !webdav.url || !webdav.username || !webdav.password) {
+      return { success: false, error: 'WebDAV 连接尚未配置完整。' };
+    }
+
+    const baseUrl = normalizeWebDavBaseUrl(webdav.url);
+    const auth = { username: webdav.username, password: webdav.password };
+    const filePath = getClientFilePath(trimmedClientId);
+    const existing = await webDavReadJsonFile<WebDAVClientProfile>(baseUrl, auth, filePath);
+    if (!existing) return { success: false, error: '未找到对应的云端设备记录。' };
+
+    const nextProfile: WebDAVClientProfile = {
+      ...existing,
+      clientId: trimmedClientId,
+      deviceLabel: trimmedLabel,
+    };
+    await webDavWriteJsonFile(baseUrl, auth, filePath, nextProfile);
+
+    const currentClientId = String(settings.webdav?.clientId || '').trim();
+    if (currentClientId && currentClientId === trimmedClientId) {
+      const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: trimmedLabel } } as any;
+      await saveSettings(nextSettings);
+    }
+
+    return { success: true, profile: nextProfile };
+  } catch (error: any) {
+    return { success: false, error: error?.message || '更新云端设备名称失败。' };
+  }
+}
+
+function sanitizeImportedSettings(importedSettings: any, currentSettings: any): any {
+  if (!importedSettings || typeof importedSettings !== 'object') return importedSettings;
+  const next = { ...importedSettings, webdav: { ...(importedSettings.webdav || {}) } };
+  const currentWebdav = currentSettings?.webdav || {};
+  next.webdav.clientId = currentWebdav.clientId || next.webdav.clientId || '';
+  next.webdav.deviceLabel = currentWebdav.deviceLabel || next.webdav.deviceLabel || '';
+  next.webdav.browserName = currentWebdav.browserName || next.webdav.browserName || '';
+  next.webdav.clientInstalledAt = currentWebdav.clientInstalledAt || next.webdav.clientInstalledAt || '';
+  return next;
+}
 
 export async function triggerWebDAVAutoUpload(): Promise<void> {
   if (webdavAutoUploadInProgress) return;
@@ -307,6 +683,10 @@ interface WebDAVFile {
   lastModified: string;
   isDirectory: boolean;
   size?: number;
+  uploaderClientId?: string;
+  uploaderDeviceLabel?: string;
+  uploaderBrowserName?: string;
+  uploadId?: string;
 }
 
 /**
@@ -412,12 +792,13 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     const date = `${year}-${month}-${day}`;
     const filename = `javdb-extension-backup-${date}-${hour}-${minute}-${second}.zip`;
 
-    let fileUrl = settings.webdav.url;
-    if (!fileUrl.endsWith('/')) fileUrl += '/';
+    let fileUrl = normalizeWebDavBaseUrl(settings.webdav.url);
+    const baseUrl = fileUrl;
+    const auth = { username: settings.webdav.username, password: settings.webdav.password };
     
     // 确保目录存在
     try {
-      await ensureWebDAVDirectoryExists(fileUrl, settings.webdav.username, settings.webdav.password);
+      await ensureWebDAVSupportDirs(fileUrl, settings.webdav.username, settings.webdav.password);
     } catch (dirError: any) {
       bgLog('WARN', 'Failed to ensure directory exists, will try upload anyway', { error: dirError.message });
     }
@@ -443,8 +824,45 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     });
     if (!response.ok) throw new Error(`Upload failed with status: ${response.status}`);
 
+    const uploadedAt = new Date().toISOString();
+    const clientProfile = getWebDAVClientProfile(settings, {
+      lastSeenAt: uploadedAt,
+      lastSyncAt: uploadedAt,
+      lastSyncStatus: 'success',
+    });
+    const uploadId = buildUploadId(clientProfile.clientId, uploadedAt);
+    clientProfile.lastUploadId = uploadId;
+
+    try {
+      await updateWebDAVClientRegistry(baseUrl, auth, clientProfile);
+    } catch (registryError: any) {
+      bgLog('WARN', 'Failed to update WebDAV client registry', { error: registryError?.message });
+    }
+
+    try {
+      const uploadIndexItem: WebDAVUploadIndexItem = {
+        uploadId,
+        uploadedAt,
+        clientId: clientProfile.clientId,
+        deviceLabel: clientProfile.deviceLabel,
+        browserName: clientProfile.browserName,
+        type: 'full',
+        status: 'success',
+        file: filename,
+        recordCount: Object.keys((dataToExport as any)?.data || (dataToExport as any)?.viewed || {}).length,
+        dataVersion: Number((dataToExport as any)?.version || 1),
+      };
+      await appendWebDAVUploadIndex(baseUrl, auth, uploadIndexItem, Number(settings.webdav.uploadIndexLimit ?? DEFAULT_UPLOAD_INDEX_LIMIT));
+    } catch (indexError: any) {
+      bgLog('WARN', 'Failed to update WebDAV upload index', { error: indexError?.message });
+    }
+
     const updatedSettings = await getSettings();
     updatedSettings.webdav.lastSync = new Date().toISOString();
+    updatedSettings.webdav.clientLastSeenAt = uploadedAt;
+    updatedSettings.webdav.clientLastSyncAt = uploadedAt;
+    updatedSettings.webdav.clientLastSyncStatus = 'success';
+    updatedSettings.webdav.clientLastUploadId = uploadId;
     
     // 同时更新当前激活配置的 lastSync
     const activeConfigId = updatedSettings.webdav.activeConfigId;
@@ -517,7 +935,8 @@ async function applyImportDataDirect(importData: any, options?: {
       const c0 = Date.now();
       try {
         if (importData?.settings) {
-          await saveSettings(importData.settings);
+          const currentSettings = await ensureWebDAVClientIdentity();
+          await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
           mark('settings', { replaced: true, durationMs: Date.now() - c0 });
         } else {
           mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
@@ -698,7 +1117,8 @@ async function performRestoreUnified(filename: string, options?: {
       const c0 = Date.now();
       try {
         if (importData?.settings) {
-          await saveSettings(importData.settings);
+          const currentSettings = await ensureWebDAVClientIdentity();
+          await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
           mark('settings', { replaced: true, durationMs: Date.now() - c0 });
         } else {
           mark('settings', { replaced: false, reason: 'missing', durationMs: Date.now() - c0 });
@@ -902,7 +1322,8 @@ async function performRestore(filename: string, options = {
     }
 
     if (importData.settings && options.restoreSettings) {
-      await saveSettings(importData.settings);
+      const currentSettings = await ensureWebDAVClientIdentity();
+      await saveSettings(sanitizeImportedSettings(importData.settings, currentSettings));
       bgLog('INFO', 'Restored settings');
     }
     if (importData.data && options.restoreRecords) {
@@ -992,8 +1413,8 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
     return { success: false, error: errorMsg };
   }
   try {
-    let url = settings.webdav.url;
-    if (!url.endsWith('/')) url += '/';
+    let url = normalizeWebDavBaseUrl(settings.webdav.url);
+    const auth = { username: settings.webdav.username, password: settings.webdav.password };
     bgLog('INFO', `Sending PROPFIND request to: ${url}`);
     const headers: Record<string, string> = {
       Authorization: 'Basic ' + btoa(`${settings.webdav.username}:${settings.webdav.password}`),
@@ -1023,7 +1444,7 @@ async function listFiles(): Promise<{ success: boolean; error?: string; files?: 
     });
     if (!text || text.trim().length === 0) throw new Error('服务器返回空响应');
 
-    const files = parseWebDAVResponse(text);
+    const files = (await enrichFilesWithUploadIndex(url, auth, parseWebDAVResponse(text))).filter(isUserBackupFile);
     bgLog('INFO', `Successfully parsed ${files.length} files from WebDAV response`);
     bgLog('DEBUG', 'Parsed WebDAV files:', { files });
     if (files.length === 0) bgLog('WARN', 'No backup files found in WebDAV response. This might be normal if no backups exist yet.');
@@ -1122,27 +1543,25 @@ function parseWebDAVResponse(xmlString: string): WebDAVFile[] {
         if (collectionPattern.test(responseXml)) { isDirectory = true; break; }
       }
       if (isDirectory || href.endsWith('/')) continue;
-      if (displayName.includes('javdb-extension-backup')) {
-        let lastModified = 'N/A';
-        for (const timePattern of timePatterns) {
-          const timeMatch = responseXml.match(timePattern);
-          if (timeMatch && timeMatch[1]) {
-            try {
-              const d = new Date(timeMatch[1]);
-              if (!isNaN(d.getTime())) { lastModified = d.toISOString(); break; }
-            } catch {}
-          }
+      let lastModified = 'N/A';
+      for (const timePattern of timePatterns) {
+        const timeMatch = responseXml.match(timePattern);
+        if (timeMatch && timeMatch[1]) {
+          try {
+            const d = new Date(timeMatch[1]);
+            if (!isNaN(d.getTime())) { lastModified = d.toISOString(); break; }
+          } catch {}
         }
-        let size: number | undefined;
-        for (const sizePattern of sizePatterns) {
-          const sizeMatch = responseXml.match(sizePattern);
-          if (sizeMatch && sizeMatch[1]) {
-            const parsedSize = parseInt(sizeMatch[1], 10);
-            if (!isNaN(parsedSize)) { size = parsedSize; break; }
-          }
-        }
-        files.push({ name: displayName, path: href, lastModified, isDirectory: false, size });
       }
+      let size: number | undefined;
+      for (const sizePattern of sizePatterns) {
+        const sizeMatch = responseXml.match(sizePattern);
+        if (sizeMatch && sizeMatch[1]) {
+          const parsedSize = parseInt(sizeMatch[1], 10);
+          if (!isNaN(parsedSize)) { size = parsedSize; break; }
+        }
+      }
+      files.push({ name: displayName, path: href, lastModified, isDirectory: false, size });
     }
     if (files.length > 0) break;
   }
@@ -1311,6 +1730,20 @@ export function registerWebDAVRouter(): void {
           return true;
         case 'webdav-upload':
           performUpload().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-get-client-profile':
+          getCurrentWebDAVClientProfile()
+            .then(sendResponse)
+            .catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-list-clients':
+          listWebDAVClients().then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-update-device-label':
+          updateCurrentWebDAVDeviceLabel(message?.deviceLabel).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
+          return true;
+        case 'webdav-update-client-device-label':
+          updateWebDAVClientDeviceLabel(message?.clientId, message?.deviceLabel).then(sendResponse).catch((e) => sendResponse({ success: false, error: e?.message }));
           return true;
         case 'get-next-sync-time':
           chrome.alarms.get('webdav-auto-sync', (alarm) => {
