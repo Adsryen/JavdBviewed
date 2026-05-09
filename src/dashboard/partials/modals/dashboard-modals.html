@@ -612,6 +612,12 @@
                                   <small>编排器任务执行记录（暂不支持备份）</small>
                               </div>
                           </div>
+                          <div class="restore-actions">
+                              <button id="webdavRestoreConfirm" class="btn btn-primary hidden" disabled title="开始执行覆盖式恢复">
+                                  <i class="fas fa-download"></i>
+                                  开始覆盖式恢复
+                              </button>
+                          </div>
                       </div>
 
                       <!-- 恢复前自动备份选项 -->
@@ -743,10 +749,6 @@
               </button>
               <button id="webdavRestoreCancel" class="btn btn-secondary">取消</button>
               
-              <button id="webdavRestoreConfirm" class="btn btn-primary" disabled>
-                  <i class="fas fa-download"></i>
-                  开始覆盖式恢复
-              </button>
           </div>
       </div>
   </div>
