@@ -289,8 +289,8 @@ async function getCurrentWebDAVClientProfile(): Promise<{ success: boolean; prof
     let profile = getWebDAVClientProfile(settings);
     const webdav = settings.webdav || {};
 
-    const needsCloudHydrate = !profile.lastSeenAt || !profile.lastSyncAt;
-    if (needsCloudHydrate && webdav.enabled && webdav.url && webdav.username && webdav.password) {
+    const canReadCloudProfile = webdav.enabled && webdav.url && webdav.username && webdav.password;
+    if (canReadCloudProfile) {
       try {
         const cloudProfile = await webDavReadJsonFile<WebDAVClientProfile>(
           normalizeWebDavBaseUrl(webdav.url),
@@ -298,16 +298,39 @@ async function getCurrentWebDAVClientProfile(): Promise<{ success: boolean; prof
           getClientFilePath(profile.clientId)
         );
         if (cloudProfile) {
+          const mergedDeviceLabel = String(cloudProfile.deviceLabel || profile.deviceLabel || '').trim() || profile.deviceLabel;
+          const mergedLastSeenAt = profile.lastSeenAt || cloudProfile.lastSeenAt;
+          const mergedLastSyncAt = profile.lastSyncAt || cloudProfile.lastSyncAt;
+          const mergedLastSyncStatus = profile.lastSyncStatus || cloudProfile.lastSyncStatus;
+          const mergedLastUploadId = profile.lastUploadId || cloudProfile.lastUploadId;
+
           profile = {
             ...profile,
-            deviceLabel: String(cloudProfile.deviceLabel || profile.deviceLabel || '').trim() || profile.deviceLabel,
-            lastSeenAt: profile.lastSeenAt || cloudProfile.lastSeenAt,
-            lastSyncAt: profile.lastSyncAt || cloudProfile.lastSyncAt,
-            lastSyncStatus: profile.lastSyncStatus || cloudProfile.lastSyncStatus,
-            lastUploadId: profile.lastUploadId || cloudProfile.lastUploadId,
+            deviceLabel: mergedDeviceLabel,
+            lastSeenAt: mergedLastSeenAt,
+            lastSyncAt: mergedLastSyncAt,
+            lastSyncStatus: mergedLastSyncStatus,
+            lastUploadId: mergedLastUploadId,
           };
-          if (profile.deviceLabel && profile.deviceLabel !== settings.webdav?.deviceLabel) {
-            const nextSettings = { ...settings, webdav: { ...(settings.webdav || {}), deviceLabel: profile.deviceLabel } } as any;
+
+          const shouldPersistDeviceLabel = mergedDeviceLabel && mergedDeviceLabel !== settings.webdav?.deviceLabel;
+          const shouldPersistLastSeenAt = !!mergedLastSeenAt && mergedLastSeenAt !== settings.webdav?.clientLastSeenAt;
+          const shouldPersistLastSyncAt = !!mergedLastSyncAt && mergedLastSyncAt !== settings.webdav?.clientLastSyncAt;
+          const shouldPersistLastSyncStatus = !!mergedLastSyncStatus && mergedLastSyncStatus !== settings.webdav?.clientLastSyncStatus;
+          const shouldPersistLastUploadId = !!mergedLastUploadId && mergedLastUploadId !== settings.webdav?.clientLastUploadId;
+
+          if (shouldPersistDeviceLabel || shouldPersistLastSeenAt || shouldPersistLastSyncAt || shouldPersistLastSyncStatus || shouldPersistLastUploadId) {
+            const nextSettings = {
+              ...settings,
+              webdav: {
+                ...(settings.webdav || {}),
+                deviceLabel: mergedDeviceLabel || settings.webdav?.deviceLabel || '',
+                clientLastSeenAt: mergedLastSeenAt || settings.webdav?.clientLastSeenAt || '',
+                clientLastSyncAt: mergedLastSyncAt || settings.webdav?.clientLastSyncAt || '',
+                clientLastSyncStatus: mergedLastSyncStatus || settings.webdav?.clientLastSyncStatus || '',
+                clientLastUploadId: mergedLastUploadId || settings.webdav?.clientLastUploadId || '',
+              }
+            } as any;
             await saveSettings(nextSettings);
           }
         }
