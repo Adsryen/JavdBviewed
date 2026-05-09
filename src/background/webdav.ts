@@ -214,21 +214,46 @@ async function enrichFilesWithUploadIndex(baseUrl: string, auth: { username: str
   if (!Array.isArray(files) || files.length === 0) return files;
   const index = await webDavReadJsonFile<WebDAVUploadIndex>(baseUrl, auth, WEBDAV_UPLOAD_INDEX_FILE).catch(() => null);
   const items = Array.isArray(index?.items) ? index.items : [];
-  if (items.length === 0) return files;
 
   const byFile = new Map<string, WebDAVUploadIndexItem>();
   for (const item of items) {
     if (item?.file) byFile.set(String(item.file), item);
   }
 
+  const clientIds = Array.from(new Set(
+    items
+      .map(item => String(item?.clientId || '').trim())
+      .filter(Boolean)
+  ));
+  const clientProfiles = await Promise.all(
+    clientIds.map(async (clientId) => {
+      try {
+        const profile = await webDavReadJsonFile<WebDAVClientProfile>(baseUrl, auth, getClientFilePath(clientId));
+        return profile && String(profile.clientId || '').trim() ? profile : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  const clientProfileMap = new Map<string, WebDAVClientProfile>();
+  for (const profile of clientProfiles) {
+    const clientId = String(profile?.clientId || '').trim();
+    if (clientId) clientProfileMap.set(clientId, profile as WebDAVClientProfile);
+  }
+
+  if (items.length === 0 && clientProfileMap.size === 0) return files;
+
   return files.map((file) => {
     const matched = byFile.get(file.name);
     if (!matched) return file;
+    const latestClientProfile = clientProfileMap.get(String(matched.clientId || '').trim());
+    const latestDeviceLabel = String(latestClientProfile?.deviceLabel || matched.deviceLabel || matched.clientId || '').trim();
+    const latestBrowserName = String(latestClientProfile?.browserName || matched.browserName || '').trim();
     return {
       ...file,
       uploaderClientId: matched.clientId,
-      uploaderDeviceLabel: matched.deviceLabel,
-      uploaderBrowserName: matched.browserName,
+      uploaderDeviceLabel: latestDeviceLabel,
+      uploaderBrowserName: latestBrowserName,
       uploadId: matched.uploadId,
     };
   });

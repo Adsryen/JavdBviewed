@@ -4407,6 +4407,37 @@ body.modal-open {
     color: var(--text-primary);
 }
 
+.file-list-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+    margin: 8px 0 10px;
+}
+
+.file-list-summary .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    text-align: left;
+    white-space: nowrap;
+    flex: 0 1 auto;
+}
+
+.file-list-summary .summary-item i {
+    color: var(--text-secondary);
+}
+
+.file-list-summary .summary-item span {
+    color: var(--text-secondary);
+}
+
+.file-list-summary .summary-item strong {
+    line-height: 1;
+}
+
 .backup-info {
     background: var(--success-light);
     border: 1px solid var(--success);
