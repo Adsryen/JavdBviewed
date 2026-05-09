@@ -213,6 +213,15 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         url: '',
         username: '',
         password: '',
+        clientId: '',
+        deviceLabel: '',
+        browserName: '',
+        clientInstalledAt: '',
+        clientLastSeenAt: '',
+        clientLastSyncAt: '',
+        clientLastSyncStatus: '',
+        clientLastUploadId: '',
+        uploadIndexLimit: 50,
         autoSync: false,
         syncInterval: 1440, // 24 hours in minutes
         // 默认保留天数：7 天

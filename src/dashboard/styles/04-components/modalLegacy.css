@@ -1582,6 +1582,20 @@ body.modal-open {
     font-weight: 600;
 }
 
+.webdav-file-item .file-uploader {
+    color: var(--text-muted, #6b7280);
+    font-size: 12px;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.webdav-file-item .file-uploader.unknown {
+    opacity: 0.72;
+    font-style: italic;
+}
+
 /* 设置差异弹窗样式 */
 .settings-diff-modal {
     position: fixed !important;
