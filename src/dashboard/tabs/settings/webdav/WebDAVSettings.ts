@@ -89,48 +89,54 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     private async refreshClientPanels(): Promise<void> {
-        this.webdavClientProfileContainer.innerHTML = '<div class="webdav-client-placeholder">??????????...</div>';
-        this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">??????????...</div>';
-        await Promise.allSettled([
-            this.loadCurrentClientProfile(),
-            this.loadCloudClients()
-        ]);
+        this.webdavClientProfileContainer.innerHTML = '<div class="webdav-client-placeholder">\u6b63\u5728\u5237\u65b0\u5f53\u524d\u8bbe\u5907\u4fe1\u606f...</div>';
+        this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">\u6b63\u5728\u5237\u65b0\u4e91\u7aef\u8bbe\u5907\u5217\u8868...</div>';
+        const currentClientId = await this.loadCurrentClientProfile();
+        await this.loadCloudClients(currentClientId);
         this.bindClientCardActions();
     }
 
-    private async loadCurrentClientProfile(): Promise<void> {
+    private async loadCurrentClientProfile(): Promise<string> {
         return new Promise((resolve) => {
             chrome.runtime.sendMessage({ type: 'webdav-get-client-profile' }, (resp) => {
                 if (!resp?.success || !resp?.profile) {
-                    this.webdavClientProfileContainer.innerHTML = '<div class="webdav-client-placeholder">??????????</div>';
-                    resolve();
+                    this.webdavClientProfileContainer.innerHTML = '<div class="webdav-client-placeholder">\u5f53\u524d\u8bbe\u5907\u4fe1\u606f\u52a0\u8f7d\u5931\u8d25</div>';
+                    resolve('');
                     return;
                 }
-                this.webdavClientProfileContainer.innerHTML = this.renderClientCard(resp.profile as WebDAVClientProfile, true);
-                resolve();
+
+                const profile = resp.profile as WebDAVClientProfile;
+                this.webdavClientProfileContainer.innerHTML = this.renderClientCard(profile, true);
+                resolve(String(profile.clientId || '').trim());
             });
         });
     }
 
-    private async loadCloudClients(): Promise<void> {
+    private async loadCloudClients(currentClientId = ''): Promise<void> {
         return new Promise((resolve) => {
             chrome.runtime.sendMessage({ type: 'webdav-list-clients' }, (resp) => {
                 if (!resp?.success) {
-                    this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">??????????</div>';
+                    this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">\u4e91\u7aef\u8bbe\u5907\u5217\u8868\u52a0\u8f7d\u5931\u8d25</div>';
                     resolve();
                     return;
                 }
-                const currentClientId = String((STATE.settings as any)?.webdav?.clientId || '').trim();
+
+                const activeClientId = currentClientId || String((STATE.settings as any)?.webdav?.clientId || '').trim();
                 const clients = ((resp.clients || []) as WebDAVClientProfile[])
-                    .filter(client => String(client.clientId || '').trim() !== currentClientId);
+                    .filter((client) => {
+                        const clientId = String(client.clientId || '').trim();
+                        return !!clientId && clientId !== activeClientId;
+                    });
+
                 if (clients.length === 0) {
-                    this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">????????</div>';
+                    this.webdavClientsListContainer.innerHTML = '<div class="webdav-client-placeholder">\u6682\u65e0\u5176\u4ed6\u4e91\u7aef\u8bbe\u5907</div>';
                     resolve();
                     return;
                 }
+
                 this.webdavClientsListContainer.innerHTML = clients
                     .sort((a, b) => String(b.lastSeenAt || '').localeCompare(String(a.lastSeenAt || '')))
-                    .map(client => this.renderClientCard(client, false))
+                    .map((client) => this.renderClientCard(client, false))
                     .join('');
                 resolve();
             });
@@ -138,31 +144,37 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     private bindClientCardActions(): void {
-        const scopedButtons = [
+        const buttons = [
             ...Array.from(this.webdavClientProfileContainer.querySelectorAll<HTMLButtonElement>('[data-action="save-device-label"]')),
             ...Array.from(this.webdavClientsListContainer.querySelectorAll<HTMLButtonElement>('[data-action="save-device-label"]')),
         ];
 
-        scopedButtons.forEach((button) => {
+        buttons.forEach((button) => {
             button.onclick = async () => {
                 const clientId = String(button.dataset.clientId || '').trim();
                 const card = button.closest('.webdav-client-card');
                 const input = card?.querySelector<HTMLInputElement>('[data-role="device-label-input"]');
                 const nextLabel = String(input?.value || '').trim();
+
                 if (!nextLabel) {
-                    showMessage('????????', 'warn');
+                    showMessage('\u8bbe\u5907\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a', 'warn');
                     return;
                 }
+
                 button.disabled = true;
                 try {
                     const resp = await new Promise<any>((resolve) => {
-                        const type = button.dataset.current === 'true' ? 'webdav-update-device-label' : 'webdav-update-client-device-label';
+                        const type = button.dataset.current === 'true'
+                            ? 'webdav-update-device-label'
+                            : 'webdav-update-client-device-label';
                         chrome.runtime.sendMessage({ type, clientId, deviceLabel: nextLabel }, resolve);
                     });
+
                     if (!resp?.success) {
-                        showMessage(resp?.error || '????????', 'error');
+                        showMessage(resp?.error || '\u66f4\u65b0\u8bbe\u5907\u540d\u79f0\u5931\u8d25', 'error');
                         return;
                     }
+
                     const currentClientId = String((STATE.settings as any)?.webdav?.clientId || '').trim();
                     if (clientId && clientId === currentClientId) {
                         const currentSettings = (STATE.settings || {}) as any;
@@ -174,7 +186,8 @@ export class WebDAVSettings extends BaseSettingsPanel {
                             }
                         } as any;
                     }
-                    showMessage('???????', 'success');
+
+                    showMessage('\u8bbe\u5907\u540d\u79f0\u5df2\u66f4\u65b0', 'success');
                     await this.refreshClientPanels();
                 } finally {
                     button.disabled = false;
@@ -184,37 +197,34 @@ export class WebDAVSettings extends BaseSettingsPanel {
     }
 
     private renderClientCard(profile: WebDAVClientProfile, isCurrent: boolean): string {
-        const preferredName = this.escapeHtml(profile.deviceLabel || profile.clientId || '?????');
+        const preferredName = this.escapeHtml(profile.deviceLabel || profile.clientId || '\u672a\u547d\u540d\u8bbe\u5907');
         const browserName = this.escapeHtml(profile.browserName || 'Unknown');
-        const lastSeen = profile.lastSeenAt ? new Date(profile.lastSeenAt).toLocaleString() : '??';
+        const lastSeen = profile.lastSeenAt ? new Date(profile.lastSeenAt).toLocaleString() : '\u672a\u77e5';
         const lastSyncSource = profile.lastSyncAt || profile.lastSeenAt;
-        const lastSync = lastSyncSource ? new Date(lastSyncSource).toLocaleString() : '??';
-        const title = isCurrent ? '????' : preferredName;
-        const actions = `
-            <div class="webdav-client-actions">
-                <div class="webdav-client-form">
-                    <label class="webdav-client-form-label" for="deviceLabel-${this.escapeHtml(profile.clientId || '')}">??????</label>
-                    <input id="deviceLabel-${this.escapeHtml(profile.clientId || '')}" type="text" data-role="device-label-input" value="${this.escapeHtml(profile.deviceLabel || '')}" placeholder="???????? / ?????">
-                </div>
-                <button type="button" class="button-like" data-action="save-device-label" data-client-id="${this.escapeHtml(profile.clientId || '')}" data-current="${isCurrent ? 'true' : 'false'}">????</button>
-            </div>
-        `;
+        const lastSync = lastSyncSource ? new Date(lastSyncSource).toLocaleString() : '\u4ece\u672a';
+        const title = isCurrent ? '\u5f53\u524d\u8bbe\u5907' : preferredName;
+
         return `
             <div class="webdav-client-card${isCurrent ? ' current' : ''}">
                 <div class="webdav-client-title">${title}</div>
                 <div class="webdav-client-meta">
-                    <div><strong>?????</strong>${preferredName}</div>
-                    <div><strong>?? ID?</strong><span class="webdav-client-id">${this.escapeHtml(profile.clientId || '')}</span></div>
-                    <div><strong>????</strong>${browserName}</div>
-                    <div><strong>?????</strong>${this.escapeHtml(lastSeen)}</div>
-                    <div><strong>?????</strong>${this.escapeHtml(lastSync)}</div>
-                    <div><strong>?????</strong>${this.escapeHtml(profile.extensionVersion || 'unknown')}</div>
+                    <div><strong>\u8bbe\u5907\u540d\u79f0\uff1a</strong>${preferredName}</div>
+                    <div><strong>\u8bbe\u5907 ID\uff1a</strong><span class="webdav-client-id">${this.escapeHtml(profile.clientId || '')}</span></div>
+                    <div><strong>\u6d4f\u89c8\u5668\uff1a</strong>${browserName}</div>
+                    <div><strong>\u6700\u8fd1\u5728\u7ebf\uff1a</strong>${this.escapeHtml(lastSeen)}</div>
+                    <div><strong>\u6700\u8fd1\u540c\u6b65\uff1a</strong>${this.escapeHtml(lastSync)}</div>
+                    <div><strong>\u6269\u5c55\u7248\u672c\uff1a</strong>${this.escapeHtml(profile.extensionVersion || 'unknown')}</div>
                 </div>
-                ${actions}
+                <div class="webdav-client-actions">
+                    <div class="webdav-client-form">
+                        <label class="webdav-client-form-label" for="deviceLabel-${this.escapeHtml(profile.clientId || '')}">\u8bbe\u5907\u5907\u6ce8\u540d\u79f0</label>
+                        <input id="deviceLabel-${this.escapeHtml(profile.clientId || '')}" type="text" data-role="device-label-input" value="${this.escapeHtml(profile.deviceLabel || '')}" placeholder="\u4f8b\u5982\uff1a\u529e\u516c\u5ba4\u7535\u8111 / \u5bb6\u91cc\u7b14\u8bb0\u672c">
+                    </div>
+                    <button type="button" class="button-like" data-action="save-device-label" data-client-id="${this.escapeHtml(profile.clientId || '')}" data-current="${isCurrent ? 'true' : 'false'}">\u4fdd\u5b58\u540d\u79f0</button>
+                </div>
             </div>
         `;
     }
-
     protected initializeElements(): void {
 
         // 全局设置元素
@@ -655,7 +665,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
 
             // 获取当前配置名称
-            const configs = settings?.webdav?.configs || [];
+            const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
             const activeConfig = configs.find(c => c.id === activeConfigId);
             const configName = activeConfig?.name || '未知配置';
 
@@ -701,7 +711,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
             }
 
             // 获取当前配置名称
-            const configs = settings?.webdav?.configs || [];
+            const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
             const activeConfig = configs.find(c => c.id === activeConfigId);
             const configName = activeConfig?.name || '未知配置';
 
@@ -813,7 +823,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     private renderConfigList(): void {
         const settings = STATE.settings;
-        const configs = settings?.webdav?.configs || [];
+        const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
         const activeConfigId = settings?.webdav?.activeConfigId;
 
         if (configs.length === 0) {
@@ -910,7 +920,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
             this.modalWebdavProvider.value = 'custom';
         } else if (mode === 'edit' && configId) {
             const settings = STATE.settings;
-            const configs = settings?.webdav?.configs || [];
+            const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
             const config = configs.find(c => c.id === configId);
             
             if (config) {
@@ -1019,7 +1029,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
         }
 
         const settings = STATE.settings;
-        const configs = settings?.webdav?.configs || [];
+        const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
 
         if (this.currentEditingConfigId) {
             // 编辑模式
@@ -1081,7 +1091,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     private handleSwitchConfig(configId: string): void {
         const settings = STATE.settings;
-        const configs = settings?.webdav?.configs || [];
+        const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
         const config = configs.find(c => c.id === configId);
 
         if (!config) {
@@ -1116,7 +1126,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
      */
     private handleDeleteConfig(configId: string): void {
         const settings = STATE.settings;
-        const configs = settings?.webdav?.configs || [];
+        const configs: WebDAVConfig[] = settings?.webdav?.configs || [];
         const config = configs.find(c => c.id === configId);
 
         if (!config) {
@@ -1128,7 +1138,7 @@ export class WebDAVSettings extends BaseSettingsPanel {
             return;
         }
 
-        const newConfigs = configs.filter(c => c.id !== configId);
+        const newConfigs: WebDAVConfig[] = configs.filter(c => c.id !== configId);
         let newActiveConfigId = settings.webdav?.activeConfigId;
 
         // 如果删除的是当前激活的配置，切换到第一个配置
