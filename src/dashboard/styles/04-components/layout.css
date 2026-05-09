@@ -484,6 +484,8 @@
     margin-left: 6px;
     font-weight: 700;
     text-align: right;
+    overflow-wrap: anywhere;
+    word-break: break-all;
 }
 
 /* GitHub Link */

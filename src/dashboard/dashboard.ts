@@ -452,6 +452,7 @@ function initInfoContainer(): void {
     const version = manifestVersion || envVersion || 'N/A';
     const buildId = import.meta.env.VITE_APP_BUILD_ID || '';
     const versionState = import.meta.env.VITE_APP_VERSION_STATE || 'unknown';
+    const deviceId = String(STATE.settings?.webdav?.clientId || '').trim();
 
     const getStateTitle = (state: string): string => {
     switch (state) {
@@ -474,11 +475,19 @@ function initInfoContainer(): void {
         </div>`
         : '';
 
+    const deviceIdLine = deviceId
+        ? `
+        <div class="info-item">
+            <span class="info-label">Device ID:</span>
+            <span class="info-value" title="当前 WebDAV 客户端设备 ID">${deviceId}</span>
+        </div>`
+        : '';
+
     infoContainer.innerHTML = `
         <div class="info-item">
             <span class="info-label">Version:</span>
             <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${version}</span>
-        </div>${buildLine}
+        </div>${buildLine}${deviceIdLine}
     `;
 }
 
