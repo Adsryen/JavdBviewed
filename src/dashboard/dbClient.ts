@@ -6,6 +6,34 @@ import type { ViewsDaily, ReportMonthly } from '../types/insights';
 import type { ActorRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 
+export interface MagnetsQueryParams {
+  videoId: string;
+  sources?: string[];
+  hasSubtitle?: boolean;
+  minSizeBytes?: number;
+  offset?: number;
+  limit?: number;
+  orderBy?: 'createdAt' | 'sizeBytes' | 'date';
+  order?: 'asc' | 'desc';
+}
+
+export interface MagnetCacheRecord {
+  key: string;
+  videoId: string;
+  source: string;
+  name: string;
+  magnet: string;
+  size?: string;
+  sizeBytes?: number;
+  date?: string;
+  seeders?: number;
+  leechers?: number;
+  hasSubtitle?: boolean;
+  quality?: string;
+  createdAt: number;
+  expireAt?: number;
+}
+
 function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
   const tryOnce = (): Promise<T> => new Promise<T>((resolve, reject) => {
     let timer: number | undefined;
@@ -239,6 +267,12 @@ export async function dbLogsExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:LOGS_EXPORT');
   // @ts-ignore
   return resp.json || '[]';
+}
+
+export async function dbMagnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number }>{
+  const resp = await sendMessage<{ success: true; items: MagnetCacheRecord[]; total: number }>('DB:MAGNETS_QUERY', params);
+  // @ts-ignore
+  return { items: resp.items || [], total: resp.total || 0 };
 }
 
 // ----- Actors APIs -----
