@@ -259,9 +259,9 @@ export async function handlePushToDrive115(
 
             // 记录推送成功日志到扩展日志系统（完全异步，不阻塞主流程）
             console.log('[JavDB Ext] 准备记录115推送成功日志');
-            setTimeout(() => {
+            {
                 console.log('[JavDB Ext] 开始执行日志记录');
-                logToExtension('INFO', `推送成功: ${videoId}`, {
+                void logToExtension('INFO', `115 推送成功: ${videoId}`, {
                     videoId: videoId,
                     magnetName: magnetName,
                     magnetUrl: magnetUrl,
@@ -276,7 +276,7 @@ export async function handlePushToDrive115(
                     console.warn('记录115推送日志失败:', error);
                     console.error('[JavDB Ext] 记录115推送日志失败:', error);
                 });
-            }, 100); // 100ms后执行，确保有足够时间
+            }
 
             // 推送成功后自动标记为已看（受设置控制）
             try {
@@ -316,7 +316,7 @@ export async function handlePushToDrive115(
 
         // 记录推送失败日志到扩展日志系统（异步，不阻塞主流程）
         const errorMessage = error instanceof Error ? error.message : '未知错误';
-        logToExtension('ERROR', `推送失败: ${videoId}`, {
+        logToExtension('ERROR', `115 推送失败: ${videoId}`, {
             videoId: videoId,
             magnetName: magnetName,
             magnetUrl: magnetUrl,

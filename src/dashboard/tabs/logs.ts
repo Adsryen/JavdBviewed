@@ -2,7 +2,7 @@
 import { showMessage } from '../ui/toast';
 import { log } from '../../utils/logController';
 import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
-import { dbLogsQuery, dbLogsClear, dbLogsExport, type LogsQueryParams } from '../dbClient';
+import { dbLogsQuery, dbLogsClear, dbLogsExport, dbMagnetsQuery, type LogsQueryParams, type MagnetCacheRecord } from '../dbClient';
 
 /**
  * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
@@ -19,6 +19,8 @@ interface ConsoleLogEntry {
     message: string;
 }
 
+interface MagnetLogEntry extends MagnetCacheRecord {}
+
 /**
  * 日志标签页类
  */
@@ -34,8 +36,10 @@ export class LogsTab {
     private totalLogsCount: number = 0; // IDB 端总数（EXT 视图无过滤时使用）
 
     // 视图模式：扩展日志（EXT）/ 控制台日志（CONSOLE）
-    private viewMode: 'EXT' | 'CONSOLE' = 'EXT';
+    private viewMode: 'EXT' | 'CONSOLE' | 'MAGNET' = 'EXT';
     private consoleLogs: ConsoleLogEntry[] = [];
+    private magnetLogs: MagnetLogEntry[] = [];
+    private totalMagnetCount: number = 0;
     private MAX_CONSOLE_LOGS = 500;
 
     // 分页状态
@@ -57,8 +61,10 @@ export class LogsTab {
     private exportButton!: HTMLButtonElement;
     private logBody!: HTMLDivElement;
     private consoleLogBody!: HTMLDivElement;
+    private magnetLogBody!: HTMLDivElement;
     private logViewExtBtn!: HTMLButtonElement;
     private logViewConsoleBtn!: HTMLButtonElement;
+    private logViewMagnetBtn!: HTMLButtonElement;
 
     /**
      * 初始化日志标签页
@@ -121,11 +127,13 @@ export class LogsTab {
         }
         this.logBody = document.getElementById('log-body') as HTMLDivElement;
         this.consoleLogBody = document.getElementById('console-log-body') as HTMLDivElement;
+        this.magnetLogBody = document.getElementById('magnet-log-body') as HTMLDivElement;
         this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
         this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
         this.logsCountInfoEl = document.getElementById('logsCountInfo') as HTMLSpanElement;
         this.logViewExtBtn = document.getElementById('log-view-ext') as HTMLButtonElement;
         this.logViewConsoleBtn = document.getElementById('log-view-console') as HTMLButtonElement;
+        this.logViewMagnetBtn = document.getElementById('log-view-magnet') as HTMLButtonElement;
 
         // 验证元素是否存在
         if (!this.logLevelFilter) {
@@ -194,6 +202,15 @@ export class LogsTab {
             if (this.viewMode !== 'CONSOLE') {
                 this.viewMode = 'CONSOLE';
                 this.updateViewVisibility();
+                this.renderLogs();
+                this.updateSwitchBtnActive();
+            }
+        });
+        this.logViewMagnetBtn?.addEventListener('click', () => {
+            if (this.viewMode !== 'MAGNET') {
+                this.viewMode = 'MAGNET';
+                this.updateViewVisibility();
+                this.currentPage = 1;
                 this.renderLogs();
                 this.updateSwitchBtnActive();
             }
@@ -272,6 +289,20 @@ export class LogsTab {
             try {
                 this.exportButton.disabled = true;
                 this.exportButton.textContent = '导出中...';
+                if (this.viewMode === 'MAGNET') {
+                    const json = JSON.stringify(this.magnetLogs, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `javdb-magnets-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showMessage('磁力缓存已导出', 'success');
+                    return;
+                }
                 const json = await dbLogsExport();
                 const blob = new Blob([json], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -321,6 +352,8 @@ export class LogsTab {
         // 纯 IndexedDB 模式：不做预加载，延迟到 renderLogs 中查询
         this.logs = [];
         this.totalLogsCount = 0;
+        this.magnetLogs = [];
+        this.totalMagnetCount = 0;
     }
 
     /**
@@ -339,9 +372,15 @@ export class LogsTab {
                 const total = (res?.total ?? pageCount);
                 showMessage(`已刷新（本页 ${pageCount} / 总 ${total}）`, 'success');
             } else {
-                // 控制台视图：仅重新渲染
-                this.renderLogs();
-                showMessage(`控制台日志（内存） 共 ${this.consoleLogs.length} 条`, 'info');
+                if (this.viewMode === 'MAGNET') {
+                    const res = await this.fetchAndRenderMagnetLogs();
+                    const pageCount = (res?.items?.length ?? 0);
+                    const total = (res?.total ?? pageCount);
+                    showMessage(`磁力缓存：本页 ${pageCount} / 总 ${total} 条`, 'success');
+                } else {
+                    this.renderLogs();
+                    showMessage(`控制台日志（内存） 共 ${this.consoleLogs.length} 条`, 'info');
+                }
             }
         } catch (error) {
             console.error('刷新日志失败:', error);
@@ -388,6 +427,15 @@ export class LogsTab {
 
         if (this.viewMode === 'CONSOLE') {
             this.renderConsoleLogs();
+            return;
+        }
+
+        if (this.viewMode === 'MAGNET') {
+            this.magnetLogBody.innerHTML = '<div class="loading">加载中...</div>';
+            this.fetchAndRenderMagnetLogs().catch((e) => {
+                console.error('[LogsTab] 读取磁力缓存失败', e);
+                this.magnetLogBody.innerHTML = '<div class="no-logs">磁力缓存加载失败，请稍后重试</div>';
+            });
             return;
         }
 
@@ -455,6 +503,38 @@ export class LogsTab {
         this.updateCountText(`扩展日志：已筛选 ${this.totalLogsCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
 
         return { items: this.logs, total: this.totalLogsCount, totalPages };
+    }
+
+    private async fetchAndRenderMagnetLogs(): Promise<{ items: MagnetLogEntry[]; total: number; totalPages: number }>{
+        const keyword = (this.currentSearchQuery || '').trim();
+        const { items, total } = await dbMagnetsQuery({
+            offset: 0,
+            limit: 200,
+            orderBy: 'createdAt',
+            order: 'desc'
+        });
+
+        const query = keyword.toLowerCase();
+        const filtered = (Array.isArray(items) ? items : []).filter((item) => {
+            if (!query) return true;
+            const blob = [item.videoId, item.name, item.magnet, item.source, item.size, item.date, item.quality]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return blob.includes(query);
+        });
+
+        this.totalMagnetCount = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(this.totalMagnetCount / this.pageSize));
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        const offset = (this.currentPage - 1) * this.pageSize;
+        this.magnetLogs = filtered.slice(offset, offset + this.pageSize);
+
+        const html = this.magnetLogs.map((item) => this.createMagnetEntryHtml(item)).join('');
+        this.magnetLogBody.innerHTML = html || '<div class="no-logs">暂无磁力缓存记录</div>';
+        this.renderPagination(this.currentPage, totalPages);
+        this.updateCountText(`磁力缓存：已筛选 ${this.totalMagnetCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+        return { items: this.magnetLogs, total: this.totalMagnetCount, totalPages };
     }
 
     /**
@@ -613,8 +693,22 @@ export class LogsTab {
             }
         };
 
-        // 获取日志分类（来源）
-        const category = log.source ? String(log.source).toUpperCase() : 'GENERAL';
+        // 获取日志分类（优先沿用 source；否则从 message 推断）
+        const deriveCategoryFromMessage = (msg: string): string => {
+            const text = String(msg || '');
+            const match = text.match(/^\[([A-Z0-9]+)\]/i);
+            if (match) {
+                const normalized = match[1].toUpperCase();
+                if (normalized === '115' || normalized === '115V2' || normalized === 'DRIVE115') return 'DRIVE115';
+                return normalized;
+            }
+            if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(text)) return 'DRIVE115';
+            if (/\bDB\b|database/i.test(text)) return 'DB';
+            if (/\bBG\b|background/i.test(text)) return 'BG';
+            if (/\bCONTENT\b|content/i.test(text)) return 'CONTENT';
+            return 'GENERAL';
+        };
+        const category = log.source ? String(log.source).toUpperCase() : deriveCategoryFromMessage(log.message);
 
         // 创建详细数据部分
         const dataHtml = log.data ? `
@@ -725,6 +819,26 @@ export class LogsTab {
         `;
     }
 
+    private createMagnetEntryHtml(item: MagnetLogEntry): string {
+        const timestamp = this.formatConsoleTimestamp(item.createdAt, { showMilliseconds: false, timeZone: this.getConsoleFormat().timeZone });
+        const subtitle = item.hasSubtitle ? ' / 字幕' : '';
+        const meta = [item.source, item.size, item.date, item.quality].filter(Boolean).join(' · ');
+        return `
+            <div class="log-entry log-level-info magnet-entry">
+                <div class="log-header">
+                    <span class="log-level-badge">MAGNET</span>
+                    <span class="log-category">${this.escapeHtml(String(item.videoId || 'UNKNOWN'))}</span>
+                    <span class="log-message">${this.escapeHtml(item.name || item.magnet || '')}${subtitle}</span>
+                    <span class="log-timestamp">${this.escapeHtml(timestamp)}</span>
+                </div>
+                <details class="log-data-details" open>
+                    <summary>${this.escapeHtml(meta || '详细信息')}</summary>
+                    <pre>${this.escapeHtml(JSON.stringify(item, null, 2))}</pre>
+                </details>
+            </div>
+        `;
+    }
+
     /**
      * HTML转义
      */
@@ -764,24 +878,36 @@ export class LogsTab {
      * 根据视图切换显示容器
      */
     private updateViewVisibility(): void {
-        if (!this.logBody || !this.consoleLogBody) return;
+        if (!this.logBody || !this.consoleLogBody || !this.magnetLogBody) return;
         if (this.viewMode === 'EXT') {
             this.logBody.style.display = '';
             this.consoleLogBody.style.display = 'none';
+            this.magnetLogBody.style.display = 'none';
+        } else if (this.viewMode === 'MAGNET') {
+            this.logBody.style.display = 'none';
+            this.consoleLogBody.style.display = 'none';
+            this.magnetLogBody.style.display = '';
         } else {
             this.logBody.style.display = 'none';
             this.consoleLogBody.style.display = '';
+            this.magnetLogBody.style.display = 'none';
         }
     }
 
     private updateSwitchBtnActive(): void {
-        if (this.logViewExtBtn && this.logViewConsoleBtn) {
+        if (this.logViewExtBtn && this.logViewConsoleBtn && this.logViewMagnetBtn) {
             if (this.viewMode === 'EXT') {
                 this.logViewExtBtn.classList.add('active');
+                this.logViewConsoleBtn.classList.remove('active');
+                this.logViewMagnetBtn.classList.remove('active');
+            } else if (this.viewMode === 'MAGNET') {
+                this.logViewMagnetBtn.classList.add('active');
+                this.logViewExtBtn.classList.remove('active');
                 this.logViewConsoleBtn.classList.remove('active');
             } else {
                 this.logViewConsoleBtn.classList.add('active');
                 this.logViewExtBtn.classList.remove('active');
+                this.logViewMagnetBtn.classList.remove('active');
             }
         }
     }

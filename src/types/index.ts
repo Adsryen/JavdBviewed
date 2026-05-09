@@ -145,6 +145,15 @@ export interface ListRecord {
 // 视频记录相关类型
 // ============================================================
 
+export type LogLevel = 'OFF' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
+
+export interface LogEntry {
+  timestamp: string;
+  level: Exclude<LogLevel, 'OFF'>;
+  message: string;
+  data?: any;
+}
+
 /** 视频状态类型 */
 export type VideoStatus = 'viewed' | 'browsed' | 'want' | 'untracked';
 

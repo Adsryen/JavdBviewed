@@ -1057,7 +1057,7 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
   const q = String(query || '').trim().toLowerCase();
   const deriveSource = (msg: string): 'DRIVE115' | 'GENERAL' => {
     const m = String(msg || '');
-    if (/\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+    if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(m)) return 'DRIVE115';
     return 'GENERAL';
   };
   // 从消息中提取类别（兼容旧日志格式）
@@ -1065,9 +1065,13 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
     const m = String(msg || '');
     // 匹配 [类别] 格式，如 [DB]、[BG]、[CONTENT]
     const match = m.match(/^\[([A-Z0-9]+)\]/);
-    if (match) return match[1].toUpperCase();
+    if (match) {
+      const normalized = match[1].toUpperCase();
+      if (normalized === '115' || normalized === '115V2' || normalized === 'DRIVE115') return 'DRIVE115';
+      return normalized;
+    }
     // 兼容旧格式：从消息内容推断
-    if (/\b115\b|Drive115/i.test(m)) return 'DRIVE115';
+    if (/\[(?:115|115V2|Drive115)\]|\b115\b|Drive115/i.test(m)) return 'DRIVE115';
     if (/\bDB\b|database/i.test(m)) return 'DB';
     if (/\bBG\b|background/i.test(m)) return 'BG';
     return 'GENERAL';
@@ -1106,7 +1110,8 @@ export async function logsQuery(params: LogsQueryParams): Promise<{ items: Persi
     }
     // 新增：类别筛选
     if (category && category !== 'ALL') {
-      const cat = deriveCategory(String(v.message || ''));
+      let cat = deriveCategory(String(v.message || ''));
+      if (cat === '115' || cat === '115V2') cat = 'DRIVE115';
       if (cat !== category.toUpperCase()) continue;
     }
     // 通过过滤
@@ -1196,7 +1201,7 @@ export async function logsExportJSON(): Promise<string> {
 // ----- magnets API -----
 
 export interface MagnetsQueryParams {
-  videoId: string;
+  videoId?: string;
   sources?: string[];
   hasSubtitle?: boolean;
   minSizeBytes?: number;
@@ -1223,11 +1228,15 @@ export async function magnetsUpsertMany(records: MagnetCacheRecord[]): Promise<v
 
 export async function magnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number; }> {
   const { videoId, sources, hasSubtitle, minSizeBytes, offset = 0, limit = 200, orderBy = 'createdAt', order = 'desc' } = params || {} as any;
-  if (!videoId) return { items: [], total: 0 };
   const db = await initDB();
-  const idx = db.transaction('magnets').store.index('by_videoId');
-  // @ts-ignore
-  const allByVideo: MagnetCacheRecord[] = await idx.getAll(IDBKeyRange.only(videoId));
+  let allByVideo: MagnetCacheRecord[] = [];
+  if (videoId) {
+    const idx = db.transaction('magnets').store.index('by_videoId');
+    // @ts-ignore
+    allByVideo = await idx.getAll(IDBKeyRange.only(videoId));
+  } else {
+    allByVideo = await db.getAll('magnets');
+  }
 
   const now = Date.now();
   // 简单过滤（排除过期）
