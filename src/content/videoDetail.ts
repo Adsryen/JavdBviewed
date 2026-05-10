@@ -20,7 +20,7 @@ import { actorExtraInfoService } from '../services/actorRemarks';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
-    if (!Number.isFinite(seconds) || seconds <= 0) return 120000;
+    if (!Number.isFinite(seconds) || seconds <= 0) return 10000;
     return Math.max(1000, Math.round(seconds * 1000));
 }
 
@@ -598,34 +598,37 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
                 log('Scheduling video detail enhancements via orchestrator...');
-                // 轻量核心初始化放在 high 阶段（尽快完成定点翻译与数据准备）
                 initOrchestrator.add('high', async () => {
                     await videoDetailEnhancer.initCore();
-                }, { label: 'videoEnhancement:initCore' });
+                }, { label: 'videoEnhancement:initCore', priority: 8 });
 
-                // 重型 UI 增强拆分为 deferred 阶段，空闲优先并设置小延迟
                 initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.loadEnhancedData();
+                }, { label: 'videoEnhancement:loadData', idle: true, idleTimeout: 3000, delayMs: 300, timeout: 10000, dependsOn: ['videoEnhancement:initCore'] });
+
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runCurrentTitleTranslation();
+                }, { label: 'videoEnhancement:translateCurrentTitle', idle: true, idleTimeout: 3000, delayMs: 600, timeout: 10000, dependsOn: ['videoEnhancement:loadData'] });
+
+                initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runCover();
-                }, { label: 'videoEnhancement:runCover', idle: true, idleTimeout: 5000, delayMs: 800 });
+                }, { label: 'videoEnhancement:runCover', idle: true, idleTimeout: 5000, delayMs: 900, dependsOn: ['videoEnhancement:loadData'] });
 
-                initOrchestrator.add('deferred', async () => {
+                initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runTitle();
-                }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1000 });
+                }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1200, dependsOn: ['videoEnhancement:loadData'] });
 
-
-
-                initOrchestrator.add('deferred', async () => {
+                initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runReviewBreaker();
                 }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 1600 });
 
-                initOrchestrator.add('deferred', async () => {
+                initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runFC2Breaker();
                 }, { label: 'videoEnhancement:runFC2Breaker', idle: true, idleTimeout: 5000, delayMs: 1800 });
 
-                // 在所有增强任务之后隐藏加载指示器
-                initOrchestrator.add('deferred', () => {
+                initOrchestrator.add('idle', () => {
                     videoDetailEnhancer.finish();
-                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2000 });
+                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:runReviewBreaker', 'videoEnhancement:runFC2Breaker'] });
             } catch (enhancementError) {
                 log('Enhancement scheduling failed, but continuing:', enhancementError);
                 // 调度失败不影响主要功能
@@ -640,7 +643,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 if (!(window as any)[FLAG]) {
                     (window as any)[FLAG] = true;
                     const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(STATE.settings as any);
-                    initOrchestrator.add('deferred', async () => {
+                    initOrchestrator.add('idle', async () => {
                         try {
                             await runActorRemarksQuick(actorRemarksTaskTimeoutMs);
                         } catch (e) {
@@ -667,9 +670,11 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
 
         // 无论是否启用增强功能，都尝试为“演員”区域的演员添加标识
         try {
-            await markActorsOnPage();
+            initOrchestrator.add('idle', async () => {
+                try { await markActorsOnPage(); } catch (markErr) { log('Marking actors on page failed:', markErr); }
+            }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400 });
         } catch (markErr) {
-            log('Marking actors on page failed:', markErr);
+            log('Marking actors scheduling failed:', markErr);
         }
 
         // 绑定“想看”按钮同步与注入增强区块
@@ -677,8 +682,10 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             bindWantSyncOnClick(videoId);
         } catch (e) { log('bindWantSyncOnClick error:', e as any); }
         try {
-            await injectVideoEnhancementPanel();
-        } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
+            initOrchestrator.add('idle', async () => {
+                try { await injectVideoEnhancementPanel(); } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
+            }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 3000, delayMs: 1600 });
+        } catch (e) { log('injectVideoEnhancementPanel scheduling error:', e as any); }
         
         // 🆕 设置状态变化监听器，自动检测用户点击"看过"/"想看"按钮
         try {

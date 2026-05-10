@@ -1606,7 +1606,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             showLoadingIndicator: true,
             enableReviewBreaker: false,
             enableFC2Breaker: false,
-            actorRemarksTaskTimeoutSeconds: 120
+            actorRemarksTaskTimeoutSeconds: 10
         };
         if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
         if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
@@ -1626,7 +1626,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
         if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
         if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
-        if (this.veActorRemarksTaskTimeout) this.veActorRemarksTaskTimeout.value = String((videoEnhancement as any).actorRemarksTaskTimeoutSeconds ?? 120);
+        if (this.veActorRemarksTaskTimeout) this.veActorRemarksTaskTimeout.value = String((videoEnhancement as any).actorRemarksTaskTimeoutSeconds ?? 10);
         // 新增：影片页收藏与评分（默认启用）
         if (this.veEnableVideoFavoriteRating) this.veEnableVideoFavoriteRating.checked = (videoEnhancement as any).enableVideoFavoriteRating !== false;
         // 新增：演员标记增强（默认启用）
@@ -1764,7 +1764,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
-                    actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '120', 10) || 120,
+                    actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
                     // 新增：影片页收藏与评分
                     enableVideoFavoriteRating: this.veEnableVideoFavoriteRating?.checked === true,
                     // 新增：演员标记增强
@@ -1945,7 +1945,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 enableActorRemarks: this.veEnableActorRemarks?.checked === true,
                 actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                 actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
-                actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '120', 10) || 120,
+                actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
             },
             actorEnhancement: {
                 enabled: this.enableActorEnhancement.checked,
@@ -2014,7 +2014,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
                 if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
                 if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
-                if (this.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') this.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 120);
+                if (this.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') this.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 10);
             }
             this.updateAllToggleStates();
         } catch {}
@@ -3710,6 +3710,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 // 演员备注
                 'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
                 'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
+                'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
                 
                 // 用户体验
                 'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
@@ -3750,10 +3751,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 
                 // 视频增强
                 'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
+                'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
+                'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
                 'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
                 'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
                 'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
                 'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
+                'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
                 'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
                 
                 // 视频收藏评分
@@ -3900,6 +3904,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     'insights:collector': '观影标签采集器',
                     'actorRemarks:actorPage': '演员备注-演员页',
                     'actorRemarks:run': '演员备注-运行',
+                    'actorMarks:page': '演员标识-页面标记',
                     'ux:shortcuts:init': '快捷键初始化',
                     'ux:magnet:autoSearch': '磁力搜索自动检索',
                     'privacy:init': '隐私保护初始化',
@@ -3916,10 +3921,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     'contentFilter:init': '内容过滤初始化',
                     'contentFilter:initialize': '内容过滤初始化',
                     'videoEnhancement:initCore': '视频增强-核心初始化',
+                    'videoEnhancement:loadData': '视频增强-加载聚合数据',
+                    'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译',
                     'videoEnhancement:runCover': '视频增强-封面处理',
                     'videoEnhancement:runTitle': '视频增强-标题处理',
                     'videoEnhancement:runReviewBreaker': '视频增强-评论破解',
                     'videoEnhancement:runFC2Breaker': '视频增强-FC2破解',
+                    'videoEnhancement:panel': '视频增强-面板注入',
                     'videoEnhancement:finish': '视频增强-完成',
                     'videoFavoriteRating:init': '视频收藏评分初始化',
                 };

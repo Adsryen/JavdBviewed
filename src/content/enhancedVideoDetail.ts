@@ -185,8 +185,9 @@ export class VideoDetailEnhancer {
    */
   async initialize(): Promise<void> {
     try {
-      // 兼容旧行为：整体初始化 + 一次性应用所有增强
       await this.initCore();
+      await this.loadEnhancedData();
+      await this.runCurrentTitleTranslation();
       await this.applyEnhancements();
       this.hideLoadingIndicator();
       log('Video detail enhancement completed');
@@ -197,11 +198,9 @@ export class VideoDetailEnhancer {
   }
 
   /**
-   * 轻量核心初始化：应用选项、解析 videoId、展示加载指示器、拉取增强数据、执行定点标题翻译。
-   * 注意：不执行封面/评分/演员等重型 UI 增强，便于外部通过编排器分步调度。
+   * 轻量核心初始化：应用选项、解析 videoId、展示加载指示器、挂载轻量交互。
    */
   async initCore(): Promise<void> {
-    // 将设置中的 videoEnhancement 子项应用到选项
     this.applyOptionsFromSettings();
     this.videoId = extractVideoIdFromPage();
     if (!this.videoId) {
@@ -215,14 +214,16 @@ export class VideoDetailEnhancer {
       this.showLoadingIndicator();
     }
 
-    // 获取增强数据
-    this.enhancedData = await defaultDataAggregator.getEnhancedVideoInfo(this.videoId);
-
-    // 执行“current-title”定点翻译
-    await this.translateCurrentTitleIfNeeded();
-
-    // 增强详情页相关作品列表的点击行为
     this.enhanceRelatedVideoClicks();
+  }
+
+  async loadEnhancedData(): Promise<void> {
+    if (!this.videoId) return;
+    this.enhancedData = await defaultDataAggregator.getEnhancedVideoInfo(this.videoId);
+  }
+
+  async runCurrentTitleTranslation(): Promise<void> {
+    await this.translateCurrentTitleIfNeeded();
   }
 
   /**
