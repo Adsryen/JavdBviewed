@@ -1169,6 +1169,30 @@ async function logsEnforceRetention(): Promise<void> {
     }
 
     // 再按数量限制
+    let maxMagnetPushEntries = Number((logging as any).maxMagnetPushEntries ?? 5000);
+    if (!Number.isFinite(maxMagnetPushEntries) || maxMagnetPushEntries <= 0) maxMagnetPushEntries = 5000;
+
+    const isMagnetPushLog = (entry: any) => {
+      const action = String(entry?.data?.action || '');
+      return action === 'push_start' || action === 'push_success' || action === 'push_failed';
+    };
+
+    const allLogs = await db.getAll('logs');
+    const magnetPushLogs = allLogs
+      .filter((entry: any) => isMagnetPushLog(entry))
+      .sort((a: any, b: any) => Number(a?.timestampMs || 0) - Number(b?.timestampMs || 0));
+
+    if (magnetPushLogs.length > maxMagnetPushEntries) {
+      const txMagnet = db.transaction('logs', 'readwrite');
+      const removeCount = magnetPushLogs.length - maxMagnetPushEntries;
+      for (const entry of magnetPushLogs.slice(0, removeCount)) {
+        try {
+          if (entry?.id != null) await txMagnet.store.delete(entry.id);
+        } catch {}
+      }
+      await txMagnet.done;
+    }
+
     const total = await db.count('logs');
     if (total > maxEntries) {
       const toRemove = total - maxEntries;
