@@ -17,6 +17,7 @@ import { saveSettings } from '../../../../utils/storage';
 export class LoggingSettings extends BaseSettingsPanel {
     // 日志配置元素 - 使用HTML中实际存在的元素ID
     private maxLogEntries!: HTMLInputElement;
+    private maxMagnetPushEntries!: HTMLInputElement;
     private verboseMode!: HTMLInputElement;
     private showPrivacyLogs!: HTMLInputElement;
     private showStorageLogs!: HTMLInputElement;
@@ -70,6 +71,7 @@ export class LoggingSettings extends BaseSettingsPanel {
     protected initializeElements(): void {
         // 使用HTML中实际存在的元素ID
         this.maxLogEntries = document.getElementById('maxLogEntries') as HTMLInputElement;
+        this.maxMagnetPushEntries = document.getElementById('maxMagnetPushEntries') as HTMLInputElement;
         this.verboseMode = document.getElementById('verboseMode') as HTMLInputElement;
         this.showPrivacyLogs = document.getElementById('showPrivacyLogs') as HTMLInputElement;
         this.showStorageLogs = document.getElementById('showStorageLogs') as HTMLInputElement;
@@ -132,6 +134,10 @@ export class LoggingSettings extends BaseSettingsPanel {
             console.error('[LoggingSettings] 找不到maxLogEntries元素');
             return;
         }
+        if (!this.maxMagnetPushEntries) {
+            console.error('[LoggingSettings] 找不到maxMagnetPushEntries元素');
+            return;
+        }
         if (!this.verboseMode) {
             console.error('[LoggingSettings] 找不到verboseMode元素');
             return;
@@ -180,6 +186,7 @@ export class LoggingSettings extends BaseSettingsPanel {
     protected bindEvents(): void {
         // 日志配置事件
         this.maxLogEntries?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.maxMagnetPushEntries?.addEventListener('change', this.handleSettingChange.bind(this));
         this.verboseMode?.addEventListener('change', this.handleVerboseModeToggle.bind(this));
         this.showPrivacyLogs?.addEventListener('change', this.handleSettingChange.bind(this));
         this.showStorageLogs?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -234,7 +241,8 @@ export class LoggingSettings extends BaseSettingsPanel {
         const logging = settings?.logging || {};
 
         // 日志配置设置
-        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 10000);
+        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 5000);
+        this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries || 5000);
         this.verboseMode.checked = logging.verboseMode || false;
         this.showPrivacyLogs.checked = logging.showPrivacyLogs || false;
         this.showStorageLogs.checked = logging.showStorageLogs || false;
@@ -310,7 +318,8 @@ export class LoggingSettings extends BaseSettingsPanel {
                 ...STATE.settings,
                 logging: {
                     ...STATE.settings?.logging,
-                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
+                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 5000,
+                    maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 5000,
                     verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                     showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                     showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
@@ -358,6 +367,11 @@ export class LoggingSettings extends BaseSettingsPanel {
         const maxEntries = parseInt(this.maxLogEntries.value, 10);
         if (isNaN(maxEntries) || maxEntries < 100 || maxEntries > 50000) {
             errors.push('最大保存条数必须在100-50000之间');
+        }
+
+        const magnetPushEntries = parseInt(this.maxMagnetPushEntries.value, 10);
+        if (isNaN(magnetPushEntries) || magnetPushEntries < 100 || magnetPushEntries > 50000) {
+            errors.push('磁力推送最大条数必须在100-50000之间');
         }
 
         // 验证保留天数（可选，0 表示关闭按天清理）
@@ -408,7 +422,8 @@ export class LoggingSettings extends BaseSettingsPanel {
 
         return {
             logging: {
-                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
+                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 5000,
+                maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 5000,
                 verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                 showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                 showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
@@ -436,6 +451,9 @@ export class LoggingSettings extends BaseSettingsPanel {
         if (logging) {
             if ((logging as any).maxLogEntries !== undefined || (logging as any).maxEntries !== undefined) {
                 this.maxLogEntries.value = String((logging as any).maxLogEntries ?? (logging as any).maxEntries);
+            }
+            if ((logging as any).maxMagnetPushEntries !== undefined) {
+                this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries ?? 5000);
             }
             if (logging.verboseMode !== undefined) {
                 this.verboseMode.checked = logging.verboseMode;
@@ -560,6 +578,8 @@ export class LoggingSettings extends BaseSettingsPanel {
      */
     private handleConsoleResetDefault(): void {
         if (this.consoleLevel) this.consoleLevel.value = 'INFO' as any;
+        if (this.maxLogEntries) this.maxLogEntries.value = '5000';
+        if (this.maxMagnetPushEntries) this.maxMagnetPushEntries.value = '5000';
         if (this.logModuleCore) this.logModuleCore.checked = true;
         if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = true;
         if (this.logModuleStorage) this.logModuleStorage.checked = true;
