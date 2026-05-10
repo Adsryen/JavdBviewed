@@ -1,7 +1,6 @@
 import { getValue, setValue } from '../../utils/storage';
-import type { Drive115LogEntryUnified } from './types';
+import type { Drive115LogEntryUnified, Drive115LogType, Drive115PushContext } from './types';
 
-export type Drive115LogType = 'offline_start' | 'offline_success' | 'offline_failed' | 'verify_start' | 'verify_success' | 'verify_failed' | 'batch_start' | 'batch_complete';
 
 const DRIVE115_LOG_STORAGE_KEY = 'drive115_logs';
 const DRIVE115_LOG_CONFIG = {
@@ -67,13 +66,16 @@ export class Drive115AppLogger {
 
   private mapTypeToLevel(type: Drive115LogType): string {
     switch (type) {
+      case 'push_success':
       case 'offline_success':
       case 'verify_success':
       case 'batch_complete':
         return 'INFO';
+      case 'push_failed':
       case 'offline_failed':
       case 'verify_failed':
         return 'ERROR';
+      case 'push_start':
       case 'offline_start':
       case 'verify_start':
       case 'batch_start':
@@ -81,6 +83,45 @@ export class Drive115AppLogger {
       default:
         return 'INFO';
     }
+  }
+
+  async logPushStart(context: Drive115PushContext & { magnetUrl: string }): Promise<void> {
+    const videoId = String(context.videoId || '').trim();
+    await this.log('push_start', videoId, `开始推送到115: ${videoId || 'unknown'}`, {
+      source: context.source || 'unknown',
+      magnetName: context.magnetName,
+      magnetUrl: context.magnetUrl,
+      pageUrl: context.pageUrl,
+      wpPathId: context.wpPathId,
+      action: 'push_start',
+    });
+  }
+
+  async logPushSuccess(context: Drive115PushContext & { magnetUrl: string; response?: any }): Promise<void> {
+    const videoId = String(context.videoId || '').trim();
+    await this.log('push_success', videoId, `115 推送成功: ${videoId || 'unknown'}`, {
+      source: context.source || 'unknown',
+      magnetName: context.magnetName,
+      magnetUrl: context.magnetUrl,
+      pageUrl: context.pageUrl,
+      wpPathId: context.wpPathId,
+      response: context.response,
+      action: 'push_success',
+    });
+  }
+
+  async logPushFailed(context: Drive115PushContext & { magnetUrl: string; error: string; response?: any }): Promise<void> {
+    const videoId = String(context.videoId || '').trim();
+    await this.log('push_failed', videoId, `115 推送失败: ${videoId || 'unknown'}`, {
+      source: context.source || 'unknown',
+      magnetName: context.magnetName,
+      magnetUrl: context.magnetUrl,
+      pageUrl: context.pageUrl,
+      wpPathId: context.wpPathId,
+      error: context.error,
+      response: context.response,
+      action: 'push_failed',
+    });
   }
 
   async logOfflineStart(videoId: string, magnetUrl: string): Promise<void> {
@@ -148,6 +189,9 @@ export class Drive115AppLogger {
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const byType: Record<Drive115LogType, number> = {
+      push_start: 0,
+      push_success: 0,
+      push_failed: 0,
       offline_start: 0,
       offline_success: 0,
       offline_failed: 0,

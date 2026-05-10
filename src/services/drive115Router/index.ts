@@ -42,6 +42,6 @@ export async function exportLogs() {
   return getDrive115AppService().exportLogs();
 }
 
-export async function addTaskUrlsV2(params: { urls: string; wp_path_id?: string }): Promise<{ success: boolean; message?: string; data?: any[]; raw?: any }>{
+export async function addTaskUrlsV2(params: { urls: string; wp_path_id?: string; context?: import('../drive115App').Drive115PushContext }): Promise<{ success: boolean; message?: string; data?: any[]; raw?: any }>{
   return getDrive115AppService().addTaskUrls(params);
 }

@@ -75,6 +75,9 @@ export interface BatchOfflineResult {
 }
 
 export type Drive115LogType =
+  | 'push_start'
+  | 'push_success'
+  | 'push_failed'
   | 'offline_start'
   | 'offline_success'
   | 'offline_failed'

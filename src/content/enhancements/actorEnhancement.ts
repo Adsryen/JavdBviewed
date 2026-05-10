@@ -529,30 +529,80 @@ class ActorEnhancementManager {
             return;
           }
 
+          const actorName = record.name || this.currentActorId;
+          console.log('[ScanButton] 开始单演员扫描:', {
+            actorId: this.currentActorId,
+            actorName,
+            dateRangeMonths
+          });
+
           // 调用后台脚本扫描当前演员
           const response = await new Promise<any>((resolve) => {
             chrome.runtime.sendMessage(
               {
                 type: 'new-works-check-single-actor',
                 actorId: this.currentActorId,
-                actorName: record.name || this.currentActorId
+                actorName
               },
               resolve
             );
           });
 
           if (response.success) {
-            const result = response.result;
-            if (result.discovered > 0) {
-              showToast(`发现 ${result.discovered} 个新作品`, 'success');
-            } else {
-              showToast('未发现新作品', 'info');
+            const result = response.result || {};
+            const identified = typeof result.identified === 'number' ? result.identified : 0;
+            const effective = typeof result.effective === 'number' ? result.effective : 0;
+            const discovered = typeof result.discovered === 'number' ? result.discovered : 0;
+            const filteredOut = typeof result.filteredOut === 'number' ? result.filteredOut : Math.max(0, identified - effective);
+            const existingCount = typeof result.existingCount === 'number' ? result.existingCount : Math.max(0, effective - discovered);
+            const filterBreakdown = result.filterBreakdown || {};
+
+            console.log('[ScanButton] 单演员扫描完成:', {
+              actorId: this.currentActorId,
+              actorName,
+              identified,
+              effective,
+              discovered,
+              filteredOut,
+              existingCount,
+              filterBreakdown
+            });
+
+            const summary = `识别 ${identified} / 有效 ${effective} / 新增 ${discovered}`;
+            const reasonParts: string[] = [];
+            if (filteredOut > 0) {
+              const breakdownParts: string[] = [];
+              if (Number(filterBreakdown.dateRange || 0) > 0) breakdownParts.push(`时间范围 ${filterBreakdown.dateRange}`);
+              if (Number(filterBreakdown.viewed || 0) > 0) breakdownParts.push(`已看 ${filterBreakdown.viewed}`);
+              if (Number(filterBreakdown.browsed || 0) > 0) breakdownParts.push(`已浏览 ${filterBreakdown.browsed}`);
+              if (Number(filterBreakdown.want || 0) > 0) breakdownParts.push(`想看 ${filterBreakdown.want}`);
+              if (Number(filterBreakdown.ar || 0) > 0) breakdownParts.push(`AR ${filterBreakdown.ar}`);
+              reasonParts.push(
+                breakdownParts.length > 0
+                  ? `过滤掉 ${filteredOut}（${breakdownParts.join(' / ')}）`
+                  : `过滤掉 ${filteredOut}`
+              );
             }
+            if (existingCount > 0) {
+              reasonParts.push(`已在新作品库 ${existingCount}`);
+            }
+
+            if (reasonParts.length > 0) {
+              console.log('[ScanButton] 单演员扫描原因:', {
+                actorId: this.currentActorId,
+                actorName,
+                reasons: reasonParts,
+                filterBreakdown
+              });
+            }
+
+            const detailText = reasonParts.length > 0 ? `，${reasonParts.join('；')}` : '';
+            showToast(`${summary}${detailText}`, discovered > 0 ? 'success' : 'info');
           } else {
             throw new Error(response.error || '扫描失败');
           }
         } catch (e: any) {
-          console.error('[ActorEnhancement] 扫描新作品失败:', e);
+          console.error('[ScanButton] 单演员扫描失败:', e);
           const msg = (e && e.message) || String(e);
           showToast(`扫描失败: ${msg}`, 'error');
         } finally {

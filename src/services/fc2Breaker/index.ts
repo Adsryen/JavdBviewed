@@ -800,7 +800,14 @@ export class FC2BreakerService {
             // 推送到115
             const result = await addTaskUrlsV2({ 
               urls: magnetLink,
-              wp_path_id: ''
+              wp_path_id: '',
+              context: {
+                source: 'fc2',
+                videoId: videoInfo.carNum,
+                magnetName: magnet.name,
+                pageUrl: url,
+                wpPathId: ''
+              }
             });
             
             if (result.success) {

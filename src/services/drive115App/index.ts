@@ -10,6 +10,7 @@ import type {
   Drive115OfflineResultUnified,
   Drive115SearchResultUnified,
   NormalizedDrive115Settings,
+  Drive115PushContext,
 } from './types';
 
 function delay(ms: number): Promise<void> {
@@ -85,23 +86,51 @@ export class Drive115AppService {
     return [];
   }
 
-  async addTaskUrls(params: { urls: string; wp_path_id?: string }): Promise<{ success: boolean; message?: string; data?: any[]; raw?: any }> {
+  async addTaskUrls(params: { urls: string; wp_path_id?: string; context?: Drive115PushContext }): Promise<{ success: boolean; message?: string; data?: any[]; raw?: any }> {
     const state = await this.getRuntimeState();
     if (!isDrive115EnabledState(state)) {
       throw new Error('115功能未启用');
     }
 
+    const logger = getDrive115AppLogger();
+    const magnetUrl = String(params.urls || '').trim();
+    const context: Drive115PushContext = {
+      ...params.context,
+      wpPathId: params.context?.wpPathId ?? params.wp_path_id,
+    };
+
+    if (!isValidMagnetUrl(magnetUrl)) {
+      const errorMessage = '磁链格式无效';
+      await logger.logPushFailed({ ...context, magnetUrl, error: errorMessage });
+      throw new Error(errorMessage);
+    }
+
+    await logger.logPushStart({ ...context, magnetUrl });
+
     const svc = getDrive115V2Service();
     const vt = await svc.getValidAccessToken();
     if (!vt.success) {
-      throw new Error(vt.message || '获取 access_token 失败');
+      const errorMessage = vt.message || '获取 access_token 失败';
+      await logger.logPushFailed({ ...context, magnetUrl, error: errorMessage, response: vt });
+      throw new Error(errorMessage);
     }
 
     const res = await svc.addTaskUrls({
       accessToken: vt.accessToken,
-      urls: params.urls,
+      urls: magnetUrl,
       wp_path_id: params.wp_path_id,
     });
+
+    if (res.success) {
+      await logger.logPushSuccess({ ...context, magnetUrl, response: res.raw ?? res });
+    } else {
+      await logger.logPushFailed({
+        ...context,
+        magnetUrl,
+        error: res.message || '添加离线任务失败',
+        response: res.raw ?? res,
+      });
+    }
 
     return {
       success: res.success,
@@ -129,7 +158,7 @@ export class Drive115AppService {
       await logger.logOfflineStart(videoId, magnetUrl);
 
       const wpPathId = String(downloadDir || state.defaultWpPathId || '').trim() || undefined;
-      const ret = await this.addTaskUrls({ urls: magnetUrl, wp_path_id: wpPathId });
+      const ret = await this.addTaskUrls({ urls: magnetUrl, wp_path_id: wpPathId, context: { source: 'downloadOffline', videoId, wpPathId } });
       if (!ret.success) {
         throw new Error(ret.message || '添加离线任务失败');
       }
@@ -237,3 +266,4 @@ export function getDrive115AppService(): Drive115AppService {
 export * from './types';
 export * from './runtime';
 export * from './adapters';
+export { getDrive115AppLogger } from './logger';

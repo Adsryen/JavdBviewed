@@ -301,6 +301,9 @@ export function registerMiscRouter(): void {
               console.log(`[Background] 演员 ${actorName} 检查结果:`, {
                 identified: det.identified,
                 effective: det.effective,
+                filteredOut: det.filteredOut,
+                existingCount: det.existingCount,
+                filterBreakdown: det.filterBreakdown,
                 newWorks: det.works.length
               });
 
@@ -331,7 +334,10 @@ export function registerMiscRouter(): void {
                 result: {
                   discovered: det.works.length,
                   identified: det.identified,
-                  effective: det.effective
+                  effective: det.effective,
+                  filteredOut: det.filteredOut,
+                  existingCount: det.existingCount,
+                  filterBreakdown: det.filterBreakdown
                 }
               });
             } catch (error: any) {

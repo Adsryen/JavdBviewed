@@ -7,7 +7,7 @@
       <div class="log-view-switch">
         <button id="log-view-ext" class="switch-btn active" title="显示扩展持久化日志">扩展日志</button>
         <button id="log-view-console" class="switch-btn" title="显示控制台即时输出（不持久化）">控制台日志</button>
-        <button id="log-view-magnet" class="switch-btn" title="显示已缓存的磁力记录">磁力缓存</button>
+        <button id="log-view-magnet" class="switch-btn" title="显示 115 磁力推送记录（成功/失败）">磁力推送</button>
       </div>
       <div class="log-actions" style="display: flex; gap: 8px;">
         <button id="refresh-logs-button" class="primary">刷新</button>
@@ -53,6 +53,14 @@
           <option value="DB">数据库</option>
           <option value="BG">后台</option>
           <option value="CONTENT">内容脚本</option>
+        </select>
+      </div>
+      <div class="filter-group" id="magnet-status-filter-group" style="display: none;">
+        <label for="magnet-status-filter">推送结果</label>
+        <select id="magnet-status-filter">
+          <option value="ALL">全部</option>
+          <option value="SUCCESS">只看成功</option>
+          <option value="FAILED">只看失败</option>
         </select>
       </div>
       <div class="filter-group">

@@ -2,7 +2,7 @@
 import { showMessage } from '../ui/toast';
 import { log } from '../../utils/logController';
 import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
-import { dbLogsQuery, dbLogsClear, dbLogsExport, dbMagnetsQuery, type LogsQueryParams, type MagnetCacheRecord } from '../dbClient';
+import { dbLogsQuery, dbLogsClear, dbLogsExport, type LogsQueryParams } from '../dbClient';
 
 /**
  * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
@@ -19,7 +19,7 @@ interface ConsoleLogEntry {
     message: string;
 }
 
-interface MagnetLogEntry extends MagnetCacheRecord {}
+interface MagnetLogEntry extends LogEntry {}
 
 /**
  * 日志标签页类
@@ -32,6 +32,7 @@ export class LogsTab {
     private currentStartDate?: Date;
     private currentEndDate?: Date;
     private currentHasDataOnly: boolean = false;
+    private currentMagnetStatusFilter: 'ALL' | 'SUCCESS' | 'FAILED' = 'ALL';
     private logs: LogEntry[] = [];
     private totalLogsCount: number = 0; // IDB 端总数（EXT 视图无过滤时使用）
 
@@ -56,6 +57,8 @@ export class LogsTab {
     private logStartDateInput!: HTMLInputElement;
     private logEndDateInput!: HTMLInputElement;
     private logHasDataOnlyCheckbox!: HTMLInputElement;
+    private magnetStatusFilterGroup!: HTMLDivElement;
+    private magnetStatusFilter!: HTMLSelectElement;
     private refreshButton!: HTMLButtonElement;
     private clearButton!: HTMLButtonElement;
     private exportButton!: HTMLButtonElement;
@@ -105,6 +108,8 @@ export class LogsTab {
         this.logStartDateInput = document.getElementById('log-start-date') as HTMLInputElement;
         this.logEndDateInput = document.getElementById('log-end-date') as HTMLInputElement;
         this.logHasDataOnlyCheckbox = document.getElementById('log-has-data-only') as HTMLInputElement;
+        this.magnetStatusFilterGroup = document.getElementById('magnet-status-filter-group') as HTMLDivElement;
+        this.magnetStatusFilter = document.getElementById('magnet-status-filter') as HTMLSelectElement;
         this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
         this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
         // 尝试获取已存在的“导出”按钮；如无则动态创建并插入到“清空”按钮旁
@@ -158,6 +163,14 @@ export class LogsTab {
         }
         if (!this.logHasDataOnlyCheckbox) {
             console.error('[LogsTab] 找不到log-has-data-only元素');
+            return;
+        }
+        if (!this.magnetStatusFilterGroup) {
+            console.error('[LogsTab] 找不到magnet-status-filter-group元素');
+            return;
+        }
+        if (!this.magnetStatusFilter) {
+            console.error('[LogsTab] 找不到magnet-status-filter元素');
             return;
         }
         if (!this.refreshButton) {
@@ -263,6 +276,13 @@ export class LogsTab {
             this.renderLogs();
         });
 
+        this.magnetStatusFilter?.addEventListener('change', () => {
+            const raw = (this.magnetStatusFilter.value || 'ALL').toUpperCase();
+            this.currentMagnetStatusFilter = raw === 'SUCCESS' || raw === 'FAILED' ? raw : 'ALL';
+            this.currentPage = 1;
+            this.renderLogs();
+        });
+
         // 每页数量选择
         if (this.logsPerPageSelect) {
             const val = parseInt(this.logsPerPageSelect.value || '20', 10);
@@ -295,12 +315,13 @@ export class LogsTab {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `javdb-magnets-${new Date().toISOString().split('T')[0]}.json`;
+                    a.download = `javdb-115-push-logs-${new Date().toISOString().split('T')[0]}.json`;
+
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    showMessage('磁力缓存已导出', 'success');
+                    showMessage('磁力推送记录已导出', 'success');
                     return;
                 }
                 const json = await dbLogsExport();
@@ -376,7 +397,7 @@ export class LogsTab {
                     const res = await this.fetchAndRenderMagnetLogs();
                     const pageCount = (res?.items?.length ?? 0);
                     const total = (res?.total ?? pageCount);
-                    showMessage(`磁力缓存：本页 ${pageCount} / 总 ${total} 条`, 'success');
+                    showMessage(`磁力推送：本页 ${pageCount} / 总 ${total} 条`, 'success');
                 } else {
                     this.renderLogs();
                     showMessage(`控制台日志（内存） 共 ${this.consoleLogs.length} 条`, 'info');
@@ -433,8 +454,8 @@ export class LogsTab {
         if (this.viewMode === 'MAGNET') {
             this.magnetLogBody.innerHTML = '<div class="loading">加载中...</div>';
             this.fetchAndRenderMagnetLogs().catch((e) => {
-                console.error('[LogsTab] 读取磁力缓存失败', e);
-                this.magnetLogBody.innerHTML = '<div class="no-logs">磁力缓存加载失败，请稍后重试</div>';
+                console.error('[LogsTab] 读取磁力推送记录失败', e);
+                this.magnetLogBody.innerHTML = '<div class="no-logs">磁力推送记录加载失败，请稍后重试</div>';
             });
             return;
         }
@@ -506,23 +527,27 @@ export class LogsTab {
     }
 
     private async fetchAndRenderMagnetLogs(): Promise<{ items: MagnetLogEntry[]; total: number; totalPages: number }>{
-        const keyword = (this.currentSearchQuery || '').trim();
-        const { items, total } = await dbMagnetsQuery({
+        const params: LogsQueryParams = {
             offset: 0,
-            limit: 200,
-            orderBy: 'createdAt',
-            order: 'desc'
-        });
+            limit: 1000,
+            order: 'desc',
+            source: 'DRIVE115',
+            query: this.currentSearchQuery || '',
+        } as any;
 
-        const query = keyword.toLowerCase();
-        const filtered = (Array.isArray(items) ? items : []).filter((item) => {
-            if (!query) return true;
-            const blob = [item.videoId, item.name, item.magnet, item.source, item.size, item.date, item.quality]
-                .filter(Boolean)
-                .join(' ')
-                .toLowerCase();
-            return blob.includes(query);
-        });
+        if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
+        if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
+        if (this.currentHasDataOnly) params.hasDataOnly = true;
+        if (this.currentLevelFilter !== 'ALL') params.level = this.currentLevelFilter as any;
+
+        const { items } = await dbLogsQuery(params);
+        const filtered = (Array.isArray(items) ? items : []).filter((item: any) => {
+            const action = String(item?.data?.action || '');
+            if (!(action === 'push_start' || action === 'push_success' || action === 'push_failed')) return false;
+            if (this.currentMagnetStatusFilter === 'SUCCESS') return action === 'push_success';
+            if (this.currentMagnetStatusFilter === 'FAILED') return action === 'push_failed';
+            return true;
+        }) as MagnetLogEntry[];
 
         this.totalMagnetCount = filtered.length;
         const totalPages = Math.max(1, Math.ceil(this.totalMagnetCount / this.pageSize));
@@ -531,9 +556,10 @@ export class LogsTab {
         this.magnetLogs = filtered.slice(offset, offset + this.pageSize);
 
         const html = this.magnetLogs.map((item) => this.createMagnetEntryHtml(item)).join('');
-        this.magnetLogBody.innerHTML = html || '<div class="no-logs">暂无磁力缓存记录</div>';
+        this.magnetLogBody.innerHTML = html || '<div class="no-logs">暂无磁力推送记录</div>';
         this.renderPagination(this.currentPage, totalPages);
-        this.updateCountText(`磁力缓存：已筛选 ${this.totalMagnetCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
+        const statusLabel = this.currentMagnetStatusFilter === 'SUCCESS' ? '成功' : this.currentMagnetStatusFilter === 'FAILED' ? '失败' : '全部';
+        this.updateCountText(`磁力推送：${statusLabel} ${this.totalMagnetCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
         return { items: this.magnetLogs, total: this.totalMagnetCount, totalPages };
     }
 
@@ -820,20 +846,24 @@ export class LogsTab {
     }
 
     private createMagnetEntryHtml(item: MagnetLogEntry): string {
-        const timestamp = this.formatConsoleTimestamp(item.createdAt, { showMilliseconds: false, timeZone: this.getConsoleFormat().timeZone });
-        const subtitle = item.hasSubtitle ? ' / 字幕' : '';
-        const meta = [item.source, item.size, item.date, item.quality].filter(Boolean).join(' · ');
+        const fmt = this.getConsoleFormat();
+        const timestamp = this.formatConsoleTimestamp(new Date(item.timestamp).getTime(), { showMilliseconds: fmt.showMilliseconds, timeZone: fmt.timeZone });
+        const data = (item.data || {}) as any;
+        const action = String(data.action || '').toUpperCase() || 'PUSH';
+        const levelClass = this.getLevelClass(String(item.level || 'INFO'));
+        const title = data.magnetName || data.videoId || item.message || '磁力推送';
+        const meta = [data.source, data.videoId, data.wpPathId, data.error].filter(Boolean).join(' · ');
         return `
-            <div class="log-entry log-level-info magnet-entry">
+            <div class="log-entry log-level-${levelClass} magnet-entry">
                 <div class="log-header">
-                    <span class="log-level-badge">MAGNET</span>
-                    <span class="log-category">${this.escapeHtml(String(item.videoId || 'UNKNOWN'))}</span>
-                    <span class="log-message">${this.escapeHtml(item.name || item.magnet || '')}${subtitle}</span>
+                    <span class="log-level-badge">${this.escapeHtml(String(item.level || 'INFO').toUpperCase())}</span>
+                    <span class="log-category">${this.escapeHtml(action)}</span>
+                    <span class="log-message">${this.escapeHtml(String(title))}</span>
                     <span class="log-timestamp">${this.escapeHtml(timestamp)}</span>
                 </div>
                 <details class="log-data-details" open>
-                    <summary>${this.escapeHtml(meta || '详细信息')}</summary>
-                    <pre>${this.escapeHtml(JSON.stringify(item, null, 2))}</pre>
+                    <summary>${this.escapeHtml(meta || item.message || '详细信息')}</summary>
+                    <pre>${this.escapeHtml(JSON.stringify(item.data || item, null, 2))}</pre>
                 </details>
             </div>
         `;
@@ -879,6 +909,9 @@ export class LogsTab {
      */
     private updateViewVisibility(): void {
         if (!this.logBody || !this.consoleLogBody || !this.magnetLogBody) return;
+        if (this.magnetStatusFilterGroup) {
+            this.magnetStatusFilterGroup.style.display = this.viewMode === 'MAGNET' ? 'flex' : 'none';
+        }
         if (this.viewMode === 'EXT') {
             this.logBody.style.display = '';
             this.consoleLogBody.style.display = 'none';

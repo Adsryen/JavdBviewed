@@ -844,7 +844,7 @@ export class Drive115V2Pane implements IDrive115Pane {
       try {
         // 空串 => 传 '0'（根目录）；显式 '0' => 传 '0'
         const wpArg = folderId === '' ? '0' : folderId;
-        const ret = await addTaskUrlsV2({ urls, wp_path_id: wpArg });
+        const ret = await addTaskUrlsV2({ urls, wp_path_id: wpArg, context: { source: 'dashboard-settings', magnetName: urls, pageUrl: window.location.href, wpPathId: wpArg } });
         if (!ret.success) {
           const msg = describe115Error((ret as any).raw) || ret.message || '添加任务失败';
           setAddStatus(msg, 'error');
