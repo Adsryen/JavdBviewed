@@ -61,7 +61,7 @@ export class NewWorksCollector {
                 // 检查是否已存在
                 const exists = await this.checkWorkExists(work.id);
                 if (!exists) {
-                    const newWork: NewWorkRecord = {
+                    newWorks.push({
                         id: work.id,
                         actorId: subscription.actorId,
                         actorName: subscription.actorName,
@@ -73,8 +73,7 @@ export class NewWorksCollector {
                         discoveredAt: now,
                         isRead: false,
                         status: 'new'
-                    };
-                    newWorks.push(newWork);
+                    });
                 }
             }
             
@@ -393,19 +392,20 @@ export class NewWorksCollector {
     async checkActorNewWorksDetailed(
         subscription: ActorSubscription,
         globalConfig: NewWorksGlobalConfig
-    ): Promise<{ works: NewWorkRecord[]; identified: number; effective: number }> {
+    ): Promise<{ works: NewWorkRecord[]; identified: number; effective: number; filteredOut: number; existingCount: number; filterBreakdown: { dateRange: number; viewed: number; browsed: number; want: number; ar: number } }> {
         try {
             console.log(`[ACTOR] 开始(详细)检查演员 ${subscription.actorName} 的新作品`);
 
-            // 构建演员作品页面URL，应用类别筛选
             const actorWorksUrl = await this.buildActorWorksUrl(subscription.actorId, globalConfig.filters.categoryFilters);
             const worksRaw = await this.parseActorWorksPage(actorWorksUrl, globalConfig);
             const identified = worksRaw.length;
 
-            const { filteredWorks } = await this.applyGlobalFiltersWithStats(worksRaw, globalConfig.filters);
+            const { filteredWorks, filteredCount } = await this.applyGlobalFiltersWithStats(worksRaw, globalConfig.filters);
             const effective = filteredWorks.length;
+            const filteredOut = Math.max(0, identified - effective);
 
             const newWorks: NewWorkRecord[] = [];
+            let existingCount = 0;
             const now = Date.now();
             console.log(`[NEWWORKS] 开始检查 ${filteredWorks.length} 个过滤后的作品是否已存在`);
             for (const work of filteredWorks.slice(0, globalConfig.maxWorksPerCheck)) {
@@ -425,15 +425,30 @@ export class NewWorksCollector {
                         isRead: false,
                         status: 'new'
                     });
+                } else {
+                    existingCount++;
                 }
             }
             console.log(`[NEWWORKS] 检查完成，发现 ${newWorks.length} 个新作品`);
 
-
-            return { works: newWorks, identified, effective };
+            return {
+                works: newWorks,
+                identified,
+                effective,
+                filteredOut,
+                existingCount,
+                filterBreakdown: filteredCount
+            };
         } catch (error) {
             console.error(`[ACTOR] (详细)检查演员 ${subscription.actorName} 新作品失败:`, error);
-            return { works: [], identified: 0, effective: 0 };
+            return {
+                works: [],
+                identified: 0,
+                effective: 0,
+                filteredOut: 0,
+                existingCount: 0,
+                filterBreakdown: { dateRange: 0, viewed: 0, browsed: 0, want: 0, ar: 0 }
+            };
         }
     }
 

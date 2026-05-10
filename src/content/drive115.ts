@@ -3,8 +3,8 @@
  */
 
 import { isDrive115Enabled, addTaskUrlsV2, downloadOffline as routerDownloadOffline } from '../services/drive115Router';
-// getDrive115V2Service 已移除，配额功能已迁移至dashboard
 import { addLogV2 } from '../services/drive115v2/logs';
+// getDrive115V2Service 已移除，配额功能已迁移至dashboard
 import { waitForElement } from './utils';
 // extractVideoIdFromPage 已集成到推送按钮逻辑中
 import { showToast } from './toast';
@@ -59,47 +59,6 @@ async function fetchWithTimeoutRetry(
     throw lastError ?? new Error('网络请求失败');
 }
 
-/**
- * 记录日志到扩展日志系统
- */
-function logToExtension(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
-    return new Promise((resolve) => {
-        console.log(`[115] 开始记录日志: ${message}`);
-
-        // 设置超时，避免阻塞主要流程
-        const timeout = setTimeout(() => {
-            console.warn(`[115] 日志记录超时: ${message}`);
-            resolve();
-        }, 5000); // 增加到5秒超时
-
-        try {
-            const messagePayload = {
-                type: 'log-message',
-                payload: { level, message: `[115] ${message}`, data }
-            };
-
-            console.log(`[115] 发送日志消息:`, messagePayload);
-
-            chrome.runtime.sendMessage(messagePayload, (response) => {
-                clearTimeout(timeout);
-                console.log(`[115] 收到日志响应:`, response);
-
-                if (chrome.runtime.lastError) {
-                    console.error(`[115] 日志记录失败: ${chrome.runtime.lastError.message}`);
-                } else if (response && response.success) {
-                    console.log(`[115] 日志记录成功: ${message}`);
-                } else {
-                    console.warn(`[115] 日志记录响应异常:`, response);
-                }
-                resolve();
-            });
-        } catch (error) {
-            clearTimeout(timeout);
-            console.error(`[115] 发送日志消息失败:`, error);
-            resolve();
-        }
-    });
-}
 
 async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
     const container = await waitForElement('#magnets-content', 5000, 150);
@@ -207,8 +166,6 @@ export async function handlePushToDrive115(
     magnetUrl: string,
     magnetName: string
 ): Promise<void> {
-    // 记录将要使用的保存目录（仅 v2 有意义），需在 try/catch 之外声明避免作用域问题
-    let currentWpPathId: string | undefined = undefined;
     try {
         // 检查115功能是否启用
         const enabled = await isDrive115Enabled();
@@ -235,10 +192,9 @@ export async function handlePushToDrive115(
                 const settings: any = await getSettings();
                 const def = (settings?.drive115?.defaultWpPathId ?? '').toString().trim();
                 wpPathId = def === '' ? '0' : def;
-                currentWpPathId = wpPathId;
             } catch {}
 
-            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId });
+            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId, context: { source: 'detail', videoId, magnetName, pageUrl: window.location.href, wpPathId } });
             result = { success: res.success, data: res.data, error: res.message };
             if (res.success) {
                 const returned = Array.isArray(res.data) ? res.data.length : 0;
@@ -257,26 +213,7 @@ export async function handlePushToDrive115(
             button.className = 'button is-success is-small drive115-push-btn';
             showToast(`${magnetName} 推送到115网盘成功`, 'success');
 
-            // 记录推送成功日志到扩展日志系统（完全异步，不阻塞主流程）
-            console.log('[JavDB Ext] 准备记录115推送成功日志');
-            {
-                console.log('[JavDB Ext] 开始执行日志记录');
-                void logToExtension('INFO', `115 推送成功: ${videoId}`, {
-                    videoId: videoId,
-                    magnetName: magnetName,
-                    magnetUrl: magnetUrl,
-                    // 记录保存目录（仅当 v2 且设置了 defaultWpPathId 才会有值）
-                    wp_path_id: currentWpPathId,
-                    timestamp: new Date().toISOString(),
-                    action: 'push_success'
-                }).then(() => {
-                    log('115推送成功日志已记录到扩展日志系统');
-                    console.log('[JavDB Ext] 115推送成功日志已记录到扩展日志系统');
-                }).catch(error => {
-                    console.warn('记录115推送日志失败:', error);
-                    console.error('[JavDB Ext] 记录115推送日志失败:', error);
-                });
-            }
+
 
             // 推送成功后自动标记为已看（受设置控制）
             try {
@@ -313,22 +250,7 @@ export async function handlePushToDrive115(
         }
     } catch (error) {
         console.error('推送到115网盘失败:', error);
-
-        // 记录推送失败日志到扩展日志系统（异步，不阻塞主流程）
         const errorMessage = error instanceof Error ? error.message : '未知错误';
-        logToExtension('ERROR', `115 推送失败: ${videoId}`, {
-            videoId: videoId,
-            magnetName: magnetName,
-            magnetUrl: magnetUrl,
-            wp_path_id: currentWpPathId,
-            error: errorMessage,
-            timestamp: new Date().toISOString(),
-            action: 'push_failed'
-        }).then(() => {
-            log('115推送失败日志已记录到扩展日志系统');
-        }).catch(logError => {
-            console.warn('记录115推送失败日志失败:', logError);
-        });
 
         // 错误状态
         button.innerHTML = '推送失败';

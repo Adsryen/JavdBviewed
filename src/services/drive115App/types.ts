@@ -79,7 +79,15 @@ export interface Drive115BatchResultUnified {
   }>;
 }
 
-export type Drive115LogType = 'offline_start' | 'offline_success' | 'offline_failed' | 'verify_start' | 'verify_success' | 'verify_failed' | 'batch_start' | 'batch_complete';
+export type Drive115LogType = 'push_start' | 'push_success' | 'push_failed' | 'offline_start' | 'offline_success' | 'offline_failed' | 'verify_start' | 'verify_success' | 'verify_failed' | 'batch_start' | 'batch_complete';
+
+export interface Drive115PushContext {
+  source?: string;
+  videoId?: string;
+  magnetName?: string;
+  pageUrl?: string;
+  wpPathId?: string;
+}
 
 export interface Drive115LogEntryUnified {
   type: Drive115LogType;
