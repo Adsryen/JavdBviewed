@@ -29,7 +29,7 @@ import { PasswordHelper } from './passwordHelper';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
-    if (!Number.isFinite(seconds) || seconds <= 0) return 120000;
+    if (!Number.isFinite(seconds) || seconds <= 0) return 10000;
     return Math.max(1000, Math.round(seconds * 1000));
 }
 
@@ -346,11 +346,10 @@ async function initialize(): Promise<void> {
                 log('Status polling error:', e);
             }
         }, 5000);
-        // 初始化115功能：优化延迟到800ms，加快功能生效，优先级5（中等）
-        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:video', delayMs: 800, priority: 5 });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500 });
 
         // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
-        initOrchestrator.add('deferred', () => initInsightsCollector(), { label: 'insights:collector', delayMs: 800 });
+        initOrchestrator.add('idle', () => initInsightsCollector(), { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -438,7 +437,7 @@ async function initialize(): Promise<void> {
             if (!(window as any)[FLAG]) {
                 (window as any)[FLAG] = true;
                 const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
-                initOrchestrator.add('deferred', async () => {
+                initOrchestrator.add('idle', async () => {
                     await runActorRemarksOnActorPage(settings as any, actorRemarksTaskTimeoutMs);
                 }, { label: 'actorRemarks:actorPage', idle: true, idleTimeout: 5000, delayMs: 500, timeout: actorRemarksTaskTimeoutMs });
             }
@@ -457,13 +456,11 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init', delayMs: 0, priority: 8 });
     }
 
-    // 隐私保护统一在 high 阶段 await（由 orchestrator.run() 处理）
-    // 优化：添加微延迟50ms，避免与快捷键同时执行，优先级10（最高）
-    initOrchestrator.add('high', async () => {
+    initOrchestrator.add('deferred', async () => {
         log('Privacy system initializing...');
         await initializeContentPrivacy();
         log('Privacy system initialized successfully');
-    }, { label: 'privacy:init', delayMs: 50, priority: 10 });
+    }, { label: 'privacy:init', idle: true, idleTimeout: 5000, delayMs: 1200, timeout: 10000 });
 
     // 移除官方App和Telegram按钮（优化：缩短延迟到200ms，减少按钮闪烁，优先级3）
     initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3 });
@@ -638,16 +635,16 @@ async function initialize(): Promise<void> {
     // 在默认隐藏功能处理完后，再初始化智能内容过滤（统一由编排器调度）
     // 优化：缩短延迟到300ms
     if (settings.userExperience.enableContentFilter) {
-        initOrchestrator.add('deferred', () => {
+        initOrchestrator.add('idle', () => {
             contentFilterManager.initialize();
             log('Content filter initialized after default hide processing');
-        }, { label: 'contentFilter:initialize', delayMs: 300 });
+        }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500 });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
         // 在列表页也初始化115功能（由编排器统一延时调度）
         // 优化：缩短延迟到1000ms，添加微延迟150ms避免与列表增强冲突，优先级5（中等）
-        initOrchestrator.add('high', () => initDrive115Features(), { label: 'drive115:init:list', delayMs: 1000, priority: 5 });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800 });
     }
 
     // 启动统一编排器（处理 deferred / idle 阶段任务）

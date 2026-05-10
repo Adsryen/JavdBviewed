@@ -336,26 +336,40 @@ class InitOrchestrator {
 
   private scheduleTask(phase: InitPhase, st: ScheduledTask): void {
     const { delayMs, idle, idleTimeout } = st.options || {};
-    const exec = () => { this.runTask(phase, st); };
+    const label = st.options.label || 'anonymous';
+    const scheduledAt = performance.now();
+    const dependencyRetryDelay = 250;
+    const dependencyWaitLimit = Math.max(5000, (st.options.timeout || 0) + 2000);
+    const exec = () => {
+      const unmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
+      if (unmetDeps.length > 0) {
+        const elapsed = performance.now() - scheduledAt;
+        if (elapsed < dependencyWaitLimit) {
+          this.log('schedule retry due to unmet dependencies', { phase, label, unmetDeps, elapsed: Math.round(elapsed) });
+          setTimeout(exec, dependencyRetryDelay);
+          return;
+        }
+        this.log('dependency wait limit reached, running task anyway', { phase, label, unmetDeps, elapsed: Math.round(elapsed) });
+      }
+      this.runTask(phase, st);
+    };
     if (idle) {
-      // 若提供了 delayMs，则先等待 delayMs 再进入 idle 调度，确保最小延迟得到保证
       const scheduleIdle = () => {
         try {
           const ric = (window as any).requestIdleCallback as undefined | ((cb: Function, opts?: any) => number);
           if (typeof ric === 'function') {
-            this.log('schedule idle', { phase, label: st.options.label || 'anonymous', timeout: idleTimeout });
+            this.log('schedule idle', { phase, label, timeout: idleTimeout });
             ric(() => exec(), { timeout: typeof idleTimeout === 'number' ? idleTimeout : 5000 });
             return;
           }
         } catch {}
-        // fallback：无 requestIdleCallback 时，使用一个保守的延迟
         const fallbackDelay = 3000;
-        this.log('schedule idle-fallback(setTimeout)', { phase, label: st.options.label || 'anonymous', delayMs: fallbackDelay });
+        this.log('schedule idle-fallback(setTimeout)', { phase, label, delayMs: fallbackDelay });
         setTimeout(exec, fallbackDelay);
       };
 
       if (typeof delayMs === 'number' && delayMs > 0) {
-        this.log('schedule idle(with pre-delay)', { phase, label: st.options.label || 'anonymous', delayMs, timeout: idleTimeout });
+        this.log('schedule idle(with pre-delay)', { phase, label, delayMs, timeout: idleTimeout });
         setTimeout(scheduleIdle, delayMs);
       } else {
         scheduleIdle();
@@ -363,11 +377,10 @@ class InitOrchestrator {
       return;
     }
     if (typeof delayMs === 'number' && delayMs > 0) {
-      this.log('schedule delay', { phase, label: st.options.label || 'anonymous', delayMs });
+      this.log('schedule delay', { phase, label, delayMs });
       setTimeout(exec, delayMs);
     } else {
-      // microtask 排队，避免阻塞当前调用栈
-      this.log('schedule microtask', { phase, label: st.options.label || 'anonymous' });
+      this.log('schedule microtask', { phase, label });
       Promise.resolve().then(exec);
     }
   }
