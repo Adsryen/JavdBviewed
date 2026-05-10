@@ -13,6 +13,7 @@ import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
 import { aiService } from '../../../../services/ai/aiService';
 import { ACTOR_FILTER_TAGS, getDefaultTags, getTagByValue } from '../../../config/actorFilterTags';
+import { fetchGlobalTaskState } from '../../../services/globalTaskMonitor';
 
 /**
  * 功能增强设置面板类
@@ -159,6 +160,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorTimeline!: HTMLElement | null;
     private orchestratorSummary!: HTMLElement | null;
     private orchestratorRuntimeListener?: (msg: any, sender: any, sendResponse: any) => void;
+    private orchestratorAutoRefreshTimer?: number;
     private orchFilterStatusSel!: HTMLSelectElement | null;
     private orchFilterPhaseSel!: HTMLSelectElement | null;
     private orchFilterSearchInput!: HTMLInputElement | null;
@@ -186,6 +188,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPageSize: number = 20;
     private taskDetailsSortField: string = 'timestamp';
     private taskDetailsSortOrder: 'asc' | 'desc' = 'desc';
+    private taskDetailsExpandedParents: Set<string> = new Set();
+    private globalTaskDetailsData: any[] = [];
+    private globalOrchestratorState: any[] = [];
 
     constructor() {
         super({
@@ -713,7 +718,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterStatusSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchFilterPhaseSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchFilterSearchInput?.addEventListener('input', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
-        this.orchViewModeSel?.addEventListener('change', () => this.refreshOrchestratorState());
+        this.orchViewModeSel?.addEventListener('change', () => {
+            const mode = this.orchViewModeSel?.value || 'global';
+            if (mode === 'realtime') {
+                this.subscribeOrchestratorEvents();
+            } else {
+                this.unsubscribeOrchestratorEvents();
+            }
+            this.startOrchestratorAutoRefresh();
+            void this.refreshOrchestratorState();
+        });
 
         // 任务明细弹窗事件
         if (this.showTaskDetailsBtn) {
@@ -758,6 +772,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
         document.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
             if (!target) return;
+            const toggleParent = target.closest('[data-task-parent-toggle]') as HTMLElement | null;
+            if (toggleParent) {
+                const parentKey = toggleParent.getAttribute('data-task-parent-toggle') || '';
+                if (parentKey) {
+                    if (this.taskDetailsExpandedParents.has(parentKey)) {
+                        this.taskDetailsExpandedParents.delete(parentKey);
+                    } else {
+                        this.taskDetailsExpandedParents.add(parentKey);
+                    }
+                    this.renderTaskDetailsTable();
+                }
+                return;
+            }
             const action = target.getAttribute('data-action');
             if (action === 'toggle-section') {
                 const sel = target.getAttribute('data-target') || '';
@@ -834,11 +861,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (!this.orchestratorModal) return;
         this.orchestratorModal.classList.remove('hidden');
         this.orchestratorModal.classList.add('visible');
-        // 打开时强制默认使用“设计”视图（更贴合你的诉求）
-        if (this.orchViewModeSel) this.orchViewModeSel.value = 'design';
         await this.refreshOrchestratorState();
+        this.startOrchestratorAutoRefresh();
         // 仅在“实时”模式下订阅事件
-        const mode = this.orchViewModeSel?.value || 'design';
+        const mode = this.orchViewModeSel?.value || 'global';
         if (mode === 'realtime') {
             this.subscribeOrchestratorEvents();
         } else {
@@ -850,7 +876,29 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (!this.orchestratorModal) return;
         this.orchestratorModal.classList.add('hidden');
         this.orchestratorModal.classList.remove('visible');
+        this.stopOrchestratorAutoRefresh();
         this.unsubscribeOrchestratorEvents();
+    }
+
+    private startOrchestratorAutoRefresh(): void {
+        this.stopOrchestratorAutoRefresh();
+        this.orchestratorAutoRefreshTimer = window.setInterval(() => {
+            if (!this.orchestratorModal || this.orchestratorModal.classList.contains('hidden')) {
+                return;
+            }
+            const mode = this.orchViewModeSel?.value || 'global';
+            if (mode === 'realtime') {
+                return;
+            }
+            void this.refreshOrchestratorState();
+        }, 2000);
+    }
+
+    private stopOrchestratorAutoRefresh(): void {
+        if (this.orchestratorAutoRefreshTimer) {
+            window.clearInterval(this.orchestratorAutoRefreshTimer);
+            this.orchestratorAutoRefreshTimer = undefined;
+        }
     }
 
     private async refreshOrchestratorState(): Promise<void> {
@@ -901,7 +949,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                             return `
                               <div class="row">
                                 <div class="col time">${t}</div>
-                                <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
+                                <div class="col status"><span class="${badgeClass}">${this.getStatusLabel(item.status)}</span></div>
                                 <div class="col phase">${item.phase}</div>
                                 <div class="col label" title="${item.label}">
                                   <div class="label-main">${item.label}</div>
@@ -930,6 +978,42 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 // 获取并更新性能指标（设计视图也需要显示）
                 await this.fetchAndUpdateMetrics();
                 // 设计视图不订阅事件
+                this.unsubscribeOrchestratorEvents();
+                return;
+            }
+
+            if (mode === 'global') {
+                const globalState = await fetchGlobalTaskState();
+                const tasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
+                const statusCounts = tasks.reduce((acc: Record<string, number>, task: any) => {
+                    const status = this.getGlobalTaskStatus(task);
+                    acc[status] = (acc[status] || 0) + 1;
+                    return acc;
+                }, {});
+                const phases = {
+                    critical: tasks.filter((task: any) => task.phase === 'critical').map((task: any) => task.label),
+                    high: tasks.filter((task: any) => task.phase === 'high').map((task: any) => task.label),
+                    deferred: tasks.filter((task: any) => task.phase === 'deferred').map((task: any) => task.label),
+                    idle: tasks.filter((task: any) => task.phase === 'idle').map((task: any) => task.label),
+                };
+                if (this.orchestratorSummary) {
+                    const statusSummary = Object.entries(statusCounts).map(([key, value]) => `${this.getStatusLabel(key)} ${value}`).join('，') || '暂无任务';
+                    this.orchestratorSummary.textContent = `全局调度视图：${tasks.length} 个任务｜${statusSummary}`;
+                }
+                this.renderOrchestratorPhases(phases as any);
+                this.globalOrchestratorState = tasks.map((task: any) => ({
+                    phase: task.phase || '-',
+                    label: task.label || '-',
+                    status: this.getGlobalTaskStatus(task),
+                    ts: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
+                    durationMs: typeof task.startedAt === 'number' && typeof task.endedAt === 'number'
+                        ? Math.max(0, task.endedAt - task.startedAt)
+                        : 0,
+                    detail: this.buildGlobalTaskDetail(task),
+                }));
+                this.orchestratorTimelineData = this.globalOrchestratorState as any[];
+                this.renderOrchestratorTimeline(this.orchestratorTimelineData);
+                await this.fetchAndUpdateMetrics();
                 this.unsubscribeOrchestratorEvents();
                 return;
             }
@@ -980,6 +1064,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'drive115:init:list',
             'listEnhancement:init',
             'videoEnhancement:initCore',
+            'videoEnhancement:clickEnhancement',
+            'videoStatus:observer',
+            'videoStatus:update',
+            'drive115:push',
+            'videoFavoriteRating:init',
         ];
         
         // C) Deferred 阶段：延后执行，空闲优先
@@ -1003,7 +1092,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'actorRemarks:run',
             
             // 其他功能
-            'videoFavoriteRating:init',
             'contentFilter:init',
             'contentFilter:initialize',
             'anchorOptimization:init',
@@ -1055,10 +1143,56 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     private getTimelineFilters() {
-        const status = (this.orchFilterStatusSel?.value || 'all') as 'all' | 'running' | 'done' | 'error' | 'scheduled';
+        const status = (this.orchFilterStatusSel?.value || 'all') as 'all' | 'running' | 'done' | 'error' | 'scheduled' | 'registered' | 'queued' | 'leased' | 'paused' | 'canceled';
         const phase = (this.orchFilterPhaseSel?.value || 'all') as 'all' | 'critical' | 'high' | 'deferred' | 'idle';
         const keyword = (this.orchFilterSearchInput?.value || '').trim().toLowerCase();
         return { status, phase, keyword };
+    }
+
+    private getStatusLabel(status: string): string {
+        const map: Record<string, string> = {
+            registered: '已注册',
+            queued: '排队中',
+            leased: '已租约',
+            running: '运行中',
+            paused: '已暂停',
+            canceled: '已取消',
+            done: '已完成',
+            error: '错误',
+            scheduled: '已排程',
+            stale: '失联',
+        };
+        return map[status] || status;
+    }
+
+    private getGlobalTaskStatus(task: any): string {
+        const heartbeatTs = typeof task?.heartbeatTs === 'number' ? task.heartbeatTs : 0;
+        const isStale = heartbeatTs > 0 && (Date.now() - heartbeatTs > 15000);
+        if (isStale && ['leased', 'running'].includes(String(task?.status))) return 'stale';
+        return String(task?.status || 'queued');
+    }
+
+    private getWaitReasonLabel(waitReason: string | undefined): string {
+        if (!waitReason || waitReason === 'none') return '无';
+        if (waitReason.startsWith('bucket:')) {
+            const bucket = waitReason.split(':')[1] || 'unknown';
+            return `配额占满(${bucket})`;
+        }
+        if (waitReason === 'tab-hidden') return '页面隐藏';
+        if (waitReason === 'lease-timeout') return '租约超时';
+        if (waitReason === 'task-not-found') return '任务不存在';
+        if (waitReason === 'paused') return '主动暂停';
+        return waitReason;
+    }
+
+    private buildGlobalTaskDetail(task: any): string {
+        const statusPart = `状态: ${this.getStatusLabel(this.getGlobalTaskStatus(task))}`;
+        const queuePart = `队列: ${this.getWaitReasonLabel(task.waitReason)} | 优先级=${task.priority ?? '-'} | 阶段=${task.phase || '-'}`;
+        const quotaPart = `配额: cost=${task.cost || 'unknown'} | policy=${task.visibilityPolicy || 'unknown'} | retry=${task.retryCount ?? 0}/${task.retryLimit ?? 0}`;
+        const heartbeatPart = task.heartbeatTs
+            ? `心跳: ${Math.max(0, Math.round((Date.now() - task.heartbeatTs) / 1000))}s 前 | tab=${task.tabId}`
+            : `心跳: 无 | tab=${task.tabId}`;
+        return `${statusPart}<br>${queuePart}<br>${quotaPart}<br>${heartbeatPart}`;
     }
 
     // 任务中文说明（可按需扩展）
@@ -1079,6 +1213,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'drive115:init:list': '115网盘功能初始化（列表页）',
             'listEnhancement:init': '列表增强初始化',
             'videoEnhancement:initCore': '影片页核心初始化',
+            'videoEnhancement:clickEnhancement': '详情页点击增强',
+            'videoStatus:update': '页面影片状态更新',
+            'videoStatus:observer': '页面影片状态监听',
             
             // Deferred 阶段
             'insights:collector': '观影标签采集器',
@@ -1097,6 +1234,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'videoEnhancement:finish': '影片页增强完成',
             'actorRemarks:run': '演员备注快速运行',
             'videoFavoriteRating:init': '影片收藏评分初始化',
+            'drive115:push': '115推送任务',
             
             // Idle 阶段
             'ux:magnet:autoSearch': '磁力搜索自动检索',
@@ -1148,7 +1286,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 return `
                   <div class="row ${isConcurrent ? 'concurrent' : ''}">
                     <div class="col time">${timeDisplay}</div>
-                    <div class="col status"><span class="${badgeClass}">${item.status.toUpperCase()}</span></div>
+                    <div class="col status"><span class="${badgeClass}">${this.getStatusLabel(item.status)}</span></div>
                     <div class="col phase">${item.phase}</div>
                     <div class="col label" title="${item.label}">
                       ${concurrentMarker}
@@ -1222,9 +1360,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .row.concurrent { background:rgba(59, 130, 246, 0.1); border-left:3px solid #3b82f6; }
         .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
         .badge.scheduled { background:#607d8b; }
+        .badge.registered { background:#6b7280; }
+        .badge.queued { background:#0ea5e9; }
+        .badge.leased { background:#7c3aed; }
         .badge.running { background:#ff8f00; }
+        .badge.paused { background:#a855f7; }
+        .badge.canceled { background:#6b7280; }
         .badge.done { background:#2e7d32; }
         .badge.error { background:#d32f2f; }
+        .badge.stale { background:#b45309; }
         .detail { margin:0 4px 6px 4px; color:#b91c1c; font-size:12px; }
         .label-main { font-weight:600; color:var(--text-primary); }
         .label-desc { color:var(--text-secondary); font-size:12px; margin-top:2px; }
@@ -1251,10 +1395,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 复制“已注册任务”文本
     private async copyPhasesText(): Promise<void> {
         try {
-            // 优先使用当前视图模式下的数据：realtime -> 请求活动标签页的 state；design -> 使用设计规格
+            // 优先使用当前视图模式下的数据：global -> 全局任务中心；realtime -> 活动标签页；design -> 静态规格
             const mode = this.orchViewModeSel?.value || 'design';
             let phases: Record<'critical'|'high'|'deferred'|'idle', string[]> | null = null;
-            if (mode === 'realtime') {
+            if (mode === 'global') {
+                const globalState = await fetchGlobalTaskState();
+                const tasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
+                phases = {
+                    critical: tasks.filter((task: any) => task.phase === 'critical').map((task: any) => task.label),
+                    high: tasks.filter((task: any) => task.phase === 'high').map((task: any) => task.label),
+                    deferred: tasks.filter((task: any) => task.phase === 'deferred').map((task: any) => task.label),
+                    idle: tasks.filter((task: any) => task.phase === 'idle').map((task: any) => task.label),
+                };
+            } else if (mode === 'realtime') {
                 const state = await this.requestOrchestratorStateFromActiveTab();
                 if (state && state.phases) {
                     phases = state.phases as Record<'critical'|'high'|'deferred'|'idle', string[]>;
@@ -3526,6 +3679,17 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
             if (resp && resp.success && resp.details) {
                 this.taskDetailsData = resp.details.details || [];
+                const globalState = await fetchGlobalTaskState();
+                this.globalTaskDetailsData = Array.isArray(globalState?.tasks) ? globalState.tasks.map((task: any) => ({
+                    label: task?.label,
+                    phase: task?.phase,
+                    status: task?.status,
+                    durationMs: (task?.endedAt && task?.startedAt) ? (task.endedAt - task.startedAt) : 0,
+                    pageUrl: task?.pageUrl,
+                    timestamp: task?.createdAt,
+                    detail: `tab=${task?.tabId}; wait=${task?.waitReason || 'none'}; cost=${task?.cost || 'unknown'}`,
+                })) : [];
+                this.taskDetailsData = [...this.taskDetailsData, ...this.globalTaskDetailsData];
                 
                 // 如果有搜索查询，重新应用过滤
                 if (this.taskDetailsSearchQuery) {
@@ -3533,8 +3697,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 } else {
                     this.taskDetailsFilteredData = [];
                     this.renderTaskDetailsTable();
-                    // 使用本地数据计算分页信息
-                    const total = this.taskDetailsData.length;
+                    const total = this.getRenderedTaskDetailsCount();
                     const totalPages = Math.ceil(total / this.taskDetailsPageSize);
                     this.updateTaskDetailsPagination(total, totalPages);
                 }
@@ -3543,7 +3706,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.taskDetailsTableBody) {
                     this.taskDetailsTableBody.innerHTML = `
                         <tr>
-                            <td colspan="6" style="padding:40px; text-align:center; color:#ef4444;">
+                            <td colspan="7" style="padding:40px; text-align:center; color:#ef4444;">
                                 <i class="fas fa-exclamation-triangle"></i> 加载失败
                             </td>
                         </tr>
@@ -3555,7 +3718,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (this.taskDetailsTableBody) {
                 this.taskDetailsTableBody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding:40px; text-align:center; color:#ef4444;">
+                        <td colspan="7" style="padding:40px; text-align:center; color:#ef4444;">
                             <i class="fas fa-exclamation-triangle"></i> 加载失败
                         </td>
                     </tr>
@@ -3581,7 +3744,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 : '<i class="fas fa-inbox"></i> 暂无任务记录';
             this.taskDetailsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                    <td colspan="7" style="padding:40px; text-align:center; color:#94a3b8;">
                         ${emptyMessage}
                     </td>
                 </tr>
@@ -3611,10 +3774,38 @@ export class EnhancementSettings extends BaseSettingsPanel {
             }
         });
 
-        // 前端分页：计算当前页的数据
+        const groups = new Map<string, { parent: any; children: any[] }>();
+        for (const task of sortedData) {
+            const parentKey = task.parentLabel || task.label || 'unknown';
+            if (!groups.has(parentKey)) {
+                groups.set(parentKey, { parent: task, children: [] });
+            }
+            if (task.parentLabel && task.subtaskLabel) {
+                groups.get(parentKey)!.children.push(task);
+            } else {
+                const currentParent = groups.get(parentKey)!;
+                if (!currentParent.parent || currentParent.parent.parentLabel) {
+                    currentParent.parent = task;
+                }
+            }
+        }
+
+        const flattened: any[] = [];
+        for (const [parentKey, group] of groups.entries()) {
+            flattened.push({ ...group.parent, __rowType: 'parent', __parentKey: parentKey, __childCount: group.children.length });
+            if (this.taskDetailsExpandedParents.has(parentKey)) {
+                const children = group.children.sort((a, b) => {
+                    const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
+                    const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
+                    return ai - bi;
+                });
+                children.forEach(child => flattened.push({ ...child, __rowType: 'child', __parentKey: parentKey }));
+            }
+        }
+
         const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
         const endIndex = startIndex + this.taskDetailsPageSize;
-        const paginatedData = sortedData.slice(startIndex, endIndex);
+        const paginatedData = flattened.slice(startIndex, endIndex);
 
         // 格式化时间显示
         const formatDuration = (ms: number): string => {
@@ -3703,6 +3894,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 // 115功能
                 'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
                 'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
+                'drive115:push': '115推送任务 (drive115:push)',
                 
                 // 观影标签
                 'insights:collector': '观影标签采集器 (insights:collector)',
@@ -3711,6 +3903,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
                 'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
                 'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
+                'videoStatus:update': '页面影片状态更新 (videoStatus:update)',
+                'videoStatus:observer': '页面影片状态监听 (videoStatus:observer)',
                 
                 // 用户体验
                 'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
@@ -3750,6 +3944,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
                 
                 // 视频增强
+                'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
                 'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
                 'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
                 'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
@@ -3776,10 +3971,22 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const pageLink = getPageLink(task.pageUrl || '');
             const label = task.label || 'unknown';
             const displayName = getTaskDisplayName(label);
+            const subtask = task.subtaskLabel || '-';
+            const subtaskMeta = typeof task.batchIndex === 'number'
+                ? `${subtask} #${task.batchIndex}${typeof task.itemCount === 'number' ? ` · ${task.itemCount}项` : ''}`
+                : subtask;
+            const detailLine = task.detail ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">${task.detail}</div>` : '';
+
+            const isParent = task.__rowType === 'parent';
+            const paddingLeft = isParent ? '10px' : '28px';
+            const toggle = isParent && task.__childCount > 0
+                ? `<button data-task-parent-toggle="${task.__parentKey}" style="border:none; background:transparent; color:#3b82f6; cursor:pointer; margin-right:6px; font-size:12px;">${this.taskDetailsExpandedParents.has(task.__parentKey) ? '▼' : '▶'} ${task.__childCount}</button>`
+                : (isParent ? '' : '<span style="color:#94a3b8;">└</span> ');
 
             return `
-                <tr style="background:var(--bg-primary); border-bottom:1px solid var(--border-color);">
-                    <td style="padding:10px 12px; color:var(--text-primary); font-weight:500;" title="${label}">${displayName}</td>
+                <tr style="background:${isParent ? 'var(--bg-primary)' : 'var(--bg-secondary)'}; border-bottom:1px solid var(--border-color);">
+                    <td style="padding:10px 12px 10px ${paddingLeft}; color:var(--text-primary); font-weight:${isParent ? '500' : '400'};" title="${label}">${toggle}${displayName}${detailLine}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${subtaskMeta}</td>
                     <td style="padding:10px 12px;">${phase}</td>
                     <td style="padding:10px 12px;">${status}</td>
                     <td style="padding:10px 12px; text-align:right; color:${durationColor}; font-weight:600;">${duration}</td>
@@ -3822,10 +4029,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             this.taskDetailsCurrentPage--;
             // 直接重新渲染，不需要重新获取数据
             this.renderTaskDetailsTable();
-            const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
-                ? this.taskDetailsFilteredData 
-                : this.taskDetailsData;
-            const total = dataToRender.length;
+            const total = this.getRenderedTaskDetailsCount();
             const totalPages = Math.ceil(total / this.taskDetailsPageSize);
             this.updateTaskDetailsPagination(total, totalPages);
         }
@@ -3838,12 +4042,30 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsCurrentPage++;
         // 直接重新渲染，不需要重新获取数据
         this.renderTaskDetailsTable();
-        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
-            ? this.taskDetailsFilteredData 
-            : this.taskDetailsData;
-        const total = dataToRender.length;
+        const total = this.getRenderedTaskDetailsCount();
         const totalPages = Math.ceil(total / this.taskDetailsPageSize);
         this.updateTaskDetailsPagination(total, totalPages);
+    }
+
+    private getRenderedTaskDetailsCount(): number {
+        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery
+            ? this.taskDetailsFilteredData
+            : this.taskDetailsData;
+        const groups = new Map<string, number>();
+        let parentCount = 0;
+        for (const task of dataToRender) {
+            const parentKey = task.parentLabel || task.label || 'unknown';
+            if (!groups.has(parentKey)) {
+                groups.set(parentKey, 0);
+                parentCount += 1;
+            }
+            if (task.parentLabel && task.subtaskLabel && this.taskDetailsExpandedParents.has(parentKey)) {
+                groups.set(parentKey, (groups.get(parentKey) || 0) + 1);
+            }
+        }
+        let total = parentCount;
+        for (const count of groups.values()) total += count;
+        return total;
     }
 
     /**
@@ -3896,15 +4118,21 @@ export class EnhancementSettings extends BaseSettingsPanel {
             this.taskDetailsFilteredData = this.taskDetailsData.filter((task) => {
                 const label = (task.label || '').toLowerCase();
                 const pageUrl = (task.pageUrl || '').toLowerCase();
+                const subtask = (task.subtaskLabel || '').toLowerCase();
+                const detail = (task.detail || '').toLowerCase();
                 
                 // 获取任务显示名称
                 const taskNameMap: Record<string, string> = {
                     'drive115:init:video': '115功能初始化-视频页',
                     'drive115:init:list': '115功能初始化-列表页',
+                    'drive115:push': '115推送任务',
                     'insights:collector': '观影标签采集器',
                     'actorRemarks:actorPage': '演员备注-演员页',
                     'actorRemarks:run': '演员备注-运行',
                     'actorMarks:page': '演员标识-页面标记',
+                    'videoStatus:update': '页面影片状态更新',
+                    'videoStatus:observer': '页面影片状态监听',
+                    'videoEnhancement:clickEnhancement': '视频增强-点击增强',
                     'ux:shortcuts:init': '快捷键初始化',
                     'ux:magnet:autoSearch': '磁力搜索自动检索',
                     'privacy:init': '隐私保护初始化',
@@ -3933,7 +4161,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 };
                 const displayName = (taskNameMap[task.label] || task.label || '').toLowerCase();
 
-                return label.includes(query) || pageUrl.includes(query) || displayName.includes(query);
+                return label.includes(query) || pageUrl.includes(query) || subtask.includes(query) || detail.includes(query) || displayName.includes(query);
             });
         }
 

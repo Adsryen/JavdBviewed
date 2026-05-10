@@ -45,15 +45,22 @@
             <select id="orchViewMode">
               <option value="design">设计</option>
               <option value="realtime">实时</option>
+              <option value="global">全局</option>
             </select>
           </label>
           <label>状态
             <select id="orchFilterStatus">
               <option value="all">全部</option>
+              <option value="registered">已注册</option>
+              <option value="queued">排队中</option>
+              <option value="leased">已租约</option>
               <option value="running">运行中</option>
+              <option value="paused">已暂停</option>
+              <option value="canceled">已取消</option>
               <option value="done">已完成</option>
               <option value="error">错误</option>
               <option value="scheduled">已排程</option>
+              <option value="stale">失联</option>
             </select>
           </label>
           <label>阶段
@@ -301,6 +308,9 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="label">
                   任务名称 <i class="fas fa-sort"></i>
                 </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary);">
+                  子任务
+                </th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="phase">
                   阶段 <i class="fas fa-sort"></i>
                 </th>
@@ -320,7 +330,7 @@
             </thead>
             <tbody id="taskDetailsTableBody">
               <tr>
-                <td colspan="6" style="padding:40px; text-align:center; color:var(--text-secondary);">
+                <td colspan="7" style="padding:40px; text-align:center; color:var(--text-secondary);">
                   <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </td>
               </tr>

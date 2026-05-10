@@ -26,6 +26,8 @@ interface CacheEntry {
 }
 
 const CACHE_KEY = 'actor_remarks_cache';
+const REQUEST_COOLDOWN_MS = 5 * 60 * 1000;
+const REQUEST_IN_FLIGHT_TTL_MS = 15_000;
 
 function normalizeName(name: string): string {
   try {
@@ -264,15 +266,29 @@ async function fetchXslist(name: string): Promise<ActorRemarks | null> {
 
 class ActorExtraInfoService {
   private memCache: Map<string, ActorRemarks> = new Map();
+  private requestCooldowns: Map<string, number> = new Map();
+  private inFlight: Map<string, Promise<ActorRemarks | null>> = new Map();
 
   async getActorRemarks(rawName: string, settings?: ExtensionSettings): Promise<ActorRemarks | null> {
     const startTime = Date.now();
     const name = normalizeName(rawName);
     if (!name) return null;
 
+    const cooldownUntil = this.requestCooldowns.get(name) || 0;
+    if (Date.now() < cooldownUntil && this.memCache.has(name)) {
+      console.log(`[actorRemarks] 冷却期命中: ${name}`);
+      return this.memCache.get(name)!;
+    }
+
     if (this.memCache.has(name)) {
       console.log(`[actorRemarks] 内存缓存命中: ${name}`);
       return this.memCache.get(name)!;
+    }
+
+    const pending = this.inFlight.get(name);
+    if (pending) {
+      console.log(`[actorRemarks] 请求去重命中: ${name}`);
+      return pending;
     }
 
     // TTL：以原脚本为准，默认 0（不缓存）；若用户设置了 >0，则启用
@@ -286,46 +302,58 @@ class ActorExtraInfoService {
     }
 
     console.log(`[actorRemarks] 开始获取演员信息: ${name}`);
-    // 数据源顺序：以原脚本为准 Wikipedia -> xslist
-    const wiki = await fetchWikipedia(name);
+    const task = (async () => {
+      // 数据源顺序：以原脚本为准 Wikipedia -> xslist
+      const wiki = await fetchWikipedia(name);
 
-    const wikiHasFields = Boolean(
-      wiki && (
-        typeof wiki.age === 'number' ||
-        typeof wiki.heightCm === 'number' ||
-        Boolean(wiki.cup) ||
-        Boolean(wiki.retired) ||
-        Boolean(wiki.ig) ||
-        Boolean(wiki.tw)
-      )
-    );
+      const wikiHasFields = Boolean(
+        wiki && (
+          typeof wiki.age === 'number' ||
+          typeof wiki.heightCm === 'number' ||
+          Boolean(wiki.cup) ||
+          Boolean(wiki.retired) ||
+          Boolean(wiki.ig) ||
+          Boolean(wiki.tw)
+        )
+      );
 
-    // 若 Wiki 只有外链/空壳，则继续尝试 xslist
-    const xs = (!wiki || !wikiHasFields) ? (await fetchXslist(name)) : null;
+      // 若 Wiki 只有外链/空壳，则继续尝试 xslist
+      const xs = (!wiki || !wikiHasFields) ? (await fetchXslist(name)) : null;
 
-    const data: ActorRemarks | null = (wiki || xs)
-      ? {
-          name,
-          age: (wiki?.age ?? xs?.age),
-          heightCm: (wiki?.heightCm ?? xs?.heightCm),
-          cup: (wiki?.cup ?? xs?.cup),
-          retired: (wiki?.retired ?? xs?.retired),
-          ig: (wiki?.ig ?? xs?.ig),
-          tw: (wiki?.tw ?? xs?.tw),
-          wikiUrl: (wiki?.wikiUrl ?? undefined),
-          xslistUrl: (xs?.xslistUrl ?? wiki?.xslistUrl ?? undefined),
-          source: (wikiHasFields || !xs) ? (wiki?.source || 'wikipedia') : (xs?.source || 'xslist'),
-          fetchedAt: Date.now(),
-        }
-      : null;
-    if (data) {
-      console.log(`[actorRemarks] 获取成功: ${name}, 总耗时: ${Date.now() - startTime}ms, 来源: ${data.source}`);
-      this.memCache.set(name, data);
-      if (ttlDays > 0) await putToCache(name, data);
-    } else {
-      console.log(`[actorRemarks] 获取失败: ${name}, 总耗时: ${Date.now() - startTime}ms`);
+      const data: ActorRemarks | null = (wiki || xs)
+        ? {
+            name,
+            age: (wiki?.age ?? xs?.age),
+            heightCm: (wiki?.heightCm ?? xs?.heightCm),
+            cup: (wiki?.cup ?? xs?.cup),
+            retired: (wiki?.retired ?? xs?.retired),
+            ig: (wiki?.ig ?? xs?.ig),
+            tw: (wiki?.tw ?? xs?.tw),
+            wikiUrl: (wiki?.wikiUrl ?? undefined),
+            xslistUrl: (xs?.xslistUrl ?? wiki?.xslistUrl ?? undefined),
+            source: (wikiHasFields || !xs) ? (wiki?.source || 'wikipedia') : (xs?.source || 'xslist'),
+            fetchedAt: Date.now(),
+          }
+        : null;
+      if (data) {
+        console.log(`[actorRemarks] 获取成功: ${name}, 总耗时: ${Date.now() - startTime}ms, 来源: ${data.source}`);
+        this.memCache.set(name, data);
+        this.requestCooldowns.set(name, Date.now() + REQUEST_COOLDOWN_MS);
+        if (ttlDays > 0) await putToCache(name, data);
+      } else {
+        console.log(`[actorRemarks] 获取失败: ${name}, 总耗时: ${Date.now() - startTime}ms`);
+      }
+      return data || null;
+    })();
+
+    this.inFlight.set(name, task);
+    try {
+      return await task;
+    } finally {
+      setTimeout(() => {
+        if (this.inFlight.get(name) === task) this.inFlight.delete(name);
+      }, REQUEST_IN_FLIGHT_TTL_MS);
     }
-    return data || null;
   }
 }
 

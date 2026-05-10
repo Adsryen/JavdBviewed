@@ -5,6 +5,8 @@ import { STATE, log } from './state';
 import { showToast } from './toast';
 import { VIDEO_STATUS } from '../utils/config';
 import type { KeywordFilterRule, ContentFilterConfig } from '../types';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 
 // 重新导出类型以保持向后兼容性
 export type { KeywordFilterRule, ContentFilterConfig };
@@ -43,25 +45,50 @@ export class ContentFilterManager {
     try {
       log('Initializing keyword filter system...');
 
-      // 清理之前的观察器（防止重复初始化）
-      if (this.observer) {
-        this.observer.disconnect();
-        this.observer = null;
-      }
-
-      // 加载默认关键字规则
-      this.loadDefaultKeywordRules();
-
-      // 应用过滤规则
-      this.applyFilters();
-
-      // 监听页面变化
-      this.observePageChanges();
-
-      // 显示过滤统计
-      if (this.config.showFilteredCount) {
-        this.showFilterStats();
-      }
+      await runChunkedWork([
+        async () => {
+          if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+          }
+        },
+        async () => {
+          this.loadDefaultKeywordRules();
+        },
+        async () => {
+          this.applyFilters();
+        },
+        async () => {
+          this.observePageChanges();
+        },
+        async () => {
+          if (this.config.showFilteredCount) {
+            this.showFilterStats();
+          }
+        }
+      ], {
+        batchSize: 1,
+        parentLabel: 'contentFilter:initialize',
+        yieldAfterBatch: async () => {
+          await yieldToMainThread(0);
+        },
+        onBatchComplete: async ({ batchIndex }) => {
+          const subtaskLabels = ['reset-observer', 'load-rules', 'apply-filters', 'observe-page', 'show-stats'];
+          saveSubtaskDetail({
+            label: `contentFilter:initialize:${subtaskLabels[batchIndex] || 'step'}`,
+            parentLabel: 'contentFilter:initialize',
+            subtaskLabel: subtaskLabels[batchIndex] || 'step',
+            batchIndex,
+            itemCount: 1,
+            phase: 'idle',
+            status: 'done',
+            durationMs: 0,
+          });
+        },
+        onItem: async (step) => {
+          await step();
+        }
+      });
 
       this.isInitialized = true;
       log('Keyword filter system initialized');
@@ -89,7 +116,7 @@ export class ContentFilterManager {
   /**
    * 应用过滤规则
    */
-  private applyFilters(): void {
+  private async applyFilters(): Promise<void> {
     try {
       // 防止无限循环
       if (this.isApplyingFilters) {
@@ -124,8 +151,28 @@ export class ContentFilterManager {
         log(`Content filter: ${activeRules.length} active rules, ${videoItems.length} items`);
       }
 
-      videoItems.forEach(item => {
-        this.applyFiltersToItem(item);
+      await runChunkedWork(videoItems, {
+        batchSize: 8,
+        parentLabel: 'contentFilter:initialize',
+        yieldAfterBatch: async () => {
+          await yieldToMainThread(0);
+        },
+        onBatchComplete: async ({ batchIndex, itemCount, processed }) => {
+          saveSubtaskDetail({
+            label: 'contentFilter:initialize:apply-batch',
+            parentLabel: 'contentFilter:initialize',
+            subtaskLabel: 'apply-batch',
+            batchIndex,
+            itemCount,
+            detail: `processed=${processed}`,
+            phase: 'idle',
+            status: 'done',
+            durationMs: 0,
+          });
+        },
+        onItem: async (item) => {
+          this.applyFiltersToItem(item);
+        }
       });
 
       log(`Applied filters to ${videoItems.length} items (hidden: ${this.filterStats.hidden}, highlighted: ${this.filterStats.highlighted})`);
@@ -968,7 +1015,9 @@ export class ContentFilterManager {
       if (hasNewVideoItems) {
         // 延迟应用过滤，避免频繁操作
         setTimeout(() => {
-          this.applyFilters();
+          this.applyFilters().catch(error => {
+            log('Error reapplying filters after mutation:', error);
+          });
         }, 500);
       }
     });
@@ -991,7 +1040,9 @@ export class ContentFilterManager {
     if (this.isInitialized) {
       // 重新应用过滤规则
       this.clearAllFilters();
-      this.applyFilters();
+      void this.applyFilters().catch(error => {
+        log('Error reapplying filters after config update:', error);
+      });
     }
   }
 
@@ -1004,7 +1055,9 @@ export class ContentFilterManager {
     if (this.isInitialized) {
       // 重新应用过滤规则
       this.clearAllFilters();
-      this.applyFilters();
+      void this.applyFilters().catch(error => {
+        log('Error reapplying filters after keyword update:', error);
+      });
       log(`Updated ${keywordRules.length} keyword filter rules`);
     }
   }

@@ -25,7 +25,11 @@ import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
 import { actorExtraInfoService } from '../services/actorRemarks';
 import { createTaskTimeoutGuard, isTaskTimeoutError, waitForElement } from './utils';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { PasswordHelper } from './passwordHelper';
+import { installTaskVisibilityReporter } from './taskVisibilityReporter';
+import { createManagedTaskDescriptor, runManagedTask, getActiveManagedTaskIds } from './taskRuntime';
+import { installTaskHeartbeatReporter } from './taskHeartbeat';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -44,6 +48,9 @@ installConsoleProxy({
         general: { enabled: true, match: () => true, label: 'CS', color: '#27ae60' },
     },
 });
+
+installTaskVisibilityReporter(() => getActiveManagedTaskIds());
+installTaskHeartbeatReporter(() => getActiveManagedTaskIds());
 
 // 从设置应用控制台显示配置到代理
 async function applyConsoleSettingsFromStorage_CS() {
@@ -85,6 +92,7 @@ async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Pr
             ? timeoutMs
             : getActorRemarksTaskTimeoutMs(settings);
         const timeoutGuard = createTaskTimeoutGuard(taskTimeoutMs);
+        const renderStartedAt = Date.now();
         const mode = (settings?.videoEnhancement?.actorRemarksMode === 'inline') ? 'inline' : 'panel';
 
         // 演员页标题区有别名/作品数等 meta，必须优先取 .actor-section-name（主名）
@@ -115,9 +123,25 @@ async function runActorRemarksOnActorPage(settings: any, timeoutMs?: number): Pr
             return txt;
         };
 
-        timeoutGuard.throwIfTimedOut();
-        const data = await actorExtraInfoService.getActorRemarks(name, settings);
-        timeoutGuard.throwIfTimedOut();
+        const results: Array<any | null> = [];
+        await runChunkedWork([name], {
+            batchSize: 1,
+            shouldStop: () => timeoutGuard.isTimedOut(),
+            yieldAfterBatch: async () => {
+                await yieldToMainThread(0);
+            },
+            onItem: async (actorName) => {
+                timeoutGuard.throwIfTimedOut();
+                const data = await actorExtraInfoService.getActorRemarks(actorName, settings);
+                timeoutGuard.throwIfTimedOut();
+                results.push(data);
+            },
+        });
+        const data = results[0] || null;
+        if (Date.now() - renderStartedAt > Math.max(3000, Math.min(taskTimeoutMs, 8000))) {
+            log('actorRemarks(actorPage): render budget exceeded');
+            return;
+        }
         const badgeText = data ? buildBadgeText(data) : '';
         const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
         const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
@@ -349,7 +373,21 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500 });
 
         // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
-        initOrchestrator.add('idle', () => initInsightsCollector(), { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
+        initOrchestrator.add('idle', async () => {
+            const descriptor = createManagedTaskDescriptor({
+                label: 'insights:collector',
+                phase: 'idle',
+                priority: 2,
+                cost: 'medium',
+                visibilityPolicy: 'background_allowed',
+                timeoutMs: 10000,
+                retryLimit: 2,
+                resumePolicy: 'restart',
+            });
+            await runManagedTask(descriptor, async () => {
+                await initInsightsCollector();
+            });
+        }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -635,9 +673,21 @@ async function initialize(): Promise<void> {
     // 在默认隐藏功能处理完后，再初始化智能内容过滤（统一由编排器调度）
     // 优化：缩短延迟到300ms
     if (settings.userExperience.enableContentFilter) {
-        initOrchestrator.add('idle', () => {
-            contentFilterManager.initialize();
-            log('Content filter initialized after default hide processing');
+        initOrchestrator.add('idle', async () => {
+            const descriptor = createManagedTaskDescriptor({
+                label: 'contentFilter:initialize',
+                phase: 'idle',
+                priority: 1,
+                cost: 'medium',
+                visibilityPolicy: 'background_allowed',
+                timeoutMs: 10000,
+                retryLimit: 2,
+                resumePolicy: 'restart',
+            });
+            await runManagedTask(descriptor, async () => {
+                contentFilterManager.initialize();
+                log('Content filter initialized after default hide processing');
+            });
         }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500 });
     }
 

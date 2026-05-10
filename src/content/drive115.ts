@@ -11,6 +11,9 @@ import { showToast } from './toast';
 import { log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { getSettings } from '../utils/storage';
+import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 
 // 统一的网络请求超时与重试封装（用于对抗临时的网络抖动/连接重置）
 async function delay(ms: number): Promise<void> {
@@ -61,12 +64,31 @@ async function fetchWithTimeoutRetry(
 
 
 async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
-    const container = await waitForElement('#magnets-content', 5000, 150);
+    const container = await waitForElement('#magnets-content', 1500, 120);
     if (!container) return;
     const videoId = extractVideoIdFromPage() || 'unknown';
 
     const items = Array.from(container.querySelectorAll('.item')) as HTMLElement[];
-    items.forEach((item) => {
+    await runChunkedWork(items, {
+        batchSize: 3,
+        parentLabel: 'drive115:init:video',
+        yieldAfterBatch: async () => {
+            await yieldToMainThread(0);
+        },
+        onBatchComplete: async ({ batchIndex, itemCount, processed }) => {
+            saveSubtaskDetail({
+                label: 'drive115:init:video:inject-buttons',
+                parentLabel: 'drive115:init:video',
+                subtaskLabel: 'inject-buttons',
+                batchIndex,
+                itemCount,
+                detail: `processed=${processed}`,
+                phase: 'idle',
+                status: 'done',
+                durationMs: 0,
+            });
+        },
+        onItem: async (item) => {
         if (item.querySelector('.drive115-push-btn')) return;
         const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement | null;
         if (!magnetLink) return;
@@ -89,6 +111,7 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
             item.appendChild(buttonsCol);
         }
         (buttonsCol as HTMLElement).appendChild(btn);
+        }
     });
 }
 
@@ -96,53 +119,101 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
  * 初始化115功能
  */
 export async function initDrive115Features(): Promise<void> {
+    const descriptor = createManagedTaskDescriptor({
+        label: window.location.pathname.startsWith('/v/') ? 'drive115:init:video' : 'drive115:init:list',
+        phase: 'idle',
+        priority: 2,
+        cost: 'heavy',
+        visibilityPolicy: 'background_allowed',
+        timeoutMs: 12000,
+        retryLimit: 2,
+        resumePolicy: 'restart',
+    });
+    await runManagedTask(descriptor, async () => {
     try {
+        const steps: Array<() => Promise<void>> = [
+            async () => {
         // 通过统一路由判断是否启用115功能（屏蔽 v1/v2 差异）
-        const enabled = await isDrive115Enabled();
-        if (!enabled) {
-            return;
-        }
+                const enabled = await isDrive115Enabled();
+                if (!enabled) {
+                    throw new Error('drive115-disabled');
+                }
+            },
+            async () => {
 
         // 在详情页为原生磁力列表注入 115 按钮（不依赖磁力搜索）
-        if (window.location.pathname.startsWith('/v/')) {
-            try { await inject115ButtonsIntoNativeMagnetList(); } catch {}
-        }
+                if (window.location.pathname.startsWith('/v/')) {
+                    try { await inject115ButtonsIntoNativeMagnetList(); } catch {}
+                }
+            },
+            async () => {
 
         // 优化：并行等待容器元素，避免串行等待导致耗时累加
         // 列表页可能没有这些元素，缩短超时时间避免长时间阻塞
-        const isDetailPage = window.location.pathname.startsWith('/v/');
-        const timeout = isDetailPage ? 3000 : 1000; // 详情页3秒，列表页1秒
+                const isDetailPage = window.location.pathname.startsWith('/v/');
+                const timeout = isDetailPage ? 1500 : 800;
         
-        const [userBox, userStatus] = await Promise.all([
-            waitForElement('#drive115-user-box', timeout, 150),
-            waitForElement('#drive115-user-status', timeout, 150)
-        ]);
+                const [userBox, userStatus] = await Promise.all([
+                    waitForElement('#drive115-user-box', timeout, 150),
+                    waitForElement('#drive115-user-status', timeout, 150)
+                ]);
         
-        if (!userBox || !userStatus) {
-            log('[Drive115] Required containers not found, continue without quota UI');
-        }
+                if (!userBox || !userStatus) {
+                    log('[Drive115] Required containers not found, continue without quota UI');
+                }
+            },
+            async () => {
 
         // 简化初始化，避免调用不存在的函数
-        log('[Drive115] Containers found, initialization completed');
-        try {
-            const refreshBtn = document.getElementById('drive115-refresh-btn');
-            if (refreshBtn && !(refreshBtn as any)._bound_drive115_quota_refresh) {
-                (refreshBtn as any)._bound_drive115_quota_refresh = true;
-                refreshBtn.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    try {
-                        log('[Drive115] Refresh button clicked - functionality temporarily disabled');
-                    } catch (err) {
-                        console.warn('[Drive115] 点击刷新配额异常：', err);
+                log('[Drive115] Containers found, initialization completed');
+                try {
+                    const refreshBtn = document.getElementById('drive115-refresh-btn');
+                    if (refreshBtn && !(refreshBtn as any)._bound_drive115_quota_refresh) {
+                        (refreshBtn as any)._bound_drive115_quota_refresh = true;
+                        refreshBtn.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            try {
+                                log('[Drive115] Refresh button clicked - functionality temporarily disabled');
+                            } catch (err) {
+                                console.warn('[Drive115] 点击刷新配额异常：', err);
+                            }
+                        });
                     }
+                } catch {}
+            },
+        ];
+
+        await runChunkedWork(steps, {
+            batchSize: 1,
+            parentLabel: descriptor.label,
+            yieldAfterBatch: async () => {
+                await yieldToMainThread(0);
+            },
+            onBatchComplete: async ({ batchIndex }) => {
+                saveSubtaskDetail({
+                    label: `${descriptor.label}:step`,
+                    parentLabel: descriptor.label,
+                    subtaskLabel: 'step',
+                    batchIndex,
+                    itemCount: 1,
+                    phase: 'idle',
+                    status: 'done',
+                    durationMs: 0,
                 });
+            },
+            onItem: async (step) => {
+                await step();
             }
-        } catch {}
+        });
 
         // 静默完成115功能初始化
     } catch (error) {
+        if (error instanceof Error && error.message === 'drive115-disabled') {
+            return;
+        }
         console.error('初始化115功能失败:', error);
     }
+    });
 }
 
 // 刷新115配额UI功能已移至dashboard模块
@@ -167,6 +238,18 @@ export async function handlePushToDrive115(
     magnetName: string
 ): Promise<void> {
     try {
+        const descriptor = createManagedTaskDescriptor({
+            label: 'drive115:push',
+            phase: 'high',
+            priority: 9,
+            cost: 'heavy',
+            visibilityPolicy: 'foreground_first',
+            timeoutMs: 20000,
+            retryLimit: 2,
+            resumePolicy: 'restart',
+            dedupeKey: `drive115:push:${videoId}:${magnetUrl}`,
+        });
+        await runManagedTask(descriptor, async () => {
         // 检查115功能是否启用
         const enabled = await isDrive115Enabled();
         if (!enabled) {
@@ -248,6 +331,7 @@ export async function handlePushToDrive115(
         } else {
             throw new Error(result.error || '推送失败');
         }
+        });
     } catch (error) {
         console.error('推送到115网盘失败:', error);
         const errorMessage = error instanceof Error ? error.message : '未知错误';

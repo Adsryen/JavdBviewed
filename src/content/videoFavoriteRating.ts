@@ -6,6 +6,9 @@ import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import type { VideoRecord } from '../types';
+import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 
 /**
  * 影片页收藏与评分增强
@@ -20,30 +23,82 @@ export class VideoFavoriteRatingEnhancer {
    * 初始化增强功能
    */
   public async init(): Promise<void> {
+    const descriptor = createManagedTaskDescriptor({
+      label: 'videoFavoriteRating:init',
+      phase: 'deferred',
+      priority: 3,
+      cost: 'medium',
+      visibilityPolicy: 'background_allowed',
+      timeoutMs: 10000,
+      retryLimit: 2,
+      resumePolicy: 'restart',
+    });
+    await runManagedTask(descriptor, async () => {
     try {
+      const steps: Array<() => Promise<void>> = [
+        async () => {
       // 检查是否启用
       if (!STATE.settings?.videoEnhancement?.enableVideoFavoriteRating) {
         log('[VideoFavoriteRating] Feature disabled in settings');
-        return;
+        throw new Error('video-favorite-rating-disabled');
       }
+        },
+        async () => {
 
       // 获取当前影片ID
       this.videoId = extractVideoIdFromPage();
       if (!this.videoId) {
         log('[VideoFavoriteRating] No video ID found');
-        return;
+        throw new Error('video-favorite-rating-missing-id');
       }
 
       log('[VideoFavoriteRating] Initializing for video:', this.videoId);
+        },
+        async () => {
 
       // 从番号库获取记录
       await this.loadRecord();
+        },
+        async () => {
 
       // 始终显示UI，即使记录不存在（允许用户直接添加收藏和评分）
       await this.renderUI();
+        },
+      ];
+
+      await runChunkedWork(steps, {
+        batchSize: 1,
+        parentLabel: 'videoFavoriteRating:init',
+        yieldAfterBatch: async () => {
+          await yieldToMainThread(0);
+        },
+        onBatchComplete: async ({ batchIndex }) => {
+          const subtaskLabels = ['check-enabled', 'resolve-video-id', 'load-record', 'render-ui'];
+          saveSubtaskDetail({
+            label: `videoFavoriteRating:init:${subtaskLabels[batchIndex] || 'step'}`,
+            parentLabel: 'videoFavoriteRating:init',
+            subtaskLabel: subtaskLabels[batchIndex] || 'step',
+            batchIndex,
+            itemCount: 1,
+            phase: 'deferred',
+            status: 'done',
+            durationMs: 0,
+          });
+        },
+        onItem: async (step) => {
+          await step();
+        }
+      });
     } catch (error) {
+      if (error instanceof Error && (
+        error.message === 'video-favorite-rating-disabled' ||
+        error.message === 'video-favorite-rating-missing-id'
+      )) {
+        return;
+      }
       console.error('[VideoFavoriteRating] Init error:', error);
     }
+    });
   }
 
   /**
