@@ -7,12 +7,18 @@ import { actorSelector } from '../components/actorSelector';
 import { newWorksConfigModal } from '../components/newWorks/configModal';
 import { showMessage } from '../ui/toast';
 import { showConfirm, showDanger } from '../components/confirmModal';
+import {
+    MAX_UNREAD_BATCH_OPEN_COUNT,
+    getNewWorksPageSize,
+    getUnreadBatchOpenCooldownRemaining,
+    getUnreadBatchOpenCooldownSeconds,
+    pickUnreadBatchOpenTargets,
+} from './newWorksBatchOpenPolicy';
 import type { NewWorkRecord, ActorRecord, ActorSubscription } from '../../types';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
     private currentPage: number = 1;
-    private pageSize: number = 20;
     private currentFilters: any = {
         search: '',
         filter: 'unread',
@@ -23,6 +29,8 @@ export class NewWorksTab {
     private debounceRender = this.debounce(() => this.render(), 300);
     private progressListener?: (message: any) => void;
     private progressEl?: HTMLElement;
+    private lastUnreadBatchOpenAt: number = 0;
+    private unreadBatchOpenCooldownTimer?: number;
 
     /**
      * 初始化新作品标签页
@@ -60,26 +68,35 @@ export class NewWorksTab {
      * 批量打开当前页的未读新作品，并标记为已读
      */
     private async batchOpenCurrentPageUnread(): Promise<void> {
+        if (this.getUnreadBatchOpenCooldownRemaining() > 0) {
+            showMessage(`批量打开冷却中，请在 ${this.getUnreadBatchOpenCooldownSeconds()} 秒后重试`, 'info');
+            this.updateBatchOpenUnreadButton();
+            return;
+        }
+
         try {
-            const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...'; }
+            this.updateBatchOpenUnreadButton({ loading: true });
+            const pageSize = this.getCurrentPageSize();
 
             // 获取当前页数据（保持与 UI 同步）
             const result = await newWorksManager.getNewWorks({
                 ...this.currentFilters,
                 page: this.currentPage,
-                pageSize: this.pageSize,
+                pageSize,
             });
             const unread = result.works.filter(w => !w.isRead);
+            const targets = pickUnreadBatchOpenTargets(result.works);
 
-            if (unread.length === 0) {
+            if (targets.length === 0) {
                 showMessage('当前页没有未读作品', 'info');
                 return;
             }
 
             const confirmed = await showConfirm({
                 title: '批量打开未读',
-                message: `将打开 ${unread.length} 个未读作品的新标签页，并标记为已读，继续吗？`,
+                message: unread.length > MAX_UNREAD_BATCH_OPEN_COUNT
+                    ? `当前页共有 ${unread.length} 个未读作品，本次将打开前 ${targets.length} 个新标签页，并标记为已读，继续吗？`
+                    : `将打开 ${targets.length} 个未读作品的新标签页，并标记为已读，继续吗？`,
                 confirmText: '继续',
                 cancelText: '取消',
                 type: 'warning'
@@ -87,7 +104,7 @@ export class NewWorksTab {
             if (!confirmed) return;
 
             // 逐个打开（使用 chrome.tabs.create 或回退 window.open）
-            for (const w of unread) {
+            for (const w of targets) {
                 try {
                     // 优先使用 chrome.tabs.create（若可用）
                     if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.create === 'function') {
@@ -104,20 +121,72 @@ export class NewWorksTab {
 
             // 标记为已读
             try {
-                await newWorksManager.markAsRead(unread.map(w => w.id));
+                await newWorksManager.markAsRead(targets.map(w => w.id));
             } catch (e) {
                 console.warn('批量标记已读失败:', e);
             }
 
+            this.startUnreadBatchOpenCooldown();
+
             await this.render();
-            showMessage(`已打开 ${unread.length} 个未读作品并标为已读`, 'success');
+            showMessage(`已打开 ${targets.length} 个未读作品并标为已读`, 'success');
         } catch (error) {
             console.error('批量打开未读失败:', error);
             showMessage('批量打开失败，请重试', 'error');
         } finally {
-            const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开未读（当页）'; }
+            this.updateBatchOpenUnreadButton();
         }
+    }
+
+    private getCurrentPageSize(): number {
+        return getNewWorksPageSize(this.currentFilters.filter);
+    }
+
+    private getUnreadBatchOpenCooldownRemaining(now: number = Date.now()): number {
+        return getUnreadBatchOpenCooldownRemaining(this.lastUnreadBatchOpenAt, now);
+    }
+
+    private getUnreadBatchOpenCooldownSeconds(now: number = Date.now()): number {
+        return getUnreadBatchOpenCooldownSeconds(this.lastUnreadBatchOpenAt, now);
+    }
+
+    private startUnreadBatchOpenCooldown(): void {
+        this.lastUnreadBatchOpenAt = Date.now();
+        if (this.unreadBatchOpenCooldownTimer) {
+            window.clearInterval(this.unreadBatchOpenCooldownTimer);
+        }
+
+        this.updateBatchOpenUnreadButton();
+        this.unreadBatchOpenCooldownTimer = window.setInterval(() => {
+            this.updateBatchOpenUnreadButton();
+            if (this.getUnreadBatchOpenCooldownRemaining() <= 0 && this.unreadBatchOpenCooldownTimer) {
+                window.clearInterval(this.unreadBatchOpenCooldownTimer);
+                this.unreadBatchOpenCooldownTimer = undefined;
+            }
+        }, 1000);
+    }
+
+    private updateBatchOpenUnreadButton(options?: { loading?: boolean }): void {
+        const btn = document.getElementById('batchOpenUnreadBtn') as HTMLButtonElement | null;
+        if (!btn) return;
+
+        if (options?.loading) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在打开...';
+            return;
+        }
+
+        const remainingSeconds = this.getUnreadBatchOpenCooldownSeconds();
+        if (remainingSeconds > 0) {
+            btn.disabled = true;
+            btn.title = `打开当前页所有未读新作品（最多 ${MAX_UNREAD_BATCH_OPEN_COUNT} 个，冷却剩余 ${remainingSeconds} 秒）`;
+            btn.innerHTML = `<i class="fas fa-hourglass-half"></i> 冷却中（${remainingSeconds}s）`;
+            return;
+        }
+
+        btn.disabled = false;
+        btn.title = `打开当前页所有未读新作品（最多 ${MAX_UNREAD_BATCH_OPEN_COUNT} 个，15 秒冷却）`;
+        btn.innerHTML = '<i class="fas fa-external-link-alt"></i> 批量打开未读（当页）';
     }
 
     /**
@@ -263,6 +332,7 @@ export class NewWorksTab {
                 console.log('点击了批量打开未读（当页）按钮');
                 await this.batchOpenCurrentPageUnread();
             });
+            this.updateBatchOpenUnreadButton();
             console.log('批量打开未读按钮事件已绑定');
         } else {
             console.warn('未找到批量打开未读按钮');
@@ -510,7 +580,7 @@ export class NewWorksTab {
             const result = await newWorksManager.getNewWorks({
                 ...this.currentFilters,
                 page: this.currentPage,
-                pageSize: this.pageSize
+                pageSize: this.getCurrentPageSize()
             });
 
             console.log('获取到新作品数据:', result);
@@ -535,6 +605,8 @@ export class NewWorksTab {
 
             // 渲染分页
             this.renderPagination(result.total);
+
+            this.updateBatchOpenUnreadButton();
 
             // 添加事件监听器
             this.attachWorkItemListeners();
@@ -608,7 +680,7 @@ export class NewWorksTab {
         const container = document.getElementById('newWorksPagination');
         if (!container) return;
 
-        const pageCount = Math.ceil(total / this.pageSize);
+        const pageCount = Math.ceil(total / this.getCurrentPageSize());
         if (pageCount <= 1) {
             container.innerHTML = '';
             return;
