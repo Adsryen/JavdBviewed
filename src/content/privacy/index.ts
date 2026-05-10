@@ -5,11 +5,23 @@
 import { getElementProtector } from './elementProtector';
 import { getPrivacyStateListener } from './stateListener';
 import { initializePrivacySystem } from '../../services/privacy';
+import { createManagedTaskDescriptor, runManagedTask } from '../taskRuntime';
 
 /**
  * 初始化内容脚本隐私功能
  */
 export async function initializeContentPrivacy(): Promise<void> {
+    const descriptor = createManagedTaskDescriptor({
+        label: 'privacy:init',
+        phase: 'deferred',
+        priority: 4,
+        cost: 'medium',
+        visibilityPolicy: 'background_allowed',
+        timeoutMs: 10000,
+        retryLimit: 2,
+        resumePolicy: 'restart',
+    });
+    await runManagedTask(descriptor, async () => {
     try {
         // 静默初始化隐私功能
 
@@ -40,6 +52,7 @@ export async function initializeContentPrivacy(): Promise<void> {
     } catch (error) {
         console.error('[Privacy] Failed to initialize content privacy features:', error);
     }
+    });
 }
 
 /**

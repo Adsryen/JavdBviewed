@@ -9,6 +9,8 @@ import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
 import { createTaskTimeoutGuard, isTaskTimeoutError, getRandomDelay, waitForElement } from './utils';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
@@ -17,6 +19,7 @@ import { actorManager } from '../services/actorManager';
 import { newWorksManager } from '../services/newWorks';
 import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
+import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -183,6 +186,17 @@ async function updateVideoStatus(
     }
 
     try {
+        const descriptor = createManagedTaskDescriptor({
+            label: 'videoStatus:update',
+            phase: 'high',
+            priority: 9,
+            cost: 'light',
+            visibilityPolicy: 'foreground_first',
+            timeoutMs: 5000,
+            retryLimit: 2,
+            resumePolicy: 'restart',
+        });
+        await runManagedTask(descriptor, async () => {
         const now = Date.now();
         const existing = STATE.records[videoId];
 
@@ -218,6 +232,7 @@ async function updateVideoStatus(
         } else {
             log('[StatusObserver] No existing record found, status update skipped');
         }
+        });
     } catch (error) {
         log('[StatusObserver] Error updating status:', error);
     } finally {
@@ -340,46 +355,57 @@ async function markActorsOnPage(): Promise<void> {
         const colorCollected = '#2e7d32'; // 绿色（已收藏）
         const colorBlacklisted = '#d32f2f'; // 红色（黑名单）
         const subscribedColor = '#f59e0b'; // 橙黄（已订阅）
+        const startedAt = Date.now();
+        const maxBudgetMs = 8000;
 
-        for (const a of Array.from(linkNodes)) {
-            try {
-                const href = a.getAttribute('href') || '';
-                const idPart = href.split('/actors/')[1] || '';
-                const actorId = idPart.split('?')[0].split('#')[0];
-                if (!actorId) continue;
-
-                const isSubscribed = subscribedActorIds.has(actorId);
-
-                const record = await actorManager.getActorById(actorId);
-                if (!record && !isSubscribed) continue; // 无本地状态也未订阅
-
-                if (record?.blacklisted) {
-                    a.style.color = colorBlacklisted;
-                    a.style.textDecoration = 'line-through';
-                    a.title = a.title ? `${a.title}（黑名单）` : '黑名单';
-                } else if (record) {
-                    a.style.color = colorCollected;
-                    a.style.textDecoration = 'none';
-                    a.title = a.title ? `${a.title}（已收藏）` : '已收藏';
-                }
-
-                if (isSubscribed && !a.parentElement?.querySelector(`.actor-subscribe-badge[data-actor-id="${actorId}"]`)) {
-                    const badge = document.createElement('span');
-                    badge.className = 'actor-subscribe-badge';
-                    badge.dataset.actorId = actorId;
-                    badge.title = '已订阅';
-                    badge.setAttribute('aria-label', '已订阅');
-                    badge.textContent = '🔔';
-                    badge.style.color = subscribedColor;
-                    badge.style.marginRight = '4px';
-                    badge.style.fontSize = '0.95em';
-                    badge.style.verticalAlign = 'text-top';
-                    a.insertAdjacentElement('beforebegin', badge);
-                }
-            } catch {
-                // 单个失败不阻断
-                continue;
+        const actorLinks = Array.from(linkNodes);
+        const batchSize = 4;
+        for (let i = 0; i < actorLinks.length; i += batchSize) {
+            if (Date.now() - startedAt > maxBudgetMs) {
+                log(`markActorsOnPage budget exceeded after ${i} actors, stopping early`);
+                break;
             }
+            const batch = actorLinks.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (a) => {
+                try {
+                    const href = a.getAttribute('href') || '';
+                    const idPart = href.split('/actors/')[1] || '';
+                    const actorId = idPart.split('?')[0].split('#')[0];
+                    if (!actorId) return;
+
+                    const isSubscribed = subscribedActorIds.has(actorId);
+
+                    const record = await actorManager.getActorById(actorId);
+                    if (!record && !isSubscribed) return;
+
+                    if (record?.blacklisted) {
+                        a.style.color = colorBlacklisted;
+                        a.style.textDecoration = 'line-through';
+                        a.title = a.title ? `${a.title}（黑名单）` : '黑名单';
+                    } else if (record) {
+                        a.style.color = colorCollected;
+                        a.style.textDecoration = 'none';
+                        a.title = a.title ? `${a.title}（已收藏）` : '已收藏';
+                    }
+
+                    if (isSubscribed && !a.parentElement?.querySelector(`.actor-subscribe-badge[data-actor-id="${actorId}"]`)) {
+                        const badge = document.createElement('span');
+                        badge.className = 'actor-subscribe-badge';
+                        badge.dataset.actorId = actorId;
+                        badge.title = '已订阅';
+                        badge.setAttribute('aria-label', '已订阅');
+                        badge.textContent = '🔔';
+                        badge.style.color = subscribedColor;
+                        badge.style.marginRight = '4px';
+                        badge.style.fontSize = '0.95em';
+                        badge.style.verticalAlign = 'text-top';
+                        a.insertAdjacentElement('beforebegin', badge);
+                    }
+                } catch {
+                    return;
+                }
+            }));
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
     } catch (error) {
         log('markActorsOnPage error:', error);
@@ -445,44 +471,54 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
 
         const processed = new Set<string>();
         let renderedCount = 0;
+        const renderStartedAt = Date.now();
+        const renderBudgetMs = Math.max(3000, Math.min(taskTimeoutMs, 8000));
 
-        // 优化：并行查询所有演员信息
-        const actorTasks = links.map(async (a) => {
-            const name = (a.textContent || '').trim();
-            if (!name || processed.has(name)) return null;
-            processed.add(name);
-
-            try {
-                const data = await actorExtraInfoService.getActorRemarks(name, STATE.settings as any);
-                return { element: a, name, data };
-            } catch (e) {
-                log('actorRemarks: fetch failed for', name, e);
-                return null;
+        const results: Array<{ element: HTMLAnchorElement; name: string; data: any } | null> = [];
+        await runChunkedWork(links, {
+            batchSize: 2,
+            parentLabel: 'actorRemarks:run',
+            shouldStop: () => timeoutGuard.isTimedOut() || (Date.now() - renderStartedAt > renderBudgetMs),
+            yieldAfterBatch: async () => {
+                await yieldToMainThread(0);
+            },
+            onBatchComplete: async ({ batchIndex, itemCount, processed, stopped }) => {
+                saveSubtaskDetail({
+                    label: 'actorRemarks:run:fetch-batch',
+                    parentLabel: 'actorRemarks:run',
+                    subtaskLabel: 'fetch-batch',
+                    batchIndex,
+                    itemCount,
+                    detail: `processed=${processed}, stopped=${stopped}`,
+                    phase: 'idle',
+                    status: 'done',
+                    durationMs: 0,
+                });
+            },
+            onItem: async (a) => {
+                const name = (a.textContent || '').trim();
+                if (!name || processed.has(name)) {
+                    results.push(null);
+                    return;
+                }
+                processed.add(name);
+                try {
+                    const data = await actorExtraInfoService.getActorRemarks(name, STATE.settings as any);
+                    results.push({ element: a, name, data });
+                } catch (e) {
+                    log('actorRemarks: fetch failed for', name, e);
+                    results.push(null);
+                }
             }
         });
 
-        // 等待所有查询完成
-        let taskTimedOut = false;
-        const timeoutPromise = timeoutGuard.timeoutMs > 0
-            ? new Promise<never>((_, reject) => {
-                window.setTimeout(() => {
-                    taskTimedOut = true;
-                    reject(new Error(`Task timeout after ${timeoutGuard.timeoutMs}ms`));
-                }, timeoutGuard.timeoutMs);
-            })
-            : null;
-
-        const results = timeoutPromise
-            ? await Promise.race([Promise.all(actorTasks), timeoutPromise]) as Array<{ element: HTMLAnchorElement; name: string; data: any } | null>
-            : await Promise.all(actorTasks);
-
         timeoutGuard.throwIfTimedOut();
-        if (taskTimedOut) {
-            throw new Error(`Task timeout after ${timeoutGuard.timeoutMs}ms`);
-        }
 
-        // 统一渲染结果
         for (const result of results) {
+            if (Date.now() - renderStartedAt > renderBudgetMs) {
+                log(`actorRemarks: render budget exceeded after ${renderedCount} actors`);
+                break;
+            }
             if (!result) continue;
 
             const { element: a, name, data } = result;
@@ -602,6 +638,10 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                     await videoDetailEnhancer.initCore();
                 }, { label: 'videoEnhancement:initCore', priority: 8 });
 
+                initOrchestrator.add('high', async () => {
+                    await Promise.resolve();
+                }, { label: 'videoEnhancement:clickEnhancement', priority: 10, delayMs: 0, dependsOn: ['videoEnhancement:initCore'] });
+
                 initOrchestrator.add('deferred', async () => {
                     await videoDetailEnhancer.loadEnhancedData();
                 }, { label: 'videoEnhancement:loadData', idle: true, idleTimeout: 3000, delayMs: 300, timeout: 10000, dependsOn: ['videoEnhancement:initCore'] });
@@ -661,9 +701,9 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 const FLAG = '__jdb_videoFavoriteRating_scheduled__';
                 if (!(window as any)[FLAG]) {
                     (window as any)[FLAG] = true;
-                    initOrchestrator.add('deferred', async () => {
+                    initOrchestrator.add('high', async () => {
                         try { await videoFavoriteRatingEnhancer.init(); } catch {}
-                    }, { label: 'videoFavoriteRating:init', idle: true, idleTimeout: 5000, delayMs: 1000 });
+                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7 });
                 }
             }
         } catch {}
@@ -671,7 +711,21 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         // 无论是否启用增强功能，都尝试为“演員”区域的演员添加标识
         try {
             initOrchestrator.add('idle', async () => {
-                try { await markActorsOnPage(); } catch (markErr) { log('Marking actors on page failed:', markErr); }
+                try {
+                    const descriptor = createManagedTaskDescriptor({
+                        label: 'actorMarks:page',
+                        phase: 'idle',
+                        priority: 3,
+                        cost: 'heavy',
+                        visibilityPolicy: 'background_allowed',
+                        timeoutMs: 12000,
+                        retryLimit: 0,
+                        resumePolicy: 'resume',
+                    });
+                    await runManagedTask(descriptor, async () => {
+                        await markActorsOnPage();
+                    });
+                } catch (markErr) { log('Marking actors on page failed:', markErr); }
             }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400 });
         } catch (markErr) {
             log('Marking actors scheduling failed:', markErr);
@@ -690,6 +744,20 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         // 🆕 设置状态变化监听器，自动检测用户点击"看过"/"想看"按钮
         try {
             setupStatusChangeObserver(videoId);
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'orchestrator:event',
+                    event: 'task:done',
+                    payload: {
+                        phase: 'high',
+                        label: 'videoStatus:observer',
+                        ts: performance.now(),
+                        relativeTs: 0,
+                        durationMs: 1,
+                    },
+                    pageUrl: window.location.href,
+                });
+            } catch {}
         } catch (e) { log('setupStatusChangeObserver error:', e as any); }
     } catch (error) {
         log(`Error processing video ${videoId} (operation ${operationId}):`, error);

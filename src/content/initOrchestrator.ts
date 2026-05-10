@@ -1,6 +1,7 @@
 // src/content/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer
+import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';
 export type InitTask = () => Promise<void> | void;
@@ -20,9 +21,11 @@ interface ScheduledTask {
   options: InitTaskOptions;
 }
 
+type ManagedScheduledTask = ScheduledTask & { managedTaskId?: string };
+
 
 class InitOrchestrator {
-  private phases: { [K in InitPhase]: ScheduledTask[] } = { critical: [], high: [], deferred: [], idle: [] };
+  private phases: { [K in InitPhase]: ManagedScheduledTask[] } = { critical: [], high: [], deferred: [], idle: [] };
   private started = false;
   private timeline: Array<{ phase: InitPhase; label: string; status: 'scheduled' | 'running' | 'done' | 'error'; ts: number; detail?: any; durationMs?: number }>= [];
   private t0: number | null = null; // run() 开始时刻，用于相对时间
@@ -175,7 +178,7 @@ class InitOrchestrator {
         chrome.runtime.sendMessage({
           type: 'orchestrator:saveTaskDetail',
           taskDetail,
-        }, (response) => {
+        }, () => {
           if (chrome.runtime.lastError) {
             // 静默失败，不影响主流程
           }
@@ -253,13 +256,31 @@ class InitOrchestrator {
       }, timeout);
     }) : null;
     
+    const executeTask = () => {
+      if (timeoutPromise) {
+        return Promise.race([st.task(), timeoutPromise]);
+      }
+      return st.task();
+    };
+
     const taskPromise = Promise.resolve()
       .then(() => {
-        // 如果有超时设置，使用 Promise.race
-        if (timeoutPromise) {
-          return Promise.race([st.task(), timeoutPromise]);
+        if (label === 'anonymous') {
+          return executeTask();
         }
-        return st.task();
+
+        const descriptor = createManagedTaskDescriptor({
+          label,
+          phase,
+          priority: st.options.priority ?? 5,
+          cost: phase === 'critical' ? 'heavy' : phase === 'high' ? 'medium' : 'light',
+          visibilityPolicy: phase === 'critical' || phase === 'high' ? 'foreground_first' : 'background_allowed',
+          timeoutMs: timeout > 0 ? timeout : 10000,
+          retryLimit: 2,
+          resumePolicy: 'restart',
+          dedupeKey: label,
+        });
+        return runManagedTask(descriptor, async () => await executeTask());
       })
       .then(() => {
         // 清除超时定时器

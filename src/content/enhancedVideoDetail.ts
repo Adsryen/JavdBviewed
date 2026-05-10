@@ -9,6 +9,9 @@ import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
 import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
+import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -23,6 +26,8 @@ export class VideoDetailEnhancer {
   private videoId: string | null = null;
   private enhancedData: VideoMetadata | null = null;
   private options: EnhancementOptions;
+  private translationCache = new Map<string, { translated: string; ts: number }>();
+  private static readonly TITLE_TRANSLATION_TTL_MS = 24 * 60 * 60 * 1000;
   // 🆕 视频预览相关属性
   private previewTimer: number | null = null;
   private currentPlayingVideo: HTMLVideoElement | null = null;
@@ -67,6 +72,17 @@ export class VideoDetailEnhancer {
     } catch {}
   }
 
+  private applyTranslatedTitle(titleEl: HTMLElement, original: string, translated: string, mode: string): void {
+    if (mode === 'replace') {
+      titleEl.textContent = translated;
+      return;
+    }
+    if (!document.querySelector('.enhanced-translation')) {
+      const container = this.createTranslationContainer(original, translated);
+      titleEl.parentElement?.insertBefore(container, titleEl.nextSibling);
+    }
+  }
+
   /**
    * 针对影片详情页标题 .current-title 的定点翻译
    */
@@ -87,6 +103,14 @@ export class VideoDetailEnhancer {
       }
 
       log('[Translation] Trying to translate .current-title ...');
+      saveSubtaskDetail({
+        label: 'videoEnhancement:translateCurrentTitle:prepare',
+        parentLabel: 'videoEnhancement:translateCurrentTitle',
+        subtaskLabel: 'prepare',
+        phase: 'deferred',
+        status: 'done',
+        durationMs: 0,
+      });
       // 查找页面中的 current-title 元素（带等待重试）
       const titleEl = await this.waitForElement('h2.title.is-4 .current-title', 3000, 300) as HTMLElement | null;
       if (!titleEl) {
@@ -128,6 +152,24 @@ export class VideoDetailEnhancer {
         }
         console.log('[Translation] AI validation passed, proceeding with translation');
       }
+
+      const cacheKey = `${provider}:${original}`;
+      const cached = this.translationCache.get(cacheKey);
+      if (cached && Date.now() - cached.ts < VideoDetailEnhancer.TITLE_TRANSLATION_TTL_MS) {
+        const mode = settings.translation?.displayMode || 'append';
+        this.applyTranslatedTitle(titleEl, original, cached.translated, mode);
+        return;
+      }
+
+      await yieldToMainThread(0);
+      saveSubtaskDetail({
+        label: 'videoEnhancement:translateCurrentTitle:request',
+        parentLabel: 'videoEnhancement:translateCurrentTitle',
+        subtaskLabel: 'request',
+        phase: 'deferred',
+        status: 'done',
+        durationMs: 0,
+      });
       console.log('[Translation] Calling translation service...');
       const resp = provider === 'ai'
         ? await defaultDataAggregator.translateTextWithAI(original)
@@ -142,6 +184,7 @@ export class VideoDetailEnhancer {
         return;
       }
       const translated = resp.data.translatedText;
+      this.translationCache.set(cacheKey, { translated, ts: Date.now() });
       // 控制台输出：显示使用的提供方与引擎/模型，以及原文与译文，方便确认来源
       try {
         const engine = resp.data.service || provider;
@@ -153,14 +196,16 @@ export class VideoDetailEnhancer {
 
       // 显示方式：append（保留原文，追加显示）或 replace（替换原文）
       const mode = settings.translation?.displayMode || 'append';
-      if (mode === 'replace') {
-        titleEl.textContent = translated;
-      } else {
-        // 追加显示：在标题下方插入翻译块
-        const container = this.createTranslationContainer(original, translated);
-        // 插入在 .current-title 所在的 strong 后面
-        titleEl.parentElement?.insertBefore(container, titleEl.nextSibling);
-      }
+      await yieldToMainThread(0);
+      saveSubtaskDetail({
+        label: 'videoEnhancement:translateCurrentTitle:render',
+        parentLabel: 'videoEnhancement:translateCurrentTitle',
+        subtaskLabel: 'render',
+        phase: 'deferred',
+        status: 'done',
+        durationMs: 0,
+      });
+      this.applyTranslatedTitle(titleEl, original, translated, mode);
       log('[Translation] current-title translated successfully.');
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -215,6 +260,20 @@ export class VideoDetailEnhancer {
     }
 
     this.enhanceRelatedVideoClicks();
+    try {
+      chrome.runtime.sendMessage({
+        type: 'orchestrator:event',
+        event: 'task:done',
+        payload: {
+          phase: 'high',
+          label: 'videoEnhancement:clickEnhancement',
+          ts: performance.now(),
+          relativeTs: 0,
+          durationMs: 1,
+        },
+        pageUrl: window.location.href,
+      });
+    } catch {}
   }
 
   async loadEnhancedData(): Promise<void> {
@@ -223,7 +282,19 @@ export class VideoDetailEnhancer {
   }
 
   async runCurrentTitleTranslation(): Promise<void> {
-    await this.translateCurrentTitleIfNeeded();
+    const descriptor = createManagedTaskDescriptor({
+      label: 'videoEnhancement:translateCurrentTitle',
+      phase: 'deferred',
+      priority: 4,
+      cost: 'heavy',
+      visibilityPolicy: 'background_allowed',
+      timeoutMs: 10000,
+      retryLimit: 2,
+      resumePolicy: 'cache_then_skip',
+    });
+    await runManagedTask(descriptor, async () => {
+      await this.translateCurrentTitleIfNeeded();
+    });
   }
 
   /**

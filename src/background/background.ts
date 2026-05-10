@@ -18,13 +18,22 @@ import { registerMiscRouter } from './miscHandlers';
 import { ensureMigrationsStart } from './migrations';
 import { newWorksScheduler } from '../services/newWorks';
 import { registerNetProxyRouter } from './netProxy';
-import { registerMonthlyAlarm, handleAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
+import { registerMonthlyAlarm, handleAlarmAsync, compensateOnStartup, INSIGHTS_ALARM } from './scheduler';
 import { getSettings, saveSettings } from '../utils/storage';
 import { normalizeDrive115Settings, isDrive115EnabledState, hasDrive115V2Credentials } from '../services/drive115App';
+import { globalTaskCenter } from './globalTaskCenter';
 
 // 启动期安装/初始化
 installDrive115V2Proxy();
 ensureMigrationsStart();
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (typeof message?.type === 'string' && message.type.startsWith('task-center:')) {
+    globalTaskCenter.handleMessage(message, sender, sendResponse);
+    return true;
+  }
+  return undefined;
+});
 
 /**
  * 动态注册内容脚本到备用域名

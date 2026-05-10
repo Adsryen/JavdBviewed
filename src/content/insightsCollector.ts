@@ -1,4 +1,6 @@
 import { extractVideoIdFromPage } from './videoId';
+import { runChunkedWork, yieldToMainThread } from './taskChunking';
+import { saveSubtaskDetail } from './taskDetailReporter';
 
 // Lightweight messaging for content script
 async function sendDb<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
@@ -56,19 +58,67 @@ export async function initInsightsCollector(): Promise<void> {
     if (tags.length === 0) return;
 
     const date = formatDate();
-    // 读取当日记录
-    const resp = await sendDb<{ success: true; records: any[] }>('DB:INSIGHTS_VIEWS_RANGE', { startDate: date, endDate: date });
-    const exists = Array.isArray(resp?.records) && resp.records[0] ? resp.records[0] : undefined;
+    let exists: any;
+    const movies: string[] = [];
+    const counts: Record<string, number> = {};
+    let shouldPersist = true;
 
-    const movies: string[] = Array.isArray(exists?.movies) ? exists.movies.slice() : [];
-    if (movies.includes(videoId)) { sessionCounted.add(videoId); return; }
+    await runChunkedWork([
+      async () => {
+        const resp = await sendDb<{ success: true; records: any[] }>('DB:INSIGHTS_VIEWS_RANGE', { startDate: date, endDate: date });
+        exists = Array.isArray(resp?.records) && resp.records[0] ? resp.records[0] : undefined;
+        if (Array.isArray(exists?.movies)) {
+          movies.push(...exists.movies);
+        }
+        Object.assign(counts, exists?.tags || {});
+      },
+      async () => {
+        if (movies.includes(videoId)) {
+          sessionCounted.add(videoId);
+          shouldPersist = false;
+          return;
+        }
+        await runChunkedWork(tags, {
+          batchSize: 4,
+          parentLabel: 'insights:collector',
+          yieldAfterBatch: async () => {
+            await yieldToMainThread(0);
+          },
+          onBatchComplete: async ({ batchIndex, itemCount, processed }) => {
+            saveSubtaskDetail({
+              label: 'insights:collector:count-tags',
+              parentLabel: 'insights:collector',
+              subtaskLabel: 'count-tags',
+              batchIndex,
+              itemCount,
+              detail: `processed=${processed}`,
+              phase: 'idle',
+              status: 'done',
+              durationMs: 0,
+            });
+          },
+          onItem: async (tag) => {
+            counts[tag] = (counts[tag] || 0) + 1;
+          }
+        });
+        movies.push(videoId);
+      },
+      async () => {
+        if (shouldPersist) {
+          const view = { date, tags: counts, movies, status: 'final' };
+          await sendDb('DB:INSIGHTS_VIEWS_PUT', { view });
+        }
+      }
+    ], {
+      batchSize: 1,
+      yieldAfterBatch: async () => {
+        await yieldToMainThread(0);
+      },
+      onItem: async (step) => {
+        await step();
+      }
+    });
 
-    const counts: Record<string, number> = { ...(exists?.tags || {}) };
-    for (const t of tags) counts[t] = (counts[t] || 0) + 1;
-    movies.push(videoId);
-
-    const view = { date, tags: counts, movies, status: 'final' };
-    await sendDb('DB:INSIGHTS_VIEWS_PUT', { view });
     sessionCounted.add(videoId);
   } catch {
     // 忽略失败，避免影响页面体验

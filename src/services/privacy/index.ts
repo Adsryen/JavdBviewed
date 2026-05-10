@@ -113,22 +113,18 @@ export async function requireAuthIfRestricted(
     // 动态引入 PasswordModal，仅在需要时加载
     try {
         const { showPasswordModal } = await import('../../dashboard/components/privacy/PasswordModal');
-        return await new Promise<boolean>((resolve) => {
-            showPasswordModal({
-                title: uiOptions?.title || '需要密码验证',
-                message: uiOptions?.message || '此操作受私密模式保护，请完成密码验证以继续。',
-                onSuccess: async () => {
-                    try {
-                        await action();
-                        resolve(true);
-                    } catch (e) {
-                        console.error('Restricted action failed after auth:', e);
-                        resolve(false);
-                    }
-                },
-                onCancel: () => resolve(false)
-            });
+        const result = await showPasswordModal('verify', {
+            title: uiOptions?.title || '需要密码验证',
+            message: uiOptions?.message || '此操作受私密模式保护，请完成密码验证以继续。'
         });
+        if (!result.success) return false;
+        try {
+            await action();
+            return true;
+        } catch (e) {
+            console.error('Restricted action failed after auth:', e);
+            return false;
+        }
     } catch (e) {
         console.error('Failed to load PasswordModal for auth:', e);
         try {
