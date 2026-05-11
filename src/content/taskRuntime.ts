@@ -1,27 +1,18 @@
 import { TASK_CENTER_MESSAGE } from '../shared/taskCenterProtocol';
 import type { GlobalTaskDescriptor } from '../shared/taskCenterTypes';
+import { getPageContext } from './pageContext';
 
-function getPageType(pageUrl: string): string {
-  try {
-    const path = new URL(pageUrl).pathname;
-    if (path.startsWith('/v/')) return 'video';
-    if (path.startsWith('/actors/')) return 'actor';
-    if (path.startsWith('/search')) return 'search';
-    return 'generic';
-  } catch {
-    return 'generic';
-  }
-}
-
-export function createManagedTaskDescriptor(input: Omit<GlobalTaskDescriptor, 'taskId' | 'tabId' | 'pageUrl' | 'pageType' | 'createdAt'>): GlobalTaskDescriptor {
-  const pageUrl = window.location.href;
+export function createManagedTaskDescriptor(input: Omit<GlobalTaskDescriptor, 'taskId' | 'tabId' | 'pageUrl' | 'pageType' | 'createdAt' | 'mainId' | 'pageInstanceId'>): GlobalTaskDescriptor {
+  const pageContext = getPageContext();
   return {
     taskId: `${input.label}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
     tabId: 0,
-    pageUrl,
-    pageType: getPageType(pageUrl),
+    pageUrl: pageContext.pageUrl,
+    pageType: pageContext.pageType,
+    mainId: pageContext.mainId,
+    pageInstanceId: pageContext.pageInstanceId,
     createdAt: Date.now(),
-    dedupeKey: input.dedupeKey || `${input.label}:${pageUrl}`,
+    dedupeKey: input.dedupeKey || `${input.label}:${pageContext.pageUrl}`,
     ...input,
   };
 }
@@ -98,7 +89,12 @@ export async function runManagedTask<T>(descriptor: GlobalTaskDescriptor, runner
   const lease = await waitForTaskLease(registeredDescriptor.taskId, registeredDescriptor.timeoutMs > 0 ? registeredDescriptor.timeoutMs : 10000);
   if (!lease.granted) {
     untrackActiveManagedTask(registeredDescriptor.taskId);
-    await failManagedTask(registeredDescriptor.taskId, lease.waitReason || 'lease-denied');
+    const waitReason = lease.waitReason || 'lease-denied';
+    if (waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || waitReason.startsWith('bucket:')) {
+      await pauseManagedTask(registeredDescriptor.taskId, waitReason);
+    } else {
+      await failManagedTask(registeredDescriptor.taskId, waitReason);
+    }
     return undefined;
   }
   try {

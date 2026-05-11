@@ -391,7 +391,7 @@ export function registerMiscRouter(): void {
         }
         case 'orchestrator:saveTaskDetail': {
           // 保存任务详细信息
-          handleSaveTaskDetail(message.taskDetail)
+          handleSaveTaskDetail(message.taskDetail, _sender)
             .then(() => sendResponse({ success: true }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
@@ -1052,7 +1052,7 @@ async function handleGetAggregatedMetrics(): Promise<any> {
 /**
  * 保存任务详细信息
  */
-async function handleSaveTaskDetail(taskDetail: any): Promise<void> {
+async function handleSaveTaskDetail(taskDetail: any, sender?: chrome.runtime.MessageSender): Promise<void> {
   try {
     if (!taskDetail) {
       return;
@@ -1064,6 +1064,7 @@ async function handleSaveTaskDetail(taskDetail: any): Promise<void> {
     // 添加新的任务详细信息
     existingDetails.push({
       ...taskDetail,
+      tabId: typeof taskDetail?.tabId === 'number' ? taskDetail.tabId : (typeof sender?.tab?.id === 'number' ? sender.tab.id : -1),
       savedAt: Date.now(),
     });
     

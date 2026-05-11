@@ -6,10 +6,83 @@ import { computeTaskDisposition, getEffectiveBucketLimit } from './taskCenterPol
 
 type LeaseResponse = { granted: boolean; waitReason?: string };
 
+type QueueCandidate = {
+  record: ReturnType<TaskStateStore['listTasks']>[number];
+  score: number;
+};
+
 export class GlobalTaskCenter {
   private store = new TaskStateStore();
   private dedupeIndex = new Map<string, string>();
   private readonly taskRetentionMs = 10 * 60 * 1000;
+
+  private getPhaseWeight(phase: string): number {
+    if (phase === 'critical') return 4000;
+    if (phase === 'high') return 3000;
+    if (phase === 'deferred') return 2000;
+    if (phase === 'idle') return 1000;
+    return 0;
+  }
+
+  private getQueueScore(record: QueueCandidate['record'], now = Date.now()): number {
+    const descriptor = record.descriptor;
+    const runtime = record.runtime;
+    const ageMs = Math.max(0, now - descriptor.createdAt);
+    const ageScore = Math.min(600, Math.floor(ageMs / 1000));
+    const visibilityScore = this.store.isTabVisible(descriptor.tabId) ? 80 : 0;
+    const retryPenalty = runtime.retryCount * 100;
+    return this.getPhaseWeight(descriptor.phase) + (descriptor.priority * 100) + visibilityScore + ageScore - retryPenalty;
+  }
+
+  private isRunnableCandidate(record: QueueCandidate['record'], bucket: string, visible: boolean, now = Date.now()): boolean {
+    const recordBucket = resolveTaskBucket(record.descriptor.label);
+    if (recordBucket !== bucket) return false;
+    if (this.store.isTabVisible(record.descriptor.tabId) !== visible) return false;
+    const disposition = computeTaskDisposition({
+      status: record.runtime.status,
+      heartbeatTs: record.runtime.heartbeatTs,
+      timeoutMs: record.descriptor.timeoutMs,
+      now,
+    });
+    if (disposition !== 'active') return false;
+    return record.runtime.status === 'registered' || record.runtime.status === 'queued';
+  }
+
+  private getBestQueuedCandidate(bucket: string, visible: boolean): QueueCandidate | null {
+    const now = Date.now();
+    const candidates = this.store.listTasks().filter((record) => this.isRunnableCandidate(record, bucket, visible, now));
+    if (candidates.length === 0) return null;
+
+    candidates.sort((left, right) => {
+      const scoreDiff = this.getQueueScore(right, now) - this.getQueueScore(left, now);
+      if (scoreDiff !== 0) return scoreDiff;
+
+      const ageDiff = left.descriptor.createdAt - right.descriptor.createdAt;
+      if (ageDiff !== 0) return ageDiff;
+
+      return left.descriptor.taskId.localeCompare(right.descriptor.taskId);
+    });
+
+    return { record: candidates[0], score: this.getQueueScore(candidates[0], now) };
+  }
+
+  private getRunningCount(bucket: string, visible: boolean): number {
+    const now = Date.now();
+    return this.store.listTasks().filter(record => {
+      const recordBucket = resolveTaskBucket(record.descriptor.label);
+      const recordVisible = this.store.isTabVisible(record.descriptor.tabId);
+      const recordDisposition = computeTaskDisposition({
+        status: record.runtime.status,
+        heartbeatTs: record.runtime.heartbeatTs,
+        timeoutMs: record.descriptor.timeoutMs,
+        now,
+      });
+      return recordBucket === bucket
+        && recordVisible === visible
+        && recordDisposition === 'active'
+        && (record.runtime.status === 'leased' || record.runtime.status === 'running');
+    }).length;
+  }
 
   private cleanupStaleTasks(now = Date.now()): void {
     for (const record of this.store.listTasks()) {
@@ -81,20 +154,26 @@ export class GlobalTaskCenter {
       this.store.setTask(taskId, task);
       return { granted: false, waitReason: task.runtime.waitReason };
     }
-    const runningCount = this.store.listTasks().filter(record => {
-      const recordBucket = resolveTaskBucket(record.descriptor.label);
-      const recordVisible = this.store.isTabVisible(record.descriptor.tabId);
-      const recordDisposition = computeTaskDisposition({
-        status: record.runtime.status,
-        heartbeatTs: record.runtime.heartbeatTs,
-        timeoutMs: record.descriptor.timeoutMs,
-        now: Date.now(),
-      });
-      return recordBucket === bucket
-        && recordVisible === visible
-        && recordDisposition === 'active'
-        && (record.runtime.status === 'leased' || record.runtime.status === 'running');
-    }).length;
+    if (task.runtime.status === 'leased' || task.runtime.status === 'running') {
+      return { granted: true };
+    }
+
+    const bestCandidate = this.getBestQueuedCandidate(bucket, visible);
+    if (!bestCandidate) {
+      task.runtime.status = 'queued';
+      task.runtime.waitReason = visible ? `bucket:${bucket}` : 'tab-hidden';
+      this.store.setTask(taskId, task);
+      return { granted: false, waitReason: task.runtime.waitReason };
+    }
+
+    if (bestCandidate.record.descriptor.taskId !== taskId) {
+      task.runtime.status = 'queued';
+      task.runtime.waitReason = 'higher-priority-wait';
+      this.store.setTask(taskId, task);
+      return { granted: false, waitReason: task.runtime.waitReason };
+    }
+
+    const runningCount = this.getRunningCount(bucket, visible);
     if (runningCount >= limit) {
       task.runtime.status = 'queued';
       task.runtime.waitReason = visible ? `bucket:${bucket}` : 'tab-hidden';
@@ -192,6 +271,8 @@ export class GlobalTaskCenter {
       tabId: record.descriptor.tabId,
       pageUrl: record.descriptor.pageUrl,
       pageType: record.descriptor.pageType,
+      mainId: record.descriptor.mainId,
+      pageInstanceId: record.descriptor.pageInstanceId,
       phase: record.descriptor.phase,
       priority: record.descriptor.priority,
       cost: record.descriptor.cost,

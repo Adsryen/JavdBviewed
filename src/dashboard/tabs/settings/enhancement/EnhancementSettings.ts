@@ -156,6 +156,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorFullscreenBtn!: HTMLButtonElement | null;
     private orchestratorCopyPhasesBtn!: HTMLButtonElement | null;
     private orchestratorCopyTimelineBtn!: HTMLButtonElement | null;
+    private taskDetailsCopyCurrentPageBtn!: HTMLButtonElement | null;
     private orchestratorPhases!: HTMLElement | null;
     private orchestratorTimeline!: HTMLElement | null;
     private orchestratorSummary!: HTMLElement | null;
@@ -165,6 +166,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchFilterPhaseSel!: HTMLSelectElement | null;
     private orchFilterSearchInput!: HTMLInputElement | null;
     private orchViewModeSel!: HTMLSelectElement | null;
+    private orchGlobalScopeSel!: HTMLSelectElement | null;
+    private orchGlobalGroupingSel!: HTMLSelectElement | null;
     private orchestratorTimelineData: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }> = [];
 
     // 任务明细弹窗相关元素
@@ -181,14 +184,20 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsNextPage!: HTMLButtonElement | null;
     private taskDetailsPagination!: HTMLElement | null;
     private taskDetailsSearch!: HTMLInputElement | null;
+    private taskDetailsViewMode!: HTMLSelectElement | null;
+    private taskDetailsPageSummaryHead!: HTMLElement | null;
+    private taskDetailsView: 'tasks' | 'pages' = 'tasks';
     private taskDetailsData: any[] = [];
     private taskDetailsFilteredData: any[] = [];
+    private taskDetailsPageSummaryData: any[] = [];
+    private taskDetailsPageSummaryFilteredData: any[] = [];
     private taskDetailsSearchQuery: string = '';
     private taskDetailsCurrentPage: number = 1;
     private taskDetailsPageSize: number = 20;
     private taskDetailsSortField: string = 'timestamp';
     private taskDetailsSortOrder: 'asc' | 'desc' = 'desc';
     private taskDetailsExpandedParents: Set<string> = new Set();
+    private taskDetailsRenderedRows: any[] = [];
     private globalTaskDetailsData: any[] = [];
     private globalOrchestratorState: any[] = [];
 
@@ -549,6 +558,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
         this.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
         this.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
+        this.taskDetailsCopyCurrentPageBtn = document.getElementById('taskDetailsCopyCurrentPageBtn') as HTMLButtonElement | null;
         this.orchestratorPhases = document.getElementById('orchestratorPhases');
         this.orchestratorTimeline = document.getElementById('orchestratorTimeline');
         this.orchestratorSummary = document.getElementById('orchestratorSummary');
@@ -556,6 +566,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
         this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
         this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
+        this.orchGlobalScopeSel = document.getElementById('orchGlobalScope') as HTMLSelectElement | null;
+        this.orchGlobalGroupingSel = document.getElementById('orchGlobalGrouping') as HTMLSelectElement | null;
 
         // 任务明细弹窗元素
         this.showTaskDetailsBtn = document.getElementById('showTaskDetailsBtn') as HTMLButtonElement | null;
@@ -571,6 +583,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsNextPage = document.getElementById('taskDetailsNextPage') as HTMLButtonElement | null;
         this.taskDetailsPagination = document.getElementById('taskDetailsPagination') as HTMLElement | null;
         this.taskDetailsSearch = document.getElementById('taskDetailsSearch') as HTMLInputElement | null;
+        this.taskDetailsViewMode = document.getElementById('taskDetailsViewMode') as HTMLSelectElement | null;
+        this.taskDetailsPageSummaryHead = document.getElementById('taskDetailsPageSummaryHead');
 
         if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
             throw new Error('功能增强设置相关的DOM元素未找到');
@@ -745,11 +759,29 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.taskDetailsClearBtn) {
             this.taskDetailsClearBtn.addEventListener('click', () => this.clearTaskDetails());
         }
+        if (this.taskDetailsCopyCurrentPageBtn) {
+            this.taskDetailsCopyCurrentPageBtn.addEventListener('click', () => this.copyCurrentPageTaskDiagnostics());
+        }
         if (this.taskDetailsPrevPage) {
             this.taskDetailsPrevPage.addEventListener('click', () => this.taskDetailsPrevPageHandler());
         }
         if (this.taskDetailsNextPage) {
             this.taskDetailsNextPage.addEventListener('click', () => this.taskDetailsNextPageHandler());
+        }
+        if (this.taskDetailsViewMode) {
+            this.taskDetailsViewMode.addEventListener('change', () => {
+                this.taskDetailsView = this.taskDetailsViewMode?.value === 'pages' ? 'pages' : 'tasks';
+                this.taskDetailsCurrentPage = 1;
+                this.taskDetailsExpandedParents.clear();
+                if (this.taskDetailsSearchQuery) {
+                    this.taskDetailsSearchHandler();
+                } else {
+                    this.renderTaskDetailsTable();
+                    const total = this.getRenderedTaskDetailsCount();
+                    const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
+                    this.updateTaskDetailsPagination(total, totalPages);
+                }
+            });
         }
         // 搜索框事件
         if (this.taskDetailsSearch) {
@@ -984,21 +1016,43 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
             if (mode === 'global') {
                 const globalState = await fetchGlobalTaskState();
-                const tasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
+                const allTasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
+                const preferredTab = await this.getPreferredJavdbTab();
+                const currentUrl = preferredTab?.url || '';
+                const currentTabId = typeof preferredTab?.id === 'number' ? preferredTab.id : -1;
+                const scope = this.orchGlobalScopeSel?.value || 'all';
+                const grouping = this.orchGlobalGroupingSel?.value || 'grouped';
+                const tasks = allTasks.filter((task: any) => {
+                    if (scope === 'current') {
+                        return (typeof task?.tabId === 'number' && task.tabId === currentTabId) || (!!currentUrl && task?.pageUrl === currentUrl);
+                    }
+                    if (scope === 'active') {
+                        const status = this.getGlobalTaskStatus(task);
+                        return !['done', 'error', 'canceled'].includes(status);
+                    }
+                    return true;
+                });
+                const byPhase = (phase: string) => {
+                    const phaseTasks = tasks.filter((task: any) => task.phase === phase);
+                    if (grouping === 'instances') return phaseTasks.map((task: any) => task.label);
+                    return Array.from(new Set(phaseTasks.map((task: any) => task.label)));
+                };
                 const statusCounts = tasks.reduce((acc: Record<string, number>, task: any) => {
                     const status = this.getGlobalTaskStatus(task);
                     acc[status] = (acc[status] || 0) + 1;
                     return acc;
                 }, {});
                 const phases = {
-                    critical: tasks.filter((task: any) => task.phase === 'critical').map((task: any) => task.label),
-                    high: tasks.filter((task: any) => task.phase === 'high').map((task: any) => task.label),
-                    deferred: tasks.filter((task: any) => task.phase === 'deferred').map((task: any) => task.label),
-                    idle: tasks.filter((task: any) => task.phase === 'idle').map((task: any) => task.label),
+                    critical: byPhase('critical'),
+                    high: byPhase('high'),
+                    deferred: byPhase('deferred'),
+                    idle: byPhase('idle'),
                 };
                 if (this.orchestratorSummary) {
                     const statusSummary = Object.entries(statusCounts).map(([key, value]) => `${this.getStatusLabel(key)} ${value}`).join('，') || '暂无任务';
-                    this.orchestratorSummary.textContent = `全局调度视图：${tasks.length} 个任务｜${statusSummary}`;
+                    const scopeLabel = scope === 'current' ? '当前页' : (scope === 'active' ? '活动任务' : '全部页面');
+                    const groupingLabel = grouping === 'instances' ? '实例' : '聚合';
+                    this.orchestratorSummary.textContent = `全局调度视图（${scopeLabel}｜${groupingLabel}）：${tasks.length} 个任务｜${statusSummary}`;
                 }
                 this.renderOrchestratorPhases(phases as any);
                 this.globalOrchestratorState = tasks.map((task: any) => ({
@@ -1179,6 +1233,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return `配额占满(${bucket})`;
         }
         if (waitReason === 'tab-hidden') return '页面隐藏';
+        if (waitReason === 'higher-priority-wait') return '等待更高优先级任务';
         if (waitReason === 'lease-timeout') return '租约超时';
         if (waitReason === 'task-not-found') return '任务不存在';
         if (waitReason === 'paused') return '主动暂停';
@@ -1523,6 +1578,205 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.orchestratorRuntimeListener && chrome?.runtime?.onMessage) {
             chrome.runtime.onMessage.removeListener(this.orchestratorRuntimeListener as any);
             this.orchestratorRuntimeListener = undefined;
+        }
+    }
+
+    private async getPreferredJavdbTab(): Promise<chrome.tabs.Tab | null> {
+        try {
+            if (!chrome?.tabs?.query) return null;
+            const isJavdb = (url?: string | null) => !!url && /\bjavdb\b/i.test(url) && !url.startsWith('chrome-extension://');
+            const isRichPage = (url?: string | null) => !!url && /\/actors\/|\/v\/|\/search/.test(url);
+            const tabsInWin = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+                chrome.tabs.query({ lastFocusedWindow: true }, resolve);
+            });
+            let target = (tabsInWin || []).find(t => t.active && isJavdb(t.url) && isRichPage(t.url));
+            if (!target) target = (tabsInWin || []).find(t => isJavdb(t.url) && isRichPage(t.url));
+            if (!target) target = (tabsInWin || []).find(t => t.active && isJavdb(t.url));
+            if (!target) target = (tabsInWin || []).find(t => isJavdb(t.url));
+            if (!target) {
+                const allTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+                    chrome.tabs.query({}, resolve);
+                });
+                target = (allTabs || []).find(t => isJavdb(t.url) && isRichPage(t.url));
+                if (!target) target = (allTabs || []).find(t => isJavdb(t.url));
+            }
+            return target || null;
+        } catch (e) {
+            console.warn('[Enhancement] getPreferredJavdbTab failed:', e);
+            return null;
+        }
+    }
+
+    private async fetchAllTaskDetailsRaw(): Promise<any[]> {
+        try {
+            const resp = await new Promise<any>((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'orchestrator:getTaskDetails',
+                    options: { page: 1, pageSize: 5000 }
+                }, (reply) => {
+                    const err = chrome.runtime.lastError;
+                    if (err) {
+                        console.warn('[Enhancement] Failed to get task details for copy:', err);
+                        resolve(null);
+                    } else {
+                        resolve(reply);
+                    }
+                });
+            });
+            return resp?.success && resp?.details?.details ? resp.details.details : [];
+        } catch (e) {
+            console.warn('[Enhancement] fetchAllTaskDetailsRaw failed:', e);
+            return [];
+        }
+    }
+
+    private formatDiagnosticTimestamp(ts?: number): string {
+        if (!ts || !Number.isFinite(ts)) return '-';
+        try {
+            return new Date(ts).toLocaleString('zh-CN', { hour12: false });
+        } catch {
+            return String(ts);
+        }
+    }
+
+    private getTaskDisplayNameForExport(label: string): string {
+        const taskNameMap: Record<string, string> = {
+            'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
+            'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
+            'drive115:push': '115推送任务 (drive115:push)',
+            'insights:collector': '观影标签采集器 (insights:collector)',
+            'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
+            'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
+            'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
+            'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
+            'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
+            'emby:badge': 'Emby徽标增强 (emby:badge)',
+            'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
+            'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
+            'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
+            'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
+            'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
+            'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
+            'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
+            'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
+            'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
+            'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
+            'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
+            'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
+            'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
+        };
+        return taskNameMap[label] || label;
+    }
+
+    private getSortedTaskDetailsData(): any[] {
+        const dataToRender = this.getTaskDetailsSourceData();
+        return [...dataToRender].sort((a, b) => {
+            let aVal = a[this.taskDetailsSortField];
+            let bVal = b[this.taskDetailsSortField];
+
+            if (this.taskDetailsSortField === 'duration') {
+                aVal = a.durationMs || 0;
+                bVal = b.durationMs || 0;
+            }
+
+            if (typeof aVal === 'string') {
+                return this.taskDetailsSortOrder === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            }
+
+            return this.taskDetailsSortOrder === 'asc'
+                ? aVal - bVal
+                : bVal - aVal;
+        });
+    }
+
+    private getVisibleTaskDetailGroups(includeCollapsedChildren: boolean = false): Array<{ parentKey: string; parent: any; children: any[] }> {
+        const groupedParents = this.getTaskDetailsGroupedParents(this.getSortedTaskDetailsData());
+        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
+        const endIndex = startIndex + this.taskDetailsPageSize;
+        return groupedParents.slice(startIndex, endIndex).map((group) => ({
+            parentKey: group.parentKey,
+            parent: group.parent,
+            children: (includeCollapsedChildren || this.taskDetailsExpandedParents.has(group.parentKey)) ? [...group.children] : [],
+        }));
+    }
+
+    private buildVisibleTaskDetailsTableText(): string {
+        if (!this.taskDetailsTableBody) {
+            return this.taskDetailsView === 'pages' ? '(no page summaries)' : '(no task details)';
+        }
+
+        const header = this.taskDetailsView === 'pages'
+            ? '页面实例	主ID	类型	任务数	成功	失败	总耗时	主任务	开始时间'
+            : '任务名称	子任务	阶段	状态	耗时	页面	时间';
+
+        const lines: string[] = [header];
+        if (this.taskDetailsView === 'pages') {
+            const rows = Array.from(this.taskDetailsTableBody.querySelectorAll('tr'));
+            for (const row of rows) {
+                const cells = Array.from(row.querySelectorAll('td')) as HTMLElement[];
+                if (cells.length === 0) continue;
+                const values = cells.map((cell) => (cell.innerText || '').split('\n')[0].replace(/\s+/g, ' ').trim());
+                lines.push(values.join('	'));
+            }
+            return lines.join('\n');
+        }
+
+        const groups = this.getVisibleTaskDetailGroups(true);
+        for (const group of groups) {
+            const parent = group.parent;
+            const label = parent?.label || group.parentKey;
+            const displayName = this.getTaskDisplayNameForExport(label);
+            const phase = parent?.phase || '-';
+            const status = this.getStatusLabel(parent?.status || 'unknown');
+            const duration = this.formatTaskDuration(parent?.durationMs || 0);
+            const pagePath = this.getPagePath(parent?.pageUrl || '');
+            const timestamp = this.formatTaskTimestamp(parent?.timestamp || Date.now());
+            const childCount = parent?.__childCount || group.children.length || 0;
+            const prefix = childCount > 0
+                ? `${this.taskDetailsExpandedParents.has(group.parentKey) ? '▼' : '▶'} ${childCount}`
+                : '';
+            lines.push(`${prefix}${displayName}	-	${phase}	${status}	${duration}	${pagePath}	${timestamp}`.trim());
+
+            const detailLine = parent?.detail ? String(parent.detail).replace(/\n/g, ' ') : '';
+            if (detailLine) {
+                lines.push(detailLine);
+            }
+
+            const children = [...group.children].sort((a, b) => {
+                const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
+                const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
+                return ai - bi;
+            });
+            for (const child of children) {
+                const childLabel = child.label || child.parentLabel || '-';
+                const childMeta = typeof child.batchIndex === 'number'
+                    ? `${child.subtaskLabel || '-'} #${child.batchIndex}${typeof child.itemCount === 'number' ? ` · ${child.itemCount}项` : ''}`
+                    : (child.subtaskLabel || '-');
+                lines.push(`└ ${childLabel}	${childMeta}	${child.phase || '-'}	${this.getStatusLabel(child.status || 'unknown')}	${this.formatTaskDuration(child.durationMs || 0)}	${this.getPagePath(child.pageUrl || '')}	${this.formatTaskTimestamp(child.timestamp || Date.now())}`);
+                const childDetail = child.detail ? String(child.detail).replace(/\n/g, ' ') : '';
+                if (childDetail) {
+                    lines.push(childDetail);
+                }
+            }
+        }
+
+        return lines.join('\n');
+    }
+
+    private async copyCurrentPageTaskDiagnostics(): Promise<void> {
+        try {
+            this.renderTaskDetailsTable();
+            const total = this.getRenderedTaskDetailsCount();
+            const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
+            this.updateTaskDetailsPagination(total, totalPages);
+            const text = this.buildVisibleTaskDetailsTableText();
+            await this.writeClipboard(text);
+            showMessage(this.taskDetailsView === 'pages' ? '当前页面实例汇总已复制' : '当前任务明细已复制', 'success');
+        } catch (e) {
+            console.error('[Enhancement] copyCurrentPageTaskDiagnostics failed:', e);
+            showMessage(this.taskDetailsView === 'pages' ? '复制页面实例汇总失败' : '复制当前任务明细失败', 'error');
         }
     }
 
@@ -3680,16 +3934,24 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (resp && resp.success && resp.details) {
                 this.taskDetailsData = resp.details.details || [];
                 const globalState = await fetchGlobalTaskState();
-                this.globalTaskDetailsData = Array.isArray(globalState?.tasks) ? globalState.tasks.map((task: any) => ({
-                    label: task?.label,
-                    phase: task?.phase,
-                    status: task?.status,
-                    durationMs: (task?.endedAt && task?.startedAt) ? (task.endedAt - task.startedAt) : 0,
-                    pageUrl: task?.pageUrl,
-                    timestamp: task?.createdAt,
-                    detail: `tab=${task?.tabId}; wait=${task?.waitReason || 'none'}; cost=${task?.cost || 'unknown'}`,
-                })) : [];
+                this.globalTaskDetailsData = Array.isArray(globalState?.tasks)
+                    ? Array.from(new Map(globalState.tasks.map((task: any) => [`${task?.label}|${task?.phase}`, {
+                        label: task?.label,
+                        phase: task?.phase,
+                        status: task?.status,
+                        durationMs: (task?.endedAt && task?.startedAt) ? (task.endedAt - task.startedAt) : 0,
+                        pageUrl: task?.pageUrl,
+                        pageType: task?.pageType,
+                        tabId: task?.tabId,
+                        mainId: task?.mainId,
+                        pageInstanceId: task?.pageInstanceId,
+                        timestamp: task?.createdAt,
+                        detail: `实例数=${globalState.tasks.filter((item: any) => item?.label === task?.label && item?.phase === task?.phase).length}; wait=${task?.waitReason || 'none'}; cost=${task?.cost || 'unknown'}`,
+                    }])).values())
+                    : [];
                 this.taskDetailsData = [...this.taskDetailsData, ...this.globalTaskDetailsData];
+                this.taskDetailsPageSummaryData = this.buildTaskDetailPageSummaries(this.taskDetailsData);
+                this.taskDetailsPageSummaryFilteredData = [];
                 
                 // 如果有搜索查询，重新应用过滤
                 if (this.taskDetailsSearchQuery) {
@@ -3698,7 +3960,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     this.taskDetailsFilteredData = [];
                     this.renderTaskDetailsTable();
                     const total = this.getRenderedTaskDetailsCount();
-                    const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+                    const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
                     this.updateTaskDetailsPagination(total, totalPages);
                 }
             } else {
@@ -3730,21 +3992,195 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 渲染任务明细表格
      */
+
+    private getTaskDetailsSourceData(): any[] {
+        return this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery
+            ? this.taskDetailsFilteredData
+            : this.taskDetailsData;
+    }
+
+    private getTaskDetailsPageSummarySourceData(): any[] {
+        return this.taskDetailsPageSummaryFilteredData.length > 0 || this.taskDetailsSearchQuery
+            ? this.taskDetailsPageSummaryFilteredData
+            : this.taskDetailsPageSummaryData;
+    }
+
+    private getPagePath(url?: string): string {
+        if (!url) return '-';
+        try {
+            const parsed = new URL(url);
+            return `${parsed.pathname || '/'}${parsed.search || ''}`;
+        } catch {
+            return url;
+        }
+    }
+
+    private formatTaskDuration(ms: number): string {
+        if (ms < 1000) return `${Math.round(ms)}ms`;
+        if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+        const minutes = Math.floor(ms / 60000);
+        const seconds = ((ms % 60000) / 1000).toFixed(0);
+        return `${minutes}m ${seconds}s`;
+    }
+
+    private formatTaskTimestamp(ts: number): string {
+        const date = new Date(ts);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+    }
+
+    private buildTaskDetailPageSummaries(tasks: any[]): any[] {
+        const groups = new Map<string, any>();
+        for (const task of tasks) {
+            const pageUrl = task?.pageUrl || '';
+            const pageInstanceId = task?.pageInstanceId || `${task?.tabId || -1}:${pageUrl}:${task?.timestamp || 0}`;
+            const groupKey = `${task?.tabId || -1}|${pageInstanceId}`;
+            if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                    groupKey,
+                    tabId: typeof task?.tabId === 'number' ? task.tabId : -1,
+                    pageInstanceId,
+                    pageUrl,
+                    pageType: task?.pageType || (pageUrl.includes('/actors/') ? 'actor' : (pageUrl.includes('/v/') ? 'video' : (pageUrl.includes('/search') ? 'search' : 'generic'))),
+                    mainId: task?.mainId || '-',
+                    taskCount: 0,
+                    doneCount: 0,
+                    errorCount: 0,
+                    parentCount: 0,
+                    childCount: 0,
+                    totalDurationMs: 0,
+                    statuses: new Set<string>(),
+                    labels: new Set<string>(),
+                    startedAt: Number.MAX_SAFE_INTEGER,
+                    endedAt: 0,
+                });
+            }
+            const group = groups.get(groupKey)!;
+            group.taskCount += 1;
+            group.totalDurationMs += Math.max(0, task?.durationMs || 0);
+            group.statuses.add(task?.status || 'unknown');
+            if (task?.status === 'done') group.doneCount += 1;
+            if (task?.status === 'error') group.errorCount += 1;
+            if (task?.label) group.labels.add(task.label);
+            if (task?.parentLabel && task?.subtaskLabel) {
+                group.childCount += 1;
+            } else {
+                group.parentCount += 1;
+            }
+            const ts = typeof task?.timestamp === 'number' ? task.timestamp : 0;
+            if (ts > 0) {
+                group.startedAt = Math.min(group.startedAt, ts);
+                group.endedAt = Math.max(group.endedAt, ts);
+            }
+        }
+
+        return Array.from(groups.values()).map((group) => ({
+            ...group,
+            status: group.statuses.has('error') ? 'error' : (group.statuses.has('running') ? 'running' : (group.statuses.has('paused') ? 'paused' : (group.statuses.has('done') ? 'done' : 'unknown'))),
+            label: `${this.getPagePath(group.pageUrl)} [${group.pageInstanceId}]`,
+            detail: `tab=${group.tabId} · 主任务=${group.parentCount} · 子任务=${group.childCount} · 标签=${group.labels.size}`,
+            startedAt: group.startedAt === Number.MAX_SAFE_INTEGER ? 0 : group.startedAt,
+        }));
+    }
+
+    private getTaskDetailsGroupedParents(data: any[]): Array<{ parentKey: string; parent: any; children: any[] }> {
+        const sortedData = [...data].sort((a, b) => {
+            let aVal = a[this.taskDetailsSortField];
+            let bVal = b[this.taskDetailsSortField];
+
+            if (this.taskDetailsSortField === 'duration') {
+                aVal = a.durationMs || 0;
+                bVal = b.durationMs || 0;
+            }
+
+            if (typeof aVal === 'string') {
+                return this.taskDetailsSortOrder === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            }
+
+            return this.taskDetailsSortOrder === 'asc'
+                ? aVal - bVal
+                : bVal - aVal;
+        });
+
+        const groups = new Map<string, { parent: any | null; fallbackChild: any | null; children: any[] }>();
+        for (const task of sortedData) {
+            const parentKey = task.parentLabel || task.label || 'unknown';
+            if (!groups.has(parentKey)) {
+                groups.set(parentKey, { parent: null, fallbackChild: null, children: [] });
+            }
+
+            const group = groups.get(parentKey)!;
+            if (task.parentLabel && task.subtaskLabel) {
+                group.children.push(task);
+                if (!group.fallbackChild) {
+                    group.fallbackChild = task;
+                }
+                continue;
+            }
+
+            if (!group.parent) {
+                group.parent = task;
+            }
+        }
+
+        return Array.from(groups.entries()).map(([parentKey, group]) => {
+            const parent = group.parent || {
+                ...(group.fallbackChild || {}),
+                label: group.fallbackChild?.parentLabel || parentKey,
+                parentLabel: undefined,
+                subtaskLabel: undefined,
+                batchIndex: undefined,
+                itemCount: undefined,
+            };
+
+            const children = group.children.sort((a, b) => {
+                const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
+                const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
+                return ai - bi;
+            });
+
+            return { parentKey, parent, children };
+        });
+    }
+
+    /**
+     * 渲染任务明细表格
+     */
     private renderTaskDetailsTable(): void {
         if (!this.taskDetailsTableBody) return;
 
-        // 使用过滤后的数据
-        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
-            ? this.taskDetailsFilteredData 
-            : this.taskDetailsData;
+        if (this.taskDetailsTable) {
+            const mainHead = this.taskDetailsTable.querySelector('thead');
+            if (mainHead) {
+                mainHead.classList.toggle('hidden', this.taskDetailsView === 'pages');
+            }
+        }
+        if (this.taskDetailsPageSummaryHead) {
+            this.taskDetailsPageSummaryHead.classList.toggle('hidden', this.taskDetailsView !== 'pages');
+        }
+
+        if (this.taskDetailsView === 'pages') {
+            this.renderTaskDetailsPageSummaryTable();
+            return;
+        }
+
+        const dataToRender = this.getTaskDetailsSourceData();
 
         if (dataToRender.length === 0) {
-            const emptyMessage = this.taskDetailsSearchQuery 
+            const emptyMessage = this.taskDetailsSearchQuery
                 ? `<i class="fas fa-search"></i> 未找到匹配"${this.taskDetailsSearchQuery}"的任务记录`
                 : '<i class="fas fa-inbox"></i> 暂无任务记录';
             this.taskDetailsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="padding:40px; text-align:center; color:#94a3b8;">
+                    <td colspan="9" style="padding:40px; text-align:center; color:#94a3b8;">
                         ${emptyMessage}
                     </td>
                 </tr>
@@ -3752,62 +4188,35 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return;
         }
 
-        // 应用排序
-        const sortedData = [...dataToRender].sort((a, b) => {
-            let aVal = a[this.taskDetailsSortField];
-            let bVal = b[this.taskDetailsSortField];
-
-            // 处理特殊字段
-            if (this.taskDetailsSortField === 'duration') {
-                aVal = a.durationMs || 0;
-                bVal = b.durationMs || 0;
-            }
-
-            if (typeof aVal === 'string') {
-                return this.taskDetailsSortOrder === 'asc' 
-                    ? aVal.localeCompare(bVal) 
-                    : bVal.localeCompare(aVal);
-            } else {
-                return this.taskDetailsSortOrder === 'asc' 
-                    ? aVal - bVal 
-                    : bVal - aVal;
-            }
-        });
-
-        const groups = new Map<string, { parent: any; children: any[] }>();
-        for (const task of sortedData) {
-            const parentKey = task.parentLabel || task.label || 'unknown';
-            if (!groups.has(parentKey)) {
-                groups.set(parentKey, { parent: task, children: [] });
-            }
-            if (task.parentLabel && task.subtaskLabel) {
-                groups.get(parentKey)!.children.push(task);
-            } else {
-                const currentParent = groups.get(parentKey)!;
-                if (!currentParent.parent || currentParent.parent.parentLabel) {
-                    currentParent.parent = task;
-                }
-            }
-        }
-
-        const flattened: any[] = [];
-        for (const [parentKey, group] of groups.entries()) {
-            flattened.push({ ...group.parent, __rowType: 'parent', __parentKey: parentKey, __childCount: group.children.length });
-            if (this.taskDetailsExpandedParents.has(parentKey)) {
-                const children = group.children.sort((a, b) => {
-                    const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
-                    const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
-                    return ai - bi;
-                });
-                children.forEach(child => flattened.push({ ...child, __rowType: 'child', __parentKey: parentKey }));
-            }
-        }
+        const groupedParents = this.getTaskDetailsGroupedParents(dataToRender);
+        const totalParents = groupedParents.length;
+        const totalPages = Math.max(1, Math.ceil(totalParents / this.taskDetailsPageSize));
+        this.taskDetailsCurrentPage = Math.min(Math.max(1, this.taskDetailsCurrentPage), totalPages);
 
         const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
         const endIndex = startIndex + this.taskDetailsPageSize;
-        const paginatedData = flattened.slice(startIndex, endIndex);
+        const pagedGroups = groupedParents.slice(startIndex, endIndex);
 
-        // 格式化时间显示
+        const paginatedData: any[] = [];
+        for (const group of pagedGroups) {
+            paginatedData.push({
+                ...group.parent,
+                __rowType: 'parent',
+                __parentKey: group.parentKey,
+                __childCount: group.children.length,
+            });
+
+            if (this.taskDetailsExpandedParents.has(group.parentKey)) {
+                group.children.forEach((child) => {
+                    paginatedData.push({
+                        ...child,
+                        __rowType: 'child',
+                        __parentKey: group.parentKey,
+                    });
+                });
+            }
+        }
+
         const formatDuration = (ms: number): string => {
             if (ms < 1000) {
                 return `${Math.round(ms)}ms`;
@@ -3821,22 +4230,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
         };
 
         const getDurationColor = (ms: number): string => {
-            // 根据耗时返回不同颜色
-            // < 100ms: 绿色 (快速)
-            // 100ms - 500ms: 蓝色 (正常)
-            // 500ms - 1s: 青色 (稍慢)
-            // 1s - 3s: 橙色 (较慢)
-            // > 3s: 红色 (很慢)
             if (ms < 100) {
-                return '#059669'; // 绿色
+                return '#059669';
             } else if (ms < 500) {
-                return '#0891b2'; // 青色
+                return '#0891b2';
             } else if (ms < 1000) {
-                return '#7c3aed'; // 紫色
+                return '#7c3aed';
             } else if (ms < 3000) {
-                return '#d97706'; // 橙色
+                return '#d97706';
             } else {
-                return '#dc2626'; // 红色
+                return '#dc2626';
             }
         };
 
@@ -3853,97 +4256,71 @@ export class EnhancementSettings extends BaseSettingsPanel {
         };
 
         const getStatusBadge = (status: string): string => {
-            const statusMap: Record<string, { text: string; color: string }> = {
-                done: { text: '完成', color: '#059669' },
-                error: { text: '错误', color: '#dc2626' },
-                timeout: { text: '超时', color: '#d97706' },
+            const statusMap: Record<string, { text: string; color: string; bg: string }> = {
+                done: { text: '完成', color: '#059669', bg: '#ecfdf5' },
+                running: { text: '运行中', color: '#2563eb', bg: '#eff6ff' },
+                pending: { text: '等待中', color: '#d97706', bg: '#fffbeb' },
+                error: { text: '错误', color: '#dc2626', bg: '#fef2f2' },
+                paused: { text: '已暂停', color: '#7c3aed', bg: '#f5f3ff' },
+                timeout: { text: '超时', color: '#ea580c', bg: '#fff7ed' },
+                registered: { text: '已注册', color: '#475569', bg: '#f8fafc' },
+                'subtask-only': { text: '仅子任务', color: '#64748b', bg: '#f8fafc' },
+                unknown: { text: '未知', color: '#64748b', bg: '#f8fafc' },
             };
-            const info = statusMap[status] || { text: status, color: '#6b7280' };
-            return `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; color:#fff; background:${info.color};">${info.text}</span>`;
+            const badge = statusMap[status] || statusMap.unknown;
+            return `<span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
         };
 
         const getPhaseBadge = (phase: string): string => {
-            const phaseMap: Record<string, { text: string; color: string }> = {
-                critical: { text: 'critical', color: '#dc2626' },
-                high: { text: 'high', color: '#ea580c' },
-                deferred: { text: 'deferred', color: '#0891b2' },
-                idle: { text: 'idle', color: '#6b7280' },
+            const phaseMap: Record<string, { text: string; color: string; bg: string }> = {
+                critical: { text: 'critical', color: '#dc2626', bg: '#fef2f2' },
+                high: { text: 'high', color: '#ea580c', bg: '#fff7ed' },
+                deferred: { text: 'deferred', color: '#2563eb', bg: '#eff6ff' },
+                idle: { text: 'idle', color: '#64748b', bg: '#f8fafc' },
+                unknown: { text: 'unknown', color: '#64748b', bg: '#f8fafc' },
             };
-            const info = phaseMap[phase] || { text: phase, color: '#6b7280' };
-            return `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; color:#fff; background:${info.color};">${info.text}</span>`;
+            const badge = phaseMap[phase] || phaseMap.unknown;
+            return `<span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
         };
 
-        const getPageUrl = (url: string): string => {
+        const getPageLink = (url: string): string => {
+            if (!url) return '-';
             try {
-                const urlObj = new URL(url);
-                return urlObj.pathname;
+                const parsed = new URL(url);
+                return parsed.pathname || '/';
             } catch {
                 return url;
             }
         };
 
-        const getPageLink = (url: string): string => {
-            if (!url) return '-';
-            const displayUrl = getPageUrl(url);
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#3b82f6; text-decoration:none; cursor:pointer;" title="点击打开: ${url}">${displayUrl}</a>`;
-        };
-
-        // 任务名称中英文映射
         const getTaskDisplayName = (label: string): string => {
             const taskNameMap: Record<string, string> = {
-                // 115功能
                 'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
                 'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
                 'drive115:push': '115推送任务 (drive115:push)',
-                
-                // 观影标签
                 'insights:collector': '观影标签采集器 (insights:collector)',
-                
-                // 演员备注
                 'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
                 'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
                 'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
                 'videoStatus:update': '页面影片状态更新 (videoStatus:update)',
                 'videoStatus:observer': '页面影片状态监听 (videoStatus:observer)',
-                
-                // 用户体验
                 'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
                 'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
-                
-                // 隐私保护
                 'privacy:init': '隐私保护初始化 (privacy:init)',
-                
-                // UI优化
                 'ui:remove-unwanted': '移除不需要的按钮 (ui:remove-unwanted)',
-                
-                // 磁力搜索
                 'magnetSearch:init': '磁力搜索初始化 (magnetSearch:init)',
-                
-                // 锚点优化
                 'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
-                
-                // 列表增强
                 'listEnhancement:init': '列表增强初始化 (listEnhancement:init)',
                 'listEnhancement:reprocess': '列表增强-二次处理 (listEnhancement:reprocess)',
-                
-                // 演员增强
+                'list:reprocess:after-listEnhancement': '列表增强-二次处理 (list:reprocess:after-listEnhancement)',
+                'list:observe:init': '列表页观察器初始化 (list:observe:init)',
                 'actorEnhancement:init': '演员增强初始化 (actorEnhancement:init)',
-                
-                // Emby增强
                 'emby:init': 'Emby增强初始化 (emby:init)',
                 'emby:badge': 'Emby徽标增强 (emby:badge)',
-                
-                // 密码助手
                 'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
-                
-                // 默认隐藏
                 'defaultHide:init': '默认隐藏初始化 (defaultHide:init)',
-                
-                // 内容过滤
                 'contentFilter:init': '内容过滤初始化 (contentFilter:init)',
                 'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
-                
-                // 视频增强
                 'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
                 'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
                 'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
@@ -3954,13 +4331,13 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
                 'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
                 'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
-                
-                // 视频收藏评分
                 'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
+                'actorQuickActions:init': '演员快捷操作初始化 (actorQuickActions:init)',
             };
             return taskNameMap[label] || `${label}`;
         };
 
+        this.taskDetailsRenderedRows = paginatedData;
         const rows = paginatedData.map((task) => {
             const durationMs = task.durationMs || 0;
             const duration = formatDuration(durationMs);
@@ -3999,8 +4376,76 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsTableBody.innerHTML = rows;
     }
 
+    private renderTaskDetailsPageSummaryTable(): void {
+        if (!this.taskDetailsTableBody) return;
+
+        const dataToRender = this.getTaskDetailsPageSummarySourceData();
+        if (dataToRender.length === 0) {
+            const emptyMessage = this.taskDetailsSearchQuery
+                ? `<i class="fas fa-search"></i> 未找到匹配"${this.taskDetailsSearchQuery}"的页面实例`
+                : '<i class="fas fa-inbox"></i> 暂无页面实例记录';
+            this.taskDetailsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="padding:40px; text-align:center; color:#94a3b8;">
+                        ${emptyMessage}
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const sortedData = [...dataToRender].sort((a, b) => {
+            let aVal = a[this.taskDetailsSortField as keyof typeof a];
+            let bVal = b[this.taskDetailsSortField as keyof typeof b];
+            if (this.taskDetailsSortField === 'duration' || this.taskDetailsSortField === 'totalDurationMs') {
+                aVal = a.totalDurationMs || 0;
+                bVal = b.totalDurationMs || 0;
+            }
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+                return this.taskDetailsSortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+            const aNum = typeof aVal === 'number' ? aVal : 0;
+            const bNum = typeof bVal === 'number' ? bVal : 0;
+            return this.taskDetailsSortOrder === 'asc' ? aNum - bNum : bNum - aNum;
+        });
+
+        const total = sortedData.length;
+        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
+        this.taskDetailsCurrentPage = Math.min(Math.max(1, this.taskDetailsCurrentPage), totalPages);
+        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
+        const endIndex = startIndex + this.taskDetailsPageSize;
+        const paginatedData = sortedData.slice(startIndex, endIndex);
+
+        this.taskDetailsRenderedRows = paginatedData;
+        const rows = paginatedData.map((item) => {
+            const status = this.getStatusLabel(item.status || 'unknown');
+            const path = this.getPagePath(item.pageUrl || '');
+            const title = `${path}
+${item.detail || ''}`;
+            return `
+                <tr style="border-bottom:1px solid var(--border-color); background:var(--bg-primary);">
+                    <td style="padding:10px 12px; color:var(--text-primary);" title="${title}">
+                        <div style="font-weight:600;">${path}</div>
+                        <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'}</div>
+                    </td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.mainId || '-'}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.pageType || '-'}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.taskCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:#059669; font-weight:600;">${item.doneCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:${(item.errorCount || 0) > 0 ? '#dc2626' : 'var(--text-primary)'}; font-weight:600;">${item.errorCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${this.formatTaskDuration(item.totalDurationMs || 0)}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.parentCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-secondary); font-size:12px;">${this.formatTaskTimestamp(item.startedAt || 0)}<div style="font-size:11px; margin-top:4px;">${status}</div></td>
+                </tr>
+            `;
+        }).join('');
+
+        this.taskDetailsTableBody.innerHTML = rows;
+    }
+
     /**
      * 更新分页信息
+
      */
     private updateTaskDetailsPagination(total: number, totalPages: number): void {
         if (this.taskDetailsCount) {
@@ -4027,10 +4472,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPrevPageHandler(): void {
         if (this.taskDetailsCurrentPage > 1) {
             this.taskDetailsCurrentPage--;
-            // 直接重新渲染，不需要重新获取数据
             this.renderTaskDetailsTable();
             const total = this.getRenderedTaskDetailsCount();
-            const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+            const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
             this.updateTaskDetailsPagination(total, totalPages);
         }
     }
@@ -4039,33 +4483,20 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 下一页
      */
     private taskDetailsNextPageHandler(): void {
-        this.taskDetailsCurrentPage++;
-        // 直接重新渲染，不需要重新获取数据
-        this.renderTaskDetailsTable();
         const total = this.getRenderedTaskDetailsCount();
-        const totalPages = Math.ceil(total / this.taskDetailsPageSize);
+        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
+        if (this.taskDetailsCurrentPage < totalPages) {
+            this.taskDetailsCurrentPage++;
+        }
+        this.renderTaskDetailsTable();
         this.updateTaskDetailsPagination(total, totalPages);
     }
 
     private getRenderedTaskDetailsCount(): number {
-        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery
-            ? this.taskDetailsFilteredData
-            : this.taskDetailsData;
-        const groups = new Map<string, number>();
-        let parentCount = 0;
-        for (const task of dataToRender) {
-            const parentKey = task.parentLabel || task.label || 'unknown';
-            if (!groups.has(parentKey)) {
-                groups.set(parentKey, 0);
-                parentCount += 1;
-            }
-            if (task.parentLabel && task.subtaskLabel && this.taskDetailsExpandedParents.has(parentKey)) {
-                groups.set(parentKey, (groups.get(parentKey) || 0) + 1);
-            }
+        if (this.taskDetailsView === 'pages') {
+            return this.getTaskDetailsPageSummarySourceData().length;
         }
-        let total = parentCount;
-        for (const count of groups.values()) total += count;
-        return total;
+        return this.getTaskDetailsGroupedParents(this.getTaskDetailsSourceData()).length;
     }
 
     /**
@@ -4111,17 +4542,17 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.taskDetailsSearchQuery = query;
 
         if (!query) {
-            // 清空搜索，显示所有数据
             this.taskDetailsFilteredData = [];
+            this.taskDetailsPageSummaryFilteredData = [];
         } else {
-            // 过滤数据：匹配任务名称或页面URL
             this.taskDetailsFilteredData = this.taskDetailsData.filter((task) => {
                 const label = (task.label || '').toLowerCase();
                 const pageUrl = (task.pageUrl || '').toLowerCase();
                 const subtask = (task.subtaskLabel || '').toLowerCase();
                 const detail = (task.detail || '').toLowerCase();
-                
-                // 获取任务显示名称
+                const mainId = (task.mainId || '').toLowerCase();
+                const pageInstanceId = (task.pageInstanceId || '').toLowerCase();
+
                 const taskNameMap: Record<string, string> = {
                     'drive115:init:video': '115功能初始化-视频页',
                     'drive115:init:list': '115功能初始化-列表页',
@@ -4161,22 +4592,34 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 };
                 const displayName = (taskNameMap[task.label] || task.label || '').toLowerCase();
 
-                return label.includes(query) || pageUrl.includes(query) || subtask.includes(query) || detail.includes(query) || displayName.includes(query);
+                return label.includes(query)
+                    || pageUrl.includes(query)
+                    || subtask.includes(query)
+                    || detail.includes(query)
+                    || displayName.includes(query)
+                    || mainId.includes(query)
+                    || pageInstanceId.includes(query);
+            });
+
+            this.taskDetailsPageSummaryFilteredData = this.taskDetailsPageSummaryData.filter((item) => {
+                const pageUrl = (item.pageUrl || '').toLowerCase();
+                const mainId = (item.mainId || '').toLowerCase();
+                const pageType = (item.pageType || '').toLowerCase();
+                const pageInstanceId = (item.pageInstanceId || '').toLowerCase();
+                const detail = (item.detail || '').toLowerCase();
+                return pageUrl.includes(query)
+                    || mainId.includes(query)
+                    || pageType.includes(query)
+                    || pageInstanceId.includes(query)
+                    || detail.includes(query);
             });
         }
 
-        // 重置到第一页
         this.taskDetailsCurrentPage = 1;
-
-        // 重新渲染表格
         this.renderTaskDetailsTable();
-
-        // 更新分页信息
-        const dataToRender = this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery 
-            ? this.taskDetailsFilteredData 
-            : this.taskDetailsData;
-        const total = dataToRender.length;
+        const total = this.getRenderedTaskDetailsCount();
         const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
         this.updateTaskDetailsPagination(total, totalPages);
     }
 }
+

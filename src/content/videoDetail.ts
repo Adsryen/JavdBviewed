@@ -703,7 +703,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                     (window as any)[FLAG] = true;
                     initOrchestrator.add('high', async () => {
                         try { await videoFavoriteRatingEnhancer.init(); } catch {}
-                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7 });
+                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7, managedExternally: true });
                 }
             }
         } catch {}
@@ -726,7 +726,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                         await markActorsOnPage();
                     });
                 } catch (markErr) { log('Marking actors on page failed:', markErr); }
-            }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400 });
+            }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400, managedExternally: true });
         } catch (markErr) {
             log('Marking actors scheduling failed:', markErr);
         }

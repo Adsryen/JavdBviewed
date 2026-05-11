@@ -63,6 +63,8 @@ javdb-backup_*.json
 *.test.js
 *.spec.ts
 *.spec.js
+*.mjs
+*.mts
 
 # Temp files
 temp/
@@ -86,3 +88,6 @@ build.bat
 # codex
 .codex/
 .codex
+
+# plan
+plan/

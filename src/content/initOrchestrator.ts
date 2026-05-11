@@ -2,6 +2,7 @@
 
 // removed unused import: performanceOptimizer
 import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { getPageContext } from './pageContext';
 
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';
 export type InitTask = () => Promise<void> | void;
@@ -14,6 +15,7 @@ export interface InitTaskOptions {
   priority?: number;        // 优先级（0-10，数字越大优先级越高，默认5）
   timeout?: number;         // 任务执行超时时间（毫秒），0表示不限制
   dependsOn?: string[];     // 依赖的任务标签列表
+  managedExternally?: boolean; // 任务内部已接入全局任务中心，编排器仅负责本地调度
 }
 
 interface ScheduledTask {
@@ -162,13 +164,16 @@ class InitOrchestrator {
    */
   private async saveTaskDetail(phase: InitPhase, label: string, status: 'done' | 'error', durationMs: number | undefined, error?: string): Promise<void> {
     try {
-      const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const pageContext = typeof window !== 'undefined' ? getPageContext() : { pageUrl: '', pageType: 'generic', mainId: '', pageInstanceId: '' };
       const taskDetail = {
         label,
         phase,
         status,
         durationMs: durationMs || 0,
-        pageUrl,
+        pageUrl: pageContext.pageUrl,
+        pageType: pageContext.pageType,
+        mainId: pageContext.mainId,
+        pageInstanceId: pageContext.pageInstanceId,
         timestamp: Date.now(),
         error,
       };
@@ -266,6 +271,10 @@ class InitOrchestrator {
     const taskPromise = Promise.resolve()
       .then(() => {
         if (label === 'anonymous') {
+          return executeTask();
+        }
+
+        if (st.options.managedExternally) {
           return executeTask();
         }
 
