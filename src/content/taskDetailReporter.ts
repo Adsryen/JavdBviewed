@@ -1,3 +1,5 @@
+import { getPageContext } from './pageContext';
+
 export interface SubtaskDetailPayload {
   label: string;
   phase: string;
@@ -6,6 +8,10 @@ export interface SubtaskDetailPayload {
   pageUrl?: string;
   timestamp?: number;
   error?: string;
+  tabId?: number;
+  mainId?: string;
+  pageType?: string;
+  pageInstanceId?: string;
   parentLabel?: string;
   subtaskLabel?: string;
   batchIndex?: number;
@@ -15,9 +21,13 @@ export interface SubtaskDetailPayload {
 
 export function saveSubtaskDetail(payload: SubtaskDetailPayload): void {
   try {
+    const pageContext = getPageContext(payload.pageUrl);
     const taskDetail = {
       ...payload,
-      pageUrl: payload.pageUrl || window.location.href,
+      pageUrl: payload.pageUrl || pageContext.pageUrl,
+      pageType: payload.pageType || pageContext.pageType,
+      mainId: payload.mainId || pageContext.mainId,
+      pageInstanceId: payload.pageInstanceId || pageContext.pageInstanceId,
       timestamp: payload.timestamp || Date.now(),
     };
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {

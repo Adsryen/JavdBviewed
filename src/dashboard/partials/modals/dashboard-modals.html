@@ -72,6 +72,19 @@
               <option value="idle">idle</option>
             </select>
           </label>
+          <label>范围
+            <select id="orchGlobalScope">
+              <option value="all">全部页面</option>
+              <option value="current">当前页</option>
+              <option value="active">仅活动任务</option>
+            </select>
+          </label>
+          <label>展示
+            <select id="orchGlobalGrouping">
+              <option value="grouped">按标签聚合</option>
+              <option value="instances">按实例展开</option>
+            </select>
+          </label>
           <input id="orchFilterSearch" type="search" placeholder="按任务关键词搜索…" style="flex:1;" />
         </div>
         <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:var(--text-secondary); line-height:1.6; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; text-align:left;">
@@ -279,15 +292,24 @@
       </div>
       <div class="modal-body" style="flex:1; overflow:auto; display:flex; flex-direction:column;">
         <!-- 搜索框和统计信息 -->
-        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0;">
-          <div style="color:var(--text-secondary); font-size:13px;">
-            显示最近 <span id="taskDetailsCount">0</span> 条任务记录
+        <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-shrink:0; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div style="color:var(--text-secondary); font-size:13px;">
+              显示最近 <span id="taskDetailsCount">0</span> 条记录
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label for="taskDetailsViewMode" style="font-size:12px; color:var(--text-secondary);">视图</label>
+              <select id="taskDetailsViewMode" style="padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; background:var(--bg-primary); color:var(--text-primary);">
+                <option value="tasks">任务明细</option>
+                <option value="pages">页面实例汇总</option>
+              </select>
+            </div>
           </div>
-          <div style="flex:1; max-width:400px;">
+          <div style="flex:1; max-width:400px; min-width:260px;">
             <input 
               id="taskDetailsSearch" 
               type="search" 
-              placeholder="搜索任务名称或页面URL..." 
+              placeholder="搜索任务名称、页面URL、主ID..." 
               style="width:100%; padding:6px 12px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; background:var(--bg-primary); color:var(--text-primary);"
             />
           </div>
@@ -328,9 +350,22 @@
                 </th>
               </tr>
             </thead>
+            <thead id="taskDetailsPageSummaryHead" class="hidden" style="position:sticky; top:0; background:var(--bg-secondary); z-index:1;">
+              <tr style="border-bottom:2px solid var(--border-color);">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">页面实例 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="mainId">主ID <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageType">类型 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="taskCount">任务数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="doneCount">成功 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="errorCount">失败 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="totalDurationMs">总耗时 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">主任务 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="startedAt">开始时间 <i class="fas fa-sort"></i></th>
+              </tr>
+            </thead>
             <tbody id="taskDetailsTableBody">
               <tr>
-                <td colspan="7" style="padding:40px; text-align:center; color:var(--text-secondary);">
+                <td colspan="9" style="padding:40px; text-align:center; color:var(--text-secondary);">
                   <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </td>
               </tr>
@@ -342,6 +377,9 @@
         <div style="display:flex; gap:8px;">
           <button id="taskDetailsRefreshBtn" class="button-like" style="display:flex; align-items:center; gap:6px;">
             <i class="fas fa-sync-alt"></i> 刷新
+          </button>
+          <button id="taskDetailsCopyCurrentPageBtn" class="button-like" style="display:flex; align-items:center; gap:6px;">
+            <i class="fas fa-copy"></i> 复制
           </button>
           <button id="taskDetailsClearBtn" class="button-like" style="display:flex; align-items:center; gap:6px; color:#dc2626;">
             <i class="fas fa-trash-alt"></i> 清空

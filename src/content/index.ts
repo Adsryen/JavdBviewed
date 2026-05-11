@@ -14,7 +14,6 @@ import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
 import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
-import { initializeContentPrivacy } from './privacy';
 import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { actorQuickActionsManager } from './enhancements/actorQuickActions';
@@ -370,7 +369,7 @@ async function initialize(): Promise<void> {
                 log('Status polling error:', e);
             }
         }, 5000);
-        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500 });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500, managedExternally: true });
 
         // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
         initOrchestrator.add('idle', async () => {
@@ -387,7 +386,7 @@ async function initialize(): Promise<void> {
             await runManagedTask(descriptor, async () => {
                 await initInsightsCollector();
             });
-        }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
+        }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800, managedExternally: true });
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -493,12 +492,6 @@ async function initialize(): Promise<void> {
         });
         initOrchestrator.add('high', () => keyboardShortcutsManager.initialize(), { label: 'ux:shortcuts:init', delayMs: 0, priority: 8 });
     }
-
-    initOrchestrator.add('deferred', async () => {
-        log('Privacy system initializing...');
-        await initializeContentPrivacy();
-        log('Privacy system initialized successfully');
-    }, { label: 'privacy:init', idle: true, idleTimeout: 5000, delayMs: 1200, timeout: 10000 });
 
     // 移除官方App和Telegram按钮（优化：缩短延迟到200ms，减少按钮闪烁，优先级3）
     initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3 });
@@ -688,13 +681,13 @@ async function initialize(): Promise<void> {
                 contentFilterManager.initialize();
                 log('Content filter initialized after default hide processing');
             });
-        }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500 });
+        }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500, managedExternally: true });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
         // 在列表页也初始化115功能（由编排器统一延时调度）
         // 优化：缩短延迟到1000ms，添加微延迟150ms避免与列表增强冲突，优先级5（中等）
-        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800 });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800, managedExternally: true });
     }
 
     // 启动统一编排器（处理 deferred / idle 阶段任务）

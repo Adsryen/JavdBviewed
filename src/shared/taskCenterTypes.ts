@@ -9,6 +9,8 @@ export interface GlobalTaskDescriptor {
   tabId: number;
   pageUrl: string;
   pageType: string;
+  mainId: string;
+  pageInstanceId: string;
   phase: string;
   priority: number;
   cost: GlobalTaskCost;
