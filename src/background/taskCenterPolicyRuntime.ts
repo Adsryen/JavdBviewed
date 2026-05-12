@@ -8,7 +8,7 @@ export function getEffectiveBucketLimit(input: {
   const baseLimit = Math.max(0, input.baseLimit);
   if (input.visible) return baseLimit;
   if (input.policy === 'foreground_only') return 0;
-  if (input.policy === 'background_allowed') return Math.max(0, Math.min(1, baseLimit));
+  if (input.policy === 'background_allowed') return Math.max(0, Math.min(2, baseLimit));
   return 0;
 }
 

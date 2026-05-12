@@ -89,28 +89,28 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
             });
         },
         onItem: async (item) => {
-        if (item.querySelector('.drive115-push-btn')) return;
-        const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement | null;
-        if (!magnetLink) return;
-        const nameEl = item.querySelector('.magnet-name .name') as HTMLElement | null;
-        const magnetName = (nameEl?.textContent || magnetLink.textContent || 'magnet').trim();
+            if (item.querySelector('.drive115-push-btn')) return;
+            const magnetLink = item.querySelector('a[href^="magnet:"]') as HTMLAnchorElement | null;
+            if (!magnetLink) return;
+            const nameEl = item.querySelector('.magnet-name .name') as HTMLElement | null;
+            const magnetName = (nameEl?.textContent || magnetLink.textContent || 'magnet').trim();
 
-        const btn = document.createElement('button');
-        btn.className = 'button is-success is-small drive115-push-btn';
-        (btn as HTMLButtonElement).style.marginLeft = '5px';
-        btn.innerHTML = '&nbsp;推送115&nbsp;';
-        btn.addEventListener('click', () => handlePushToDrive115(btn, videoId, magnetLink.href, magnetName));
+            const btn = document.createElement('button');
+            btn.className = 'button is-success is-small drive115-push-btn';
+            (btn as HTMLButtonElement).style.marginLeft = '5px';
+            btn.innerHTML = '&nbsp;推送115&nbsp;';
+            btn.addEventListener('click', () => handlePushToDrive115(btn, videoId, magnetLink.href, magnetName));
 
-        let buttonsCol = item.querySelector('.buttons');
-        if (!buttonsCol) {
-            buttonsCol = document.createElement('div');
-            (buttonsCol as HTMLElement).className = 'buttons column';
-            (buttonsCol as HTMLElement).style.display = 'flex';
-            (buttonsCol as HTMLElement).style.alignItems = 'center';
-            (buttonsCol as HTMLElement).style.gap = '6px';
-            item.appendChild(buttonsCol);
-        }
-        (buttonsCol as HTMLElement).appendChild(btn);
+            let buttonsCol = item.querySelector('.buttons');
+            if (!buttonsCol) {
+                buttonsCol = document.createElement('div');
+                (buttonsCol as HTMLElement).className = 'buttons column';
+                (buttonsCol as HTMLElement).style.display = 'flex';
+                (buttonsCol as HTMLElement).style.alignItems = 'center';
+                (buttonsCol as HTMLElement).style.gap = '6px';
+                item.appendChild(buttonsCol);
+            }
+            (buttonsCol as HTMLElement).appendChild(btn);
         }
     });
 }
@@ -119,17 +119,7 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
  * 初始化115功能
  */
 export async function initDrive115Features(): Promise<void> {
-    const descriptor = createManagedTaskDescriptor({
-        label: window.location.pathname.startsWith('/v/') ? 'drive115:init:video' : 'drive115:init:list',
-        phase: 'idle',
-        priority: 2,
-        cost: 'heavy',
-        visibilityPolicy: 'background_allowed',
-        timeoutMs: 12000,
-        retryLimit: 2,
-        resumePolicy: 'restart',
-    });
-    await runManagedTask(descriptor, async () => {
+    const parentLabel = window.location.pathname.startsWith('/v/') ? 'drive115:init:video' : 'drive115:init:list';
     try {
         const steps: Array<() => Promise<void>> = [
             async () => {
@@ -185,14 +175,14 @@ export async function initDrive115Features(): Promise<void> {
 
         await runChunkedWork(steps, {
             batchSize: 1,
-            parentLabel: descriptor.label,
+            parentLabel,
             yieldAfterBatch: async () => {
                 await yieldToMainThread(0);
             },
             onBatchComplete: async ({ batchIndex }) => {
                 saveSubtaskDetail({
-                    label: `${descriptor.label}:step`,
-                    parentLabel: descriptor.label,
+                    label: `${parentLabel}:step`,
+                    parentLabel,
                     subtaskLabel: 'step',
                     batchIndex,
                     itemCount: 1,
@@ -213,7 +203,6 @@ export async function initDrive115Features(): Promise<void> {
         }
         console.error('初始化115功能失败:', error);
     }
-    });
 }
 
 // 刷新115配额UI功能已移至dashboard模块

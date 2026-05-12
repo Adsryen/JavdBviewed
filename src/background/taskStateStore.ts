@@ -27,4 +27,9 @@ export class TaskStateStore {
   isTabVisible(tabId: number): boolean {
     return this.tabVisibility.get(tabId)?.visible === true;
   }
+
+  clear(): void {
+    this.tasks.clear();
+    this.tabVisibility.clear();
+  }
 }

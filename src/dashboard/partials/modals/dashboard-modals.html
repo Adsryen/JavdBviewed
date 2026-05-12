@@ -339,14 +339,23 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="status">
                   状态 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:right; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="duration">
-                  耗时 <i class="fas fa-sort"></i>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="createdAt">
+                  注册时间 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary);">
+                  开始时间
+                </th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary);">
+                  结束时间
+                </th>
+                <th style="padding:10px 12px; text-align:right; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="waitDurationMs">
+                  等待执行 <i class="fas fa-sort"></i>
+                </th>
+                <th style="padding:10px 12px; text-align:right; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="runDurationMs">
+                  执行耗时 <i class="fas fa-sort"></i>
                 </th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">
                   页面 <i class="fas fa-sort"></i>
-                </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="timestamp">
-                  时间 <i class="fas fa-sort"></i>
                 </th>
               </tr>
             </thead>
@@ -355,11 +364,11 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">页面实例 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="mainId">主ID <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageType">类型 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="taskCount">任务数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">主任务数 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="doneCount">成功 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="errorCount">失败 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="totalDurationMs">总耗时 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">主任务 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="childCount">子任务 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="startedAt">开始时间 <i class="fas fa-sort"></i></th>
               </tr>
             </thead>

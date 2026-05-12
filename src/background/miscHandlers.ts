@@ -9,6 +9,7 @@ import { newWorksScheduler, newWorksManager, newWorksCollector } from '../servic
 import { requestScheduler } from './requestScheduler';
 import { WEBDAV_SYNC_ALARM } from './scheduler';
 import type { UserProfile } from '../types';
+import { globalTaskCenter } from './globalTaskCenter';
 
 const consoleMap: Record<'INFO' | 'WARN' | 'ERROR' | 'DEBUG', (message?: any, ...optionalParams: any[]) => void> = {
   INFO: console.info,
@@ -1129,6 +1130,8 @@ async function handleClearTaskDetails(): Promise<any> {
     await setValue('orchestratorTaskDetails', []);
     // 同时清空性能指标统计
     await setValue('orchestratorMetrics', []);
+    // 同时清空全局任务中心的内存态，避免旧任务刷新后再次混入展示
+    globalTaskCenter.clearAll();
     return { success: true };
   } catch (error) {
     console.error('[Background] Failed to clear task details:', error);

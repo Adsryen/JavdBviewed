@@ -167,10 +167,20 @@ export class GlobalTaskCenter {
     }
 
     if (bestCandidate.record.descriptor.taskId !== taskId) {
-      task.runtime.status = 'queued';
-      task.runtime.waitReason = 'higher-priority-wait';
-      this.store.setTask(taskId, task);
-      return { granted: false, waitReason: task.runtime.waitReason };
+      const runningCount = this.getRunningCount(bucket, visible);
+      const currentPriority = Number(task.descriptor.priority || 0);
+      const bestPriority = Number(bestCandidate.record.descriptor.priority || 0);
+      const allowBackgroundParallel = !visible
+        && task.descriptor.visibilityPolicy === 'background_allowed'
+        && limit >= 2
+        && runningCount < limit
+        && (bestPriority - currentPriority) <= 2;
+      if (!allowBackgroundParallel) {
+        task.runtime.status = 'queued';
+        task.runtime.waitReason = 'higher-priority-wait';
+        this.store.setTask(taskId, task);
+        return { granted: false, waitReason: task.runtime.waitReason };
+      }
     }
 
     const runningCount = this.getRunningCount(bucket, visible);
@@ -263,6 +273,12 @@ export class GlobalTaskCenter {
     return { ok: true };
   }
 
+  clearAll(): { ok: true } {
+    this.store.clear();
+    this.dedupeIndex.clear();
+    return { ok: true };
+  }
+
   queryState() {
     this.cleanupStaleTasks();
     const tasks = this.store.listTasks().map(record => ({
@@ -330,6 +346,9 @@ export class GlobalTaskCenter {
           return;
         case TASK_CENTER_MESSAGE.QUERY:
           sendResponse(this.queryState());
+          return;
+        case TASK_CENTER_MESSAGE.CLEAR:
+          sendResponse(this.clearAll());
           return;
         default:
           sendResponse({ ok: false, error: 'unknown-task-center-message' });

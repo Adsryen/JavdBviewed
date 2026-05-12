@@ -1,7 +1,8 @@
 // src/content/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer
-import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask } from './taskRuntime';
+import type { GlobalTaskDescriptor, GlobalTaskVisibilityPolicy } from '../shared/taskCenterTypes';
 import { getPageContext } from './pageContext';
 
 export type InitPhase = 'critical' | 'high' | 'deferred' | 'idle';
@@ -15,7 +16,7 @@ export interface InitTaskOptions {
   priority?: number;        // 优先级（0-10，数字越大优先级越高，默认5）
   timeout?: number;         // 任务执行超时时间（毫秒），0表示不限制
   dependsOn?: string[];     // 依赖的任务标签列表
-  managedExternally?: boolean; // 任务内部已接入全局任务中心，编排器仅负责本地调度
+  visibilityPolicy?: GlobalTaskVisibilityPolicy;
 }
 
 interface ScheduledTask {
@@ -23,8 +24,27 @@ interface ScheduledTask {
   options: InitTaskOptions;
 }
 
-type ManagedScheduledTask = ScheduledTask & { managedTaskId?: string };
+interface TaskDeferredError extends Error {
+  waitReason?: string;
+}
 
+interface TaskDependencyDeferredError extends Error {
+  unmetDeps?: string[];
+}
+
+type ManagedScheduledTask = ScheduledTask & { managedDescriptor?: GlobalTaskDescriptor; managedDescriptorRegistered?: boolean };
+
+type TaskBlueprint = {
+  phase: InitPhase;
+  label: string;
+  priority?: number;
+  timeout?: number;
+  visibilityPolicy?: GlobalTaskVisibilityPolicy;
+};
+
+function getDefaultVisibilityPolicy(phase: InitPhase): GlobalTaskVisibilityPolicy {
+  return phase === 'critical' || phase === 'high' ? 'foreground_first' : 'background_allowed';
+}
 
 class InitOrchestrator {
   private phases: { [K in InitPhase]: ManagedScheduledTask[] } = { critical: [], high: [], deferred: [], idle: [] };
@@ -33,6 +53,7 @@ class InitOrchestrator {
   private t0: number | null = null; // run() 开始时刻，用于相对时间
   private verbose = true; // 统一开关，控制是否打印详细日志
   private listeners: Record<string, Array<(payload: any) => void>> = {};
+  private blueprintDescriptors = new Map<string, GlobalTaskDescriptor>();
   
   // 并发控制
   private runningHighTasks = 0;
@@ -54,6 +75,7 @@ class InitOrchestrator {
   // 任务依赖管理
   private completedTasks = new Set<string>(); // 已完成的任务标签
   private taskDependencies = new Map<string, string[]>(); // 任务依赖关系
+  private deferredRetryTimers = new Map<string, number>();
 
   constructor() {
     // 根据设备性能动态调整并发数
@@ -69,6 +91,91 @@ class InitOrchestrator {
   private log(...args: any[]) {
     if (!this.verbose) return;
     try { console.log('[Orchestrator]', ...args); } catch {}
+  }
+
+  private getDeferredRetryKey(phase: InitPhase, label: string): string {
+    return `${phase}::${label}`;
+  }
+
+  private clearDeferredRetry(phase: InitPhase, label: string): void {
+    const key = this.getDeferredRetryKey(phase, label);
+    const timerId = this.deferredRetryTimers.get(key);
+    if (typeof timerId === 'number') {
+      clearTimeout(timerId);
+      this.deferredRetryTimers.delete(key);
+    }
+  }
+
+  private scheduleDeferredRetry(phase: InitPhase, st: ManagedScheduledTask, waitReason?: string): void {
+    const label = st.options.label || 'anonymous';
+    if (label === 'anonymous') return;
+    const key = this.getDeferredRetryKey(phase, label);
+    if (this.deferredRetryTimers.has(key)) return;
+    const retryDelayMs = waitReason === 'tab-hidden' ? 1200 : 400;
+    const timerId = window.setTimeout(() => {
+      this.deferredRetryTimers.delete(key);
+      this.runTask(phase, st).catch(() => {});
+    }, retryDelayMs);
+    this.deferredRetryTimers.set(key, timerId);
+    this.log('deferred retry scheduled', { phase, label, waitReason, retryDelayMs });
+  }
+
+  private scheduleDependencyRetry(phase: InitPhase, st: ManagedScheduledTask, unmetDeps: string[]): void {
+    const label = st.options.label || 'anonymous';
+    if (label === 'anonymous') return;
+    const key = this.getDeferredRetryKey(phase, label);
+    if (this.deferredRetryTimers.has(key)) return;
+    const retryDelayMs = 400;
+    const timerId = window.setTimeout(() => {
+      this.deferredRetryTimers.delete(key);
+      this.runTask(phase, st).catch(() => {});
+    }, retryDelayMs);
+    this.deferredRetryTimers.set(key, timerId);
+    this.log('dependency retry scheduled', { phase, label, unmetDeps, retryDelayMs });
+  }
+
+
+  private getTaskKey(phase: InitPhase, label: string): string {
+    return `${phase}|${label}`;
+  }
+
+  private buildManagedDescriptor(
+    phase: InitPhase,
+    label: string,
+    options: { priority?: number; timeout?: number; visibilityPolicy?: GlobalTaskVisibilityPolicy } = {},
+  ): GlobalTaskDescriptor {
+    return createManagedTaskDescriptor({
+      label,
+      phase,
+      priority: options.priority ?? 5,
+      cost: phase === 'critical' ? 'heavy' : phase === 'high' ? 'medium' : 'light',
+      visibilityPolicy: options.visibilityPolicy ?? getDefaultVisibilityPolicy(phase),
+      timeoutMs: (options.timeout || 0) > 0 ? (options.timeout || 0) : 10000,
+      retryLimit: 2,
+      resumePolicy: 'restart',
+    });
+  }
+
+  async preregisterBlueprints(blueprints: TaskBlueprint[]): Promise<void> {
+    for (const blueprint of blueprints) {
+      if (!blueprint?.label) continue;
+      const taskKey = this.getTaskKey(blueprint.phase, blueprint.label);
+      let descriptor = this.blueprintDescriptors.get(taskKey);
+      if (!descriptor) {
+        descriptor = this.buildManagedDescriptor(blueprint.phase, blueprint.label, {
+          priority: blueprint.priority,
+          timeout: blueprint.timeout,
+          visibilityPolicy: blueprint.visibilityPolicy,
+        });
+        this.blueprintDescriptors.set(taskKey, descriptor);
+      }
+      try {
+        const registered = await ensureManagedTaskRegistered(descriptor);
+        this.blueprintDescriptors.set(taskKey, registered);
+      } catch (error) {
+        this.log('blueprint pre-register task failed', { label: blueprint.label, error: String(error) });
+      }
+    }
   }
 
   /**
@@ -209,13 +316,36 @@ class InitOrchestrator {
 
   private metricsSaveTimeout?: number;
 
-  add(phase: InitPhase, task: InitTask, options: InitTaskOptions = {}): void {
+  async add(phase: InitPhase, task: InitTask, options: InitTaskOptions = {}): Promise<void> {
     // 记录任务依赖关系
     if (options.dependsOn && options.dependsOn.length > 0 && options.label) {
       this.taskDependencies.set(options.label, options.dependsOn);
     }
     
-    this.phases[phase].push({ task, options });
+    const managedScheduledTask: ManagedScheduledTask = { task, options };
+    if (options.label) {
+      const taskKey = this.getTaskKey(phase, options.label);
+      managedScheduledTask.managedDescriptor = this.blueprintDescriptors.get(taskKey)
+        || this.buildManagedDescriptor(phase, options.label, {
+          priority: options.priority,
+          timeout: options.timeout,
+          visibilityPolicy: options.visibilityPolicy,
+        });
+      this.blueprintDescriptors.set(taskKey, managedScheduledTask.managedDescriptor);
+    }
+    this.phases[phase].push(managedScheduledTask);
+    if (managedScheduledTask.managedDescriptor && !managedScheduledTask.managedDescriptorRegistered) {
+      try {
+        const registered = await ensureManagedTaskRegistered(managedScheduledTask.managedDescriptor);
+        managedScheduledTask.managedDescriptor = registered;
+        managedScheduledTask.managedDescriptorRegistered = true;
+      } catch (error) {
+        this.log(this.started ? 'post-start pre-register task failed' : 'add-time pre-register task failed', {
+          label: options.label,
+          error: String(error),
+        });
+      }
+    }
     const abs = performance.now();
     const label = options.label || 'anonymous';
     this.timeline.push({ phase, label, status: 'scheduled', ts: abs });
@@ -232,15 +362,37 @@ class InitOrchestrator {
     };
   }
 
-  private runTask(phase: InitPhase, st: ScheduledTask): Promise<void> {
+  private async preregisterAllManagedTasks(): Promise<void> {
+    const scheduledTasks = [
+      ...this.phases.critical,
+      ...this.phases.high,
+      ...this.phases.deferred,
+      ...this.phases.idle,
+    ];
+
+    for (const st of scheduledTasks) {
+      if (!st.managedDescriptor || st.managedDescriptorRegistered) continue;
+      try {
+        const registered = await ensureManagedTaskRegistered(st.managedDescriptor);
+        st.managedDescriptor = registered;
+        st.managedDescriptorRegistered = true;
+      } catch (error) {
+        this.log('pre-register task failed', { label: st.options.label, error: String(error) });
+      }
+    }
+  }
+
+  private runTask(phase: InitPhase, st: ManagedScheduledTask): Promise<void> {
     const label = st.options.label || 'anonymous';
+    this.clearDeferredRetry(phase, label);
     
     // 检查依赖是否满足
     if (st.options.dependsOn && st.options.dependsOn.length > 0) {
       const unmetDeps = st.options.dependsOn.filter(dep => !this.completedTasks.has(dep));
       if (unmetDeps.length > 0) {
-        this.log('skipping task due to unmet dependencies', { label, unmetDeps });
-        return Promise.resolve();
+        const dependencyError = new Error(`Task waiting for dependencies: ${unmetDeps.join(',')}`) as TaskDependencyDeferredError;
+        dependencyError.unmetDeps = unmetDeps;
+        return Promise.reject(dependencyError);
       }
     }
     
@@ -269,27 +421,31 @@ class InitOrchestrator {
     };
 
     const taskPromise = Promise.resolve()
-      .then(() => {
+      .then(async () => {
         if (label === 'anonymous') {
           return executeTask();
         }
 
-        if (st.options.managedExternally) {
-          return executeTask();
-        }
-
-        const descriptor = createManagedTaskDescriptor({
+        const descriptor = st.managedDescriptor || createManagedTaskDescriptor({
           label,
           phase,
           priority: st.options.priority ?? 5,
           cost: phase === 'critical' ? 'heavy' : phase === 'high' ? 'medium' : 'light',
-          visibilityPolicy: phase === 'critical' || phase === 'high' ? 'foreground_first' : 'background_allowed',
+          visibilityPolicy: st.options.visibilityPolicy ?? getDefaultVisibilityPolicy(phase),
           timeoutMs: timeout > 0 ? timeout : 10000,
           retryLimit: 2,
           resumePolicy: 'restart',
-          dedupeKey: label,
         });
-        return runManagedTask(descriptor, async () => await executeTask());
+        st.managedDescriptor = descriptor;
+        const runResult = st.managedDescriptorRegistered
+          ? await runRegisteredManagedTask(st.managedDescriptor, async () => await executeTask())
+          : await runManagedTask(descriptor, async () => await executeTask());
+        if (!runResult.executed) {
+          const deferredError = new Error(`Task deferred: ${runResult.waitReason}`) as TaskDeferredError;
+          deferredError.waitReason = runResult.waitReason;
+          throw deferredError;
+        }
+        return runResult.result;
       })
       .then(() => {
         // 清除超时定时器
@@ -328,6 +484,29 @@ class InitOrchestrator {
           clearTimeout(timeoutId);
         }
         
+        const deferredError = e as TaskDeferredError;
+        const waitReason = deferredError?.waitReason;
+        const isDeferred = waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || (typeof waitReason === 'string' && waitReason.startsWith('bucket:'));
+        if (isDeferred) {
+          const deferredAbs = performance.now();
+          this.timeline.push({ phase, label, status: 'scheduled', ts: deferredAbs, detail: waitReason, durationMs: 0 });
+          this.emit('task:scheduled', { phase, label, ts: deferredAbs, relativeTs: this.relTs(deferredAbs), options: { ...st.options, waitReason } });
+          this.log('deferred', { phase, label, ts: Math.round(deferredAbs), relative: Math.round(this.relTs(deferredAbs)), waitReason });
+          this.scheduleDeferredRetry(phase, st, waitReason);
+          return;
+        }
+
+        const dependencyError = e as TaskDependencyDeferredError;
+        const unmetDeps = Array.isArray(dependencyError?.unmetDeps) ? dependencyError.unmetDeps : [];
+        if (unmetDeps.length > 0) {
+          const deferredAbs = performance.now();
+          this.timeline.push({ phase, label, status: 'scheduled', ts: deferredAbs, detail: `deps:${unmetDeps.join(',')}`, durationMs: 0 });
+          this.emit('task:scheduled', { phase, label, ts: deferredAbs, relativeTs: this.relTs(deferredAbs), options: { ...st.options, waitReason: 'dependency-wait', unmetDeps } });
+          this.log('dependency-wait', { phase, label, ts: Math.round(deferredAbs), relative: Math.round(this.relTs(deferredAbs)), unmetDeps });
+          this.scheduleDependencyRetry(phase, st, unmetDeps);
+          return;
+        }
+
         let durationMs: number | undefined = undefined;
         try {
           performance.mark(endMark);
@@ -374,18 +553,26 @@ class InitOrchestrator {
       const unmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
       if (unmetDeps.length > 0) {
         const elapsed = performance.now() - scheduledAt;
-        if (elapsed < dependencyWaitLimit) {
-          this.log('schedule retry due to unmet dependencies', { phase, label, unmetDeps, elapsed: Math.round(elapsed) });
-          setTimeout(exec, dependencyRetryDelay);
-          return;
-        }
-        this.log('dependency wait limit reached, running task anyway', { phase, label, unmetDeps, elapsed: Math.round(elapsed) });
+        this.log(elapsed < dependencyWaitLimit ? 'schedule retry due to unmet dependencies' : 'dependency wait limit reached, keep waiting', {
+          phase,
+          label,
+          unmetDeps,
+          elapsed: Math.round(elapsed),
+        });
+        setTimeout(exec, dependencyRetryDelay);
+        return;
       }
       this.runTask(phase, st);
     };
     if (idle) {
       const scheduleIdle = () => {
         try {
+          if (document.visibilityState !== 'visible') {
+            const hiddenDelay = 250;
+            this.log('schedule hidden-tab fallback', { phase, label, delayMs: hiddenDelay });
+            setTimeout(exec, hiddenDelay);
+            return;
+          }
           const ric = (window as any).requestIdleCallback as undefined | ((cb: Function, opts?: any) => number);
           if (typeof ric === 'function') {
             this.log('schedule idle', { phase, label, timeout: idleTimeout });
@@ -419,6 +606,7 @@ class InitOrchestrator {
     if (this.started) return;
     this.started = true;
     this.t0 = performance.now();
+    await this.preregisterAllManagedTasks();
     this.emit('run:start', { ts: this.t0, relativeTs: 0 });
     this.log('run:start', { ts: Math.round(this.t0) });
 

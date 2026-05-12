@@ -6,7 +6,6 @@ import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { showToast } from './toast';
 import type { VideoRecord } from '../types';
-import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 
@@ -23,17 +22,6 @@ export class VideoFavoriteRatingEnhancer {
    * 初始化增强功能
    */
   public async init(): Promise<void> {
-    const descriptor = createManagedTaskDescriptor({
-      label: 'videoFavoriteRating:init',
-      phase: 'deferred',
-      priority: 3,
-      cost: 'medium',
-      visibilityPolicy: 'background_allowed',
-      timeoutMs: 10000,
-      retryLimit: 2,
-      resumePolicy: 'restart',
-    });
-    await runManagedTask(descriptor, async () => {
     try {
       const steps: Array<() => Promise<void>> = [
         async () => {
@@ -98,7 +86,6 @@ export class VideoFavoriteRatingEnhancer {
       }
       console.error('[VideoFavoriteRating] Init error:', error);
     }
-    });
   }
 
   /**

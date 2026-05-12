@@ -11,7 +11,8 @@ export const TASK_CENTER_MESSAGE = {
   FAIL: 'task-center:fail',
   CANCEL: 'task-center:cancel',
   VISIBILITY: 'task-center:visibility',
-  QUERY: 'task-center:query'
+  QUERY: 'task-center:query',
+  CLEAR: 'task-center:clear'
 } as const;
 
 export interface RegisterTaskMessage {

@@ -9,7 +9,6 @@ import { STATE, log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
 import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
-import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 
@@ -28,6 +27,8 @@ export class VideoDetailEnhancer {
   private options: EnhancementOptions;
   private translationCache = new Map<string, { translated: string; ts: number }>();
   private static readonly TITLE_TRANSLATION_TTL_MS = 24 * 60 * 60 * 1000;
+  private coreInitialized = false;
+  private coreInitializedForVideoId: string | null = null;
   // 🆕 视频预览相关属性
   private previewTimer: number | null = null;
   private currentPlayingVideo: HTMLVideoElement | null = null;
@@ -247,9 +248,14 @@ export class VideoDetailEnhancer {
    */
   async initCore(): Promise<void> {
     this.applyOptionsFromSettings();
-    this.videoId = extractVideoIdFromPage();
-    if (!this.videoId) {
+    const currentVideoId = extractVideoIdFromPage();
+    if (!currentVideoId) {
       log('No video ID found, skipping enhancement');
+      return;
+    }
+
+    this.videoId = currentVideoId;
+    if (this.coreInitialized && this.coreInitializedForVideoId === currentVideoId) {
       return;
     }
 
@@ -274,6 +280,9 @@ export class VideoDetailEnhancer {
         pageUrl: window.location.href,
       });
     } catch {}
+
+    this.coreInitialized = true;
+    this.coreInitializedForVideoId = currentVideoId;
   }
 
   async loadEnhancedData(): Promise<void> {
@@ -282,19 +291,7 @@ export class VideoDetailEnhancer {
   }
 
   async runCurrentTitleTranslation(): Promise<void> {
-    const descriptor = createManagedTaskDescriptor({
-      label: 'videoEnhancement:translateCurrentTitle',
-      phase: 'deferred',
-      priority: 4,
-      cost: 'heavy',
-      visibilityPolicy: 'background_allowed',
-      timeoutMs: 10000,
-      retryLimit: 2,
-      resumePolicy: 'cache_then_skip',
-    });
-    await runManagedTask(descriptor, async () => {
-      await this.translateCurrentTitleIfNeeded();
-    });
+    await this.translateCurrentTitleIfNeeded();
   }
 
   /**

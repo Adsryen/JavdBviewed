@@ -84,7 +84,7 @@ async function fetchWikipedia(name: string): Promise<ActorRemarks | null> {
   try {
     const url = `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
     console.log(`[actorRemarks] 开始请求 Wikipedia: ${name}`);
-    const doc = await defaultHttpClient.getDocument(url, { responseType: 'document', timeout: 5000 });
+    const doc = await defaultHttpClient.getDocument(url, { responseType: 'document', timeout: 6500 });
     const info = (doc.querySelector('.infobox') || doc.querySelector('table.infobox')) as HTMLElement | null;
     if (!info) return null;
 
