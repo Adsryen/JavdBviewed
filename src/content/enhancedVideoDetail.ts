@@ -1999,29 +1999,45 @@ export class VideoDetailEnhancer {
           window.location.href = linkElement.href;
         });
 
-        // 右键点击：在后台新标签打开
-        linkElement.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // 使用chrome.runtime.sendMessage发送消息给background script
+        let rightClickHandled = false;
+        const openInBackground = () => {
+          const startedAt = performance.now();
           chrome.runtime.sendMessage({
             type: 'OPEN_TAB_BACKGROUND',
             url: linkElement.href
+          }).then(() => {
+            log(`[RelatedVideos] Background tab opened in ${Math.round(performance.now() - startedAt)}ms`);
           }).catch(err => {
             log('[RelatedVideos] Failed to open background tab:', err);
-            // 降级方案：使用window.open
             window.open(linkElement.href, '_blank');
           });
 
           showToast('已在后台打开', 'success');
+        };
+
+        // 右键按下：立即在后台打开，减少等待 contextmenu 的体感延迟
+        linkElement.addEventListener('mousedown', (e) => {
+          if (e.button !== 2) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (rightClickHandled) return;
+          rightClickHandled = true;
+          openInBackground();
+          window.setTimeout(() => {
+            rightClickHandled = false;
+          }, 400);
         });
 
-        // 阻止右键菜单
-        linkElement.addEventListener('mousedown', (e) => {
-          if (e.button === 2) { // 右键
-            e.preventDefault();
-          }
+        // 阻止右键菜单；极少数场景下兜底触发后台打开
+        linkElement.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (rightClickHandled) return;
+          rightClickHandled = true;
+          openInBackground();
+          window.setTimeout(() => {
+            rightClickHandled = false;
+          }, 400);
         });
       });
 

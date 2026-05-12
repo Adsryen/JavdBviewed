@@ -1063,28 +1063,43 @@ class ListEnhancementManager {
 
     // 右键后台打开
     if (this.config.enableRightClickBackground) {
-      linkElement.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // 使用chrome.runtime.sendMessage发送消息给background script
+      let rightClickHandled = false;
+      const openInBackground = () => {
+        const startedAt = performance.now();
         chrome.runtime.sendMessage({
           type: 'OPEN_TAB_BACKGROUND',
           url: videoInfo.url
+        }).then(() => {
+          log(`[ListEnhancement] Background tab opened in ${Math.round(performance.now() - startedAt)}ms`);
         }).catch(err => {
           log('Failed to open background tab:', err);
-          // 降级方案：使用window.open
           window.open(videoInfo.url, '_blank');
         });
 
         showToast('已在后台打开', 'success');
+      };
+
+      linkElement.addEventListener('mousedown', (e) => {
+        if (e.button !== 2) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (rightClickHandled) return;
+        rightClickHandled = true;
+        openInBackground();
+        window.setTimeout(() => {
+          rightClickHandled = false;
+        }, 400);
       });
 
-      // 阻止右键菜单
-      linkElement.addEventListener('mousedown', (e) => {
-        if (e.button === 2) { // 右键
-          e.preventDefault();
-        }
+      linkElement.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (rightClickHandled) return;
+        rightClickHandled = true;
+        openInBackground();
+        window.setTimeout(() => {
+          rightClickHandled = false;
+        }, 400);
       });
     }
   }
