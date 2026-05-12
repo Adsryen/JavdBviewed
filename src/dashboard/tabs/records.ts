@@ -704,10 +704,17 @@ export function initRecordsTab(): void {
     // 注：高级过滤直接集成在 updateFilteredRecords 中，无需额外包装函数
 
     // 更新搜索结果数量显示
+    function formatQueryDuration(ms: number | null): string {
+        if (ms == null || !Number.isFinite(ms)) return '';
+        if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
+        return `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s`;
+    }
+
     function updateSearchResultCount() {
         if (!searchResultCount) return;
 
         const totalCount = serverModeActive ? serverTotal : filteredRecords.length;
+        const durationText = formatQueryDuration(lastQueryDurationMs);
         const searchTerm = searchInput?.value?.trim() || '';
         const hasFilter = filterSelect?.value !== 'all';
         const hasTags = selectedTags.size > 0;
@@ -732,7 +739,10 @@ export function initRecordsTab(): void {
             
             conditionText = conditions.join(' + ');
             
-            searchResultCount.innerHTML = `搜索 ${conditionText}，找到 <span class="count-number">${totalCount}</span> 个结果`;
+            searchResultCount.innerHTML = `搜索 ${conditionText}，找到 <span class="count-number">${totalCount}</span> 个结果${durationText ? ` · 查询耗时 <span class="count-number">${durationText}</span>` : ''}`;
+            searchResultCount.style.display = 'flex';
+        } else if (totalCount > 0) {
+            searchResultCount.innerHTML = `共 <span class="count-number">${totalCount}</span> 条记录${durationText ? ` · 查询耗时 <span class="count-number">${durationText}</span>` : ''}`;
             searchResultCount.style.display = 'flex';
         } else {
             searchResultCount.style.display = 'none';
@@ -748,6 +758,7 @@ export function initRecordsTab(): void {
     let serverModeActive = false;
     let serverPageItems: VideoRecord[] = [];
     let serverTotal = 0;
+    let lastQueryDurationMs: number | null = null;
 
     recordsPerPageSelect.value = String(recordsPerPage);
 
@@ -776,6 +787,7 @@ export function initRecordsTab(): void {
     async function renderServerPage(): Promise<void> {
         try {
             serverModeActive = true;
+            const queryStart = performance.now();
             const sort = parseSort();
             const parsed = parseSearchTokens((searchInput?.value || '').trim());
             const searchTerm = parsed.text;
@@ -832,12 +844,14 @@ export function initRecordsTab(): void {
                 total = resp.total || 0;
             }
 
+            lastQueryDurationMs = performance.now() - queryStart;
             serverPageItems = Array.isArray(items) ? items : [];
             serverTotal = Number.isFinite(total) ? total : 0;
             renderVideoList();
             renderPagination();
             updateSearchResultCount();
         } catch (e) {
+            lastQueryDurationMs = null;
             console.warn('[RecordsTab] IDB 查询/分页失败', e);
             // 不回退本地模式，仅提示错误，保留当前 UI 状态
             try { videoList.innerHTML = '<li class="empty-list">加载失败：IndexedDB 查询异常，请稍后重试</li>'; } catch {}

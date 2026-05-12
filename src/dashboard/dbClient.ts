@@ -34,7 +34,18 @@ export interface MagnetCacheRecord {
   expireAt?: number;
 }
 
-function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
+function getDefaultTimeoutMs(type: string): number {
+  switch (type) {
+    case 'DB:VIEWED_QUERY':
+      return 22000;
+    case 'DB:LOGS_QUERY':
+      return 12000;
+    default:
+      return 8000;
+  }
+}
+
+function sendMessage<T = any>(type: string, payload?: any, timeoutMs = getDefaultTimeoutMs(type)): Promise<T> {
   const tryOnce = (): Promise<T> => new Promise<T>((resolve, reject) => {
     let timer: number | undefined;
     try {
