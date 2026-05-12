@@ -195,6 +195,7 @@ export interface VideoRecord {
   userRating?: number;
   userNotes?: string;
   isFavorite?: boolean;
+  favoriteIndexed?: number;
   /** 该视频所属的清单 ID 列表 */
   listIds?: string[];
   /** 收藏时间戳 */
