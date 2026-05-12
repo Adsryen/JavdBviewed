@@ -4,7 +4,7 @@ import { getSettings, getValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
-import { handleVideoDetailPage, cleanupVideoDetailObservers } from './videoDetail';
+import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
@@ -19,6 +19,7 @@ import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { actorQuickActionsManager } from './enhancements/actorQuickActions';
 import { embyEnhancementManager } from './embyEnhancement';
 import { initOrchestrator } from './initOrchestrator';
+import type { InitPhase } from './initOrchestrator';
 import { initInsightsCollector } from './insightsCollector';
 import { installConsoleProxy } from '../utils/consoleProxy';
 import { performanceOptimizer } from './performanceOptimizer';
@@ -27,7 +28,7 @@ import { createTaskTimeoutGuard, isTaskTimeoutError, waitForElement } from './ut
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { PasswordHelper } from './passwordHelper';
 import { installTaskVisibilityReporter } from './taskVisibilityReporter';
-import { createManagedTaskDescriptor, runManagedTask, getActiveManagedTaskIds } from './taskRuntime';
+import { getActiveManagedTaskIds } from './taskRuntime';
 import { installTaskHeartbeatReporter } from './taskHeartbeat';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
@@ -321,12 +322,77 @@ async function initialize(): Promise<void> {
     // 首先初始化性能优化器
     performanceOptimizer.initialize();
 
-    const [settings, records, newWorksConfig] = await Promise.all([
-        getSettings(),
-        getValue<Record<string, VideoRecord>>('viewed', {}),
-        getValue<any>('new_works_config', {}),
-    ]);
+    const settingsPromise = getSettings();
+    const recordsPromise = getValue<Record<string, VideoRecord>>('viewed', {});
+    const newWorksConfigPromise = getValue<any>('new_works_config', {});
+
+    const settings = await settingsPromise;
     STATE.settings = settings;
+
+    const path = window.location.pathname;
+    const isVideoPage = path.startsWith('/v/');
+    const isActorPage = path.startsWith('/actors/');
+    const preregisterBlueprints: Array<{ phase: InitPhase; label: string; priority?: number; timeout?: number; visibilityPolicy?: 'foreground_first' | 'background_allowed' | 'foreground_only' }> = [];
+
+    if (isVideoPage) {
+        preregisterBlueprints.push(
+            { phase: 'idle', label: 'drive115:init:video' },
+            { phase: 'idle', label: 'insights:collector' },
+        );
+        if ((settings.videoEnhancement as any)?.enableActorQuickActions !== false) {
+            preregisterBlueprints.push({ phase: 'high', label: 'actorQuickActions:init', priority: 6, visibilityPolicy: 'background_allowed' });
+        }
+        preregisterBlueprints.push(...getVideoDetailTaskBlueprints(settings as any));
+    }
+
+    if (isActorPage) {
+        const enabledActorRemarks = (settings as any)?.videoEnhancement?.enabled === true && (settings as any)?.videoEnhancement?.enableActorRemarks === true;
+        if (enabledActorRemarks) {
+            preregisterBlueprints.push({ phase: 'idle', label: 'actorRemarks:actorPage', timeout: getActorRemarksTaskTimeoutMs(settings as any) });
+        }
+        if (settings.userExperience.enableActorEnhancement !== false) {
+            preregisterBlueprints.push({ phase: 'critical', label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed' });
+        }
+    }
+
+    if (settings.userExperience.enableKeyboardShortcuts) {
+        preregisterBlueprints.push({ phase: 'high', label: 'ux:shortcuts:init', priority: 8 });
+    }
+    preregisterBlueprints.push({ phase: 'high', label: 'ui:remove-unwanted', priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
+    if (settings.userExperience.enableMagnetSearch) {
+        preregisterBlueprints.push({ phase: 'idle', label: 'ux:magnet:autoSearch' });
+    }
+    if (settings.userExperience.enableAnchorOptimization) {
+        preregisterBlueprints.push({ phase: 'deferred', label: 'anchorOptimization:init' });
+    }
+    if (settings.userExperience.enableListEnhancement !== false && !isVideoPage) {
+        preregisterBlueprints.push(
+            { phase: 'high', label: 'listEnhancement:init', priority: 7, visibilityPolicy: 'background_allowed' },
+            { phase: 'high', label: 'list:reprocess:after-listEnhancement', priority: 6, visibilityPolicy: 'background_allowed' },
+        );
+    }
+    if (settings.emby?.enabled) {
+        preregisterBlueprints.push({ phase: 'deferred', label: 'emby:badge' });
+    }
+    if (settings.userExperience.enablePasswordHelper) {
+        preregisterBlueprints.push({ phase: 'deferred', label: 'passwordHelper:init' });
+    }
+    if (!isVideoPage) {
+        preregisterBlueprints.push({ phase: 'critical', label: 'list:observe:init', visibilityPolicy: 'background_allowed' });
+    }
+    if (settings.userExperience.enableContentFilter) {
+        preregisterBlueprints.push({ phase: 'idle', label: 'contentFilter:initialize' });
+    }
+    if (!isVideoPage) {
+        preregisterBlueprints.push({ phase: 'idle', label: 'drive115:init:list' });
+    }
+
+    await initOrchestrator.preregisterBlueprints(preregisterBlueprints);
+
+    const [records, newWorksConfig] = await Promise.all([
+        recordsPromise,
+        newWorksConfigPromise,
+    ]);
     STATE.records = records;
     log(`Loaded ${Object.keys(STATE.records).length} records.`);
     log('Display settings:', STATE.settings.display);
@@ -369,24 +435,12 @@ async function initialize(): Promise<void> {
                 log('Status polling error:', e);
             }
         }, 5000);
-        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500, managedExternally: true });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500 });
 
         // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
         initOrchestrator.add('idle', async () => {
-            const descriptor = createManagedTaskDescriptor({
-                label: 'insights:collector',
-                phase: 'idle',
-                priority: 2,
-                cost: 'medium',
-                visibilityPolicy: 'background_allowed',
-                timeoutMs: 10000,
-                retryLimit: 2,
-                resumePolicy: 'restart',
-            });
-            await runManagedTask(descriptor, async () => {
-                await initInsightsCollector();
-            });
-        }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800, managedExternally: true });
+            await initInsightsCollector();
+        }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -461,9 +515,6 @@ async function initialize(): Promise<void> {
     }
 
     // 页面类型判断
-    const path = window.location.pathname;
-    const isVideoPage = path.startsWith('/v/');
-    const isActorPage = path.startsWith('/actors/');
 
     // 演员页：演员备注（受主开关控制）
     // 优化：缩短延迟到500ms
@@ -494,7 +545,7 @@ async function initialize(): Promise<void> {
     }
 
     // 移除官方App和Telegram按钮（优化：缩短延迟到200ms，减少按钮闪烁，优先级3）
-    initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3 });
+    initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
 
     if (settings.userExperience.enableMagnetSearch) {
         // 改为 idle 阶段，确保最后执行（空闲 + 优化延迟）
@@ -517,7 +568,7 @@ async function initialize(): Promise<void> {
                         custom: [],
                     },
                     maxResults: 15, // 减少最大结果数
-                    timeout: 6000, // 减少超时时间
+                    timeout: 8000, // 适度延长超时时间
                 });
                 magnetSearchManager.initialize();
             } catch (e) {
@@ -573,7 +624,7 @@ async function initialize(): Promise<void> {
         });
         if (!isVideoPage) {
             // 优化：添加微延迟100ms，避免与隐私保护同时执行，优先级7（较高）
-            initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init', delayMs: 100, priority: 7 });
+            initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init', delayMs: 100, priority: 7, visibilityPolicy: 'background_allowed' });
             // 在列表增强注入完成后，二次处理列表，确保【隐藏VR】在首屏也稳定生效
             // 优化：缩短延迟到300ms，优先级6
             initOrchestrator.add('high', () => {
@@ -583,7 +634,7 @@ async function initialize(): Promise<void> {
                 } catch (e) {
                     log('Reprocess after listEnhancement failed:', e as any);
                 }
-            }, { label: 'list:reprocess:after-listEnhancement', delayMs: 300, priority: 6 });
+            }, { label: 'list:reprocess:after-listEnhancement', delayMs: 300, priority: 6, visibilityPolicy: 'background_allowed' });
         }
     }
 
@@ -602,7 +653,7 @@ async function initialize(): Promise<void> {
             // 新增：演员页"扫描新作品按钮"配置
             enableScanNewWorks: showActorPageScanButton,
         });
-        initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init' });
+        initOrchestrator.add('critical', () => actorEnhancementManager.init(), { label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed' });
     }
 
     // 初始化演员标记增强功能（仅影片页 high）
@@ -612,7 +663,7 @@ async function initialize(): Promise<void> {
             showDelay: 300,
             hideDelay: 200,
         });
-        initOrchestrator.add('high', () => actorQuickActionsManager.init(), { label: 'actorQuickActions:init', delayMs: 500, priority: 6 });
+        initOrchestrator.add('high', () => actorQuickActionsManager.init(), { label: 'actorQuickActions:init', delayMs: 500, priority: 6, visibilityPolicy: 'background_allowed' });
     }
 
     // 初始化Emby增强功能（延后执行）
@@ -660,34 +711,22 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('critical', () => {
             processVisibleItems();
             setupObserver();
-        }, { label: 'list:observe:init' });
+        }, { label: 'list:observe:init', visibilityPolicy: 'background_allowed' });
     }
 
     // 在默认隐藏功能处理完后，再初始化智能内容过滤（统一由编排器调度）
     // 优化：缩短延迟到300ms
     if (settings.userExperience.enableContentFilter) {
         initOrchestrator.add('idle', async () => {
-            const descriptor = createManagedTaskDescriptor({
-                label: 'contentFilter:initialize',
-                phase: 'idle',
-                priority: 1,
-                cost: 'medium',
-                visibilityPolicy: 'background_allowed',
-                timeoutMs: 10000,
-                retryLimit: 2,
-                resumePolicy: 'restart',
-            });
-            await runManagedTask(descriptor, async () => {
-                contentFilterManager.initialize();
-                log('Content filter initialized after default hide processing');
-            });
-        }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500, managedExternally: true });
+            contentFilterManager.initialize();
+            log('Content filter initialized after default hide processing');
+        }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500 });
     }
 
     if (!window.location.pathname.startsWith('/v/')) {
         // 在列表页也初始化115功能（由编排器统一延时调度）
         // 优化：缩短延迟到1000ms，添加微延迟150ms避免与列表增强冲突，优先级5（中等）
-        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800, managedExternally: true });
+        initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800 });
     }
 
     // 启动统一编排器（处理 deferred / idle 阶段任务）
@@ -1084,7 +1123,7 @@ document.addEventListener('visibilitychange', () => {
             magnetSearchManager.updateConfig({
                 sources: { sukebei: true, btdig: true, btsow: false, torrentz2: false, custom: [] },
                 maxResults: 8,
-                timeout: 4000,
+                timeout: 5000,
             });
         } catch {}
     } else {
@@ -1110,7 +1149,7 @@ document.addEventListener('visibilitychange', () => {
                     custom: [],
                 },
                 maxResults: (magnetSearchConfig.maxResults ?? 15),
-                timeout: (magnetSearchConfig.timeoutMs ?? 6000),
+                timeout: (magnetSearchConfig.timeoutMs ?? 8000),
             });
         } catch {
             performanceOptimizer?.updateConfig({ maxConcurrentRequests: 2, domBatchSize: 5, domThrottleDelay: 100 });

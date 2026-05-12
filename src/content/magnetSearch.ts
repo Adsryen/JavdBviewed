@@ -242,7 +242,7 @@ export class MagnetSearchManager {
         // 使用性能优化器调度网络请求，自动限制并发数量
         return performanceOptimizer.scheduleRequest(async () => {
           return source.fn();
-        }, 8000) // 8秒超时
+        }, 9000) // 适度延长，给外部源更多完成机会
         .then(sourceResults => {
           log(`${source.name} search completed: ${sourceResults.length} results`);
           this.updateSourceTagStatus(source.key, 'success', sourceResults.length);

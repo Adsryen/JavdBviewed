@@ -12,7 +12,7 @@ export function createManagedTaskDescriptor(input: Omit<GlobalTaskDescriptor, 't
     mainId: pageContext.mainId,
     pageInstanceId: pageContext.pageInstanceId,
     createdAt: Date.now(),
-    dedupeKey: input.dedupeKey || `${input.label}:${pageContext.pageUrl}`,
+    dedupeKey: input.dedupeKey || `${input.label}:${pageContext.pageInstanceId}`,
     ...input,
   };
 }
@@ -23,6 +23,10 @@ export async function registerManagedTask(descriptor: GlobalTaskDescriptor): Pro
     return { ...descriptor, tabId: response.tabId, taskId: response.taskId || descriptor.taskId };
   }
   return descriptor;
+}
+
+export async function ensureManagedTaskRegistered(descriptor: GlobalTaskDescriptor): Promise<GlobalTaskDescriptor> {
+  return await registerManagedTask(descriptor);
 }
 
 export async function requestTaskLease(taskId: string): Promise<{ granted: boolean; waitReason?: string }> {
@@ -65,46 +69,51 @@ export function untrackActiveManagedTask(taskId: string): void {
 
 export async function waitForTaskLease(taskId: string, timeoutMs: number, intervalMs: number = 500): Promise<{ granted: boolean; waitReason?: string }> {
   const start = Date.now();
+  let lastWaitReason: string | undefined;
   while (Date.now() - start < timeoutMs) {
     const lease = await requestTaskLease(taskId);
     if (lease.granted) {
       return lease;
     }
+    lastWaitReason = lease.waitReason || lastWaitReason;
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
-  return { granted: false, waitReason: 'lease-timeout' };
+  return { granted: false, waitReason: lastWaitReason || 'lease-timeout' };
 }
 
-export async function runManagedTask<T>(descriptor: GlobalTaskDescriptor, runner: () => Promise<T>): Promise<T | undefined> {
-  const registeredDescriptor = await registerManagedTask(descriptor);
+export type ManagedTaskRunResult<T = unknown> =
+  | { executed: true; result: T }
+  | { executed: false; waitReason: string };
+
+async function executeRegisteredManagedTask<T>(registeredDescriptor: GlobalTaskDescriptor, runner: () => Promise<T>): Promise<ManagedTaskRunResult<T>> {
   trackActiveManagedTask(registeredDescriptor.taskId);
-  const reusedTask = registeredDescriptor.taskId !== descriptor.taskId;
-  if (reusedTask) {
-    try {
-      return await runner();
-    } finally {
-      untrackActiveManagedTask(registeredDescriptor.taskId);
-    }
-  }
   const lease = await waitForTaskLease(registeredDescriptor.taskId, registeredDescriptor.timeoutMs > 0 ? registeredDescriptor.timeoutMs : 10000);
   if (!lease.granted) {
     untrackActiveManagedTask(registeredDescriptor.taskId);
     const waitReason = lease.waitReason || 'lease-denied';
-    if (waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || waitReason.startsWith('bucket:')) {
-      await pauseManagedTask(registeredDescriptor.taskId, waitReason);
-    } else {
+    const isTransientWait = waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || waitReason.startsWith('bucket:');
+    if (!isTransientWait) {
       await failManagedTask(registeredDescriptor.taskId, waitReason);
     }
-    return undefined;
+    return { executed: false, waitReason };
   }
   try {
     const result = await runner();
     await completeManagedTask(registeredDescriptor.taskId);
-    return result;
+    return { executed: true, result };
   } catch (error) {
     await failManagedTask(registeredDescriptor.taskId, error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
     untrackActiveManagedTask(registeredDescriptor.taskId);
   }
+}
+
+export async function runRegisteredManagedTask<T>(descriptor: GlobalTaskDescriptor, runner: () => Promise<T>): Promise<ManagedTaskRunResult<T>> {
+  return await executeRegisteredManagedTask(descriptor, runner);
+}
+
+export async function runManagedTask<T>(descriptor: GlobalTaskDescriptor, runner: () => Promise<T>): Promise<ManagedTaskRunResult<T>> {
+  const registeredDescriptor = await registerManagedTask(descriptor);
+  return await executeRegisteredManagedTask(registeredDescriptor, runner);
 }

@@ -177,6 +177,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsCloseBtn!: HTMLButtonElement | null;
     private taskDetailsRefreshBtn!: HTMLButtonElement | null;
     private taskDetailsClearBtn!: HTMLButtonElement | null;
+    private taskDetailsAutoRefreshTimer?: number;
+    private taskDetailsRefreshing = false;
     private taskDetailsTable!: HTMLTableElement | null;
     private taskDetailsTableBody!: HTMLElement | null;
     private taskDetailsCount!: HTMLElement | null;
@@ -193,13 +195,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPageSummaryFilteredData: any[] = [];
     private taskDetailsSearchQuery: string = '';
     private taskDetailsCurrentPage: number = 1;
-    private taskDetailsPageSize: number = 20;
+    private taskDetailsPageSize: number = 200;
     private taskDetailsSortField: string = 'timestamp';
     private taskDetailsSortOrder: 'asc' | 'desc' = 'desc';
     private taskDetailsExpandedParents: Set<string> = new Set();
+    private taskDetailsExpandedPageSummaries: Set<string> = new Set();
     private taskDetailsRenderedRows: any[] = [];
-    private globalTaskDetailsData: any[] = [];
     private globalOrchestratorState: any[] = [];
+    private taskDetailsRenderFingerprint: string = '';
 
     constructor() {
         super({
@@ -773,6 +776,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 this.taskDetailsView = this.taskDetailsViewMode?.value === 'pages' ? 'pages' : 'tasks';
                 this.taskDetailsCurrentPage = 1;
                 this.taskDetailsExpandedParents.clear();
+                this.taskDetailsExpandedPageSummaries.clear();
                 if (this.taskDetailsSearchQuery) {
                     this.taskDetailsSearchHandler();
                 } else {
@@ -812,6 +816,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         this.taskDetailsExpandedParents.delete(parentKey);
                     } else {
                         this.taskDetailsExpandedParents.add(parentKey);
+                    }
+                    this.renderTaskDetailsTable();
+                }
+                return;
+            }
+            const togglePageSummary = target.closest('[data-page-summary-toggle]') as HTMLElement | null;
+            if (togglePageSummary) {
+                const pageKey = togglePageSummary.getAttribute('data-page-summary-toggle') || '';
+                if (pageKey) {
+                    if (this.taskDetailsExpandedPageSummaries.has(pageKey)) {
+                        this.taskDetailsExpandedPageSummaries.delete(pageKey);
+                    } else {
+                        this.taskDetailsExpandedPageSummaries.add(pageKey);
                     }
                     this.renderTaskDetailsTable();
                 }
@@ -891,6 +908,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // ===== Orchestrator Visualization =====
     private async openOrchestratorModal(): Promise<void> {
         if (!this.orchestratorModal) return;
+        if (this.orchViewModeSel && !this.orchViewModeSel.value) {
+            this.orchViewModeSel.value = 'global';
+        }
+        if (this.orchFilterStatusSel && this.orchViewModeSel?.value !== 'design' && !this.orchFilterStatusSel.value) {
+            this.orchFilterStatusSel.value = 'all';
+        }
         this.orchestratorModal.classList.remove('hidden');
         this.orchestratorModal.classList.add('visible');
         await this.refreshOrchestratorState();
@@ -935,7 +958,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     private async refreshOrchestratorState(): Promise<void> {
         try {
-            const mode = this.orchViewModeSel?.value || 'design';
+            const mode = this.orchViewModeSel?.value || 'global';
             // 设计视图：强制状态筛选为“已排程”，并禁用
             if (this.orchFilterStatusSel) {
                 if (mode === 'design') {
@@ -1303,7 +1326,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     private renderOrchestratorTimeline(timeline: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>): void {
         if (!this.orchestratorTimeline) return;
-        const mode = this.orchViewModeSel?.value || 'design';
+        const mode = this.orchViewModeSel?.value || 'global';
         const filters = this.getTimelineFilters();
         const list = (timeline || []).filter(item => {
             if (filters.status !== 'all' && item.status !== filters.status) return false;
@@ -1451,7 +1474,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private async copyPhasesText(): Promise<void> {
         try {
             // 优先使用当前视图模式下的数据：global -> 全局任务中心；realtime -> 活动标签页；design -> 静态规格
-            const mode = this.orchViewModeSel?.value || 'design';
+            const mode = this.orchViewModeSel?.value || 'global';
             let phases: Record<'critical'|'high'|'deferred'|'idle', string[]> | null = null;
             if (mode === 'global') {
                 const globalState = await fetchGlobalTaskState();
@@ -1509,7 +1532,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 复制“事件时间线”文本
     private async copyTimelineText(): Promise<void> {
         try {
-            const mode = this.orchViewModeSel?.value || 'design';
+            const mode = this.orchViewModeSel?.value || 'global';
             const filters = this.getTimelineFilters();
             const raw = (this.orchestratorTimelineData || []) as Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>;
             const list = raw.filter(item => {
@@ -1607,38 +1630,6 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
     }
 
-    private async fetchAllTaskDetailsRaw(): Promise<any[]> {
-        try {
-            const resp = await new Promise<any>((resolve) => {
-                chrome.runtime.sendMessage({
-                    type: 'orchestrator:getTaskDetails',
-                    options: { page: 1, pageSize: 5000 }
-                }, (reply) => {
-                    const err = chrome.runtime.lastError;
-                    if (err) {
-                        console.warn('[Enhancement] Failed to get task details for copy:', err);
-                        resolve(null);
-                    } else {
-                        resolve(reply);
-                    }
-                });
-            });
-            return resp?.success && resp?.details?.details ? resp.details.details : [];
-        } catch (e) {
-            console.warn('[Enhancement] fetchAllTaskDetailsRaw failed:', e);
-            return [];
-        }
-    }
-
-    private formatDiagnosticTimestamp(ts?: number): string {
-        if (!ts || !Number.isFinite(ts)) return '-';
-        try {
-            return new Date(ts).toLocaleString('zh-CN', { hour12: false });
-        } catch {
-            return String(ts);
-        }
-    }
-
     private getTaskDisplayNameForExport(label: string): string {
         const taskNameMap: Record<string, string> = {
             'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
@@ -1677,6 +1668,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (this.taskDetailsSortField === 'duration') {
                 aVal = a.durationMs || 0;
                 bVal = b.durationMs || 0;
+            } else if (this.taskDetailsSortField === 'createdAt') {
+                aVal = this.getTaskRegisteredAt(a);
+                bVal = this.getTaskRegisteredAt(b);
+            } else if (this.taskDetailsSortField === 'waitDurationMs') {
+                aVal = this.getTaskWaitDurationMs(a);
+                bVal = this.getTaskWaitDurationMs(b);
+            } else if (this.taskDetailsSortField === 'runDurationMs') {
+                aVal = this.getTaskRunDurationMs(a);
+                bVal = this.getTaskRunDurationMs(b);
             }
 
             if (typeof aVal === 'string') {
@@ -1708,17 +1708,65 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         const header = this.taskDetailsView === 'pages'
-            ? '页面实例	主ID	类型	任务数	成功	失败	总耗时	主任务	开始时间'
-            : '任务名称	子任务	阶段	状态	耗时	页面	时间';
+            ? '页面实例	主ID	类型	主任务数	成功	失败	总耗时	子任务	开始时间'
+            : '任务名称	子任务	阶段	状态	注册时间	开始时间	结束时间	等待执行	执行耗时	页面';
 
         const lines: string[] = [header];
         if (this.taskDetailsView === 'pages') {
-            const rows = Array.from(this.taskDetailsTableBody.querySelectorAll('tr'));
+            const rows = (this.taskDetailsRenderedRows || []).filter((row) => row?.__rowType === 'page-summary-parent');
             for (const row of rows) {
-                const cells = Array.from(row.querySelectorAll('td')) as HTMLElement[];
-                if (cells.length === 0) continue;
-                const values = cells.map((cell) => (cell.innerText || '').split('\n')[0].replace(/\s+/g, ' ').trim());
-                lines.push(values.join('	'));
+                lines.push([
+                    this.getPagePath(row.pageUrl || ''),
+                    row.mainId || '-',
+                    row.pageType || '-',
+                    row.parentCount || 0,
+                    row.doneCount || 0,
+                    row.errorCount || 0,
+                    this.formatTaskDuration(row.totalDurationMs || 0),
+                    row.childCount || 0,
+                    this.formatTaskTimestamp(row.startedAt || 0),
+                ].join('\t'));
+
+                const tasks = this.getPageSummaryTasks(row);
+                const groupedParents = this.getTaskDetailsGroupedParents(tasks);
+                for (const group of groupedParents) {
+                    const parent = group.parent;
+                    const label = parent?.label || group.parentKey;
+                    const displayName = this.getTaskDisplayNameForExport(label);
+                    const phase = parent?.phase || '-';
+                    const status = this.getStatusLabel(parent?.status || 'unknown');
+                    const registeredAt = this.formatTaskTimestamp(this.getTaskRegisteredAt(parent) || Date.now());
+                    const startedAt = this.getTaskStartedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(parent)) : '-';
+                    const endedAt = this.getTaskEndedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskEndedAt(parent)) : '-';
+                    const waitDuration = this.formatTaskDuration(this.getTaskWaitDurationMs(parent));
+                    const runDuration = this.formatTaskDuration(this.getTaskRunDurationMs(parent));
+                    const pagePath = this.getPagePath(parent?.pageUrl || '');
+                    const childCount = group.children.length || 0;
+                    const prefix = childCount > 0 ? `▶ ${childCount}` : '';
+                    lines.push(`${prefix}${displayName}\t-\t${phase}\t${status}\t${registeredAt}\t${startedAt}\t${endedAt}\t${waitDuration}\t${runDuration}\t${pagePath}`.trim());
+
+                    const detailLine = parent?.detail ? String(parent.detail).replace(/\n/g, ' ') : '';
+                    if (detailLine) {
+                        lines.push(detailLine);
+                    }
+
+                    const children = [...group.children].sort((a, b) => {
+                        const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
+                        const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
+                        return ai - bi;
+                    });
+                    for (const child of children) {
+                        const childLabel = child.label || child.parentLabel || '-';
+                        const childMeta = typeof child.batchIndex === 'number'
+                            ? `${child.subtaskLabel || '-'} #${child.batchIndex}${typeof child.itemCount === 'number' ? ` · ${child.itemCount}项` : ''}`
+                            : (child.subtaskLabel || '-');
+                        lines.push(`└ ${childLabel}\t${childMeta}\t${child.phase || '-'}\t${this.getStatusLabel(child.status || 'unknown')}\t${this.formatTaskTimestamp(this.getTaskRegisteredAt(child) || Date.now())}\t${this.getTaskStartedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(child)) : '-'}\t${this.getTaskEndedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskEndedAt(child)) : '-'}\t${this.formatTaskDuration(this.getTaskWaitDurationMs(child))}\t${this.formatTaskDuration(this.getTaskRunDurationMs(child))}\t${this.getPagePath(child.pageUrl || '')}`);
+                        const childDetail = child.detail ? String(child.detail).replace(/\n/g, ' ') : '';
+                        if (childDetail) {
+                            lines.push(childDetail);
+                        }
+                    }
+                }
             }
             return lines.join('\n');
         }
@@ -1730,14 +1778,17 @@ export class EnhancementSettings extends BaseSettingsPanel {
             const displayName = this.getTaskDisplayNameForExport(label);
             const phase = parent?.phase || '-';
             const status = this.getStatusLabel(parent?.status || 'unknown');
-            const duration = this.formatTaskDuration(parent?.durationMs || 0);
+            const registeredAt = this.formatTaskTimestamp(this.getTaskRegisteredAt(parent) || Date.now());
+            const startedAt = this.getTaskStartedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(parent)) : '-';
+            const endedAt = this.getTaskEndedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskEndedAt(parent)) : '-';
+            const waitDuration = this.formatTaskDuration(this.getTaskWaitDurationMs(parent));
+            const runDuration = this.formatTaskDuration(this.getTaskRunDurationMs(parent));
             const pagePath = this.getPagePath(parent?.pageUrl || '');
-            const timestamp = this.formatTaskTimestamp(parent?.timestamp || Date.now());
             const childCount = parent?.__childCount || group.children.length || 0;
             const prefix = childCount > 0
                 ? `${this.taskDetailsExpandedParents.has(group.parentKey) ? '▼' : '▶'} ${childCount}`
                 : '';
-            lines.push(`${prefix}${displayName}	-	${phase}	${status}	${duration}	${pagePath}	${timestamp}`.trim());
+            lines.push(`${prefix}${displayName}	-	${phase}	${status}	${registeredAt}	${startedAt}	${endedAt}	${waitDuration}	${runDuration}	${pagePath}`.trim());
 
             const detailLine = parent?.detail ? String(parent.detail).replace(/\n/g, ' ') : '';
             if (detailLine) {
@@ -1754,7 +1805,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 const childMeta = typeof child.batchIndex === 'number'
                     ? `${child.subtaskLabel || '-'} #${child.batchIndex}${typeof child.itemCount === 'number' ? ` · ${child.itemCount}项` : ''}`
                     : (child.subtaskLabel || '-');
-                lines.push(`└ ${childLabel}	${childMeta}	${child.phase || '-'}	${this.getStatusLabel(child.status || 'unknown')}	${this.formatTaskDuration(child.durationMs || 0)}	${this.getPagePath(child.pageUrl || '')}	${this.formatTaskTimestamp(child.timestamp || Date.now())}`);
+                lines.push(`└ ${childLabel}	${childMeta}	${child.phase || '-'}	${this.getStatusLabel(child.status || 'unknown')}	${this.formatTaskTimestamp(this.getTaskRegisteredAt(child) || Date.now())}	${this.getTaskStartedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(child)) : '-'}	${this.getTaskEndedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskEndedAt(child)) : '-'}	${this.formatTaskDuration(this.getTaskWaitDurationMs(child))}	${this.formatTaskDuration(this.getTaskRunDurationMs(child))}	${this.getPagePath(child.pageUrl || '')}`);
                 const childDetail = child.detail ? String(child.detail).replace(/\n/g, ' ') : '';
                 if (childDetail) {
                     lines.push(childDetail);
@@ -3815,7 +3866,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         
         // 加载任务明细数据
-        await this.fetchTaskDetails();
+        await this.fetchTaskDetails(true);
+        this.startTaskDetailsAutoRefresh();
     }
 
     /**
@@ -3825,30 +3877,58 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (!this.taskDetailsModal) return;
         this.taskDetailsModal.classList.add('hidden');
         this.taskDetailsModal.classList.remove('visible');
+        this.stopTaskDetailsAutoRefresh();
+    }
+
+    private startTaskDetailsAutoRefresh(): void {
+        this.stopTaskDetailsAutoRefresh();
+        this.taskDetailsAutoRefreshTimer = window.setInterval(() => {
+            if (!this.taskDetailsModal || this.taskDetailsModal.classList.contains('hidden')) {
+                return;
+            }
+            if (this.taskDetailsRefreshing) {
+                return;
+            }
+            void this.refreshTaskDetails(false);
+        }, 2000);
+    }
+
+    private stopTaskDetailsAutoRefresh(): void {
+        if (this.taskDetailsAutoRefreshTimer) {
+            window.clearInterval(this.taskDetailsAutoRefreshTimer);
+            this.taskDetailsAutoRefreshTimer = undefined;
+        }
     }
 
     /**
      * 刷新任务明细数据
      */
-    private async refreshTaskDetails(): Promise<void> {
+    private async refreshTaskDetails(showSpinner: boolean = true): Promise<void> {
         if (!this.taskDetailsRefreshBtn) return;
+        if (this.taskDetailsRefreshing) return;
+        this.taskDetailsRefreshing = true;
         
         // 显示刷新动画
         const icon = this.taskDetailsRefreshBtn.querySelector('i');
-        if (icon) {
+        if (showSpinner && icon) {
             icon.classList.add('fa-spin');
         }
-        this.taskDetailsRefreshBtn.disabled = true;
+        if (showSpinner) {
+            this.taskDetailsRefreshBtn.disabled = true;
+        }
 
         try {
             // 重新获取数据
-            await this.fetchTaskDetails();
+            await this.fetchTaskDetails(showSpinner);
         } finally {
             // 恢复按钮状态
-            if (icon) {
+            if (showSpinner && icon) {
                 icon.classList.remove('fa-spin');
             }
-            this.taskDetailsRefreshBtn.disabled = false;
+            if (showSpinner) {
+                this.taskDetailsRefreshBtn.disabled = false;
+            }
+            this.taskDetailsRefreshing = false;
         }
     }
 
@@ -3877,9 +3957,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
 
             if (resp && resp.success) {
+                this.taskDetailsData = [];
+                this.taskDetailsFilteredData = [];
+                this.taskDetailsPageSummaryData = [];
+                this.taskDetailsPageSummaryFilteredData = [];
+                this.taskDetailsRenderFingerprint = this.buildTaskDetailsFingerprint([]);
+                this.taskDetailsCurrentPage = 1;
+                this.taskDetailsExpandedParents.clear();
+                this.taskDetailsExpandedPageSummaries.clear();
+                this.renderTaskDetailsTable();
+                this.updateTaskDetailsPagination(0, 1);
                 showMessage('任务记录和性能指标已清空', 'success');
                 // 刷新任务明细显示
-                await this.fetchTaskDetails();
+                await this.fetchTaskDetails(false);
                 // 刷新性能指标显示
                 await this.fetchAndUpdateMetrics();
             } else {
@@ -3894,13 +3984,33 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 从后台获取任务明细数据
      */
-    private async fetchTaskDetails(): Promise<void> {
+    private buildTaskDetailsFingerprint(rows: any[]): string {
+        return JSON.stringify((rows || []).map((row: any) => ({
+            label: row?.label,
+            parentLabel: row?.parentLabel,
+            subtaskLabel: row?.subtaskLabel,
+            batchIndex: row?.batchIndex,
+            itemCount: row?.itemCount,
+            phase: row?.phase,
+            status: row?.status,
+            pageInstanceId: row?.pageInstanceId,
+            tabId: row?.tabId,
+            createdAt: row?.createdAt ?? row?.timestamp,
+            startedAt: row?.startedAt,
+            endedAt: row?.endedAt,
+            waitReason: row?.waitReason,
+            durationMs: row?.durationMs,
+            detail: row?.detail,
+        })));
+    }
+
+    private async fetchTaskDetails(showLoading: boolean = true): Promise<void> {
         try {
             // 显示加载状态
-            if (this.taskDetailsTableBody) {
+            if (showLoading && this.taskDetailsTableBody) {
                 this.taskDetailsTableBody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding:40px; text-align:center; color:#94a3b8;">
+                        <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
                             <i class="fas fa-spinner fa-spin"></i> 加载中...
                         </td>
                     </tr>
@@ -3932,10 +4042,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
             });
 
             if (resp && resp.success && resp.details) {
-                this.taskDetailsData = resp.details.details || [];
+                const nextTaskDetailsData = resp.details.details || [];
                 const globalState = await fetchGlobalTaskState();
-                this.globalTaskDetailsData = Array.isArray(globalState?.tasks)
-                    ? Array.from(new Map(globalState.tasks.map((task: any) => [`${task?.label}|${task?.phase}`, {
+                const nextGlobalTaskDetailsData = Array.isArray(globalState?.tasks)
+                    ? Array.from(new Map(globalState.tasks.map((task: any) => [`${task?.label}|${task?.phase}|${task?.pageInstanceId || ''}|${task?.tabId || -1}`, {
                         label: task?.label,
                         phase: task?.phase,
                         status: task?.status,
@@ -3946,17 +4056,27 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         mainId: task?.mainId,
                         pageInstanceId: task?.pageInstanceId,
                         timestamp: task?.createdAt,
-                        detail: `实例数=${globalState.tasks.filter((item: any) => item?.label === task?.label && item?.phase === task?.phase).length}; wait=${task?.waitReason || 'none'}; cost=${task?.cost || 'unknown'}`,
+                        createdAt: task?.createdAt,
+                        startedAt: task?.startedAt,
+                        endedAt: task?.endedAt,
+                        waitReason: task?.waitReason,
+                        detail: `wait=${task?.waitReason || 'none'}; cost=${task?.cost || 'unknown'}`,
                     }])).values())
                     : [];
-                this.taskDetailsData = [...this.taskDetailsData, ...this.globalTaskDetailsData];
+                const mergedTaskDetailsData = this.mergeTaskDetailsRows(nextTaskDetailsData, nextGlobalTaskDetailsData);
+                const nextFingerprint = this.buildTaskDetailsFingerprint(mergedTaskDetailsData);
+                const dataChanged = nextFingerprint !== this.taskDetailsRenderFingerprint;
+                this.taskDetailsData = mergedTaskDetailsData;
                 this.taskDetailsPageSummaryData = this.buildTaskDetailPageSummaries(this.taskDetailsData);
                 this.taskDetailsPageSummaryFilteredData = [];
+                this.taskDetailsRenderFingerprint = nextFingerprint;
                 
                 // 如果有搜索查询，重新应用过滤
                 if (this.taskDetailsSearchQuery) {
-                    this.taskDetailsSearchHandler();
-                } else {
+                    if (dataChanged || showLoading) {
+                        this.taskDetailsSearchHandler();
+                    }
+                } else if (dataChanged || showLoading) {
                     this.taskDetailsFilteredData = [];
                     this.renderTaskDetailsTable();
                     const total = this.getRenderedTaskDetailsCount();
@@ -3968,7 +4088,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.taskDetailsTableBody) {
                     this.taskDetailsTableBody.innerHTML = `
                         <tr>
-                            <td colspan="7" style="padding:40px; text-align:center; color:#ef4444;">
+                            <td colspan="10" style="padding:40px; text-align:center; color:#ef4444;">
                                 <i class="fas fa-exclamation-triangle"></i> 加载失败
                             </td>
                         </tr>
@@ -3980,7 +4100,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (this.taskDetailsTableBody) {
                 this.taskDetailsTableBody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="padding:40px; text-align:center; color:#ef4444;">
+                        <td colspan="10" style="padding:40px; text-align:center; color:#ef4444;">
                             <i class="fas fa-exclamation-triangle"></i> 加载失败
                         </td>
                     </tr>
@@ -4035,6 +4155,153 @@ export class EnhancementSettings extends BaseSettingsPanel {
         });
     }
 
+
+    private getTaskRegisteredAt(task: any): number {
+        const value = task?.createdAt ?? task?.timestamp ?? 0;
+        return typeof value === 'number' ? value : 0;
+    }
+
+    private getTaskStartedAt(task: any): number {
+        const value = task?.startedAt ?? 0;
+        return typeof value === 'number' ? value : 0;
+    }
+
+    private getTaskEndedAt(task: any): number {
+        const value = task?.endedAt ?? 0;
+        return typeof value === 'number' ? value : 0;
+    }
+
+    private getTaskWaitDurationMs(task: any): number {
+        const createdAt = this.getTaskRegisteredAt(task);
+        const startedAt = this.getTaskStartedAt(task);
+        if (createdAt <= 0 || startedAt <= 0) return 0;
+        return Math.max(0, startedAt - createdAt);
+    }
+
+    private getTaskRunDurationMs(task: any): number {
+        const durationMs = task?.durationMs;
+        if (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0) {
+            return durationMs;
+        }
+        const startedAt = this.getTaskStartedAt(task);
+        const endedAt = this.getTaskEndedAt(task);
+        if (startedAt > 0 && endedAt >= startedAt) {
+            return Math.max(0, endedAt - startedAt);
+        }
+        return 0;
+    }
+
+    private getTaskPendingReasonLabel(waitReason?: string): string {
+        if (!waitReason) return '等待调度';
+        if (waitReason === 'dependency-wait') return '依赖未满足';
+        if (waitReason === 'tab-hidden') return '后台标签页';
+        if (waitReason === 'higher-priority-wait') return '更高优先级任务占用';
+        if (waitReason.startsWith('bucket:')) {
+            const bucket = waitReason.slice('bucket:'.length) || 'default';
+            return `并发桶等待:${bucket}`;
+        }
+        return waitReason;
+    }
+
+    private isTerminalTaskStatus(status?: string): boolean {
+        return ['done', 'error', 'canceled'].includes(status || '');
+    }
+
+    private getTaskDisplayReason(task: any): string {
+        const status = task?.status || '';
+        if (this.isTerminalTaskStatus(status)) {
+            return '-';
+        }
+        const detail = String(task?.detail || '');
+        if (detail.startsWith('deps:')) {
+            return '依赖未满足';
+        }
+        if (status === 'running') {
+            return '执行中';
+        }
+        return this.getTaskPendingReasonLabel(task?.waitReason);
+    }
+
+    private getTaskDetailsMergeKey(task: any): string {
+        const scope = `${task?.pageInstanceId || ''}|${task?.tabId || -1}|${task?.pageUrl || ''}`;
+        if (task?.parentLabel && task?.subtaskLabel) {
+            return [
+                'child',
+                scope,
+                task.parentLabel || '',
+                task.label || '',
+                task.subtaskLabel || '',
+                typeof task?.batchIndex === 'number' ? String(task.batchIndex) : '-',
+                typeof task?.itemCount === 'number' ? String(task.itemCount) : '-',
+            ].join('|');
+        }
+        return [
+            'parent',
+            scope,
+            task?.label || '',
+            task?.phase || '',
+        ].join('|');
+    }
+
+    private mergeTaskDetailsRows(baseRows: any[], stateRows: any[]): any[] {
+        const merged = new Map<string, any>();
+
+        for (const row of baseRows || []) {
+            merged.set(this.getTaskDetailsMergeKey(row), { ...row });
+        }
+
+        for (const row of stateRows || []) {
+            const key = this.getTaskDetailsMergeKey(row);
+            const existing = merged.get(key);
+            if (!existing) {
+                merged.set(key, { ...row });
+                continue;
+            }
+
+            merged.set(key, {
+                ...existing,
+                status: row?.status || existing?.status,
+                phase: row?.phase || existing?.phase,
+                createdAt: row?.createdAt ?? existing?.createdAt,
+                startedAt: row?.startedAt ?? existing?.startedAt,
+                endedAt: row?.endedAt ?? existing?.endedAt,
+                waitReason: row?.waitReason ?? existing?.waitReason,
+                durationMs: Math.max(this.getTaskRunDurationMs(existing), this.getTaskRunDurationMs(row)),
+                detail: existing?.detail || row?.detail,
+            });
+        }
+
+        return Array.from(merged.values());
+    }
+
+    private escapeHtml(value: any): string {
+        const text = String(value ?? '');
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    private getPageSummaryTasks(item: any): any[] {
+        const source = this.getTaskDetailsSourceData();
+        const groupKey = item?.groupKey || `${item?.tabId || -1}|${item?.pageInstanceId || ''}`;
+        return source.filter((task) => `${task?.tabId || -1}|${task?.pageInstanceId || ''}` === groupKey);
+    }
+
+    private buildPageSummaryReasonStats(tasks: any[]): Array<{ label: string; count: number }> {
+        const counts = new Map<string, number>();
+        for (const task of tasks) {
+            if (task?.status === 'done' || task?.status === 'error' || task?.status === 'canceled') continue;
+            const label = this.getTaskDisplayReason(task);
+            counts.set(label, (counts.get(label) || 0) + 1);
+        }
+        return Array.from(counts.entries())
+            .map(([label, count]) => ({ label, count }))
+            .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    }
+
     private buildTaskDetailPageSummaries(tasks: any[]): any[] {
         const groups = new Map<string, any>();
         for (const task of tasks) {
@@ -4054,21 +4321,33 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     errorCount: 0,
                     parentCount: 0,
                     childCount: 0,
+                    childDoneCount: 0,
+                    childErrorCount: 0,
                     totalDurationMs: 0,
+                    pendingCount: 0,
                     statuses: new Set<string>(),
                     labels: new Set<string>(),
+                    waitReasons: new Map<string, number>(),
                     startedAt: Number.MAX_SAFE_INTEGER,
                     endedAt: 0,
                 });
             }
             const group = groups.get(groupKey)!;
+            const isChildTask = !!(task?.parentLabel && task?.subtaskLabel);
             group.taskCount += 1;
-            group.totalDurationMs += Math.max(0, task?.durationMs || 0);
+            group.totalDurationMs += Math.max(0, this.getTaskRunDurationMs(task));
             group.statuses.add(task?.status || 'unknown');
-            if (task?.status === 'done') group.doneCount += 1;
-            if (task?.status === 'error') group.errorCount += 1;
+            if (!isChildTask && task?.status === 'done') group.doneCount += 1;
+            if (!isChildTask && task?.status === 'error') group.errorCount += 1;
+            if (isChildTask && task?.status === 'done') group.childDoneCount += 1;
+            if (isChildTask && task?.status === 'error') group.childErrorCount += 1;
+            if (!['done', 'error', 'canceled'].includes(task?.status || '')) {
+                group.pendingCount += 1;
+                const reasonKey = this.getTaskDisplayReason(task);
+                group.waitReasons.set(reasonKey, (group.waitReasons.get(reasonKey) || 0) + 1);
+            }
             if (task?.label) group.labels.add(task.label);
-            if (task?.parentLabel && task?.subtaskLabel) {
+            if (isChildTask) {
                 group.childCount += 1;
             } else {
                 group.parentCount += 1;
@@ -4084,7 +4363,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             ...group,
             status: group.statuses.has('error') ? 'error' : (group.statuses.has('running') ? 'running' : (group.statuses.has('paused') ? 'paused' : (group.statuses.has('done') ? 'done' : 'unknown'))),
             label: `${this.getPagePath(group.pageUrl)} [${group.pageInstanceId}]`,
-            detail: `tab=${group.tabId} · 主任务=${group.parentCount} · 子任务=${group.childCount} · 标签=${group.labels.size}`,
+            detail: `tab=${group.tabId} · 主任务=${group.parentCount} · 子任务=${group.childCount} · 主任务完成=${group.doneCount} · 子任务完成=${group.childDoneCount} · 标签=${group.labels.size} · 未完成=${group.pendingCount}`,
+            topWaitReasons: Array.from(group.waitReasons.entries() as IterableIterator<[string, number]>)
+                .map(([reason, count]: [string, number]) => ({ reason, count }))
+                .sort((a: { reason: string; count: number }, b: { reason: string; count: number }) => b.count - a.count || a.reason.localeCompare(b.reason))
+                .slice(0, 3),
             startedAt: group.startedAt === Number.MAX_SAFE_INTEGER ? 0 : group.startedAt,
         }));
     }
@@ -4112,7 +4395,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         const groups = new Map<string, { parent: any | null; fallbackChild: any | null; children: any[] }>();
         for (const task of sortedData) {
-            const parentKey = task.parentLabel || task.label || 'unknown';
+            const baseParentKey = task.parentLabel || task.label || 'unknown';
+            const parentKey = `${baseParentKey}|${task.pageInstanceId || ''}|${task.pageUrl || ''}|${task.tabId || -1}`;
             if (!groups.has(parentKey)) {
                 groups.set(parentKey, { parent: null, fallbackChild: null, children: [] });
             }
@@ -4132,9 +4416,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         return Array.from(groups.entries()).map(([parentKey, group]) => {
+            const parentLabel = group.fallbackChild?.parentLabel || String(parentKey).split('|')[0] || parentKey;
             const parent = group.parent || {
                 ...(group.fallbackChild || {}),
-                label: group.fallbackChild?.parentLabel || parentKey,
+                label: parentLabel,
                 parentLabel: undefined,
                 subtaskLabel: undefined,
                 batchIndex: undefined,
@@ -4180,7 +4465,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 : '<i class="fas fa-inbox"></i> 暂无任务记录';
             this.taskDetailsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="padding:40px; text-align:center; color:#94a3b8;">
+                    <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
                         ${emptyMessage}
                     </td>
                 </tr>
@@ -4339,10 +4624,17 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
         this.taskDetailsRenderedRows = paginatedData;
         const rows = paginatedData.map((task) => {
-            const durationMs = task.durationMs || 0;
-            const duration = formatDuration(durationMs);
-            const durationColor = getDurationColor(durationMs);
-            const timestamp = formatTimestamp(task.timestamp || Date.now());
+            const registeredAtMs = this.getTaskRegisteredAt(task);
+            const startedAtMs = this.getTaskStartedAt(task);
+            const endedAtMs = this.getTaskEndedAt(task);
+            const waitDurationMs = this.getTaskWaitDurationMs(task);
+            const runDurationMs = this.getTaskRunDurationMs(task);
+            const registeredAt = formatTimestamp(registeredAtMs || Date.now());
+            const startedAt = startedAtMs > 0 ? formatTimestamp(startedAtMs) : '-';
+            const endedAt = endedAtMs > 0 ? formatTimestamp(endedAtMs) : '-';
+            const waitDuration = formatDuration(waitDurationMs);
+            const runDuration = formatDuration(runDurationMs);
+            const runDurationColor = getDurationColor(runDurationMs);
             const status = getStatusBadge(task.status || 'unknown');
             const phase = getPhaseBadge(task.phase || 'unknown');
             const pageLink = getPageLink(task.pageUrl || '');
@@ -4366,9 +4658,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${subtaskMeta}</td>
                     <td style="padding:10px 12px;">${phase}</td>
                     <td style="padding:10px 12px;">${status}</td>
-                    <td style="padding:10px 12px; text-align:right; color:${durationColor}; font-weight:600;">${duration}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${registeredAt}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${startedAt}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${endedAt}</td>
+                    <td style="padding:10px 12px; text-align:right; color:var(--text-primary); font-weight:600;">${waitDuration}</td>
+                    <td style="padding:10px 12px; text-align:right; color:${runDurationColor}; font-weight:600;">${runDuration}</td>
                     <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${pageLink}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${timestamp}</td>
                 </tr>
             `;
         }).join('');
@@ -4386,7 +4681,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 : '<i class="fas fa-inbox"></i> 暂无页面实例记录';
             this.taskDetailsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="padding:40px; text-align:center; color:#94a3b8;">
+                    <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
                         ${emptyMessage}
                     </td>
                 </tr>
@@ -4416,30 +4711,89 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const endIndex = startIndex + this.taskDetailsPageSize;
         const paginatedData = sortedData.slice(startIndex, endIndex);
 
-        this.taskDetailsRenderedRows = paginatedData;
+        const renderedRows: any[] = [];
         const rows = paginatedData.map((item) => {
             const status = this.getStatusLabel(item.status || 'unknown');
             const path = this.getPagePath(item.pageUrl || '');
             const title = `${path}
 ${item.detail || ''}`;
-            return `
+            const groupKey = item.groupKey || `${item.tabId || -1}|${item.pageInstanceId || ''}`;
+            const expanded = this.taskDetailsExpandedPageSummaries.has(groupKey);
+            const tasks = this.getPageSummaryTasks(item);
+            const reasonStats = this.buildPageSummaryReasonStats(tasks);
+            const topReasonSummary = Array.isArray(item.topWaitReasons) && item.topWaitReasons.length > 0
+                ? item.topWaitReasons.map((entry: any) => `${entry.reason}×${entry.count}`).join(' · ')
+                : '全部任务已结束';
+            renderedRows.push({ ...item, __rowType: 'page-summary-parent', topReasonSummary });
+            const summaryRow = `
                 <tr style="border-bottom:1px solid var(--border-color); background:var(--bg-primary);">
                     <td style="padding:10px 12px; color:var(--text-primary);" title="${title}">
-                        <div style="font-weight:600;">${path}</div>
-                        <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'}</div>
+                        <div style="display:flex; align-items:flex-start; gap:8px;">
+                            <button data-page-summary-toggle="${groupKey}" style="border:none; background:transparent; color:#3b82f6; cursor:pointer; font-size:12px; padding:0; margin-top:1px;">${expanded ? '▼' : '▶'}</button>
+                            <div>
+                                <div style="font-weight:600;">${path}</div>
+                                <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'} · ${topReasonSummary}</div>
+                            </div>
+                        </div>
                     </td>
                     <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.mainId || '-'}</td>
                     <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.pageType || '-'}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.taskCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.parentCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:#059669; font-weight:600;">${item.doneCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:${(item.errorCount || 0) > 0 ? '#dc2626' : 'var(--text-primary)'}; font-weight:600;">${item.errorCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${this.formatTaskDuration(item.totalDurationMs || 0)}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.parentCount || 0}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.childCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:var(--text-secondary); font-size:12px;">${this.formatTaskTimestamp(item.startedAt || 0)}<div style="font-size:11px; margin-top:4px;">${status}</div></td>
                 </tr>
             `;
+            if (!expanded) return summaryRow;
+
+            const reasonRows = reasonStats.map((entry) => {
+                renderedRows.push({ __rowType: 'page-summary-reason', reason: entry.label, count: entry.count });
+                return `
+                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
+                        <td colspan="9" style="padding:8px 12px 8px 34px; color:var(--text-secondary); font-size:12px;">
+                            <span style="display:inline-flex; align-items:center; gap:8px; margin-right:18px;"><span style="font-weight:600; color:var(--text-primary);">未完成原因</span>${this.escapeHtml(entry.label)}</span>
+                            <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:#eff6ff; color:#2563eb; font-weight:600;">${entry.count}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const taskRows = tasks.map((task) => {
+                const taskName = this.getTaskDisplayNameForExport(task?.label || 'unknown');
+                const startedAtMs = this.getTaskStartedAt(task);
+                renderedRows.push({
+                    __rowType: 'page-summary-child',
+                    taskName,
+                    phase: task?.phase || '-',
+                    status: task?.status || 'unknown',
+                    registeredAt: this.formatTaskTimestamp(this.getTaskRegisteredAt(task) || 0),
+                    startedAt: startedAtMs > 0 ? this.formatTaskTimestamp(startedAtMs) : '-',
+                    runDuration: this.formatTaskDuration(this.getTaskRunDurationMs(task)),
+                    reason: this.getTaskDisplayReason(task),
+                });
+                return `
+                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
+                        <td colspan="9" style="padding:8px 12px 8px 34px;">
+                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:12px;">
+                                <div style="font-weight:600; color:var(--text-primary);">${this.escapeHtml(taskName)}</div>
+                                <div style="color:var(--text-secondary);">${this.escapeHtml(task?.phase || '-')}</div>
+                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.getStatusLabel(task?.status || 'unknown'))}</div>
+                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.formatTaskTimestamp(this.getTaskRegisteredAt(task) || 0) || '-')}</div>
+                                <div style="color:var(--text-secondary);">${this.escapeHtml(startedAtMs > 0 ? this.formatTaskTimestamp(startedAtMs) : '-')}</div>
+                                <div style="text-align:right; font-weight:600; color:var(--text-primary);">${this.escapeHtml(this.formatTaskDuration(this.getTaskRunDurationMs(task)))}</div>
+                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.getTaskDisplayReason(task))}</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            return summaryRow + reasonRows + taskRows;
         }).join('');
 
+        this.taskDetailsRenderedRows = renderedRows;
         this.taskDetailsTableBody.innerHTML = rows;
     }
 
@@ -4622,4 +4976,3 @@ ${item.detail || ''}`;
         this.updateTaskDetailsPagination(total, totalPages);
     }
 }
-

@@ -15,6 +15,9 @@ import { updateFaviconForStatus } from './statusManager';
 import { videoDetailEnhancer } from './enhancedVideoDetail';
 import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
 import { initOrchestrator } from './initOrchestrator';
+
+import type { InitPhase } from './initOrchestrator';
+import type { GlobalTaskVisibilityPolicy } from '../shared/taskCenterTypes';
 import { actorManager } from '../services/actorManager';
 import { newWorksManager } from '../services/newWorks';
 import { getSettings, saveSettings } from '../utils/storage';
@@ -23,7 +26,7 @@ import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
-    if (!Number.isFinite(seconds) || seconds <= 0) return 10000;
+    if (!Number.isFinite(seconds) || seconds <= 0) return 12000;
     return Math.max(1000, Math.round(seconds * 1000));
 }
 
@@ -306,6 +309,51 @@ export function isPageProperlyLoaded(): boolean {
         log('Error checking page load status:', error);
         return false;
     }
+}
+
+type VideoDetailTaskBlueprint = {
+    phase: InitPhase;
+    label: string;
+    priority?: number;
+    timeout?: number;
+    visibilityPolicy?: GlobalTaskVisibilityPolicy;
+};
+
+export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlueprint[] {
+    const blueprints: VideoDetailTaskBlueprint[] = [];
+    const enableVideoEnhancement = settings?.videoEnhancement?.enabled === true;
+    const enableMultiSource = settings?.dataEnhancement?.enableMultiSource;
+    const enableTranslation = settings?.dataEnhancement?.enableTranslation;
+    const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
+
+    if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
+        blueprints.push(
+            { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
+            { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
+            { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
+            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 10000 },
+            { phase: 'idle', label: 'videoEnhancement:runCover' },
+            { phase: 'idle', label: 'videoEnhancement:runTitle' },
+            { phase: 'idle', label: 'videoEnhancement:runReviewBreaker' },
+            { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
+            { phase: 'idle', label: 'videoEnhancement:finish' },
+        );
+    }
+
+    if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
+        blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs });
+    }
+
+    if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
+        blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 7, visibilityPolicy: 'background_allowed' });
+    }
+
+    blueprints.push(
+        { phase: 'idle', label: 'actorMarks:page' },
+        { phase: 'idle', label: 'videoEnhancement:panel' },
+    );
+
+    return blueprints;
 }
 
 export async function handleVideoDetailPage(): Promise<void> {
@@ -634,13 +682,13 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
                 log('Scheduling video detail enhancements via orchestrator...');
-                initOrchestrator.add('high', async () => {
-                    await videoDetailEnhancer.initCore();
-                }, { label: 'videoEnhancement:initCore', priority: 8 });
+                    initOrchestrator.add('high', async () => {
+                        await videoDetailEnhancer.initCore();
+                }, { label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' });
 
                 initOrchestrator.add('high', async () => {
                     await Promise.resolve();
-                }, { label: 'videoEnhancement:clickEnhancement', priority: 10, delayMs: 0, dependsOn: ['videoEnhancement:initCore'] });
+                }, { label: 'videoEnhancement:clickEnhancement', priority: 10, delayMs: 0, visibilityPolicy: 'background_allowed' });
 
                 initOrchestrator.add('deferred', async () => {
                     await videoDetailEnhancer.loadEnhancedData();
@@ -703,7 +751,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                     (window as any)[FLAG] = true;
                     initOrchestrator.add('high', async () => {
                         try { await videoFavoriteRatingEnhancer.init(); } catch {}
-                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7, managedExternally: true });
+                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7, visibilityPolicy: 'background_allowed' });
                 }
             }
         } catch {}
@@ -712,21 +760,9 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         try {
             initOrchestrator.add('idle', async () => {
                 try {
-                    const descriptor = createManagedTaskDescriptor({
-                        label: 'actorMarks:page',
-                        phase: 'idle',
-                        priority: 3,
-                        cost: 'heavy',
-                        visibilityPolicy: 'background_allowed',
-                        timeoutMs: 12000,
-                        retryLimit: 0,
-                        resumePolicy: 'resume',
-                    });
-                    await runManagedTask(descriptor, async () => {
-                        await markActorsOnPage();
-                    });
+                    await markActorsOnPage();
                 } catch (markErr) { log('Marking actors on page failed:', markErr); }
-            }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400, managedExternally: true });
+            }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs: 1400 });
         } catch (markErr) {
             log('Marking actors scheduling failed:', markErr);
         }
