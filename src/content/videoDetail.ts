@@ -743,6 +743,12 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                     await videoDetailEnhancer.runFC2Breaker();
                 }, { label: 'videoEnhancement:runFC2Breaker', idle: true, idleTimeout: 5000, delayMs: 1800 });
 
+                if ((STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
+                    initOrchestrator.add('idle', async () => {
+                        await videoDetailEnhancer.runReviewBreaker();
+                    }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 1500, dependsOn: ['videoEnhancement:initCore'] });
+                }
+
                 initOrchestrator.add('idle', () => {
                     videoDetailEnhancer.finish();
                 }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:runFC2Breaker'] });
@@ -750,15 +756,6 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 log('Enhancement scheduling failed, but continuing:', enhancementError);
             }
         }
-
-        try {
-            const enabledReviewBreaker = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true);
-            if (enabledReviewBreaker) {
-                void videoDetailEnhancer.runReviewBreaker().catch((error) => {
-                    log('Review breaker trigger binding failed:', error as any);
-                });
-            }
-        } catch {}
 
         try {
             const enabledActorRemarks = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);

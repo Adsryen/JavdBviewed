@@ -366,6 +366,9 @@ async function initialize(): Promise<void> {
         }
         if (settings.userExperience.enableActorEnhancement !== false) {
             preregisterBlueprints.push({ phase: 'critical', label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed' });
+            if ((settings.actorEnhancement as any)?.enableActionButtons !== false) {
+                preregisterBlueprints.push({ phase: 'critical', label: 'actorEnhancement:actionButtons', priority: 9, visibilityPolicy: 'background_allowed' });
+            }
         }
     }
 
@@ -373,13 +376,13 @@ async function initialize(): Promise<void> {
         preregisterBlueprints.push({ phase: 'high', label: 'ux:shortcuts:init', priority: 8 });
     }
     preregisterBlueprints.push({ phase: 'high', label: 'ui:remove-unwanted', priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
-    if (settings.userExperience.enableMagnetSearch) {
+    if (settings.userExperience.enableMagnetSearch && isVideoPage) {
         preregisterBlueprints.push({ phase: 'idle', label: 'ux:magnet:autoSearch' });
     }
     if (settings.userExperience.enableAnchorOptimization) {
         preregisterBlueprints.push({ phase: 'deferred', label: 'anchorOptimization:init' });
     }
-    if (settings.userExperience.enableListEnhancement !== false && !isVideoPage) {
+    if (settings.userExperience.enableListEnhancement !== false && !isVideoPage && !isActorPage) {
         preregisterBlueprints.push(
             { phase: 'high', label: 'listEnhancement:init', priority: 7, visibilityPolicy: 'background_allowed' },
             { phase: 'high', label: 'list:reprocess:after-listEnhancement', priority: 6, visibilityPolicy: 'background_allowed' },
@@ -389,15 +392,15 @@ async function initialize(): Promise<void> {
         preregisterBlueprints.push({ phase: 'deferred', label: 'emby:badge' });
     }
     if (settings.userExperience.enablePasswordHelper) {
-        preregisterBlueprints.push({ phase: 'deferred', label: 'passwordHelper:init' });
+        preregisterBlueprints.push({ phase: 'idle', label: 'passwordHelper:init' });
     }
-    if (!isVideoPage) {
+    if (!isVideoPage && !isActorPage) {
         preregisterBlueprints.push({ phase: 'critical', label: 'list:observe:init', visibilityPolicy: 'background_allowed' });
     }
     if (settings.userExperience.enableContentFilter) {
         preregisterBlueprints.push({ phase: 'idle', label: 'contentFilter:initialize' });
     }
-    if (!isVideoPage) {
+    if (!isVideoPage && !isActorPage) {
         preregisterBlueprints.push({ phase: 'idle', label: 'drive115:init:list' });
     }
 
@@ -533,7 +536,7 @@ async function initialize(): Promise<void> {
     // 移除官方App和Telegram按钮（优化：缩短延迟到200ms，减少按钮闪烁，优先级3）
     initOrchestrator.add('high', () => removeUnwantedButtons(), { label: 'ui:remove-unwanted', delayMs: 200, priority: 3, visibilityPolicy: (isVideoPage || isActorPage) ? 'background_allowed' : 'foreground_first' });
 
-    if (settings.userExperience.enableMagnetSearch) {
+    if (settings.userExperience.enableMagnetSearch && isVideoPage) {
         // 改为 idle 阶段，确保最后执行（空闲 + 优化延迟）
         console.log('[JavDB Ext] Scheduling magnet search in idle phase (last)');
         initOrchestrator.add('idle', () => {
@@ -633,6 +636,7 @@ async function initialize(): Promise<void> {
             autoApplyTags: settings.actorEnhancement?.autoApplyTags !== false,
             defaultTags: settings.actorEnhancement?.defaultTags || ['s', 'd'],
             defaultSortType: settings.actorEnhancement?.defaultSortType || 0,
+            enableActionButtons: (settings.actorEnhancement as any)?.enableActionButtons !== false,
             // 新增：演员页“影片分段显示”配置
             enableTimeSegmentationDivider: (settings.actorEnhancement as any)?.enableTimeSegmentationDivider === true,
             timeSegmentationMonths: (settings.actorEnhancement as any)?.timeSegmentationMonths || 6,
@@ -693,7 +697,7 @@ async function initialize(): Promise<void> {
 
     // 将列表观察初始化纳入编排器（列表/演员页 critical）
     const pathNow = window.location.pathname;
-    if (!pathNow.startsWith('/v/')) {
+    if (!pathNow.startsWith('/v/') && !pathNow.startsWith('/actors/')) {
         initOrchestrator.add('critical', () => {
             processVisibleItems();
             setupObserver();
@@ -709,7 +713,7 @@ async function initialize(): Promise<void> {
         }, { label: 'contentFilter:initialize', idle: true, idleTimeout: 5000, delayMs: 2500 });
     }
 
-    if (!window.location.pathname.startsWith('/v/')) {
+    if (!window.location.pathname.startsWith('/v/') && !window.location.pathname.startsWith('/actors/')) {
         // 在列表页也初始化115功能（由编排器统一延时调度）
         // 优化：缩短延迟到1000ms，添加微延迟150ms避免与列表增强冲突，优先级5（中等）
         initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:list', idle: true, idleTimeout: 5000, delayMs: 1800 });
