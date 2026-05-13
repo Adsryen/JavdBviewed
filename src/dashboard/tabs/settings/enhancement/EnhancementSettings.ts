@@ -15,6 +15,16 @@ import { aiService } from '../../../../services/ai/aiService';
 import { ACTOR_FILTER_TAGS, getDefaultTags, getTagByValue } from '../../../config/actorFilterTags';
 import { fetchGlobalTaskState } from '../../../services/globalTaskMonitor';
 
+type OrchestratorDesignTask = {
+    phase: 'critical' | 'high' | 'deferred' | 'idle';
+    label: string;
+    priority?: number;
+    timeout?: number;
+    visibilityPolicy?: string;
+    source: 'video' | 'actor' | 'list' | 'global';
+    enabled: boolean;
+};
+
 /**
  * 功能增强设置面板类
  */
@@ -160,6 +170,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorPhases!: HTMLElement | null;
     private orchestratorTimeline!: HTMLElement | null;
     private orchestratorSummary!: HTMLElement | null;
+    private orchestratorLegend!: HTMLElement | null;
     private orchestratorRuntimeListener?: (msg: any, sender: any, sendResponse: any) => void;
     private orchestratorAutoRefreshTimer?: number;
     private orchFilterStatusSel!: HTMLSelectElement | null;
@@ -565,6 +576,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchestratorPhases = document.getElementById('orchestratorPhases');
         this.orchestratorTimeline = document.getElementById('orchestratorTimeline');
         this.orchestratorSummary = document.getElementById('orchestratorSummary');
+        this.orchestratorLegend = document.getElementById('orchestratorLegend');
         this.orchFilterStatusSel = document.getElementById('orchFilterStatus') as HTMLSelectElement | null;
         this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
         this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
@@ -735,6 +747,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.orchFilterStatusSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchFilterPhaseSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
         this.orchFilterSearchInput?.addEventListener('input', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
+        this.orchGlobalScopeSel?.addEventListener('change', () => {
+            void this.refreshOrchestratorState();
+        });
+        this.orchGlobalGroupingSel?.addEventListener('change', () => {
+            void this.refreshOrchestratorState();
+        });
         this.orchViewModeSel?.addEventListener('change', () => {
             const mode = this.orchViewModeSel?.value || 'global';
             if (mode === 'realtime') {
@@ -908,12 +926,21 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // ===== Orchestrator Visualization =====
     private async openOrchestratorModal(): Promise<void> {
         if (!this.orchestratorModal) return;
-        if (this.orchViewModeSel && !this.orchViewModeSel.value) {
-            this.orchViewModeSel.value = 'global';
+        this.ensureOrchestratorLocalStyles();
+        if (this.orchViewModeSel) {
+            this.orchViewModeSel.value = 'realtime';
         }
-        if (this.orchFilterStatusSel && this.orchViewModeSel?.value !== 'design' && !this.orchFilterStatusSel.value) {
-            this.orchFilterStatusSel.value = 'all';
+        if (this.orchFilterStatusSel) {
+            this.orchFilterStatusSel.value = 'running';
+            this.orchFilterStatusSel.disabled = false;
         }
+        if (this.orchGlobalScopeSel) {
+            this.orchGlobalScopeSel.value = this.orchGlobalScopeSel.value || 'all';
+        }
+        if (this.orchGlobalGroupingSel) {
+            this.orchGlobalGroupingSel.value = this.orchGlobalGroupingSel.value || 'grouped';
+        }
+        this.updateOrchestratorLegend('realtime');
         this.orchestratorModal.classList.remove('hidden');
         this.orchestratorModal.classList.add('visible');
         await this.refreshOrchestratorState();
@@ -959,80 +986,22 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private async refreshOrchestratorState(): Promise<void> {
         try {
             const mode = this.orchViewModeSel?.value || 'global';
-            // 设计视图：强制状态筛选为“已排程”，并禁用
             if (this.orchFilterStatusSel) {
-                if (mode === 'design') {
-                    this.orchFilterStatusSel.value = 'scheduled';
-                    this.orchFilterStatusSel.disabled = true;
-                } else {
-                    this.orchFilterStatusSel.disabled = false;
-                }
+                this.orchFilterStatusSel.disabled = false;
             }
             if (mode === 'design') {
-                const spec = this.buildDesignSpec();
-                if (this.orchestratorSummary) this.orchestratorSummary.textContent = '展示设计视图：基于代码约定的默认编排时序（不依赖页面注入）';
-                this.renderOrchestratorPhases(spec);
-                // 将设计 spec 转成时间线（相对时间）：
-                // critical 串行；high 并发（同一时间点）；deferred 在 critical 之后按顺序+偏移。
-                const timeline: Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'scheduled'; ts: number }> = [];
-                const crit = spec['critical'] || [];
-                const high = spec['high'] || [];
-                const defd = spec['deferred'] || [];
-                const idle = spec['idle'] || [];
-                let t = 0;
-                // critical 串行（步进10）
-                crit.forEach((label: string) => { timeline.push({ phase: 'critical', label, status: 'scheduled', ts: t }); t += 10; });
-                const tHigh = t; // high 并发起点
-                high.forEach((label: string) => { timeline.push({ phase: 'high', label, status: 'scheduled', ts: tHigh }); });
-                // deferred 从 critical 末尾后延迟20再开始，步进10
-                let tDef = t + 20;
-                defd.forEach((label: string) => { timeline.push({ phase: 'deferred', label, status: 'scheduled', ts: tDef }); tDef += 10; });
-                // idle 统一放到更靠后（比如 defd 结束后+50），步进10
-                let tIdle = Math.max(tDef, tHigh) + 50;
-                idle.forEach((label: string) => { timeline.push({ phase: 'idle', label, status: 'scheduled', ts: tIdle }); tIdle += 10; });
-                this.orchestratorTimelineData = timeline as any;
-                // 直接渲染（兜底），避免时间线区域空白
-                try {
-                    const container = this.orchestratorTimeline as HTMLElement | null;
-                    if (container) {
-                        container.classList.add('timeline-design');
-                        container.classList.remove('timeline-realtime');
-                        const rows = (this.orchestratorTimelineData || []).map((item) => {
-                            const t = `${Math.round(item.ts)} ms`;
-                            const badgeClass = `badge ${item.status}`;
-                            const desc = this.getTaskDescription(item.label);
-                            return `
-                              <div class="row">
-                                <div class="col time">${t}</div>
-                                <div class="col status"><span class="${badgeClass}">${this.getStatusLabel(item.status)}</span></div>
-                                <div class="col phase">${item.phase}</div>
-                                <div class="col label" title="${item.label}">
-                                  <div class="label-main">${item.label}</div>
-                                  ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
-                                </div>
-                              </div>
-                            `;
-                        }).join('');
-                        const header = `
-                          <div class="header no-duration">
-                            <div class="col time">时间(相对)</div>
-                            <div class="col status">状态</div>
-                            <div class="col phase">阶段</div>
-                            <div class="col label">任务</div>
-                          </div>
-                        `;
-                        const empty = '<div class="muted">(暂无事件)</div>';
-                        container.innerHTML = `${header}${rows || empty}`;
-                        console.log('[Orchestrator] design rows=%d', (this.orchestratorTimelineData || []).length);
-                    }
-                } catch (e) {
-                    console.warn('[Orchestrator] fallback render failed:', e);
+                const designTasks = this.buildDesignTasks();
+                const phases = this.groupDesignTasksByPhase(designTasks);
+                if (this.orchestratorSummary) {
+                    const enabledCount = designTasks.filter(task => task.enabled).length;
+                    const highestPriority = designTasks.reduce((max, task) => Math.max(max, task.priority ?? 5), 0);
+                    this.orchestratorSummary.textContent = `设计视图（真实编排蓝图）：${enabledCount} 个启用任务｜最高优先级 ${highestPriority}｜当前配置实时生成`;
                 }
-                // 常规渲染（保留原逻辑）
+                this.renderOrchestratorPhases(phases);
+                this.updateOrchestratorLegend('design');
+                this.orchestratorTimelineData = this.buildDesignTimeline(designTasks) as any[];
                 this.renderOrchestratorTimeline(this.orchestratorTimelineData);
-                // 获取并更新性能指标（设计视图也需要显示）
                 await this.fetchAndUpdateMetrics();
-                // 设计视图不订阅事件
                 this.unsubscribeOrchestratorEvents();
                 return;
             }
@@ -1078,6 +1047,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     this.orchestratorSummary.textContent = `全局调度视图（${scopeLabel}｜${groupingLabel}）：${tasks.length} 个任务｜${statusSummary}`;
                 }
                 this.renderOrchestratorPhases(phases as any);
+                this.updateOrchestratorLegend('global');
                 this.globalOrchestratorState = tasks.map((task: any) => ({
                     phase: task.phase || '-',
                     label: task.label || '-',
@@ -1095,12 +1065,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 return;
             }
 
-            // 实时模式
             if (this.orchestratorSummary) {
                 this.orchestratorSummary.textContent = '正在读取当前页面编排信息（实时）...';
             }
             const state = await this.requestOrchestratorStateFromActiveTab();
             if (!state) {
+                this.updateOrchestratorLegend('realtime');
                 if (this.orchestratorSummary) this.orchestratorSummary.textContent = '无法读取：请确保浏览器中已打开 JavDB 页面，并且扩展已注入内容脚本。';
                 if (this.orchestratorPhases) this.orchestratorPhases.textContent = '';
                 if (this.orchestratorTimeline) this.orchestratorTimeline.textContent = '';
@@ -1110,78 +1080,254 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 this.orchestratorSummary.textContent = state.started ? '编排器已启动' : '编排器尚未启动';
             }
             this.renderOrchestratorPhases(state.phases || {});
+            this.updateOrchestratorLegend('realtime');
             this.orchestratorTimelineData = (state.timeline || []) as any[];
             this.renderOrchestratorTimeline(this.orchestratorTimelineData);
-            // 获取并更新性能指标
             await this.fetchAndUpdateMetrics();
-            // 实时订阅
             this.subscribeOrchestratorEvents();
         } catch (e) {
             if (this.orchestratorSummary) this.orchestratorSummary.textContent = '读取失败：' + String(e);
         }
     }
 
-    // 设计视图：根据代码中的编排约定构造静态规格
-    private buildDesignSpec(): Record<'critical'|'high'|'deferred'|'idle', string[]> {
-        // 注意：此处维护设计时序，不依赖页面是否开启
-        // A) Critical 阶段：串行执行，首屏必需
-        const critical: string[] = [
-            'system:init',
-            'list:observe:init',
-            'actorEnhancement:init',
+    // 设计视图：根据当前真实配置构造蓝图
+    private buildDesignTasks(): OrchestratorDesignTask[] {
+        const settings = (STATE.settings || this.doGetSettings() || {}) as ExtensionSettings & Record<string, any>;
+        const tasks: OrchestratorDesignTask[] = [];
+        const pushTask = (task: OrchestratorDesignTask) => tasks.push(task);
+
+        const videoTasks: OrchestratorDesignTask[] = [
+            { phase: 'idle', label: 'drive115:init:video', source: 'video', enabled: true },
+            { phase: 'idle', label: 'insights:collector', source: 'video', enabled: true },
+            ...this.getVideoDetailDesignBlueprints(settings).map((task) => ({
+                phase: task.phase,
+                label: task.label,
+                priority: task.priority,
+                timeout: task.timeout,
+                visibilityPolicy: task.visibilityPolicy,
+                source: 'video' as const,
+                enabled: true,
+            } as OrchestratorDesignTask)),
         ];
-        
-        // B) High 阶段：受控并发（最多3个同时执行）
-        const high: string[] = [
-            'performanceOptimizer:init',
-            'ux:shortcuts:init',
-            'privacy:init',
-            'ui:remove-unwanted',
-            'drive115:init:video',
-            'drive115:init:list',
-            'listEnhancement:init',
-            'videoEnhancement:initCore',
-            'videoEnhancement:clickEnhancement',
-            'videoStatus:observer',
-            'videoStatus:update',
-            'drive115:push',
-            'videoFavoriteRating:init',
+        videoTasks.forEach(pushTask);
+
+        if ((settings.videoEnhancement as any)?.enableActorQuickActions !== false) {
+            pushTask({ phase: 'high', label: 'actorQuickActions:init', priority: 6, visibilityPolicy: 'background_allowed', source: 'video', enabled: true });
+        }
+
+        if (settings.userExperience?.enableKeyboardShortcuts) {
+            pushTask({ phase: 'high', label: 'ux:shortcuts:init', priority: 8, source: 'global', enabled: true });
+        }
+
+        pushTask({
+            phase: 'high',
+            label: 'ui:remove-unwanted',
+            priority: 3,
+            visibilityPolicy: 'background_allowed',
+            source: 'global',
+            enabled: true,
+        });
+
+        if (settings.userExperience?.enableMagnetSearch) {
+            pushTask({ phase: 'idle', label: 'ux:magnet:autoSearch', source: 'global', enabled: true });
+        }
+
+        if (settings.userExperience?.enableAnchorOptimization) {
+            pushTask({ phase: 'deferred', label: 'anchorOptimization:init', source: 'global', enabled: true });
+        }
+
+        if (settings.userExperience?.enablePasswordHelper) {
+            pushTask({ phase: 'deferred', label: 'passwordHelper:init', source: 'global', enabled: true });
+        }
+
+        if (settings.userExperience?.enableContentFilter) {
+            pushTask({ phase: 'idle', label: 'contentFilter:initialize', source: 'global', enabled: true });
+        }
+
+        if (settings.userExperience?.enableListEnhancement !== false) {
+            pushTask({ phase: 'critical', label: 'list:observe:init', visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
+            pushTask({ phase: 'high', label: 'listEnhancement:init', priority: 7, visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
+            pushTask({ phase: 'high', label: 'list:reprocess:after-listEnhancement', priority: 6, visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
+            pushTask({ phase: 'idle', label: 'drive115:init:list', source: 'list', enabled: true });
+        }
+
+        const actorEnhancementEnabled = settings.userExperience?.enableActorEnhancement !== false;
+        if (actorEnhancementEnabled) {
+            pushTask({ phase: 'critical', label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed', source: 'actor', enabled: true });
+        }
+
+        const actorRemarksEnabled = (settings.videoEnhancement as any)?.enabled === true && (settings.videoEnhancement as any)?.enableActorRemarks === true;
+        if (actorRemarksEnabled) {
+            pushTask({ phase: 'idle', label: 'actorRemarks:actorPage', timeout: Number((settings.videoEnhancement as any)?.actorRemarksTaskTimeoutSeconds || 10) * 1000, source: 'actor', enabled: true });
+        }
+
+        const includeEmby = this.isDesignEmbyEnabled(settings);
+        if (includeEmby) {
+            pushTask({ phase: 'deferred', label: 'emby:badge', source: 'global', enabled: true });
+        }
+
+        const deduped = new Map<string, OrchestratorDesignTask>();
+        tasks.forEach((task) => {
+            const current = deduped.get(task.label);
+            if (!current) {
+                deduped.set(task.label, task);
+                return;
+            }
+            const currentPriority = current.priority ?? 5;
+            const nextPriority = task.priority ?? 5;
+            if (nextPriority > currentPriority) {
+                deduped.set(task.label, task);
+            }
+        });
+
+        return Array.from(deduped.values()).sort((a, b) => {
+            const phaseOrder = { critical: 0, high: 1, deferred: 2, idle: 3 };
+            const phaseDiff = phaseOrder[a.phase] - phaseOrder[b.phase];
+            if (phaseDiff !== 0) return phaseDiff;
+            const priorityDiff = (b.priority ?? 5) - (a.priority ?? 5);
+            if (priorityDiff !== 0) return priorityDiff;
+            return a.label.localeCompare(b.label);
+        });
+    }
+
+    private getVideoDetailDesignBlueprints(settings: ExtensionSettings & Record<string, any>): Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> {
+        const blueprints: Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> = [];
+        const enableVideoEnhancement = settings?.videoEnhancement?.enabled === true;
+        const enableMultiSource = (settings as any)?.dataEnhancement?.enableMultiSource;
+        const enableTranslation = (settings as any)?.dataEnhancement?.enableTranslation;
+        const actorRemarksTaskTimeoutMs = this.getActorRemarksTaskTimeoutMsForDesign(settings);
+
+        if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
+            blueprints.push(
+                { phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' },
+                { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
+                { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
+                { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
+                { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000 },
+                { phase: 'idle', label: 'videoEnhancement:runCover' },
+                { phase: 'idle', label: 'videoEnhancement:runTitle' },
+                { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
+                { phase: 'idle', label: 'videoEnhancement:finish' },
+            );
+        }
+
+        if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
+            blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs });
+        }
+
+        if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
+            blueprints.push({ phase: 'critical', label: 'videoFavoriteRating:init', priority: 12, visibilityPolicy: 'background_allowed' });
+        }
+
+        blueprints.push(
+            { phase: 'idle', label: 'actorMarks:page' },
+            { phase: 'idle', label: 'videoEnhancement:panel' },
+        );
+
+        return blueprints;
+    }
+
+    private updateOrchestratorLegend(mode: 'design' | 'realtime' | 'global'): void {
+        if (!this.orchestratorLegend) return;
+        const legendMap: Record<'design' | 'realtime' | 'global', string> = {
+            design: `
+                <div><strong>说明：</strong>设计视图展示当前配置生成的真实蓝图。</div>
+                <div>• <strong>critical</strong>：关键路径，先执行，优先级最高。</div>
+                <div>• <strong>high</strong>：高优先级，尽快进入编排。</div>
+                <div>• <strong>deferred</strong>：延后执行，等待合适时机。</div>
+                <div>• <strong>idle</strong>：空闲时执行，避免打断主流程。</div>
+            `,
+            realtime: `
+                <div><strong>说明：</strong>实时视图展示当前页面编排器的即时状态。</div>
+                <div>• <strong>critical</strong>：页面启动时先跑的关键任务。</div>
+                <div>• <strong>high</strong>：页面可见时优先执行的任务。</div>
+                <div>• <strong>deferred</strong>：进入空闲期后再补充执行。</div>
+                <div>• <strong>idle</strong>：低干扰后台任务。</div>
+            `,
+            global: `
+                <div><strong>说明：</strong>全局视图展示任务中心里的真实任务状态。</div>
+                <div>• <strong>critical</strong>：最高优先级，直接影响首屏与状态同步。</div>
+                <div>• <strong>high</strong>：高优先级，优先进入租约执行。</div>
+                <div>• <strong>deferred</strong>：排队后延时启动的任务。</div>
+                <div>• <strong>idle</strong>：低优先级后台任务。</div>
+            `,
+        };
+        this.orchestratorLegend.innerHTML = `<div class="orch-legend">${legendMap[mode]}</div>`;
+    }
+
+    private getActorRemarksTaskTimeoutMsForDesign(settings: ExtensionSettings & Record<string, any>): number {
+        const seconds = Number((settings as any)?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
+        if (!Number.isFinite(seconds) || seconds <= 0) return 12000;
+        return Math.max(1000, Math.round(seconds * 1000));
+    }
+
+    private groupDesignTasksByPhase(tasks: OrchestratorDesignTask[]): Record<'critical'|'high'|'deferred'|'idle', string[]> {
+        const phases: Record<'critical'|'high'|'deferred'|'idle', string[]> = {
+            critical: [],
+            high: [],
+            deferred: [],
+            idle: [],
+        };
+        tasks.filter(task => task.enabled).forEach((task) => {
+            phases[task.phase].push(task.label);
+        });
+        return phases;
+    }
+
+    private buildDesignTimeline(tasks: OrchestratorDesignTask[]): Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> {
+        const timeline: Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> = [];
+        const groups: Record<'critical'|'high'|'deferred'|'idle', OrchestratorDesignTask[]> = {
+            critical: tasks.filter(task => task.enabled && task.phase === 'critical'),
+            high: tasks.filter(task => task.enabled && task.phase === 'high'),
+            deferred: tasks.filter(task => task.enabled && task.phase === 'deferred'),
+            idle: tasks.filter(task => task.enabled && task.phase === 'idle'),
+        };
+
+        let currentTs = 0;
+        groups.critical.forEach((task) => {
+            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
+            currentTs += 10;
+        });
+
+        const highTs = currentTs;
+        groups.high.forEach((task) => {
+            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: highTs, detail: this.buildDesignTaskDetail(task) });
+        });
+
+        currentTs += groups.high.length > 0 ? 20 : 0;
+        groups.deferred.forEach((task) => {
+            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
+            currentTs += 10;
+        });
+
+        currentTs += groups.idle.length > 0 ? 30 : 0;
+        groups.idle.forEach((task) => {
+            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
+            currentTs += 10;
+        });
+
+        return timeline;
+    }
+
+    private buildDesignTaskDetail(task: OrchestratorDesignTask): string {
+        const sourceMap: Record<OrchestratorDesignTask['source'], string> = {
+            video: '影片页',
+            actor: '演员页',
+            list: '列表页',
+            global: '全局',
+        };
+        const detailParts = [
+            `来源: ${sourceMap[task.source]}`,
+            `优先级: ${task.priority ?? 5}`,
         ];
-        
-        // C) Deferred 阶段：延后执行，空闲优先
-        const deferred: string[] = [
-            // 数据采集
-            'insights:collector',
-            
-            // 列表页增强
-            'list:preview:init',
-            'list:optimization:init',
-            
-            // 影片页增强
-            'videoEnhancement:runCover',
-            'videoEnhancement:runTitle',
-            'videoEnhancement:runReviewBreaker',
-            'videoEnhancement:runFC2Breaker',
-            'videoEnhancement:finish',
-            
-            // 演员相关
-            'actorRemarks:actorPage',
-            'actorRemarks:run',
-            
-            // 其他功能
-            'contentFilter:init',
-            'contentFilter:initialize',
-            'anchorOptimization:init',
-            'emby:badge',
-            'passwordHelper:init',
-        ];
-        
-        // D) Idle 阶段：空闲时执行
-        const idle: string[] = [
-            'ux:magnet:autoSearch',
-        ];
-        
-        return { critical, high, deferred, idle };
+        if (task.visibilityPolicy) detailParts.push(`可见性: ${task.visibilityPolicy}`);
+        if (typeof task.timeout === 'number' && task.timeout > 0) detailParts.push(`超时: ${task.timeout}ms`);
+        return detailParts.join(' ｜ ');
+    }
+
+    private isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {
+        const rawPatterns = (settings as any)?.emby?.urlPatterns;
+        return Array.isArray(rawPatterns) && rawPatterns.some((pattern: any) => typeof pattern === 'string' && pattern.trim().length > 0);
     }
 
     private renderOrchestratorPhases(phases: Record<string, string[]>): void {
@@ -1207,8 +1353,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 <ul class="orch-list">
                   ${items.length === 0 ? '<li class="muted">(无任务)</li>' : items.map((label: string) => {
                       const desc = this.getTaskDescription(label);
-                      const displayText = desc ? `${label} - ${desc}` : label;
-                      return `<li title="${displayText}"><i class="dot"></i><span class="task-label">${label}</span>${desc ? `<span class="task-desc"> - ${desc}</span>` : ''}</li>`;
+                      const meta = this.getDesignTaskMeta(label);
+                      const metaText = meta ? ` [P${meta.priority ?? 5}｜${meta.source}]` : '';
+                      const displayText = `${label}${metaText}${desc ? ` - ${desc}` : ''}`;
+                      return `<li title="${displayText}"><i class="dot"></i><span class="task-label">${label}</span>${meta ? `<span class="task-meta">P${meta.priority ?? 5} · ${meta.source}</span>` : ''}${desc ? `<span class="task-desc"> - ${desc}</span>` : ''}</li>`;
                   }).join('')}
                 </ul>
               </div>
@@ -1217,6 +1365,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         html.push('</div>');
         this.orchestratorPhases.innerHTML = html.join('');
         this.ensureOrchestratorLocalStyles();
+    }
+
+    private getDesignTaskMeta(label: string): OrchestratorDesignTask | null {
+        const tasks = this.buildDesignTasks();
+        return tasks.find(task => task.label === label) || null;
     }
 
     private getTimelineFilters() {
@@ -1293,6 +1446,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'drive115:init:video': '115网盘功能初始化（影片页）',
             'drive115:init:list': '115网盘功能初始化（列表页）',
             'listEnhancement:init': '列表增强初始化',
+            'videoStatus:initialSync': '番号库状态同步与页面标记',
             'videoEnhancement:initCore': '影片页核心初始化',
             'videoEnhancement:clickEnhancement': '详情页点击增强',
             'videoStatus:update': '页面影片状态更新',
@@ -1417,11 +1571,25 @@ export class EnhancementSettings extends BaseSettingsPanel {
         style.id = 'orch-local-style';
         style.textContent = `
         #orchestratorModalContent.fullscreen { width:96vw !important; max-width:96vw !important; height:96vh !important; max-height:96vh !important; }
-        .orchestrator-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:10px; }
-        .orchestrator-toolbar label { display:flex; align-items:center; gap:6px; padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; color:var(--text-primary); }
-        .orchestrator-toolbar label > select { border:none; outline:none; background:transparent; color:var(--text-primary); font-weight:600; }
+        .orchestrator-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:8px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:10px; color:var(--text-primary); box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+        .orchestrator-toolbar label { display:flex; align-items:center; gap:6px; padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; color:var(--text-primary); transition:background .2s ease, border-color .2s ease, box-shadow .2s ease; }
+        .orchestrator-toolbar label:focus-within { border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,.16); }
+        .orchestrator-toolbar label > select { border:none; outline:none; background:var(--bg-primary); color:var(--text-primary); font-weight:600; min-width:88px; cursor:pointer; appearance:auto; border-radius:6px; padding:2px 24px 2px 8px; }
+        .orchestrator-toolbar label > select option { background:var(--bg-primary); color:var(--text-primary); }
+        .orchestrator-toolbar label > select:disabled { color:var(--text-secondary); cursor:not-allowed; opacity:.72; }
         .orchestrator-toolbar input[type="search"] { padding:8px 12px; border:1px solid var(--border-color); border-radius:999px; background:var(--bg-primary); color:var(--text-primary); min-width:240px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.03); }
+        .orchestrator-toolbar input[type="search"]::placeholder { color:var(--text-secondary); opacity:.9; }
         .orchestrator-toolbar input[type="search"]:focus { border-color:#60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.25); outline:none; }
+        .orch-legend { margin:8px 0 12px 0; font-size:12px; color:var(--text-secondary); line-height:1.6; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; text-align:left; }
+        .orch-legend strong { color:var(--text-primary); }
+        .orch-legend code { padding:0 4px; border-radius:4px; background:var(--bg-primary); color:var(--text-primary); }
+        .orch-legend .legend-title { font-weight:600; }
+        @media (prefers-color-scheme: dark) {
+          .orchestrator-toolbar { box-shadow:0 1px 2px rgba(0,0,0,0.24); }
+          .orchestrator-toolbar label > select { background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-primary); }
+          .orchestrator-toolbar label > select option { background:var(--bg-tertiary); color:var(--text-primary); }
+          .orchestrator-toolbar input[type="search"] { box-shadow: inset 0 1px 2px rgba(255,255,255,0.04); }
+        }
         .orch-phases-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; }
         .orch-card { background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
         .orch-card-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border-color); font-weight:600; }
@@ -1429,6 +1597,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .orch-list li { padding:4px 0; display:flex; gap:6px; align-items:flex-start; color:var(--text-primary); line-height:1.4; }
         .orch-list li .dot { width:6px; height:6px; background:#9ca3af; border-radius:50%; display:inline-block; margin-top:6px; flex-shrink:0; }
         .orch-list li .task-label { font-weight:500; color:var(--text-primary); }
+        .orch-list li .task-meta { color:#0f766e; font-size:11px; font-weight:600; padding:0 6px; border-radius:999px; background:rgba(15,118,110,0.12); }
         .orch-list li .task-desc { color:var(--text-secondary); font-size:12px; }
         .orch-list li.muted { color:#9ca3af; }
         .muted { color:#9ca3af; }
@@ -1495,7 +1664,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 }
             }
             if (!phases) {
-                phases = this.buildDesignSpec();
+                phases = this.groupDesignTasksByPhase(this.buildDesignTasks());
             }
 
             const order: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
