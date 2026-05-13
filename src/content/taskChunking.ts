@@ -56,5 +56,8 @@ export async function runChunkedWork<T>(items: T[], options: ChunkedWorkOptions<
 }
 
 export async function yieldToMainThread(delayMs: number = 0): Promise<void> {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible' && delayMs <= 0) {
+    return;
+  }
   await new Promise(resolve => window.setTimeout(resolve, delayMs));
 }

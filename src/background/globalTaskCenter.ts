@@ -15,6 +15,11 @@ export class GlobalTaskCenter {
   private store = new TaskStateStore();
   private dedupeIndex = new Map<string, string>();
   private readonly taskRetentionMs = 10 * 60 * 1000;
+  // P1 FIX: 跨页面依赖同步 - 在 background 维护全局已完成任务集合
+  private completedTaskLabels = new Set<string>();
+  private readonly storageKey = 'taskCenter:snapshot';
+  private readonly dedupeStorageKey = 'taskCenter:dedupeIndex'; // P2 FIX: dedupe 持久化
+  private isRestored = false;
 
   private getPhaseWeight(phase: string): number {
     if (phase === 'critical') return 4000;
@@ -22,6 +27,78 @@ export class GlobalTaskCenter {
     if (phase === 'deferred') return 2000;
     if (phase === 'idle') return 1000;
     return 0;
+  }
+
+  // P1 FIX: Service Worker 重启后，从 chrome.storage 恢复任务状态
+  async restoreFromStorage(): Promise<void> {
+    if (this.isRestored) return;
+    try {
+      // P2 FIX: 一次性读取两个 key，避免多次 chrome.storage 调用
+      const item = await new Promise<any>((resolve, reject) => {
+        chrome.storage.local.get([this.storageKey, this.dedupeStorageKey], (result) => {
+          if (chrome.runtime.lastError) { reject(new Error(chrome.runtime.lastError.message)); return; }
+          resolve(result);
+        });
+      });
+      const data = item[this.storageKey];
+      if (data && typeof data === 'object') {
+        if (data.tasks && Array.isArray(data.tasks)) {
+          for (const record of data.tasks) {
+            if (record?.descriptor?.taskId && record?.runtime?.status) {
+              this.store.setTask(record.descriptor.taskId, record);
+              if (record.descriptor.dedupeKey) {
+                this.dedupeIndex.set(record.descriptor.dedupeKey, record.descriptor.taskId);
+              }
+            }
+          }
+        }
+        if (data.completedLabels && Array.isArray(data.completedLabels)) {
+          this.completedTaskLabels = new Set(data.completedLabels);
+        }
+        console.log('[TaskCenter] Restored', this.store.listTasks().length, 'tasks and', this.completedTaskLabels.size, 'completed labels from storage');
+      }
+      // P2 FIX: 同时恢复 dedupe index
+      const dedupeData = item[this.dedupeStorageKey];
+      if (dedupeData && typeof dedupeData === 'object') {
+        this.dedupeIndex = new Map(Object.entries(dedupeData));
+        console.log('[TaskCenter] Restored dedupe index:', this.dedupeIndex.size, 'entries');
+      }
+      this.isRestored = true;
+      // P1 FIX: 恢复后启动定期快照
+      this.startPeriodicSnapshot();
+    } catch (err) {
+      console.warn('[TaskCenter] Failed to restore from storage:', err);
+      this.isRestored = true;
+    }
+  }
+
+  // P1 FIX: 定期快照到 chrome.storage，防止 Service Worker 重启丢失状态
+  private persistToStorage(): void {
+    const snapshot = {
+      tasks: this.store.listTasks().map(record => ({
+        descriptor: record.descriptor,
+        runtime: record.runtime,
+      })),
+      completedLabels: Array.from(this.completedTaskLabels),
+      savedAt: Date.now(),
+    };
+    chrome.storage.local.set({ [this.storageKey]: snapshot }).catch(() => {});
+    // P2 FIX: 同时持久化 dedupe index，防止 SW 重启后 dedupe 失效导致重复任务
+    if (this.dedupeIndex.size > 0) {
+      const dedupeSnapshot = Object.fromEntries(this.dedupeIndex.entries());
+      chrome.storage.local.set({ [this.dedupeStorageKey]: dedupeSnapshot }).catch(() => {});
+    }
+  }
+
+  // P1 FIX: 跨页面依赖同步 - 通知任务中心某个 label 的任务已完成
+  markTaskLabelCompleted(label: string): void {
+    this.completedTaskLabels.add(label);
+    this.persistToStorage();
+  }
+
+  // P1 FIX: 查询某个 label 是否已在全局完成（供 content script 调用）
+  isTaskLabelCompleted(label: string): boolean {
+    return this.completedTaskLabels.has(label);
   }
 
   private getQueueScore(record: QueueCandidate['record'], now = Date.now()): number {
@@ -45,7 +122,7 @@ export class GlobalTaskCenter {
       now,
     });
     if (disposition !== 'active') return false;
-    return record.runtime.status === 'registered' || record.runtime.status === 'queued';
+    return record.runtime.status === 'queued';
   }
 
   private getBestQueuedCandidate(bucket: string, visible: boolean): QueueCandidate | null {
@@ -157,6 +234,11 @@ export class GlobalTaskCenter {
     if (task.runtime.status === 'leased' || task.runtime.status === 'running') {
       return { granted: true };
     }
+    if (task.runtime.status === 'registered') {
+      task.runtime.status = 'queued';
+      task.runtime.waitReason = undefined;
+      this.store.setTask(taskId, task);
+    }
 
     const bestCandidate = this.getBestQueuedCandidate(bucket, visible);
     if (!bestCandidate) {
@@ -172,9 +254,9 @@ export class GlobalTaskCenter {
       const bestPriority = Number(bestCandidate.record.descriptor.priority || 0);
       const allowBackgroundParallel = !visible
         && task.descriptor.visibilityPolicy === 'background_allowed'
-        && limit >= 2
+        && limit >= 3                               // P2 NOTE: limit<3 的 bucket（translate=1, drive115=2）永远无法触发此逃生口
         && runningCount < limit
-        && (bestPriority - currentPriority) <= 2;
+        && (bestPriority - currentPriority) <= 3;   // P2 NOTE: 允许优先级差<=3 的任务绕过，差值太宽松可能导致 deferred 抢 high 的槽
       if (!allowBackgroundParallel) {
         task.runtime.status = 'queued';
         task.runtime.waitReason = 'higher-priority-wait';
@@ -238,8 +320,11 @@ export class GlobalTaskCenter {
     const task = this.store.getTask(taskId);
     if (task) {
       task.runtime.status = 'done';
+      task.runtime.waitReason = undefined;
       task.runtime.endedAt = Date.now();
       this.store.setTask(taskId, task);
+      // P1 FIX: 任务完成时同步到全局已完成标签集合（跨页面依赖）
+      this.markTaskLabelCompleted(task.descriptor.label);
     }
     return { ok: true };
   }
@@ -249,6 +334,7 @@ export class GlobalTaskCenter {
     const task = this.store.getTask(taskId);
     if (task) {
       task.runtime.status = 'error';
+      task.runtime.waitReason = undefined;
       task.runtime.endedAt = Date.now();
       task.runtime.retryCount += 1;
       this.store.setTask(taskId, task);
@@ -261,6 +347,7 @@ export class GlobalTaskCenter {
     const task = this.store.getTask(taskId);
     if (task) {
       task.runtime.status = 'canceled';
+      task.runtime.waitReason = undefined;
       task.runtime.endedAt = Date.now();
       this.store.setTask(taskId, task);
     }
@@ -277,6 +364,15 @@ export class GlobalTaskCenter {
     this.store.clear();
     this.dedupeIndex.clear();
     return { ok: true };
+  }
+
+  // P1 FIX: 定期快照定时器（每 30s 持久化一次状态，防止 service worker 重启丢失）
+  private persistTimer: ReturnType<typeof setInterval> | null = null;
+  private startPeriodicSnapshot(): void {
+    if (this.persistTimer) return;
+    this.persistTimer = setInterval(() => {
+      this.persistToStorage();
+    }, 30_000);
   }
 
   queryState() {
@@ -350,6 +446,17 @@ export class GlobalTaskCenter {
         case TASK_CENTER_MESSAGE.CLEAR:
           sendResponse(this.clearAll());
           return;
+        // P1 FIX: 跨页面依赖同步消息
+        case 'task-center:mark-completed':
+          this.markTaskLabelCompleted(String(message.payload?.label || ''));
+          sendResponse({ ok: true });
+          return;
+        case 'task-center:check-completed':
+          sendResponse({ ok: true, completed: this.isTaskLabelCompleted(String(message.payload?.label || '')) });
+          return;
+        case 'task-center:restore':
+          this.restoreFromStorage().then(() => { sendResponse({ ok: true }); }).catch((e) => { sendResponse({ ok: false, error: String(e) }); });
+          return; // async response via sendResponse
         default:
           sendResponse({ ok: false, error: 'unknown-task-center-message' });
           return;
@@ -357,6 +464,10 @@ export class GlobalTaskCenter {
     } catch (error) {
       sendResponse({ ok: false, error: String(error) });
     }
+  }
+
+  isAsyncMessage(messageType: string | undefined): boolean {
+    return messageType === 'task-center:restore';
   }
 }
 

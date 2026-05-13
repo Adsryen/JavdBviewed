@@ -27,10 +27,28 @@ import { globalTaskCenter } from './globalTaskCenter';
 installDrive115V2Proxy();
 ensureMigrationsStart();
 
+// P1 FIX: Service Worker 启动时从 chrome.storage 恢复任务状态
+globalTaskCenter.restoreFromStorage().catch(console.warn);
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (typeof message?.type === 'string' && message.type.startsWith('task-center:')) {
     globalTaskCenter.handleMessage(message, sender, sendResponse);
-    return true;
+    return globalTaskCenter.isAsyncMessage(message.type) || undefined;
+  }
+  // P0 FIX: 处理 hidden 页 lease 泄漏保护消息
+  if (message?.type === 'CANCEL_STALE_LEASE') {
+    try {
+      const { taskId, reason } = message.payload || {};
+      if (taskId) {
+        globalTaskCenter.cancelTask(taskId, reason || 'hidden-timeout');
+        sendResponse({ ok: true });
+      } else {
+        sendResponse({ ok: false, error: 'missing-task-id' });
+      }
+    } catch (err) {
+      sendResponse({ ok: false, error: String(err) });
+    }
+    return false;
   }
   return undefined;
 });

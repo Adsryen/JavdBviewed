@@ -406,38 +406,10 @@ async function initialize(): Promise<void> {
         log('No favicon link found (early)');
     }
 
-    // 若为影片详情页，优先执行：识别/回写 + 立即更新网页 icon（不再等待 1s 延迟）
-    if (window.location.pathname.startsWith('/v/')) {
-        await handleVideoDetailPage();
-        // 立刻检查并更新状态（包括 favicon 与标题）
-        checkAndUpdateVideoStatus();
-        // 定期复查以应对动态变动（从 2s 调整为 5s），并在稳定后停止
-        let lastStatusSignature = '';
-        let stableCount = 0;
-        const statusIntervalId = setInterval(() => {
-            try {
-                checkAndUpdateVideoStatus();
-                // 通过标题 + favicon 状态组合判断是否稳定
-                const signature = `${document.title}|${currentFaviconState ?? 'null'}|${currentTitleStatus ?? 'null'}`;
-                if (signature === lastStatusSignature && signature.includes('null') === false) {
-                    stableCount++;
-                } else {
-                    stableCount = 0;
-                    lastStatusSignature = signature;
-                }
-                // 连续稳定 3 次（约 15 秒）后停止轮询
-                if (stableCount >= 3) {
-                    clearInterval(statusIntervalId);
-                    log('Status appears stable. Stopping status polling.');
-                }
-            } catch (e) {
-                // 安全兜底：异常不影响后续执行
-                log('Status polling error:', e);
-            }
-        }, 5000);
+    const isCurrentVideoPage = window.location.pathname.startsWith('/v/');
+    if (isCurrentVideoPage) {
         initOrchestrator.add('idle', () => initDrive115Features(), { label: 'drive115:init:video', idle: true, idleTimeout: 5000, delayMs: 1500 });
 
-        // 初始化观影标签采集器（仅影片详情页，优化延迟到800ms）
         initOrchestrator.add('idle', async () => {
             await initInsightsCollector();
         }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
@@ -734,6 +706,34 @@ async function initialize(): Promise<void> {
         await initOrchestrator.run();
     } catch (e) {
         log('Init orchestrator run failed:', e);
+    }
+
+    if (isCurrentVideoPage) {
+        void handleVideoDetailPage().catch((e) => {
+            log('Video detail bootstrap failed:', e);
+        });
+
+        checkAndUpdateVideoStatus();
+        let lastStatusSignature = '';
+        let stableCount = 0;
+        const statusIntervalId = setInterval(() => {
+            try {
+                checkAndUpdateVideoStatus();
+                const signature = `${document.title}|${currentFaviconState ?? 'null'}|${currentTitleStatus ?? 'null'}`;
+                if (signature === lastStatusSignature && signature.includes('null') === false) {
+                    stableCount++;
+                } else {
+                    stableCount = 0;
+                    lastStatusSignature = signature;
+                }
+                if (stableCount >= 3) {
+                    clearInterval(statusIntervalId);
+                    log('Status appears stable. Stopping status polling.');
+                }
+            } catch (e) {
+                log('Status polling error:', e);
+            }
+        }, 5000);
     }
 
     initExportFeature();
