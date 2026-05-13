@@ -30,6 +30,12 @@ function getActorRemarksTaskTimeoutMs(settings: any): number {
     return Math.max(1000, Math.round(seconds * 1000));
 }
 
+function getActorRemarksPerActorTimeoutMs(taskTimeoutMs: number, actorCount: number): number {
+    const safeActorCount = Math.max(1, actorCount || 1);
+    const budgetByCount = Math.floor(taskTimeoutMs / safeActorCount);
+    return Math.max(2500, Math.min(4500, budgetByCount));
+}
+
 // 全局变量：状态监听器
 let statusObserver: MutationObserver | null = null;
 let lastDetectedStatus: typeof VIDEO_STATUS[keyof typeof VIDEO_STATUS] | null = null;
@@ -328,13 +334,13 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
 
     if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
         blueprints.push(
+            { phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' },
             { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
             { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
             { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
-            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 10000 },
+            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000 },
             { phase: 'idle', label: 'videoEnhancement:runCover' },
             { phase: 'idle', label: 'videoEnhancement:runTitle' },
-            { phase: 'idle', label: 'videoEnhancement:runReviewBreaker' },
             { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
             { phase: 'idle', label: 'videoEnhancement:finish' },
         );
@@ -345,7 +351,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
-        blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 7, visibilityPolicy: 'background_allowed' });
+        blueprints.push({ phase: 'critical', label: 'videoFavoriteRating:init', priority: 12, visibilityPolicy: 'background_allowed' });
     }
 
     blueprints.push(
@@ -354,6 +360,21 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     );
 
     return blueprints;
+}
+
+async function syncVideoStatusVisualsAndRecord(
+    videoId: string,
+    record: VideoRecord | undefined,
+    now: number,
+    currentUrl: string,
+    operationId: string
+): Promise<VideoRecord | undefined> {
+    if (record) {
+        await handleExistingRecord(videoId, record, now, currentUrl, operationId);
+        return record;
+    }
+    await handleNewRecord(videoId, now, currentUrl);
+    return undefined;
 }
 
 export async function handleVideoDetailPage(): Promise<void> {
@@ -521,6 +542,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         let renderedCount = 0;
         const renderStartedAt = Date.now();
         const renderBudgetMs = Math.max(3000, Math.min(taskTimeoutMs, 8000));
+        const perActorTimeoutMs = getActorRemarksPerActorTimeoutMs(taskTimeoutMs, links.length);
 
         const results: Array<{ element: HTMLAnchorElement; name: string; data: any } | null> = [];
         await runChunkedWork(links, {
@@ -551,7 +573,12 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 }
                 processed.add(name);
                 try {
-                    const data = await actorExtraInfoService.getActorRemarks(name, STATE.settings as any);
+                    const remainingMs = Math.max(0, taskTimeoutMs - (Date.now() - renderStartedAt));
+                    const actorTimeoutMs = Math.max(1500, Math.min(perActorTimeoutMs, remainingMs || perActorTimeoutMs));
+                    const data = await Promise.race<any>([
+                        actorExtraInfoService.getActorRemarks(name, STATE.settings as any),
+                        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), actorTimeoutMs)),
+                    ]);
                     results.push({ element: a, name, data });
                 } catch (e) {
                     log('actorRemarks: fetch failed for', name, e);
@@ -672,6 +699,19 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         const enableMultiSource = STATE.settings?.dataEnhancement?.enableMultiSource;
         const enableTranslation = STATE.settings?.dataEnhancement?.enableTranslation;
 
+        let currentRecord: VideoRecord | undefined = record;
+        try {
+            currentRecord = await new Promise<VideoRecord | undefined>((resolve) => {
+                initOrchestrator.add('critical', async () => {
+                    const nextRecord = await syncVideoStatusVisualsAndRecord(videoId, currentRecord, now, currentUrl, operationId);
+                    resolve(nextRecord);
+                }, { label: 'videoStatus:initialSync', delayMs: 0, priority: 12, visibilityPolicy: 'background_allowed' });
+            });
+        } catch (e) {
+            log('videoStatus:initialSync scheduling failed:', e as any);
+            currentRecord = await syncVideoStatusVisualsAndRecord(videoId, currentRecord, now, currentUrl, operationId);
+        }
+
         if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
                 log('Scheduling video detail enhancements via orchestrator...');
@@ -689,7 +729,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
 
                 initOrchestrator.add('deferred', async () => {
                     await videoDetailEnhancer.runCurrentTitleTranslation();
-                }, { label: 'videoEnhancement:translateCurrentTitle', idle: true, idleTimeout: 3000, delayMs: 600, timeout: 10000, dependsOn: ['videoEnhancement:loadData'] });
+                }, { label: 'videoEnhancement:translateCurrentTitle', idle: true, idleTimeout: 3000, delayMs: 600, timeout: 15000, dependsOn: ['videoEnhancement:loadData'] });
 
                 initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runCover();
@@ -700,20 +740,25 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1200, dependsOn: ['videoEnhancement:loadData'] });
 
                 initOrchestrator.add('idle', async () => {
-                    await videoDetailEnhancer.runReviewBreaker();
-                }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 1600 });
-
-                initOrchestrator.add('idle', async () => {
                     await videoDetailEnhancer.runFC2Breaker();
                 }, { label: 'videoEnhancement:runFC2Breaker', idle: true, idleTimeout: 5000, delayMs: 1800 });
 
                 initOrchestrator.add('idle', () => {
                     videoDetailEnhancer.finish();
-                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:runReviewBreaker', 'videoEnhancement:runFC2Breaker'] });
+                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:runFC2Breaker'] });
             } catch (enhancementError) {
                 log('Enhancement scheduling failed, but continuing:', enhancementError);
             }
         }
+
+        try {
+            const enabledReviewBreaker = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true);
+            if (enabledReviewBreaker) {
+                void videoDetailEnhancer.runReviewBreaker().catch((error) => {
+                    log('Review breaker trigger binding failed:', error as any);
+                });
+            }
+        } catch {}
 
         try {
             const enabledActorRemarks = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
@@ -739,9 +784,9 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 const FLAG = '__jdb_videoFavoriteRating_scheduled__';
                 if (!(window as any)[FLAG]) {
                     (window as any)[FLAG] = true;
-                    initOrchestrator.add('high', async () => {
+                    initOrchestrator.add('critical', async () => {
                         try { await videoFavoriteRatingEnhancer.init(); } catch {}
-                    }, { label: 'videoFavoriteRating:init', delayMs: 300, priority: 7, visibilityPolicy: 'background_allowed' });
+                    }, { label: 'videoFavoriteRating:init', delayMs: 0, priority: 12, visibilityPolicy: 'background_allowed' });
                 }
             }
         } catch {}
@@ -762,11 +807,6 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 3000, delayMs: 1600 });
         } catch (e) { log('injectVideoEnhancementPanel scheduling error:', e as any); }
 
-        if (record) {
-            await handleExistingRecord(videoId, record, now, currentUrl, operationId);
-        } else {
-            await handleNewRecord(videoId, now, currentUrl);
-        }
 
         // 绑定“想看”按钮同步与注入增强区块
         try {

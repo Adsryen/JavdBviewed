@@ -892,6 +892,25 @@ try {
     (window as any).__initOrchestrator__ = initOrchestrator;
     
     // 页面卸载时强制保存性能指标
+    const notifyPageLifecycleCancel = (reason: string) => {
+      try {
+        const pageContext = getPageContext();
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({
+            type: 'task-center:page-lifecycle',
+            payload: {
+              pageInstanceId: pageContext.pageInstanceId,
+              reason,
+            },
+          });
+        }
+      } catch {}
+    };
+
+    window.addEventListener('pagehide', () => {
+      notifyPageLifecycleCancel('page-refresh-replaced');
+    });
+
     window.addEventListener('beforeunload', () => {
       try {
         // 立即保存，不使用防抖

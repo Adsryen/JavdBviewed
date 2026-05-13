@@ -11,6 +11,7 @@ import { reviewBreakerService, ReviewData } from '../services/reviewBreaker';
 import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
 import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
+import { initOrchestrator } from './initOrchestrator';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -159,6 +160,12 @@ export class VideoDetailEnhancer {
       if (cached && Date.now() - cached.ts < VideoDetailEnhancer.TITLE_TRANSLATION_TTL_MS) {
         const mode = settings.translation?.displayMode || 'append';
         this.applyTranslatedTitle(titleEl, original, cached.translated, mode);
+        return;
+      }
+
+      const existingTranslation = titleEl.parentElement?.querySelector('.enhanced-translation');
+      if (existingTranslation) {
+        log('[Translation] existing translated title found, skip duplicate render.');
         return;
       }
 
@@ -329,7 +336,7 @@ export class VideoDetailEnhancer {
     if (!this.videoId || !this.options.enableReviewBreaker) return;
     
     try {
-      log('[ReviewBreaker] Starting review enhancement');
+      log('[ReviewBreaker] Binding review enhancement trigger');
       await this.enhanceReviews(this.videoId);
     } catch (error) {
       log('[ReviewBreaker] Error enhancing reviews:', error);
@@ -532,58 +539,44 @@ export class VideoDetailEnhancer {
       // 先监听短评标签的点击事件，点击时立即显示加载提示
       const reviewTab = document.querySelector('.movie-panel-info a[data-movie-tab-target="reviews"]') as HTMLElement | null;
       
-      if (reviewTab) {
-        log('[ReviewBreaker] Found review tab, adding click listener');
-        
-        // 添加点击监听
-        reviewTab.addEventListener('click', async () => {
-          log('[ReviewBreaker] Review tab clicked, showing loading indicator immediately');
-          
-          // 立即显示加载提示（在页面中心）
-          const earlyLoadingIndicator = this.createEarlyLoadingIndicator();
-          document.body.appendChild(earlyLoadingIndicator);
-          
-          // 等待评论区DOM加载
-          const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
-          
-          // 移除早期加载提示
-          earlyLoadingIndicator.remove();
-          
-          if (!reviewsRoot) {
-            log('[ReviewBreaker] Native #reviews container not found, skip.');
-            return;
-          }
+      const scheduleReviewBreaking = (trigger: HTMLElement) => {
+        const flag = '__jdb_review_breaker_scheduled__';
+        if ((trigger as any)[flag]) return;
+        (trigger as any)[flag] = true;
+        trigger.addEventListener('click', () => {
+          const runFlag = '__jdb_review_breaker_running__';
+          if ((window as any)[runFlag]) return;
+          (window as any)[runFlag] = true;
+          initOrchestrator.add('idle', async () => {
+            try {
+              log('[ReviewBreaker] Review tab clicked, showing loading indicator immediately');
+              const earlyLoadingIndicator = this.createEarlyLoadingIndicator();
+              document.body.appendChild(earlyLoadingIndicator);
+              const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
+              earlyLoadingIndicator.remove();
+              if (!reviewsRoot) {
+                log('[ReviewBreaker] Native #reviews container not found, skip.');
+                return;
+              }
+              await this.processReviewBreaking(reviewsRoot, movieId);
+            } finally {
+              (window as any)[runFlag] = false;
+            }
+          }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 0 });
+        }, { once: true });
+      };
 
-          // 继续原有的破解逻辑
-          await this.processReviewBreaking(reviewsRoot, movieId);
-        }, { once: true }); // 只监听一次点击
+      if (reviewTab) {
+        log('[ReviewBreaker] Found review tab, binding click trigger');
+        scheduleReviewBreaking(reviewTab);
       } else {
         log('[ReviewBreaker] Review tab not found, will try alternative selectors');
         // 尝试其他可能的选择器
         const altReviewTab = document.querySelector('a[href*="reviews"], .review-tab, [data-tab="reviews"]') as HTMLElement | null;
         if (altReviewTab) {
           log('[ReviewBreaker] Found alternative review tab');
-          altReviewTab.addEventListener('click', async () => {
-            log('[ReviewBreaker] Alternative review tab clicked');
-            const earlyLoadingIndicator = this.createEarlyLoadingIndicator();
-            document.body.appendChild(earlyLoadingIndicator);
-            
-            const reviewsRoot = (await this.waitForElement('div[data-movie-tab-target="reviews"], #reviews', 6000, 200)) as HTMLElement | null;
-            earlyLoadingIndicator.remove();
-            
-            if (reviewsRoot) {
-              await this.processReviewBreaking(reviewsRoot, movieId);
-            }
-          }, { once: true });
+          scheduleReviewBreaking(altReviewTab);
         }
-      }
-
-      // 如果用户直接访问带有评论区的页面（不是通过点击标签），也要处理
-      const reviewsRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews') as HTMLElement | null;
-      if (reviewsRoot && reviewsRoot.offsetParent !== null) {
-        // 评论区已经可见，直接处理
-        log('[ReviewBreaker] Reviews section already visible, processing immediately');
-        await this.processReviewBreaking(reviewsRoot, movieId);
       }
     } catch (error) {
       log('[ReviewBreaker] Error enhancing reviews:', error);

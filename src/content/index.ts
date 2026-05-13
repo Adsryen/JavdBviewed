@@ -37,6 +37,20 @@ function getActorRemarksTaskTimeoutMs(settings: any): number {
     return Math.max(1000, Math.round(seconds * 1000));
 }
 
+function isCurrentPageMatchedByEmby(settings: any): boolean {
+    const matchUrls = settings?.emby?.matchUrls;
+    if (!settings?.emby?.enabled || !Array.isArray(matchUrls) || matchUrls.length === 0) {
+        return false;
+    }
+    const currentUrl = window.location.href;
+    return matchUrls.some((pattern: string) => {
+        const rawPattern = String(pattern || '').trim();
+        if (!rawPattern) return false;
+        const normalized = rawPattern.replace(/\*/g, '');
+        return normalized ? currentUrl.includes(normalized) : false;
+    });
+}
+
 // 预览音量的模块级状态（避免 ReferenceError: currentVolume is not defined）
 let currentVolume: number = 0.2;
 
@@ -371,7 +385,7 @@ async function initialize(): Promise<void> {
             { phase: 'high', label: 'list:reprocess:after-listEnhancement', priority: 6, visibilityPolicy: 'background_allowed' },
         );
     }
-    if (settings.emby?.enabled) {
+    if (isCurrentPageMatchedByEmby(settings)) {
         preregisterBlueprints.push({ phase: 'deferred', label: 'emby:badge' });
     }
     if (settings.userExperience.enablePasswordHelper) {
@@ -640,7 +654,7 @@ async function initialize(): Promise<void> {
 
     // 初始化Emby增强功能（延后执行）
     // 优化：缩短延迟到1500ms
-    if (settings.emby?.enabled) {
+    if (isCurrentPageMatchedByEmby(settings)) {
         initOrchestrator.add('deferred', async () => {
             try {
                 await embyEnhancementManager.initialize();
