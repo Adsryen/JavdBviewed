@@ -668,22 +668,15 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         const record = STATE.records[videoId];
         const now = Date.now();
         const currentUrl = window.location.href;
-
-        if (record) {
-            await handleExistingRecord(videoId, record, now, currentUrl, operationId);
-        } else {
-            await handleNewRecord(videoId, now, currentUrl);
-        }
-
-        // 应用增强功能（新逻辑：以视频页增强开关为主，兼容旧逻辑）
         const enableVideoEnhancement = STATE.settings?.videoEnhancement?.enabled === true;
         const enableMultiSource = STATE.settings?.dataEnhancement?.enableMultiSource;
         const enableTranslation = STATE.settings?.dataEnhancement?.enableTranslation;
+
         if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
             try {
                 log('Scheduling video detail enhancements via orchestrator...');
-                    initOrchestrator.add('high', async () => {
-                        await videoDetailEnhancer.initCore();
+                initOrchestrator.add('high', async () => {
+                    await videoDetailEnhancer.initCore();
                 }, { label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' });
 
                 initOrchestrator.add('high', async () => {
@@ -719,11 +712,9 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
                 }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:runReviewBreaker', 'videoEnhancement:runFC2Breaker'] });
             } catch (enhancementError) {
                 log('Enhancement scheduling failed, but continuing:', enhancementError);
-                // 调度失败不影响主要功能
             }
         }
 
-        // 独立：演员备注（受主开关控制）
         try {
             const enabledActorRemarks = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
             if (enabledActorRemarks) {
@@ -742,7 +733,6 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             }
         } catch {}
 
-        // 独立：影片页收藏与评分（受主开关控制）
         try {
             const enabledVideoFavoriteRating = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true);
             if (enabledVideoFavoriteRating) {
@@ -756,7 +746,6 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             }
         } catch {}
 
-        // 无论是否启用增强功能，都尝试为“演員”区域的演员添加标识
         try {
             initOrchestrator.add('idle', async () => {
                 try {
@@ -767,15 +756,22 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             log('Marking actors scheduling failed:', markErr);
         }
 
-        // 绑定“想看”按钮同步与注入增强区块
-        try {
-            bindWantSyncOnClick(videoId);
-        } catch (e) { log('bindWantSyncOnClick error:', e as any); }
         try {
             initOrchestrator.add('idle', async () => {
                 try { await injectVideoEnhancementPanel(); } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
             }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 3000, delayMs: 1600 });
         } catch (e) { log('injectVideoEnhancementPanel scheduling error:', e as any); }
+
+        if (record) {
+            await handleExistingRecord(videoId, record, now, currentUrl, operationId);
+        } else {
+            await handleNewRecord(videoId, now, currentUrl);
+        }
+
+        // 绑定“想看”按钮同步与注入增强区块
+        try {
+            bindWantSyncOnClick(videoId);
+        } catch (e) { log('bindWantSyncOnClick error:', e as any); }
         
         // 🆕 设置状态变化监听器，自动检测用户点击"看过"/"想看"按钮
         try {

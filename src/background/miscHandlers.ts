@@ -377,11 +377,12 @@ export function registerMiscRouter(): void {
           handlePrivacyLock(sendResponse);
           return true;
         case 'orchestrator:saveMetrics': {
-          // 保存编排器性能指标到数据库
+          sendResponse({ success: true, queued: true });
           handleSaveOrchestratorMetrics(message.metrics)
-            .then(() => sendResponse({ success: true }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
-          return true;
+            .catch((error) => {
+              console.warn('[Background] Failed to save orchestrator metrics:', error);
+            });
+          return false;
         }
         case 'orchestrator:getAggregatedMetrics': {
           // 获取聚合的性能指标

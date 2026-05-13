@@ -1,7 +1,7 @@
 // src/content/initOrchestrator.ts
 
 // removed unused import: performanceOptimizer
-import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask } from './taskRuntime';
+import { createManagedTaskDescriptor, runManagedTask, ensureManagedTaskRegistered, runRegisteredManagedTask, clearTaskRetryBudget, isRetryBudgetExhausted, incrementTaskRetryCount } from './taskRuntime';
 import type { GlobalTaskDescriptor, GlobalTaskVisibilityPolicy } from '../shared/taskCenterTypes';
 import { getPageContext } from './pageContext';
 
@@ -43,7 +43,8 @@ type TaskBlueprint = {
 };
 
 function getDefaultVisibilityPolicy(phase: InitPhase): GlobalTaskVisibilityPolicy {
-  return phase === 'critical' || phase === 'high' ? 'foreground_first' : 'background_allowed';
+  if (phase === 'critical') return 'foreground_first';
+  return 'background_allowed';
 }
 
 class InitOrchestrator {
@@ -54,10 +55,24 @@ class InitOrchestrator {
   private verbose = true; // 统一开关，控制是否打印详细日志
   private listeners: Record<string, Array<(payload: any) => void>> = {};
   private blueprintDescriptors = new Map<string, GlobalTaskDescriptor>();
-  
+
   // 并发控制
   private runningHighTasks = 0;
   private maxConcurrentHighTasks = 3; // 限制high阶段并发数
+
+  // P0 FIX: 本地并发门控（限制 deferred/idle 每页同时起跑数，避免 25 个标签页同时爆发）
+  private runningDeferred = 0;
+  private runningIdle = 0;
+  private readonly maxConcurrentDeferred = 3;  // 每页最多同时跑 3 个 deferred 任务
+  private readonly maxConcurrentIdle = 2;      // 每页最多同时跑 2 个 idle 任务
+
+  // P0 FIX: 任务老化检测（防止"已注册但长期卡住"的任务饿死）
+  private pendingRegistrationTimes = new Map<string, number>(); // taskKey -> registeredAt
+  private readonly stallThresholdMs = 8000;  // 注册后 8s 未起跑则强制触发
+
+  // P0 FIX: hidden 页 lease 泄漏保护
+  private hiddenLeaseTasks = new Map<string, number>(); // taskId -> hiddenAt timestamp
+  private readonly hiddenLeaseReleaseMs = 60_000;  // hidden 超过 60s 主动释放 lease
   
   // 性能指标
   private metrics = {
@@ -80,6 +95,64 @@ class InitOrchestrator {
   constructor() {
     // 根据设备性能动态调整并发数
     this.adjustConcurrencyByHardware();
+    // P0 FIX: 启动老化检测（每 2s 检查一次卡住的任务）
+    this.startStallDetection();
+    // P0 FIX: 启动 hidden lease 泄漏保护
+    this.startHiddenLeaseProtection();
+  }
+
+  // ── P0 FIX: 任务老化检测 ────────────────────────────────────────────────
+  private startStallDetection(): void {
+    window.setInterval(() => {
+      const now = Date.now();
+      for (const [taskKey, registeredAt] of this.pendingRegistrationTimes.entries()) {
+        if (now - registeredAt > this.stallThresholdMs) {
+          this.pendingRegistrationTimes.delete(taskKey);
+          const [phase, label] = taskKey.split('|', 2);
+          const st = (this.phases[phase as InitPhase] || []).find(s => (s.options.label || '') === label);
+          if (st) {
+            this.log('stall: forcing lease retry', { phase, label, waitMs: now - registeredAt });
+            this.runTask(phase as InitPhase, st).catch(() => {});
+          }
+        }
+      }
+    }, 2000);
+  }
+
+  // ── P0 FIX: hidden 页 lease 泄漏保护 ────────────────────────────────────
+  private startHiddenLeaseProtection(): void {
+    // 当页面隐藏时，记录 lease 持有任务
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        const now = Date.now();
+        for (const [_phase, tasks] of Object.entries(this.phases)) {
+          for (const st of tasks) {
+            if (st.managedDescriptor?.taskId) {
+              this.hiddenLeaseTasks.set(st.managedDescriptor.taskId, now);
+            }
+          }
+        }
+      }
+    });
+
+    // 每 30s 检查 hidden 超过阈值的任务，触发 lease 释放
+    window.setInterval(() => {
+      const now = Date.now();
+      if (!document.hidden) return;
+      for (const [taskId, hiddenAt] of this.hiddenLeaseTasks.entries()) {
+        if (now - hiddenAt > this.hiddenLeaseReleaseMs) {
+          this.hiddenLeaseTasks.delete(taskId);
+          this.log('hidden-leak: releasing stale lease', { taskId, hiddenMs: now - hiddenAt });
+          // 通过 background message 主动取消任务，防止 bucket 泄漏
+          if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+            chrome.runtime.sendMessage({
+              type: 'CANCEL_STALE_LEASE',
+              payload: { taskId, reason: 'hidden-timeout' },
+            }).catch(() => {});
+          }
+        }
+      }
+    }, 30_000);
   }
 
   private relTs(now?: number): number {
@@ -109,11 +182,28 @@ class InitOrchestrator {
   private scheduleDeferredRetry(phase: InitPhase, st: ManagedScheduledTask, waitReason?: string): void {
     const label = st.options.label || 'anonymous';
     if (label === 'anonymous') return;
+    const taskId = st.managedDescriptor?.taskId || '';
+
+    // P2 FIX: 检查全局重试预算，超过上限不再重试，标记为失败
+    if (taskId && isRetryBudgetExhausted(taskId)) {
+      this.log('retry: budget exhausted, giving up', { phase, label, taskId });
+      clearTaskRetryBudget(taskId);
+      return;
+    }
+
     const key = this.getDeferredRetryKey(phase, label);
     if (this.deferredRetryTimers.has(key)) return;
     const retryDelayMs = waitReason === 'tab-hidden' ? 1200 : 400;
     const timerId = window.setTimeout(() => {
       this.deferredRetryTimers.delete(key);
+      // P2 FIX: 重试前更新预算计数
+      if (taskId) {
+        const newCount = incrementTaskRetryCount(taskId);
+        this.log('retry: incrementing budget', { phase, label, taskId, retryCount: newCount });
+        if (isRetryBudgetExhausted(taskId)) {
+          this.log('retry: budget will be exhausted after this attempt', { phase, label, taskId });
+        }
+      }
       this.runTask(phase, st).catch(() => {});
     }, retryDelayMs);
     this.deferredRetryTimers.set(key, timerId);
@@ -255,7 +345,7 @@ class InitOrchestrator {
           metrics,
         }, (response) => {
           if (chrome.runtime.lastError) {
-            console.warn('[Orchestrator] Failed to save metrics:', chrome.runtime.lastError);
+            this.log('metrics save callback closed', { error: chrome.runtime.lastError.message });
           } else {
             this.log('Metrics saved successfully:', response);
           }
@@ -332,6 +422,8 @@ class InitOrchestrator {
           visibilityPolicy: options.visibilityPolicy,
         });
       this.blueprintDescriptors.set(taskKey, managedScheduledTask.managedDescriptor);
+      // P0 FIX: 记录任务注册时间，用于老化检测
+      this.pendingRegistrationTimes.set(taskKey, Date.now());
     }
     this.phases[phase].push(managedScheduledTask);
     if (managedScheduledTask.managedDescriptor && !managedScheduledTask.managedDescriptorRegistered) {
@@ -351,6 +443,21 @@ class InitOrchestrator {
     this.timeline.push({ phase, label, status: 'scheduled', ts: abs });
     this.emit('task:scheduled', { phase, label, ts: abs, relativeTs: this.relTs(abs), options });
     this.log('scheduled', { phase, label, delayMs: options.delayMs, idle: options.idle, priority: options.priority, timeout: options.timeout, dependsOn: options.dependsOn, ts: Math.round(abs), relative: Math.round(this.relTs(abs)) });
+
+    if (!this.started) return;
+    if (phase === 'critical') {
+      void this.runTask('critical', managedScheduledTask).catch((error) => {
+        this.log('post-start critical task failed', { label, error: String(error) });
+      });
+      return;
+    }
+    if (phase === 'high') {
+      void this.runHighTasksWithConcurrencyControl().catch((error) => {
+        this.log('post-start high-phase-error', { label, error: String(error) });
+      });
+      return;
+    }
+    this.scheduleTask(phase, managedScheduledTask);
   }
 
   getState() {
@@ -386,14 +493,12 @@ class InitOrchestrator {
     const label = st.options.label || 'anonymous';
     this.clearDeferredRetry(phase, label);
     
-    // 检查依赖是否满足
-    if (st.options.dependsOn && st.options.dependsOn.length > 0) {
-      const unmetDeps = st.options.dependsOn.filter(dep => !this.completedTasks.has(dep));
-      if (unmetDeps.length > 0) {
-        const dependencyError = new Error(`Task waiting for dependencies: ${unmetDeps.join(',')}`) as TaskDependencyDeferredError;
-        dependencyError.unmetDeps = unmetDeps;
-        return Promise.reject(dependencyError);
-      }
+    // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks
+    const localUnmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
+    if (localUnmetDeps.length > 0) {
+      const dependencyError = new Error(`Task waiting for dependencies: ${localUnmetDeps.join(',')}`) as TaskDependencyDeferredError;
+      dependencyError.unmetDeps = localUnmetDeps;
+      return Promise.reject(dependencyError);
     }
     
     const startMark = `orchestrator:${phase}:${label}:start`;
@@ -471,6 +576,16 @@ class InitOrchestrator {
         if (durationMs !== undefined) {
           this.updateMetrics(durationMs, true, false, label);
         }
+        // P0 FIX: 任务完成后清理老化记录 + 更新本地并发计数
+        if (st.options.label) {
+          this.pendingRegistrationTimes.delete(this.getTaskKey(phase, st.options.label));
+        }
+        if (phase === 'deferred') this.runningDeferred = Math.max(0, this.runningDeferred - 1);
+        if (phase === 'idle') this.runningIdle = Math.max(0, this.runningIdle - 1);
+        // P2 FIX: 任务成功后清理重试预算
+        if (st.managedDescriptor?.taskId) {
+          clearTaskRetryBudget(st.managedDescriptor.taskId);
+        }
         // 标记任务为已完成
         if (label !== 'anonymous') {
           this.completedTasks.add(label);
@@ -488,6 +603,9 @@ class InitOrchestrator {
         const waitReason = deferredError?.waitReason;
         const isDeferred = waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || (typeof waitReason === 'string' && waitReason.startsWith('bucket:'));
         if (isDeferred) {
+          // P0 FIX: 重新入队时释放本地并发计数，让后续任务得以起跑
+          if (phase === 'deferred') this.runningDeferred = Math.max(0, this.runningDeferred - 1);
+          if (phase === 'idle') this.runningIdle = Math.max(0, this.runningIdle - 1);
           const deferredAbs = performance.now();
           this.timeline.push({ phase, label, status: 'scheduled', ts: deferredAbs, detail: waitReason, durationMs: 0 });
           this.emit('task:scheduled', { phase, label, ts: deferredAbs, relativeTs: this.relTs(deferredAbs), options: { ...st.options, waitReason } });
@@ -549,7 +667,23 @@ class InitOrchestrator {
     const scheduledAt = performance.now();
     const dependencyRetryDelay = 250;
     const dependencyWaitLimit = Math.max(5000, (st.options.timeout || 0) + 2000);
+    const taskKey = st.options.label ? this.getTaskKey(phase, st.options.label) : '';
+
+    // P0 FIX: 本地并发门控 - 超过上限则延迟调度
+    if (phase === 'deferred' && this.runningDeferred >= this.maxConcurrentDeferred) {
+      this.log('deferred: blocked by local concurrency gate', { label, running: this.runningDeferred, max: this.maxConcurrentDeferred });
+      window.setTimeout(() => this.scheduleTask(phase, st), 500);
+      return;
+    }
+    if (phase === 'idle' && this.runningIdle >= this.maxConcurrentIdle) {
+      this.log('idle: blocked by local concurrency gate', { label, running: this.runningIdle, max: this.maxConcurrentIdle });
+      window.setTimeout(() => this.scheduleTask(phase, st), 800);
+      return;
+    }
+
     const exec = () => {
+      // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks，
+      // 其他标签页完成的任务标签不会在这里体现。需要改成本地+全局双查询。
       const unmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
       if (unmetDeps.length > 0) {
         const elapsed = performance.now() - scheduledAt;
@@ -562,13 +696,20 @@ class InitOrchestrator {
         setTimeout(exec, dependencyRetryDelay);
         return;
       }
+
+      // 任务真正进入 runTask 前再占用本地并发槽，依赖等待期间不占槽
+      if (taskKey) this.pendingRegistrationTimes.delete(taskKey);
+      if (phase === 'deferred') this.runningDeferred++;
+      if (phase === 'idle') this.runningIdle++;
+
       this.runTask(phase, st);
     };
     if (idle) {
       const scheduleIdle = () => {
         try {
           if (document.visibilityState !== 'visible') {
-            const hiddenDelay = 250;
+            // P0 FIX: hidden 页 idle 延迟大幅缩短（原 250ms），避免等太久
+            const hiddenDelay = st.options.visibilityPolicy === 'background_allowed' ? 300 : 150;
             this.log('schedule hidden-tab fallback', { phase, label, delayMs: hiddenDelay });
             setTimeout(exec, hiddenDelay);
             return;
@@ -580,7 +721,7 @@ class InitOrchestrator {
             return;
           }
         } catch {}
-        const fallbackDelay = 3000;
+        const fallbackDelay = 2000; // P0 FIX: 原来 3000ms 降为 2000ms，加快起跑
         this.log('schedule idle-fallback(setTimeout)', { phase, label, delayMs: fallbackDelay });
         setTimeout(exec, fallbackDelay);
       };
@@ -615,14 +756,20 @@ class InitOrchestrator {
       await this.runTask('critical', st);
     }
 
-    // high: 受控并发，避免同时执行过多任务
-    await this.runHighTasksWithConcurrencyControl();
+    // P0 FIX: high 阶段改为后台并发跑，不再阻塞 deferred/idle
+    // 用 fire-and-forget 启动，所有 high 任务进入任务中心竞争 lease
+    this.runHighTasksWithConcurrencyControl().catch((e) => {
+      this.log('high-phase-error', { error: String(e) });
+    });
 
-    // deferred: 根据选项调度
-    this.phases.deferred.forEach((st) => this.scheduleTask('deferred', st));
-
-    // idle: 更空闲时再做
-    this.phases.idle.forEach((st) => this.scheduleTask('idle', st));
+    // deferred / idle 立刻进入调度，不等 high 全部完成
+    // 受本地并发门控 (maxConcurrentDeferred / maxConcurrentIdle) 限制，避免页面爆炸
+    for (const st of this.phases.deferred) {
+      this.scheduleTask('deferred', st);
+    }
+    for (const st of this.phases.idle) {
+      this.scheduleTask('idle', st);
+    }
 
     const afterSchedule = performance.now();
     this.emit('run:scheduledDeferred', { ts: afterSchedule, relativeTs: this.relTs(afterSchedule) });
@@ -756,7 +903,6 @@ try {
         };
         
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-          // 使用同步方式发送（页面卸载时异步可能不会完成）
           chrome.runtime.sendMessage({
             type: 'orchestrator:saveMetrics',
             metrics,

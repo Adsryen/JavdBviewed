@@ -14,6 +14,7 @@ import { saveSubtaskDetail } from './taskDetailReporter';
  * 在影片详情页显示番号库中的收藏状态和用户评分，支持直接修改
  */
 export class VideoFavoriteRatingEnhancer {
+  private static readonly CONTAINER_SELECTOR = '.video-favorite-rating-container';
   private videoId: string | null = null;
   private record: VideoRecord | null = null;
   private containerElement: HTMLElement | null = null;
@@ -116,6 +117,20 @@ export class VideoFavoriteRatingEnhancer {
       const titleContainer = document.querySelector('h2.title.is-4');
       if (!titleContainer) {
         log('[VideoFavoriteRating] Title container not found');
+        return;
+      }
+
+      const existingContainers = Array.from(document.querySelectorAll<HTMLElement>(VideoFavoriteRatingEnhancer.CONTAINER_SELECTOR));
+      const firstExisting = existingContainers[0] || null;
+      if (existingContainers.length > 1) {
+        existingContainers.slice(1).forEach((element) => element.remove());
+      }
+
+      if (firstExisting) {
+        this.containerElement = firstExisting;
+        this.containerElement.innerHTML = this.generateHTML();
+        this.bindEvents();
+        log('[VideoFavoriteRating] UI refreshed');
         return;
       }
 

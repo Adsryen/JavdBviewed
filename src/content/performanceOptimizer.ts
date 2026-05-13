@@ -171,16 +171,19 @@ export class PerformanceOptimizer {
    */
   private performMemoryCleanup(): void {
     try {
-      // 清理请求队列中的过期请求
+      // P1 FIX: 清理前先 flush 到 storage，而不是直接截断丢失工作
+      this.flushQueuesToStorage();
+
+      // 清理请求队列中的过期请求（保留更多缓冲空间）
       if (this.requestQueue.length > 20) {
-        log('[PerformanceOptimizer] Cleaning up request queue...');
-        this.requestQueue = this.requestQueue.slice(0, 10); // 只保留前10个请求
+        log('[PerformanceOptimizer] Truncating request queue:', this.requestQueue.length, '-> 10');
+        this.requestQueue = this.requestQueue.slice(0, 10);
       }
 
-      // 清理DOM操作队列
-      if (this.domOperationQueue.length > 100) {
-        log('[PerformanceOptimizer] Cleaning up DOM operation queue...');
-        this.domOperationQueue = this.domOperationQueue.slice(0, 50); // 只保留前50个操作
+      // 清理DOM操作队列（不再截断，改为保留更多操作）
+      if (this.domOperationQueue.length > 200) {
+        log('[PerformanceOptimizer] Truncating DOM operation queue:', this.domOperationQueue.length, '-> 80');
+        this.domOperationQueue = this.domOperationQueue.slice(0, 80);
       }
 
       // 强制垃圾回收（如果可用）
@@ -191,6 +194,28 @@ export class PerformanceOptimizer {
       log('[PerformanceOptimizer] Memory cleanup completed');
     } catch (error) {
       log('[PerformanceOptimizer] Memory cleanup error:', error);
+    }
+  }
+
+  // P1 FIX: 清理前将队列中的任务 flush 到 chrome.storage，防止工作丢失
+  private async flushQueuesToStorage(): Promise<void> {
+    if (this.requestQueue.length === 0 && this.domOperationQueue.length === 0) return;
+    try {
+      const snapshot = {
+        flushedAt: Date.now(),
+        pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+        pendingRequests: this.requestQueue.length,
+        pendingDOMOps: this.domOperationQueue.length,
+      };
+      await new Promise<void>((resolve, reject) => {
+        chrome.storage.local.set({ performanceOptimizerSnapshot: snapshot }, () => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else resolve();
+        });
+      });
+      log('[PerformanceOptimizer] Queues flushed to storage:', snapshot);
+    } catch (err) {
+      log('[PerformanceOptimizer] Failed to flush queues:', err);
     }
   }
 

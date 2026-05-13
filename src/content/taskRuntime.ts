@@ -53,6 +53,46 @@ export async function heartbeatManagedTask(taskId: string): Promise<void> {
   await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.HEARTBEAT, payload: { taskId } });
 }
 
+// P2 FIX: 跨页面依赖同步 - 查询某个 label 是否已在全局完成
+export async function isGlobalTaskLabelCompleted(label: string): Promise<boolean> {
+  try {
+    const resp = await chrome.runtime.sendMessage({ type: 'task-center:check-completed', payload: { label } });
+    return resp?.completed === true;
+  } catch {
+    return false;
+  }
+}
+
+// P2 FIX: 跨页面依赖同步 - 主动通知任务中心某个 label 已完成
+export async function notifyGlobalTaskCompleted(label: string): Promise<void> {
+  try {
+    await chrome.runtime.sendMessage({ type: 'task-center:mark-completed', payload: { label } });
+  } catch {}
+}
+
+// P2 FIX: 全局重试预算 - 本地追踪每个任务的 retryCount，防止无限重试
+const taskRetryBudget = new Map<string, number>();
+const MAX_GLOBAL_RETRIES = 3;  // 超过此值不再重试，标记为失败
+
+export function getTaskRetryCount(taskId: string): number {
+  return taskRetryBudget.get(taskId) || 0;
+}
+
+export function incrementTaskRetryCount(taskId: string): number {
+  const current = taskRetryBudget.get(taskId) || 0;
+  const next = current + 1;
+  taskRetryBudget.set(taskId, next);
+  return next;
+}
+
+export function clearTaskRetryBudget(taskId: string): void {
+  taskRetryBudget.delete(taskId);
+}
+
+export function isRetryBudgetExhausted(taskId: string): boolean {
+  return (taskRetryBudget.get(taskId) || 0) >= MAX_GLOBAL_RETRIES;
+}
+
 const activeManagedTaskIds = new Set<string>();
 
 export function getActiveManagedTaskIds(): string[] {
@@ -66,6 +106,11 @@ export function trackActiveManagedTask(taskId: string): void {
 export function untrackActiveManagedTask(taskId: string): void {
   activeManagedTaskIds.delete(taskId);
 }
+
+// P2 NOTE: retryLimit is stored in the descriptor but never checked in taskRuntime or globalTaskCenter.
+// The orchestration side now enforces it via taskRetryBudget (MAX_GLOBAL_RETRIES).
+// This is a known P2 inconsistency: code and documentation disagree.
+// The descriptor's retryLimit could be used as the source of truth, but for now MAX_GLOBAL_RETRIES is the enforcement point.
 
 export async function waitForTaskLease(taskId: string, timeoutMs: number, intervalMs: number = 500): Promise<{ granted: boolean; waitReason?: string }> {
   const start = Date.now();

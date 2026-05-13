@@ -85,9 +85,8 @@ build.bat
 .windsurf/
 .kiro/
 
-# codex
 .codex/
-.codex
+.claude/
 
 # plan
 plan/
