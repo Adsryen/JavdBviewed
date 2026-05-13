@@ -54,6 +54,7 @@
                                     <input type="checkbox" id="veEnableWantSync">
                                     <input type="checkbox" id="veAutoMarkWatchedAfter115">
                                     <!-- 新增：演员页增强 - 影片分段显示（隐藏 checkbox 作为状态源） -->
+                                    <input type="checkbox" id="aeEnableActionButtons">
                                     <input type="checkbox" id="aeEnableTimeSegmentationDivider">
                                 </div>
 
@@ -683,25 +684,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- 新：⌛ 显示加载指示器（独立区块） -->
-                                    <div class="form-group" data-subtab="video">
-                                        <label class="checkbox-label">
-                                            <div class="enhancement-feature-info">
-                                                <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">⌛ 显示加载指示器</h6>
-                                                    <span class="enhancement-feature-status available">可用</span>
-                                                </div>
-                                            </div>
-                                            <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veShowLoadingIndicator"></button>
-                                            </div>
-                                        </label>
-                                        <p class="input-description">
-                                            <strong>效果：</strong>在影片页增强任务执行时显示加载提示与处理中状态<br>
-                                            <strong>使用：</strong>帮助您判断功能仍在运行，减少等待时的疑惑
-                                        </p>
-                                    </div>
-
                                     <!-- 新：🔓 破解评论区功能（独立区块） -->
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
@@ -804,6 +786,24 @@
                                                 </ol>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <div class="form-group" data-subtab="actor">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">🎛️ 演员操作按钮增强</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="aeEnableActionButtons"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在演员页注入拉黑、订阅、扫描新作品等快捷操作按钮<br>
+                                            <strong>使用：</strong>将常用演员操作集中到页面顶部，减少跳转和手动查找
+                                        </p>
                                     </div>
 
                                     <div class="form-group" data-subtab="actor">
@@ -975,6 +975,24 @@
 
                                 <!-- 其他增强 -->
                                 <div class="settings-section">
+                                    <div class="form-group" data-subtab="other">
+                                        <label class="checkbox-label">
+                                            <div class="enhancement-feature-info">
+                                                <div class="enhancement-feature-title">
+                                                    <h6 class="enhancement-feature-name">⌛ 显示加载指示器</h6>
+                                                    <span class="enhancement-feature-status available">可用</span>
+                                                </div>
+                                            </div>
+                                            <div class="enhancement-toggle-wrapper">
+                                                <button class="enhancement-toggle" data-target="veShowLoadingIndicator"></button>
+                                            </div>
+                                        </label>
+                                        <p class="input-description">
+                                            <strong>效果：</strong>在演员页和影片页的增强任务执行时显示加载提示与处理中状态<br>
+                                            <strong>使用：</strong>帮助您判断页面增强仍在运行，减少等待时的疑惑
+                                        </p>
+                                    </div>
+
                                     <!-- 密码显示助手 -->
                                     <div class="form-group" data-subtab="other">
                                         <label class="checkbox-label">

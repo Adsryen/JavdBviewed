@@ -10,6 +10,7 @@ import { actorManager } from '../../services/actorManager';
 import { newWorksManager } from '../../services/newWorks';
 import { actorExtraInfoService } from '../../services/actorRemarks';
 import { getSettings } from '../../utils/storage';
+import { completeManagedTask, createManagedTaskDescriptor, ensureManagedTaskRegistered, failManagedTask, requestTaskLease, trackActiveManagedTask, untrackActiveManagedTask } from '../taskRuntime';
 
 interface ActorTagFilter {
   tags: string[];
@@ -22,6 +23,7 @@ interface ActorEnhancementConfig {
   autoApplyTags: boolean;
   defaultTags: string[];
   defaultSortType: number;
+  enableActionButtons?: boolean;
   // 新增：影片分段显示（仅演员页）
   enableTimeSegmentationDivider?: boolean;
   timeSegmentationMonths?: number; // 阈值（月），默认6
@@ -44,9 +46,60 @@ class ActorEnhancementManager {
   // 分段显示：样式与观察器
   private segStylesInjected = false;
   private listObserver: MutationObserver | null = null;
+  private actionButtonsTaskId: string | null = null;
 
   updateConfig(newConfig: Partial<ActorEnhancementConfig>): void {
     this.config = { ...this.config, ...newConfig };
+  }
+
+  private async runActionButtonsTask(): Promise<void> {
+    const descriptor = await ensureManagedTaskRegistered(createManagedTaskDescriptor({
+      label: 'actorEnhancement:actionButtons',
+      phase: 'critical',
+      priority: 9,
+      visibilityPolicy: 'background_allowed',
+      metadata: { source: 'actor' },
+    }));
+    this.actionButtonsTaskId = descriptor.taskId;
+    trackActiveManagedTask(descriptor.taskId);
+    try {
+      const lease = await requestTaskLease(descriptor.taskId);
+      if (!lease?.granted) return;
+      this.setupCollectSyncListeners();
+      await this.injectBlacklistButton();
+      await this.injectSubscribeButton();
+      await this.injectScanNewWorksButton();
+      await completeManagedTask(descriptor.taskId);
+    } catch (e: any) {
+      await failManagedTask(descriptor.taskId, e?.message || String(e));
+      throw e;
+    } finally {
+      untrackActiveManagedTask(descriptor.taskId);
+    }
+  }
+
+  private showLoadingIndicator(): void {
+    if (document.getElementById('actor-enhancement-loading')) return;
+    const indicator = document.createElement('div');
+    indicator.id = 'actor-enhancement-loading';
+    indicator.style.cssText = `position: fixed; top: 70px; right: 20px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95)); color: white; padding: 12px 18px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); z-index: 10000; font-size: 14px; font-weight: 500; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px;`;
+    const spinner = document.createElement('span');
+    spinner.style.cssText = `width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: actorEnhancementSpin 0.8s linear infinite;`;
+    const text = document.createElement('span');
+    text.textContent = '演员页增强加载中...';
+    indicator.appendChild(spinner);
+    indicator.appendChild(text);
+    if (!document.getElementById('actor-enhancement-loading-style')) {
+      const style = document.createElement('style');
+      style.id = 'actor-enhancement-loading-style';
+      style.textContent = `@keyframes actorEnhancementSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(indicator);
+  }
+
+  private hideLoadingIndicator(): void {
+    document.getElementById('actor-enhancement-loading')?.remove();
   }
 
   /**
@@ -814,17 +867,20 @@ class ActorEnhancementManager {
     // 设置标签点击监听器
     this.setupTagClickListener();
 
-    // 设置收藏/取消收藏同步监听器
-    this.setupCollectSyncListeners();
+    let showLoading = false;
+    try {
+      const settings = await getSettings();
+      showLoading = (settings?.videoEnhancement as any)?.showLoadingIndicator !== false;
+    } catch {}
+    if (showLoading) this.showLoadingIndicator();
 
-    // 注入拉黑/取消拉黑按钮
-    await this.injectBlacklistButton();
-
-    // 注入订阅/取消订阅按钮
-    await this.injectSubscribeButton();
-
-    // 注入扫描新作品按钮
-    await this.injectScanNewWorksButton();
+    try {
+      if (this.config.enableActionButtons !== false) {
+        await this.runActionButtonsTask();
+      }
+    } finally {
+      if (showLoading) this.hideLoadingIndicator();
+    }
 
     // 应用保存的标签过滤器（延迟执行，确保页面加载完成）
     if (this.config.autoApplyTags) {

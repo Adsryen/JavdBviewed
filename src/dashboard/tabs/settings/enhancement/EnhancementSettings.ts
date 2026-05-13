@@ -115,6 +115,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private lastAppliedTagsDisplay!: HTMLElement;
     private appliedTagsContainer!: HTMLElement;
     private clearLastAppliedTags!: HTMLButtonElement;
+    private aeEnableActionButtons!: HTMLInputElement;
     // 新增：演员页 影片分段显示
     private aeEnableTimeSegmentationDivider!: HTMLInputElement;
     private aeTimeSegmentationMonths!: HTMLInputElement;
@@ -461,6 +462,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.lastAppliedTagsDisplay = document.getElementById('lastAppliedTagsDisplay') as HTMLElement;
         this.appliedTagsContainer = document.getElementById('appliedTagsContainer') as HTMLElement;
         this.clearLastAppliedTags = document.getElementById('clearLastAppliedTags') as HTMLButtonElement;
+        this.aeEnableActionButtons = document.getElementById('aeEnableActionButtons') as HTMLInputElement;
         // 新增：演员页 影片分段显示元素
         this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
         this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
@@ -1137,7 +1139,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
 
         if (settings.userExperience?.enablePasswordHelper) {
-            pushTask({ phase: 'deferred', label: 'passwordHelper:init', source: 'global', enabled: true });
+            pushTask({ phase: 'idle', label: 'passwordHelper:init', source: 'global', enabled: true });
         }
 
         if (settings.userExperience?.enableContentFilter) {
@@ -1154,6 +1156,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const actorEnhancementEnabled = settings.userExperience?.enableActorEnhancement !== false;
         if (actorEnhancementEnabled) {
             pushTask({ phase: 'critical', label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed', source: 'actor', enabled: true });
+            pushTask({ phase: 'critical', label: 'actorEnhancement:actionButtons', priority: 9, visibilityPolicy: 'background_allowed', source: 'actor', enabled: (settings.actorEnhancement as any)?.enableActionButtons !== false });
         }
 
         const actorRemarksEnabled = (settings.videoEnhancement as any)?.enabled === true && (settings.videoEnhancement as any)?.enableActorRemarks === true;
@@ -1207,6 +1210,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 { phase: 'idle', label: 'videoEnhancement:runCover' },
                 { phase: 'idle', label: 'videoEnhancement:runTitle' },
                 { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
+                { phase: 'idle', label: 'videoEnhancement:runReviewBreaker' },
                 { phase: 'idle', label: 'videoEnhancement:finish' },
             );
         }
@@ -1436,6 +1440,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'system:init': '系统全局初始化',
             'list:observe:init': '列表页观察器初始化',
             'actorEnhancement:init': '演员页增强初始化',
+            'actorEnhancement:actionButtons': '演员页操作按钮增强',
             
             // High 阶段
             'performanceOptimizer:init': '性能优化器初始化',
@@ -2168,6 +2173,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 input.checked = actorEnhancement.defaultTags.includes(input.value);
             });
         }
+        if (this.aeEnableActionButtons) this.aeEnableActionButtons.checked = (actorEnhancement as any).enableActionButtons !== false;
         // 新增：演员页 影片分段显示回填
         if (this.aeEnableTimeSegmentationDivider) this.aeEnableTimeSegmentationDivider.checked = (actorEnhancement as any).enableTimeSegmentationDivider === true;
         if (this.aeTimeSegmentationMonths) this.aeTimeSegmentationMonths.value = String((actorEnhancement as any).timeSegmentationMonths || 6);
@@ -2472,6 +2478,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
                         : getDefaultTags(),
                     defaultSortType: 0,
+                    enableActionButtons: this.aeEnableActionButtons?.checked !== false,
                     // 新增：演员页 影片分段显示
                     enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                     timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
@@ -2584,6 +2591,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
                     : getDefaultTags(),
                 defaultSortType: 0,
+                enableActionButtons: this.aeEnableActionButtons?.checked !== false,
                 enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
                 timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
             },
@@ -2627,6 +2635,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (settings.actorEnhancement) {
                 const ae = settings.actorEnhancement as any;
                 if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
+                if (this.aeEnableActionButtons && typeof ae.enableActionButtons === 'boolean') this.aeEnableActionButtons.checked = ae.enableActionButtons;
                 if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
                 if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
             }
@@ -4806,6 +4815,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 'list:reprocess:after-listEnhancement': '列表增强-二次处理 (list:reprocess:after-listEnhancement)',
                 'list:observe:init': '列表页观察器初始化 (list:observe:init)',
                 'actorEnhancement:init': '演员增强初始化 (actorEnhancement:init)',
+                'actorEnhancement:actionButtons': '演员增强-操作按钮 (actorEnhancement:actionButtons)',
                 'emby:init': 'Emby增强初始化 (emby:init)',
                 'emby:badge': 'Emby徽标增强 (emby:badge)',
                 'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
@@ -5133,6 +5143,7 @@ ${item.detail || ''}`;
                     'listEnhancement:init': '列表增强初始化',
                     'listEnhancement:reprocess': '列表增强-二次处理',
                     'actorEnhancement:init': '演员增强初始化',
+                    'actorEnhancement:actionButtons': '演员页操作按钮增强',
                     'emby:init': 'Emby增强初始化',
                     'emby:badge': 'Emby徽标增强',
                     'passwordHelper:init': '密码助手初始化',
