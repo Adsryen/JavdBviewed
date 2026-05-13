@@ -28,7 +28,7 @@
   <!-- Orchestrator Visualization Modal -->
   <div id="orchestratorModal" class="modal-overlay hidden">
     <div id="orchestratorModalContent" class="modal-content" style="width:94vw; max-width: 1600px; max-height: 88vh; box-shadow: 0 12px 28px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden;">
-      <div class="modal-header">
+      <div class="modal-header" style="background: linear-gradient(135deg, #546da1, #a39db0);">
         <h3>
           <i class="fas fa-project-diagram"></i>
           功能编排可视化
@@ -44,7 +44,7 @@
           <label>视图
             <select id="orchViewMode">
               <option value="design">设计</option>
-              <option value="realtime">实时</option>
+              <option value="realtime" selected>实时</option>
               <option value="global">全局</option>
             </select>
           </label>
@@ -54,7 +54,7 @@
               <option value="registered">已注册</option>
               <option value="queued">排队中</option>
               <option value="leased">已租约</option>
-              <option value="running">运行中</option>
+              <option value="running" selected>运行中</option>
               <option value="paused">已暂停</option>
               <option value="canceled">已取消</option>
               <option value="done">已完成</option>
@@ -87,13 +87,7 @@
           </label>
           <input id="orchFilterSearch" type="search" placeholder="按任务关键词搜索…" style="flex:1;" />
         </div>
-        <div class="orch-legend" style="margin:8px 0 12px 0; font-size:12px; color:var(--text-secondary); line-height:1.6; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px 10px; text-align:left;">
-          <div><strong>说明：</strong>本设计视图仅展示“代码中约定的任务编排顺序”，不依赖页面加载。</div>
-          <div>• <strong>critical</strong>：关键路径，首屏必须；串行完成。</div>
-          <div>• <strong>high</strong>：较高优先，尽快执行；并行触发。</div>
-          <div>• <strong>deferred</strong>：延后执行；常结合 <code>delay</code>/<code>idle</code>，避免阻塞首屏。</div>
-          <div>• <strong>idle</strong>：空闲时机再执行，对交互影响最低。</div>
-        </div>
+        <div id="orchestratorLegend"></div>
         <!-- 性能监控面板 -->
         <div class="orchestrator-metrics" style="margin-bottom:14px;">
           <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;">
@@ -283,7 +277,7 @@
   <!-- Task Details Modal -->
   <div id="taskDetailsModal" class="modal-overlay hidden">
     <div class="modal-content" style="width:90vw; max-width:1200px; max-height:85vh; display:flex; flex-direction:column;">
-      <div class="modal-header">
+      <div class="modal-header" style="background: linear-gradient(135deg, #546da1, #a39db0);">
         <h3>
           <i class="fas fa-tasks"></i>
           任务执行明细
