@@ -30,10 +30,32 @@ ensureMigrationsStart();
 // P1 FIX: Service Worker 启动时从 chrome.storage 恢复任务状态
 globalTaskCenter.restoreFromStorage().catch(console.warn);
 
+chrome.tabs.onRemoved.addListener((tabId) => {
+  try {
+    globalTaskCenter.cancelTasksByTabId(tabId, 'page-closed-by-user');
+  } catch (err) {
+    console.warn('[Background] cancelTasksByTabId failed:', err);
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (typeof message?.type === 'string' && message.type.startsWith('task-center:')) {
     globalTaskCenter.handleMessage(message, sender, sendResponse);
     return globalTaskCenter.isAsyncMessage(message.type) || undefined;
+  }
+  if (message?.type === 'task-center:page-lifecycle') {
+    try {
+      const pageInstanceId = String(message.payload?.pageInstanceId || '');
+      const reason = String(message.payload?.reason || 'page-refresh-replaced');
+      if (!pageInstanceId) {
+        sendResponse({ ok: false, error: 'missing-page-instance-id' });
+      } else {
+        sendResponse(globalTaskCenter.cancelTasksByPageInstance(pageInstanceId, reason));
+      }
+    } catch (err) {
+      sendResponse({ ok: false, error: String(err) });
+    }
+    return false;
   }
   // P0 FIX: 处理 hidden 页 lease 泄漏保护消息
   if (message?.type === 'CANCEL_STALE_LEASE') {

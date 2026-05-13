@@ -1257,7 +1257,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
         if (waitReason === 'tab-hidden') return '页面隐藏';
         if (waitReason === 'higher-priority-wait') return '等待更高优先级任务';
-        if (waitReason === 'lease-timeout') return '租约超时';
+        if (waitReason === 'lease-timeout') return '心跳超时取消';
+        if (waitReason === 'page-closed-by-user') return '页面关闭取消';
+        if (waitReason === 'page-refresh-replaced') return '页面刷新替换';
+        if (waitReason === 'manual-cancel') return '手动取消';
         if (waitReason === 'task-not-found') return '任务不存在';
         if (waitReason === 'paused') return '主动暂停';
         return waitReason;
@@ -4171,6 +4174,15 @@ export class EnhancementSettings extends BaseSettingsPanel {
         return typeof value === 'number' ? value : 0;
     }
 
+    private getTaskEffectiveEndAt(task: any): number {
+        const endedAt = this.getTaskEndedAt(task);
+        if (endedAt > 0) return endedAt;
+        if (this.isTerminalTaskStatus(task?.status)) {
+            return this.getTaskRegisteredAt(task);
+        }
+        return 0;
+    }
+
     private getTaskWaitDurationMs(task: any): number {
         const createdAt = this.getTaskRegisteredAt(task);
         const startedAt = this.getTaskStartedAt(task);
@@ -4184,7 +4196,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             return durationMs;
         }
         const startedAt = this.getTaskStartedAt(task);
-        const endedAt = this.getTaskEndedAt(task);
+        const endedAt = this.getTaskEffectiveEndAt(task);
         if (startedAt > 0 && endedAt >= startedAt) {
             return Math.max(0, endedAt - startedAt);
         }
@@ -4196,6 +4208,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (waitReason === 'dependency-wait') return '依赖未满足';
         if (waitReason === 'tab-hidden') return '后台标签页';
         if (waitReason === 'higher-priority-wait') return '更高优先级任务占用';
+        if (waitReason === 'page-closed-by-user') return '页面关闭取消';
+        if (waitReason === 'page-refresh-replaced') return '页面刷新替换';
+        if (waitReason === 'lease-timeout') return '心跳超时取消';
+        if (waitReason === 'manual-cancel') return '手动取消';
         if (waitReason.startsWith('bucket:')) {
             const bucket = waitReason.slice('bucket:'.length) || 'default';
             return `并发桶等待:${bucket}`;
@@ -4209,6 +4225,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     private getTaskDisplayReason(task: any): string {
         const status = task?.status || '';
+        if (status === 'canceled') {
+            return this.getTaskPendingReasonLabel(task?.waitReason || 'manual-cancel');
+        }
         if (this.isTerminalTaskStatus(status)) {
             return '-';
         }
@@ -4325,6 +4344,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     childErrorCount: 0,
                     totalDurationMs: 0,
                     pendingCount: 0,
+                    terminalParentCount: 0,
                     statuses: new Set<string>(),
                     labels: new Set<string>(),
                     waitReasons: new Map<string, number>(),
@@ -4334,8 +4354,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
             }
             const group = groups.get(groupKey)!;
             const isChildTask = !!(task?.parentLabel && task?.subtaskLabel);
+            const registeredAt = this.getTaskRegisteredAt(task);
+            const effectiveEndAt = this.getTaskEffectiveEndAt(task);
             group.taskCount += 1;
-            group.totalDurationMs += Math.max(0, this.getTaskRunDurationMs(task));
             group.statuses.add(task?.status || 'unknown');
             if (!isChildTask && task?.status === 'done') group.doneCount += 1;
             if (!isChildTask && task?.status === 'error') group.errorCount += 1;
@@ -4351,25 +4372,41 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 group.childCount += 1;
             } else {
                 group.parentCount += 1;
+                if (this.isTerminalTaskStatus(task?.status)) {
+                    group.terminalParentCount += 1;
+                }
             }
-            const ts = typeof task?.timestamp === 'number' ? task.timestamp : 0;
-            if (ts > 0) {
-                group.startedAt = Math.min(group.startedAt, ts);
-                group.endedAt = Math.max(group.endedAt, ts);
+            if (registeredAt > 0) {
+                group.startedAt = Math.min(group.startedAt, registeredAt);
+            }
+            if (effectiveEndAt > 0) {
+                group.endedAt = Math.max(group.endedAt, effectiveEndAt);
             }
         }
 
-        return Array.from(groups.values()).map((group) => ({
-            ...group,
-            status: group.statuses.has('error') ? 'error' : (group.statuses.has('running') ? 'running' : (group.statuses.has('paused') ? 'paused' : (group.statuses.has('done') ? 'done' : 'unknown'))),
-            label: `${this.getPagePath(group.pageUrl)} [${group.pageInstanceId}]`,
-            detail: `tab=${group.tabId} · 主任务=${group.parentCount} · 子任务=${group.childCount} · 主任务完成=${group.doneCount} · 子任务完成=${group.childDoneCount} · 标签=${group.labels.size} · 未完成=${group.pendingCount}`,
-            topWaitReasons: Array.from(group.waitReasons.entries() as IterableIterator<[string, number]>)
-                .map(([reason, count]: [string, number]) => ({ reason, count }))
-                .sort((a: { reason: string; count: number }, b: { reason: string; count: number }) => b.count - a.count || a.reason.localeCompare(b.reason))
-                .slice(0, 3),
-            startedAt: group.startedAt === Number.MAX_SAFE_INTEGER ? 0 : group.startedAt,
-        }));
+        return Array.from(groups.values()).map((group) => {
+            const normalizedStartedAt = group.startedAt === Number.MAX_SAFE_INTEGER ? 0 : group.startedAt;
+            const totalElapsedMs = (normalizedStartedAt > 0 && group.endedAt >= normalizedStartedAt)
+                ? Math.max(0, group.endedAt - normalizedStartedAt)
+                : 0;
+            const normalizedStatus = group.statuses.has('error')
+                ? 'error'
+                : (group.pendingCount > 0
+                    ? (group.statuses.has('running') ? 'running' : (group.statuses.has('paused') ? 'paused' : 'queued'))
+                    : ((group.doneCount + group.errorCount + group.childDoneCount + group.childErrorCount) > 0 ? 'done' : 'done'));
+            return {
+                ...group,
+                status: normalizedStatus,
+                totalDurationMs: totalElapsedMs,
+                label: `${this.getPagePath(group.pageUrl)} [${group.pageInstanceId}]`,
+                detail: `tab=${group.tabId} · 主任务=${group.parentCount} · 子任务=${group.childCount} · 主任务完成=${group.doneCount} · 子任务完成=${group.childDoneCount} · 标签=${group.labels.size} · 未完成=${group.pendingCount}`,
+                topWaitReasons: Array.from(group.waitReasons.entries() as IterableIterator<[string, number]>)
+                    .map(([reason, count]: [string, number]) => ({ reason, count }))
+                    .sort((a: { reason: string; count: number }, b: { reason: string; count: number }) => b.count - a.count || a.reason.localeCompare(b.reason))
+                    .slice(0, 3),
+                startedAt: normalizedStartedAt,
+            };
+        });
     }
 
     private getTaskDetailsGroupedParents(data: any[]): Array<{ parentKey: string; parent: any; children: any[] }> {

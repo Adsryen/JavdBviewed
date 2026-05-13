@@ -342,16 +342,46 @@ export class GlobalTaskCenter {
     return { ok: true };
   }
 
-  cancelTask(taskId: string, _reason: string): { ok: true } {
+  cancelTask(taskId: string, reason: string): { ok: true } {
     this.cleanupStaleTasks();
     const task = this.store.getTask(taskId);
     if (task) {
       task.runtime.status = 'canceled';
-      task.runtime.waitReason = undefined;
+      task.runtime.waitReason = reason || 'manual-cancel';
       task.runtime.endedAt = Date.now();
       this.store.setTask(taskId, task);
     }
     return { ok: true };
+  }
+
+  cancelTasksByPageInstance(pageInstanceId: string, reason: string): { ok: true; canceled: number } {
+    this.cleanupStaleTasks();
+    let canceled = 0;
+    for (const record of this.store.listTasks()) {
+      if (record?.descriptor?.pageInstanceId !== pageInstanceId) continue;
+      if (['done', 'error', 'canceled'].includes(record.runtime.status)) continue;
+      record.runtime.status = 'canceled';
+      record.runtime.waitReason = reason || 'page-closed-by-user';
+      record.runtime.endedAt = Date.now();
+      this.store.setTask(record.descriptor.taskId, record);
+      canceled += 1;
+    }
+    return { ok: true, canceled };
+  }
+
+  cancelTasksByTabId(tabId: number, reason: string): { ok: true; canceled: number } {
+    this.cleanupStaleTasks();
+    let canceled = 0;
+    for (const record of this.store.listTasks()) {
+      if (record?.descriptor?.tabId !== tabId) continue;
+      if (['done', 'error', 'canceled'].includes(record.runtime.status)) continue;
+      record.runtime.status = 'canceled';
+      record.runtime.waitReason = reason || 'page-closed-by-user';
+      record.runtime.endedAt = Date.now();
+      this.store.setTask(record.descriptor.taskId, record);
+      canceled += 1;
+    }
+    return { ok: true, canceled };
   }
 
   updateVisibility(tabId: number, visible: boolean): { ok: true } {
@@ -457,6 +487,9 @@ export class GlobalTaskCenter {
         case 'task-center:restore':
           this.restoreFromStorage().then(() => { sendResponse({ ok: true }); }).catch((e) => { sendResponse({ ok: false, error: String(e) }); });
           return; // async response via sendResponse
+        case 'task-center:cancel-page-instance':
+          sendResponse(this.cancelTasksByPageInstance(String(message.payload?.pageInstanceId || ''), String(message.payload?.reason || 'page-closed-by-user')));
+          return;
         default:
           sendResponse({ ok: false, error: 'unknown-task-center-message' });
           return;

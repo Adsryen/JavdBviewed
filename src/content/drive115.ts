@@ -11,7 +11,6 @@ import { showToast } from './toast';
 import { log } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { getSettings } from '../utils/storage';
-import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 
@@ -227,18 +226,6 @@ export async function handlePushToDrive115(
     magnetName: string
 ): Promise<void> {
     try {
-        const descriptor = createManagedTaskDescriptor({
-            label: 'drive115:push',
-            phase: 'high',
-            priority: 9,
-            cost: 'heavy',
-            visibilityPolicy: 'foreground_first',
-            timeoutMs: 20000,
-            retryLimit: 2,
-            resumePolicy: 'restart',
-            dedupeKey: `drive115:push:${videoId}:${magnetUrl}`,
-        });
-        await runManagedTask(descriptor, async () => {
         // 检查115功能是否启用
         const enabled = await isDrive115Enabled();
         if (!enabled) {
@@ -320,7 +307,6 @@ export async function handlePushToDrive115(
         } else {
             throw new Error(result.error || '推送失败');
         }
-        });
     } catch (error) {
         console.error('推送到115网盘失败:', error);
         const errorMessage = error instanceof Error ? error.message : '未知错误';
