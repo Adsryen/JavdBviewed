@@ -43,8 +43,8 @@ Jav 助手是一个面向 JavDB 等站点的浏览器扩展，提供视频状态
 ## 开发相关
 
 - 构建命令：`npm run build`
-- 文档开发：`npm run docs:dev`
-- 文档构建：`npm run docs:build`
+- 文档开发：`npm run vitepress:dev`
+- 文档构建：`npm run vitepress:build`
 
 ## 相关页面
 

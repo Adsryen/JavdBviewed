@@ -6,17 +6,17 @@
 
 ```bash
 npm install
-npm run docs:dev
+npm run vitepress:dev
 ```
 
 ## 构建与预览
 
 ```bash
-npm run docs:build
-npm run docs:preview
+npm run vitepress:build
+npm run vitepress:preview
 ```
 
-当前文档站源码目录为 `vitepress/`，构建输出目录为仓库根目录下的 `docs-dist/`。
+当前文档站源码目录为 `vitepress/`，构建输出目录为仓库根目录下的 `vitepress/.vitepress/dist/`。
 
 ## 文档迁移范围
 

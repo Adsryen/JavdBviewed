@@ -142,13 +142,26 @@ npm run build
 
 #### 文档站本地预览
 ```bash
-npm run docs:dev
+npm run vitepress:dev
 ```
 
 #### 文档站构建
 ```bash
-npm run docs:build
+npm run vitepress:build
 ```
+
+#### Vercel 文档部署配置
+```text
+Framework Preset: VitePress
+Install Command: npm install
+Build Command: npm run vitepress:build
+Output Directory: vitepress/.vitepress/dist
+```
+
+当前文档站统一约定：
+- 文档源码目录：`vitepress/`
+- VitePress 配置目录：`vitepress/.vitepress/`
+- 构建产物目录：`vitepress/.vitepress/dist/`
 
 #### 发布扩展
 1. 更新版本号：
@@ -182,5 +195,4 @@ npm run docs:build
 [![Star History Chart](https://api.star-history.com/svg?repos=Adsryen/JavdBviewed&type=Date)](https://star-history.com/#Adsryen/JavdBviewed&Date)
 
 </div>
-
 
