@@ -1,0 +1,63 @@
+name: Repo Label Sync
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repo-label-sync.yml'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update repository labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const desiredLabels = [
+              { name: 'bug', color: 'd73a4a', description: 'Bug report or broken behavior' },
+              { name: 'enhancement', color: 'a2eeef', description: 'Feature request or product improvement' },
+              { name: 'site-compatibility', color: '1d76db', description: 'Website compatibility or selector issue' },
+              { name: 'sync', color: '5319e7', description: 'WebDAV or data synchronization topic' },
+              { name: '115', color: 'fbca04', description: '115 drive integration topic' },
+              { name: 'ai', color: '0e8a16', description: 'AI translation or model-related topic' },
+              { name: 'privacy', color: '5319e7', description: 'Privacy, password, or encryption topic' },
+              { name: 'dashboard', color: '0052cc', description: 'Dashboard, settings, or UI panel topic' },
+              { name: 'docs', color: '0075ca', description: 'Documentation improvement or problem' },
+              { name: 'question', color: 'd876e3', description: 'Usage question or support request' }
+            ];
+
+            const { data: existingLabels } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            const labelMap = new Map(existingLabels.map(label => [label.name, label]));
+
+            for (const label of desiredLabels) {
+              const current = labelMap.get(label.name);
+              if (current) {
+                await github.rest.issues.updateLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+                core.info(`Updated label: ${label.name}`);
+              } else {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+                core.info(`Created label: ${label.name}`);
+              }
+            }
