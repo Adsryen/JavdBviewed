@@ -47,8 +47,10 @@ javdb-backup_*.json
 !tutorial/*.md
 !docs/*.md
 !docs/**/*.md
-!docs/.vitepress/
-!docs/.vitepress/**
+!vitepress/
+!vitepress/**
+!vitepress/.vitepress/
+!vitepress/.vitepress/**
 
 # 参考文档
 !reference/
@@ -65,6 +67,8 @@ javdb-backup_*.json
 *.spec.js
 *.mjs
 *.mts
+!vitepress/.vitepress/*.mts
+!vitepress/.vitepress/config.mts
 
 # Temp files
 temp/
@@ -88,5 +92,5 @@ build.bat
 .codex/
 .claude/
 
-# plan
-plan/
+# plans
+plans/
