@@ -1,0 +1,52 @@
+name: Issue Labeler Bot
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply issue labels
+        uses: actions/github-script@v7
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        with:
+          script: |
+            const title = (process.env.ISSUE_TITLE || '').toLowerCase();
+            const body = (process.env.ISSUE_BODY || '').toLowerCase();
+            const content = `${title}\n${body}`;
+
+            const rules = [
+              { label: 'bug', patterns: ['[bug]', 'bug', '报错', '错误', '异常', '无法', '失效', 'broken', 'crash'] },
+              { label: 'enhancement', patterns: ['[feature]', 'feature', '建议', '希望', 'support', '增加', '新增', '优化'] },
+              { label: 'site-compatibility', patterns: ['javdb', 'javbus', '页面', '网站', 'site', 'dom', 'selector'] },
+              { label: 'sync', patterns: ['webdav', '同步', 'sync', '冲突', '备份', 'restore'] },
+              { label: '115', patterns: ['115', '离线下载', '网盘', 'offline download'] },
+              { label: 'ai', patterns: ['ai', '翻译', 'translator', 'gemini', 'openai', 'claude'] },
+              { label: 'privacy', patterns: ['隐私', 'privacy', '密码', 'lock', '加密', 'crypto'] },
+              { label: 'dashboard', patterns: ['dashboard', '面板', '设置页', 'settings', 'tab', '统计'] },
+              { label: 'docs', patterns: ['文档', 'readme', 'docs', '教程', '说明'] },
+              { label: 'question', patterns: ['如何', '请问', '怎么', 'question', 'help', '使用问题'] }
+            ];
+
+            const labels = rules
+              .filter(rule => rule.patterns.some(pattern => content.includes(pattern)))
+              .map(rule => rule.label);
+
+            if (labels.length === 0) {
+              return core.info('No matching labels for this issue.');
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: Array.from(new Set(labels)),
+            });

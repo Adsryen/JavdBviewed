@@ -1,0 +1,181 @@
+name: Issue Summary Bot
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate issue summary
+        uses: actions/github-script@v7
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        with:
+          script: |
+            const marker = '<!-- issue-summary-bot -->';
+            const reminderMarker = '<!-- issue-summary-bot-reminder -->';
+            const title = process.env.ISSUE_TITLE || '';
+            const body = process.env.ISSUE_BODY || '';
+            const author = process.env.ISSUE_AUTHOR || '';
+            const issueNumber = process.env.ISSUE_NUMBER || '';
+            const issueUrl = process.env.ISSUE_URL || '';
+
+            const lines = body.split('\n').map(line => line.trimRight());
+            const sectionTitles = [
+              '## 📋 基本信息', '## 📋 Environment',
+              '## 🐛 问题描述', '## 🐛 Bug Description',
+              '## 📝 复现步骤', '## 📝 Steps to Reproduce',
+              '## ✅ 期望行为', '## ✅ Expected Behavior',
+              '## 💡 补充说明', '## 💡 Additional Context',
+              '## 💡 功能描述', '## 💡 Feature Description',
+              '## 🎯 使用场景', '## 🎯 Use Case',
+              '## 🎨 期望的实现方式', '## 🎨 Proposed Solution',
+              '## 📸 参考示例', '## 📸 Examples or References'
+            ];
+
+            function getSectionContent(sectionName) {
+              const index = lines.findIndex(line => line.startsWith(sectionName));
+              if (index === -1) return '';
+              const content = [];
+              for (let i = index + 1; i < lines.length; i += 1) {
+                const line = lines[i];
+                if (sectionTitles.some(title => line.startsWith(title))) break;
+                if (line.startsWith('---')) break;
+                if (line.startsWith('**提交前确认：**') || line.startsWith('**Before submitting:**')) break;
+                if (line.startsWith('<!--')) continue;
+                content.push(line);
+              }
+              return content.join('\n').trim();
+            }
+
+            function cleanText(value) {
+              return value
+                .replace(/```[\s\S]*?```/g, (match) => match.length > 500 ? match.slice(0, 500) + '\n...\n```' : match)
+                .replace(/<!--.*?-->/g, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            }
+
+            function hasMeaningfulContent(value) {
+              if (!value) return false;
+              const normalized = value
+                .replace(/```[\s\S]*?```/g, ' ')
+                .replace(/[\s`>*\-_[\]()]/g, '')
+                .trim();
+              return normalized.length >= 6;
+            }
+
+            const environment = cleanText(getSectionContent('## 📋 基本信息') || getSectionContent('## 📋 Environment'));
+            const description = cleanText(getSectionContent('## 🐛 问题描述') || getSectionContent('## 🐛 Bug Description') || getSectionContent('## 💡 功能描述') || getSectionContent('## 💡 Feature Description'));
+            const steps = cleanText(getSectionContent('## 📝 复现步骤') || getSectionContent('## 📝 Steps to Reproduce') || getSectionContent('## 🎯 使用场景') || getSectionContent('## 🎯 Use Case'));
+            const expected = cleanText(getSectionContent('## ✅ 期望行为') || getSectionContent('## 🎨 期望的实现方式') || getSectionContent('## 🎨 Proposed Solution'));
+            const extra = cleanText(getSectionContent('## 💡 补充说明') || getSectionContent('## 💡 Additional Context') || getSectionContent('## 📸 参考示例') || getSectionContent('## 📸 Examples or References'));
+
+            const type = title.toLowerCase().includes('[feature]') ? '功能建议' : '问题反馈';
+            const missingItems = [];
+            if (type === '问题反馈' && !hasMeaningfulContent(environment)) missingItems.push('环境信息');
+            if (!hasMeaningfulContent(description)) missingItems.push('核心描述');
+            if (!hasMeaningfulContent(steps)) missingItems.push(type === '功能建议' ? '使用场景' : '复现步骤');
+            if (!hasMeaningfulContent(expected)) missingItems.push(type === '功能建议' ? '建议方案' : '期望行为');
+
+            const summary = [
+              marker,
+              '## 🤖 Issue Summary',
+              '',
+              `- 类型：${type}`,
+              `- 标题：${title}`,
+              `- 提交者：@${author}`,
+              `- 链接：${issueUrl}`,
+              '',
+              '### 核心内容',
+              description ? description : '待补充详细描述。',
+              '',
+              '### 关键信息',
+              environment ? environment : '待补充环境信息。',
+              '',
+              '### 复现步骤 / 使用场景',
+              steps ? steps : '待补充复现步骤或使用场景。',
+              '',
+              '### 期望结果 / 建议方案',
+              expected ? expected : '待补充期望结果或建议方案。',
+              '',
+              '### 补充说明',
+              extra ? extra : '当前没有额外补充。',
+              '',
+              '### Maintainer Notes',
+              '- 这条总结由 GitHub Action 自动生成。',
+              '- 编辑 Issue 后会自动刷新这条评论。'
+            ].join('\n');
+
+            const reminder = missingItems.length > 0
+              ? [
+                  reminderMarker,
+                  '## 📝 信息补充提醒',
+                  '',
+                  `@${author} 为了更快处理这条 Issue，请补充这些内容：`,
+                  '',
+                  ...missingItems.map(item => `- ${item}`),
+                  '',
+                  '- 补充完成后直接编辑原 Issue 即可，Bot 会自动刷新总结。'
+                ].join('\n')
+              : '';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(issueNumber),
+              per_page: 100,
+            });
+
+            const summaryComment = comments.find(comment => comment.body && comment.body.includes(marker));
+            const reminderComment = comments.find(comment => comment.body && comment.body.includes(reminderMarker));
+
+            if (summaryComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: summaryComment.id,
+                body: summary,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(issueNumber),
+                body: summary,
+              });
+            }
+
+            if (reminder) {
+              if (reminderComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: reminderComment.id,
+                  body: reminder,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: Number(issueNumber),
+                  body: reminder,
+                });
+              }
+            } else if (reminderComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: reminderComment.id,
+              });
+            }
