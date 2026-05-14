@@ -2,6 +2,10 @@ import { getPageContext } from './pageContext';
 
 export interface SubtaskDetailPayload {
   label: string;
+  taskId?: string;
+  parentTaskId?: string;
+  rootTaskId?: string;
+  correlationId?: string;
   phase: string;
   status: 'done' | 'error';
   durationMs: number;

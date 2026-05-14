@@ -1,6 +1,13 @@
 ﻿// src/background/drive115Proxy.ts
 // 抽离 115 v2 后台代理（解决内容脚本 CORS）
 
+function logDrive115Proxy(message: string, data?: any): void {
+  try {
+    if (data !== undefined) console.info(`[115Proxy] ${message}`, data);
+    else console.info(`[115Proxy] ${message}`);
+  } catch {}
+}
+
 export function installDrive115V2Proxy(): void {
   try {
     // 避免重复注册
@@ -17,6 +24,8 @@ export function installDrive115V2Proxy(): void {
           const urls = String(payload.urls || '');
           const wp_path_id = payload.wp_path_id;
           const base = String(payload.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+          const correlationId = String(payload.correlationId || '').trim();
+          const taskId = String(payload.taskId || '').trim();
           if (!accessToken || !urls) {
             sendResponse({ success: false, message: '缺少 accessToken 或 urls' });
             return true;
@@ -25,6 +34,24 @@ export function installDrive115V2Proxy(): void {
           const fd = new FormData();
           fd.set('urls', urls);
           if (wp_path_id !== undefined) fd.set('wp_path_id', String(wp_path_id));
+
+          const fetchStartedAt = Date.now();
+          const slowWarnMs = 10000;
+          const slowWarnTimer = setTimeout(() => {
+            logDrive115Proxy('add_task_urls still pending', {
+              taskId,
+              correlationId,
+              waitedMs: Date.now() - fetchStartedAt,
+              wp_path_id: wp_path_id ?? 'root',
+            });
+          }, slowWarnMs);
+
+          logDrive115Proxy('add_task_urls fetch start', {
+            taskId,
+            correlationId,
+            wp_path_id: wp_path_id ?? 'root',
+            startedAt: fetchStartedAt,
+          });
 
           fetch(`${base}/open/offline/add_task_urls`, {
             method: 'POST',
@@ -35,12 +62,27 @@ export function installDrive115V2Proxy(): void {
             body: fd,
           })
             .then(async (res) => {
+              clearTimeout(slowWarnTimer);
               const raw = await res.json().catch(() => ({} as any));
               const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
               const data = (raw && (raw.data || raw.result)) || undefined;
+              logDrive115Proxy('add_task_urls fetch done', {
+                taskId,
+                correlationId,
+                ok,
+                status: res.status,
+                durationMs: Date.now() - fetchStartedAt,
+              });
               sendResponse({ success: ok, message: raw?.message || raw?.error, raw, data });
             })
             .catch((err) => {
+              clearTimeout(slowWarnTimer);
+              logDrive115Proxy('add_task_urls fetch error', {
+                taskId,
+                correlationId,
+                durationMs: Date.now() - fetchStartedAt,
+                error: err?.message || String(err),
+              });
               sendResponse({ success: false, message: err?.message || '后台请求失败' });
             });
           return true; // 异步响应

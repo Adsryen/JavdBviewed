@@ -53,6 +53,10 @@ export async function heartbeatManagedTask(taskId: string): Promise<void> {
   await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.HEARTBEAT, payload: { taskId } });
 }
 
+export async function progressManagedTask(taskId: string, payload: { stage?: string; progressPct?: number; detail?: string; stageStartedAt?: number; stageDurationMs?: number }): Promise<void> {
+  await chrome.runtime.sendMessage({ type: TASK_CENTER_MESSAGE.PROGRESS, payload: { taskId, ...payload } });
+}
+
 // P2 FIX: 跨页面依赖同步 - 查询某个 label 是否已在全局完成
 export async function isGlobalTaskLabelCompleted(label: string): Promise<boolean> {
   try {
