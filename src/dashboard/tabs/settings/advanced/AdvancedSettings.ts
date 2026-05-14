@@ -66,19 +66,20 @@ export class AdvancedSettings extends BaseSettingsPanel {
      */
     protected bindEvents(): void {
         console.log('[AdvancedSettings] 开始绑定事件监听器');
+        const signal = this.createEventBindingSignal();
         
         // 基于原始advanced.ts的事件绑定
-        this.viewJsonBtn.addEventListener('click', this.handleViewJson.bind(this));
-        this.editJsonBtn.addEventListener('click', this.handleEditJson.bind(this));
-        this.exportJsonBtn.addEventListener('click', this.handleExportData.bind(this));
+        this.viewJsonBtn.addEventListener('click', this.handleViewJson.bind(this), { signal });
+        this.editJsonBtn.addEventListener('click', this.handleEditJson.bind(this), { signal });
+        this.exportJsonBtn.addEventListener('click', this.handleExportData.bind(this), { signal });
 
         // 可选元素的事件绑定
         if (this.viewRawLogsBtn) {
-            this.viewRawLogsBtn.addEventListener('click', this.handleViewRawLogs.bind(this));
+            this.viewRawLogsBtn.addEventListener('click', this.handleViewRawLogs.bind(this), { signal });
             console.log('[AdvancedSettings] viewRawLogsBtn 事件已绑定');
         }
         if (this.testLogBtn) {
-            this.testLogBtn.addEventListener('click', this.handleTestLog.bind(this));
+            this.testLogBtn.addEventListener('click', this.handleTestLog.bind(this), { signal });
             console.log('[AdvancedSettings] testLogBtn 事件已绑定');
         }
         
@@ -89,8 +90,7 @@ export class AdvancedSettings extends BaseSettingsPanel {
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        // 由于使用了bind，需要保存引用才能正确解绑
-        // 为简化起见，暂时省略
+        this.unbindManagedEvents();
     }
 
     /**

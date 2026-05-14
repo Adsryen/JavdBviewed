@@ -80,9 +80,11 @@ export class SyncSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.enabledCheckbox?.addEventListener('change', this.handleActorSyncEnabledChange.bind(this));
-        this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this));
-        this.testParsingBtn?.addEventListener('click', this.handleTestParsing.bind(this));
+        const signal = this.createEventBindingSignal();
+
+        this.enabledCheckbox?.addEventListener('change', this.handleActorSyncEnabledChange.bind(this), { signal });
+        this.testConnectionBtn?.addEventListener('click', this.handleTestConnection.bind(this), { signal });
+        this.testParsingBtn?.addEventListener('click', this.handleTestParsing.bind(this), { signal });
         
         // 为所有输入框添加自动保存事件
         const inputs = [
@@ -103,9 +105,9 @@ export class SyncSettings extends BaseSettingsPanel {
         inputs.forEach(input => {
             if (input) {
                 if (input.type === 'checkbox') {
-                    input.addEventListener('change', () => this.emit('change'));
+                    input.addEventListener('change', () => this.emit('change'), { signal });
                 } else {
-                    input.addEventListener('input', () => this.emit('change'));
+                    input.addEventListener('input', () => this.emit('change'), { signal });
                 }
             }
         });
@@ -115,9 +117,7 @@ export class SyncSettings extends BaseSettingsPanel {
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.enabledCheckbox?.removeEventListener('change', this.handleActorSyncEnabledChange.bind(this));
-        this.testConnectionBtn?.removeEventListener('click', this.handleTestConnection.bind(this));
-        this.testParsingBtn?.removeEventListener('click', this.handleTestParsing.bind(this));
+        this.unbindManagedEvents();
     }
 
     /**

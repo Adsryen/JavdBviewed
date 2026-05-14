@@ -701,52 +701,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.bindSubtabLinks();
 
         // 编排可视化按钮事件
-        if (this.showOrchestratorBtn) {
-            this.showOrchestratorBtn.addEventListener('click', () => this.openOrchestratorModal());
-        }
-        if (this.orchestratorModalClose) {
-            this.orchestratorModalClose.addEventListener('click', () => this.closeOrchestratorModal());
-        }
-        if (this.orchestratorCloseBtn) {
-            this.orchestratorCloseBtn.addEventListener('click', () => this.closeOrchestratorModal());
-        }
-        if (this.orchestratorRefreshBtn) {
-            this.orchestratorRefreshBtn.addEventListener('click', () => this.refreshOrchestratorState());
-        }
-        if (this.orchestratorCopyPhasesBtn) {
-            this.orchestratorCopyPhasesBtn.addEventListener('click', () => this.copyPhasesText());
-        }
-        if (this.orchestratorCopyTimelineBtn) {
-            this.orchestratorCopyTimelineBtn.addEventListener('click', () => this.copyTimelineText());
-        }
-        if (this.orchestratorFullscreenBtn) {
-            this.orchestratorFullscreenBtn.addEventListener('click', () => {
-                const content = document.getElementById('orchestratorModalContent');
-                if (!content) return;
-                const isFs = content.classList.toggle('fullscreen');
-                if (isFs) {
-                    this.orchestratorFullscreenBtn!.textContent = '退出全屏';
-                } else {
-                    this.orchestratorFullscreenBtn!.textContent = '全屏';
-                }
-                // 滚到底，避免切换后看不到尾部
-                this.orchestratorTimeline?.scrollTo({ top: (this.orchestratorTimeline as HTMLElement).scrollHeight });
-            });
-        }
-        if (this.orchestratorOpenJavdbBtn) {
-            this.orchestratorOpenJavdbBtn.addEventListener('click', async () => {
-                try {
-                    if (!chrome?.tabs?.create) return;
-                    await new Promise<void>((resolve) => {
-                        chrome.tabs.create({ url: 'https://javdb.com/' }, () => resolve());
-                    });
-                    // 等页面注入内容脚本
-                    setTimeout(() => this.refreshOrchestratorState(), 1500);
-                } catch (e) {
-                    console.warn('[Enhancement] 打开 JavDB 失败:', e);
-                }
-            });
-        }
+        this.bindOrchestratorControls();
 
         // 过滤器事件
         this.orchFilterStatusSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
@@ -2305,6 +2260,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
         // 页面 DOM 可能被重新 replace，补绑新的子标签按钮事件
         this.bindSubtabLinks();
 
+        // 页面 DOM 可能被重新 replace，补绑新的编排面板按钮事件
+        this.bindOrchestratorControls();
+
         // 初始化子标签（读取最近一次选择）
         try {
             const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | 'other' | null;
@@ -2339,6 +2297,72 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 this.switchSubtab(sub);
             });
         });
+    }
+
+    /**
+     * 幂等绑定编排面板相关按钮事件
+     * 设置页子页面会被 replace 重建，因此需要在重新加载后对新按钮补绑事件
+     */
+    private bindOrchestratorControls(): void {
+        if (this.showOrchestratorBtn && this.showOrchestratorBtn.dataset.orchestratorBound !== '1') {
+            this.showOrchestratorBtn.dataset.orchestratorBound = '1';
+            this.showOrchestratorBtn.addEventListener('click', () => this.openOrchestratorModal());
+        }
+
+        if (this.orchestratorModalClose && this.orchestratorModalClose.dataset.orchestratorBound !== '1') {
+            this.orchestratorModalClose.dataset.orchestratorBound = '1';
+            this.orchestratorModalClose.addEventListener('click', () => this.closeOrchestratorModal());
+        }
+
+        if (this.orchestratorCloseBtn && this.orchestratorCloseBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorCloseBtn.dataset.orchestratorBound = '1';
+            this.orchestratorCloseBtn.addEventListener('click', () => this.closeOrchestratorModal());
+        }
+
+        if (this.orchestratorRefreshBtn && this.orchestratorRefreshBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorRefreshBtn.dataset.orchestratorBound = '1';
+            this.orchestratorRefreshBtn.addEventListener('click', () => this.refreshOrchestratorState());
+        }
+
+        if (this.orchestratorCopyPhasesBtn && this.orchestratorCopyPhasesBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorCopyPhasesBtn.dataset.orchestratorBound = '1';
+            this.orchestratorCopyPhasesBtn.addEventListener('click', () => this.copyPhasesText());
+        }
+
+        if (this.orchestratorCopyTimelineBtn && this.orchestratorCopyTimelineBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorCopyTimelineBtn.dataset.orchestratorBound = '1';
+            this.orchestratorCopyTimelineBtn.addEventListener('click', () => this.copyTimelineText());
+        }
+
+        if (this.orchestratorFullscreenBtn && this.orchestratorFullscreenBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorFullscreenBtn.dataset.orchestratorBound = '1';
+            this.orchestratorFullscreenBtn.addEventListener('click', () => {
+                const content = document.getElementById('orchestratorModalContent');
+                if (!content) return;
+                const isFs = content.classList.toggle('fullscreen');
+                if (isFs) {
+                    this.orchestratorFullscreenBtn!.textContent = '退出全屏';
+                } else {
+                    this.orchestratorFullscreenBtn!.textContent = '全屏';
+                }
+                this.orchestratorTimeline?.scrollTo({ top: (this.orchestratorTimeline as HTMLElement).scrollHeight });
+            });
+        }
+
+        if (this.orchestratorOpenJavdbBtn && this.orchestratorOpenJavdbBtn.dataset.orchestratorBound !== '1') {
+            this.orchestratorOpenJavdbBtn.dataset.orchestratorBound = '1';
+            this.orchestratorOpenJavdbBtn.addEventListener('click', async () => {
+                try {
+                    if (!chrome?.tabs?.create) return;
+                    await new Promise<void>((resolve) => {
+                        chrome.tabs.create({ url: 'https://javdb.com/' }, () => resolve());
+                    });
+                    setTimeout(() => this.refreshOrchestratorState(), 1500);
+                } catch (e) {
+                    console.warn('[Enhancement] 打开 JavDB 失败:', e);
+                }
+            });
+        }
     }
 
     /**

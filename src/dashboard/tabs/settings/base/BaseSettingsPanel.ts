@@ -26,6 +26,7 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
     protected state: SettingsPanelState = SettingsPanelState.UNINITIALIZED;
     protected eventHandlers: Map<SettingsPanelEvent, SettingsPanelEventHandler[]> = new Map();
     protected autoSaveTimeout?: number;
+    protected eventController?: AbortController;
 
     constructor(config: SettingsPanelConfig) {
         this.config = config;
@@ -53,8 +54,7 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
         console.log(`[${this.panelName}] [DEBUG] init() 被调用，当前状态: ${this.state}`);
         
         if (this.state !== SettingsPanelState.UNINITIALIZED && this.state !== SettingsPanelState.DESTROYED) {
-            console.log(`[${this.panelName}] [DEBUG] 面板已经初始化过了，直接加载设置`);
-            // 如果已经初始化过，只需要重新加载设置，不需要重新初始化元素和事件
+            console.log(`[${this.panelName}] [DEBUG] 面板已经初始化过了，重新加载设置并重绑事件`);
             this.loadSettings();
             return;
         }
@@ -117,6 +117,9 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
                 console.log(`[${this.panelName}] [DEBUG] 重新初始化元素引用`);
                 try {
                     this.initializeElements();
+                    console.log(`[${this.panelName}] [DEBUG] 重新绑定事件监听器`);
+                    this.unbindEvents();
+                    this.bindEvents();
                 } catch (error) {
                     console.error(`[${this.panelName}] [DEBUG] 重新初始化元素失败:`, error);
                     // 不抛出错误，继续尝试加载设置
@@ -252,6 +255,24 @@ export abstract class BaseSettingsPanel implements ISettingsPanel {
                 }
             });
         }
+    }
+
+    /**
+     * 为当前面板创建一轮新的事件绑定 signal
+     * 子类可在 bindEvents() 中调用，用于统一管理 addEventListener 生命周期
+     */
+    protected createEventBindingSignal(): AbortSignal {
+        this.unbindManagedEvents();
+        this.eventController = new AbortController();
+        return this.eventController.signal;
+    }
+
+    /**
+     * 仅解绑基类托管的事件，不影响子类自定义清理逻辑
+     */
+    protected unbindManagedEvents(): void {
+        this.eventController?.abort();
+        this.eventController = undefined;
     }
 
     /**

@@ -78,37 +78,38 @@ export class PrivacySettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
+        const signal = this.createEventBindingSignal();
+
         // 截图模式事件
-        this.screenshotEnabled?.addEventListener('change', this.handleScreenshotModeToggle.bind(this));
-        this.blurIntensity?.addEventListener('input', this.handleBlurIntensityChange.bind(this));
-        this.autoBlurTrigger?.addEventListener('change', this.handleAutoBlurTriggerChange.bind(this));
+        this.screenshotEnabled?.addEventListener('change', this.handleScreenshotModeToggle.bind(this), { signal });
+        this.blurIntensity?.addEventListener('input', this.handleBlurIntensityChange.bind(this), { signal });
+        this.autoBlurTrigger?.addEventListener('change', this.handleAutoBlurTriggerChange.bind(this), { signal });
         
         // 模糊区域选择事件
         this.blurAreaCheckboxes?.forEach(checkbox => {
-            checkbox.addEventListener('change', this.handleBlurAreaChange.bind(this));
+            checkbox.addEventListener('change', this.handleBlurAreaChange.bind(this), { signal });
         });
 
         // 私密模式事件
-        this.privateModeEnabled?.addEventListener('change', this.handlePrivateModeToggle.bind(this));
-        this.requirePassword?.addEventListener('change', this.handleRequirePasswordToggle.bind(this));
-        this.sessionTimeout?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this));
-        this.lockOnTabLeave?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this));
-        this.lockOnExtensionClose?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this));
+        this.privateModeEnabled?.addEventListener('change', this.handlePrivateModeToggle.bind(this), { signal });
+        this.requirePassword?.addEventListener('change', this.handleRequirePasswordToggle.bind(this), { signal });
+        this.sessionTimeout?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this), { signal });
+        this.lockOnTabLeave?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this), { signal });
+        this.lockOnExtensionClose?.addEventListener('change', this.handlePrivateModeSettingsChange.bind(this), { signal });
 
         // 按钮事件
-        this.setPasswordBtn?.addEventListener('click', this.handleSetPassword.bind(this));
-        this.changePasswordBtn?.addEventListener('click', this.handleChangePassword.bind(this));
-        this.removePasswordBtn?.addEventListener('click', this.handleRemovePassword.bind(this));
-        this.setupSecurityQuestionsBtn?.addEventListener('click', this.handleSetupSecurityQuestions.bind(this));
-        this.generateBackupCodeBtn?.addEventListener('click', this.handleGenerateBackupCode.bind(this));
+        this.setPasswordBtn?.addEventListener('click', this.handleSetPassword.bind(this), { signal });
+        this.changePasswordBtn?.addEventListener('click', this.handleChangePassword.bind(this), { signal });
+        this.removePasswordBtn?.addEventListener('click', this.handleRemovePassword.bind(this), { signal });
+        this.setupSecurityQuestionsBtn?.addEventListener('click', this.handleSetupSecurityQuestions.bind(this), { signal });
+        this.generateBackupCodeBtn?.addEventListener('click', this.handleGenerateBackupCode.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        // 由于使用了bind，需要保存引用才能正确解绑
-        // 为简化起见，暂时省略
+        this.unbindManagedEvents();
     }
 
     /**

@@ -56,29 +56,24 @@ export class DisplaySettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.hideViewedCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
-        this.hideBrowsedCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
-        this.hideVRCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
-        this.hideWantCheckbox.addEventListener('change', this.handleSettingChange.bind(this));
+        const signal = this.createEventBindingSignal();
+
+        this.hideViewedCheckbox.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.hideBrowsedCheckbox.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.hideVRCheckbox.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.hideWantCheckbox.addEventListener('change', this.handleSettingChange.bind(this), { signal });
         // 仅当存在对应元素时绑定
-        this.hideBlacklistedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.hideNonFavoritedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.hideUnrecognizedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.treatSubscribedAsFavoritedCheckbox?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.hideBlacklistedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.hideNonFavoritedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.hideUnrecognizedActorsInListCheckbox?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.treatSubscribedAsFavoritedCheckbox?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.hideViewedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideBrowsedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideVRCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideWantCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideBlacklistedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideNonFavoritedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.hideUnrecognizedActorsInListCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
-        this.treatSubscribedAsFavoritedCheckbox?.removeEventListener('change', this.handleSettingChange.bind(this));
+        this.unbindManagedEvents();
     }
 
     /**
@@ -140,7 +135,11 @@ export class DisplaySettings extends BaseSettingsPanel {
             chrome.tabs.query({ url: '*://javdb.com/*' }, (tabs) => {
                 tabs.forEach(tab => {
                     if (tab.id) {
-                        chrome.tabs.sendMessage(tab.id, { type: 'settings-updated' });
+                        chrome.tabs.sendMessage(tab.id, { type: 'settings-updated' }, () => {
+                            if (chrome.runtime.lastError) {
+                                console.debug('[DisplaySettings] 跳过未连接的 JavDB 标签页:', tab.id, chrome.runtime.lastError.message);
+                            }
+                        });
                     }
                 });
             });

@@ -54,21 +54,22 @@ export class InsightsSettingsPanel extends BaseSettingsPanel {
 
   protected bindEvents(): void {
     const handler = this.handleChange.bind(this);
-    this.topNInput.addEventListener('input', handler);
-    this.thresholdInput.addEventListener('input', handler);
-    this.minTagCountInput.addEventListener('input', handler);
-    this.risingLimitInput.addEventListener('input', handler);
-    this.fallingLimitInput.addEventListener('input', handler);
-    this.statusScopeSelect.addEventListener('change', handler);
-    this.autoMonthlyCheckbox.addEventListener('change', handler);
-    this.autoCompensateCheckbox.addEventListener('change', handler);
-    this.sourceSelect.addEventListener('change', handler);
-    this.minMonthlySamplesInput.addEventListener('input', handler);
-    this.autoMinuteInput.addEventListener('input', handler);
+    const signal = this.createEventBindingSignal();
+    this.topNInput.addEventListener('input', handler, { signal });
+    this.thresholdInput.addEventListener('input', handler, { signal });
+    this.minTagCountInput.addEventListener('input', handler, { signal });
+    this.risingLimitInput.addEventListener('input', handler, { signal });
+    this.fallingLimitInput.addEventListener('input', handler, { signal });
+    this.statusScopeSelect.addEventListener('change', handler, { signal });
+    this.autoMonthlyCheckbox.addEventListener('change', handler, { signal });
+    this.autoCompensateCheckbox.addEventListener('change', handler, { signal });
+    this.sourceSelect.addEventListener('change', handler, { signal });
+    this.minMonthlySamplesInput.addEventListener('input', handler, { signal });
+    this.autoMinuteInput.addEventListener('input', handler, { signal });
   }
 
   protected unbindEvents(): void {
-    // 简化：由于使用了 bind，解绑略过
+    this.unbindManagedEvents();
   }
 
   protected async doLoadSettings(): Promise<void> {
