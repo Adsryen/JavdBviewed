@@ -4,9 +4,9 @@
   "version": "1.9.0",
   "description": "Jav 助手",
   "scripts": {
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
+    "docs:dev": "vitepress dev vitepress",
+    "docs:build": "vitepress build vitepress",
+    "docs:preview": "vitepress preview vitepress",
     "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
     "version": "npm version"
   },
