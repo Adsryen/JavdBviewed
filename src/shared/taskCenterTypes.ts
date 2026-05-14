@@ -6,6 +6,9 @@ export type GlobalTaskResumePolicy = 'restart' | 'resume' | 'cache_then_skip';
 export interface GlobalTaskDescriptor {
   taskId: string;
   label: string;
+  parentTaskId?: string;
+  rootTaskId?: string;
+  correlationId?: string;
   tabId: number;
   pageUrl: string;
   pageType: string;
@@ -27,6 +30,12 @@ export interface GlobalTaskRuntimeState {
   waitReason?: string;
   startedAt?: number;
   endedAt?: number;
+  lastProgressAt?: number;
+  progressPct?: number;
+  stage?: string;
+  stageStartedAt?: number;
+  stageDurationMs?: number;
+  detail?: string;
   retryCount: number;
   pauseCount: number;
   resumeCount: number;

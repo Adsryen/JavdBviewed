@@ -1196,10 +1196,19 @@ class Drive115V2Service {
 
       const base = await this.getBaseURL();
       const url = `${base}/open/offline/add_task_urls`;
+      const context = (params as any)?.context || {};
+      const taskId = String(context.taskId || '').trim();
+      const correlationId = String(context.correlationId || '').trim();
 
       // 优先走后台代理，避免内容脚本在 javdb.com 环境的 CORS 限制
       try {
         if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const messageStartedAt = Date.now();
+          await addLogV2({ timestamp: messageStartedAt, level: 'info', message: `115推送阶段：bg-message:start taskId=${taskId || '-'} correlationId=${correlationId || '-'} 目录=${params.wp_path_id ?? '未指定（根）'}` });
+          const slowWarnMs = 10000;
+          const slowWarnTimer = setTimeout(() => {
+            void addLogV2({ timestamp: Date.now(), level: 'warn', message: `115推送阶段：bg-message:slow taskId=${taskId || '-'} correlationId=${correlationId || '-'} 已等待 ${Date.now() - messageStartedAt}ms` });
+          }, slowWarnMs);
           const bgResp: any = await new Promise((resolve) => {
             try {
               chrome.runtime.sendMessage(
@@ -1210,11 +1219,18 @@ class Drive115V2Service {
                     urls: params.urls,
                     wp_path_id: params.wp_path_id,
                     baseUrl: base,
+                    taskId,
+                    correlationId,
                   },
                 },
-                (resp) => resolve(resp)
+                (resp) => {
+                  clearTimeout(slowWarnTimer);
+                  void addLogV2({ timestamp: Date.now(), level: 'info', message: `115推送阶段：bg-message:end taskId=${taskId || '-'} correlationId=${correlationId || '-'} durationMs=${Date.now() - messageStartedAt}` });
+                  resolve(resp);
+                }
               );
             } catch {
+              clearTimeout(slowWarnTimer);
               resolve(undefined);
             }
           });
@@ -1242,6 +1258,7 @@ class Drive115V2Service {
 
       const count = String(params.urls || '').split('\n').filter(s => s.trim()).length;
       await addLogV2({ timestamp: Date.now(), level: 'info', message: `开始添加离线任务（v2）：${count} 项，目录=${params.wp_path_id ?? '未指定（根）'}` });
+      const fetchStartedAt = Date.now();
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -1266,6 +1283,7 @@ class Drive115V2Service {
         return { success: false, message: msg, raw: json };
       }
       const data: any[] | undefined = Array.isArray(json?.data) ? json.data : undefined;
+      await addLogV2({ timestamp: Date.now(), level: 'info', message: `115推送阶段：direct-fetch:end taskId=${taskId || '-'} correlationId=${correlationId || '-'} durationMs=${Date.now() - fetchStartedAt}` });
       await addLogV2({ timestamp: Date.now(), level: 'info', message: `添加离线任务成功（v2）：返回 ${Array.isArray(data) ? data.length : 0} 项` });
       return { success: true, data, raw: json };
     } catch (e: any) {

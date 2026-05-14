@@ -13,6 +13,8 @@ import { extractVideoIdFromPage } from './videoId';
 import { getSettings } from '../utils/storage';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
+import { createManagedTaskDescriptor, ensureManagedTaskRegistered, progressManagedTask, completeManagedTask, failManagedTask } from './taskRuntime';
+import { getPageContext } from './pageContext';
 
 type Drive115PushSettingsCache = {
     enabled: boolean;
@@ -261,6 +263,38 @@ export async function handlePushToDrive115(
     magnetUrl: string,
     magnetName: string
 ): Promise<void> {
+    const pageContext = getPageContext();
+    const correlationId = `drive115-push:${videoId}:${Date.now()}`;
+    let rootTask: Awaited<ReturnType<typeof ensureManagedTaskRegistered>> | null = null;
+    const stageStartTimes = new Map<string, number>();
+    const beginStage = async (stage: string, detail: string, progressPct: number) => {
+        const now = Date.now();
+        stageStartTimes.set(stage, now);
+        await progressManagedTask(rootTask.taskId, { stage, detail, progressPct, stageStartedAt: now });
+    };
+    const endStage = (stage: string, status: 'done' | 'error', detail: string, error?: string) => {
+        const startedAt = stageStartTimes.get(stage) || Date.now();
+        const durationMs = Date.now() - startedAt;
+        saveSubtaskDetail({
+            label: `drive115:push:${stage}`,
+            taskId: `${rootTask.taskId}:${stage}`,
+            parentTaskId: rootTask.taskId,
+            rootTaskId: rootTask.rootTaskId || rootTask.taskId,
+            correlationId,
+            parentLabel: rootTask.label,
+            subtaskLabel: stage,
+            pageUrl: pageContext.pageUrl,
+            pageType: pageContext.pageType,
+            mainId: pageContext.mainId,
+            pageInstanceId: pageContext.pageInstanceId,
+            phase: 'critical',
+            status,
+            durationMs,
+            detail,
+            error,
+        });
+        void progressManagedTask(rootTask.taskId, { stage, detail, stageStartedAt: startedAt, stageDurationMs: durationMs });
+    };
     try {
         const cachedSettings = await getDrive115PushSettingsCached();
         const enabled = cachedSettings.enabled;
@@ -268,6 +302,18 @@ export async function handlePushToDrive115(
             showToast('115网盘功能未启用，请先在设置中启用', 'error');
             return;
         }
+        rootTask = await ensureManagedTaskRegistered(createManagedTaskDescriptor({
+            label: 'drive115:push',
+            phase: 'critical',
+            priority: 95,
+            cost: 'medium',
+            visibilityPolicy: 'background_allowed',
+            timeoutMs: 30000,
+            retryLimit: 1,
+            resumePolicy: 'resume',
+            dedupeKey: `drive115:push:${pageContext.pageInstanceId}:${videoId}:${magnetUrl}`,
+            correlationId,
+        }));
 
         // 更新按钮状态
         const originalText = button.innerHTML;
@@ -281,6 +327,7 @@ export async function handlePushToDrive115(
         let result: { success: boolean; data?: any; error?: string };
         const urls = magnetUrl;
         try {
+            await beginStage('prepare', `videoId=${videoId}`, 5);
             await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 115 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
             let wpPathId: string | undefined;
             try {
@@ -288,16 +335,21 @@ export async function handlePushToDrive115(
                 wpPathId = def === '' ? '0' : def;
             } catch {}
 
-            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId, context: { source: 'detail', videoId, magnetName, pageUrl: window.location.href, wpPathId } });
+            endStage('prepare', 'done', 'request prepared');
+            await beginStage('push-api', `wpPathId=${wpPathId ?? 'root'}`, 40);
+            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId, context: { source: 'detail', videoId, magnetName, pageUrl: window.location.href, wpPathId, taskId: rootTask.taskId, correlationId } as any });
             result = { success: res.success, data: res.data, error: res.message };
             if (res.success) {
+                endStage('push-api', 'done', `returned=${Array.isArray(res.data) ? res.data.length : 0}`);
                 const returned = Array.isArray(res.data) ? res.data.length : 0;
                 await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：推送成功，返回 ${returned} 项，videoId=${videoId}` });
             } else {
+                endStage('push-api', 'error', res.message || 'push failed', res.message || 'push failed');
                 await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
             }
         } catch (e: any) {
             result = { success: false, error: e?.message || '推送失败' };
+            endStage('push-api', 'error', e?.message || 'push exception', e?.message || 'push exception');
             await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送异常：${e?.message || e || '未知异常'}，videoId=${videoId}，magnet=${magnetUrl}，page=${window.location.href}` });
         }
 
@@ -314,16 +366,21 @@ export async function handlePushToDrive115(
                 const autoMark = cachedSettings.autoMarkWatchedAfter115;
                 const stars = cachedSettings.autoMarkWatchedStars;
                 if (autoMark) {
+                    await beginStage('mark-watched', `stars=${stars}`, 80);
                     log('开始标记视频为已看...');
                     console.log('[JavDB Ext] 开始标记视频为已看...');
                     await markVideoAsWatched(videoId, stars);
+                    endStage('mark-watched', 'done', `stars=${stars}`);
                     log('markVideoAsWatched函数执行完毕');
                     console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
 
                     // 由于markVideoAsWatched内部会刷新页面，不需要恢复按钮状态
+                    await progressManagedTask(rootTask.taskId, { stage: 'done', detail: 'push + mark complete', progressPct: 100 });
+                    await completeManagedTask(rootTask.taskId);
                     return;
                 }
             } catch (error) {
+                endStage('mark-watched', 'error', error instanceof Error ? error.message : String(error), error instanceof Error ? error.message : String(error));
                 console.warn('自动标记已看失败或被关闭:', error);
                 console.error('[JavDB Ext] 自动标记已看失败或被关闭:', error);
                 try {
@@ -338,10 +395,15 @@ export async function handlePushToDrive115(
                     button.className = 'button is-success is-small drive115-push-btn';
                 }, 3000);
             }
+            await progressManagedTask(rootTask.taskId, { stage: 'done', detail: 'push complete', progressPct: 100 });
+            await completeManagedTask(rootTask.taskId);
         } else {
             throw new Error(result.error || '推送失败');
         }
     } catch (error) {
+        if (rootTask) {
+            await failManagedTask(rootTask.taskId, error instanceof Error ? error.message : String(error));
+        }
         console.error('推送到115网盘失败:', error);
         const errorMessage = error instanceof Error ? error.message : '未知错误';
 

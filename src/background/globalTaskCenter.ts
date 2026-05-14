@@ -410,6 +410,9 @@ export class GlobalTaskCenter {
     const tasks = this.store.listTasks().map(record => ({
       taskId: record.descriptor.taskId,
       label: record.descriptor.label,
+      parentTaskId: record.descriptor.parentTaskId,
+      rootTaskId: record.descriptor.rootTaskId,
+      correlationId: record.descriptor.correlationId,
       tabId: record.descriptor.tabId,
       pageUrl: record.descriptor.pageUrl,
       pageType: record.descriptor.pageType,
@@ -428,12 +431,32 @@ export class GlobalTaskCenter {
       waitReason: record.runtime.waitReason,
       startedAt: record.runtime.startedAt,
       endedAt: record.runtime.endedAt,
+      lastProgressAt: record.runtime.lastProgressAt,
+      progressPct: record.runtime.progressPct,
+      stage: record.runtime.stage,
+      stageStartedAt: record.runtime.stageStartedAt,
+      stageDurationMs: record.runtime.stageDurationMs,
+      detail: record.runtime.detail,
       retryCount: record.runtime.retryCount,
       pauseCount: record.runtime.pauseCount,
       resumeCount: record.runtime.resumeCount,
       heartbeatTs: record.runtime.heartbeatTs,
     }));
     return { tasks };
+  }
+
+  updateTaskProgress(taskId: string, payload: { stage?: string; progressPct?: number; detail?: string; stageStartedAt?: number; stageDurationMs?: number }) {
+    const record = this.store.getTask(taskId);
+    if (!record) return { ok: false, error: 'task-not-found' };
+    record.runtime.lastProgressAt = Date.now();
+    if (typeof payload.progressPct === 'number') record.runtime.progressPct = payload.progressPct;
+    if (typeof payload.stage === 'string') record.runtime.stage = payload.stage;
+    if (typeof payload.detail === 'string') record.runtime.detail = payload.detail;
+    if (typeof payload.stageStartedAt === 'number') record.runtime.stageStartedAt = payload.stageStartedAt;
+    if (typeof payload.stageDurationMs === 'number') record.runtime.stageDurationMs = payload.stageDurationMs;
+    this.store.setTask(taskId, record);
+    this.persistToStorage();
+    return { ok: true };
   }
 
   handleMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): void {
@@ -447,6 +470,9 @@ export class GlobalTaskCenter {
           return;
         case TASK_CENTER_MESSAGE.HEARTBEAT:
           sendResponse(this.heartbeatTask(message.payload.taskId));
+          return;
+        case TASK_CENTER_MESSAGE.PROGRESS:
+          sendResponse(this.updateTaskProgress(message.payload.taskId, message.payload || {}));
           return;
         case TASK_CENTER_MESSAGE.PAUSE:
           sendResponse(this.pauseTask(message.payload.taskId, String(message.payload.reason || 'paused')));
