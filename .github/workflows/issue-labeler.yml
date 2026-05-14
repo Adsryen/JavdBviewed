@@ -38,6 +38,11 @@ jobs:
               'before submitting:'
             ];
 
+            const managedLabels = [
+              'bug', 'enhancement', 'question', 'docs',
+              'site-compatibility', 'data-management', 'new-works', 'sync', '115', 'ai', 'privacy', 'dashboard', 'settings', 'search', 'emby', 'browser-extension', 'tampermonkey'
+            ];
+
             function normalizeText(value) {
               return value.toLowerCase().replace(/\s+/g, ' ').trim();
             }
@@ -77,17 +82,40 @@ jobs:
               { label: 'tampermonkey', patterns: ['tampermonkey', '油猴', 'userscript'] }
             ];
 
-            const labels = rules
-              .filter(rule => rule.patterns.some(pattern => signalText.includes(pattern)))
-              .map(rule => rule.label);
+            const matchedLabels = Array.from(new Set(
+              rules
+                .filter(rule => rule.patterns.some(pattern => signalText.includes(pattern)))
+                .map(rule => rule.label)
+            ));
 
-            if (labels.length === 0) {
-              return core.info('No matching labels for this issue.');
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const currentManagedLabels = (issue.labels || [])
+              .map(label => typeof label === 'string' ? label : label.name)
+              .filter(label => managedLabels.includes(label));
+
+            const labelsToRemove = currentManagedLabels.filter(label => !matchedLabels.includes(label));
+            for (const label of labelsToRemove) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                name: label,
+              }).catch(() => undefined);
+            }
+
+            const labelsToAdd = matchedLabels.filter(label => !currentManagedLabels.includes(label));
+            if (labelsToAdd.length === 0) {
+              return core.info('No new matching labels for this issue.');
             }
 
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: Array.from(new Set(labels)),
+              labels: labelsToAdd,
             });

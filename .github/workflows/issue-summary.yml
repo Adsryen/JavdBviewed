@@ -31,34 +31,15 @@ jobs:
             const issueUrl = process.env.ISSUE_URL || '';
 
             const lines = body.split('\n').map(line => line.trimRight());
-            const sectionTitles = [
-              '## 📋 基本信息', '## 📋 Environment',
-              '## 🐛 问题描述', '## 🐛 Bug Description',
-              '## 📝 复现步骤', '## 📝 Steps to Reproduce',
-              '## ✅ 期望行为', '## ✅ Expected Behavior',
-              '## 💡 补充说明', '## 💡 Additional Context',
-              '## 💡 功能描述', '## 💡 Feature Description',
-              '## 🎯 使用场景', '## 🎯 Use Case',
-              '## 🎨 期望的实现方式', '## 🎨 Proposed Solution',
-              '## 📸 参考示例', '## 📸 Examples or References',
-              '## 📷 截图或录屏', '## 📷 Screenshots or Screen Recording',
-              '## 📄 控制台日志', '## 📄 Console Logs'
-            ];
-
             const placeholderTexts = [
-              '扩展版本：',
-              '浏览器信息：',
-              '操作系统：',
-              'extension version:',
-              'browser:',
-              'operating system:',
               '粘贴控制台错误信息（如果有的话）',
               'paste console error messages here (if any)',
               '[代码块已省略]'
             ];
 
-            function getSectionContent(sectionName) {
-              const index = lines.findIndex(line => line.startsWith(sectionName));
+            function getSectionContent(sectionNames) {
+              const names = Array.isArray(sectionNames) ? sectionNames : [sectionNames];
+              const index = lines.findIndex(line => names.some(name => line.startsWith(name)));
               if (index === -1) return '';
               const content = [];
               for (let i = index + 1; i < lines.length; i += 1) {
@@ -84,10 +65,11 @@ jobs:
             }
 
             function normalizeText(value) {
-              return value
-                .toLowerCase()
-                .replace(/\s+/g, ' ')
-                .trim();
+              return value.toLowerCase().replace(/\s+/g, ' ').trim();
+            }
+
+            function isPlaceholderLine(line) {
+              return placeholderTexts.some(item => normalizeText(line) === normalizeText(item));
             }
 
             function hasMeaningfulContent(value) {
@@ -95,8 +77,7 @@ jobs:
               const normalized = normalizeText(value)
                 .replace(/[\s`>*\-_[\]()：:]/g, '')
                 .trim();
-              if (normalized.length < 6) return false;
-              return !placeholderTexts.some(item => normalized === normalizeText(item).replace(/[\s`>*\-_[\]()：:]/g, '').trim());
+              return normalized.length >= 2 && !placeholderTexts.some(item => normalized === normalizeText(item).replace(/[\s`>*\-_[\]()：:]/g, '').trim());
             }
 
             function filterMeaningfulLines(value) {
@@ -105,24 +86,13 @@ jobs:
                 .map(line => line.trim())
                 .filter(Boolean)
                 .filter(line => !line.startsWith('## '))
-                .filter(line => !placeholderTexts.some(item => normalizeText(line) === normalizeText(item)));
+                .filter(line => !isPlaceholderLine(line));
             }
 
             function oneLine(value, fallback) {
               const filtered = filterMeaningfulLines(value).join(' / ');
               if (!hasMeaningfulContent(filtered)) return fallback;
-              return filtered
-                .replace(/\s+/g, ' ')
-                .slice(0, 220)
-                .trim();
-            }
-
-            function compactList(value, fallback, maxItems = 3) {
-              const items = filterMeaningfulLines(value)
-                .map(line => line.replace(/^[-*\d.\s]+/, '').trim())
-                .filter(line => hasMeaningfulContent(line))
-                .slice(0, maxItems);
-              return items.length > 0 ? items : [fallback];
+              return filtered.replace(/\s+/g, ' ').slice(0, 220).trim();
             }
 
             function detectArea(text) {
@@ -141,17 +111,48 @@ jobs:
               return match ? match.name : '相关模块';
             }
 
-            const environment = cleanText(getSectionContent('## 📋 基本信息') || getSectionContent('## 📋 Environment'));
-            const description = cleanText(getSectionContent('## 🐛 问题描述') || getSectionContent('## 🐛 Bug Description') || getSectionContent('## 💡 功能描述') || getSectionContent('## 💡 Feature Description'));
-            const steps = cleanText(getSectionContent('## 📝 复现步骤') || getSectionContent('## 📝 Steps to Reproduce') || getSectionContent('## 🎯 使用场景') || getSectionContent('## 🎯 Use Case'));
-            const expected = cleanText(getSectionContent('## ✅ 期望行为') || getSectionContent('## 🎨 期望的实现方式') || getSectionContent('## 🎨 Proposed Solution'));
-            const logs = cleanText(getSectionContent('## 📄 控制台日志') || getSectionContent('## 📄 Console Logs'));
-            const extra = cleanText(getSectionContent('## 💡 补充说明') || getSectionContent('## 💡 Additional Context') || getSectionContent('## 📸 参考示例') || getSectionContent('## 📸 Examples or References'));
+            function parseEnvironmentBlock(value) {
+              const fields = [
+                { key: '扩展版本', aliases: ['扩展版本', 'extension version'] },
+                { key: '浏览器信息', aliases: ['浏览器信息', 'browser'] },
+                { key: '操作系统', aliases: ['操作系统', 'operating system'] }
+              ];
+              const result = {};
+              for (const field of fields) result[field.key] = '';
+
+              for (const rawLine of value.split('\n')) {
+                const line = rawLine.trim();
+                if (!line) continue;
+                for (const field of fields) {
+                  const match = field.aliases.find(alias => normalizeText(line).startsWith(`${normalizeText(alias)}:`));
+                  if (!match) continue;
+                  const extracted = line.slice(line.indexOf(':') + 1).trim();
+                  if (hasMeaningfulContent(extracted)) {
+                    result[field.key] = extracted;
+                  }
+                }
+              }
+
+              const filled = Object.entries(result).filter(([, value]) => hasMeaningfulContent(value));
+              return {
+                values: result,
+                hasAny: filled.length > 0,
+                summary: filled.length > 0 ? filled.map(([key, value]) => `${key}=${value}`).join('，') : '当前没有可用环境信息。'
+              };
+            }
+
+            const environmentRaw = cleanText(getSectionContent(['## 📋 基本信息', '## 📋 Environment']));
+            const description = cleanText(getSectionContent(['## 🐛 问题描述', '## 🐛 Bug Description', '## 💡 功能描述', '## 💡 Feature Description']));
+            const steps = cleanText(getSectionContent(['## 📝 复现步骤', '## 📝 Steps to Reproduce', '## 🎯 使用场景', '## 🎯 Use Case']));
+            const expected = cleanText(getSectionContent(['## ✅ 期望行为', '## ✅ Expected Behavior', '## 🎨 期望的实现方式', '## 🎨 Proposed Solution']));
+            const logs = cleanText(getSectionContent(['## 📄 控制台日志', '## 📄 Console Logs']));
+            const extra = cleanText(getSectionContent(['## 💡 补充说明', '## 💡 Additional Context', '## 📸 参考示例', '## 📸 Examples or References']));
+            const environment = parseEnvironmentBlock(environmentRaw);
 
             const type = title.toLowerCase().includes('[feature]') ? '功能建议' : '问题反馈';
             const area = detectArea(`${title}\n${body}`);
             const missingItems = [];
-            if (type === '问题反馈' && !hasMeaningfulContent(environment)) missingItems.push('环境信息');
+            if (type === '问题反馈' && !environment.hasAny) missingItems.push('环境信息');
             if (!hasMeaningfulContent(description)) missingItems.push('核心描述');
             if (!hasMeaningfulContent(steps)) missingItems.push(type === '功能建议' ? '使用场景' : '复现步骤');
             if (!hasMeaningfulContent(expected)) missingItems.push(type === '功能建议' ? '建议方案' : '期望行为');
@@ -163,10 +164,13 @@ jobs:
 
             const knownFacts = [];
             if (hasMeaningfulContent(description)) knownFacts.push(oneLine(description, ''));
-            if (hasMeaningfulContent(environment)) knownFacts.push(`环境：${oneLine(environment, '')}`);
-            if (hasMeaningfulContent(logs)) knownFacts.push(`日志：${oneLine(logs, '')}`);
-            if (!hasMeaningfulContent(logs) && type === '问题反馈') knownFacts.push('当前没有可用错误日志。');
-            if (knownFacts.length === 0) knownFacts.push('当前正文信息较少，定位信息不足。');
+            if (hasMeaningfulContent(expected)) knownFacts.push(`期望：${oneLine(expected, '')}`);
+            knownFacts.push(environment.summary);
+            if (hasMeaningfulContent(logs)) {
+              knownFacts.push(`日志：${oneLine(logs, '')}`);
+            } else if (type === '问题反馈') {
+              knownFacts.push('当前没有可用错误日志。');
+            }
 
             const summary = [
               marker,
