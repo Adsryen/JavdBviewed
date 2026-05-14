@@ -46,23 +46,18 @@ export class EmbySettings extends BaseSettingsPanel {
     }
 
     protected bindEvents(): void {
-        this.enabledToggle.addEventListener('change', this.handleEnabledChange.bind(this));
-        this.addUrlBtn.addEventListener('click', this.handleAddUrl.bind(this));
-        this.matchUrlsList.addEventListener('click', this.handleUrlListClick.bind(this));
-        this.matchUrlsList.addEventListener('input', this.handleUrlListInput.bind(this));
-        this.linkBehaviorSelect.addEventListener('change', this.handleSettingsChange.bind(this));
-        this.showQuickSearchCodeToggle.addEventListener('change', this.handleSettingsChange.bind(this));
-        this.showQuickSearchActorToggle.addEventListener('change', this.handleSettingsChange.bind(this));
+        const signal = this.createEventBindingSignal();
+        this.enabledToggle.addEventListener('change', this.handleEnabledChange.bind(this), { signal });
+        this.addUrlBtn.addEventListener('click', this.handleAddUrl.bind(this), { signal });
+        this.matchUrlsList.addEventListener('click', this.handleUrlListClick.bind(this), { signal });
+        this.matchUrlsList.addEventListener('input', this.handleUrlListInput.bind(this), { signal });
+        this.linkBehaviorSelect.addEventListener('change', this.handleSettingsChange.bind(this), { signal });
+        this.showQuickSearchCodeToggle.addEventListener('change', this.handleSettingsChange.bind(this), { signal });
+        this.showQuickSearchActorToggle.addEventListener('change', this.handleSettingsChange.bind(this), { signal });
     }
 
     protected unbindEvents(): void {
-        this.enabledToggle?.removeEventListener('change', this.handleEnabledChange.bind(this));
-        this.addUrlBtn?.removeEventListener('click', this.handleAddUrl.bind(this));
-        this.matchUrlsList?.removeEventListener('click', this.handleUrlListClick.bind(this));
-        this.matchUrlsList?.removeEventListener('input', this.handleUrlListInput.bind(this));
-        this.linkBehaviorSelect?.removeEventListener('change', this.handleSettingsChange.bind(this));
-        this.showQuickSearchCodeToggle?.removeEventListener('change', this.handleSettingsChange.bind(this));
-        this.showQuickSearchActorToggle?.removeEventListener('change', this.handleSettingsChange.bind(this));
+        this.unbindManagedEvents();
     }
 
     protected async doLoadSettings(): Promise<void> {

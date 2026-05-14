@@ -59,24 +59,25 @@ export class GlobalActionsSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
+        const signal = this.createEventBindingSignal();
+
         // 数据清理事件
-        this.clearAllDataBtn?.addEventListener('click', this.handleClearAllData.bind(this));
+        this.clearAllDataBtn?.addEventListener('click', this.handleClearAllData.bind(this), { signal });
 
         // 缓存管理事件
-        this.clearCacheBtn?.addEventListener('click', this.handleClearCache.bind(this));
-        this.clearTempDataBtn?.addEventListener('click', this.handleClearTempData.bind(this));
+        this.clearCacheBtn?.addEventListener('click', this.handleClearCache.bind(this), { signal });
+        this.clearTempDataBtn?.addEventListener('click', this.handleClearTempData.bind(this), { signal });
 
         // 系统操作事件
-        this.resetSettingsBtn?.addEventListener('click', this.handleResetSettings.bind(this));
-        this.reloadExtensionBtn?.addEventListener('click', this.handleReloadExtension.bind(this));
+        this.resetSettingsBtn?.addEventListener('click', this.handleResetSettings.bind(this), { signal });
+        this.reloadExtensionBtn?.addEventListener('click', this.handleReloadExtension.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        // 这里可以添加解绑逻辑，但由于使用了bind，需要保存引用才能正确解绑
-        // 为简化起见，暂时省略
+        this.unbindManagedEvents();
     }
 
     /**

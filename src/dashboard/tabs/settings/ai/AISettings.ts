@@ -41,7 +41,6 @@ export class AISettingsPanel extends BaseSettingsPanel {
     private autoRetryEmptyEl?: HTMLInputElement;
     private autoRetryMaxEl?: HTMLInputElement;
     private conversationParamsSaveTimeout?: number;
-    private eventController?: AbortController;
 
     // 按钮元素
     private testConnectionBtn!: HTMLButtonElement;
@@ -212,8 +211,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.unbindEvents();
-        const signal = (this.eventController = new AbortController()).signal;
+        const signal = this.createEventBindingSignal();
 
         // AI配置事件
         this.enableAI?.addEventListener('change', this.handleAIToggle.bind(this), { signal });
@@ -262,8 +260,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.eventController?.abort();
-        this.eventController = undefined;
+        this.unbindManagedEvents();
     }
 
     /**
@@ -271,9 +268,6 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     protected async doLoadSettings(): Promise<void> {
         try {
-            // 设置页切换时 DOM 可能被重建，这里确保监听重新绑定到当前节点
-            this.bindEvents();
-
             // 从AI服务获取设置
             this.aiSettings = aiService.getSettings();
 

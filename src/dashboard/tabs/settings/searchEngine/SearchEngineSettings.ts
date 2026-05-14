@@ -50,18 +50,17 @@ export class SearchEngineSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        this.addSearchEngineBtn.addEventListener('click', this.handleAddSearchEngine.bind(this));
-        this.searchEngineList.addEventListener('click', this.handleSearchEngineListClick.bind(this));
-        this.searchEngineList.addEventListener('input', this.handleSearchEngineListInput.bind(this));
+        const signal = this.createEventBindingSignal();
+        this.addSearchEngineBtn.addEventListener('click', this.handleAddSearchEngine.bind(this), { signal });
+        this.searchEngineList.addEventListener('click', this.handleSearchEngineListClick.bind(this), { signal });
+        this.searchEngineList.addEventListener('input', this.handleSearchEngineListInput.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.addSearchEngineBtn?.removeEventListener('click', this.handleAddSearchEngine.bind(this));
-        this.searchEngineList?.removeEventListener('click', this.handleSearchEngineListClick.bind(this));
-        this.searchEngineList?.removeEventListener('input', this.handleSearchEngineListInput.bind(this));
+        this.unbindManagedEvents();
     }
 
     /**

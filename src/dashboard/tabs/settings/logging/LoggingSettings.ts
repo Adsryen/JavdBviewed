@@ -184,53 +184,54 @@ export class LoggingSettings extends BaseSettingsPanel {
      * 绑定事件监听器
      */
     protected bindEvents(): void {
+        const signal = this.createEventBindingSignal();
+
         // 日志配置事件
-        this.maxLogEntries?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.maxMagnetPushEntries?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.verboseMode?.addEventListener('change', this.handleVerboseModeToggle.bind(this));
-        this.showPrivacyLogs?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.showStorageLogs?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.maxLogEntries?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.maxMagnetPushEntries?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.verboseMode?.addEventListener('change', this.handleVerboseModeToggle.bind(this), { signal });
+        this.showPrivacyLogs?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.showStorageLogs?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
         // 控制台代理设置事件
-        this.consoleLevel?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleShowTimestamp?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleShowSource?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleShowMilliseconds?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleColor?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.consoleTimeZone?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.consoleLevel?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.consoleShowTimestamp?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.consoleShowSource?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.consoleShowMilliseconds?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.consoleColor?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.consoleTimeZone?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
         
         // 新模块化日志开关事件
-        this.logModuleCore?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleOrchestrator?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleStorage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleActor?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleMagnet?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleSync?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleNewWorks?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleDrive115?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModulePrivacy?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleAI?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleUpdate?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleHelp?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleSettings?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleGeneral?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.logModuleDebug?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.logModuleCore?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleOrchestrator?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleStorage?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleActor?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleMagnet?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleSync?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleNewWorks?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleDrive115?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModulePrivacy?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleAI?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleUpdate?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleHelp?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleSettings?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleGeneral?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
+        this.logModuleDebug?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
 
         // 控制台快捷按钮
-        this.consoleMuteAllBtn?.addEventListener('click', this.handleConsoleMuteAll.bind(this));
-        this.consoleEnableAllBtn?.addEventListener('click', this.handleConsoleEnableAll.bind(this));
-        this.consoleResetDefaultBtn?.addEventListener('click', this.handleConsoleResetDefault.bind(this));
+        this.consoleMuteAllBtn?.addEventListener('click', this.handleConsoleMuteAll.bind(this), { signal });
+        this.consoleEnableAllBtn?.addEventListener('click', this.handleConsoleEnableAll.bind(this), { signal });
+        this.consoleResetDefaultBtn?.addEventListener('click', this.handleConsoleResetDefault.bind(this), { signal });
         // 可选：保留天数
-        this.retentionDays?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.retentionDays?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
         // 抑制控制台输出开关
-        this.suppressConsoleOutput?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.suppressConsoleOutput?.addEventListener('change', this.handleSettingChange.bind(this), { signal });
     }
 
     /**
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        // 由于使用了bind，需要保存引用才能正确解绑
-        // 为简化起见，暂时省略
+        this.unbindManagedEvents();
     }
 
     /**

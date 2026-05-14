@@ -127,74 +127,75 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      */
     protected bindEvents(): void {
         console.log('[NetworkTestSettings] [DEBUG] 绑定事件监听器');
+        const signal = this.createEventBindingSignal();
 
         // 网络加速事件绑定
         this.enableGithubProxyCheckbox?.addEventListener('change', () => {
             console.log('[NetworkTestSettings] [DEBUG] GitHub 代理开关变化，触发自动保存');
             this.handleGithubProxyToggle();
-        });
+        }, { signal });
         this.githubProxyServiceSelect?.addEventListener('change', () => {
             console.log('[NetworkTestSettings] [DEBUG] 代理服务变化，触发自动保存');
             this.handleProxyServiceChange();
-        });
+        }, { signal });
         this.testGithubProxyBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击测试 GitHub 代理按钮');
             this.handleTestGithubProxy();
-        });
+        }, { signal });
 
         // 线路管理事件绑定
         this.addJavdbRouteBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击添加线路按钮');
             this.handleAddRoute('javdb');
-        });
+        }, { signal });
         this.testAllRoutesBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击测试所有线路按钮');
             this.handleTestAllRoutes();
-        });
+        }, { signal });
         this.updateRoutesFromGithubBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击从 GitHub 更新线路按钮');
             this.handleUpdateRoutesFromGithub();
-        });
+        }, { signal });
         this.resetDefaultRoutesBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击恢复默认线路按钮');
             this.handleResetDefaultRoutes();
-        });
+        }, { signal });
 
         // 基于原始network.ts的ping测试实现
         this.manualTestBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击手动测试按钮');
             this.handlePingTest();
-        });
+        }, { signal });
 
         // 批量测试事件绑定
         this.testAllDomainsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击测试所有域名按钮');
             this.handleTestAllDomains();
-        });
+        }, { signal });
         this.testCoreDomainsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击测试核心域名按钮');
             this.handleTestCoreDomains();
-        });
+        }, { signal });
         this.toggleDomainConfigBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击切换域名配置按钮');
             this.handleToggleDomainConfig();
-        });
+        }, { signal });
         this.clearBatchResultsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击清除批量测试结果按钮');
             this.handleClearBatchResults();
-        });
+        }, { signal });
         this.selectAllDomainsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击全选域名按钮');
             this.handleSelectAllDomains();
-        });
+        }, { signal });
         this.deselectAllDomainsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击取消全选域名按钮');
             this.handleDeselectAllDomains();
-        });
+        }, { signal });
         this.resetDefaultDomainsBtn?.addEventListener('click', () => {
             console.log('[NetworkTestSettings] [DEBUG] 点击恢复默认域名按钮');
             this.handleResetDefaultDomains();
-        });
+        }, { signal });
 
         console.log('[NetworkTestSettings] [DEBUG] 事件监听器绑定完成');
     }
@@ -203,7 +204,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      * 解绑事件监听器
      */
     protected unbindEvents(): void {
-        this.manualTestBtn?.removeEventListener('click', this.handlePingTest.bind(this));
+        this.unbindManagedEvents();
     }
 
     /**
