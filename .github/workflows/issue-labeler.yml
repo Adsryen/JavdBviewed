@@ -19,34 +19,66 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         with:
           script: |
-            const title = (process.env.ISSUE_TITLE || '').toLowerCase();
-            const body = (process.env.ISSUE_BODY || '').toLowerCase();
-            const content = `${title}\n${body}`;
+            const title = process.env.ISSUE_TITLE || '';
+            const body = process.env.ISSUE_BODY || '';
+
+            const placeholderLines = [
+              '扩展版本：',
+              '浏览器信息：',
+              '操作系统：',
+              '粘贴控制台错误信息（如果有的话）',
+              '提交前确认：',
+              '我已经搜索过类似的 issue',
+              '我使用的是最新版本',
+              '我愿意配合测试和提供更多信息',
+              'extension version:',
+              'browser:',
+              'operating system:',
+              'paste console error messages here (if any)',
+              'before submitting:'
+            ];
+
+            function normalizeText(value) {
+              return value.toLowerCase().replace(/\s+/g, ' ').trim();
+            }
+
+            function toSignalText(raw) {
+              return raw
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .filter(line => !line.startsWith('## '))
+                .filter(line => !line.startsWith('<!--'))
+                .filter(line => !placeholderLines.some(item => normalizeText(line) === normalizeText(item)))
+                .join('\n');
+            }
+
+            const signalText = `${title}\n${toSignalText(body)}`.toLowerCase();
 
             const rules = [
-              { label: 'bug', patterns: ['[bug]', 'bug', '报错', '错误', '异常', '无法', '失效', 'broken', 'crash'] },
+              { label: 'bug', patterns: ['[bug]', 'bug', '报错', '错误', '异常', '无法', '失效', 'broken', 'crash', '失败'] },
               { label: 'enhancement', patterns: ['[feature]', 'feature', '建议', '希望', 'support', '增加', '新增', '优化'] },
-              { label: 'question', patterns: ['如何', '请问', '怎么', 'question', 'help', '使用问题'] },
-              { label: 'docs', patterns: ['文档', 'readme', 'docs', '教程', '说明', '文案'] },
+              { label: 'question', patterns: ['请问', '如何', '怎么做', '怎么配置', '怎么使用', '怎么开启'] },
+              { label: 'docs', patterns: ['文档有误', 'readme', '教程有误', '说明错误', '文案问题'] },
 
-              { label: 'site-compatibility', patterns: ['javdb', 'javbus', '页面', '网站', 'site', 'dom', 'selector'] },
+              { label: 'site-compatibility', patterns: ['javdb', 'javbus', 'selector', 'dom', '页面结构', '网站改版'] },
               { label: 'data-management', patterns: ['番号库', '演员库', '清单', 'lists', 'records', 'actors', 'data management', '数据管理'] },
               { label: 'new-works', patterns: ['新作品', 'new works', '订阅', 'subscription', '演员订阅'] },
-              { label: 'sync', patterns: ['webdav', '同步', 'sync', '冲突', '备份', 'restore'] },
-              { label: '115', patterns: ['115', '离线下载', '网盘', 'offline download'] },
+              { label: 'sync', patterns: ['webdav', '同步', 'sync', '冲突', 'restore', '备份'] },
+              { label: '115', patterns: ['115', '离线下载', '网盘'] },
               { label: 'ai', patterns: ['ai', '翻译', 'translator', 'gemini', 'openai', 'claude'] },
-              { label: 'privacy', patterns: ['隐私', 'privacy', '密码', 'lock', '加密', 'crypto'] },
-              { label: 'dashboard', patterns: ['dashboard', '面板', '统计', 'insights', '报告'] },
-              { label: 'settings', patterns: ['settings', '设置', '配置', '开关', '选项'] },
-              { label: 'search', patterns: ['搜索', 'search', '磁力', 'magnet'] },
+              { label: 'privacy', patterns: ['隐私', 'privacy', '密码', 'lock', '加密'] },
+              { label: 'dashboard', patterns: ['dashboard', '统计', 'insights', '报告'] },
+              { label: 'settings', patterns: ['设置页', '设置项', '配置项', '偏好设置'] },
+              { label: 'search', patterns: ['磁力搜索', '搜索引擎', 'magnet search'] },
               { label: 'emby', patterns: ['emby'] },
 
-              { label: 'browser-extension', patterns: ['扩展', 'extension', 'chrome', 'edge', '浏览器'] },
+              { label: 'browser-extension', patterns: ['扩展崩溃', '插件崩溃', 'chrome extension', 'edge extension', '扩展本体'] },
               { label: 'tampermonkey', patterns: ['tampermonkey', '油猴', 'userscript'] }
             ];
 
             const labels = rules
-              .filter(rule => rule.patterns.some(pattern => content.includes(pattern)))
+              .filter(rule => rule.patterns.some(pattern => signalText.includes(pattern)))
               .map(rule => rule.label);
 
             if (labels.length === 0) {
