@@ -3,6 +3,8 @@ name: Issue Labeler Bot
 on:
   issues:
     types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   issues: write
@@ -10,6 +12,7 @@ permissions:
 
 jobs:
   label:
+    if: github.event_name == 'issues' || ((contains(github.event.comment.body, '/relabel') || contains(github.event.comment.body, '/triage')) && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR'))
     runs-on: ubuntu-latest
     steps:
       - name: Apply issue labels

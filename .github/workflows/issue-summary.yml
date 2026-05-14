@@ -3,6 +3,8 @@ name: Issue Summary Bot
 on:
   issues:
     types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   issues: write
@@ -10,6 +12,7 @@ permissions:
 
 jobs:
   summarize:
+    if: github.event_name == 'issues' || ((contains(github.event.comment.body, '/summarize') || contains(github.event.comment.body, '/triage')) && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR'))
     runs-on: ubuntu-latest
     steps:
       - name: Generate issue summary
@@ -36,6 +39,11 @@ jobs:
               'paste console error messages here (if any)',
               '[代码块已省略]'
             ];
+
+            function detectLanguage(text) {
+              const chineseMatches = text.match(/[\u4e00-\u9fff]/g) || [];
+              return chineseMatches.length >= 3 ? 'zh' : 'en';
+            }
 
             function getSectionContent(sectionNames) {
               const names = Array.isArray(sectionNames) ? sectionNames : [sectionNames];
@@ -95,27 +103,28 @@ jobs:
               return filtered.replace(/\s+/g, ' ').slice(0, 220).trim();
             }
 
-            function detectArea(text) {
+            function detectArea(text, language) {
               const content = text.toLowerCase();
               const areas = [
-                { name: 'WebDAV 同步', patterns: ['webdav', '同步', 'sync', 'restore', '备份'] },
-                { name: '115 集成', patterns: ['115', '离线下载', '网盘'] },
-                { name: 'AI 翻译', patterns: ['ai', '翻译', 'translator', 'gemini', 'openai', 'claude'] },
-                { name: '隐私保护', patterns: ['隐私', 'privacy', '密码', 'lock', '加密'] },
-                { name: '新作品', patterns: ['新作品', 'new works', '订阅'] },
-                { name: '搜索功能', patterns: ['搜索', 'search', '磁力', 'magnet'] },
-                { name: '设置面板', patterns: ['settings', '设置', '配置'] },
-                { name: '站点兼容性', patterns: ['javdb', 'javbus', 'selector', 'dom'] }
+                { zh: 'WebDAV 同步', en: 'WebDAV sync', patterns: ['webdav', '同步', 'sync', 'restore', '备份'] },
+                { zh: '115 集成', en: '115 integration', patterns: ['115', '离线下载', '网盘'] },
+                { zh: 'AI 翻译', en: 'AI translation', patterns: ['ai', '翻译', 'translator', 'gemini', 'openai', 'claude'] },
+                { zh: '隐私保护', en: 'privacy protection', patterns: ['隐私', 'privacy', '密码', 'lock', '加密'] },
+                { zh: '新作品', en: 'new works', patterns: ['新作品', 'new works', '订阅'] },
+                { zh: '搜索功能', en: 'search', patterns: ['搜索', 'search', '磁力', 'magnet'] },
+                { zh: '设置面板', en: 'settings', patterns: ['settings', '设置', '配置'] },
+                { zh: '站点兼容性', en: 'site compatibility', patterns: ['javdb', 'javbus', 'selector', 'dom'] }
               ];
               const match = areas.find(area => area.patterns.some(pattern => content.includes(pattern)));
-              return match ? match.name : '相关模块';
+              if (!match) return language === 'zh' ? '相关模块' : 'the relevant area';
+              return language === 'zh' ? match.zh : match.en;
             }
 
             function parseEnvironmentBlock(value) {
               const fields = [
-                { key: '扩展版本', aliases: ['扩展版本', 'extension version'] },
-                { key: '浏览器信息', aliases: ['浏览器信息', 'browser'] },
-                { key: '操作系统', aliases: ['操作系统', 'operating system'] }
+                { key: '扩展版本', enKey: 'Extension Version', aliases: ['扩展版本', 'extension version'] },
+                { key: '浏览器信息', enKey: 'Browser', aliases: ['浏览器信息', 'browser'] },
+                { key: '操作系统', enKey: 'Operating System', aliases: ['操作系统', 'operating system'] }
               ];
               const result = {};
               for (const field of fields) result[field.key] = '';
@@ -133,14 +142,20 @@ jobs:
                 }
               }
 
-              const filled = Object.entries(result).filter(([, value]) => hasMeaningfulContent(value));
+              const filled = fields.filter(field => hasMeaningfulContent(result[field.key]));
               return {
                 values: result,
                 hasAny: filled.length > 0,
-                summary: filled.length > 0 ? filled.map(([key, value]) => `${key}=${value}`).join('，') : '当前没有可用环境信息。'
+                summary(language) {
+                  if (filled.length === 0) return language === 'zh' ? '当前没有可用环境信息。' : 'No usable environment details are available yet.';
+                  return filled
+                    .map(field => `${language === 'zh' ? field.key : field.enKey}=${result[field.key]}`)
+                    .join(language === 'zh' ? '，' : ', ');
+                }
               };
             }
 
+            const language = detectLanguage(`${title}\n${body}`);
             const environmentRaw = cleanText(getSectionContent(['## 📋 基本信息', '## 📋 Environment']));
             const description = cleanText(getSectionContent(['## 🐛 问题描述', '## 🐛 Bug Description', '## 💡 功能描述', '## 💡 Feature Description']));
             const steps = cleanText(getSectionContent(['## 📝 复现步骤', '## 📝 Steps to Reproduce', '## 🎯 使用场景', '## 🎯 Use Case']));
@@ -149,55 +164,86 @@ jobs:
             const extra = cleanText(getSectionContent(['## 💡 补充说明', '## 💡 Additional Context', '## 📸 参考示例', '## 📸 Examples or References']));
             const environment = parseEnvironmentBlock(environmentRaw);
 
-            const type = title.toLowerCase().includes('[feature]') ? '功能建议' : '问题反馈';
-            const area = detectArea(`${title}\n${body}`);
+            const type = title.toLowerCase().includes('[feature]') ? (language === 'zh' ? '功能建议' : 'feature request') : (language === 'zh' ? '问题反馈' : 'bug report');
+            const area = detectArea(`${title}\n${body}`, language);
             const missingItems = [];
-            if (type === '问题反馈' && !environment.hasAny) missingItems.push('环境信息');
-            if (!hasMeaningfulContent(description)) missingItems.push('核心描述');
-            if (!hasMeaningfulContent(steps)) missingItems.push(type === '功能建议' ? '使用场景' : '复现步骤');
-            if (!hasMeaningfulContent(expected)) missingItems.push(type === '功能建议' ? '建议方案' : '期望行为');
-            if (type === '问题反馈' && !hasMeaningfulContent(logs)) missingItems.push('错误日志');
+            if (type === (language === 'zh' ? '问题反馈' : 'bug report') && !environment.hasAny) missingItems.push(language === 'zh' ? '环境信息' : 'environment details');
+            if (!hasMeaningfulContent(description)) missingItems.push(language === 'zh' ? '核心描述' : 'core description');
+            if (!hasMeaningfulContent(steps)) missingItems.push(type === (language === 'zh' ? '功能建议' : 'feature request') ? (language === 'zh' ? '使用场景' : 'use case') : (language === 'zh' ? '复现步骤' : 'reproduction steps'));
+            if (!hasMeaningfulContent(expected)) missingItems.push(type === (language === 'zh' ? '功能建议' : 'feature request') ? (language === 'zh' ? '建议方案' : 'proposed solution') : (language === 'zh' ? '期望行为' : 'expected behavior'));
+            if (type === (language === 'zh' ? '问题反馈' : 'bug report') && !hasMeaningfulContent(logs)) missingItems.push(language === 'zh' ? '错误日志' : 'error logs');
 
-            const judgment = type === '功能建议'
-              ? `这条 Issue 指向 ${area} 的功能建议，当前需求重点是 ${oneLine(description || expected, '功能诉求还不够具体')}。`
-              : `这条 Issue 落在 ${area} 链路。当前只能确认 ${oneLine(description, '存在异常')}，具体卡在连接、鉴权、数据读写还是冲突处理阶段还不明确。`;
+            const judgment = type === (language === 'zh' ? '功能建议' : 'feature request')
+              ? (language === 'zh'
+                  ? `这条 Issue 指向 ${area} 的功能建议，当前需求重点是 ${oneLine(description || expected, '功能诉求还不够具体')}。`
+                  : `This issue is a feature request for ${area}. The main request is ${oneLine(description || expected, 'still not specific enough')}.`)
+              : (language === 'zh'
+                  ? `这条 Issue 落在 ${area}链路。当前只能确认 ${oneLine(description, '存在异常')}，具体卡在连接、鉴权、数据读写还是冲突处理阶段还不明确。`
+                  : `This issue falls in the ${area} flow. It currently confirms ${oneLine(description, 'an unexpected failure')}, while the exact stage is still unclear.`);
 
             const knownFacts = [];
-            if (hasMeaningfulContent(description)) knownFacts.push(oneLine(description, ''));
-            if (hasMeaningfulContent(expected)) knownFacts.push(`期望：${oneLine(expected, '')}`);
-            knownFacts.push(environment.summary);
+            if (hasMeaningfulContent(description)) knownFacts.push(language === 'zh' ? oneLine(description, '') : oneLine(description, ''));
+            if (hasMeaningfulContent(steps)) knownFacts.push(language === 'zh' ? `复现：${oneLine(steps, '')}` : `Reproduction: ${oneLine(steps, '')}`);
+            if (hasMeaningfulContent(expected)) knownFacts.push(language === 'zh' ? `期望：${oneLine(expected, '')}` : `Expected: ${oneLine(expected, '')}`);
+            knownFacts.push(environment.summary(language));
             if (hasMeaningfulContent(logs)) {
-              knownFacts.push(`日志：${oneLine(logs, '')}`);
-            } else if (type === '问题反馈') {
-              knownFacts.push('当前没有可用错误日志。');
+              knownFacts.push(language === 'zh' ? `日志：${oneLine(logs, '')}` : `Logs: ${oneLine(logs, '')}`);
+            } else if (type === (language === 'zh' ? '问题反馈' : 'bug report')) {
+              knownFacts.push(language === 'zh' ? '当前没有可用错误日志。' : 'No usable error logs are available yet.');
             }
 
-            const summary = [
-              marker,
-              '## 🤖 Triage Summary',
-              '',
-              judgment,
-              '',
-              '已知信息：',
-              ...knownFacts.slice(0, 3).map(item => `- ${item}`),
-              '',
-              '待补充：',
-              ...(missingItems.length > 0 ? missingItems.map(item => `- ${item}`) : ['- 信息完整，可直接继续判断']),
-              '',
-              `补充说明：${oneLine(extra, '当前没有额外补充')}`
-            ].join('\n');
+            const summary = language === 'zh'
+              ? [
+                  marker,
+                  '## 🤖 Triage Summary',
+                  '',
+                  judgment,
+                  '',
+                  '已知信息：',
+                  ...knownFacts.slice(0, 3).map(item => `- ${item}`),
+                  '',
+                  '待补充：',
+                  ...(missingItems.length > 0 ? missingItems.map(item => `- ${item}`) : ['- 信息完整，可直接继续判断']),
+                  '',
+                  `补充说明：${oneLine(extra, '当前没有额外补充')}`
+                ].join('\n')
+              : [
+                  marker,
+                  '## 🤖 Triage Summary',
+                  '',
+                  judgment,
+                  '',
+                  'Known facts:',
+                  ...knownFacts.slice(0, 3).map(item => `- ${item}`),
+                  '',
+                  'Still needed:',
+                  ...(missingItems.length > 0 ? missingItems.map(item => `- ${item}`) : ['- The issue has enough information for further triage.']),
+                  '',
+                  `Additional notes: ${oneLine(extra, 'No extra notes were provided.')}`
+                ].join('\n');
 
             const reminder = missingItems.length > 0
-              ? [
-                  reminderMarker,
-                  '## 📝 信息补充提醒',
-                  '',
-                  `@${author} 为了更快处理这条 Issue，请补充这些内容：`,
-                  '',
-                  ...missingItems.map(item => `- ${item}`),
-                  '',
-                  '- 补充完成后直接编辑原 Issue 即可，Bot 会自动刷新总结。'
-                ].join('\n')
+              ? (language === 'zh'
+                  ? [
+                      reminderMarker,
+                      '## 📝 信息补充提醒',
+                      '',
+                      `@${author} 为了更快处理这条 Issue，请补充这些内容：`,
+                      '',
+                      ...missingItems.map(item => `- ${item}`),
+                      '',
+                      '- 补充完成后直接编辑原 Issue 即可，Bot 会自动刷新总结。'
+                    ].join('\n')
+                  : [
+                      reminderMarker,
+                      '## 📝 Missing Information',
+                      '',
+                      `@${author} Please add the following details so this issue can be triaged faster:`,
+                      '',
+                      ...missingItems.map(item => `- ${item}`),
+                      '',
+                      '- Edit the original issue after updating the details. The bot will refresh the summary automatically.'
+                    ].join('\n'))
               : '';
 
             const { data: comments } = await github.rest.issues.listComments({
