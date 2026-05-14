@@ -137,6 +137,13 @@ jobs:
               per_page: 100,
             });
 
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(issueNumber),
+            });
+
+            const currentLabels = new Set((issue.labels || []).map(label => typeof label === 'string' ? label : label.name));
             const summaryComment = comments.find(comment => comment.body && comment.body.includes(marker));
             const reminderComment = comments.find(comment => comment.body && comment.body.includes(reminderMarker));
 
@@ -157,6 +164,15 @@ jobs:
             }
 
             if (reminder) {
+              if (!currentLabels.has('needs-info')) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: Number(issueNumber),
+                  labels: ['needs-info'],
+                });
+              }
+
               if (reminderComment) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
@@ -172,10 +188,21 @@ jobs:
                   body: reminder,
                 });
               }
-            } else if (reminderComment) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: reminderComment.id,
-              });
+            } else {
+              if (currentLabels.has('needs-info')) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: Number(issueNumber),
+                  name: 'needs-info',
+                }).catch(() => undefined);
+              }
+
+              if (reminderComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: reminderComment.id,
+                });
+              }
             }

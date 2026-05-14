@@ -26,14 +26,23 @@ jobs:
             const rules = [
               { label: 'bug', patterns: ['[bug]', 'bug', '报错', '错误', '异常', '无法', '失效', 'broken', 'crash'] },
               { label: 'enhancement', patterns: ['[feature]', 'feature', '建议', '希望', 'support', '增加', '新增', '优化'] },
+              { label: 'question', patterns: ['如何', '请问', '怎么', 'question', 'help', '使用问题'] },
+              { label: 'docs', patterns: ['文档', 'readme', 'docs', '教程', '说明', '文案'] },
+
               { label: 'site-compatibility', patterns: ['javdb', 'javbus', '页面', '网站', 'site', 'dom', 'selector'] },
+              { label: 'data-management', patterns: ['番号库', '演员库', '清单', 'lists', 'records', 'actors', 'data management', '数据管理'] },
+              { label: 'new-works', patterns: ['新作品', 'new works', '订阅', 'subscription', '演员订阅'] },
               { label: 'sync', patterns: ['webdav', '同步', 'sync', '冲突', '备份', 'restore'] },
               { label: '115', patterns: ['115', '离线下载', '网盘', 'offline download'] },
               { label: 'ai', patterns: ['ai', '翻译', 'translator', 'gemini', 'openai', 'claude'] },
               { label: 'privacy', patterns: ['隐私', 'privacy', '密码', 'lock', '加密', 'crypto'] },
-              { label: 'dashboard', patterns: ['dashboard', '面板', '设置页', 'settings', 'tab', '统计'] },
-              { label: 'docs', patterns: ['文档', 'readme', 'docs', '教程', '说明'] },
-              { label: 'question', patterns: ['如何', '请问', '怎么', 'question', 'help', '使用问题'] }
+              { label: 'dashboard', patterns: ['dashboard', '面板', '统计', 'insights', '报告'] },
+              { label: 'settings', patterns: ['settings', '设置', '配置', '开关', '选项'] },
+              { label: 'search', patterns: ['搜索', 'search', '磁力', 'magnet'] },
+              { label: 'emby', patterns: ['emby'] },
+
+              { label: 'browser-extension', patterns: ['扩展', 'extension', 'chrome', 'edge', '浏览器'] },
+              { label: 'tampermonkey', patterns: ['tampermonkey', '油猴', 'userscript'] }
             ];
 
             const labels = rules
