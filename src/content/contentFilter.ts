@@ -704,8 +704,13 @@ export class ContentFilterManager {
    * 应用规则动作
    */
   private applyRuleAction(item: HTMLElement, rule: KeywordFilterRule): void {
+    const shouldSkipHideActions = this.shouldSkipHideActionsOnCurrentPage();
+
     switch (rule.action) {
       case 'hide':
+        if (shouldSkipHideActions) {
+          break;
+        }
         // 只有在不被默认功能隐藏的情况下才应用智能过滤隐藏
         if (!item.hasAttribute('data-hidden-by-default')) {
           item.style.display = 'none';
@@ -810,6 +815,10 @@ export class ContentFilterManager {
       return false;
     }
 
+    if (this.shouldSkipHideActionsOnCurrentPage()) {
+      return false;
+    }
+
     // 提取视频ID
     const videoId = this.extractVideoId(item);
     if (!videoId) {
@@ -851,6 +860,15 @@ export class ContentFilterManager {
     }
 
     return false;
+  }
+
+  private shouldSkipHideActionsOnCurrentPage(): boolean {
+    try {
+      const p = window.location.pathname;
+      return p.startsWith('/users/want_watch_videos') || p.startsWith('/users/watched_videos');
+    } catch {
+      return false;
+    }
   }
 
   /**

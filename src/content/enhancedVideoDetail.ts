@@ -12,6 +12,7 @@ import { fc2BreakerService, FC2VideoInfo } from '../services/fc2Breaker';
 import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';
+import { showEnhancementDone } from './enhancementLoadingIndicator';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -268,10 +269,6 @@ export class VideoDetailEnhancer {
 
     log(`Enhancing video detail page (core) for: ${this.videoId}`);
 
-    if (this.options.showLoadingIndicator) {
-      this.showLoadingIndicator();
-    }
-
     this.enhanceRelatedVideoClicks();
     try {
       chrome.runtime.sendMessage({
@@ -367,7 +364,7 @@ export class VideoDetailEnhancer {
    */
   finish(): void {
     if (this.options.showLoadingIndicator) {
-      this.hideLoadingIndicator();
+      showEnhancementDone();
     }
   }
 
@@ -1095,154 +1092,6 @@ export class VideoDetailEnhancer {
     return container;
   }
 
-  /**
-   * 显示加载指示器
-   */
-  private showLoadingIndicator(): void {
-    const indicator = document.createElement('div');
-    indicator.id = 'enhancement-loading';
-    indicator.style.cssText = `
-      position: fixed;
-      top: 70px;
-      right: 20px;
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
-      color: white;
-      padding: 12px 18px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 10000;
-      font-size: 14px;
-      font-weight: 500;
-      backdrop-filter: blur(10px);
-      animation: slideInRight 0.3s ease-out;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.3s ease;
-    `;
-    
-    // 添加加载动画
-    const spinner = document.createElement('span');
-    spinner.className = 'enhancement-spinner';
-    spinner.style.cssText = `
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    `;
-    
-    const text = document.createElement('span');
-    text.className = 'enhancement-text';
-    text.textContent = '正在获取增强信息...';
-    
-    indicator.appendChild(spinner);
-    indicator.appendChild(text);
-    
-    // 添加动画样式
-    if (!document.getElementById('enhancement-loading-styles')) {
-      const style = document.createElement('style');
-      style.id = 'enhancement-loading-styles';
-      style.textContent = `
-        @keyframes slideInRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(indicator);
-  }
-
-  /**
-   * 隐藏加载指示器（改为显示"增强完成"状态）
-   */
-  private hideLoadingIndicator(): void {
-    const indicator = document.getElementById('enhancement-loading');
-    if (!indicator) return;
-    
-    // 移除加载动画
-    const spinner = indicator.querySelector('.enhancement-spinner');
-    if (spinner) {
-      spinner.remove();
-    }
-    
-    // 更新文本
-    const text = indicator.querySelector('.enhancement-text');
-    if (text) {
-      text.textContent = '✓ 增强完成';
-    }
-    
-    // 更新样式为成功状态
-    indicator.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))';
-    indicator.style.cursor = 'pointer';
-    indicator.title = '点击关闭';
-    
-    // 添加关闭按钮
-    const closeBtn = document.createElement('span');
-    closeBtn.style.cssText = `
-      margin-left: 4px;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-    `;
-    closeBtn.textContent = '×';
-    closeBtn.onmouseenter = () => closeBtn.style.opacity = '1';
-    closeBtn.onmouseleave = () => closeBtn.style.opacity = '0.7';
-    indicator.appendChild(closeBtn);
-    
-    // 点击关闭
-    indicator.onclick = () => {
-      indicator.style.animation = 'slideOutRight 0.3s ease-out';
-      setTimeout(() => indicator.remove(), 300);
-    };
-    
-    // 添加滑出动画
-    if (!document.getElementById('enhancement-loading-styles')?.textContent?.includes('slideOutRight')) {
-      const style = document.getElementById('enhancement-loading-styles');
-      if (style) {
-        style.textContent += `
-          @keyframes slideOutRight {
-            from {
-              transform: translateX(0);
-              opacity: 1;
-            }
-            to {
-              transform: translateX(100%);
-              opacity: 0;
-            }
-          }
-        `;
-      }
-    }
-    
-    // 5秒后自动淡出（可选）
-    setTimeout(() => {
-      if (indicator && indicator.parentElement) {
-        indicator.style.animation = 'slideOutRight 0.3s ease-out';
-        setTimeout(() => {
-          if (indicator.parentElement) {
-            indicator.remove();
-          }
-        }, 300);
-      }
-    }, 5000);
-  }
 
   /**
    * 在容器内渲染错误提示与重试按钮（轻量UI，不影响其它增强流程）

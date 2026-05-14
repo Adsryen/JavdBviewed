@@ -1,7 +1,7 @@
 // src/content/statusManager.ts
 
 import { VIDEO_STATUS } from '../utils/config';
-import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconState, setCurrentTitleStatus } from './state';
+import { STATE, log, currentFaviconState, currentTitleStatus, setCurrentFaviconState, setCurrentTitleStatus, suspendEarlyFaviconSync } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { setFavicon } from './utils';
 
@@ -36,8 +36,10 @@ export function checkAndUpdateVideoStatus(): void {
     const record = STATE.records[videoId];
     const isRecorded = !!record;
 
-    // 更新favicon（基于状态，且只在需要时）
-    updateFaviconForStatus(isRecorded ? record.status : null);
+    // 初始状态同步完成前，跳过 favicon 的早期回显，避免在最终确认前提前切换图标
+    if (!suspendEarlyFaviconSync) {
+        updateFaviconForStatus(isRecorded ? record.status : null);
+    }
 
     // 更新页面标题（只在需要时）
     if (isRecorded) {

@@ -285,6 +285,7 @@ class ActorQuickActionsManager {
             // 取消收藏
             await actorManager.deleteActor(actorId);
             showToast('已取消收藏', 'success');
+            emitActorStateChanged();
           } else {
             // 收藏
             const newActor: ActorRecord = {
@@ -304,6 +305,7 @@ class ActorQuickActionsManager {
             };
             await actorManager.saveActor(newActor);
             showToast('收藏成功', 'success');
+            emitActorStateChanged();
           }
 
           // 关闭提示框并刷新
@@ -358,6 +360,7 @@ class ActorQuickActionsManager {
 
           const newState = !isBlacklisted;
           await actorManager.setBlacklisted(actorId, newState);
+          emitActorStateChanged();
           showToast(newState ? '已拉黑该演员' : '已取消拉黑', 'success');
 
           // 关闭提示框并刷新
@@ -413,10 +416,12 @@ class ActorQuickActionsManager {
           if (isSubscribed) {
             await newWorksManager.removeSubscription(actorId);
             showToast('已取消订阅', 'success');
+            emitActorStateChanged();
           } else {
             try {
               await newWorksManager.addSubscription(actorId);
               showToast('已订阅该演员的新作品', 'success');
+              emitActorStateChanged();
             } catch (e: any) {
               const msg = (e && e.message) || String(e);
               if (msg && /已经订阅/.test(msg)) {
@@ -684,3 +689,8 @@ class ActorQuickActionsManager {
 
 // 创建单例实例
 export const actorQuickActionsManager = new ActorQuickActionsManager();
+function emitActorStateChanged(): void {
+  try {
+    window.dispatchEvent(new CustomEvent('actor-state-changed'));
+  } catch {}
+}

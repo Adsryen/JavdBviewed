@@ -51,6 +51,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private veEnableReviewBreaker!: HTMLInputElement;
     private veEnableFC2Breaker!: HTMLInputElement;
     private veEnableActorRemarks!: HTMLInputElement;
+    private veEnableActorNameMarks!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
     private veActorRemarksTTL!: HTMLInputElement;
     private veActorRemarksTaskTimeout!: HTMLInputElement;
@@ -503,6 +504,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
         this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
         this.veEnableActorRemarks = document.getElementById('veEnableActorRemarks') as HTMLInputElement;
+        this.veEnableActorNameMarks = document.getElementById('veEnableActorNameMarks') as HTMLInputElement;
         this.veActorRemarksMode = document.getElementById('veActorRemarksMode') as HTMLSelectElement;
         this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
         this.veActorRemarksTaskTimeout = document.getElementById('veActorRemarksTaskTimeout') as HTMLInputElement;
@@ -658,6 +660,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veEnableActorRemarks?.addEventListener('change', this.handleSettingChange.bind(this));
+        this.veEnableActorNameMarks?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veActorRemarksMode?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veActorRemarksTTL?.addEventListener('change', this.handleSettingChange.bind(this));
         this.veActorRemarksTaskTimeout?.addEventListener('change', this.handleSettingChange.bind(this));
@@ -1146,6 +1149,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
             pushTask({ phase: 'idle', label: 'contentFilter:initialize', source: 'global', enabled: true });
         }
 
+        if ((settings.videoEnhancement as any)?.showLoadingIndicator !== false) {
+            pushTask({ phase: 'critical', label: 'enhancementUI:showLoadingIndicator', priority: 13, visibilityPolicy: 'background_allowed', source: 'global', enabled: true });
+        }
+
         if (settings.userExperience?.enableListEnhancement !== false) {
             pushTask({ phase: 'critical', label: 'list:observe:init', visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
             pushTask({ phase: 'high', label: 'listEnhancement:init', priority: 7, visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
@@ -1223,8 +1230,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             blueprints.push({ phase: 'critical', label: 'videoFavoriteRating:init', priority: 12, visibilityPolicy: 'background_allowed' });
         }
 
+        if ((settings as any)?.videoEnhancement?.enableActorNameMarks !== false) {
+            blueprints.push({ phase: 'idle', label: 'actorMarks:page' });
+        }
+
         blueprints.push(
-            { phase: 'idle', label: 'actorMarks:page' },
             { phase: 'idle', label: 'videoEnhancement:panel' },
         );
 
@@ -1441,6 +1451,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
             'list:observe:init': '列表页观察器初始化',
             'actorEnhancement:init': '演员页增强初始化',
             'actorEnhancement:actionButtons': '演员页操作按钮增强',
+            'enhancementUI:showLoadingIndicator': '增强加载提示显示',
             
             // High 阶段
             'performanceOptimizer:init': '性能优化器初始化',
@@ -2260,6 +2271,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (this.veAutoMarkWatchedStars) this.veAutoMarkWatchedStars.value = String((videoEnhancement as any).autoMarkWatchedStars ?? 4);
         // 新增：演员备注
         if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
+        if (this.veEnableActorNameMarks) this.veEnableActorNameMarks.checked = (videoEnhancement as any).enableActorNameMarks !== false;
         if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
         if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
         if (this.veActorRemarksTaskTimeout) this.veActorRemarksTaskTimeout.value = String((videoEnhancement as any).actorRemarksTaskTimeoutSeconds ?? 10);
@@ -2398,6 +2410,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     autoMarkWatchedStars: parseInt(this.veAutoMarkWatchedStars?.value || '4', 10) || 4,
                     // 新增：演员备注
                     enableActorRemarks: this.veEnableActorRemarks?.checked === true,
+                    enableActorNameMarks: this.veEnableActorNameMarks?.checked !== false,
                     actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
                     actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
                     actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
@@ -2651,6 +2664,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 if (this.veAutoMarkWatchedAfter115 && typeof ve.autoMarkWatchedAfter115 === 'boolean') this.veAutoMarkWatchedAfter115.checked = ve.autoMarkWatchedAfter115;
                 if (this.veAutoMarkWatchedStars && typeof ve.autoMarkWatchedStars !== 'undefined') this.veAutoMarkWatchedStars.value = String(ve.autoMarkWatchedStars ?? 4);
                 if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
+                if (this.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') this.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
                 if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
                 if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
                 if (this.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') this.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 10);
@@ -4819,6 +4833,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 'emby:init': 'Emby增强初始化 (emby:init)',
                 'emby:badge': 'Emby徽标增强 (emby:badge)',
                 'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
+                'enhancementUI:showLoadingIndicator': '增强加载提示显示 (enhancementUI:showLoadingIndicator)',
                 'defaultHide:init': '默认隐藏初始化 (defaultHide:init)',
                 'contentFilter:init': '内容过滤初始化 (contentFilter:init)',
                 'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
@@ -5144,6 +5159,7 @@ ${item.detail || ''}`;
                     'listEnhancement:reprocess': '列表增强-二次处理',
                     'actorEnhancement:init': '演员增强初始化',
                     'actorEnhancement:actionButtons': '演员页操作按钮增强',
+                    'enhancementUI:showLoadingIndicator': '增强加载提示显示',
                     'emby:init': 'Emby增强初始化',
                     'emby:badge': 'Emby徽标增强',
                     'passwordHelper:init': '密码助手初始化',

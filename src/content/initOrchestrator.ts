@@ -22,6 +22,9 @@ export interface InitTaskOptions {
 interface ScheduledTask {
   task: InitTask;
   options: InitTaskOptions;
+  queued?: boolean;
+  running?: boolean;
+  completed?: boolean;
 }
 
 interface TaskDeferredError extends Error {
@@ -407,6 +410,14 @@ class InitOrchestrator {
   private metricsSaveTimeout?: number;
 
   async add(phase: InitPhase, task: InitTask, options: InitTaskOptions = {}): Promise<void> {
+    if (options.label) {
+      const existingTask = this.phases[phase].find((scheduledTask) => (scheduledTask.options.label || '') === options.label);
+      if (existingTask) {
+        this.log('skip duplicate add', { phase, label: options.label });
+        return;
+      }
+    }
+
     // 记录任务依赖关系
     if (options.dependsOn && options.dependsOn.length > 0 && options.label) {
       this.taskDependencies.set(options.label, options.dependsOn);
@@ -490,8 +501,17 @@ class InitOrchestrator {
   }
 
   private runTask(phase: InitPhase, st: ManagedScheduledTask): Promise<void> {
+    if (st.completed) {
+      return Promise.resolve();
+    }
+
     const label = st.options.label || 'anonymous';
     this.clearDeferredRetry(phase, label);
+    st.queued = false;
+    if (st.running) {
+      return Promise.resolve();
+    }
+    st.running = true;
     
     // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks
     const localUnmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
@@ -582,6 +602,8 @@ class InitOrchestrator {
         }
         if (phase === 'deferred') this.runningDeferred = Math.max(0, this.runningDeferred - 1);
         if (phase === 'idle') this.runningIdle = Math.max(0, this.runningIdle - 1);
+        st.running = false;
+        st.completed = true;
         // P2 FIX: 任务成功后清理重试预算
         if (st.managedDescriptor?.taskId) {
           clearTaskRetryBudget(st.managedDescriptor.taskId);
@@ -606,6 +628,7 @@ class InitOrchestrator {
           // P0 FIX: 重新入队时释放本地并发计数，让后续任务得以起跑
           if (phase === 'deferred') this.runningDeferred = Math.max(0, this.runningDeferred - 1);
           if (phase === 'idle') this.runningIdle = Math.max(0, this.runningIdle - 1);
+          st.running = false;
           const deferredAbs = performance.now();
           this.timeline.push({ phase, label, status: 'scheduled', ts: deferredAbs, detail: waitReason, durationMs: 0 });
           this.emit('task:scheduled', { phase, label, ts: deferredAbs, relativeTs: this.relTs(deferredAbs), options: { ...st.options, waitReason } });
@@ -617,6 +640,7 @@ class InitOrchestrator {
         const dependencyError = e as TaskDependencyDeferredError;
         const unmetDeps = Array.isArray(dependencyError?.unmetDeps) ? dependencyError.unmetDeps : [];
         if (unmetDeps.length > 0) {
+          st.running = false;
           const deferredAbs = performance.now();
           this.timeline.push({ phase, label, status: 'scheduled', ts: deferredAbs, detail: `deps:${unmetDeps.join(',')}`, durationMs: 0 });
           this.emit('task:scheduled', { phase, label, ts: deferredAbs, relativeTs: this.relTs(deferredAbs), options: { ...st.options, waitReason: 'dependency-wait', unmetDeps } });
@@ -635,6 +659,7 @@ class InitOrchestrator {
         } catch {}
         const errAbs = performance.now();
         const isTimeout = e.message && e.message.includes('timeout');
+        st.running = false;
         this.timeline.push({ phase, label, status: 'error', ts: errAbs, detail: String(e), durationMs });
         console.warn(`[InitOrchestrator] task ${isTimeout ? 'timeout' : 'failed'}: phase=${phase} label=${label}`, e);
         this.emit('task:error', { phase, label, ts: errAbs, relativeTs: this.relTs(errAbs), error: String(e), durationMs, isTimeout });
@@ -662,6 +687,11 @@ class InitOrchestrator {
   }
 
   private scheduleTask(phase: InitPhase, st: ScheduledTask): void {
+    if (st.completed || st.running || st.queued) {
+      return;
+    }
+
+    st.queued = true;
     const { delayMs, idle, idleTimeout } = st.options || {};
     const label = st.options.label || 'anonymous';
     const scheduledAt = performance.now();
@@ -682,6 +712,11 @@ class InitOrchestrator {
     }
 
     const exec = () => {
+      if (st.completed || st.running) {
+        st.queued = false;
+        return;
+      }
+
       // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks，
       // 其他标签页完成的任务标签不会在这里体现。需要改成本地+全局双查询。
       const unmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
@@ -693,6 +728,7 @@ class InitOrchestrator {
           unmetDeps,
           elapsed: Math.round(elapsed),
         });
+        st.queued = false;
         setTimeout(exec, dependencyRetryDelay);
         return;
       }
