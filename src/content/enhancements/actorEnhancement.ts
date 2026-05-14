@@ -11,6 +11,7 @@ import { newWorksManager } from '../../services/newWorks';
 import { actorExtraInfoService } from '../../services/actorRemarks';
 import { getSettings } from '../../utils/storage';
 import { completeManagedTask, createManagedTaskDescriptor, ensureManagedTaskRegistered, failManagedTask, requestTaskLease, trackActiveManagedTask, untrackActiveManagedTask } from '../taskRuntime';
+import { showEnhancementDone, showEnhancementLoading } from '../enhancementLoadingIndicator';
 
 interface ActorTagFilter {
   tags: string[];
@@ -76,30 +77,6 @@ class ActorEnhancementManager {
     } finally {
       untrackActiveManagedTask(descriptor.taskId);
     }
-  }
-
-  private showLoadingIndicator(): void {
-    if (document.getElementById('actor-enhancement-loading')) return;
-    const indicator = document.createElement('div');
-    indicator.id = 'actor-enhancement-loading';
-    indicator.style.cssText = `position: fixed; top: 70px; right: 20px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95)); color: white; padding: 12px 18px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); z-index: 10000; font-size: 14px; font-weight: 500; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px;`;
-    const spinner = document.createElement('span');
-    spinner.style.cssText = `width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: actorEnhancementSpin 0.8s linear infinite;`;
-    const text = document.createElement('span');
-    text.textContent = '演员页增强加载中...';
-    indicator.appendChild(spinner);
-    indicator.appendChild(text);
-    if (!document.getElementById('actor-enhancement-loading-style')) {
-      const style = document.createElement('style');
-      style.id = 'actor-enhancement-loading-style';
-      style.textContent = `@keyframes actorEnhancementSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
-      document.head.appendChild(style);
-    }
-    document.body.appendChild(indicator);
-  }
-
-  private hideLoadingIndicator(): void {
-    document.getElementById('actor-enhancement-loading')?.remove();
   }
 
   /**
@@ -872,14 +849,14 @@ class ActorEnhancementManager {
       const settings = await getSettings();
       showLoading = (settings?.videoEnhancement as any)?.showLoadingIndicator !== false;
     } catch {}
-    if (showLoading) this.showLoadingIndicator();
-
     try {
       if (this.config.enableActionButtons !== false) {
         await this.runActionButtonsTask();
       }
     } finally {
-      if (showLoading) this.hideLoadingIndicator();
+      if (showLoading) {
+        showEnhancementDone();
+      }
     }
 
     // 应用保存的标签过滤器（延迟执行，确保页面加载完成）

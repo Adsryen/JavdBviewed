@@ -14,6 +14,39 @@ import { getSettings } from '../utils/storage';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 
+type Drive115PushSettingsCache = {
+    enabled: boolean;
+    defaultWpPathId: string;
+    autoMarkWatchedAfter115: boolean;
+    autoMarkWatchedStars: number;
+};
+
+let drive115PushSettingsCache: Drive115PushSettingsCache | null = null;
+
+async function refreshDrive115PushSettingsCache(): Promise<Drive115PushSettingsCache> {
+    const [enabled, settings] = await Promise.all([
+        isDrive115Enabled(),
+        getSettings(),
+    ]);
+
+    const cache: Drive115PushSettingsCache = {
+        enabled,
+        defaultWpPathId: ((settings as any)?.drive115?.defaultWpPathId ?? '').toString().trim(),
+        autoMarkWatchedAfter115: (settings as any)?.videoEnhancement?.autoMarkWatchedAfter115 !== false,
+        autoMarkWatchedStars: (settings as any)?.videoEnhancement?.autoMarkWatchedStars ?? 4,
+    };
+
+    drive115PushSettingsCache = cache;
+    return cache;
+}
+
+async function getDrive115PushSettingsCached(): Promise<Drive115PushSettingsCache> {
+    if (drive115PushSettingsCache) {
+        return drive115PushSettingsCache;
+    }
+    return refreshDrive115PushSettingsCache();
+}
+
 // 统一的网络请求超时与重试封装（用于对抗临时的网络抖动/连接重置）
 async function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -122,8 +155,11 @@ export async function initDrive115Features(): Promise<void> {
     try {
         const steps: Array<() => Promise<void>> = [
             async () => {
+                await refreshDrive115PushSettingsCache();
+            },
+            async () => {
         // 通过统一路由判断是否启用115功能（屏蔽 v1/v2 差异）
-                const enabled = await isDrive115Enabled();
+                const { enabled } = await getDrive115PushSettingsCached();
                 if (!enabled) {
                     throw new Error('drive115-disabled');
                 }
@@ -226,8 +262,8 @@ export async function handlePushToDrive115(
     magnetName: string
 ): Promise<void> {
     try {
-        // 检查115功能是否启用
-        const enabled = await isDrive115Enabled();
+        const cachedSettings = await getDrive115PushSettingsCached();
+        const enabled = cachedSettings.enabled;
         if (!enabled) {
             showToast('115网盘功能未启用，请先在设置中启用', 'error');
             return;
@@ -248,8 +284,7 @@ export async function handlePushToDrive115(
             await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 115 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
             let wpPathId: string | undefined;
             try {
-                const settings: any = await getSettings();
-                const def = (settings?.drive115?.defaultWpPathId ?? '').toString().trim();
+                const def = cachedSettings.defaultWpPathId;
                 wpPathId = def === '' ? '0' : def;
             } catch {}
 
@@ -276,9 +311,8 @@ export async function handlePushToDrive115(
 
             // 推送成功后自动标记为已看（受设置控制）
             try {
-                const settings: any = await getSettings();
-                const autoMark = settings?.videoEnhancement?.autoMarkWatchedAfter115 !== false;
-                const stars = settings?.videoEnhancement?.autoMarkWatchedStars ?? 4;
+                const autoMark = cachedSettings.autoMarkWatchedAfter115;
+                const stars = cachedSettings.autoMarkWatchedStars;
                 if (autoMark) {
                     log('开始标记视频为已看...');
                     console.log('[JavDB Ext] 开始标记视频为已看...');

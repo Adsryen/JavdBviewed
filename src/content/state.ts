@@ -26,6 +26,11 @@ export const STATE: ContentState = {
     lastProcessedVideo: null,
 };
 
+export let suspendEarlyFaviconSync = false;
+export function setSuspendEarlyFaviconSync(value: boolean): void {
+    suspendEarlyFaviconSync = value;
+}
+
 export const SELECTORS = {
     MOVIE_LIST_ITEM: '.movie-list .item',
     VIDEO_TITLE: 'div.video-title > strong',
