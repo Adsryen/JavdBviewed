@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(defineConfig({
@@ -16,7 +16,6 @@ export default withMermaid(defineConfig({
   mermaid: {
     theme: 'neutral'
   },
-  outDir: '../docs-dist',
   themeConfig: {
     nav: [
       { text: '首页', link: '/' },

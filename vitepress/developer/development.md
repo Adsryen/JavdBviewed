@@ -261,13 +261,13 @@ npm run build
 ### 文档站预览
 
 ```bash
-npm run docs:dev
+npm run vitepress:dev
 ```
 
 ### 文档站构建
 
 ```bash
-npm run docs:build
+npm run vitepress:build
 ```
 
 ### 发布建议
