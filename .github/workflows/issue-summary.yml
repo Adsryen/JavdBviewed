@@ -232,7 +232,7 @@ jobs:
                       '',
                       ...missingItems.map(item => `- ${item}`),
                       '',
-                      '- 补充完成后直接编辑原 Issue 即可，Bot 会自动刷新总结。'
+                      '- 补充完成后直接编辑原 Issue 即可，总结会自动刷新。'
                     ].join('\n')
                   : [
                       reminderMarker,
