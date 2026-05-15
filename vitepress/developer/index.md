@@ -8,7 +8,8 @@
 2. [架构说明](/developer/architecture)
 3. [数据同步模块](/developer/data-sync)
 4. [115 模块说明](/developer/drive115-module)
-5. [UI 组件说明](/developer/ui-components)
+5. [任务编排中心](/developer/task-orchestration)
+6. [UI 组件说明](/developer/ui-components)
 
 ## 适用人群
 
