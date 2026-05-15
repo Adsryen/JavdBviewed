@@ -14,6 +14,8 @@ import { getSettings } from '../utils/storage';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { createManagedTaskDescriptor, ensureManagedTaskRegistered, progressManagedTask, completeManagedTask, failManagedTask } from './taskRuntime';
+import { requestTaskLease } from './taskRuntime';
+import { waitForTaskLease } from './taskRuntime';
 import { getPageContext } from './pageContext';
 
 type Drive115PushSettingsCache = {
@@ -133,7 +135,12 @@ async function inject115ButtonsIntoNativeMagnetList(): Promise<void> {
             btn.className = 'button is-success is-small drive115-push-btn';
             (btn as HTMLButtonElement).style.marginLeft = '5px';
             btn.innerHTML = '&nbsp;推送115&nbsp;';
-            btn.addEventListener('click', () => handlePushToDrive115(btn, videoId, magnetLink.href, magnetName));
+            btn.addEventListener('click', () => {
+                log(`[Drive115] Push button clicked: ${videoId} | ${magnetName}`);
+                void handlePushToDrive115(btn, videoId, magnetLink.href, magnetName).catch((error) => {
+                    log('[Drive115] Push click handler failed:', error);
+                });
+            });
 
             let buttonsCol = item.querySelector('.buttons');
             if (!buttonsCol) {
@@ -266,6 +273,8 @@ export async function handlePushToDrive115(
     const pageContext = getPageContext();
     const correlationId = `drive115-push:${videoId}:${Date.now()}`;
     let rootTask: Awaited<ReturnType<typeof ensureManagedTaskRegistered>> | null = null;
+    const originalText = button.innerHTML;
+    log(`[Drive115] handlePushToDrive115 start: ${videoId} | ${magnetName} | ${pageContext.pageInstanceId}`);
     const stageStartTimes = new Map<string, number>();
     const beginStage = async (stage: string, detail: string, progressPct: number) => {
         const now = Date.now();
@@ -314,9 +323,21 @@ export async function handlePushToDrive115(
             dedupeKey: `drive115:push:${pageContext.pageInstanceId}:${videoId}:${magnetUrl}`,
             correlationId,
         }));
+        log(`[Drive115] task registered: ${rootTask.taskId}`);
+        button.disabled = true;
+        button.innerHTML = '排队中...';
+        button.className = 'button is-warning is-small drive115-push-btn';
 
-        // 更新按钮状态
-        const originalText = button.innerHTML;
+        await progressManagedTask(rootTask.taskId, { stage: 'queue', detail: 'waiting-for-lease', progressPct: 1 });
+
+        const immediateLease = await requestTaskLease(rootTask.taskId);
+        const lease = immediateLease?.granted
+            ? immediateLease
+            : await waitForTaskLease(rootTask.taskId, 12000, 250);
+        if (!lease?.granted) {
+            throw new Error(lease?.waitReason || 'drive115-push-lease-denied');
+        }
+
         button.disabled = true;
         button.innerHTML = '推送中...';
         button.className = 'button is-warning is-small drive115-push-btn';
@@ -343,6 +364,7 @@ export async function handlePushToDrive115(
                 endStage('push-api', 'done', `returned=${Array.isArray(res.data) ? res.data.length : 0}`);
                 const returned = Array.isArray(res.data) ? res.data.length : 0;
                 await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：推送成功，返回 ${returned} 项，videoId=${videoId}` });
+                await progressManagedTask(rootTask.taskId, { stage: 'push-api', detail: 'push complete', progressPct: 70 });
             } else {
                 endStage('push-api', 'error', res.message || 'push failed', res.message || 'push failed');
                 await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
@@ -369,6 +391,7 @@ export async function handlePushToDrive115(
                     await beginStage('mark-watched', `stars=${stars}`, 80);
                     log('开始标记视频为已看...');
                     console.log('[JavDB Ext] 开始标记视频为已看...');
+                    await progressManagedTask(rootTask.taskId, { stage: 'mark-watched', detail: `stars=${stars}`, progressPct: 85 });
                     await markVideoAsWatched(videoId, stars);
                     endStage('mark-watched', 'done', `stars=${stars}`);
                     log('markVideoAsWatched函数执行完毕');
@@ -415,7 +438,7 @@ export async function handlePushToDrive115(
 
         // 3秒后恢复原状态
         setTimeout(() => {
-            button.innerHTML = '&nbsp;推送115&nbsp;';
+            button.innerHTML = originalText || '&nbsp;推送115&nbsp;';
             button.disabled = false;
             button.className = 'button is-success is-small drive115-push-btn';
         }, 3000);
