@@ -1066,7 +1066,9 @@ class ListEnhancementManager {
       let rightClickHandled = false;
       const openInBackground = () => {
         const startedAt = performance.now();
-        chrome.runtime.sendMessage({
+        showToast('已在后台打开', 'success');
+
+        void chrome.runtime.sendMessage({
           type: 'OPEN_TAB_BACKGROUND',
           url: videoInfo.url
         }).then(() => {
@@ -1075,8 +1077,6 @@ class ListEnhancementManager {
           log('Failed to open background tab:', err);
           window.open(videoInfo.url, '_blank');
         });
-
-        showToast('已在后台打开', 'success');
       };
 
       linkElement.addEventListener('mousedown', (e) => {
@@ -1088,7 +1088,7 @@ class ListEnhancementManager {
         openInBackground();
         window.setTimeout(() => {
           rightClickHandled = false;
-        }, 400);
+        }, 800);
       });
 
       linkElement.addEventListener('contextmenu', (e) => {
@@ -1099,7 +1099,7 @@ class ListEnhancementManager {
         openInBackground();
         window.setTimeout(() => {
           rightClickHandled = false;
-        }, 400);
+        }, 800);
       });
     }
   }
