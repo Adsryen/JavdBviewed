@@ -4,7 +4,7 @@
   "version": "1.9.0",
   "description": "Jav 助手",
   "scripts": {
-    "vitepress:dev": "vitepress dev vitepress",
+    "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",
     "vitepress:build": "vitepress build vitepress",
     "vitepress:preview": "vitepress preview vitepress",
     "docs:dev": "npm run vitepress:dev",
@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "fs-extra": "^10.1.0",
-    "jszip": "^3.10.1",
-    "idb": "^7.1.1"
+    "idb": "^7.1.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0-beta.23",
+    "@crxjs/vite-plugin": "^2.4.0",
     "@types/archiver": "^6.0.3",
     "@types/chrome": "^0.1.1",
     "@types/fs-extra": "^11.0.4",

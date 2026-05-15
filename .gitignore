@@ -50,7 +50,8 @@ javdb-backup_*.json
 !vitepress/
 !vitepress/**
 !vitepress/.vitepress/
-!vitepress/.vitepress/**
+!vitepress/.vitepress/*.mts
+vitepress/.vitepress/cache/
 
 # 参考文档
 !reference/
