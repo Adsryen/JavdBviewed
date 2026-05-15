@@ -1678,24 +1678,9 @@ async function logsEnforceRetention(): Promise<void> {
     const logging: any = (settings as any)?.logging || {};
     let maxEntries = Number(logging.maxLogEntries ?? logging.maxEntries ?? 1500);
     if (!Number.isFinite(maxEntries) || maxEntries <= 0) maxEntries = 1500;
-    const retentionDaysRaw = (logging as any).retentionDays;
-    const retentionDays = Number(retentionDaysRaw);
-    const hasRetentionDays = Number.isFinite(retentionDays) && retentionDays > 0;
-
     const db = await initDB();
 
-    // 先按时间清理（如果配置了天数）
-    if (hasRetentionDays) {
-      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
-      const tx = db.transaction('logs', 'readwrite');
-      const idx = tx.store.index('by_timestamp');
-      for (let cursor = await idx.openCursor(IDBKeyRange.upperBound(cutoff)); cursor; cursor = await cursor.continue()) {
-        await cursor.delete();
-      }
-      await tx.done;
-    }
-
-    // 再按数量限制
+    // 只按数量限制，不按时间回收
     let maxMagnetPushEntries = Number((logging as any).maxMagnetPushEntries ?? 5000);
     if (!Number.isFinite(maxMagnetPushEntries) || maxMagnetPushEntries <= 0) maxMagnetPushEntries = 5000;
 
