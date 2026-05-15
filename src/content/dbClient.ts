@@ -2,19 +2,23 @@
 // 内容脚本到后台的 DB 消息封装（IndexedDB 后台持久层）
 
 import type { VideoRecord } from '../types';
+import { log } from './state';
 
 function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    const requestId = `${type}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
     let timer: number | undefined;
     try {
+      log('[DBClient] send:start', { type, requestId, timeoutMs, payload });
       timer = window.setTimeout(() => {
+        log('[DBClient] send:timeout', { type, requestId, timeoutMs });
         reject(new Error(`DB message timeout: ${type}`));
       }, timeoutMs);
     } catch {}
 
-    // 检查 runtime 是否可用
     if (!chrome?.runtime?.id) {
       if (timer) window.clearTimeout(timer);
+      log('[DBClient] send:invalid-runtime', { type, requestId });
       reject(new Error('Extension context invalidated'));
       return;
     }
@@ -24,38 +28,53 @@ function sendMessage<T = any>(type: string, payload?: any, timeoutMs = 8000): Pr
         if (timer) window.clearTimeout(timer);
         const lastErr = chrome.runtime.lastError;
         if (lastErr) {
+          log('[DBClient] send:lastError', { type, requestId, error: lastErr.message });
           reject(new Error(lastErr.message || 'runtime error'));
           return;
         }
         if (!resp || resp.success !== true) {
+          log('[DBClient] send:failure', { type, requestId, response: resp });
           reject(new Error(resp?.error || 'unknown db error'));
           return;
         }
+        log('[DBClient] send:done', { type, requestId });
         resolve(resp as T);
       });
     } catch (e: any) {
       if (timer) window.clearTimeout(timer);
+      log('[DBClient] send:exception', { type, requestId, error: e?.message || String(e) });
       reject(e);
     }
   });
 }
 
 export function dbViewedPut(record: VideoRecord): Promise<void> {
-  return sendMessage('DB:VIEWED_PUT', { record }).then(() => {});
+  log('[DBClient] viewedPut:request', { id: record?.id, status: record?.status, title: record?.title });
+  return sendMessage('DB:VIEWED_PUT', { record }).then(() => {
+    log('[DBClient] viewedPut:done', { id: record?.id });
+  });
+}
+
+export async function dbViewedGet(videoId: string): Promise<VideoRecord | undefined> {
+  log('[DBClient] viewedGet:request', { videoId });
+  const resp = await sendMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id: videoId });
+  log('[DBClient] viewedGet:done', { videoId, found: !!resp.record });
+  return resp.record;
 }
 
 export function dbViewedBulkPut(records: VideoRecord[]): Promise<void> {
-  return sendMessage('DB:VIEWED_BULK_PUT', { records }).then(() => {});
+  log('[DBClient] viewedBulkPut:request', { count: records.length });
+  return sendMessage('DB:VIEWED_BULK_PUT', { records }).then(() => {
+    log('[DBClient] viewedBulkPut:done', { count: records.length });
+  });
 }
 
 export async function dbViewedGetAll(): Promise<VideoRecord[]> {
+  log('[DBClient] viewedGetAll:request');
   const resp = await sendMessage<{ success: true; records: VideoRecord[] }>('DB:VIEWED_GET_ALL');
-  // sendMessage 已保证 success 才 resolve
-  // @ts-ignore
+  log('[DBClient] viewedGetAll:done', { count: resp.records?.length || 0 });
   return resp.records || [];
 }
-
-// ----- Magnets APIs -----
 
 export interface MagnetsQueryParams {
   videoId: string;
@@ -87,7 +106,6 @@ export interface MagnetCacheRecord {
 
 export async function dbMagnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number }>{
   const resp = await sendMessage<{ success: true; items: MagnetCacheRecord[]; total: number }>('DB:MAGNETS_QUERY', params);
-  // @ts-ignore
   return { items: resp.items || [], total: resp.total || 0 };
 }
 
@@ -101,11 +119,8 @@ export async function dbMagnetsClear(): Promise<void> {
 
 export async function dbMagnetsClearExpired(beforeMs?: number): Promise<number> {
   const resp = await sendMessage<{ success: true; removed: number }>('DB:MAGNETS_CLEAR_EXPIRED', { beforeMs });
-  // @ts-ignore
   return Number(resp.removed || 0);
 }
-
-// ----- Logs APIs -----
 
 export interface LogEntry {
   timestamp: string;

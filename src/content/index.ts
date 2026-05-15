@@ -351,17 +351,17 @@ async function initialize(): Promise<void> {
     const preregisterBlueprints: Array<{ phase: InitPhase; label: string; priority?: number; timeout?: number; visibilityPolicy?: 'foreground_first' | 'background_allowed' | 'foreground_only' }> = [];
 
     if (isVideoPage) {
+        preregisterBlueprints.push(...getVideoDetailTaskBlueprints(settings as any));
         if ((settings.videoEnhancement as any)?.showLoadingIndicator !== false) {
             preregisterBlueprints.push({ phase: 'critical', label: 'enhancementUI:showLoadingIndicator', priority: 13, visibilityPolicy: 'background_allowed' });
         }
         preregisterBlueprints.push(
-            { phase: 'idle', label: 'drive115:init:video' },
-            { phase: 'idle', label: 'insights:collector' },
+            { phase: 'idle', label: 'drive115:init:video', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'insights:collector', dependsOn: ['videoStatus:initialSync'] },
         );
         if ((settings.videoEnhancement as any)?.enableActorQuickActions !== false) {
-            preregisterBlueprints.push({ phase: 'high', label: 'actorQuickActions:init', priority: 6, visibilityPolicy: 'background_allowed' });
+            preregisterBlueprints.push({ phase: 'high', label: 'actorQuickActions:init', priority: 6, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] });
         }
-        preregisterBlueprints.push(...getVideoDetailTaskBlueprints(settings as any));
     }
 
     if (isActorPage) {
@@ -768,9 +768,17 @@ async function initialize(): Promise<void> {
 // --- Messaging Bridge for Orchestrator Visualization ---
 try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+        console.log('[Content] Registering orchestrator:getState listener', {
+            url: window.location.href,
+            readyState: document.readyState,
+        });
         chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             try {
                 if (message && message.type === 'orchestrator:getState') {
+                    console.log('[Content] Received orchestrator:getState probe', {
+                        url: window.location.href,
+                        hasInitOrchestrator: !!(window as any).__initOrchestrator__,
+                    });
                     const o: any = (window as any).__initOrchestrator__;
                     if (o && typeof o.getState === 'function') {
                         const state = o.getState();
@@ -778,13 +786,13 @@ try {
                     } else {
                         sendResponse({ ok: false, error: 'orchestrator not initialized yet' });
                     }
-                    return true; // async response
+                    return false;
                 }
             } catch (err) {
                 sendResponse({ ok: false, error: String(err) });
-                return true;
+                return false;
             }
-            return undefined;
+            return false;
         });
     }
 } catch {}
@@ -854,6 +862,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 log('Failed to refresh Emby enhancement after settings update:', e as any);
             }
         });
+        return false;
     } else if (message.type === 'show-toast') {
         // 处理来自background script的toast通知
         log('Received toast message:', message.message, message.toastType);
@@ -862,6 +871,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         } catch (err) {
             console.error('[JavDB Ext] Failed to show toast:', err);
         }
+        return false;
     } else if (message.type === 'UPDATE_CONTENT_FILTER') {
         // 更新内容过滤规则
         if (message.keywordRules) {
@@ -872,6 +882,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 log(`Content filter rules updated: ${message.keywordRules.length} rules`);
             }, 100);
         }
+        return false;
     } else if (message.type === 'ACTOR_ENHANCEMENT_SAVE_FILTER') {
         // 保存当前演员页过滤器
         actorEnhancementManager.saveCurrentTagFilter()
@@ -882,7 +893,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 console.error('保存演员页过滤器失败:', error);
                 sendResponse({ success: false, error: (error && error.message) || String(error) });
             });
-        return true; // 保持消息通道开放
+        return true;
     } else if (message.type === 'ACTOR_ENHANCEMENT_CLEAR_FILTERS') {
         // 清除所有保存的过滤器
         actorEnhancementManager.clearSavedFilters()
@@ -893,7 +904,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 console.error('清除演员页过滤器失败:', error);
                 sendResponse({ success: false, error: (error && error.message) || String(error) });
             });
-        return true; // 保持消息通道开放
+        return true;
     } else if (message.type === 'ACTOR_ENHANCEMENT_GET_STATUS') {
         // 获取演员页增强状态
         try {
@@ -903,7 +914,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             console.error('获取演员页状态失败:', error);
             sendResponse({ error: error.message });
         }
-        return true; // 保持消息通道开放
+        return false;
     }
     return false; // 确保所有分支都有返回值（同步处理）
 });
@@ -922,7 +933,9 @@ async function initVolumeControl() {
                 log(`🎚️ Volume updated: ${Math.round(currentVolume * 100)}%`);
                 applyVolumeToAllVideos();
                 sendResponse({ success: true });
+                return false;
             }
+            return false;
         });
 
         // 监听点击事件 - 使用与调试脚本相同的逻辑
