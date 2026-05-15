@@ -1,4 +1,5 @@
 export const TASK_BUCKET_LIMITS: Record<string, number> = {
+  videoStatus: 6,
   translate: 1,
   actorMarks: 3,
   actorRemarks: 3,
@@ -13,6 +14,7 @@ export const TASK_BUCKET_LIMITS: Record<string, number> = {
 };
 
 export function resolveTaskBucket(label: string): string {
+  if (label.startsWith('videoStatus:')) return 'videoStatus';
   if (label.includes('translate')) return 'translate';
   if (label.startsWith('actorMarks')) return 'actorMarks';
   if (label.startsWith('actorRemarks')) return 'actorRemarks';

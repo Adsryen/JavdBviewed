@@ -8,12 +8,10 @@ import { STATE, SELECTORS, log, setSuspendEarlyFaviconSync } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { createTaskTimeoutGuard, isTaskTimeoutError, getRandomDelay, waitForElement } from './utils';
+import { createTaskTimeoutGuard, waitForElement } from './utils';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { updateFaviconForStatus } from './statusManager';
-import { videoDetailEnhancer } from './enhancedVideoDetail';
-import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
 
@@ -381,6 +379,7 @@ type VideoDetailTaskBlueprint = {
     priority?: number;
     timeout?: number;
     visibilityPolicy?: GlobalTaskVisibilityPolicy;
+    dependsOn?: string[];
 };
 
 export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlueprint[] {
@@ -390,37 +389,38 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     const enableTranslation = settings?.dataEnhancement?.enableTranslation;
     const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
 
+    blueprints.push({ phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' });
+
     if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
         blueprints.push(
-            { phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' },
-            { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
-            { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
-            { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
-            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000 },
-            { phase: 'idle', label: 'videoEnhancement:runCover' },
-            { phase: 'idle', label: 'videoEnhancement:runTitle' },
-            { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
-            { phase: 'idle', label: 'videoEnhancement:finish' },
+            { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000, dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000, dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'videoEnhancement:runCover', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'videoEnhancement:runTitle', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'videoEnhancement:runFC2Breaker', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'videoEnhancement:finish', dependsOn: ['videoStatus:initialSync'] },
         );
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
-        blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs });
+        blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs, dependsOn: ['videoStatus:initialSync'] });
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
-        blueprints.push({ phase: 'critical', label: 'videoFavoriteRating:init', priority: 12, visibilityPolicy: 'background_allowed' });
+        blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] });
     }
 
     blueprints.push(
-        { phase: 'idle', label: 'actorMarks:page' },
-        { phase: 'idle', label: 'videoEnhancement:panel' },
+        { phase: 'idle', label: 'actorMarks:page', dependsOn: ['videoStatus:initialSync'] },
+        { phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] },
     );
 
     return blueprints;
 }
 
-async function syncVideoStatusVisualsAndRecord(
+async function syncVideoStatusPersistCore(
     videoId: string,
     record: VideoRecord | undefined,
     now: number,
@@ -428,15 +428,107 @@ async function syncVideoStatusVisualsAndRecord(
     operationId: string
 ): Promise<VideoRecord | undefined> {
     if (record) {
-        const finalStatus = await handleExistingRecord(videoId, record, now, currentUrl, operationId);
-        updateFaviconForStatus(finalStatus);
-        setSuspendEarlyFaviconSync(false);
+        await handleExistingRecord(videoId, record, now, currentUrl, operationId, { light: true });
         return record;
     }
-    const finalStatus = await handleNewRecord(videoId, now, currentUrl);
+    return await handleNewRecord(videoId, now, currentUrl);
+}
+
+async function syncVideoStatusFinalize(
+    videoId: string,
+    record: VideoRecord | undefined,
+    now: number,
+    currentUrl: string,
+    operationId: string
+): Promise<VideoRecord | undefined> {
+    const currentRecord = record || STATE.records[videoId];
+    const pageDetectedStatus = detectPageUserStatus();
+    const finalStatus = pageDetectedStatus || currentRecord?.status || null;
+
+    if (currentRecord) {
+        const desiredStatus = resolveLibraryStatusFromPageStatus(currentRecord.status, pageDetectedStatus);
+        if (desiredStatus && desiredStatus !== currentRecord.status) {
+            try {
+                const result = await storageManager.updateRecordDirect(
+                    videoId,
+                    (latestRecord) => {
+                        const sourceRecord = latestRecord || currentRecord;
+                        return {
+                            ...sourceRecord,
+                            status: desiredStatus,
+                            updatedAt: now,
+                            javdbUrl: currentUrl,
+                        };
+                    },
+                    operationId,
+                    { backupToStorage: false, verifyAfterWrite: true }
+                );
+                if (result.success && result.record) {
+                    Object.assign(currentRecord, result.record);
+                }
+            } catch (error) {
+                log(`syncVideoStatusFinalize update failed for ${videoId}:`, error);
+            }
+        } else {
+            currentRecord.javdbUrl = currentUrl;
+        }
+    }
+
     updateFaviconForStatus(finalStatus);
     setSuspendEarlyFaviconSync(false);
-    return undefined;
+    return currentRecord;
+}
+
+async function syncVideoStatusFullRefresh(
+    videoId: string,
+    record: VideoRecord | undefined,
+    now: number,
+    currentUrl: string,
+    operationId: string
+): Promise<VideoRecord | undefined> {
+    const currentRecord = record || STATE.records[videoId];
+    if (!currentRecord) {
+        return undefined;
+    }
+
+    const extractedData = await extractVideoData(videoId, { light: false });
+    if (!extractedData) {
+        return currentRecord;
+    }
+
+    const pageDetectedStatus = detectPageUserStatus();
+    const desiredStatus = resolveLibraryStatusFromPageStatus(currentRecord.status, pageDetectedStatus);
+    const nextStatus = desiredStatus || currentRecord.status;
+    const mergedRecord = {
+        ...currentRecord,
+        ...extractedData,
+        status: nextStatus,
+        updatedAt: now,
+        javdbUrl: currentUrl,
+    };
+
+    const changedKeys = Object.keys(mergedRecord).filter((key) => {
+        const typedKey = key as keyof typeof mergedRecord;
+        return mergedRecord[typedKey] !== currentRecord[typedKey];
+    });
+
+    if (changedKeys.length === 0) {
+        return currentRecord;
+    }
+
+    const result = await storageManager.putRecord(
+        mergedRecord,
+        operationId,
+        { backupToStorage: false, verifyAfterWrite: true }
+    );
+
+    if (!result.success) {
+        throw new Error(result.error || `Failed to refresh record ${videoId}`);
+    }
+
+    Object.assign(currentRecord, STATE.records[videoId] || mergedRecord);
+    log(`[videoStatus:fullRefresh] Refreshed ${videoId} fields:`, changedKeys);
+    return currentRecord;
 }
 
 export async function handleVideoDetailPage(): Promise<void> {
@@ -456,6 +548,107 @@ export async function handleVideoDetailPage(): Promise<void> {
     }
 
     setSuspendEarlyFaviconSync(true);
+
+    // 并发控制：检查是否已经在处理这个视频
+    const operationId = await concurrencyManager.startProcessingVideo(videoId);
+    if (!operationId) {
+        return;
+    }
+
+    try {
+        const shouldShowIndicator = (STATE.settings as any)?.videoEnhancement?.showLoadingIndicator !== false;
+        if (shouldShowIndicator) {
+            showEnhancementLoading('video');
+        }
+    } catch {}
+
+    try {
+        const record = STATE.records[videoId];
+        const now = Date.now();
+        const currentUrl = window.location.href;
+
+        let currentRecord: VideoRecord | undefined = record;
+        try {
+            currentRecord = await new Promise<VideoRecord | undefined>((resolve) => {
+                initOrchestrator.add('critical', async () => {
+                    const persistStartedAt = Date.now();
+                    const nextRecord = await syncVideoStatusPersistCore(videoId, currentRecord, now, currentUrl, operationId);
+                    await saveSubtaskDetail({
+                        label: 'videoStatus:initialSync:persist',
+                        parentLabel: 'videoStatus:initialSync',
+                        subtaskLabel: 'persist',
+                        phase: 'critical',
+                        status: 'done',
+                        pageUrl: currentUrl,
+                        durationMs: Math.max(0, Date.now() - persistStartedAt),
+                        registrationSource: 'blueprint',
+                    });
+
+                    const finalizeStartedAt = Date.now();
+                    const finalizedRecord = await syncVideoStatusFinalize(videoId, nextRecord, now, currentUrl, operationId);
+                    await saveSubtaskDetail({
+                        label: 'videoStatus:initialSync:finalize',
+                        parentLabel: 'videoStatus:initialSync',
+                        subtaskLabel: 'finalize',
+                        phase: 'critical',
+                        status: 'done',
+                        pageUrl: currentUrl,
+                        durationMs: Math.max(0, Date.now() - finalizeStartedAt),
+                        registrationSource: 'blueprint',
+                    });
+
+                    resolve(finalizedRecord);
+                }, { label: 'videoStatus:initialSync', delayMs: 0, priority: 12, visibilityPolicy: 'background_allowed' });
+            });
+        } catch (e) {
+            log('videoStatus:initialSync scheduling failed:', e as any);
+            currentRecord = await syncVideoStatusPersistCore(videoId, currentRecord, now, currentUrl, operationId);
+            currentRecord = await syncVideoStatusFinalize(videoId, currentRecord, now, currentUrl, operationId);
+        }
+
+        try {
+            initOrchestrator.add('deferred', async () => {
+                await syncVideoStatusFullRefresh(videoId, currentRecord, now, currentUrl, operationId);
+            }, {
+                label: 'videoStatus:fullRefresh',
+                idle: true,
+                idleTimeout: 3000,
+                delayMs: 1200,
+                timeout: 12000,
+                dependsOn: ['videoStatus:initialSync'],
+            });
+        } catch (e) {
+            log('videoStatus:fullRefresh scheduling failed:', e as any);
+        }
+
+        try {
+            bindWantSyncOnClick(videoId);
+        } catch (e) { log('bindWantSyncOnClick error:', e as any); }
+
+        try {
+            setupStatusChangeObserver(videoId);
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'orchestrator:event',
+                    event: 'task:done',
+                    payload: {
+                        phase: 'high',
+                        label: 'videoStatus:observer',
+                        ts: performance.now(),
+                        relativeTs: 0,
+                        durationMs: 1,
+                    },
+                    pageUrl: window.location.href,
+                });
+            } catch {}
+        } catch (e) { log('setupStatusChangeObserver error:', e as any); }
+    } catch (error) {
+        log(`Error processing video ${videoId}:`, error);
+        showToast(`处理失败: ${videoId}`, 'error');
+    } finally {
+        concurrencyManager.finishProcessingVideo(videoId, operationId);
+    }
+}
 
 // 在影片详情页对“演員/演员”区域内的演员链接进行标识：
 // - 若为已收藏（存在于本地演员库）则标记为绿色
@@ -546,20 +739,20 @@ async function markActorsOnPage(): Promise<void> {
     }
 }
 
-function scheduleMarkActorsOnPage(delayMs: number = 0): void {
+export function scheduleMarkActorsOnPage(delayMs: number = 0): void {
     try {
         initOrchestrator.add('idle', async () => {
             try {
                 await markActorsOnPage();
             } catch (markErr) { log('Marking actors on page failed:', markErr); }
-        }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs });
+        }, { label: 'actorMarks:page', idle: true, idleTimeout: 3000, delayMs, dependsOn: ['videoStatus:initialSync'] });
     } catch (markErr) {
         log('Marking actors scheduling failed:', markErr);
     }
 }
 
 // 轻量版“演员备注”注入（面板模式，默认关闭，通过 settings.videoEnhancement.enableActorRemarks 开启）
-async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
+export async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
     try {
         const enabled = ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
         if (!enabled) return;
@@ -756,184 +949,7 @@ async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
 
         log('actorRemarks: done', { mode, rendered: renderedCount });
     } catch (e) {
-        if (isTaskTimeoutError(e)) throw e;
-    }
-}
-
-    // 并发控制：检查是否已经在处理这个视频
-    const operationId = await concurrencyManager.startProcessingVideo(videoId);
-    if (!operationId) {
-        return; // 已经在处理中，直接返回
-    }
-
-    // 静默开始处理视频
-    try {
-        const shouldShowIndicator = (STATE.settings as any)?.videoEnhancement?.showLoadingIndicator !== false;
-        if (shouldShowIndicator) {
-            showEnhancementLoading('video');
-        }
-    } catch {}
-
-    try {
-        const record = STATE.records[videoId];
-        const now = Date.now();
-        const currentUrl = window.location.href;
-        const enableVideoEnhancement = STATE.settings?.videoEnhancement?.enabled === true;
-        const enableMultiSource = STATE.settings?.dataEnhancement?.enableMultiSource;
-        const enableTranslation = STATE.settings?.dataEnhancement?.enableTranslation;
-
-        let currentRecord: VideoRecord | undefined = record;
-        try {
-            currentRecord = await new Promise<VideoRecord | undefined>((resolve) => {
-                initOrchestrator.add('critical', async () => {
-                    const nextRecord = await syncVideoStatusVisualsAndRecord(videoId, currentRecord, now, currentUrl, operationId);
-                    resolve(nextRecord);
-                }, { label: 'videoStatus:initialSync', delayMs: 0, priority: 12, visibilityPolicy: 'background_allowed' });
-            });
-        } catch (e) {
-            log('videoStatus:initialSync scheduling failed:', e as any);
-            currentRecord = await syncVideoStatusVisualsAndRecord(videoId, currentRecord, now, currentUrl, operationId);
-        }
-
-        if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
-            try {
-                log('Scheduling video detail enhancements via orchestrator...');
-                initOrchestrator.add('high', async () => {
-                    await videoDetailEnhancer.initCore();
-                }, { label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' });
-
-                initOrchestrator.add('high', async () => {
-                    await Promise.resolve();
-                }, { label: 'videoEnhancement:clickEnhancement', priority: 10, delayMs: 0, visibilityPolicy: 'background_allowed' });
-
-                initOrchestrator.add('deferred', async () => {
-                    await videoDetailEnhancer.loadEnhancedData();
-                }, { label: 'videoEnhancement:loadData', idle: true, idleTimeout: 3000, delayMs: 300, timeout: 10000, dependsOn: ['videoEnhancement:initCore'] });
-
-                initOrchestrator.add('deferred', async () => {
-                    await videoDetailEnhancer.runCurrentTitleTranslation();
-                }, { label: 'videoEnhancement:translateCurrentTitle', idle: true, idleTimeout: 3000, delayMs: 600, timeout: 15000, dependsOn: ['videoEnhancement:loadData'] });
-
-                initOrchestrator.add('idle', async () => {
-                    await videoDetailEnhancer.runCover();
-                }, { label: 'videoEnhancement:runCover', idle: true, idleTimeout: 5000, delayMs: 900, dependsOn: ['videoEnhancement:loadData'] });
-
-                initOrchestrator.add('idle', async () => {
-                    await videoDetailEnhancer.runTitle();
-                }, { label: 'videoEnhancement:runTitle', idle: true, idleTimeout: 5000, delayMs: 1200, dependsOn: ['videoEnhancement:loadData'] });
-
-                initOrchestrator.add('idle', async () => {
-                    await videoDetailEnhancer.runFC2Breaker();
-                }, { label: 'videoEnhancement:runFC2Breaker', idle: true, idleTimeout: 5000, delayMs: 1800 });
-
-                if ((STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
-                    initOrchestrator.add('idle', async () => {
-                        await videoDetailEnhancer.runReviewBreaker();
-                    }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 1500, dependsOn: ['videoEnhancement:initCore'] });
-                }
-
-                const finishDependsOn = [
-                    'videoEnhancement:loadData',
-                    'videoEnhancement:translateCurrentTitle',
-                    'videoEnhancement:runCover',
-                    'videoEnhancement:runTitle',
-                    'videoEnhancement:runFC2Breaker',
-                    'videoEnhancement:panel',
-                    'actorMarks:page',
-                ];
-
-                if ((STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
-                    finishDependsOn.push('videoEnhancement:runReviewBreaker');
-                }
-
-                initOrchestrator.add('idle', () => {
-                    videoDetailEnhancer.finish();
-                }, { label: 'videoEnhancement:finish', idle: true, delayMs: 2400, dependsOn: finishDependsOn });
-            } catch (enhancementError) {
-                log('Enhancement scheduling failed, but continuing:', enhancementError);
-            }
-        }
-
-        try {
-            const enabledActorRemarks = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true);
-            if (enabledActorRemarks) {
-                const FLAG = '__jdb_actorRemarks_scheduled__';
-                if (!(window as any)[FLAG]) {
-                    (window as any)[FLAG] = true;
-                    const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(STATE.settings as any);
-                    initOrchestrator.add('idle', async () => {
-                        try {
-                            await runActorRemarksQuick(actorRemarksTaskTimeoutMs);
-                        } catch (e) {
-                            if (isTaskTimeoutError(e)) throw e;
-                        }
-                    }, { label: 'actorRemarks:run', idle: true, idleTimeout: 5000, delayMs: 1200, timeout: actorRemarksTaskTimeoutMs });
-                }
-            }
-        } catch {}
-
-        try {
-            const enabledVideoFavoriteRating = (enableVideoEnhancement && (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true);
-            if (enabledVideoFavoriteRating) {
-                const FLAG = '__jdb_videoFavoriteRating_scheduled__';
-                if (!(window as any)[FLAG]) {
-                    (window as any)[FLAG] = true;
-                    initOrchestrator.add('critical', async () => {
-                        try { await videoFavoriteRatingEnhancer.init(); } catch {}
-                    }, { label: 'videoFavoriteRating:init', delayMs: 0, priority: 12, visibilityPolicy: 'background_allowed' });
-                }
-            }
-        } catch {}
-
-        if ((STATE.settings as any)?.videoEnhancement?.enableActorNameMarks !== false) {
-            scheduleMarkActorsOnPage(1400);
-        }
-
-        try {
-            const FLAG = '__jdb_actor_name_marks_refresh_bound__';
-            if (!(window as any)[FLAG]) {
-                (window as any)[FLAG] = true;
-                window.addEventListener('actor-state-changed', () => {
-                    scheduleMarkActorsOnPage(0);
-                });
-            }
-        } catch {}
-
-        try {
-            initOrchestrator.add('idle', async () => {
-                try { await injectVideoEnhancementPanel(); } catch (e) { log('injectVideoEnhancementPanel error:', e as any); }
-            }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 3000, delayMs: 1600 });
-        } catch (e) { log('injectVideoEnhancementPanel scheduling error:', e as any); }
-
-
-        // 绑定“想看”按钮同步与注入增强区块
-        try {
-            bindWantSyncOnClick(videoId);
-        } catch (e) { log('bindWantSyncOnClick error:', e as any); }
-        
-        // 🆕 设置状态变化监听器，自动检测用户点击"看过"/"想看"按钮
-        try {
-            setupStatusChangeObserver(videoId);
-            try {
-                chrome.runtime.sendMessage({
-                    type: 'orchestrator:event',
-                    event: 'task:done',
-                    payload: {
-                        phase: 'high',
-                        label: 'videoStatus:observer',
-                        ts: performance.now(),
-                        relativeTs: 0,
-                        durationMs: 1,
-                    },
-                    pageUrl: window.location.href,
-                });
-            } catch {}
-        } catch (e) { log('setupStatusChangeObserver error:', e as any); }
-    } catch (error) {
-        log(`Error processing video ${videoId} (operation ${operationId}):`, error);
-        showToast(`处理失败: ${videoId}`, 'error');
-    } finally {
-        concurrencyManager.finishProcessingVideo(videoId, operationId);
+        log('actorRemarks: failed', e);
     }
 }
 
@@ -1037,7 +1053,7 @@ async function upsertWantStatus(videoId: string): Promise<void> {
 }
 
 // 注入影片页“增强区块”提供两个设置开关
-async function injectVideoEnhancementPanel(): Promise<void> {
+export async function injectVideoEnhancementPanel(): Promise<void> {
     try {
         const PANEL_ID = 'jdb-video-enhance-panel';
         if (document.getElementById(PANEL_ID)) return;
@@ -1118,15 +1134,18 @@ async function handleExistingRecord(
     record: VideoRecord,
     now: number,
     currentUrl: string,
-    operationId: string
+    operationId: string,
+    options: { light?: boolean } = {}
 ): Promise<string | null> {
+    const lightMode = options.light === true;
+    const fullDetailCommitMode = lightMode;
     // 静默更新现有记录
 
     // 获取当前页面的最新数据
-    const latestData = await extractVideoData(videoId);
+    const latestData = await extractVideoData(videoId, { light: lightMode });
     if (!latestData) {
         log(`Failed to extract latest data for ${videoId}`);
-        return;
+        return null;
     }
 
     // 保存原始状态用于回滚
@@ -1139,28 +1158,28 @@ async function handleExistingRecord(
     // 始终更新数据字段（除了状态、时间戳和锁定字段）
     // 用户专属字段（userRating, userNotes, isFavorite）永远不会被覆盖
     if (latestData.title && !lockedFields.has('title')) record.title = latestData.title;
-    if (latestData.tags && !lockedFields.has('tags')) record.tags = latestData.tags;
-    if (latestData.releaseDate !== undefined && !lockedFields.has('releaseDate')) record.releaseDate = latestData.releaseDate;
+    if ((fullDetailCommitMode || !lightMode) && latestData.tags && !lockedFields.has('tags')) record.tags = latestData.tags;
+    if ((fullDetailCommitMode || !lightMode) && latestData.releaseDate !== undefined && !lockedFields.has('releaseDate')) record.releaseDate = latestData.releaseDate;
     record.javdbUrl = currentUrl; // 始终更新URL
     if (latestData.javdbImage !== undefined) record.javdbImage = latestData.javdbImage;
     
     // 🆕 更新新增字段（跳过锁定字段）
     if (latestData.videoCode !== undefined) record.videoCode = latestData.videoCode;
-    if (latestData.duration !== undefined && !lockedFields.has('duration')) record.duration = latestData.duration;
-    if (latestData.director !== undefined && !lockedFields.has('director')) record.director = latestData.director;
-    if (latestData.directorUrl !== undefined) record.directorUrl = latestData.directorUrl;
-    if (latestData.maker !== undefined && !lockedFields.has('maker')) record.maker = latestData.maker;
-    if (latestData.makerUrl !== undefined) record.makerUrl = latestData.makerUrl;
-    if (latestData.publisher !== undefined) record.publisher = latestData.publisher;
-    if (latestData.publisherUrl !== undefined) record.publisherUrl = latestData.publisherUrl;
-    if (latestData.series !== undefined && !lockedFields.has('series')) record.series = latestData.series;
-    if (latestData.seriesUrl !== undefined) record.seriesUrl = latestData.seriesUrl;
-    if (latestData.rating !== undefined) record.rating = latestData.rating;
-    if (latestData.ratingCount !== undefined) record.ratingCount = latestData.ratingCount;
-    if (latestData.actors !== undefined && !lockedFields.has('actors')) record.actors = latestData.actors;
-    if (latestData.wantToWatchCount !== undefined) record.wantToWatchCount = latestData.wantToWatchCount;
-    if (latestData.watchedCount !== undefined) record.watchedCount = latestData.watchedCount;
-    if (latestData.categories !== undefined && !lockedFields.has('categories')) record.categories = latestData.categories;
+    if ((fullDetailCommitMode || !lightMode) && latestData.duration !== undefined && !lockedFields.has('duration')) record.duration = latestData.duration;
+    if ((fullDetailCommitMode || !lightMode) && latestData.director !== undefined && !lockedFields.has('director')) record.director = latestData.director;
+    if ((fullDetailCommitMode || !lightMode) && latestData.directorUrl !== undefined) record.directorUrl = latestData.directorUrl;
+    if ((fullDetailCommitMode || !lightMode) && latestData.maker !== undefined && !lockedFields.has('maker')) record.maker = latestData.maker;
+    if ((fullDetailCommitMode || !lightMode) && latestData.makerUrl !== undefined) record.makerUrl = latestData.makerUrl;
+    if ((fullDetailCommitMode || !lightMode) && latestData.publisher !== undefined) record.publisher = latestData.publisher;
+    if ((fullDetailCommitMode || !lightMode) && latestData.publisherUrl !== undefined) record.publisherUrl = latestData.publisherUrl;
+    if ((fullDetailCommitMode || !lightMode) && latestData.series !== undefined && !lockedFields.has('series')) record.series = latestData.series;
+    if ((fullDetailCommitMode || !lightMode) && latestData.seriesUrl !== undefined) record.seriesUrl = latestData.seriesUrl;
+    if ((fullDetailCommitMode || !lightMode) && latestData.rating !== undefined) record.rating = latestData.rating;
+    if ((fullDetailCommitMode || !lightMode) && latestData.ratingCount !== undefined) record.ratingCount = latestData.ratingCount;
+    if ((fullDetailCommitMode || !lightMode) && latestData.actors !== undefined && !lockedFields.has('actors')) record.actors = latestData.actors;
+    if ((fullDetailCommitMode || !lightMode) && latestData.wantToWatchCount !== undefined) record.wantToWatchCount = latestData.wantToWatchCount;
+    if ((fullDetailCommitMode || !lightMode) && latestData.watchedCount !== undefined) record.watchedCount = latestData.watchedCount;
+    if ((fullDetailCommitMode || !lightMode) && latestData.categories !== undefined && !lockedFields.has('categories')) record.categories = latestData.categories;
     
     record.updatedAt = now;
 
@@ -1204,56 +1223,55 @@ async function handleExistingRecord(
         log(`Status for ${videoId} remains '${record.status}' (no status change needed).`);
     }
 
-    // 使用存储管理器进行原子性更新
-    const result = await storageManager.updateRecord(
-        videoId,
-        (currentRecords) => {
-            const currentRecord = currentRecords[videoId];
-            if (!currentRecord) {
-                throw new Error(`Record ${videoId} not found in current storage`);
-            }
+    const buildUpdatedRecord = (currentRecord: VideoRecord): VideoRecord => {
+        const updatedRecord = { ...currentRecord };
+        const lockedFieldsInner = new Set(currentRecord.manuallyEditedFields || []);
 
-            // 创建更新后的记录，应用所有变更
-            const updatedRecord = { ...currentRecord };
-            
-            // 获取锁定字段列表
-            const lockedFieldsInner = new Set(currentRecord.manuallyEditedFields || []);
+        if (latestData.title && !lockedFieldsInner.has('title')) updatedRecord.title = latestData.title;
+        if ((fullDetailCommitMode || !lightMode) && latestData.tags && !lockedFieldsInner.has('tags')) updatedRecord.tags = latestData.tags;
+        if ((fullDetailCommitMode || !lightMode) && latestData.releaseDate !== undefined && !lockedFieldsInner.has('releaseDate')) updatedRecord.releaseDate = latestData.releaseDate;
+        updatedRecord.javdbUrl = currentUrl;
+        if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
+        if (latestData.videoCode !== undefined) updatedRecord.videoCode = latestData.videoCode;
+        if ((fullDetailCommitMode || !lightMode) && latestData.duration !== undefined && !lockedFieldsInner.has('duration')) updatedRecord.duration = latestData.duration;
+        if ((fullDetailCommitMode || !lightMode) && latestData.director !== undefined && !lockedFieldsInner.has('director')) updatedRecord.director = latestData.director;
+        if ((fullDetailCommitMode || !lightMode) && latestData.directorUrl !== undefined) updatedRecord.directorUrl = latestData.directorUrl;
+        if ((fullDetailCommitMode || !lightMode) && latestData.maker !== undefined && !lockedFieldsInner.has('maker')) updatedRecord.maker = latestData.maker;
+        if ((fullDetailCommitMode || !lightMode) && latestData.makerUrl !== undefined) updatedRecord.makerUrl = latestData.makerUrl;
+        if ((fullDetailCommitMode || !lightMode) && latestData.publisher !== undefined) updatedRecord.publisher = latestData.publisher;
+        if ((fullDetailCommitMode || !lightMode) && latestData.publisherUrl !== undefined) updatedRecord.publisherUrl = latestData.publisherUrl;
+        if ((fullDetailCommitMode || !lightMode) && latestData.series !== undefined && !lockedFieldsInner.has('series')) updatedRecord.series = latestData.series;
+        if ((fullDetailCommitMode || !lightMode) && latestData.seriesUrl !== undefined) updatedRecord.seriesUrl = latestData.seriesUrl;
+        if ((fullDetailCommitMode || !lightMode) && latestData.rating !== undefined) updatedRecord.rating = latestData.rating;
+        if ((fullDetailCommitMode || !lightMode) && latestData.ratingCount !== undefined) updatedRecord.ratingCount = latestData.ratingCount;
+        if ((fullDetailCommitMode || !lightMode) && latestData.actors !== undefined && !lockedFieldsInner.has('actors')) updatedRecord.actors = latestData.actors;
+        if ((fullDetailCommitMode || !lightMode) && latestData.wantToWatchCount !== undefined) updatedRecord.wantToWatchCount = latestData.wantToWatchCount;
+        if ((fullDetailCommitMode || !lightMode) && latestData.watchedCount !== undefined) updatedRecord.watchedCount = latestData.watchedCount;
+        if ((fullDetailCommitMode || !lightMode) && latestData.categories !== undefined && !lockedFieldsInner.has('categories')) updatedRecord.categories = latestData.categories;
+        updatedRecord.updatedAt = now;
 
-            // 应用数据更新（跳过锁定字段）
-            if (latestData.title && !lockedFieldsInner.has('title')) updatedRecord.title = latestData.title;
-            if (latestData.tags && !lockedFieldsInner.has('tags')) updatedRecord.tags = latestData.tags;
-            if (latestData.releaseDate !== undefined && !lockedFieldsInner.has('releaseDate')) updatedRecord.releaseDate = latestData.releaseDate;
-            updatedRecord.javdbUrl = currentUrl;
-            if (latestData.javdbImage !== undefined) updatedRecord.javdbImage = latestData.javdbImage;
-            
-            // 🆕 更新新增字段（跳过锁定字段）
-            if (latestData.videoCode !== undefined) updatedRecord.videoCode = latestData.videoCode;
-            if (latestData.duration !== undefined && !lockedFieldsInner.has('duration')) updatedRecord.duration = latestData.duration;
-            if (latestData.director !== undefined && !lockedFieldsInner.has('director')) updatedRecord.director = latestData.director;
-            if (latestData.directorUrl !== undefined) updatedRecord.directorUrl = latestData.directorUrl;
-            if (latestData.maker !== undefined && !lockedFieldsInner.has('maker')) updatedRecord.maker = latestData.maker;
-            if (latestData.makerUrl !== undefined) updatedRecord.makerUrl = latestData.makerUrl;
-            if (latestData.publisher !== undefined) updatedRecord.publisher = latestData.publisher;
-            if (latestData.publisherUrl !== undefined) updatedRecord.publisherUrl = latestData.publisherUrl;
-            if (latestData.series !== undefined && !lockedFieldsInner.has('series')) updatedRecord.series = latestData.series;
-            if (latestData.seriesUrl !== undefined) updatedRecord.seriesUrl = latestData.seriesUrl;
-            if (latestData.rating !== undefined) updatedRecord.rating = latestData.rating;
-            if (latestData.ratingCount !== undefined) updatedRecord.ratingCount = latestData.ratingCount;
-            if (latestData.actors !== undefined && !lockedFieldsInner.has('actors')) updatedRecord.actors = latestData.actors;
-            if (latestData.wantToWatchCount !== undefined) updatedRecord.wantToWatchCount = latestData.wantToWatchCount;
-            if (latestData.watchedCount !== undefined) updatedRecord.watchedCount = latestData.watchedCount;
-            if (latestData.categories !== undefined && !lockedFieldsInner.has('categories')) updatedRecord.categories = latestData.categories;
-            
-            updatedRecord.updatedAt = now;
+        const nextStatus = resolveLibraryStatusFromPageStatus(currentRecord.status, pageDetectedStatus);
+        if (nextStatus) {
+            updatedRecord.status = nextStatus;
+        }
+        return updatedRecord;
+    };
 
-            const nextStatus = resolveLibraryStatusFromPageStatus(currentRecord.status, pageDetectedStatus);
-            if (nextStatus) {
-                updatedRecord.status = nextStatus;
-            }
-            return updatedRecord;
-        },
-        operationId
-    );
+    const updatedRecord = buildUpdatedRecord(record);
+
+    const result = lightMode
+        ? await storageManager.putRecord(updatedRecord, operationId, { backupToStorage: false, verifyAfterWrite: true })
+        : await storageManager.updateRecord(
+            videoId,
+            (currentRecords) => {
+                const currentRecord = currentRecords[videoId];
+                if (!currentRecord) {
+                    throw new Error(`Record ${videoId} not found in current storage`);
+                }
+                return buildUpdatedRecord(currentRecord);
+            },
+            operationId
+        );
 
     if (result.success) {
         log(`Successfully saved updated record for ${videoId} (operation ${operationId})`);
@@ -1261,12 +1279,12 @@ async function handleExistingRecord(
         // 显示更新信息
         if (changes.length > 0) {
             if (statusChanged) {
-                showToast(`已更新 ${videoId}: ${changes.join(', ')}`, 'success');
+                log(`已更新 ${videoId}: ${changes.join(', ')}`);
             } else {
-                showToast(`已刷新 ${videoId}: ${changes.join(', ')}`, 'info');
+                log(`已刷新 ${videoId}: ${changes.join(', ')}`);
             }
         } else {
-            showToast(`数据无变化: ${videoId}`, 'info');
+            log(`数据无变化: ${videoId}`);
         }
         // 根据最新状态更新 favicon
         return record.status || null;
@@ -1283,60 +1301,40 @@ async function handleNewRecord(
     videoId: string, 
     now: number, 
     currentUrl: string
-): Promise<string | null> {
-    log(`No record found for ${videoId}. Scheduling to add as 'browsed'.`);
-    
-    let finalStatus: string | null = null;
+) : Promise<VideoRecord | undefined> {
+    log(`No record found for ${videoId}. Creating full record during initial sync.`);
 
-    setTimeout(async () => {
-        // 重新检查并发控制
-        const delayedOperationId = await concurrencyManager.startProcessingVideo(`${videoId}-delayed`, 'delayed');
-        if (!delayedOperationId) {
-            return;
+    if (STATE.records[videoId]) {
+        return STATE.records[videoId];
+    }
+
+    const newRecord = await createVideoRecord(videoId, now, currentUrl);
+    if (!newRecord) {
+        log(`Failed to create record for ${videoId}`);
+        return undefined;
+    }
+
+    const addOperationId = `${videoId}-initial-add:${Date.now()}`;
+    const result = await storageManager.addRecord(videoId, newRecord, addOperationId);
+
+    if (result.success) {
+        if (result.alreadyExists) {
+            log(`${videoId} already exists during initial add. Reusing current record.`);
+            return STATE.records[videoId] || newRecord;
         }
+        log(`Successfully added new record for ${videoId} (${addOperationId})`, newRecord);
+        return newRecord;
+    }
 
-        try {
-            // Re-check in case it was added in the meantime
-            if (STATE.records[videoId]) {
-                log(`${videoId} was added while waiting for timeout. Aborting duplicate add.`);
-                return;
-            }
-
-            const newRecord = await createVideoRecord(videoId, now, currentUrl);
-            if (!newRecord) {
-                log(`Failed to create record for ${videoId}`);
-                // 二次过滤：当 tags 与 描述 同时为空时，不保存并提示
-                showToast(`数据无效，已跳过保存: ${videoId}`, 'info');
-                return;
-            }
-
-            // 使用存储管理器进行原子性添加
-            const result = await storageManager.addRecord(videoId, newRecord, delayedOperationId);
-
-            if (result.success) {
-                if (result.alreadyExists) {
-                    log(`${videoId} was added by another operation while waiting. Skipping duplicate add.`);
-                    showToast(`番号已存在: ${videoId}`, 'info');
-                } else {
-                    log(`Successfully added new record for ${videoId} (operation ${delayedOperationId})`, newRecord);
-                    showToast(`成功记录番号: ${videoId}`, 'success');
-                }
-                finalStatus = newRecord.status || null;
-            } else {
-                log(`Failed to save new record for ${videoId} (operation ${delayedOperationId}): ${result.error}`);
-                showToast(`保存失败: ${videoId} - ${result.error}`, 'error');
-            }
-        } finally {
-            concurrencyManager.finishProcessingVideo(`${videoId}-delayed`, delayedOperationId);
-        }
-    }, getRandomDelay(2000, 4000));
-
-    return finalStatus;
+    log(`Failed to save new record for ${videoId} (${addOperationId}): ${result.error}`);
+    showToast(`保存失败: ${videoId} - ${result.error}`, 'error');
+    return undefined;
 }
 
 // 提取视频数据的通用函数
-async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> | null> {
+async function extractVideoData(videoId: string, options: { light?: boolean } = {}): Promise<Partial<VideoRecord> | null> {
     try {
+        const lightMode = options.light === true;
         const title = document.title.replace(/ \| JavDB.*/, '').trim();
 
         // 获取所有 panel-block 元素，用于提取各种字段
@@ -1377,6 +1375,26 @@ async function extractVideoData(videoId: string): Promise<Partial<VideoRecord> |
 
         // 🆕 提取番号前缀（从番号中提取，如 "JAC-229" -> "JAC"）
         const videoCode = videoId.split('-')[0] || undefined;
+
+        // 轻量模式只取首屏关键字段
+        if (lightMode) {
+            let javdbImage: string | undefined;
+            const coverImageElement = document.querySelector<HTMLImageElement>('.column-video-cover img.video-cover');
+            if (coverImageElement && coverImageElement.src) {
+                javdbImage = coverImageElement.src;
+            } else {
+                const fancyboxElement = document.querySelector<HTMLAnchorElement>('.column-video-cover a[data-fancybox="gallery"]');
+                if (fancyboxElement && fancyboxElement.href) {
+                    javdbImage = fancyboxElement.href;
+                }
+            }
+
+            return {
+                title,
+                javdbImage,
+                videoCode,
+            };
+        }
 
         // 获取发布日期
         let releaseDate = findValueByLabel(['日期', 'Date']);

@@ -2,7 +2,7 @@
 
 import { STATE, log } from './state';
 import { getValue, setValue } from '../utils/storage';
-import { dbViewedPut, dbLogsAdd } from './dbClient';
+import { dbViewedGet, dbViewedPut, dbLogsAdd } from './dbClient';
 import type { VideoRecord } from '../types';
 
 // 操作队列管理
@@ -21,13 +21,143 @@ class StorageManager {
     private maxRetries = 3;
     private retryDelay = 500;
 
+    private async putRecordInternal(
+        record: VideoRecord,
+        operationId: string,
+        options: { backupToStorage?: boolean; verifyAfterWrite?: boolean } = {}
+    ): Promise<{ success: boolean; error?: string }> {
+        const backupToStorage = options.backupToStorage !== false;
+        const verifyAfterWrite = options.verifyAfterWrite !== false;
+        let lastError: any;
+
+        for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+            try {
+                log(`[StorageManager] Attempt ${attempt} to put ${record.id} (operation ${operationId})`);
+
+                log(`[StorageManager] putRecord -> dbViewedPut:start ${record.id} (operation ${operationId})`);
+                await dbViewedPut(record);
+                log(`[StorageManager] putRecord -> dbViewedPut:done ${record.id} (operation ${operationId})`);
+                log(`[StorageManager] Put record to IDB: ${record.id}`);
+
+                if (backupToStorage) {
+                    const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                    await setValue('viewed', { ...currentRecords, [record.id]: record });
+                    log(`[StorageManager] Saved records to storage (backup)`);
+                }
+
+                if (verifyAfterWrite) {
+                    log(`[StorageManager] putRecord -> verifyGet:start ${record.id} (operation ${operationId})`);
+                    const savedRecord = await dbViewedGet(record.id);
+                    log(`[StorageManager] putRecord -> verifyGet:done ${record.id} (operation ${operationId})`);
+                    if (!savedRecord) {
+                        throw new Error(`Record ${record.id} not found after put`);
+                    }
+                    const success = savedRecord.id === record.id &&
+                        savedRecord.status === record.status &&
+                        savedRecord.title === record.title;
+                    if (!success) {
+                        throw new Error(`Put verification failed for ${record.id}`);
+                    }
+                    STATE.records = { ...STATE.records, [record.id]: savedRecord };
+                } else {
+                    STATE.records = { ...STATE.records, [record.id]: record };
+                }
+
+                log(`[StorageManager] Successfully put ${record.id} (operation ${operationId})`);
+                return { success: true };
+            } catch (error) {
+                lastError = error;
+                log(`[StorageManager] Put attempt ${attempt} failed for ${record.id}:`, error);
+                if (attempt < this.maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                }
+            }
+        }
+
+        log(`[StorageManager] All put attempts failed for ${record.id} (operation ${operationId}):`, lastError);
+        return { success: false, error: lastError?.message || 'Unknown error' };
+    }
+
+    async putRecord(
+        record: VideoRecord,
+        operationId: string,
+        options: { backupToStorage?: boolean; verifyAfterWrite?: boolean } = {}
+    ): Promise<{ success: boolean; error?: string }> {
+        return this.operationQueue = this.operationQueue.then(async () => {
+            return this.putRecordInternal(record, operationId, options);
+        });
+    }
+    async updateRecordDirect(
+        videoId: string,
+        updateFn: (currentRecord: VideoRecord | undefined) => VideoRecord,
+        operationId: string,
+        options: { backupToStorage?: boolean; verifyAfterWrite?: boolean } = {}
+    ): Promise<{ success: boolean; error?: string; record?: VideoRecord }> {
+        return this.operationQueue = this.operationQueue.then(async () => {
+            const backupToStorage = options.backupToStorage === true;
+            const verifyAfterWrite = options.verifyAfterWrite !== false;
+            let lastError: any;
+
+            for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+                try {
+                    log(`[StorageManager] Attempt ${attempt} to direct-update ${videoId} (operation ${operationId})`);
+
+                    log(`[StorageManager] addRecord -> existenceGet:start ${videoId} (operation ${operationId})`);
+                    const existingRecord = await dbViewedGet(videoId);
+                    log(`[StorageManager] addRecord -> existenceGet:done ${videoId} (operation ${operationId}) found=${!!existingRecord}`);
+                    const updatedRecord = updateFn(existingRecord);
+
+                    await dbViewedPut(updatedRecord);
+                    log(`[StorageManager] Direct-updated record to IDB: ${videoId}`);
+
+                    if (backupToStorage) {
+                        const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                        await setValue('viewed', { ...currentRecords, [videoId]: updatedRecord });
+                        log(`[StorageManager] Saved records to storage (backup)`);
+                    }
+
+                    let verifiedRecord = updatedRecord;
+                    if (verifyAfterWrite) {
+                        const savedRecord = await dbViewedGet(videoId);
+                        if (!savedRecord) {
+                            throw new Error(`Record ${videoId} not found after direct update`);
+                        }
+                        const success = savedRecord.id === updatedRecord.id &&
+                            savedRecord.status === updatedRecord.status &&
+                            savedRecord.title === updatedRecord.title;
+                        if (!success) {
+                            throw new Error(`Direct update verification failed for ${videoId}`);
+                        }
+                        verifiedRecord = savedRecord;
+                    }
+
+                    STATE.records = { ...STATE.records, [videoId]: verifiedRecord };
+                    log(`[StorageManager] Successfully direct-updated ${videoId} (operation ${operationId})`);
+                    return { success: true, record: verifiedRecord };
+                } catch (error) {
+                    lastError = error;
+                    log(`[StorageManager] Direct update attempt ${attempt} failed for ${videoId}:`, error);
+                    if (attempt < this.maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                    }
+                }
+            }
+
+            log(`[StorageManager] All direct update attempts failed for ${videoId} (operation ${operationId}):`, lastError);
+            return { success: false, error: lastError?.message || 'Unknown error' };
+        });
+    }
+
     // 原子性更新记录
     async updateRecord(
         videoId: string,
         updateFn: (currentRecords: Record<string, VideoRecord>) => VideoRecord,
-        operationId: string
+        operationId: string,
+        options: { backupToStorage?: boolean; verifyAfterWrite?: boolean } = {}
     ): Promise<{ success: boolean; error?: string }> {
         return this.operationQueue = this.operationQueue.then(async () => {
+            const backupToStorage = options.backupToStorage !== false;
+            const verifyAfterWrite = options.verifyAfterWrite !== false;
             // 已移除耗时统计，避免未使用变量
             let lastError: any;
 
@@ -47,9 +177,27 @@ class StorageManager {
                     await dbViewedPut(updatedRecord);
                     log(`[StorageManager] Saved record to IDB: ${videoId}`);
 
-                    // 4. 同步写入 chrome.storage（备份/兼容），不作为主验证依据
-                    await setValue('viewed', recordsToSave);
-                    log(`[StorageManager] Saved records to storage (backup)`);
+                    // 4. 可选同步写入 chrome.storage（备份/兼容）
+                    if (backupToStorage) {
+                        await setValue('viewed', recordsToSave);
+                        log(`[StorageManager] Saved records to storage (backup)`);
+                    }
+
+                    if (!verifyAfterWrite) {
+                        const savedRecord = await dbViewedGet(videoId);
+                        if (!savedRecord) {
+                            throw new Error(`Record ${videoId} not found after lightweight save`);
+                        }
+                        const success = savedRecord.id === updatedRecord.id &&
+                          savedRecord.status === updatedRecord.status &&
+                          savedRecord.title === updatedRecord.title;
+                        if (!success) {
+                            throw new Error(`Lightweight record verification failed for ${videoId}`);
+                        }
+                        STATE.records = { ...STATE.records, [videoId]: savedRecord };
+                        log(`[StorageManager] Successfully updated ${videoId} with lightweight verification (operation ${operationId})`);
+                        return { success: true };
+                    }
 
                     // 5. 验证保存是否成功（getValue 在迁移后会从 IDB 读取）
                     await new Promise(resolve => setTimeout(resolve, 100)); // 短暂等待确保存储完成
@@ -119,13 +267,13 @@ class StorageManager {
                 try {
                     log(`[StorageManager] Attempt ${attempt} to add ${videoId} (operation ${operationId})`);
 
-                    // 1. 从存储读取最新数据
-                    const currentRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
+                    // 1. 单条检查是否已存在
+                    const existingRecord = await dbViewedGet(videoId);
 
                     // 2. 检查是否已存在
-                    if (currentRecords[videoId]) {
+                    if (existingRecord) {
                         log(`[StorageManager] Record ${videoId} already exists, skipping add`);
-                        STATE.records = currentRecords; // 更新内存状态
+                        STATE.records = { ...STATE.records, [videoId]: existingRecord };
 
                         // 记录为成功操作（虽然是重复）
                         // concurrencyMonitor.recordOperation(operationId, videoId, 'add', attempt, true, duration);
@@ -133,34 +281,16 @@ class StorageManager {
                         return { success: true, alreadyExists: true };
                     }
 
-                    // 3. 先写入 IndexedDB，确保主库成功
-                    await dbViewedPut(newRecord);
-                    log(`[StorageManager] Saved new record to IDB: ${videoId}`);
-
-                    // 4. 添加新记录到 chrome.storage（备份/兼容）
-                    const recordsToSave = { ...currentRecords, [videoId]: newRecord };
-                    await setValue('viewed', recordsToSave);
-
-                    // 5. 验证保存是否成功（迁移后从 IDB 读取）
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    const verifyRecords = await getValue<Record<string, VideoRecord>>('viewed', {});
-                    const savedRecord = verifyRecords[videoId];
-
-                    if (!savedRecord) {
-                        throw new Error(`Record ${videoId} not found after save`);
+                    log(`[StorageManager] addRecord -> putRecord:start ${videoId} (operation ${operationId})`);
+                    const putResult = await this.putRecordInternal(newRecord, operationId, {
+                        backupToStorage: false,
+                        verifyAfterWrite: true,
+                    });
+                    log(`[StorageManager] addRecord -> putRecord:done ${videoId} (operation ${operationId}) success=${putResult.success}`);
+                    if (!putResult.success) {
+                        throw new Error(putResult.error || `Record ${videoId} put failed`);
                     }
 
-                    // 验证关键字段
-                    const success = savedRecord.id === newRecord.id &&
-                                  savedRecord.status === newRecord.status &&
-                                  savedRecord.title === newRecord.title;
-
-                    if (!success) {
-                        throw new Error(`Record verification failed for ${videoId}`);
-                    }
-
-                    // 6. 更新内存状态
-                    STATE.records = verifyRecords;
                     log(`[StorageManager] Successfully added ${videoId} (operation ${operationId})`);
 
                     // 7. 记录成功的 DB 操作日志
