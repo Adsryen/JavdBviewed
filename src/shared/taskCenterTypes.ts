@@ -21,6 +21,7 @@ export interface GlobalTaskDescriptor {
   timeoutMs: number;
   retryLimit: number;
   dedupeKey?: string;
+  registrationSource?: 'blueprint' | 'runtime';
   resumePolicy: GlobalTaskResumePolicy;
   createdAt: number;
 }

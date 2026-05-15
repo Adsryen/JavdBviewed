@@ -13,6 +13,7 @@ export function createManagedTaskDescriptor(input: Omit<GlobalTaskDescriptor, 't
     pageInstanceId: pageContext.pageInstanceId,
     createdAt: Date.now(),
     dedupeKey: input.dedupeKey || `${input.label}:${pageContext.pageInstanceId}`,
+    registrationSource: input.registrationSource || 'runtime',
     ...input,
   };
 }
