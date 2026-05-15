@@ -32,6 +32,7 @@ globalTaskCenter.restoreFromStorage().catch(console.warn);
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   try {
+    console.log('[Background] Tab removed, canceling tasks', { tabId });
     globalTaskCenter.cancelTasksByTabId(tabId, 'page-closed-by-user');
   } catch (err) {
     console.warn('[Background] cancelTasksByTabId failed:', err);
@@ -47,6 +48,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try {
       const pageInstanceId = String(message.payload?.pageInstanceId || '');
       const reason = String(message.payload?.reason || 'page-refresh-replaced');
+      console.log('[Background] Page lifecycle cancellation received', { pageInstanceId, reason, tabId: sender.tab?.id });
       if (!pageInstanceId) {
         sendResponse({ ok: false, error: 'missing-page-instance-id' });
       } else {
@@ -72,7 +74,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return false;
   }
-  return undefined;
+  return false;
 });
 
 /**
@@ -201,6 +203,9 @@ registerDynamicContentScripts();
  */
 async function autoUpdateRoutes(): Promise<void> {
   try {
+    if (typeof document !== 'undefined') {
+      console.info('[Background] 当前上下文支持 document，继续检查线路配置');
+    }
     const { RouteManager } = await import('../utils/routeManager');
     const routeManager = RouteManager.getInstance();
     
@@ -213,7 +218,12 @@ async function autoUpdateRoutes(): Promise<void> {
       await registerDynamicContentScripts();
     }
   } catch (e: any) {
-    console.warn('[Background] 自动更新线路配置失败:', e?.message || e);
+    const message = e?.message || String(e);
+    if (message.includes('document is not defined')) {
+      console.warn('[Background] 自动更新线路配置已跳过，后台上下文不支持 document:', message);
+      return;
+    }
+    console.warn('[Background] 自动更新线路配置失败:', message);
   }
 }
 
@@ -310,7 +320,12 @@ async function broadcastDrive115RefreshUserInfo(): Promise<void> {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
       if (tab.id && tab.url && tab.url.startsWith(extUrl)) {
-        chrome.tabs.sendMessage(tab.id, { type: 'drive115.refresh_user_info' }).catch(() => {});
+        console.log('[Background] Broadcasting drive115.refresh_user_info to extension tab:', { tabId: tab.id, url: tab.url });
+        chrome.tabs.sendMessage(tab.id, { type: 'drive115.refresh_user_info' }, () => {
+          if (chrome.runtime.lastError) {
+            console.debug('[Background] drive115.refresh_user_info skipped:', { tabId: tab.id, error: chrome.runtime.lastError.message });
+          }
+        });
       }
     }
   } catch {}

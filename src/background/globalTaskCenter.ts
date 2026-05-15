@@ -14,7 +14,10 @@ type QueueCandidate = {
 export class GlobalTaskCenter {
   private store = new TaskStateStore();
   private dedupeIndex = new Map<string, string>();
-  private readonly taskRetentionMs = 10 * 60 * 1000;
+  private readonly taskRetentionMs = 60 * 60 * 1000;
+  private readonly pendingTaskMaxAgeMs = 60 * 1000;
+  private readonly pausedTaskMaxAgeMs = 3 * 60 * 1000;
+  private readonly hiddenRunningTaskMaxAgeMs = 45 * 1000;
   // P1 FIX: 跨页面依赖同步 - 在 background 维护全局已完成任务集合
   private completedTaskLabels = new Set<string>();
   private readonly storageKey = 'taskCenter:snapshot';
@@ -176,6 +179,58 @@ export class GlobalTaskCenter {
         runtime.waitReason = 'lease-timeout';
         runtime.endedAt = now;
         this.store.setTask(descriptor.taskId, record);
+        console.log('[TaskCenter] Canceled stale active task', {
+          taskId: descriptor.taskId,
+          label: descriptor.label,
+          pageInstanceId: descriptor.pageInstanceId,
+          reason: runtime.waitReason,
+        });
+      }
+
+      const isHidden = !this.store.isTabVisible(descriptor.tabId);
+      const isActiveRunningTask = runtime.status === 'leased' || runtime.status === 'running';
+      const hiddenBaseTs = runtime.heartbeatTs || runtime.startedAt || descriptor.createdAt;
+      if (isHidden && isActiveRunningTask && now - hiddenBaseTs > this.hiddenRunningTaskMaxAgeMs) {
+        runtime.status = 'canceled';
+        runtime.waitReason = 'hidden-background-timeout';
+        runtime.endedAt = now;
+        this.store.setTask(descriptor.taskId, record);
+        console.log('[TaskCenter] Canceled hidden running task', {
+          taskId: descriptor.taskId,
+          label: descriptor.label,
+          pageInstanceId: descriptor.pageInstanceId,
+          tabId: descriptor.tabId,
+          hiddenMs: now - hiddenBaseTs,
+        });
+      }
+
+      const isPendingTask = runtime.status === 'registered' || runtime.status === 'queued';
+      const pendingBaseTs = runtime.lastProgressAt || runtime.heartbeatTs || descriptor.createdAt;
+      if (isPendingTask && now - pendingBaseTs > this.pendingTaskMaxAgeMs) {
+        runtime.status = 'canceled';
+        runtime.waitReason = 'page-instance-orphaned';
+        runtime.endedAt = now;
+        this.store.setTask(descriptor.taskId, record);
+        console.log('[TaskCenter] Canceled orphan pending task', {
+          taskId: descriptor.taskId,
+          label: descriptor.label,
+          pageInstanceId: descriptor.pageInstanceId,
+          ageMs: now - pendingBaseTs,
+        });
+      }
+
+      const pausedBaseTs = runtime.lastProgressAt || runtime.heartbeatTs || descriptor.createdAt;
+      if (runtime.status === 'paused' && now - pausedBaseTs > this.pausedTaskMaxAgeMs) {
+        runtime.status = 'canceled';
+        runtime.waitReason = 'paused-timeout';
+        runtime.endedAt = now;
+        this.store.setTask(descriptor.taskId, record);
+        console.log('[TaskCenter] Canceled stale paused task', {
+          taskId: descriptor.taskId,
+          label: descriptor.label,
+          pageInstanceId: descriptor.pageInstanceId,
+          ageMs: now - pausedBaseTs,
+        });
       }
 
       const terminal = ['done', 'error', 'canceled'].includes(runtime.status);
@@ -198,7 +253,14 @@ export class GlobalTaskCenter {
     if (dedupedTaskId) {
       const dedupedTask = this.store.getTask(dedupedTaskId);
       if (dedupedTask) {
+        if (['canceled', 'done', 'error'].includes(dedupedTask.runtime.status)) {
+          this.store.deleteTask(dedupedTaskId);
+          if (this.dedupeIndex.get(dedupeKey) === dedupedTaskId) {
+            this.dedupeIndex.delete(dedupeKey);
+          }
+        } else {
         return { ok: true, taskId: dedupedTaskId, tabId: dedupedTask.descriptor.tabId };
+        }
       }
     }
     const tabId = typeof sender?.tab?.id === 'number' ? sender.tab.id : descriptor.tabId;
@@ -248,16 +310,20 @@ export class GlobalTaskCenter {
       return { granted: false, waitReason: task.runtime.waitReason };
     }
 
+    const isInteractive115Push = task.descriptor.label === 'drive115:push' && visible;
+    const samePageCandidate = bestCandidate.record.descriptor.pageInstanceId === task.descriptor.pageInstanceId;
+
     if (bestCandidate.record.descriptor.taskId !== taskId) {
       const runningCount = this.getRunningCount(bucket, visible);
       const currentPriority = Number(task.descriptor.priority || 0);
       const bestPriority = Number(bestCandidate.record.descriptor.priority || 0);
+      const allowInteractiveSamePageFastLane = isInteractive115Push && samePageCandidate && runningCount < limit;
       const allowBackgroundParallel = !visible
         && task.descriptor.visibilityPolicy === 'background_allowed'
         && limit >= 3                               // P2 NOTE: limit<3 的 bucket（translate=1, drive115=2）永远无法触发此逃生口
         && runningCount < limit
         && (bestPriority - currentPriority) <= 3;   // P2 NOTE: 允许优先级差<=3 的任务绕过，差值太宽松可能导致 deferred 抢 high 的槽
-      if (!allowBackgroundParallel) {
+      if (!allowInteractiveSamePageFastLane && !allowBackgroundParallel) {
         task.runtime.status = 'queued';
         task.runtime.waitReason = 'higher-priority-wait';
         this.store.setTask(taskId, task);
@@ -393,7 +459,40 @@ export class GlobalTaskCenter {
   clearAll(): { ok: true } {
     this.store.clear();
     this.dedupeIndex.clear();
+    this.completedTaskLabels.clear();
+    chrome.storage.local.remove([this.storageKey, this.dedupeStorageKey]).catch(() => {});
     return { ok: true };
+  }
+
+  clearTerminalTasks(): { ok: true; cleared: number } {
+    this.cleanupStaleTasks();
+    let cleared = 0;
+    for (const record of this.store.listTasks()) {
+      if (!['done', 'error', 'canceled'].includes(record.runtime.status)) continue;
+      this.store.deleteTask(record.descriptor.taskId);
+      const dedupeKey = record.descriptor.dedupeKey;
+      if (dedupeKey && this.dedupeIndex.get(dedupeKey) === record.descriptor.taskId) {
+        this.dedupeIndex.delete(dedupeKey);
+      }
+      cleared += 1;
+    }
+    this.persistToStorage();
+    return { ok: true, cleared };
+  }
+
+  stopAllActiveTasks(reason: string = 'manual-stop-all'): { ok: true; canceled: number } {
+    this.cleanupStaleTasks();
+    let canceled = 0;
+    for (const record of this.store.listTasks()) {
+      if (['done', 'error', 'canceled'].includes(record.runtime.status)) continue;
+      record.runtime.status = 'canceled';
+      record.runtime.waitReason = reason;
+      record.runtime.endedAt = Date.now();
+      this.store.setTask(record.descriptor.taskId, record);
+      canceled += 1;
+    }
+    this.persistToStorage();
+    return { ok: true, canceled };
   }
 
   // P1 FIX: 定期快照定时器（每 30s 持久化一次状态，防止 service worker 重启丢失）
@@ -401,6 +500,7 @@ export class GlobalTaskCenter {
   private startPeriodicSnapshot(): void {
     if (this.persistTimer) return;
     this.persistTimer = setInterval(() => {
+      this.cleanupStaleTasks();
       this.persistToStorage();
     }, 30_000);
   }
@@ -501,6 +601,9 @@ export class GlobalTaskCenter {
           return;
         case TASK_CENTER_MESSAGE.CLEAR:
           sendResponse(this.clearAll());
+          return;
+        case 'task-center:stop-all':
+          sendResponse(this.stopAllActiveTasks(String(message.payload?.reason || 'manual-stop-all')));
           return;
         // P1 FIX: 跨页面依赖同步消息
         case 'task-center:mark-completed':

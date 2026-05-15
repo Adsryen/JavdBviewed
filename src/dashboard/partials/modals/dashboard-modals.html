@@ -44,10 +44,10 @@
           <label>视图
             <select id="orchViewMode">
               <option value="design">设计</option>
-              <option value="realtime" selected>实时</option>
-              <option value="global">全局</option>
+              <option value="global" selected>全局</option>
             </select>
           </label>
+          <span id="orchestratorConnectionStatus" style="display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; background:#f1f5f9; color:#64748b; font-size:12px; font-weight:600;">未连接</span>
           <label>状态
             <select id="orchFilterStatus">
               <option value="all">全部</option>
@@ -75,7 +75,8 @@
           <label>范围
             <select id="orchGlobalScope">
               <option value="all">全部页面</option>
-              <option value="current">当前页</option>
+              <option value="current">当前页实例</option>
+              <option value="recent">最近活跃页</option>
               <option value="active">仅活动任务</option>
             </select>
           </label>
@@ -100,10 +101,12 @@
             </button>
           </h4>
           <div style="overflow-x:auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px;">
-            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 90px 90px 130px 150px 130px 150px; min-width:1030px; font-size:13px; background:var(--bg-primary); border-radius:4px;">
+            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 110px 110px 90px 90px 130px 150px 130px 150px; min-width:1250px; font-size:13px; background:var(--bg-primary); border-radius:4px;">
               <!-- 表头 -->
               <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">总任务数</div>
               <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">运行中</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">排程中</div>
               <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">失败</div>
               <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">超时</div>
               <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">平均耗时</div>
@@ -113,6 +116,8 @@
               <!-- 数据行 -->
               <div id="metricTotalTasks" style="padding:8px 10px; color:var(--text-primary); font-weight:600;">0</div>
               <div id="metricCompletedTasks" style="padding:8px 10px; color:#059669; font-weight:600;">0</div>
+              <div id="metricRunningTasks" style="padding:8px 10px; color:#2563eb; font-weight:600;">0</div>
+              <div id="metricPendingTasks" style="padding:8px 10px; color:#7c3aed; font-weight:600;">0</div>
               <div id="metricFailedTasks" style="padding:8px 10px; color:#dc2626; font-weight:600;">0</div>
               <div id="metricTimeoutTasks" style="padding:8px 10px; color:#d97706; font-weight:600;">0</div>
               <div id="metricAvgDuration" style="padding:8px 10px; color:#7c3aed; font-weight:600;">0ms</div>
@@ -142,6 +147,8 @@
       </div>
       <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
         <button id="orchestratorOpenJavdbBtn" class="button-like" title="打开一个 JavDB 标签页用于连接">打开 JavDB</button>
+        <button id="orchestratorStopAllBtn" class="button-like" style="color:#d97706;" title="停止当前所有活动任务，便于重新测试">停止所有任务</button>
+        <button id="orchestratorClearGlobalBtn" class="button-like" style="color:#dc2626;" title="清空全局任务快照与持久化状态">清空全局任务</button>
         <button id="orchestratorRefreshBtn" class="button-like">
           <i class="fas fa-sync-alt"></i>
           刷新
@@ -336,11 +343,11 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="createdAt">
                   注册时间 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary);">
-                  开始时间
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="startedAt">
+                  开始时间 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary);">
-                  结束时间
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="endedAt">
+                  结束时间 <i class="fas fa-sort"></i>
                 </th>
                 <th style="padding:10px 12px; text-align:right; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="waitDurationMs">
                   等待执行 <i class="fas fa-sort"></i>
@@ -358,7 +365,7 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">页面实例 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="mainId">主ID <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageType">类型 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">主任务数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">父任务数 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="doneCount">成功 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="errorCount">失败 <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="totalDurationMs">总耗时 <i class="fas fa-sort"></i></th>
@@ -380,6 +387,9 @@
         <div style="display:flex; gap:8px;">
           <button id="taskDetailsRefreshBtn" class="button-like" style="display:flex; align-items:center; gap:6px;">
             <i class="fas fa-sync-alt"></i> 刷新
+          </button>
+          <button id="taskDetailsStopAllBtn" class="button-like" style="display:flex; align-items:center; gap:6px; color:#d97706;">
+            <i class="fas fa-stop-circle"></i> 停止所有任务
           </button>
           <button id="taskDetailsCopyCurrentPageBtn" class="button-like" style="display:flex; align-items:center; gap:6px;">
             <i class="fas fa-copy"></i> 复制

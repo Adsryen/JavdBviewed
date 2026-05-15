@@ -25,6 +25,7 @@ interface ScheduledTask {
   queued?: boolean;
   running?: boolean;
   completed?: boolean;
+  startedAt?: number;
 }
 
 interface TaskDeferredError extends Error {
@@ -58,6 +59,7 @@ class InitOrchestrator {
   private verbose = true; // 统一开关，控制是否打印详细日志
   private listeners: Record<string, Array<(payload: any) => void>> = {};
   private blueprintDescriptors = new Map<string, GlobalTaskDescriptor>();
+  private taskIndex = new Map<string, ManagedScheduledTask>();
 
   // 并发控制
   private runningHighTasks = 0;
@@ -75,7 +77,7 @@ class InitOrchestrator {
 
   // P0 FIX: hidden 页 lease 泄漏保护
   private hiddenLeaseTasks = new Map<string, number>(); // taskId -> hiddenAt timestamp
-  private readonly hiddenLeaseReleaseMs = 60_000;  // hidden 超过 60s 主动释放 lease
+  private readonly hiddenLeaseReleaseMs = 60_000;  // hidden 超过 60s 记录诊断信息
   
   // 性能指标
   private metrics = {
@@ -138,21 +140,14 @@ class InitOrchestrator {
       }
     });
 
-    // 每 30s 检查 hidden 超过阈值的任务，触发 lease 释放
+    // 每 30s 检查 hidden 超过阈值的任务，仅记录诊断；真正回收由 background 执行
     window.setInterval(() => {
       const now = Date.now();
       if (!document.hidden) return;
       for (const [taskId, hiddenAt] of this.hiddenLeaseTasks.entries()) {
         if (now - hiddenAt > this.hiddenLeaseReleaseMs) {
           this.hiddenLeaseTasks.delete(taskId);
-          this.log('hidden-leak: releasing stale lease', { taskId, hiddenMs: now - hiddenAt });
-          // 通过 background message 主动取消任务，防止 bucket 泄漏
-          if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-            chrome.runtime.sendMessage({
-              type: 'CANCEL_STALE_LEASE',
-              payload: { taskId, reason: 'hidden-timeout' },
-            }).catch(() => {});
-          }
+          this.log('hidden-leak: background cleanup expected', { taskId, hiddenMs: now - hiddenAt });
         }
       }
     }, 30_000);
@@ -245,6 +240,7 @@ class InitOrchestrator {
       visibilityPolicy: options.visibilityPolicy ?? getDefaultVisibilityPolicy(phase),
       timeoutMs: (options.timeout || 0) > 0 ? (options.timeout || 0) : 10000,
       retryLimit: 2,
+      registrationSource: 'blueprint',
       resumePolicy: 'restart',
     });
   }
@@ -268,6 +264,20 @@ class InitOrchestrator {
       } catch (error) {
         this.log('blueprint pre-register task failed', { label: blueprint.label, error: String(error) });
       }
+    }
+  }
+
+  private trackTask(st: ManagedScheduledTask): void {
+    const label = st.options.label;
+    if (label) {
+      this.taskIndex.set(label, st);
+    }
+  }
+
+  private markTaskStarted(label: string): void {
+    const task = this.taskIndex.get(label);
+    if (task && !task.startedAt) {
+      task.startedAt = performance.now();
     }
   }
 
@@ -365,11 +375,19 @@ class InitOrchestrator {
   private async saveTaskDetail(phase: InitPhase, label: string, status: 'done' | 'error', durationMs: number | undefined, error?: string): Promise<void> {
     try {
       const pageContext = typeof window !== 'undefined' ? getPageContext() : { pageUrl: '', pageType: 'generic', mainId: '', pageInstanceId: '' };
+      const trackedTask = this.taskIndex.get(label);
+      const registeredAt = trackedTask?.managedDescriptor?.createdAt || 0;
+      const startedAt = typeof trackedTask?.startedAt === 'number' ? Math.round(performance.timeOrigin + trackedTask.startedAt) : 0;
+      const endedAt = status === 'done' || status === 'error' ? Date.now() : 0;
       const taskDetail = {
         label,
         phase,
         status,
         durationMs: durationMs || 0,
+        registrationSource: trackedTask?.managedDescriptor?.registrationSource || 'runtime',
+        registeredAt,
+        startedAt,
+        endedAt,
         pageUrl: pageContext.pageUrl,
         pageType: pageContext.pageType,
         mainId: pageContext.mainId,
@@ -424,6 +442,7 @@ class InitOrchestrator {
     }
     
     const managedScheduledTask: ManagedScheduledTask = { task, options };
+    this.trackTask(managedScheduledTask);
     if (options.label) {
       const taskKey = this.getTaskKey(phase, options.label);
       managedScheduledTask.managedDescriptor = this.blueprintDescriptors.get(taskKey)
@@ -512,6 +531,7 @@ class InitOrchestrator {
       return Promise.resolve();
     }
     st.running = true;
+    this.markTaskStarted(label);
     
     // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks
     const localUnmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
@@ -559,6 +579,7 @@ class InitOrchestrator {
           visibilityPolicy: st.options.visibilityPolicy ?? getDefaultVisibilityPolicy(phase),
           timeoutMs: timeout > 0 ? timeout : 10000,
           retryLimit: 2,
+          registrationSource: st.managedDescriptor?.registrationSource || 'runtime',
           resumePolicy: 'restart',
         });
         st.managedDescriptor = descriptor;
@@ -931,6 +952,11 @@ try {
     const notifyPageLifecycleCancel = (reason: string) => {
       try {
         const pageContext = getPageContext();
+        console.log('[Orchestrator] Page lifecycle cancel', {
+          reason,
+          pageUrl: pageContext.pageUrl,
+          pageInstanceId: pageContext.pageInstanceId,
+        });
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
           chrome.runtime.sendMessage({
             type: 'task-center:page-lifecycle',
@@ -979,11 +1005,11 @@ try {
         if (message && message.type === 'orchestrator:getMetrics') {
           const metrics = initOrchestrator.getMetrics();
           sendResponse({ ok: true, metrics });
-          return true; // async response
+          return false;
         }
       } catch (err) {
         sendResponse({ ok: false, error: String(err) });
-        return true;
+        return false;
       }
       return undefined;
     });

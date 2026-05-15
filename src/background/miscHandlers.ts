@@ -39,7 +39,7 @@ export function registerMiscRouter(): void {
         case 'ping':
         case 'ping-background':
           sendResponse({ success: true, message: 'pong' });
-          return true;
+          return false;
         case 'fetch-user-profile': {
           // 从 JavDB 抓取用户资料与服务器统计，并写入本地缓存
           // 注意：异步处理需 return true 保持消息通道
@@ -85,7 +85,7 @@ export function registerMiscRouter(): void {
           return true;
         case 'refresh-record': {
           const { videoId } = message;
-          if (!videoId) { sendResponse({ success: false, error: 'No videoId provided' }); return true; }
+          if (!videoId) { sendResponse({ success: false, error: 'No videoId provided' }); return false; }
           refreshRecordById(videoId)
             .then((updatedRecord) => sendResponse({ success: true, record: updatedRecord }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
@@ -121,7 +121,7 @@ export function registerMiscRouter(): void {
           return true;
         case 'DRIVE115_HEARTBEAT':
           sendResponse({ type: 'DRIVE115_HEARTBEAT_RESPONSE', success: true });
-          return true;
+          return false;
         case 'UPDATE_WATCHED_STATUS': {
           handleUpdateWatchedStatus(message, sendResponse);
           return true;
@@ -408,6 +408,12 @@ export function registerMiscRouter(): void {
         case 'orchestrator:clearTaskDetails': {
           // 清空任务详细信息
           handleClearTaskDetails()
+            .then((result) => sendResponse(result))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+          return true;
+        }
+        case 'orchestrator:stopAllTasks': {
+          handleStopAllTasks()
             .then((result) => sendResponse(result))
             .catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
@@ -699,6 +705,7 @@ async function handleDrive115Push(message: any, sendResponse: (response: any) =>
     }
     chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
+        console.warn('[Background] DRIVE115_PUSH sendMessage failed:', { tabId, error: chrome.runtime.lastError.message });
         sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: chrome.runtime.lastError.message });
       } else {
         sendResponse(response || { type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: true });
@@ -724,6 +731,7 @@ async function handleDrive115Verify(message: any, sendResponse: (response: any) 
     }
     chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
+        console.warn('[Background] DRIVE115_VERIFY sendMessage failed:', { tabId, error: chrome.runtime.lastError.message });
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
         sendResponse(response ?? { success: true });
@@ -889,6 +897,7 @@ async function handlePrivacyLock(sendResponse: (response: any) => void): Promise
     for (const tab of tabs) {
       if (tab.id) {
         try {
+          console.log('[Background] Sending privacy-lock-trigger to dashboard tab:', { tabId: tab.id, url: tab.url });
           await chrome.tabs.sendMessage(tab.id, { type: 'privacy-lock-trigger' });
         } catch (error) {
           console.error('Failed to send lock message to tab:', error);
@@ -1051,35 +1060,58 @@ async function handleGetAggregatedMetrics(): Promise<any> {
   }
 }
 
+let taskDetailSaveQueue: Promise<void> = Promise.resolve();
+
 /**
  * 保存任务详细信息
  */
 async function handleSaveTaskDetail(taskDetail: any, sender?: chrome.runtime.MessageSender): Promise<void> {
-  try {
-    if (!taskDetail) {
-      return;
+  taskDetailSaveQueue = taskDetailSaveQueue.then(async () => {
+    try {
+      if (!taskDetail) {
+        console.log('[Background] saveTaskDetail skipped: empty payload');
+        return;
+      }
+
+      const normalizedDetail = {
+        ...taskDetail,
+        tabId: typeof taskDetail?.tabId === 'number' ? taskDetail.tabId : (typeof sender?.tab?.id === 'number' ? sender.tab.id : -1),
+        savedAt: Date.now(),
+      };
+
+      console.log('[Background] saveTaskDetail:start', {
+        label: normalizedDetail.label,
+        parentLabel: normalizedDetail.parentLabel,
+        pageInstanceId: normalizedDetail.pageInstanceId,
+        mainId: normalizedDetail.mainId,
+        tabId: normalizedDetail.tabId,
+      });
+
+      const existingDetails = await getValue<any[]>('orchestratorTaskDetails', []);
+      existingDetails.push(normalizedDetail);
+      const trimmedDetails = existingDetails.slice(-2000);
+      await setValue('orchestratorTaskDetails', trimmedDetails);
+
+      console.log('[Background] saveTaskDetail:done', {
+        label: normalizedDetail.label,
+        parentLabel: normalizedDetail.parentLabel,
+        pageInstanceId: normalizedDetail.pageInstanceId,
+        total: trimmedDetails.length,
+      });
+    } catch (error) {
+      console.error('[Background] Failed to save task detail:', error, {
+        label: taskDetail?.label,
+        parentLabel: taskDetail?.parentLabel,
+        pageInstanceId: taskDetail?.pageInstanceId,
+        mainId: taskDetail?.mainId,
+      });
+      throw error;
     }
-    
-    // 获取现有的任务详细信息
-    const existingDetails = await getValue<any[]>('orchestratorTaskDetails', []);
-    
-    // 添加新的任务详细信息
-    existingDetails.push({
-      ...taskDetail,
-      tabId: typeof taskDetail?.tabId === 'number' ? taskDetail.tabId : (typeof sender?.tab?.id === 'number' ? sender.tab.id : -1),
-      savedAt: Date.now(),
-    });
-    
-    // 只保留最近 2000 条记录
-    const trimmedDetails = existingDetails.slice(-2000);
-    
-    // 保存到存储
-    await setValue('orchestratorTaskDetails', trimmedDetails);
-  } catch (error) {
-    console.error('[Background] Failed to save task detail:', error);
-    throw error;
-  }
+  });
+
+  return taskDetailSaveQueue;
 }
+
 
 /**
  * 获取任务详细信息
@@ -1127,15 +1159,27 @@ async function handleGetTaskDetails(options: any = {}): Promise<any> {
  */
 async function handleClearTaskDetails(): Promise<any> {
   try {
+    console.log('[Background] Clearing orchestrator task details and metrics...');
     // 清空存储中的任务详细信息
     await setValue('orchestratorTaskDetails', []);
     // 同时清空性能指标统计
     await setValue('orchestratorMetrics', []);
-    // 同时清空全局任务中心的内存态，避免旧任务刷新后再次混入展示
-    globalTaskCenter.clearAll();
-    return { success: true };
+    const clearedGlobalState = globalTaskCenter.clearAll();
+    console.log('[Background] Cleared orchestrator task details and metrics');
+    return { success: true, clearedGlobalState };
   } catch (error) {
     console.error('[Background] Failed to clear task details:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+async function handleStopAllTasks(): Promise<any> {
+  try {
+    const result = globalTaskCenter.stopAllActiveTasks('manual-stop-all');
+    const cleared = globalTaskCenter.clearTerminalTasks();
+    return { success: true, canceled: result.canceled || 0, cleared: cleared.cleared || 0 };
+  } catch (error) {
+    console.error('[Background] Failed to stop all tasks:', error);
     return { success: false, error: String(error) };
   }
 }
