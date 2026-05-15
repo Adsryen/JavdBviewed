@@ -62,7 +62,7 @@ class Drive115ContentHandler {
           success: false,
           error: `消息处理出错: ${error instanceof Error ? error.message : '未知错误'}`
         });
-        return true;
+        return false;
       }
     });
 

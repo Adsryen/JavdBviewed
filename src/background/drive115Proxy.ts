@@ -28,7 +28,7 @@ export function installDrive115V2Proxy(): void {
           const taskId = String(payload.taskId || '').trim();
           if (!accessToken || !urls) {
             sendResponse({ success: false, message: '缺少 accessToken 或 urls' });
-            return true;
+            return false;
           }
 
           const fd = new FormData();
@@ -92,7 +92,7 @@ export function installDrive115V2Proxy(): void {
             const refreshBase = 'https://passportapi.115.com';
             if (!rt) {
               sendResponse({ success: false, message: '缺少 refresh_token' });
-              return true;
+              return false;
             }
             const fd = new URLSearchParams();
             fd.set('refresh_token', rt);
@@ -112,7 +112,7 @@ export function installDrive115V2Proxy(): void {
             return true; // 异步响应
           } catch (e: any) {
             sendResponse({ success: false, message: e?.message || '后台刷新异常' });
-            return true;
+            return false;
           }
         } else if (message.type === 'drive115.auth_device_code_v2') {
           try {
@@ -121,7 +121,7 @@ export function installDrive115V2Proxy(): void {
             const codeChallengeMethod = String(message?.payload?.codeChallengeMethod || 'sha256').trim() || 'sha256';
             if (!clientId || !codeChallenge) {
               sendResponse({ success: false, message: '缺少 client_id 或 code_challenge' });
-              return true;
+              return false;
             }
             const fd = new URLSearchParams();
             fd.set('client_id', clientId);
@@ -143,7 +143,7 @@ export function installDrive115V2Proxy(): void {
             return true;
           } catch (e: any) {
             sendResponse({ success: false, message: e?.message || '后台获取扫码信息异常' });
-            return true;
+            return false;
           }
         } else if (message.type === 'drive115.poll_auth_status_v2') {
           try {
@@ -152,7 +152,7 @@ export function installDrive115V2Proxy(): void {
             const sign = String(message?.payload?.sign || '').trim();
             if (!uid || !time || !sign) {
               sendResponse({ success: false, message: '缺少 uid、time 或 sign' });
-              return true;
+              return false;
             }
             const url = new URL('https://qrcodeapi.115.com/get/status/');
             url.searchParams.set('uid', uid);
@@ -173,7 +173,7 @@ export function installDrive115V2Proxy(): void {
             return true;
           } catch (e: any) {
             sendResponse({ success: false, message: e?.message || '后台轮询扫码状态异常' });
-            return true;
+            return false;
           }
         } else if (message.type === 'drive115.exchange_device_code_v2') {
           try {
@@ -181,7 +181,7 @@ export function installDrive115V2Proxy(): void {
             const codeVerifier = String(message?.payload?.codeVerifier || '').trim();
             if (!uid || !codeVerifier) {
               sendResponse({ success: false, message: '缺少 uid 或 code_verifier' });
-              return true;
+              return false;
             }
             const fd = new URLSearchParams();
             fd.set('uid', uid);
@@ -203,7 +203,7 @@ export function installDrive115V2Proxy(): void {
             return true;
           } catch (e: any) {
             sendResponse({ success: false, message: e?.message || '后台换取 token 异常' });
-            return true;
+            return false;
           }
         } else if (message.type === 'drive115.get_quota_info_v2') {
           try {
@@ -211,7 +211,7 @@ export function installDrive115V2Proxy(): void {
             const base = String(message?.payload?.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
             if (!accessToken) {
               sendResponse({ success: false, message: '缺少 access_token' });
-              return true;
+              return false;
             }
             fetch(`${base}/open/offline/get_quota_info`, {
               method: 'GET',
@@ -229,7 +229,7 @@ export function installDrive115V2Proxy(): void {
             return true; // 异步响应
           } catch (e: any) {
             sendResponse({ success: false, message: e?.message || '后台配额异常' });
-            return true;
+            return false;
           }
         }
         // 未匹配任何 115 v2 消息类型

@@ -1832,7 +1832,7 @@ export function registerWebDAVRouter(): void {
           let importData: any;
           try { importData = JSON.parse(jsonData); } catch (e: any) {
             sendResponse({ success: false, error: `JSON 解析失败: ${e?.message}` });
-            return true;
+            return false;
           }
           applyImportDataDirect(importData, { categories })
             .then(sendResponse)

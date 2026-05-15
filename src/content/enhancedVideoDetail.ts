@@ -1844,7 +1844,9 @@ export class VideoDetailEnhancer {
         let rightClickHandled = false;
         const openInBackground = () => {
           const startedAt = performance.now();
-          chrome.runtime.sendMessage({
+          showToast('已在后台打开', 'success');
+
+          void chrome.runtime.sendMessage({
             type: 'OPEN_TAB_BACKGROUND',
             url: linkElement.href
           }).then(() => {
@@ -1853,8 +1855,6 @@ export class VideoDetailEnhancer {
             log('[RelatedVideos] Failed to open background tab:', err);
             window.open(linkElement.href, '_blank');
           });
-
-          showToast('已在后台打开', 'success');
         };
 
         // 右键按下：立即在后台打开，减少等待 contextmenu 的体感延迟
@@ -1867,7 +1867,7 @@ export class VideoDetailEnhancer {
           openInBackground();
           window.setTimeout(() => {
             rightClickHandled = false;
-          }, 400);
+          }, 800);
         });
 
         // 阻止右键菜单；极少数场景下兜底触发后台打开
@@ -1879,7 +1879,7 @@ export class VideoDetailEnhancer {
           openInBackground();
           window.setTimeout(() => {
             rightClickHandled = false;
-          }, 400);
+          }, 800);
         });
       });
 
