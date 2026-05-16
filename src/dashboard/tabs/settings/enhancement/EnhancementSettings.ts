@@ -5,25 +5,33 @@
 
 import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { STATE } from '../../../state';
-import { getValue, setValue } from '../../../../utils/storage';
+import { getValue } from '../../../../utils/storage';
 import { showMessage } from '../../../ui/toast';
-import { log } from '../../../../utils/logController';
 import type { ExtensionSettings, KeywordFilterRule } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
 import { saveSettings } from '../../../../utils/storage';
-import { aiService } from '../../../../services/ai/aiService';
-import { ACTOR_FILTER_TAGS, getDefaultTags, getTagByValue } from '../../../config/actorFilterTags';
-import { fetchGlobalTaskState } from '../../../services/globalTaskMonitor';
-
-type OrchestratorDesignTask = {
-    phase: 'critical' | 'high' | 'deferred' | 'idle';
-    label: string;
-    priority?: number;
-    timeout?: number;
-    visibilityPolicy?: string;
-    source: 'video' | 'actor' | 'list' | 'global';
-    enabled: boolean;
-};
+import { ACTOR_FILTER_TAGS, getDefaultTags } from '../../../config/actorFilterTags';
+import { handleActorOpacityChange, handleColumnCountChange, handleContainerWidthChange, updateContainerWidthMax, updateCurrentPreviewDelayDisplay, getPreferredPreviewSource, setupCheckboxGroupStyles, setupAnchorConfigStyles, setupVolumeControlStyles } from './ui/enhancementUiStyles';
+import { initializeElements } from './binding/enhancementInit';
+import { bindEvents } from './binding/enhancementBindEvents';
+import { doLoadSettings } from './settings/enhancementLoad';
+import { doGetSettings, doSetSettings } from './settings/enhancementSettingsSync';
+import { initEnhancementToggles, toggleConfigSections, handleSettingChange } from './settings/enhancementToggles';
+import { setupSubSettingsHoverBehavior, handleSubSettingsToggle, updateAllToggleStates } from './ui/enhancementHover';
+import { updateTranslationConfigVisibility, onTranslationProviderChange, onTraditionalServiceChange, applyTranslationProviderUI, updateAiCurrentModelUI, navigateToAISettings } from './translation/enhancementTranslation';
+import { renderFilterRules, createFilterRuleElement, getFilterFieldsText, getFilterActionText, addFilterRule, editFilterRule, deleteFilterRule, toggleFilterRuleEnabled, openFilterRuleModal, saveFilterRuleFromModal } from './ui/enhancementFilters';
+import { displayAppliedTags, initializeActorEnhancementEvents } from './actor/enhancementActorAux';
+import { fetchAndUpdateMetrics, enrichMetricsWithLiveTaskState } from './metrics/enhancementMetrics';
+import { openOrchestratorModal, closeOrchestratorModal, copyPhasesText, copyTimelineText } from './metrics/enhancementOrchestratorActions';
+import { refreshOrchestratorState } from './metrics/enhancementOrchestratorState';
+import { bindSubtabLinks, bindOrchestratorControls, mountTranslationConfigIntoVideoBlock } from './binding/enhancementBind';
+import { startOrchestratorAutoRefresh, stopOrchestratorAutoRefresh, unsubscribeOrchestratorEvents, getPreferredJavdbTab } from './orchestrator/orchestratorActions';
+import { setOrchestratorConnectionStatus, updateOrchestratorLegend, renderOrchestratorPhases, renderOrchestratorTimeline } from './orchestrator/orchestratorRender';
+import { buildDesignTasks, getVideoDetailDesignBlueprints, getActorRemarksTaskTimeoutMsForDesign, groupDesignTasksByPhase, buildDesignTimeline, buildDesignTaskDetail, isDesignEmbyEnabled } from './orchestrator/orchestratorDesign';
+import type { OrchestratorDesignTask } from './orchestrator/orchestratorDesign';
+import { getDesignTaskMeta, getTimelineFilters } from './orchestrator/orchestratorUtils';
+import { getStatusLabel, getGlobalTaskStatus, getWaitReasonLabel, buildGlobalTaskDetail, getTaskDescription } from './orchestrator/orchestratorData';
+import { getTaskDisplayNameForExport } from './orchestrator/orchestratorExport';
 
 /**
  * 功能增强设置面板类
@@ -88,23 +96,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableScrollPaging!: HTMLInputElement;
     private previewDelay!: HTMLInputElement;
     private previewVolume!: HTMLInputElement;
-    private previewVolumeValue!: HTMLSpanElement;
-    private previewSourceAuto!: HTMLInputElement;
-    private previewSourceJavDB!: HTMLInputElement;
-    private previewSourceJavSpyl!: HTMLInputElement;
-    private previewSourceAVPreview!: HTMLInputElement;
-    private previewSourceVBGFL!: HTMLInputElement;
     // 演员水印配置
     private enableActorWatermark!: HTMLInputElement;
     private actorWatermarkPosition!: HTMLSelectElement;
     private actorWatermarkOpacity!: HTMLInputElement;
-    private actorWatermarkOpacityValue!: HTMLSpanElement;
 
     // 🆕 列表显示控制配置
     private listColumnCount!: HTMLInputElement;
-    private listColumnCountValue!: HTMLSpanElement;
     private listContainerWidth!: HTMLInputElement;
-    private listContainerWidthValue!: HTMLSpanElement;
     private enableContainerExpansion!: HTMLInputElement;
     // 🆕 状态标签显示
     private showStatusBadge!: HTMLInputElement;
@@ -112,114 +111,34 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
     private actorDefaultTagInputs!: NodeListOf<HTMLInputElement>;
-    private actorEnhancementConfig!: HTMLElement;
-    private lastAppliedTagsDisplay!: HTMLElement;
     private appliedTagsContainer!: HTMLElement;
-    private clearLastAppliedTags!: HTMLButtonElement;
     private aeEnableActionButtons!: HTMLInputElement;
     // 新增：演员页 影片分段显示
     private aeEnableTimeSegmentationDivider!: HTMLInputElement;
     private aeTimeSegmentationMonths!: HTMLInputElement;
-    // 配置区域元素
-    private translationConfig!: HTMLDivElement;
     // 翻译相关元素
     private translationProviderSel!: HTMLSelectElement;
-    private traditionalServiceSel!: HTMLSelectElement;
     private traditionalApiKeyInput!: HTMLInputElement;
-    private traditionalApiKeyGroup!: HTMLDivElement;
-    private currentTranslationServiceLabel!: HTMLElement;
-    private aiConfigContainer!: HTMLDivElement;
-    private traditionalConfigContainer!: HTMLDivElement;
     private translateCurrentTitleChk!: HTMLInputElement;
     private translationDisplayModeSel!: HTMLSelectElement;
-    private aiCurrentModelLabel!: HTMLElement;
-    private aiModelEmptyTip!: HTMLElement;
-    private goAiSettingsBtn!: HTMLButtonElement;
-    private magnetSourcesConfig!: HTMLDivElement;
-    private contentFilterConfig!: HTMLElement;
-    private anchorOptimizationConfig!: HTMLElement;
-    private listEnhancementConfig!: HTMLDivElement;
-    private videoEnhancementConfig!: HTMLDivElement;
-
-    // 合并翻译开关：高级选项已移除（仅保留单一全局开关）
 
     // 内容过滤相关元素
-    private addFilterRuleBtn!: HTMLButtonElement;
-    private filterRulesList!: HTMLElement;
 
-    private enhancementTogglesInitialized = false;
-    private subSettingsHoverInitialized = false;
-    private subSettingsOpenTimers: WeakMap<HTMLElement, number> = new WeakMap();
-    private subSettingsCollapseTimers: WeakMap<HTMLElement, number> = new WeakMap();
-    private subSettingsOpenedAt: WeakMap<HTMLElement, number> = new WeakMap();
     private currentFilterRules: KeywordFilterRule[] = [];
 
     // 子标签元素
     private subtabLinks!: NodeListOf<HTMLButtonElement>;
-    private currentSubtab: 'list' | 'video' | 'actor' | 'other' = 'list';
+    public currentSubtab: 'list' | 'video' | 'actor' | 'other' = 'list';
 
     // 编排可视化相关
-    private showOrchestratorBtn!: HTMLButtonElement | null;
-    private orchestratorModal!: HTMLElement | null;
-    private orchestratorModalClose!: HTMLButtonElement | null;
-    private orchestratorCloseBtn!: HTMLButtonElement | null;
-    private orchestratorRefreshBtn!: HTMLButtonElement | null;
-    private orchestratorStopAllBtn!: HTMLButtonElement | null;
-    private orchestratorClearGlobalBtn!: HTMLButtonElement | null;
-    private orchestratorOpenJavdbBtn!: HTMLButtonElement | null;
-    private orchestratorFullscreenBtn!: HTMLButtonElement | null;
-    private orchestratorCopyPhasesBtn!: HTMLButtonElement | null;
-    private orchestratorCopyTimelineBtn!: HTMLButtonElement | null;
-    private taskDetailsCopyCurrentPageBtn!: HTMLButtonElement | null;
-    private orchestratorPhases!: HTMLElement | null;
-    private orchestratorTimeline!: HTMLElement | null;
-    private orchestratorSummary!: HTMLElement | null;
-    private orchestratorLegend!: HTMLElement | null;
-    private orchestratorConnectionStatus!: HTMLElement | null;
-    private orchestratorRuntimeListener?: (msg: any, sender: any, sendResponse: any) => void;
-    private orchestratorAutoRefreshTimer?: number;
     private orchFilterStatusSel!: HTMLSelectElement | null;
     private orchFilterPhaseSel!: HTMLSelectElement | null;
     private orchFilterSearchInput!: HTMLInputElement | null;
-    private orchViewModeSel!: HTMLSelectElement | null;
-    private orchGlobalScopeSel!: HTMLSelectElement | null;
-    private orchGlobalGroupingSel!: HTMLSelectElement | null;
-    private orchestratorTimelineData: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }> = [];
 
     // 任务明细弹窗相关元素
-    private showTaskDetailsBtn!: HTMLButtonElement | null;
-    private taskDetailsModal!: HTMLElement | null;
-    private taskDetailsModalClose!: HTMLButtonElement | null;
-    private taskDetailsCloseBtn!: HTMLButtonElement | null;
-    private taskDetailsRefreshBtn!: HTMLButtonElement | null;
-    private taskDetailsStopAllBtn!: HTMLButtonElement | null;
-    private taskDetailsClearBtn!: HTMLButtonElement | null;
-    private taskDetailsAutoRefreshTimer?: number;
-    private taskDetailsRefreshing = false;
-    private taskDetailsTable!: HTMLTableElement | null;
-    private taskDetailsTableBody!: HTMLElement | null;
-    private taskDetailsCount!: HTMLElement | null;
-    private taskDetailsPrevPage!: HTMLButtonElement | null;
-    private taskDetailsNextPage!: HTMLButtonElement | null;
-    private taskDetailsPagination!: HTMLElement | null;
-    private taskDetailsSearch!: HTMLInputElement | null;
-    private taskDetailsViewMode!: HTMLSelectElement | null;
-    private taskDetailsPageSummaryHead!: HTMLElement | null;
     private taskDetailsView: 'tasks' | 'pages' = 'tasks';
-    private taskDetailsData: any[] = [];
-    private taskDetailsFilteredData: any[] = [];
-    private taskDetailsPageSummaryData: any[] = [];
-    private taskDetailsPageSummaryFilteredData: any[] = [];
-    private taskDetailsSearchQuery: string = '';
-    private taskDetailsCurrentPage: number = 1;
     private taskDetailsPageSize: number = 200;
-    private taskDetailsSortField: string = 'createdAt';
-    private taskDetailsSortOrder: 'asc' | 'desc' = 'desc';
-    private taskDetailsExpandedParents: Set<string> = new Set();
-    private taskDetailsExpandedPageSummaries: Set<string> = new Set();
-    private taskDetailsRenderedRows: any[] = [];
-    private globalOrchestratorState: any[] = [];
-    private taskDetailsRenderFingerprint: string = '';
+    private taskDetailsController!: any;
 
     constructor() {
         super({
@@ -234,7 +153,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 动态注入“磁力资源搜索”的并发与限流配置 UI（避免直接修改 settings.html）
      */
-    private injectMagnetConcurrencyControls(): void {
+    public injectMagnetConcurrencyControls(): void {
         try {
             const container = document.getElementById('magnetSourcesConfig');
             if (!container) return;
@@ -296,118 +215,49 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 同步演员水印透明度滑块的显示（数值与轨道填充）
      */
-    private handleActorOpacityChange(): void {
-        if (!this.actorWatermarkOpacity) return;
-        const value = this.actorWatermarkOpacity.value;
-        const opacityFloat = parseFloat(value);
-        const percentage = Math.round(opacityFloat * 100);
-        if (this.actorWatermarkOpacityValue) this.actorWatermarkOpacityValue.textContent = `${percentage}%`;
-        const group = this.actorWatermarkOpacity.closest('.volume-control-group') as HTMLElement | null;
-        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-        if (trackFill) trackFill.style.width = `${percentage}%`;
-        this.handleSettingChange();
+    public handleActorOpacityChange(): void {
+        return handleActorOpacityChange(this);
     }
 
     /**
      * 🆕 处理列数变化
      */
-    private handleColumnCountChange(): void {
-        if (!this.listColumnCount) return;
-        const value = parseInt(this.listColumnCount.value);
-        if (this.listColumnCountValue) this.listColumnCountValue.textContent = `${value} 列`;
-        const group = this.listColumnCount.closest('.form-group') as HTMLElement | null;
-        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-        if (trackFill) trackFill.style.width = `${((value - 1) / 7) * 100}%`;
-        
-        // 根据容器扩展状态动态调整容器宽度的最大值
-        this.updateContainerWidthMax();
-        
-        this.handleSettingChange();
+    public handleColumnCountChange(): void {
+        return handleColumnCountChange(this);
     }
 
     /**
      * 🆕 处理容器宽度变化
      */
-    private handleContainerWidthChange(): void {
-        if (!this.listContainerWidth) return;
-        const value = parseInt(this.listContainerWidth.value);
-        if (this.listContainerWidthValue) this.listContainerWidthValue.textContent = `${value}%`;
-        const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
-        const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-        if (trackFill) trackFill.style.width = `${((value - 50) / 100) * 100}%`;
-        this.handleSettingChange();
+    public handleContainerWidthChange(): void {
+        return handleContainerWidthChange(this);
     }
 
     /**
      * 🆕 根据容器扩展状态和列数更新容器宽度的最大值
      */
-    private updateContainerWidthMax(): void {
-        if (!this.listContainerWidth || !this.listColumnCount) return;
-        
-        const columnCount = parseInt(this.listColumnCount.value) || 4;
-        const enableContainerExpansion = this.enableContainerExpansion?.checked === true;
-        
-        let maxWidth: number;
-        
-        if (enableContainerExpansion) {
-            // 容器扩展开启：搜索框和容器都是100%宽度
-            // 公式：最大宽度 = 100 * 列数 / (列数 - 0.3)
-            // 缩小范围，避免超出太多
-            maxWidth = Math.floor(100 * columnCount / (columnCount - 0.3));
-        } else {
-            // 容器扩展关闭：搜索框和容器保持 Bulma 默认宽度
-            // 允许更大的宽度范围，公式：最大宽度 = 100 * 列数 / (列数 - 0.8)
-            maxWidth = Math.floor(100 * columnCount / (columnCount - 0.8));
-            // 4-8列额外增加10%
-            if (columnCount >= 4 && columnCount <= 8) {
-                maxWidth = Math.floor(maxWidth * 1.1);
-            }
-        }
-        
-        // 更新滑块的最大值
-        this.listContainerWidth.max = maxWidth.toString();
-        
-        // 如果当前宽度超过新的最大值，调整到最大值
-        const currentWidth = parseInt(this.listContainerWidth.value);
-        if (currentWidth > maxWidth) {
-            this.listContainerWidth.value = maxWidth.toString();
-            if (this.listContainerWidthValue) {
-                this.listContainerWidthValue.textContent = `${maxWidth}%`;
-            }
-            const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
-            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-            if (trackFill) trackFill.style.width = `${((maxWidth - 50) / 100) * 100}%`;
-        }
-        
-        console.log('[Enhancement] Container width max updated to:', maxWidth, 'for column count:', columnCount, 'expansion:', enableContainerExpansion);
+    public updateContainerWidthMax(): void {
+        return updateContainerWidthMax(this);
     }
 
     /**
      * 获取当前选中的预览来源
      */
     private getPreferredPreviewSource(): 'auto' | 'javdb' | 'javspyl' | 'avpreview' | 'vbgfl' {
-        if (this.previewSourceJavDB?.checked) return 'javdb';
-        if (this.previewSourceJavSpyl?.checked) return 'javspyl';
-        if (this.previewSourceAVPreview?.checked) return 'avpreview';
-        if (this.previewSourceVBGFL?.checked) return 'vbgfl';
-        return 'auto';
+        return getPreferredPreviewSource(this);
     }
 
     /**
      * 同步"视频预览增强"的当前延迟展示到说明文字（#currentPreviewDelay）
      */
-    private updateCurrentPreviewDelayDisplay(): void {
-        const span = document.getElementById('currentPreviewDelay');
-        if (!span) return;
-        const val = (this.previewDelay?.value || '').trim();
-        const n = parseInt(val || '0', 10);
-        span.textContent = isNaN(n) ? '—' : String(n);
+    public updateCurrentPreviewDelayDisplay(): void {
+        return updateCurrentPreviewDelayDisplay(this);
     }
 
     /**
      * 动态生成演员页过滤标签复选框
      */
-    private renderActorFilterTags(): void {
+    public renderActorFilterTags(): void {
         const container = document.getElementById('actorDefaultTagsGroup');
         if (!container) return;
 
@@ -441,411 +291,18 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 初始化DOM元素
      */
     protected initializeElements(): void {
-        // 先动态生成演员页过滤标签
-        this.renderActorFilterTags();
-
-        // 数据增强功能元素
-        this.enableTranslation = document.getElementById('enableTranslation') as HTMLInputElement;
-
-        // 用户体验增强元素
-        this.enableContentFilter = document.getElementById('enableContentFilter') as HTMLInputElement;
-        this.enableMagnetSearch = document.getElementById('enableMagnetSearch') as HTMLInputElement;
-        this.enableAnchorOptimization = document.getElementById('enableAnchorOptimization') as HTMLInputElement;
-        this.enableListEnhancement = document.getElementById('enableListEnhancement') as HTMLInputElement;
-        this.enableActorEnhancement = document.getElementById('enableActorEnhancement') as HTMLInputElement;
-        this.enableVideoEnhancement = document.getElementById('enableVideoEnhancement') as HTMLInputElement;
-        this.enablePasswordHelper = document.getElementById('enablePasswordHelper') as HTMLInputElement;
-
-        // 密码助手配置元素
-        this.passwordShowMethod = document.getElementById('passwordShowMethod') as HTMLSelectElement;
-        this.passwordWaitTime = document.getElementById('passwordWaitTime') as HTMLInputElement;
-
-        // 演员页增强配置（在动态生成后查询）
-        this.enableAutoApplyTags = document.getElementById('enableAutoApplyTags') as HTMLInputElement;
-        this.actorDefaultTagInputs = document.querySelectorAll('#actorDefaultTagsGroup input[name="actorDefaultTag"]') as NodeListOf<HTMLInputElement>;
-        this.actorEnhancementConfig = document.getElementById('actorEnhancementConfig') as HTMLElement;
-        this.lastAppliedTagsDisplay = document.getElementById('lastAppliedTagsDisplay') as HTMLElement;
-        this.appliedTagsContainer = document.getElementById('appliedTagsContainer') as HTMLElement;
-        this.clearLastAppliedTags = document.getElementById('clearLastAppliedTags') as HTMLButtonElement;
-        this.aeEnableActionButtons = document.getElementById('aeEnableActionButtons') as HTMLInputElement;
-        // 新增：演员页 影片分段显示元素
-        this.aeEnableTimeSegmentationDivider = document.getElementById('aeEnableTimeSegmentationDivider') as HTMLInputElement;
-        this.aeTimeSegmentationMonths = document.getElementById('aeTimeSegmentationMonths') as HTMLInputElement;
-        // 磁力搜索源配置
-        this.magnetSourceSukebei = document.getElementById('magnetSourceSukebei') as HTMLInputElement;
-        this.magnetSourceBtdig = document.getElementById('magnetSourceBtdig') as HTMLInputElement;
-        this.magnetSourceBtsow = document.getElementById('magnetSourceBtsow') as HTMLInputElement;
-        this.magnetSourceTorrentz2 = document.getElementById('magnetSourceTorrentz2') as HTMLInputElement;
-        // 注入并发与限流控件（若未存在）
-        this.injectMagnetConcurrencyControls();
-        // 并发与限流配置
-        this.magnetPageMaxConcurrentRequests = document.getElementById('magnetPageMaxConcurrentRequests') as HTMLInputElement;
-        this.magnetBgGlobalMaxConcurrent = document.getElementById('magnetBgGlobalMaxConcurrent') as HTMLInputElement;
-        this.magnetBgPerHostMaxConcurrent = document.getElementById('magnetBgPerHostMaxConcurrent') as HTMLInputElement;
-        this.magnetBgPerHostRateLimitPerMin = document.getElementById('magnetBgPerHostRateLimitPerMin') as HTMLInputElement;
-
-        // 锚点优化配置
-        this.anchorButtonPosition = document.getElementById('anchorButtonPosition') as HTMLSelectElement;
-        this.showPreviewButton = document.getElementById('showPreviewButton') as HTMLInputElement;
-
-        // 列表增强配置
-        this.enableClickEnhancement = document.getElementById('enableClickEnhancement') as HTMLInputElement;
-        this.enableClickEnhancementList = document.getElementById('enableClickEnhancementList') as HTMLInputElement;
-        this.enableClickEnhancementDetail = document.getElementById('enableClickEnhancementDetail') as HTMLInputElement;
-        this.enableListVideoPreview = document.getElementById('enableVideoPreview') as HTMLInputElement;
-        // 🆕 视频预览启用范围
-        this.enableVideoPreviewList = document.getElementById('enableVideoPreviewList') as HTMLInputElement;
-        this.enableVideoPreviewDetail = document.getElementById('enableVideoPreviewDetail') as HTMLInputElement;
-        this.enableScrollPaging = document.getElementById('enableScrollPaging') as HTMLInputElement;
-        this.enableActorWatermark = document.getElementById('enableActorWatermark') as HTMLInputElement;
-        this.previewDelay = document.getElementById('previewDelay') as HTMLInputElement;
-        this.previewVolume = document.getElementById('previewVolume') as HTMLInputElement;
-        this.previewVolumeValue = document.getElementById('previewVolumeValue') as HTMLSpanElement;
-        
-        // 影片页增强子项
-        this.veEnableCoverImage = document.getElementById('veEnableCoverImage') as HTMLInputElement;
-        this.veShowLoadingIndicator = document.getElementById('veShowLoadingIndicator') as HTMLInputElement;
-        this.veEnableReviewBreaker = document.getElementById('veEnableReviewBreaker') as HTMLInputElement;
-        this.veEnableFC2Breaker = document.getElementById('veEnableFC2Breaker') as HTMLInputElement;
-        this.veEnableActorRemarks = document.getElementById('veEnableActorRemarks') as HTMLInputElement;
-        this.veEnableActorNameMarks = document.getElementById('veEnableActorNameMarks') as HTMLInputElement;
-        this.veActorRemarksMode = document.getElementById('veActorRemarksMode') as HTMLSelectElement;
-        this.veActorRemarksTTL = document.getElementById('veActorRemarksTTL') as HTMLInputElement;
-        this.veActorRemarksTaskTimeout = document.getElementById('veActorRemarksTaskTimeout') as HTMLInputElement;
-        // 新增：影片页收藏与评分
-        this.veEnableVideoFavoriteRating = document.getElementById('enableVideoFavoriteRating') as HTMLInputElement;
-        // 新增：演员标记增强
-        this.enableActorQuickActions = document.getElementById('enableActorQuickActions') as HTMLInputElement;
-        // 新增：本地同步类子项
-        this.veEnableWantSync = document.getElementById('veEnableWantSync') as HTMLInputElement;
-        this.veAutoMarkWatchedAfter115 = document.getElementById('veAutoMarkWatchedAfter115') as HTMLInputElement;
-        this.veAutoMarkWatchedStars = document.getElementById('veAutoMarkWatchedStars') as HTMLSelectElement;
-        // 演员水印子设置元素
-        this.actorWatermarkPosition = document.getElementById('actorWatermarkPosition') as HTMLSelectElement;
-        this.actorWatermarkOpacity = document.getElementById('actorWatermarkOpacity') as HTMLInputElement;
-        this.actorWatermarkOpacityValue = document.getElementById('actorWatermarkOpacityValue') as HTMLSpanElement;
-
-        // 🆕 列表显示控制元素
-        this.listColumnCount = document.getElementById('listColumnCount') as HTMLInputElement;
-        this.listColumnCountValue = document.getElementById('listColumnCountValue') as HTMLSpanElement;
-        this.listContainerWidth = document.getElementById('listContainerWidth') as HTMLInputElement;
-        this.listContainerWidthValue = document.getElementById('listContainerWidthValue') as HTMLSpanElement;
-        this.enableContainerExpansion = document.getElementById('enableContainerExpansion') as HTMLInputElement;
-        // 🆕 状态标签显示
-        this.showStatusBadge = document.getElementById('showStatusBadge') as HTMLInputElement;
-        // 预览来源单选
-        this.previewSourceAuto = document.getElementById('previewSourceAuto') as HTMLInputElement;
-        this.previewSourceJavDB = document.getElementById('previewSourceJavDB') as HTMLInputElement;
-        this.previewSourceJavSpyl = document.getElementById('previewSourceJavSpyl') as HTMLInputElement;
-        this.previewSourceAVPreview = document.getElementById('previewSourceAVPreview') as HTMLInputElement;
-        this.previewSourceVBGFL = document.getElementById('previewSourceVBGFL') as HTMLInputElement;
-
-        // 配置区域元素
-        this.translationConfig = document.getElementById('translationConfig') as HTMLDivElement;
-        // 翻译相关元素
-        this.translationProviderSel = document.getElementById('translationProvider') as HTMLSelectElement;
-        this.traditionalServiceSel = document.getElementById('traditionalTranslationService') as HTMLSelectElement;
-        this.traditionalApiKeyInput = document.getElementById('traditionalApiKey') as HTMLInputElement;
-        this.traditionalApiKeyGroup = document.getElementById('traditionalApiKeyGroup') as HTMLDivElement;
-        this.currentTranslationServiceLabel = document.getElementById('currentTranslationService') as HTMLElement;
-        this.aiConfigContainer = document.getElementById('aiTranslationConfig') as HTMLDivElement;
-        this.traditionalConfigContainer = document.getElementById('traditionalTranslationConfig') as HTMLDivElement;
-        this.translateCurrentTitleChk = document.getElementById('translateCurrentTitle') as HTMLInputElement;
-        this.translationDisplayModeSel = document.getElementById('translationDisplayMode') as HTMLSelectElement;
-        this.aiCurrentModelLabel = document.getElementById('aiCurrentModel') as HTMLElement;
-        this.aiModelEmptyTip = document.getElementById('aiModelEmptyTip') as HTMLElement;
-        this.goAiSettingsBtn = document.getElementById('goAiSettingsBtn') as HTMLButtonElement;
-        this.magnetSourcesConfig = document.getElementById('magnetSourcesConfig') as HTMLDivElement;
-        this.contentFilterConfig = document.getElementById('contentFilterConfig') as HTMLElement;
-        this.anchorOptimizationConfig = document.getElementById('anchorOptimizationConfig') as HTMLElement;
-        this.listEnhancementConfig = document.getElementById('listEnhancementConfig') as HTMLDivElement;
-        this.videoEnhancementConfig = document.getElementById('videoEnhancementConfig') as HTMLDivElement;
-
-        // 合并翻译开关：高级选项已移除（仅保留单一全局开关）
-
-        // 内容过滤相关元素
-        this.addFilterRuleBtn = document.getElementById('addFilterRule') as HTMLButtonElement;
-        this.filterRulesList = document.getElementById('filterRulesList') as HTMLElement;
-
-        // 子标签
-        this.subtabLinks = document.querySelectorAll('#enhancementSubTabs .subtab-link') as NodeListOf<HTMLButtonElement>;
-
-        // 编排可视化元素
-        this.showOrchestratorBtn = document.getElementById('showOrchestratorBtn') as HTMLButtonElement | null;
-        this.orchestratorModal = document.getElementById('orchestratorModal');
-        this.orchestratorModalClose = document.getElementById('orchestratorModalClose') as HTMLButtonElement | null;
-        this.orchestratorCloseBtn = document.getElementById('orchestratorCloseBtn') as HTMLButtonElement | null;
-        this.orchestratorRefreshBtn = document.getElementById('orchestratorRefreshBtn') as HTMLButtonElement | null;
-        this.orchestratorStopAllBtn = document.getElementById('orchestratorStopAllBtn') as HTMLButtonElement | null;
-        this.orchestratorClearGlobalBtn = document.getElementById('orchestratorClearGlobalBtn') as HTMLButtonElement | null;
-        this.orchestratorOpenJavdbBtn = document.getElementById('orchestratorOpenJavdbBtn') as HTMLButtonElement | null;
-        this.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
-        this.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
-        this.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
-        this.taskDetailsCopyCurrentPageBtn = document.getElementById('taskDetailsCopyCurrentPageBtn') as HTMLButtonElement | null;
-        this.orchestratorPhases = document.getElementById('orchestratorPhases');
-        this.orchestratorTimeline = document.getElementById('orchestratorTimeline');
-        this.orchestratorSummary = document.getElementById('orchestratorSummary');
-        this.orchestratorLegend = document.getElementById('orchestratorLegend');
-        this.orchestratorConnectionStatus = document.getElementById('orchestratorConnectionStatus');
-        this.orchFilterStatusSel = document.getElementById('orchFilterStatus') as HTMLSelectElement | null;
-        this.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
-        this.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
-        this.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
-        this.orchGlobalScopeSel = document.getElementById('orchGlobalScope') as HTMLSelectElement | null;
-        this.orchGlobalGroupingSel = document.getElementById('orchGlobalGrouping') as HTMLSelectElement | null;
-
-        // 任务明细弹窗元素
-        this.showTaskDetailsBtn = document.getElementById('showTaskDetailsBtn') as HTMLButtonElement | null;
-        this.taskDetailsModal = document.getElementById('taskDetailsModal');
-        this.taskDetailsModalClose = document.getElementById('taskDetailsModalClose') as HTMLButtonElement | null;
-        this.taskDetailsCloseBtn = document.getElementById('taskDetailsCloseBtn') as HTMLButtonElement | null;
-        this.taskDetailsRefreshBtn = document.getElementById('taskDetailsRefreshBtn') as HTMLButtonElement | null;
-        this.taskDetailsStopAllBtn = document.getElementById('taskDetailsStopAllBtn') as HTMLButtonElement | null;
-        this.taskDetailsClearBtn = document.getElementById('taskDetailsClearBtn') as HTMLButtonElement | null;
-        this.taskDetailsTable = document.getElementById('taskDetailsTable') as HTMLTableElement | null;
-        this.taskDetailsTableBody = document.getElementById('taskDetailsTableBody') as HTMLElement | null;
-        this.taskDetailsCount = document.getElementById('taskDetailsCount') as HTMLElement | null;
-        this.taskDetailsPrevPage = document.getElementById('taskDetailsPrevPage') as HTMLButtonElement | null;
-        this.taskDetailsNextPage = document.getElementById('taskDetailsNextPage') as HTMLButtonElement | null;
-        this.taskDetailsPagination = document.getElementById('taskDetailsPagination') as HTMLElement | null;
-        this.taskDetailsSearch = document.getElementById('taskDetailsSearch') as HTMLInputElement | null;
-        this.taskDetailsViewMode = document.getElementById('taskDetailsViewMode') as HTMLSelectElement | null;
-        this.taskDetailsPageSummaryHead = document.getElementById('taskDetailsPageSummaryHead');
-
-        if (!this.enableTranslation || !this.enableMagnetSearch || !this.enableListEnhancement || !this.enableActorEnhancement || !this.enableVideoEnhancement) {
-            throw new Error('功能增强设置相关的DOM元素未找到');
-        }
+        initializeElements(this);
     }
 
     /**
      * 绑定事件监听器
      */
     protected bindEvents(): void {
-        // 注意：不在这里初始化功能增强开关，而是在设置加载完成后初始化
-
-        // 磁力搜索源配置事件监听
-        this.magnetSourceSukebei?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetSourceBtdig?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetSourceBtsow?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetSourceTorrentz2?.addEventListener('change', this.handleSettingChange.bind(this));
-        // 并发与限流配置事件监听
-        this.magnetPageMaxConcurrentRequests?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetBgGlobalMaxConcurrent?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetBgPerHostMaxConcurrent?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.magnetBgPerHostRateLimitPerMin?.addEventListener('change', this.handleSettingChange.bind(this));
-
-        // 锚点优化配置事件监听
-        this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
-
-        // 翻译配置事件监听
-        this.translationProviderSel?.addEventListener('change', this.onTranslationProviderChange.bind(this));
-        this.traditionalServiceSel?.addEventListener('change', this.onTraditionalServiceChange.bind(this));
-        this.traditionalApiKeyInput?.addEventListener('input', this.handleSettingChange.bind(this));
-        this.goAiSettingsBtn?.addEventListener('click', this.navigateToAISettings.bind(this));
-        this.translateCurrentTitleChk?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.translationDisplayModeSel?.addEventListener('change', this.handleSettingChange.bind(this));
-
-        // 列表增强配置事件监听
-        this.enableClickEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableClickEnhancementList?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableClickEnhancementDetail?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableListVideoPreview?.addEventListener('change', this.handleSettingChange.bind(this));
-        // 🆕 视频预览启用范围
-        this.enableVideoPreviewList?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableVideoPreviewDetail?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableScrollPaging?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.enableActorWatermark?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.showStatusBadge?.addEventListener('change', this.handleSettingChange.bind(this));
-
-        // 影片页增强事件监听
-        this.enableVideoEnhancement?.addEventListener('change', this.handleSettingChange.bind(this));
-
-        // 影片页增强子项事件监听（已移除“影片页翻译”独立开关，统一由全局翻译控制）
-        this.veEnableCoverImage?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veShowLoadingIndicator?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableReviewBreaker?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableFC2Breaker?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableActorRemarks?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veEnableActorNameMarks?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veActorRemarksMode?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veActorRemarksTTL?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.veActorRemarksTaskTimeout?.addEventListener('change', this.handleSettingChange.bind(this));
-        // 新增：本地同步子项
-
-        // 锚点优化配置事件监听
-        this.anchorButtonPosition?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.showPreviewButton?.addEventListener('change', this.handleSettingChange.bind(this));
-        this.actorWatermarkOpacity?.addEventListener('input', () => this.handleActorOpacityChange());
-
-        // 🆕 列表显示控制事件监听
-        this.listColumnCount?.addEventListener('input', () => this.handleColumnCountChange());
-        this.listContainerWidth?.addEventListener('input', () => this.handleContainerWidthChange());
-        this.enableContainerExpansion?.addEventListener('change', () => {
-            // 容器扩展开关变化时，更新容器宽度的最大值
-            this.updateContainerWidthMax();
-            this.handleSettingChange();
-        });
-
-        // 内容过滤规则事件监听
-        if (this.addFilterRuleBtn) {
-            console.log('[Enhancement] 绑定添加过滤规则按钮事件');
-            this.addFilterRuleBtn.addEventListener('click', this.addFilterRule.bind(this));
-        } else {
-            console.warn('[Enhancement] 未找到添加过滤规则按钮元素');
-        }
-
-        // 预览来源变更
-        const previewSourceRadios = [this.previewSourceAuto, this.previewSourceJavDB, this.previewSourceJavSpyl, this.previewSourceAVPreview, this.previewSourceVBGFL].filter(Boolean) as HTMLInputElement[];
-        previewSourceRadios.forEach(r => r.addEventListener('change', this.handleSettingChange.bind(this)));
-
-        // 设置样式支持（在DOM元素都初始化完成后）
-        this.setupVolumeControlStyles();
-        this.setupAnchorConfigStyles();
-        this.setupCheckboxGroupStyles();
-
-        // 子标签切换
-        this.bindSubtabLinks();
-
-        // 编排可视化按钮事件
-        this.bindOrchestratorControls();
-
-        // 过滤器事件
-        this.orchFilterStatusSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
-        this.orchFilterPhaseSel?.addEventListener('change', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
-        this.orchFilterSearchInput?.addEventListener('input', () => this.renderOrchestratorTimeline(this.orchestratorTimelineData));
-        this.orchGlobalScopeSel?.addEventListener('change', () => {
-            void this.refreshOrchestratorState();
-        });
-        this.orchGlobalGroupingSel?.addEventListener('change', () => {
-            void this.refreshOrchestratorState();
-        });
-        this.orchViewModeSel?.addEventListener('change', () => {
-            this.unsubscribeOrchestratorEvents();
-            this.startOrchestratorAutoRefresh();
-            void this.refreshOrchestratorState();
-        });
-
-        // 任务明细弹窗事件
-        if (this.showTaskDetailsBtn && this.showTaskDetailsBtn.dataset.taskDetailsBound !== '1') {
-            this.showTaskDetailsBtn.dataset.taskDetailsBound = '1';
-            this.showTaskDetailsBtn.addEventListener('click', () => this.openTaskDetailsModal());
-        }
-        if (this.taskDetailsModalClose && this.taskDetailsModalClose.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsModalClose.dataset.taskDetailsBound = '1';
-            this.taskDetailsModalClose.addEventListener('click', () => this.closeTaskDetailsModal());
-        }
-        if (this.taskDetailsCloseBtn && this.taskDetailsCloseBtn.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsCloseBtn.dataset.taskDetailsBound = '1';
-            this.taskDetailsCloseBtn.addEventListener('click', () => this.closeTaskDetailsModal());
-        }
-        if (this.taskDetailsRefreshBtn && this.taskDetailsRefreshBtn.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsRefreshBtn.dataset.taskDetailsBound = '1';
-            this.taskDetailsRefreshBtn.addEventListener('click', () => this.refreshTaskDetails());
-        }
-        if (this.taskDetailsStopAllBtn && this.taskDetailsStopAllBtn.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsStopAllBtn.dataset.taskDetailsBound = '1';
-            this.taskDetailsStopAllBtn.addEventListener('click', () => this.stopAllTaskDetails());
-        }
-        if (this.taskDetailsClearBtn && this.taskDetailsClearBtn.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsClearBtn.dataset.taskDetailsBound = '1';
-            this.taskDetailsClearBtn.addEventListener('click', () => this.clearTaskDetails());
-        }
-        if (this.taskDetailsCopyCurrentPageBtn && this.taskDetailsCopyCurrentPageBtn.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsCopyCurrentPageBtn.dataset.taskDetailsBound = '1';
-            this.taskDetailsCopyCurrentPageBtn.addEventListener('click', () => this.copyCurrentPageTaskDiagnostics());
-        }
-        if (this.taskDetailsPrevPage && this.taskDetailsPrevPage.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsPrevPage.dataset.taskDetailsBound = '1';
-            this.taskDetailsPrevPage.addEventListener('click', () => this.taskDetailsPrevPageHandler());
-        }
-        if (this.taskDetailsNextPage && this.taskDetailsNextPage.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsNextPage.dataset.taskDetailsBound = '1';
-            this.taskDetailsNextPage.addEventListener('click', () => this.taskDetailsNextPageHandler());
-        }
-        if (this.taskDetailsTableBody && this.taskDetailsTableBody.dataset.expandBound !== '1') {
-            this.taskDetailsTableBody.dataset.expandBound = '1';
-            this.taskDetailsTableBody.addEventListener('click', (e) => {
-                const target = e.target as HTMLElement;
-                if (!target) return;
-                const togglePageSummary = target.closest('[data-page-summary-toggle]') as HTMLElement | null;
-                if (togglePageSummary) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const pageKey = togglePageSummary.getAttribute('data-page-summary-toggle') || '';
-                    if (!pageKey) return;
-                    if (this.taskDetailsExpandedPageSummaries.has(pageKey)) {
-                        this.taskDetailsExpandedPageSummaries.delete(pageKey);
-                    } else {
-                        this.taskDetailsExpandedPageSummaries.add(pageKey);
-                    }
-                    this.renderTaskDetailsTable();
-                    return;
-                }
-                const toggleParent = target.closest('[data-task-parent-toggle]') as HTMLElement | null;
-                if (toggleParent) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const parentKey = toggleParent.getAttribute('data-task-parent-toggle') || '';
-                    if (!parentKey) return;
-                    if (this.taskDetailsExpandedParents.has(parentKey)) {
-                        this.taskDetailsExpandedParents.delete(parentKey);
-                    } else {
-                        this.taskDetailsExpandedParents.add(parentKey);
-                    }
-                    this.renderTaskDetailsTable();
-                }
-            });
-        }
-        if (this.taskDetailsViewMode && this.taskDetailsViewMode.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsViewMode.dataset.taskDetailsBound = '1';
-            this.taskDetailsViewMode.addEventListener('change', () => {
-                this.taskDetailsView = this.taskDetailsViewMode?.value === 'pages' ? 'pages' : 'tasks';
-                this.taskDetailsCurrentPage = 1;
-                this.taskDetailsExpandedParents.clear();
-                this.taskDetailsExpandedPageSummaries.clear();
-                if (this.taskDetailsSearchQuery) {
-                    this.taskDetailsSearchHandler();
-                } else {
-                    this.renderTaskDetailsTable();
-                    const total = this.getRenderedTaskDetailsCount();
-                    const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-                    this.updateTaskDetailsPagination(total, totalPages);
-                }
-            });
-        }
-        // 搜索框事件
-        if (this.taskDetailsSearch && this.taskDetailsSearch.dataset.taskDetailsBound !== '1') {
-            this.taskDetailsSearch.dataset.taskDetailsBound = '1';
-            this.taskDetailsSearch.addEventListener('input', () => this.taskDetailsSearchHandler());
-        }
-        // 表格排序事件
-        if (this.taskDetailsTable && this.taskDetailsTable.dataset.sortBound !== '1') {
-            this.taskDetailsTable.dataset.sortBound = '1';
-            const headers = this.taskDetailsTable.querySelectorAll('thead th[data-sort]');
-            headers.forEach((header) => {
-                (header as HTMLElement).style.cursor = 'pointer';
-                header.addEventListener('click', () => {
-                    const sortField = header.getAttribute('data-sort');
-                    if (sortField) {
-                        this.taskDetailsSortHandler(sortField);
-                    }
-                });
-            });
-        }
-
-
-
-        // 绑定演员页增强相关按钮事件
-        this.initializeActorEnhancementEvents();
-
-        // 统一设置 sub-settings 悬浮展开/离开折叠
-        this.setupSubSettingsHoverBehavior();
+        bindEvents(this);
     }
 
     /** 将单个板块重置为默认值 */
-    private async resetSectionToDefaults(section: 'list' | 'video' | 'actor'): Promise<void> {
+    public async resetSectionToDefaults(section: 'list' | 'video' | 'actor'): Promise<void> {
         const s = STATE.settings;
         if (!s) return;
         if (section === 'list') {
@@ -891,658 +348,102 @@ export class EnhancementSettings extends BaseSettingsPanel {
     }
 
     // ===== Orchestrator Visualization =====
-    private async openOrchestratorModal(): Promise<void> {
-        if (!this.orchestratorModal) return;
-        this.ensureOrchestratorLocalStyles();
-        this.setOrchestratorConnectionStatus('idle');
-        if (this.orchViewModeSel) {
-            this.orchViewModeSel.value = 'global';
-        }
-        if (this.orchFilterStatusSel) {
-            this.orchFilterStatusSel.value = 'running';
-            this.orchFilterStatusSel.disabled = false;
-        }
-        if (this.orchGlobalScopeSel) {
-            this.orchGlobalScopeSel.value = this.orchGlobalScopeSel.value || 'all';
-        }
-        if (this.orchGlobalGroupingSel) {
-            this.orchGlobalGroupingSel.value = this.orchGlobalGroupingSel.value || 'grouped';
-        }
-        this.updateOrchestratorLegend('global');
-        this.orchestratorModal.classList.remove('hidden');
-        this.orchestratorModal.classList.add('visible');
-        void this.fetchAndUpdateMetrics();
-        await this.refreshOrchestratorState();
-        this.startOrchestratorAutoRefresh();
-        this.unsubscribeOrchestratorEvents();
+    public async openOrchestratorModal(): Promise<void> {
+        return openOrchestratorModal(this);
     }
 
-    private closeOrchestratorModal(): void {
-        if (!this.orchestratorModal) return;
-        this.orchestratorModal.classList.add('hidden');
-        this.orchestratorModal.classList.remove('visible');
-        this.stopOrchestratorAutoRefresh();
-        this.unsubscribeOrchestratorEvents();
+    public closeOrchestratorModal(): void {
+        return closeOrchestratorModal(this);
     }
 
-    private startOrchestratorAutoRefresh(): void {
-        this.stopOrchestratorAutoRefresh();
-        this.orchestratorAutoRefreshTimer = window.setInterval(() => {
-            if (!this.orchestratorModal || this.orchestratorModal.classList.contains('hidden')) {
-                return;
-            }
-            void this.refreshOrchestratorState();
-        }, 5000);
+    public startOrchestratorAutoRefresh(): void {
+        return startOrchestratorAutoRefresh(this);
     }
 
-    private stopOrchestratorAutoRefresh(): void {
-        if (this.orchestratorAutoRefreshTimer) {
-            window.clearInterval(this.orchestratorAutoRefreshTimer);
-            this.orchestratorAutoRefreshTimer = undefined;
-        }
+    public stopOrchestratorAutoRefresh(): void {
+        return stopOrchestratorAutoRefresh(this);
     }
 
-    private async refreshOrchestratorState(): Promise<void> {
-        try {
-            const mode = this.orchViewModeSel?.value || 'global';
-            this.setOrchestratorConnectionStatus('idle');
-            if (this.orchFilterStatusSel) {
-                this.orchFilterStatusSel.disabled = false;
-            }
-            if (mode === 'design') {
-                const designTasks = this.buildDesignTasks();
-                const phases = this.groupDesignTasksByPhase(designTasks);
-                if (this.orchestratorSummary) {
-                    const enabledCount = designTasks.filter(task => task.enabled).length;
-                    const highestPriority = designTasks.reduce((max, task) => Math.max(max, task.priority ?? 5), 0);
-                    this.orchestratorSummary.textContent = `设计视图（真实编排蓝图）：${enabledCount} 个启用任务｜最高优先级 ${highestPriority}｜当前配置实时生成`;
-                }
-                this.renderOrchestratorPhases(phases);
-                this.updateOrchestratorLegend('design');
-                this.orchestratorTimelineData = this.buildDesignTimeline(designTasks) as any[];
-                this.renderOrchestratorTimeline(this.orchestratorTimelineData);
-                await this.fetchAndUpdateMetrics();
-                this.setOrchestratorConnectionStatus('idle');
-                this.unsubscribeOrchestratorEvents();
-                return;
-            }
-
-            if (mode === 'global') {
-                const globalState = await fetchGlobalTaskState();
-                const allTasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
-                const preferredTab = await this.getPreferredJavdbTab();
-                const currentUrl = preferredTab?.url || '';
-                const currentTabId = typeof preferredTab?.id === 'number' ? preferredTab.id : -1;
-                const scope = this.orchGlobalScopeSel?.value || 'all';
-                const grouping = this.orchGlobalGroupingSel?.value || 'grouped';
-                const tasks = allTasks.filter((task: any) => {
-                    if (scope === 'current') {
-                        return (typeof task?.tabId === 'number' && task.tabId === currentTabId) || (!!currentUrl && task?.pageUrl === currentUrl);
-                    }
-                    if (scope === 'recent') {
-                        if ((typeof task?.tabId === 'number' && task.tabId === currentTabId) || (!!currentUrl && task?.pageUrl === currentUrl)) {
-                            return true;
-                        }
-                        const createdAt = typeof task?.createdAt === 'number' ? task.createdAt : 0;
-                        const startedAt = typeof task?.startedAt === 'number' ? task.startedAt : 0;
-                        const endedAt = typeof task?.endedAt === 'number' ? task.endedAt : 0;
-                        const ts = Math.max(createdAt, startedAt, endedAt);
-                        return ts > 0 && (Date.now() - ts) <= 2 * 60 * 1000;
-                    }
-                    if (scope === 'active') {
-                        const status = this.getGlobalTaskStatus(task);
-                        return !['done', 'error', 'canceled'].includes(status);
-                    }
-                    return true;
-                });
-                const byPhase = (phase: string) => {
-                    const phaseTasks = tasks.filter((task: any) => task.phase === phase);
-                    if (grouping === 'instances') return phaseTasks.map((task: any) => task.label);
-                    return Array.from(new Set(phaseTasks.map((task: any) => task.label)));
-                };
-                const statusCounts = tasks.reduce((acc: Record<string, number>, task: any) => {
-                    const status = this.getGlobalTaskStatus(task);
-                    acc[status] = (acc[status] || 0) + 1;
-                    return acc;
-                }, {});
-                const phases = {
-                    critical: byPhase('critical'),
-                    high: byPhase('high'),
-                    deferred: byPhase('deferred'),
-                    idle: byPhase('idle'),
-                };
-                if (this.orchestratorSummary) {
-                    const statusSummary = Object.entries(statusCounts).map(([key, value]) => `${this.getStatusLabel(key)} ${value}`).join('，') || '暂无任务';
-                    const scopeLabel = scope === 'current' ? '当前页实例' : (scope === 'recent' ? '最近活跃页' : (scope === 'active' ? '活动任务' : '全部页面'));
-                    const groupingLabel = grouping === 'instances' ? '实例' : '聚合';
-                    this.orchestratorSummary.textContent = `全局调度视图（${scopeLabel}｜${groupingLabel}）：${tasks.length} 个任务｜${statusSummary}`;
-                }
-                this.renderOrchestratorPhases(phases as any);
-                this.updateOrchestratorLegend('global');
-                this.globalOrchestratorState = tasks.map((task: any) => ({
-                    phase: task.phase || '-',
-                    label: task.label || '-',
-                    status: this.getGlobalTaskStatus(task),
-                    ts: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
-                    durationMs: typeof task.startedAt === 'number' && typeof task.endedAt === 'number'
-                        ? Math.max(0, task.endedAt - task.startedAt)
-                        : 0,
-                    detail: this.buildGlobalTaskDetail(task),
-                }));
-                this.orchestratorTimelineData = this.globalOrchestratorState as any[];
-                this.renderOrchestratorTimeline(this.orchestratorTimelineData);
-                await this.fetchAndUpdateMetrics();
-                this.setOrchestratorConnectionStatus('idle');
-                this.unsubscribeOrchestratorEvents();
-                return;
-            }
-
-            return;
-        } catch (e) {
-            this.setOrchestratorConnectionStatus('disconnected');
-            if (this.orchestratorSummary) this.orchestratorSummary.textContent = '读取失败：' + String(e);
-        }
+    public async refreshOrchestratorState(): Promise<void> {
+        return refreshOrchestratorState(this);
     }
 
-    private setOrchestratorConnectionStatus(status: 'connecting' | 'connected' | 'disconnected' | 'idle'): void {
-        if (!this.orchestratorConnectionStatus) return;
-        const map = {
-            connecting: { text: '连接中...', color: '#2563eb', bg: '#eff6ff' },
-            connected: { text: '已连接', color: '#059669', bg: '#ecfdf5' },
-            disconnected: { text: '未连接', color: '#dc2626', bg: '#fef2f2' },
-            idle: { text: '全局/设计视图', color: '#64748b', bg: '#f1f5f9' },
-        } as const;
-        const item = map[status];
-        this.orchestratorConnectionStatus.textContent = item.text;
-        this.orchestratorConnectionStatus.style.color = item.color;
-        this.orchestratorConnectionStatus.style.background = item.bg;
+    public setOrchestratorConnectionStatus(status: 'connecting' | 'connected' | 'disconnected' | 'idle'): void {
+        return setOrchestratorConnectionStatus(this, status);
     }
 
     // 设计视图：根据当前真实配置构造蓝图
-    private buildDesignTasks(): OrchestratorDesignTask[] {
-        const settings = (STATE.settings || this.doGetSettings() || {}) as ExtensionSettings & Record<string, any>;
-        const tasks: OrchestratorDesignTask[] = [];
-        const pushTask = (task: OrchestratorDesignTask) => tasks.push(task);
-
-        const videoTasks: OrchestratorDesignTask[] = [
-            { phase: 'idle', label: 'drive115:init:video', source: 'video', enabled: true },
-            { phase: 'idle', label: 'insights:collector', source: 'video', enabled: true },
-            ...this.getVideoDetailDesignBlueprints(settings).map((task) => ({
-                phase: task.phase,
-                label: task.label,
-                priority: task.priority,
-                timeout: task.timeout,
-                visibilityPolicy: task.visibilityPolicy,
-                source: 'video' as const,
-                enabled: true,
-            } as OrchestratorDesignTask)),
-        ];
-        videoTasks.forEach(pushTask);
-
-        if ((settings.videoEnhancement as any)?.enableActorQuickActions !== false) {
-            pushTask({ phase: 'high', label: 'actorQuickActions:init', priority: 6, visibilityPolicy: 'background_allowed', source: 'video', enabled: true });
-        }
-
-        if (settings.userExperience?.enableKeyboardShortcuts) {
-            pushTask({ phase: 'high', label: 'ux:shortcuts:init', priority: 8, source: 'global', enabled: true });
-        }
-
-        pushTask({
-            phase: 'high',
-            label: 'ui:remove-unwanted',
-            priority: 3,
-            visibilityPolicy: 'background_allowed',
-            source: 'global',
-            enabled: true,
-        });
-
-        if (settings.userExperience?.enableMagnetSearch) {
-            pushTask({ phase: 'idle', label: 'ux:magnet:autoSearch', source: 'global', enabled: true });
-        }
-
-        if (settings.userExperience?.enableAnchorOptimization) {
-            pushTask({ phase: 'deferred', label: 'anchorOptimization:init', source: 'global', enabled: true });
-        }
-
-        if (settings.userExperience?.enablePasswordHelper) {
-            pushTask({ phase: 'idle', label: 'passwordHelper:init', source: 'global', enabled: true });
-        }
-
-        if (settings.userExperience?.enableContentFilter) {
-            pushTask({ phase: 'idle', label: 'contentFilter:initialize', source: 'global', enabled: true });
-        }
-
-        if ((settings.videoEnhancement as any)?.showLoadingIndicator !== false) {
-            pushTask({ phase: 'critical', label: 'enhancementUI:showLoadingIndicator', priority: 13, visibilityPolicy: 'background_allowed', source: 'global', enabled: true });
-        }
-
-        if (settings.userExperience?.enableListEnhancement !== false) {
-            pushTask({ phase: 'critical', label: 'list:observe:init', visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
-            pushTask({ phase: 'high', label: 'listEnhancement:init', priority: 7, visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
-            pushTask({ phase: 'high', label: 'list:reprocess:after-listEnhancement', priority: 6, visibilityPolicy: 'background_allowed', source: 'list', enabled: true });
-            pushTask({ phase: 'idle', label: 'drive115:init:list', source: 'list', enabled: true });
-        }
-
-        const actorEnhancementEnabled = settings.userExperience?.enableActorEnhancement !== false;
-        if (actorEnhancementEnabled) {
-            pushTask({ phase: 'critical', label: 'actorEnhancement:init', visibilityPolicy: 'background_allowed', source: 'actor', enabled: true });
-            pushTask({ phase: 'critical', label: 'actorEnhancement:actionButtons', priority: 9, visibilityPolicy: 'background_allowed', source: 'actor', enabled: (settings.actorEnhancement as any)?.enableActionButtons !== false });
-        }
-
-        const actorRemarksEnabled = (settings.videoEnhancement as any)?.enabled === true && (settings.videoEnhancement as any)?.enableActorRemarks === true;
-        if (actorRemarksEnabled) {
-            pushTask({ phase: 'idle', label: 'actorRemarks:actorPage', timeout: Number((settings.videoEnhancement as any)?.actorRemarksTaskTimeoutSeconds || 10) * 1000, source: 'actor', enabled: true });
-        }
-
-        const includeEmby = this.isDesignEmbyEnabled(settings);
-        if (includeEmby) {
-            pushTask({ phase: 'deferred', label: 'emby:badge', source: 'global', enabled: true });
-        }
-
-        const deduped = new Map<string, OrchestratorDesignTask>();
-        tasks.forEach((task) => {
-            const current = deduped.get(task.label);
-            if (!current) {
-                deduped.set(task.label, task);
-                return;
-            }
-            const currentPriority = current.priority ?? 5;
-            const nextPriority = task.priority ?? 5;
-            if (nextPriority > currentPriority) {
-                deduped.set(task.label, task);
-            }
-        });
-
-        return Array.from(deduped.values()).sort((a, b) => {
-            const phaseOrder = { critical: 0, high: 1, deferred: 2, idle: 3 };
-            const phaseDiff = phaseOrder[a.phase] - phaseOrder[b.phase];
-            if (phaseDiff !== 0) return phaseDiff;
-            const priorityDiff = (b.priority ?? 5) - (a.priority ?? 5);
-            if (priorityDiff !== 0) return priorityDiff;
-            return a.label.localeCompare(b.label);
-        });
+    public buildDesignTasks(): OrchestratorDesignTask[] {
+        return buildDesignTasks(() => this.doGetSettings() as any);
     }
 
-    private getVideoDetailDesignBlueprints(settings: ExtensionSettings & Record<string, any>): Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> {
-        const blueprints: Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> = [];
-        const enableVideoEnhancement = settings?.videoEnhancement?.enabled === true;
-        const enableMultiSource = (settings as any)?.dataEnhancement?.enableMultiSource;
-        const enableTranslation = (settings as any)?.dataEnhancement?.enableTranslation;
-        const actorRemarksTaskTimeoutMs = this.getActorRemarksTaskTimeoutMsForDesign(settings);
-
-        if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
-            blueprints.push(
-                { phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' },
-                { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
-                { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
-                { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
-                { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000 },
-                { phase: 'idle', label: 'videoEnhancement:runCover' },
-                { phase: 'idle', label: 'videoEnhancement:runTitle' },
-                { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
-                { phase: 'idle', label: 'videoEnhancement:runReviewBreaker' },
-                { phase: 'idle', label: 'videoEnhancement:finish' },
-            );
-        }
-
-        if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
-            blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs });
-        }
-
-        if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
-            blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed' });
-        }
-
-        if ((settings as any)?.videoEnhancement?.enableActorNameMarks !== false) {
-            blueprints.push({ phase: 'idle', label: 'actorMarks:page' });
-        }
-
-        blueprints.push(
-            { phase: 'idle', label: 'videoEnhancement:panel' },
-        );
-
-        return blueprints;
+    public getVideoDetailDesignBlueprints(settings: ExtensionSettings & Record<string, any>): Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> {
+        return getVideoDetailDesignBlueprints(settings);
     }
 
-    private updateOrchestratorLegend(mode: 'design' | 'realtime' | 'global'): void {
-        if (!this.orchestratorLegend) return;
-        const legendMap: Record<'design' | 'realtime' | 'global', string> = {
-            design: `
-                <div><strong>说明：</strong>设计视图展示当前配置生成的真实蓝图。</div>
-                <div>• <strong>critical</strong>：关键路径，先执行，优先级最高。</div>
-                <div>• <strong>high</strong>：高优先级，尽快进入编排。</div>
-                <div>• <strong>deferred</strong>：延后执行，等待合适时机。</div>
-                <div>• <strong>idle</strong>：空闲时执行，避免打断主流程。</div>
-            `,
-            realtime: `
-                <div><strong>说明：</strong>实时视图已停用，使用全局视图进行页面实例聚焦。</div>
-            `,
-            global: `
-                <div><strong>说明：</strong>全局视图展示任务中心里的真实任务状态，可按当前页实例、最近活跃页和活动任务聚焦。</div>
-                <div>• <strong>critical</strong>：最高优先级，直接影响首屏与状态同步。</div>
-                <div>• <strong>high</strong>：高优先级，优先进入租约执行。</div>
-                <div>• <strong>deferred</strong>：排队后延时启动的任务。</div>
-                <div>• <strong>idle</strong>：低优先级后台任务。</div>
-            `,
-        };
-        this.orchestratorLegend.innerHTML = `<div class="orch-legend">${legendMap[mode]}</div>`;
+    public updateOrchestratorLegend(mode: 'design' | 'realtime' | 'global'): void {
+        return updateOrchestratorLegend(this, mode);
     }
 
-    private getActorRemarksTaskTimeoutMsForDesign(settings: ExtensionSettings & Record<string, any>): number {
-        const seconds = Number((settings as any)?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
-        if (!Number.isFinite(seconds) || seconds <= 0) return 12000;
-        return Math.max(1000, Math.round(seconds * 1000));
+    public getActorRemarksTaskTimeoutMsForDesign(settings: ExtensionSettings & Record<string, any>): number {
+        return getActorRemarksTaskTimeoutMsForDesign(settings);
     }
 
-    private groupDesignTasksByPhase(tasks: OrchestratorDesignTask[]): Record<'critical'|'high'|'deferred'|'idle', string[]> {
-        const phases: Record<'critical'|'high'|'deferred'|'idle', string[]> = {
-            critical: [],
-            high: [],
-            deferred: [],
-            idle: [],
-        };
-        tasks.filter(task => task.enabled).forEach((task) => {
-            phases[task.phase].push(task.label);
-        });
-        return phases;
+    public groupDesignTasksByPhase(tasks: OrchestratorDesignTask[]): Record<'critical'|'high'|'deferred'|'idle', string[]> {
+        return groupDesignTasksByPhase(tasks);
     }
 
-    private buildDesignTimeline(tasks: OrchestratorDesignTask[]): Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> {
-        const timeline: Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> = [];
-        const groups: Record<'critical'|'high'|'deferred'|'idle', OrchestratorDesignTask[]> = {
-            critical: tasks.filter(task => task.enabled && task.phase === 'critical'),
-            high: tasks.filter(task => task.enabled && task.phase === 'high'),
-            deferred: tasks.filter(task => task.enabled && task.phase === 'deferred'),
-            idle: tasks.filter(task => task.enabled && task.phase === 'idle'),
-        };
-
-        let currentTs = 0;
-        groups.critical.forEach((task) => {
-            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
-            currentTs += 10;
-        });
-
-        const highTs = currentTs;
-        groups.high.forEach((task) => {
-            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: highTs, detail: this.buildDesignTaskDetail(task) });
-        });
-
-        currentTs += groups.high.length > 0 ? 20 : 0;
-        groups.deferred.forEach((task) => {
-            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
-            currentTs += 10;
-        });
-
-        currentTs += groups.idle.length > 0 ? 30 : 0;
-        groups.idle.forEach((task) => {
-            timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: this.buildDesignTaskDetail(task) });
-            currentTs += 10;
-        });
-
-        return timeline;
+    public buildDesignTimeline(tasks: OrchestratorDesignTask[]): Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> {
+        return buildDesignTimeline(tasks) as any;
     }
 
-    private buildDesignTaskDetail(task: OrchestratorDesignTask): string {
-        const sourceMap: Record<OrchestratorDesignTask['source'], string> = {
-            video: '影片页',
-            actor: '演员页',
-            list: '列表页',
-            global: '全局',
-        };
-        const detailParts = [
-            `来源: ${sourceMap[task.source]}`,
-            `优先级: ${task.priority ?? 5}`,
-        ];
-        if (task.visibilityPolicy) detailParts.push(`可见性: ${task.visibilityPolicy}`);
-        if (typeof task.timeout === 'number' && task.timeout > 0) detailParts.push(`超时: ${task.timeout}ms`);
-        return detailParts.join(' ｜ ');
+    public buildDesignTaskDetail(task: OrchestratorDesignTask): string {
+        return buildDesignTaskDetail(task);
     }
 
-    private isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {
-        const rawPatterns = (settings as any)?.emby?.urlPatterns;
-        return Array.isArray(rawPatterns) && rawPatterns.some((pattern: any) => typeof pattern === 'string' && pattern.trim().length > 0);
+    public isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {
+        return isDesignEmbyEnabled(settings);
     }
 
-    private renderOrchestratorPhases(phases: Record<string, string[]>): void {
-        if (!this.orchestratorPhases) return;
-        const order: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
-        const phaseTitle: Record<'critical'|'high'|'deferred'|'idle', string> = {
-            critical: '关键（critical）',
-            high: '优先（high）',
-            deferred: '延迟（deferred）',
-            idle: '空闲（idle）',
-        };
-
-        const html: string[] = [];
-        html.push('<div class="orch-phases-grid">');
-        order.forEach((p) => {
-            const items = phases[p] || [];
-            html.push(`
-              <div class="orch-card">
-                <div class="orch-card-header">
-                  <span class="orch-phase">${phaseTitle[p]}</span>
-                  <span class="orch-count">${items.length} 项</span>
-                </div>
-                <ul class="orch-list">
-                  ${items.length === 0 ? '<li class="muted">(无任务)</li>' : items.map((label: string) => {
-                      const desc = this.getTaskDescription(label);
-                      const meta = this.getDesignTaskMeta(label);
-                      const metaText = meta ? ` [P${meta.priority ?? 5}｜${meta.source}]` : '';
-                      const displayText = `${label}${metaText}${desc ? ` - ${desc}` : ''}`;
-                      return `<li title="${displayText}"><i class="dot"></i><span class="task-label">${label}</span>${meta ? `<span class="task-meta">P${meta.priority ?? 5} · ${meta.source}</span>` : ''}${desc ? `<span class="task-desc"> - ${desc}</span>` : ''}</li>`;
-                  }).join('')}
-                </ul>
-              </div>
-            `);
-        });
-        html.push('</div>');
-        this.orchestratorPhases.innerHTML = html.join('');
-        this.ensureOrchestratorLocalStyles();
+    public renderOrchestratorPhases(phases: Record<string, string[]>): void {
+        return renderOrchestratorPhases(this, phases);
     }
 
-    private getDesignTaskMeta(label: string): OrchestratorDesignTask | null {
-        const tasks = this.buildDesignTasks();
-        return tasks.find(task => task.label === label) || null;
+    public getDesignTaskMeta(label: string): OrchestratorDesignTask | null {
+        return getDesignTaskMeta(this.buildDesignTasks(), label);
     }
 
-    private getTimelineFilters() {
-        const status = (this.orchFilterStatusSel?.value || 'all') as 'all' | 'running' | 'done' | 'error' | 'scheduled' | 'registered' | 'queued' | 'leased' | 'paused' | 'canceled';
-        const phase = (this.orchFilterPhaseSel?.value || 'all') as 'all' | 'critical' | 'high' | 'deferred' | 'idle';
-        const keyword = (this.orchFilterSearchInput?.value || '').trim().toLowerCase();
-        return { status, phase, keyword };
+    public getTimelineFilters() {
+        return getTimelineFilters(this.orchFilterStatusSel?.value, this.orchFilterPhaseSel?.value, this.orchFilterSearchInput?.value);
     }
 
-    private getStatusLabel(status: string): string {
-        const map: Record<string, string> = {
-            registered: '已注册',
-            queued: '排队中',
-            leased: '已租约',
-            running: '运行中',
-            paused: '已暂停',
-            canceled: '已取消',
-            done: '已完成',
-            error: '错误',
-            scheduled: '已排程',
-            stale: '失联',
-        };
-        return map[status] || status;
+    public getStatusLabel(status: string): string {
+        return getStatusLabel(status);
     }
 
-    private getGlobalTaskStatus(task: any): string {
-        const heartbeatTs = typeof task?.heartbeatTs === 'number' ? task.heartbeatTs : 0;
-        const isStale = heartbeatTs > 0 && (Date.now() - heartbeatTs > 15000);
-        if (isStale && ['leased', 'running'].includes(String(task?.status))) return 'stale';
-        return String(task?.status || 'queued');
+    public getGlobalTaskStatus(task: any): string {
+        return getGlobalTaskStatus(task);
     }
 
-    private getWaitReasonLabel(waitReason: string | undefined): string {
-        if (!waitReason || waitReason === 'none') return '无';
-        if (waitReason.startsWith('bucket:')) {
-            const bucket = waitReason.split(':')[1] || 'unknown';
-            return `配额占满(${bucket})`;
-        }
-        if (waitReason === 'tab-hidden') return '页面隐藏';
-        if (waitReason === 'higher-priority-wait') return '等待更高优先级任务';
-        if (waitReason === 'lease-timeout') return '心跳超时取消';
-        if (waitReason === 'page-closed-by-user') return '页面关闭取消';
-        if (waitReason === 'page-refresh-replaced') return '页面刷新替换';
-        if (waitReason === 'manual-cancel') return '手动取消';
-        if (waitReason === 'task-not-found') return '任务不存在';
-        if (waitReason === 'paused') return '主动暂停';
-        return waitReason;
+    public getWaitReasonLabel(waitReason: string | undefined): string {
+        return getWaitReasonLabel(waitReason);
     }
 
-    private buildGlobalTaskDetail(task: any): string {
-        const statusPart = `状态: ${this.getStatusLabel(this.getGlobalTaskStatus(task))}`;
-        const queuePart = `队列: ${this.getWaitReasonLabel(task.waitReason)} | 优先级=${task.priority ?? '-'} | 阶段=${task.phase || '-'}`;
-        const quotaPart = `配额: cost=${task.cost || 'unknown'} | policy=${task.visibilityPolicy || 'unknown'} | retry=${task.retryCount ?? 0}/${task.retryLimit ?? 0}`;
-        const heartbeatPart = task.heartbeatTs
-            ? `心跳: ${Math.max(0, Math.round((Date.now() - task.heartbeatTs) / 1000))}s 前 | tab=${task.tabId}`
-            : `心跳: 无 | tab=${task.tabId}`;
-        return `${statusPart}<br>${queuePart}<br>${quotaPart}<br>${heartbeatPart}`;
+    public buildGlobalTaskDetail(task: any): string {
+        return buildGlobalTaskDetail(task);
     }
 
     // 任务中文说明（可按需扩展）
-    private getTaskDescription(label: string): string {
-        const map: Record<string, string> = {
-            // Critical 阶段
-            'system:init': '系统全局初始化',
-            'list:observe:init': '列表页观察器初始化',
-            'actorEnhancement:init': '演员页增强初始化',
-            'actorEnhancement:actionButtons': '演员页操作按钮增强',
-            'enhancementUI:showLoadingIndicator': '增强加载提示显示',
-            
-            // High 阶段
-            'performanceOptimizer:init': '性能优化器初始化',
-            'ux:shortcuts:init': '快捷键系统初始化',
-            'keyboardShortcuts:init': '快捷键系统初始化',
-            'privacy:init': '隐私保护系统初始化',
-            'ui:remove-unwanted': '移除官方按钮',
-            'drive115:init:video': '115网盘功能初始化（影片页）',
-            'drive115:init:list': '115网盘功能初始化（列表页）',
-            'listEnhancement:init': '列表增强初始化',
-            'videoStatus:initialSync': '番号库状态同步与页面标记',
-            'videoStatus:finalizeStatus': '番号库状态发布与图标更新',
-            'videoStatus:fullRefresh': '番号库详情全量刷新',
-            'videoEnhancement:initCore': '影片页核心初始化',
-            'videoEnhancement:clickEnhancement': '详情页点击增强',
-            'videoStatus:update': '页面影片状态更新',
-            'videoStatus:observer': '页面影片状态监听',
-            
-            // Deferred 阶段
-            'insights:collector': '观影标签采集器',
-            'actorRemarks:actorPage': '演员页备注显示',
-            'anchorOptimization:init': '锚点优化初始化',
-            'ux:anchorOptimization:init': '锚点优化初始化',
-            'contentFilter:init': '内容过滤初始化',
-            'contentFilter:initialize': '内容过滤初始化',
-            'ux:contentFilter': '内容过滤初始化',
-            'emby:badge': 'Emby徽标增强',
-            'passwordHelper:init': '密码助手初始化',
-            'videoEnhancement:runCover': '影片页封面增强',
-            'videoEnhancement:runTitle': '影片页标题翻译',
-            'videoEnhancement:runReviewBreaker': '评论区破解',
-            'videoEnhancement:runFC2Breaker': 'FC2拦截破解',
-            'videoEnhancement:finish': '影片页增强完成',
-            'actorRemarks:run': '演员备注快速运行',
-            'videoFavoriteRating:init': '影片收藏评分初始化',
-            'drive115:push': '115推送任务',
-            
-            // Idle 阶段
-            'ux:magnet:autoSearch': '磁力搜索自动检索',
-            
-            // 其他可能的任务
-            'list:preview:init': '列表页预览初始化',
-            'list:optimization:init': '列表页优化初始化',
-        };
-        return map[label] || '';
+    public getTaskDescription(label: string): string {
+        return getTaskDescription(label);
     }
 
-    private renderOrchestratorTimeline(timeline: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>): void {
-        if (!this.orchestratorTimeline) return;
-        const mode = this.orchViewModeSel?.value || 'global';
-        const filters = this.getTimelineFilters();
-        const list = (timeline || []).filter(item => {
-            if (filters.status !== 'all' && item.status !== filters.status) return false;
-            if (filters.phase !== 'all' && item.phase !== filters.phase) return false;
-            if (filters.keyword && !(`${item.label}`.toLowerCase().includes(filters.keyword))) return false;
-            return true;
-        }).slice(-300);
-
-        const container = this.orchestratorTimeline as HTMLElement;
-        container.classList.toggle('timeline-design', mode === 'design');
-        container.classList.toggle('timeline-realtime', mode !== 'design');
-
-        // 分组并发任务（相同时间戳的任务）
-        const grouped: Array<{ ts: number; items: typeof list }> = [];
-        list.forEach(item => {
-            const lastGroup = grouped[grouped.length - 1];
-            if (lastGroup && Math.abs(lastGroup.ts - item.ts) < 1) {
-                // 时间差小于1ms，视为并发
-                lastGroup.items.push(item);
-            } else {
-                grouped.push({ ts: item.ts, items: [item] });
-            }
-        });
-
-        const rows = grouped.map((group) => {
-            const isConcurrent = group.items.length > 1;
-            const groupHtml = group.items.map((item, idx) => {
-                const t = item.ts !== undefined ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`) : '';
-                const dur = mode === 'design' ? '' : (typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-');
-                const badgeClass = `badge ${item.status}`;
-                const detail = item.detail ? `<div class=\"detail\">${item.detail}</div>` : '';
-                const desc = this.getTaskDescription(item.label);
-                const concurrentMarker = isConcurrent ? `<span class="concurrent-marker" title="并发执行">⚡</span>` : '';
-                const timeDisplay = idx === 0 ? t : (isConcurrent ? '↳' : t);
-                return `
-                  <div class="row ${isConcurrent ? 'concurrent' : ''}">
-                    <div class="col time">${timeDisplay}</div>
-                    <div class="col status"><span class="${badgeClass}">${this.getStatusLabel(item.status)}</span></div>
-                    <div class="col phase">${item.phase}</div>
-                    <div class="col label" title="${item.label}">
-                      ${concurrentMarker}
-                      <div class="label-main">${item.label}</div>
-                      ${desc ? `<div class=\"label-desc\">${desc}</div>` : ''}
-                    </div>
-                    ${mode === 'design' ? '' : `<div class=\"col duration\">${dur}</div>`}
-                  </div>
-                  ${detail}
-                `;
-            }).join('');
-            return groupHtml;
-        }).join('');
-
-        const header = mode === 'design'
-          ? `
-            <div class="header no-duration">
-              <div class="col time">时间(相对)</div>
-              <div class="col status">状态</div>
-              <div class="col phase">阶段</div>
-              <div class="col label">任务</div>
-            </div>
-          `
-          : `
-            <div class="header with-duration">
-              <div class="col time">时间(ms)</div>
-              <div class="col status">状态</div>
-              <div class="col phase">阶段</div>
-              <div class="col label">任务</div>
-              <div class="col duration">耗时</div>
-            </div>
-          `;
-
-        const hasActiveFilter = (filters.status !== 'all') || (filters.phase !== 'all') || !!filters.keyword;
-        const empty = hasActiveFilter
-          ? '<div class=\"muted\">无匹配事件（请检查状态/阶段/搜索条件）</div>'
-          : '<div class=\"muted\">(暂无事件)</div>';
-        this.orchestratorTimeline.innerHTML = `${header}${rows || empty}`;
-        this.ensureOrchestratorLocalStyles();
-        this.orchestratorTimeline.scrollTop = this.orchestratorTimeline.scrollHeight;
+    public renderOrchestratorTimeline(timeline: Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>): void {
+        return renderOrchestratorTimeline(this, timeline);
     }
 
     // 注入一次性的轻量样式，保证在暗色主题下也清晰
-    private ensureOrchestratorLocalStyles(): void {
+    public ensureOrchestratorLocalStyles(): void {
         if (document.getElementById('orch-local-style')) return;
         const style = document.createElement('style');
         style.id = 'orch-local-style';
@@ -1619,351 +520,49 @@ export class EnhancementSettings extends BaseSettingsPanel {
         }
     }
 
-    // 复制“已注册任务”文本
-    private async copyPhasesText(): Promise<void> {
-        try {
-            // 优先使用当前视图模式下的数据：global -> 全局任务中心；design -> 静态规格
-            const mode = this.orchViewModeSel?.value || 'global';
-            let phases: Record<'critical'|'high'|'deferred'|'idle', string[]> | null = null;
-            if (mode === 'global') {
-                const globalState = await fetchGlobalTaskState();
-                const tasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
-                phases = {
-                    critical: tasks.filter((task: any) => task.phase === 'critical').map((task: any) => task.label),
-                    high: tasks.filter((task: any) => task.phase === 'high').map((task: any) => task.label),
-                    deferred: tasks.filter((task: any) => task.phase === 'deferred').map((task: any) => task.label),
-                    idle: tasks.filter((task: any) => task.phase === 'idle').map((task: any) => task.label),
-                };
-            }
-            if (!phases) {
-                phases = this.groupDesignTasksByPhase(this.buildDesignTasks());
-            }
-
-            const order: Array<'critical'|'high'|'deferred'|'idle'> = ['critical','high','deferred','idle'];
-            const phaseTitle: Record<'critical'|'high'|'deferred'|'idle', string> = {
-                critical: '关键（critical）',
-                high: '优先（high）',
-                deferred: '延迟（deferred）',
-                idle: '空闲（idle）',
-            };
-
-            const lines: string[] = [];
-            lines.push('已注册任务（按阶段）');
-            order.forEach((p) => {
-                lines.push(`[${phaseTitle[p]}]`);
-                const items = phases![p] || [];
-                if (items.length === 0) {
-                    lines.push('- （无任务）');
-                } else {
-                    items.forEach((label) => {
-                        const desc = this.getTaskDescription(label);
-                        // 使用制表符分隔，便于粘贴到表格或文档中对齐
-                        lines.push(`- ${label}\t${desc || ''}`.trimEnd());
-                    });
-                }
-                // 空行分隔不同阶段
-                lines.push('');
-            });
-
-            const text = lines.join('\n');
-            await this.writeClipboard(text);
-            showMessage('任务清单已复制到剪贴板', 'success');
-        } catch {
-            showMessage('复制任务清单失败', 'error');
-        }
+    // 复制”已注册任务”文本
+    public async copyPhasesText(): Promise<void> {
+        return copyPhasesText(this);
     }
 
-    // 复制“事件时间线”文本
-    private async copyTimelineText(): Promise<void> {
-        try {
-            const mode = this.orchViewModeSel?.value || 'global';
-            const filters = this.getTimelineFilters();
-            const raw = (this.orchestratorTimelineData || []) as Array<{ phase: string; label: string; status: string; ts: number; detail?: any; durationMs?: number }>;
-            const list = raw.filter(item => {
-                if (filters.status !== 'all' && item.status !== filters.status) return false;
-                if (filters.phase !== 'all' && item.phase !== filters.phase) return false;
-                if (filters.keyword && !(`${item.label}`.toLowerCase().includes(filters.keyword))) return false;
-                return true;
-            });
-
-            const header = mode === 'design'
-                ? '时间(相对)\t状态\t阶段\t任务'
-                : '时间(ms)\t状态\t阶段\t任务\t耗时';
-
-            const lines: string[] = [];
-            lines.push('事件时间线');
-            lines.push(header);
-
-            list.forEach(item => {
-                const timeStr = item.ts !== undefined
-                    ? (mode === 'design' ? `${Math.round(item.ts)} ms` : `${item.ts.toFixed(1)} ms`)
-                    : '';
-                const statusStr = (item.status || '').toUpperCase();
-                const phaseStr = item.phase || '';
-                const labelStr = item.label || '';
-                if (mode === 'design') {
-                    lines.push(`${timeStr}\t${statusStr}\t${phaseStr}\t${labelStr}`);
-                } else {
-                    const durStr = typeof item.durationMs === 'number' ? `${Math.round(item.durationMs)} ms` : '-';
-                    lines.push(`${timeStr}\t${statusStr}\t${phaseStr}\t${labelStr}\t${durStr}`);
-                }
-                // 如果存在错误详情，追加一行描述
-                if (item.detail) {
-                    lines.push(`  详情: ${String(item.detail)}`);
-                }
-            });
-
-            const text = lines.join('\n');
-            await this.writeClipboard(text);
-            showMessage('时间线已复制到剪贴板', 'success');
-        } catch {
-            showMessage('复制时间线失败', 'error');
-        }
+    // 复制”事件时间线”文本
+    public async copyTimelineText(): Promise<void> {
+        return copyTimelineText(this);
     }
 
-    private unsubscribeOrchestratorEvents(): void {
-        if (this.orchestratorRuntimeListener && chrome?.runtime?.onMessage) {
-            chrome.runtime.onMessage.removeListener(this.orchestratorRuntimeListener as any);
-            this.orchestratorRuntimeListener = undefined;
-        }
+    public unsubscribeOrchestratorEvents(): void {
+        return unsubscribeOrchestratorEvents(this);
     }
 
-    private async getPreferredJavdbTab(): Promise<chrome.tabs.Tab | null> {
-        try {
-            if (!chrome?.tabs?.query) return null;
-            const isJavdb = (url?: string | null) => !!url && /\bjavdb\b/i.test(url) && !url.startsWith('chrome-extension://');
-            const isRichPage = (url?: string | null) => !!url && /\/actors\/|\/v\/|\/search/.test(url);
-            const tabsInWin = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-                chrome.tabs.query({ lastFocusedWindow: true }, resolve);
-            });
-            let target = (tabsInWin || []).find(t => t.active && isJavdb(t.url) && isRichPage(t.url));
-            if (!target) target = (tabsInWin || []).find(t => isJavdb(t.url) && isRichPage(t.url));
-            if (!target) target = (tabsInWin || []).find(t => t.active && isJavdb(t.url));
-            if (!target) target = (tabsInWin || []).find(t => isJavdb(t.url));
-            if (!target) {
-                const allTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-                    chrome.tabs.query({}, resolve);
-                });
-                target = (allTabs || []).find(t => isJavdb(t.url) && isRichPage(t.url));
-                if (!target) target = (allTabs || []).find(t => isJavdb(t.url));
-            }
-            return target || null;
-        } catch (e) {
-            console.warn('[Enhancement] getPreferredJavdbTab failed:', e);
-            return null;
-        }
+    public async getPreferredJavdbTab(): Promise<chrome.tabs.Tab | null> {
+        return getPreferredJavdbTab();
     }
 
-    private getTaskDisplayNameForExport(label: string): string {
-        const taskNameMap: Record<string, string> = {
-            'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
-            'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
-            'drive115:push': '115推送任务 (drive115:push)',
-            'insights:collector': '观影标签采集器 (insights:collector)',
-            'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
-            'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
-            'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
-            'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
-            'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
-            'emby:badge': 'Emby徽标增强 (emby:badge)',
-            'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
-            'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
-            'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
-            'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
-            'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
-            'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
-            'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
-            'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
-            'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
-            'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
-            'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
-            'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
-            'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
-        };
-        return taskNameMap[label] || label;
+    public getTaskDisplayNameForExport(label: string): string {
+        return getTaskDisplayNameForExport(label);
     }
 
-    private getSortedTaskDetailsData(): any[] {
-        const dataToRender = this.getTaskDetailsSourceData();
-        return [...dataToRender].sort((a, b) => this.compareTaskDetailItems(a, b));
+    public getSortedTaskDetailsData(): any[] {
+        return this.taskDetailsController.getSortedTaskDetailsData();
     }
 
-    private getTaskDetailSortValue(task: any, sortField: string): string | number {
-        if (sortField === 'duration') return task?.durationMs || 0;
-        if (sortField === 'createdAt') return this.getTaskRegisteredAt(task);
-        if (sortField === 'startedAt') return this.getTaskStartedAt(task);
-        if (sortField === 'endedAt') return this.getTaskEffectiveEndAt(task);
-        if (sortField === 'waitDurationMs') return this.getTaskWaitDurationMs(task);
-        if (sortField === 'runDurationMs') return this.getTaskRunDurationMs(task);
-        const rawValue = task?.[sortField];
-        return typeof rawValue === 'string' || typeof rawValue === 'number' ? rawValue : 0;
+    public getTaskDetailSortValue(task: any, sortField: string): string | number {
+        return this.taskDetailsController.getTaskDetailSortValue(task, sortField);
     }
 
-    private compareTaskDetailItems(a: any, b: any): number {
-        const aVal = this.getTaskDetailSortValue(a, this.taskDetailsSortField);
-        const bVal = this.getTaskDetailSortValue(b, this.taskDetailsSortField);
-
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-            return this.taskDetailsSortOrder === 'asc'
-                ? aVal.localeCompare(bVal)
-                : bVal.localeCompare(aVal);
-        }
-
-        const aNum = typeof aVal === 'number' ? aVal : 0;
-        const bNum = typeof bVal === 'number' ? bVal : 0;
-        const isTimeField = ['createdAt', 'startedAt', 'endedAt'].includes(this.taskDetailsSortField);
-        if (isTimeField) {
-            const aMissing = aNum <= 0;
-            const bMissing = bNum <= 0;
-            if (aMissing !== bMissing) {
-                return aMissing ? 1 : -1;
-            }
-        }
-        if (aNum !== bNum) {
-            return this.taskDetailsSortOrder === 'asc' ? aNum - bNum : bNum - aNum;
-        }
-
-        const aRegisteredAt = this.getTaskRegisteredAt(a);
-        const bRegisteredAt = this.getTaskRegisteredAt(b);
-        if (aRegisteredAt !== bRegisteredAt) {
-            return this.taskDetailsSortOrder === 'asc'
-                ? aRegisteredAt - bRegisteredAt
-                : bRegisteredAt - aRegisteredAt;
-        }
-
-        return String(a?.label || '').localeCompare(String(b?.label || ''));
+    public compareTaskDetailItems(a: any, b: any): number {
+        return this.taskDetailsController.compareTaskDetailItems(a, b);
     }
 
-    private getVisibleTaskDetailGroups(includeCollapsedChildren: boolean = false): Array<{ parentKey: string; parent: any; children: any[] }> {
-        const groupedParents = this.getTaskDetailsGroupedParents(this.getSortedTaskDetailsData());
-        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
-        const endIndex = startIndex + this.taskDetailsPageSize;
-        return groupedParents.slice(startIndex, endIndex).map((group) => ({
-            parentKey: group.parentKey,
-            parent: group.parent,
-            children: (includeCollapsedChildren || this.taskDetailsExpandedParents.has(group.parentKey)) ? [...group.children] : [],
-        }));
+    public getVisibleTaskDetailGroups(includeCollapsedChildren: boolean = false): Array<{ parentKey: string; parent: any; children: any[] }> {
+        return this.taskDetailsController.getVisibleTaskDetailGroups(includeCollapsedChildren);
     }
 
     private buildVisibleTaskDetailsTableText(): string {
-        if (!this.taskDetailsTableBody) {
-            return this.taskDetailsView === 'pages' ? '(no page summaries)' : '(no task details)';
-        }
-
-        const header = this.taskDetailsView === 'pages'
-            ? '页面实例	主ID	类型	父任务数	成功	失败	总耗时	子任务	开始时间'
-            : '任务名称	子任务	阶段	状态	注册时间	开始时间	结束时间	等待执行	执行耗时	页面';
-
-        const lines: string[] = [header];
-        if (this.taskDetailsView === 'pages') {
-            const rows = (this.taskDetailsRenderedRows || []).filter((row) => row?.__rowType === 'page-summary-parent');
-            for (const row of rows) {
-                lines.push([
-                    this.getPagePath(row.pageUrl || ''),
-                    row.mainId || '-',
-                    row.pageType || '-',
-                    row.parentCount || 0,
-                    row.doneCount || 0,
-                    row.errorCount || 0,
-                    this.formatTaskDuration(row.totalDurationMs || 0),
-                    row.childCount || 0,
-                    this.formatTaskTimestamp(row.startedAt || 0),
-                ].join('\t'));
-
-                const tasks = this.getPageSummaryTasks(row);
-                const groupedParents = this.getTaskDetailsGroupedParents(tasks);
-                for (const group of groupedParents) {
-                    const parent = group.parent;
-                    const label = parent?.label || group.parentKey;
-                    const displayName = this.getTaskDisplayNameForExport(label);
-                    const phase = parent?.phase || '-';
-                    const status = this.getStatusLabel(parent?.status || 'unknown');
-                    const registeredAt = this.formatTaskTimestamp(this.getTaskRegisteredAt(parent) || Date.now());
-                    const startedAt = this.getTaskStartedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(parent)) : '-';
-                    const parentEffectiveEndAt = this.getTaskEffectiveEndAt(parent);
-                    const endedAt = parentEffectiveEndAt > 0 ? this.formatTaskTimestamp(parentEffectiveEndAt) : '-';
-                    const waitDuration = this.formatTaskDuration(this.getTaskWaitDurationMs(parent));
-                    const runDuration = this.formatTaskDuration(this.getTaskRunDurationMs(parent));
-                    const pagePath = this.getPagePath(parent?.pageUrl || '');
-                    const childCount = group.children.length || 0;
-                    const prefix = childCount > 0 ? `▶ ${childCount}` : '';
-                    lines.push(`${prefix}${displayName}\t-\t${phase}\t${status}\t${registeredAt}\t${startedAt}\t${endedAt}\t${waitDuration}\t${runDuration}\t${pagePath}`.trim());
-
-                    const detailLine = parent?.detail ? String(parent.detail).replace(/\n/g, ' ') : '';
-                    if (detailLine) {
-                        lines.push(detailLine);
-                    }
-
-                    const children = [...group.children].sort((a, b) => {
-                        const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
-                        const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
-                        return ai - bi;
-                    });
-                    for (const child of children) {
-                        const childLabel = child.label || child.parentLabel || '-';
-                        const childMeta = typeof child.batchIndex === 'number'
-                            ? `${child.subtaskLabel || '-'} #${child.batchIndex}${typeof child.itemCount === 'number' ? ` · ${child.itemCount}项` : ''}`
-                            : (child.subtaskLabel || '-');
-                        const childEffectiveEndAt = this.getTaskEffectiveEndAt(child);
-                        lines.push(`└ ${childLabel}\t${childMeta}\t${child.phase || '-'}\t${this.getStatusLabel(child.status || 'unknown')}\t${this.formatTaskTimestamp(this.getTaskRegisteredAt(child) || Date.now())}\t${this.getTaskStartedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(child)) : '-'}\t${childEffectiveEndAt > 0 ? this.formatTaskTimestamp(childEffectiveEndAt) : '-'}\t${this.formatTaskDuration(this.getTaskWaitDurationMs(child))}\t${this.formatTaskDuration(this.getTaskRunDurationMs(child))}\t${this.getPagePath(child.pageUrl || '')}`);
-                        const childDetail = child.detail ? String(child.detail).replace(/\n/g, ' ') : '';
-                        if (childDetail) {
-                            lines.push(childDetail);
-                        }
-                    }
-                }
-            }
-            return lines.join('\n');
-        }
-
-        const groups = this.getVisibleTaskDetailGroups(true);
-        for (const group of groups) {
-            const parent = group.parent;
-            const label = parent?.label || group.parentKey;
-            const displayName = this.getTaskDisplayNameForExport(label);
-            const phase = parent?.phase || '-';
-            const status = this.getStatusLabel(parent?.status || 'unknown');
-            const registeredAt = this.formatTaskTimestamp(this.getTaskRegisteredAt(parent) || Date.now());
-            const startedAt = this.getTaskStartedAt(parent) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(parent)) : '-';
-                const parentEffectiveEndAt = this.getTaskEffectiveEndAt(parent);
-                const endedAt = parentEffectiveEndAt > 0 ? this.formatTaskTimestamp(parentEffectiveEndAt) : '-';
-            const waitDuration = this.formatTaskDuration(this.getTaskWaitDurationMs(parent));
-            const runDuration = this.formatTaskDuration(this.getTaskRunDurationMs(parent));
-            const pagePath = this.getPagePath(parent?.pageUrl || '');
-            const childCount = parent?.__childCount || group.children.length || 0;
-            const prefix = childCount > 0
-                ? `${this.taskDetailsExpandedParents.has(group.parentKey) ? '▼' : '▶'} ${childCount}`
-                : '';
-            lines.push(`${prefix}${displayName}	-	${phase}	${status}	${registeredAt}	${startedAt}	${endedAt}	${waitDuration}	${runDuration}	${pagePath}`.trim());
-
-            const detailLine = parent?.detail ? String(parent.detail).replace(/\n/g, ' ') : '';
-            if (detailLine) {
-                lines.push(detailLine);
-            }
-
-            const children = [...group.children].sort((a, b) => {
-                const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
-                const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
-                return ai - bi;
-            });
-            for (const child of children) {
-                const childLabel = child.label || child.parentLabel || '-';
-                const childMeta = typeof child.batchIndex === 'number'
-                    ? `${child.subtaskLabel || '-'} #${child.batchIndex}${typeof child.itemCount === 'number' ? ` · ${child.itemCount}项` : ''}`
-                    : (child.subtaskLabel || '-');
-                const childEffectiveEndAt = this.getTaskEffectiveEndAt(child);
-                lines.push(`└ ${childLabel}	${childMeta}	${child.phase || '-'}	${this.getStatusLabel(child.status || 'unknown')}	${this.formatTaskTimestamp(this.getTaskRegisteredAt(child) || Date.now())}	${this.getTaskStartedAt(child) > 0 ? this.formatTaskTimestamp(this.getTaskStartedAt(child)) : '-'}	${childEffectiveEndAt > 0 ? this.formatTaskTimestamp(childEffectiveEndAt) : '-'}	${this.formatTaskDuration(this.getTaskWaitDurationMs(child))}	${this.formatTaskDuration(this.getTaskRunDurationMs(child))}	${this.getPagePath(child.pageUrl || '')}`);
-                const childDetail = child.detail ? String(child.detail).replace(/\n/g, ' ') : '';
-                if (childDetail) {
-                    lines.push(childDetail);
-                }
-            }
-        }
-
-        return lines.join('\n');
+        return this.taskDetailsController.buildVisibleTaskDetailsTableText();
     }
 
-    private async copyCurrentPageTaskDiagnostics(): Promise<void> {
+    public async copyCurrentPageTaskDiagnostics(): Promise<void> {
         try {
             this.renderTaskDetailsTable();
             const total = this.getRenderedTaskDetailsCount();
@@ -1982,378 +581,30 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 加载设置到UI
      */
     protected async doLoadSettings(): Promise<void> {
-        const settings = STATE.settings;
-        const dataEnhancement = settings?.dataEnhancement || {};
-        const userExperience = settings?.userExperience || {};
-        // const magnetSearch = settings?.magnetSearch || {}; // 属性不存在
-        const anchorOptimization = settings?.anchorOptimization || {};
-        const listEnhancement = settings?.listEnhancement || {};
-
-        // 数据增强设置（翻译主开关）
-        this.enableTranslation.checked = dataEnhancement?.enableTranslation || false;
-
-        // 翻译配置 - 仅支持 Google 与 AI
-        const defaultTranslation = {
-            provider: 'traditional' as 'traditional' | 'ai',
-            traditional: { service: 'google' as 'google', sourceLanguage: 'ja', targetLanguage: 'zh-CN' },
-            ai: { useGlobalModel: true as boolean, customModel: '' as string | undefined }
-        };
-        const translation = (settings as any).translation || defaultTranslation;
-
-        if (this.translationProviderSel) {
-            this.translationProviderSel.value = translation.provider || 'traditional';
-        }
-        if (this.traditionalServiceSel) {
-            this.traditionalServiceSel.value = 'google';
-        }
-        // API 密钥组：Google 无需展示
-        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
-
-        // 固定使用 AI 设置中的模型，无需本地切换
-
-        // 回填目标与显示方式
-        if (this.translateCurrentTitleChk) {
-            // 当未显式配置时，默认启用 current-title 定点翻译（与内容脚本逻辑一致）
-            this.translateCurrentTitleChk.checked = translation.targets?.currentTitle !== false;
-        }
-        if (this.translationDisplayModeSel) {
-            this.translationDisplayModeSel.value = translation.displayMode || 'append';
-        }
-
-        // 初始显示状态
-        this.applyTranslationProviderUI();
-        await this.updateAiCurrentModelUI();
-
-        // 用户体验增强设置
-        this.enableContentFilter.checked = userExperience?.enableContentFilter || false;
-        this.enableMagnetSearch.checked = userExperience?.enableMagnetSearch || false;
-        this.enableAnchorOptimization.checked = userExperience?.enableAnchorOptimization || false;
-        if (userExperience.enableListEnhancement !== undefined) {
-            this.enableListEnhancement.checked = userExperience.enableListEnhancement;
-        }
-        if (userExperience.enableActorEnhancement !== undefined) {
-            this.enableActorEnhancement.checked = userExperience.enableActorEnhancement;
-        }
-        if (userExperience.enablePasswordHelper !== undefined) {
-            this.enablePasswordHelper.checked = userExperience.enablePasswordHelper;
-        }
-
-        // 密码助手配置
-        const passwordHelper = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
-        if (this.passwordShowMethod) this.passwordShowMethod.value = String(passwordHelper.showMethod || 0);
-        if (this.passwordWaitTime) this.passwordWaitTime.value = String(passwordHelper.waitTime || 300);
-
-        // 磁力搜索配置
-        const magnetSearch = (settings as any).magnetSearch || {};
-        const msSources = magnetSearch.sources || {};
-        this.magnetSourceSukebei.checked = msSources.sukebei !== false;
-        this.magnetSourceBtdig.checked = msSources.btdig !== false;
-        this.magnetSourceBtsow.checked = msSources.btsow !== false;
-        this.magnetSourceTorrentz2.checked = !!msSources.torrentz2;
-
-        // 并发与限流配置回填
-        const cc = (magnetSearch.concurrency || {}) as any;
-        if (this.magnetPageMaxConcurrentRequests) this.magnetPageMaxConcurrentRequests.value = String(typeof cc.pageMaxConcurrentRequests === 'number' ? cc.pageMaxConcurrentRequests : 2);
-        if (this.magnetBgGlobalMaxConcurrent) this.magnetBgGlobalMaxConcurrent.value = String(typeof cc.bgGlobalMaxConcurrent === 'number' ? cc.bgGlobalMaxConcurrent : 4);
-        if (this.magnetBgPerHostMaxConcurrent) this.magnetBgPerHostMaxConcurrent.value = String(typeof cc.bgPerHostMaxConcurrent === 'number' ? cc.bgPerHostMaxConcurrent : 1);
-        if (this.magnetBgPerHostRateLimitPerMin) this.magnetBgPerHostRateLimitPerMin.value = String(typeof cc.bgPerHostRateLimitPerMin === 'number' ? cc.bgPerHostRateLimitPerMin : 12);
-
-        // 锚点优化配置
-        if (anchorOptimization) {
-            if (anchorOptimization.buttonPosition && this.anchorButtonPosition) {
-                this.anchorButtonPosition.value = anchorOptimization.buttonPosition;
-            }
-            if (anchorOptimization.showPreviewButton !== undefined && this.showPreviewButton) {
-                this.showPreviewButton.checked = anchorOptimization.showPreviewButton;
-            }
-        }
-
-        // 列表增强配置
-        if (this.enableClickEnhancement) this.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement !== false;
-        if (this.enableClickEnhancementList) this.enableClickEnhancementList.checked = (listEnhancement as any).enableClickEnhancementList !== false;
-        if (this.enableClickEnhancementDetail) this.enableClickEnhancementDetail.checked = (listEnhancement as any).enableClickEnhancementDetail !== false;
-        if (this.enableListVideoPreview) this.enableListVideoPreview.checked = listEnhancement.enableVideoPreview !== false;
-        // 🆕 视频预览启用范围
-        if (this.enableVideoPreviewList) this.enableVideoPreviewList.checked = (listEnhancement as any).enableVideoPreviewList !== false;
-        if (this.enableVideoPreviewDetail) this.enableVideoPreviewDetail.checked = (listEnhancement as any).enableVideoPreviewDetail !== false;
-        if (this.enableScrollPaging) this.enableScrollPaging.checked = listEnhancement.enableScrollPaging || false;
-        if (this.enableActorWatermark) this.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark === true;
-        // 🆕 状态标签显示
-        if (this.showStatusBadge) this.showStatusBadge.checked = (listEnhancement as any).showStatusBadge !== false; // 默认启用
-
-        // 预览来源回填
-        const preferred = (listEnhancement as any).preferredPreviewSource || 'auto';
-        if (this.previewSourceAuto) this.previewSourceAuto.checked = preferred === 'auto';
-        if (this.previewSourceJavDB) this.previewSourceJavDB.checked = preferred === 'javdb';
-        if (this.previewSourceJavSpyl) this.previewSourceJavSpyl.checked = preferred === 'javspyl';
-        if (this.previewSourceAVPreview) this.previewSourceAVPreview.checked = preferred === 'avpreview';
-        if (this.previewSourceVBGFL) this.previewSourceVBGFL.checked = preferred === 'vbgfl';
-
-        // 演员页增强配置
-        const actorEnhancement = settings.actorEnhancement || { enabled: true, autoApplyTags: true, defaultTags: getDefaultTags(), defaultSortType: 0 };
-        if (this.enableAutoApplyTags) this.enableAutoApplyTags.checked = actorEnhancement.autoApplyTags !== false;
-        if (this.actorDefaultTagInputs && actorEnhancement.defaultTags) {
-            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
-                input.checked = actorEnhancement.defaultTags.includes(input.value);
-            });
-        }
-        if (this.aeEnableActionButtons) this.aeEnableActionButtons.checked = (actorEnhancement as any).enableActionButtons !== false;
-        // 新增：演员页 影片分段显示回填
-        if (this.aeEnableTimeSegmentationDivider) this.aeEnableTimeSegmentationDivider.checked = (actorEnhancement as any).enableTimeSegmentationDivider === true;
-        if (this.aeTimeSegmentationMonths) this.aeTimeSegmentationMonths.value = String((actorEnhancement as any).timeSegmentationMonths || 6);
-        if (this.previewDelay) this.previewDelay.value = String(listEnhancement.previewDelay || 1000);
-        // 首次加载时更新"当前延迟"展示
-        this.updateCurrentPreviewDelayDisplay();
-        if (this.previewVolume) {
-            const volumeValue = listEnhancement.previewVolume ?? 0.2;
-            this.previewVolume.value = String(volumeValue);
-            const percentage = Math.round(volumeValue * 100);
-
-            if (this.previewVolumeValue) {
-                this.previewVolumeValue.textContent = `${percentage}%`;
-            }
-
-            // 同步进度条
-            const volumeGroup = document.querySelector('.volume-control-group') as HTMLElement;
-            const trackFill = volumeGroup?.querySelector('.range-track-fill') as HTMLElement;
-            if (trackFill) {
-                trackFill.style.width = `${percentage}%`;
-                console.log(`[Enhancement] 设置加载时同步音量进度条: ${percentage}%`);
-            }
-        }
-
-        // 演员水印配置回填
-        const wmPos = (listEnhancement as any).actorWatermarkPosition || 'top-right';
-        if (this.actorWatermarkPosition) this.actorWatermarkPosition.value = wmPos;
-        const wmOpacity = (typeof (listEnhancement as any).actorWatermarkOpacity === 'number') ? (listEnhancement as any).actorWatermarkOpacity : 0.8;
-        if (this.actorWatermarkOpacity) {
-            this.actorWatermarkOpacity.value = String(wmOpacity);
-            const pct = Math.round(wmOpacity * 100);
-            if (this.actorWatermarkOpacityValue) this.actorWatermarkOpacityValue.textContent = `${pct}%`;
-            const group = this.actorWatermarkOpacity.closest('.volume-control-group') as HTMLElement | null;
-            const trackFill2 = group?.querySelector('.range-track-fill') as HTMLElement | null;
-            if (trackFill2) trackFill2.style.width = `${pct}%`;
-        }
-
-        // 🆕 列表显示控制配置回填
-        const displayControl = (listEnhancement as any).listDisplayControl || { enabled: true, columnCount: 4, containerWidth: 100, enableContainerExpansion: false };
-        if (this.listColumnCount) {
-            this.listColumnCount.value = String(displayControl.columnCount || 4);
-            if (this.listColumnCountValue) this.listColumnCountValue.textContent = `${displayControl.columnCount || 4} 列`;
-            const group = this.listColumnCount.closest('.form-group') as HTMLElement | null;
-            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-            if (trackFill) trackFill.style.width = `${(((displayControl.columnCount || 4) - 1) / 7) * 100}%`;
-        }
-        if (this.listContainerWidth) {
-            this.listContainerWidth.value = String(displayControl.containerWidth || 100);
-            if (this.listContainerWidthValue) this.listContainerWidthValue.textContent = `${displayControl.containerWidth || 100}%`;
-            const group = this.listContainerWidth.closest('.volume-control-group') as HTMLElement | null;
-            const trackFill = group?.querySelector('.range-track-fill') as HTMLElement | null;
-            if (trackFill) trackFill.style.width = `${(((displayControl.containerWidth || 100) - 50) / 100) * 100}%`;
-        }
-        if (this.enableContainerExpansion) {
-            this.enableContainerExpansion.checked = displayControl.enableContainerExpansion === true;
-        }
-        
-        // 初始化容器宽度的最大值（根据容器扩展状态和列数）
-        this.updateContainerWidthMax();
-
-        // 影片页增强配置
-        const videoEnhancement = settings?.videoEnhancement || { 
-            enabled: false, 
-            enableCoverImage: true, 
-            enableTranslation: true, 
-            showLoadingIndicator: true,
-            enableReviewBreaker: false,
-            enableFC2Breaker: false,
-            actorRemarksTaskTimeoutSeconds: 10
-        };
-        if (this.enableVideoEnhancement) this.enableVideoEnhancement.checked = !!videoEnhancement.enabled;
-        if (this.veEnableCoverImage) this.veEnableCoverImage.checked = videoEnhancement.enableCoverImage !== false;
-        // 不再设置 veEnableTranslation（已移除），翻译开关仅由全局开关控制
-
-        // 同步滑块状态与翻译配置可见性
-        try { this.updateAllToggleStates(); } catch {}
-        this.updateTranslationConfigVisibility();
-        if (this.veShowLoadingIndicator) this.veShowLoadingIndicator.checked = videoEnhancement.showLoadingIndicator !== false;
-        if (this.veEnableReviewBreaker) this.veEnableReviewBreaker.checked = videoEnhancement.enableReviewBreaker === true;
-        if (this.veEnableFC2Breaker) this.veEnableFC2Breaker.checked = videoEnhancement.enableFC2Breaker === true;
-        // 新增：本地同步子项回填
-        if (this.veEnableWantSync) this.veEnableWantSync.checked = (videoEnhancement as any).enableWantSync !== false;
-        if (this.veAutoMarkWatchedAfter115) this.veAutoMarkWatchedAfter115.checked = (videoEnhancement as any).autoMarkWatchedAfter115 !== false;
-        if (this.veAutoMarkWatchedStars) this.veAutoMarkWatchedStars.value = String((videoEnhancement as any).autoMarkWatchedStars ?? 4);
-        // 新增：演员备注
-        if (this.veEnableActorRemarks) this.veEnableActorRemarks.checked = (videoEnhancement as any).enableActorRemarks === true;
-        if (this.veEnableActorNameMarks) this.veEnableActorNameMarks.checked = (videoEnhancement as any).enableActorNameMarks !== false;
-        if (this.veActorRemarksMode) this.veActorRemarksMode.value = ((videoEnhancement as any).actorRemarksMode === 'inline') ? 'inline' : 'panel';
-        if (this.veActorRemarksTTL) this.veActorRemarksTTL.value = String((videoEnhancement as any).actorRemarksTTLDays ?? 0);
-        if (this.veActorRemarksTaskTimeout) this.veActorRemarksTaskTimeout.value = String((videoEnhancement as any).actorRemarksTaskTimeoutSeconds ?? 10);
-        // 新增：影片页收藏与评分（默认启用）
-        if (this.veEnableVideoFavoriteRating) this.veEnableVideoFavoriteRating.checked = (videoEnhancement as any).enableVideoFavoriteRating !== false;
-        // 新增：演员标记增强（默认启用）
-        if (this.enableActorQuickActions) this.enableActorQuickActions.checked = (videoEnhancement as any).enableActorQuickActions !== false;
-
-        // 内容过滤规则
-        const contentFilter = settings?.contentFilter || {};
-        this.currentFilterRules = contentFilter?.keywordRules || [];
-        this.renderFilterRules();
-
-        // 将翻译配置容器迁移到“影片页增强 > 标题翻译”独立块中
-        this.mountTranslationConfigIntoVideoBlock();
-
-        // 显示/隐藏配置区域
-        this.toggleConfigSections();
-
-        // 再次尝试注入“并发与限流”UI（防止极端竞态导致未插入）
-        this.injectMagnetConcurrencyControls();
-
-        // 统一由悬浮控制子设置显隐——不在此处强制显示翻译配置
-
-        // 初始化功能增强开关
-        this.initEnhancementToggles();
-
-        // 强制更新所有滑块状态以确保与存储同步
-        this.updateAllToggleStates();
-
-        // 页面 DOM 可能被重新 replace，补绑新的子标签按钮事件
-        this.bindSubtabLinks();
-
-        // 页面 DOM 可能被重新 replace，补绑新的编排面板按钮事件
-        this.bindOrchestratorControls();
-
-        // 初始化子标签（读取最近一次选择）
-        try {
-            const last = localStorage.getItem('enhancementSubtab') as 'list' | 'video' | 'actor' | 'other' | null;
-            this.switchSubtab(last || 'list');
-        } catch {
-            this.switchSubtab('list');
-        }
-
-        // 加载上次应用的演员标签
-        await this.loadLastAppliedTags();
-
-        // 标记以下仅写字段为已读取，避免触发 TS6133
-        void this.actorEnhancementConfig;
-        void this.lastAppliedTagsDisplay;
-        void this.listEnhancementConfig;
-        void this.currentSubtab;
+        return doLoadSettings(this);
     }
 
     /**
      * 幂等绑定子标签点击事件
      * 设置页子页面会被 replace 重建，因此需要在重新加载后对新按钮补绑事件
      */
-    private bindSubtabLinks(): void {
-        if (!this.subtabLinks || this.subtabLinks.length === 0) return;
-
-        this.subtabLinks.forEach(btn => {
-            if (btn.dataset.subtabBound === '1') return;
-
-            btn.dataset.subtabBound = '1';
-            btn.addEventListener('click', () => {
-                const sub = (btn.getAttribute('data-subtab') || 'list') as 'list' | 'video' | 'actor' | 'other';
-                this.switchSubtab(sub);
-            });
-        });
+    public bindSubtabLinks(): void {
+        return bindSubtabLinks(this);
     }
 
     /**
      * 幂等绑定编排面板相关按钮事件
      * 设置页子页面会被 replace 重建，因此需要在重新加载后对新按钮补绑事件
      */
-    private bindOrchestratorControls(): void {
-        if (this.showOrchestratorBtn && this.showOrchestratorBtn.dataset.orchestratorBound !== '1') {
-            this.showOrchestratorBtn.dataset.orchestratorBound = '1';
-            this.showOrchestratorBtn.addEventListener('click', () => this.openOrchestratorModal());
-        }
-
-        if (this.orchestratorModalClose && this.orchestratorModalClose.dataset.orchestratorBound !== '1') {
-            this.orchestratorModalClose.dataset.orchestratorBound = '1';
-            this.orchestratorModalClose.addEventListener('click', () => this.closeOrchestratorModal());
-        }
-
-        if (this.orchestratorCloseBtn && this.orchestratorCloseBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorCloseBtn.dataset.orchestratorBound = '1';
-            this.orchestratorCloseBtn.addEventListener('click', () => this.closeOrchestratorModal());
-        }
-
-        if (this.orchestratorRefreshBtn && this.orchestratorRefreshBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorRefreshBtn.dataset.orchestratorBound = '1';
-            this.orchestratorRefreshBtn.addEventListener('click', () => this.refreshOrchestratorState());
-        }
-
-        if (this.orchestratorStopAllBtn && this.orchestratorStopAllBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorStopAllBtn.dataset.orchestratorBound = '1';
-            this.orchestratorStopAllBtn.addEventListener('click', () => this.stopAllTaskDetails());
-        }
-
-        if (this.orchestratorClearGlobalBtn && this.orchestratorClearGlobalBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorClearGlobalBtn.dataset.orchestratorBound = '1';
-            this.orchestratorClearGlobalBtn.addEventListener('click', () => this.clearGlobalTaskState());
-        }
-
-        if (this.orchestratorCopyPhasesBtn && this.orchestratorCopyPhasesBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorCopyPhasesBtn.dataset.orchestratorBound = '1';
-            this.orchestratorCopyPhasesBtn.addEventListener('click', () => this.copyPhasesText());
-        }
-
-        if (this.orchestratorCopyTimelineBtn && this.orchestratorCopyTimelineBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorCopyTimelineBtn.dataset.orchestratorBound = '1';
-            this.orchestratorCopyTimelineBtn.addEventListener('click', () => this.copyTimelineText());
-        }
-
-        if (this.orchestratorFullscreenBtn && this.orchestratorFullscreenBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorFullscreenBtn.dataset.orchestratorBound = '1';
-            this.orchestratorFullscreenBtn.addEventListener('click', () => {
-                const content = document.getElementById('orchestratorModalContent');
-                if (!content) return;
-                const isFs = content.classList.toggle('fullscreen');
-                if (isFs) {
-                    this.orchestratorFullscreenBtn!.textContent = '退出全屏';
-                } else {
-                    this.orchestratorFullscreenBtn!.textContent = '全屏';
-                }
-                this.orchestratorTimeline?.scrollTo({ top: (this.orchestratorTimeline as HTMLElement).scrollHeight });
-            });
-        }
-
-        if (this.orchestratorOpenJavdbBtn && this.orchestratorOpenJavdbBtn.dataset.orchestratorBound !== '1') {
-            this.orchestratorOpenJavdbBtn.dataset.orchestratorBound = '1';
-            this.orchestratorOpenJavdbBtn.addEventListener('click', async () => {
-                try {
-                    if (!chrome?.tabs?.create) return;
-                    await new Promise<void>((resolve) => {
-                        chrome.tabs.create({ url: 'https://javdb.com/' }, () => resolve());
-                    });
-                    setTimeout(() => this.refreshOrchestratorState(), 1500);
-                } catch (e) {
-                    console.warn('[Enhancement] 打开 JavDB 失败:', e);
-                }
-            });
-        }
+    public bindOrchestratorControls(): void {
+        return bindOrchestratorControls(this);
     }
 
     /**
-     * 将翻译配置(#translationConfig)移动到“影片页增强”的标题翻译独立区块内
+     * 将翻译配置(#translationConfig)移动到”影片页增强”的标题翻译独立区块内
      */
-    private mountTranslationConfigIntoVideoBlock(): void {
-        try {
-            const videoTranslationBlock = document.getElementById('videoTranslationBlock');
-            if (!videoTranslationBlock || !this.translationConfig) return;
-
-            // 如果尚未挂载到独立块，则迁移
-            if (!videoTranslationBlock.contains(this.translationConfig)) {
-                videoTranslationBlock.appendChild(this.translationConfig);
-            }
-
-            // 使翻译配置也参与统一的悬浮展开逻辑
-            if (!this.translationConfig.classList.contains('sub-settings')) {
-                this.translationConfig.classList.add('sub-settings');
-            }
-
-            // 依据当前状态刷新可见性
-            this.updateTranslationConfigVisibility();
-        } catch {}
+    public mountTranslationConfigIntoVideoBlock(): void {
+        return mountTranslationConfigIntoVideoBlock(this);
     }
 
     /**
@@ -2541,142 +792,12 @@ export class EnhancementSettings extends BaseSettingsPanel {
 
     // 读取当前面板值为设置（满足 BaseSettingsPanel 接口）
     protected doGetSettings(): Partial<ExtensionSettings> {
-        return {
-            userExperience: {
-                enableContentFilter: this.enableContentFilter.checked,
-                enableKeyboardShortcuts: false,
-                enableMagnetSearch: this.enableMagnetSearch.checked,
-                enableAnchorOptimization: this.enableAnchorOptimization.checked,
-                enableListEnhancement: this.enableListEnhancement.checked,
-                enableActorEnhancement: this.enableActorEnhancement.checked,
-                showEnhancedTooltips: false,
-                enablePasswordHelper: this.enablePasswordHelper?.checked === true,
-            },
-            passwordHelper: {
-                showMethod: parseInt(this.passwordShowMethod?.value || '0', 10),
-                waitTime: parseInt(this.passwordWaitTime?.value || '300', 10),
-            },
-            listEnhancement: {
-                enabled: this.enableListEnhancement.checked,
-                enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
-                enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
-                enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
-                enableVideoPreview: this.enableListVideoPreview?.checked !== false,
-                // 🆕 视频预览启用范围
-                enableVideoPreviewList: this.enableVideoPreviewList?.checked !== false,
-                enableVideoPreviewDetail: this.enableVideoPreviewDetail?.checked !== false,
-                enableScrollPaging: this.enableScrollPaging?.checked === true,
-                enableListOptimization: true,
-                previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
-                previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
-                enableRightClickBackground: true,
-                preferredPreviewSource: this.getPreferredPreviewSource(),
-                enableActorWatermark: this.enableActorWatermark?.checked === true,
-                actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
-                actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
-                // 🆕 列表显示控制
-                listDisplayControl: {
-                    enabled: true, // 默认启用
-                    columnCount: parseInt(this.listColumnCount?.value || '4'),
-                    containerWidth: parseInt(this.listContainerWidth?.value || '100'),
-                    enableContainerExpansion: this.enableContainerExpansion?.checked === true,
-                },
-                // 🆕 状态标签显示
-                showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
-            },
-            anchorOptimization: {
-                enabled: this.enableAnchorOptimization.checked,
-                showPreviewButton: this.showPreviewButton?.checked !== false,
-                buttonPosition: (this.anchorButtonPosition?.value as 'right-center' | 'right-bottom') || 'right-center',
-            },
-            videoEnhancement: {
-                enabled: this.enableVideoEnhancement?.checked === true,
-                enableCoverImage: this.veEnableCoverImage?.checked !== false,
-                enableTranslation: this.enableTranslation?.checked === true,
-                showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
-                enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
-                enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
-                enableWantSync: this.veEnableWantSync?.checked !== false,
-                autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,
-                enableActorRemarks: this.veEnableActorRemarks?.checked === true,
-                actorRemarksMode: ((this.veActorRemarksMode?.value as any) || 'panel') as any,
-                actorRemarksTTLDays: parseInt(this.veActorRemarksTTL?.value || '0', 10) || 0,
-                actorRemarksTaskTimeoutSeconds: parseInt(this.veActorRemarksTaskTimeout?.value || '10', 10) || 10,
-            },
-            actorEnhancement: {
-                enabled: this.enableActorEnhancement.checked,
-                autoApplyTags: this.enableAutoApplyTags?.checked !== false,
-                defaultTags: this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0
-                    ? Array.from(this.actorDefaultTagInputs).filter((i: HTMLInputElement) => i.checked).map(i => i.value)
-                    : getDefaultTags(),
-                defaultSortType: 0,
-                enableActionButtons: this.aeEnableActionButtons?.checked !== false,
-                enableTimeSegmentationDivider: this.aeEnableTimeSegmentationDivider?.checked === true,
-                timeSegmentationMonths: parseInt(this.aeTimeSegmentationMonths?.value || '6', 10),
-            },
-        };
+        return doGetSettings(this);
     }
 
     // 将给定设置快速回填到面板（满足 BaseSettingsPanel 接口）
     protected doSetSettings(settings: Partial<ExtensionSettings>): void {
-        try {
-            if (settings.userExperience) {
-                const ux = settings.userExperience;
-                if (this.enableContentFilter && typeof ux.enableContentFilter === 'boolean') this.enableContentFilter.checked = ux.enableContentFilter;
-                if (this.enableMagnetSearch && typeof ux.enableMagnetSearch === 'boolean') this.enableMagnetSearch.checked = ux.enableMagnetSearch;
-                if (this.enableAnchorOptimization && typeof ux.enableAnchorOptimization === 'boolean') this.enableAnchorOptimization.checked = ux.enableAnchorOptimization;
-                if (this.enableListEnhancement && typeof ux.enableListEnhancement === 'boolean') this.enableListEnhancement.checked = ux.enableListEnhancement;
-                if (this.enableActorEnhancement && typeof ux.enableActorEnhancement === 'boolean') this.enableActorEnhancement.checked = ux.enableActorEnhancement;
-                if (this.enablePasswordHelper && typeof ux.enablePasswordHelper === 'boolean') this.enablePasswordHelper.checked = ux.enablePasswordHelper;
-            }
-            if (settings.listEnhancement) {
-                const le = settings.listEnhancement as any;
-                if (this.enableClickEnhancement && typeof le.enableClickEnhancement === 'boolean') this.enableClickEnhancement.checked = le.enableClickEnhancement;
-                if (this.enableClickEnhancementList && typeof le.enableClickEnhancementList === 'boolean') this.enableClickEnhancementList.checked = le.enableClickEnhancementList;
-                if (this.enableClickEnhancementDetail && typeof le.enableClickEnhancementDetail === 'boolean') this.enableClickEnhancementDetail.checked = le.enableClickEnhancementDetail;
-                if (this.enableListVideoPreview && typeof le.enableVideoPreview === 'boolean') this.enableListVideoPreview.checked = le.enableVideoPreview;
-                if (this.enableVideoPreviewList && typeof le.enableVideoPreviewList === 'boolean') this.enableVideoPreviewList.checked = le.enableVideoPreviewList;
-                if (this.enableVideoPreviewDetail && typeof le.enableVideoPreviewDetail === 'boolean') this.enableVideoPreviewDetail.checked = le.enableVideoPreviewDetail;
-                if (this.enableScrollPaging && typeof le.enableScrollPaging === 'boolean') this.enableScrollPaging.checked = le.enableScrollPaging;
-                if (this.previewDelay && typeof le.previewDelay === 'number') this.previewDelay.value = String(le.previewDelay);
-                if (this.previewVolume && typeof le.previewVolume === 'number') this.previewVolume.value = String(le.previewVolume);
-                if (this.enableActorWatermark && typeof le.enableActorWatermark === 'boolean') this.enableActorWatermark.checked = le.enableActorWatermark;
-                if (this.actorWatermarkPosition && le.actorWatermarkPosition) this.actorWatermarkPosition.value = le.actorWatermarkPosition;
-                if (this.actorWatermarkOpacity && typeof le.actorWatermarkOpacity === 'number') this.actorWatermarkOpacity.value = String(le.actorWatermarkOpacity);
-                if (this.showStatusBadge && typeof le.showStatusBadge === 'boolean') this.showStatusBadge.checked = le.showStatusBadge;
-                if (le.listDisplayControl) {
-                    const ldc = le.listDisplayControl;
-                    if (this.listColumnCount && typeof ldc.columnCount === 'number') this.listColumnCount.value = String(ldc.columnCount);
-                    if (this.listContainerWidth && typeof ldc.containerWidth === 'number') this.listContainerWidth.value = String(ldc.containerWidth);
-                    if (this.enableContainerExpansion && typeof ldc.enableContainerExpansion === 'boolean') this.enableContainerExpansion.checked = ldc.enableContainerExpansion;
-                }
-            }
-            if (settings.actorEnhancement) {
-                const ae = settings.actorEnhancement as any;
-                if (this.enableAutoApplyTags && typeof ae.autoApplyTags === 'boolean') this.enableAutoApplyTags.checked = ae.autoApplyTags;
-                if (this.aeEnableActionButtons && typeof ae.enableActionButtons === 'boolean') this.aeEnableActionButtons.checked = ae.enableActionButtons;
-                if (this.aeEnableTimeSegmentationDivider && typeof ae.enableTimeSegmentationDivider === 'boolean') this.aeEnableTimeSegmentationDivider.checked = ae.enableTimeSegmentationDivider;
-                if (this.aeTimeSegmentationMonths && typeof ae.timeSegmentationMonths === 'number') this.aeTimeSegmentationMonths.value = String(ae.timeSegmentationMonths);
-            }
-            if (settings.videoEnhancement) {
-                const ve = settings.videoEnhancement as any;
-                if (this.enableVideoEnhancement && typeof ve.enabled === 'boolean') this.enableVideoEnhancement.checked = ve.enabled;
-                if (this.veEnableCoverImage && typeof ve.enableCoverImage === 'boolean') this.veEnableCoverImage.checked = ve.enableCoverImage;
-                if (this.enableTranslation && typeof ve.enableTranslation === 'boolean') this.enableTranslation.checked = ve.enableTranslation;
-                if (this.veShowLoadingIndicator && typeof ve.showLoadingIndicator === 'boolean') this.veShowLoadingIndicator.checked = ve.showLoadingIndicator;
-                if (this.veEnableReviewBreaker && typeof ve.enableReviewBreaker === 'boolean') this.veEnableReviewBreaker.checked = ve.enableReviewBreaker;
-                if (this.veEnableFC2Breaker && typeof ve.enableFC2Breaker === 'boolean') this.veEnableFC2Breaker.checked = ve.enableFC2Breaker;
-                if (this.veEnableWantSync && typeof ve.enableWantSync === 'boolean') this.veEnableWantSync.checked = ve.enableWantSync;
-                if (this.veAutoMarkWatchedAfter115 && typeof ve.autoMarkWatchedAfter115 === 'boolean') this.veAutoMarkWatchedAfter115.checked = ve.autoMarkWatchedAfter115;
-                if (this.veAutoMarkWatchedStars && typeof ve.autoMarkWatchedStars !== 'undefined') this.veAutoMarkWatchedStars.value = String(ve.autoMarkWatchedStars ?? 4);
-                if (this.veEnableActorRemarks && typeof ve.enableActorRemarks === 'boolean') this.veEnableActorRemarks.checked = ve.enableActorRemarks;
-                if (this.veEnableActorNameMarks && typeof ve.enableActorNameMarks === 'boolean') this.veEnableActorNameMarks.checked = ve.enableActorNameMarks;
-                if (this.veActorRemarksMode && typeof ve.actorRemarksMode === 'string') this.veActorRemarksMode.value = (ve.actorRemarksMode === 'inline') ? 'inline' : 'panel';
-                if (this.veActorRemarksTTL && typeof ve.actorRemarksTTLDays !== 'undefined') this.veActorRemarksTTL.value = String(ve.actorRemarksTTLDays ?? 0);
-                if (this.veActorRemarksTaskTimeout && typeof ve.actorRemarksTaskTimeoutSeconds !== 'undefined') this.veActorRemarksTaskTimeout.value = String(ve.actorRemarksTaskTimeoutSeconds ?? 10);
-            }
-            this.updateAllToggleStates();
-        } catch {}
+        return doSetSettings(this, settings);
     }
 
     /**
@@ -2690,271 +811,43 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 初始化功能增强开关
      */
-    private initEnhancementToggles(): void {
-        if (this.enhancementTogglesInitialized) {
-            return;
-        }
-
-        log.verbose('[Enhancement] 初始化功能增强开关...');
-
-        // 获取所有功能增强页面的开关按钮（只选择有 data-target 属性的，排除过滤规则的开关）
-        const enhancementToggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle[data-target]');
-        log.verbose(`[Enhancement] 找到 ${enhancementToggles.length} 个开关按钮`);
-
-        enhancementToggles.forEach((toggle, index) => {
-            const targetId = toggle.getAttribute('data-target');
-            if (!targetId) {
-                if (STATE.settings?.logging?.verboseMode) {
-                    console.warn(`[Enhancement] 开关 ${index + 1} 缺少 data-target 属性`);
-                }
-                return;
-            }
-
-            const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement;
-            if (!hiddenCheckbox) {
-                console.warn(`[Enhancement] 未找到对应的checkbox: ${targetId}`);
-                return;
-            }
-
-            // 检查是否为"始终开启"的开关
-            const isAlwaysOn = toggle.hasAttribute('data-always-on');
-
-            // 根据隐藏的checkbox状态设置开关状态
-            const updateToggleState = () => {
-                const isChecked = hiddenCheckbox.checked;
-                if (STATE.settings?.logging?.verboseMode) {
-                    console.log(`[Enhancement] 更新滑块状态 ${targetId}: ${isChecked}`);
-                }
-
-                if (isChecked) {
-                    toggle.classList.add('active');
-                } else {
-                    toggle.classList.remove('active');
-                }
-
-                // 🆕 始终开启的开关不添加禁用样式，保持正常外观
-            };
-
-            // 初始化状态
-            // 如果是"始终开启"的开关，强制设置为选中状态
-            if (isAlwaysOn) {
-                hiddenCheckbox.checked = true;
-            }
-            updateToggleState();
-
-            // 添加点击事件
-            toggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // 🆕 如果是"始终开启"的开关，显示红色提示并阻止关闭
-                if (isAlwaysOn) {
-                    // 显示红色提示
-                    showMessage('此功能为核心功能，不允许关闭', 'error');
-                    return;
-                }
-                
-                // 如果是禁用状态，阻止点击
-                if (toggle.hasAttribute('disabled')) return;
-
-                // 切换状态
-                hiddenCheckbox.checked = !hiddenCheckbox.checked;
-                updateToggleState();
-
-                // 仅记录可用状态（显示由 hover 控制）
-                this.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
-
-                // 特殊处理翻译功能的额外逻辑
-                if (targetId === 'enableTranslation') {
-                    this.updateTranslationConfigVisibility();
-                }
-
-                this.emit('change');
-                this.scheduleAutoSave();
-            });
-
-            // 监听隐藏checkbox的变化
-            hiddenCheckbox.addEventListener('change', () => {
-                updateToggleState();
-                this.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
-
-                if (targetId === 'enableTranslation') {
-                    this.updateTranslationConfigVisibility();
-                }
-            });
-        });
-
-        this.enhancementTogglesInitialized = true;
-        log.verbose('[Enhancement] 功能增强开关初始化完成');
+    public initEnhancementToggles(): void {
+        return initEnhancementToggles(this);
     }
 
     /**
      * 悬浮展开/离开折叠 sub-settings
      */
-    private setupSubSettingsHoverBehavior(): void {
-        if (this.subSettingsHoverInitialized) return;
-        this.subSettingsHoverInitialized = true;
-
-        // 查找所有包含 .sub-settings 的 .form-group（包括嵌套的）
-        const groups = document.querySelectorAll('#enhancement-settings .form-group');
-        groups.forEach(group => {
-            const container = group as HTMLElement;
-            // 使用 :scope > .sub-settings 只查找直接子元素，避免嵌套混淆
-            const sub = container.querySelector(':scope > .sub-settings') as HTMLElement | null;
-            if (!sub) return;
-
-            // 初始折叠（配合CSS动画）
-            sub.style.display = 'block'; // 覆盖HTML中的 inline display:none
-            sub.style.maxHeight = '0px';
-            sub.classList.remove('is-open');
-            // 折叠时移除上下边框，避免占位
-            sub.style.borderTopWidth = '0px';
-            sub.style.borderBottomWidth = '0px';
-            // 折叠时取消上下内边距，避免空白
-            sub.style.paddingTop = '0px';
-            sub.style.paddingBottom = '0px';
-
-            // 过渡结束后，若处于展开状态，将 max-height 设置为 none，避免内部高度变化导致跳动
-            const onTransitionEnd = (ev: TransitionEvent) => {
-                if (ev.propertyName !== 'max-height') return;
-                if (sub.classList.contains('is-open')) {
-                    sub.style.maxHeight = 'none';
-                }
-            };
-            sub.addEventListener('transitionend', onTransitionEnd);
-
-            const openWithIntent = () => {
-                // 清除关闭定时器
-                const cTimer = this.subSettingsCollapseTimers.get(container);
-                if (cTimer) { clearTimeout(cTimer); this.subSettingsCollapseTimers.delete(container); }
-                // 开启展开
-                sub.classList.add('is-open');
-                this.subSettingsOpenedAt.set(container, Date.now());
-                // 展开前恢复上下边框与内边距，配合过渡
-                sub.style.borderTopWidth = '';
-                sub.style.borderBottomWidth = '';
-                sub.style.paddingTop = '';
-                sub.style.paddingBottom = '';
-                // 如果之前设为 none，需要重置为准确高度再展开
-                if (sub.style.maxHeight === 'none') {
-                    sub.style.maxHeight = `${sub.scrollHeight}px`;
-                }
-                // 强制 reflow，确保过渡生效
-                void sub.offsetHeight;
-                const targetHeight = sub.scrollHeight;
-                sub.style.maxHeight = `${targetHeight}px`;
-            };
-
-            const closeWithDelay = () => {
-                // 取消待触发的打开
-                const oTimer = this.subSettingsOpenTimers.get(container);
-                if (oTimer) { clearTimeout(oTimer); this.subSettingsOpenTimers.delete(container); }
-                const minOpenMs = 420;
-                const openedAt = this.subSettingsOpenedAt.get(container) || 0;
-                const elapsed = Date.now() - openedAt;
-                const waitMore = elapsed < minOpenMs ? (minOpenMs - elapsed) : 0;
-                const timer = window.setTimeout(() => {
-                    // 若当前为 none，先设置为实际高度再收起，确保有动画
-                    if (sub.style.maxHeight === 'none') {
-                        sub.style.maxHeight = `${sub.scrollHeight}px`;
-                        // 进入下一帧再设置为 0，以触发展开到收起的过渡
-                        requestAnimationFrame(() => {
-                            sub.classList.remove('is-open');
-                            sub.style.maxHeight = '0px';
-                            sub.style.borderTopWidth = '0px';
-                            sub.style.borderBottomWidth = '0px';
-                            sub.style.paddingTop = '0px';
-                            sub.style.paddingBottom = '0px';
-                        });
-                    } else {
-                        sub.classList.remove('is-open');
-                        sub.style.maxHeight = '0px';
-                        sub.style.borderTopWidth = '0px';
-                        sub.style.borderBottomWidth = '0px';
-                        sub.style.paddingTop = '0px';
-                        sub.style.paddingBottom = '0px';
-                    }
-                }, 180 + waitMore);
-                this.subSettingsCollapseTimers.set(container, timer);
-            };
-
-            container.addEventListener('mouseenter', () => {
-                // 轻微延迟，避免抖动
-                const timer = window.setTimeout(openWithIntent, 120);
-                this.subSettingsOpenTimers.set(container, timer);
-            });
-
-            container.addEventListener('mouseleave', () => {
-                closeWithDelay();
-            });
-
-            // 焦点进入/离开时也维持展开，提升可访问性
-            container.addEventListener('focusin', () => openWithIntent());
-            container.addEventListener('focusout', () => closeWithDelay());
-        });
+    public setupSubSettingsHoverBehavior(): void {
+        return setupSubSettingsHoverBehavior(this);
     }
 
     /**
      * 处理子设置的显示/隐藏
      */
-    private handleSubSettingsToggle(targetId: string, isEnabled: boolean): void {
-        // 仅记录可用状态，不直接控制显示（显示由 hover 行为接管）
-        const map: Record<string, string> = {
-            'enableTranslation': 'translationConfig',
-            'enableActorEnhancement': 'actorEnhancementConfig',
-            'enableAutoApplyTags': 'actorEnhancementConfig',
-            'enableContentFilter': 'contentFilterConfig',
-            'enableAnchorOptimization': 'anchorOptimizationConfig',
-            'enableVideoPreview': 'listVideoPreviewConfig',
-            'enableMagnetSearch': 'magnetSourcesConfig',
-            'enableVideoEnhancement': 'videoEnhancementConfig',
-            'veEnableActorRemarks': 'actorRemarksConfig',
-            'veAutoMarkWatchedAfter115': 'autoMarkWatchedConfig',
-            'enableActorWatermark': 'actorWatermarkConfig',
-            'aeEnableTimeSegmentationDivider': 'actorTimeSegmentationConfig',
-        };
-        const subSettingsId = map[targetId];
-        if (!subSettingsId) return;
-        const subSettings = document.getElementById(subSettingsId);
-        if (subSettings) {
-            subSettings.setAttribute('data-enabled', isEnabled ? '1' : '0');
-        }
+    public handleSubSettingsToggle(targetId: string, isEnabled: boolean): void {
+        return handleSubSettingsToggle(this, targetId, isEnabled);
     }
 
     /**
      * 更新翻译配置可见性
      */
-    private updateTranslationConfigVisibility(): void {
-        if (!this.translationConfig) return;
-        const enabled = (this.enableTranslation?.checked === true);
-        this.translationConfig.setAttribute('data-enabled', enabled ? '1' : '0');
-        // 不强制 display，显隐交由统一的悬浮展开逻辑（setupSubSettingsHoverBehavior）控制
+    public updateTranslationConfigVisibility(): void {
+        return updateTranslationConfigVisibility(this);
     }
 
     /**
      * 处理翻译服务切换
      */
-    private onTranslationProviderChange(): void {
-        this.applyTranslationProviderUI();
-        // 更新"当前使用"标签
-        if (this.currentTranslationServiceLabel) {
-            const isAI = this.translationProviderSel?.value === 'ai';
-            this.currentTranslationServiceLabel.textContent = isAI ? 'AI 翻译' : 'Google 翻译';
-        }
-        // 若切AI，刷新模型显示
-        if (this.translationProviderSel?.value === 'ai') {
-            this.updateAiCurrentModelUI();
-        }
-        this.handleSettingChange();
+    public onTranslationProviderChange(): void {
+        return onTranslationProviderChange(this);
     }
 
     /**
      * 传统服务切换（目前仅 Google）
      */
-    private onTraditionalServiceChange(): void {
-        // 只有 Google，无需 API Key
-        if (this.traditionalApiKeyGroup) this.traditionalApiKeyGroup.style.display = 'none';
-        this.handleSettingChange();
+    public onTraditionalServiceChange(): void {
+        return onTraditionalServiceChange(this);
     }
 
     // 本地不再切换 AI 模型，直接使用 AI 设置中的模型
@@ -2962,91 +855,36 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 应用翻译服务 UI 显示
      */
-    private applyTranslationProviderUI(): void {
-        const isAI = this.translationProviderSel?.value === 'ai';
-        if (this.traditionalConfigContainer) this.traditionalConfigContainer.style.display = isAI ? 'none' : 'block';
-        if (this.aiConfigContainer) this.aiConfigContainer.style.display = isAI ? 'block' : 'none';
+    public applyTranslationProviderUI(): void {
+        return applyTranslationProviderUI(this);
     }
 
     /**
      * 更新 AI 当前模型显示
      */
-    private async updateAiCurrentModelUI(): Promise<void> {
-        try {
-            if (!this.aiCurrentModelLabel || !this.aiModelEmptyTip) return;
-            const ai = aiService.getSettings();
-            const model = (ai?.selectedModel || '').trim();
-            this.aiCurrentModelLabel.textContent = model || '未设置';
-            this.aiModelEmptyTip.style.display = model ? 'none' : 'block';
-        } catch (e) {
-            console.warn('[Enhancement] 获取AI当前模型失败:', e);
-        }
+    public async updateAiCurrentModelUI(): Promise<void> {
+        return updateAiCurrentModelUI(this);
     }
 
     /**
      * 跳转到 AI 设置
      */
-    private navigateToAISettings(): void {
-        try {
-            // 切换到设置- AI 设置子页面
-            window.location.hash = '#tab-settings/ai-settings';
-            // 触发设置子页面切换事件，确保立即切换
-            window.dispatchEvent(new CustomEvent('settingsSubSectionChange' as any, { detail: { section: 'ai-settings' } }));
-        } catch (e) {
-            console.warn('[Enhancement] 跳转 AI 设置失败:', e);
-        }
+    public navigateToAISettings(): void {
+        return navigateToAISettings();
     }
 
     /**
      * 切换配置区域显示/隐藏
      */
-    private toggleConfigSections(): void {
-        // 磁力搜索源配置（仅标记状态，显示交给 hover 动画）
-        if (this.magnetSourcesConfig) {
-            this.magnetSourcesConfig.setAttribute('data-enabled', this.enableMagnetSearch.checked ? '1' : '0');
-            this.magnetSourcesConfig.style.display = 'block';
-        }
-
-        // 内容过滤配置（仅标记状态，显示交给 hover 动画）
-        if (this.contentFilterConfig) {
-            this.contentFilterConfig.setAttribute('data-enabled', this.enableContentFilter.checked ? '1' : '0');
-            this.contentFilterConfig.style.display = 'block';
-        }
-
-        // 锚点优化配置（仅标记状态，显示交给 hover 动画）
-        if (this.anchorOptimizationConfig) {
-            this.anchorOptimizationConfig.setAttribute('data-enabled', this.enableAnchorOptimization.checked ? '1' : '0');
-            this.anchorOptimizationConfig.style.display = 'block';
-        }
-
-        // 列表/影片/演员子配置交由 hover 控制
-        if (this.videoEnhancementConfig) {
-            const enabled = (
-                this.veEnableCoverImage?.checked === true ||
-                this.enableTranslation?.checked === true ||
-                this.veShowLoadingIndicator?.checked === true
-            );
-            this.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');
-            this.videoEnhancementConfig.style.display = 'block';
-        }
-        const actorRemarksConfig = document.getElementById('actorRemarksConfig');
-        if (actorRemarksConfig) {
-            actorRemarksConfig.setAttribute('data-enabled', this.veEnableActorRemarks?.checked ? '1' : '0');
-            actorRemarksConfig.style.display = 'block';
-        }
-        const actorAutoApplyConfig = document.getElementById('actorAutoApplyConfig');
-        if (actorAutoApplyConfig) {
-            actorAutoApplyConfig.setAttribute('data-enabled', this.enableAutoApplyTags?.checked ? '1' : '0');
-            actorAutoApplyConfig.style.display = 'block';
-        }
+    public toggleConfigSections(): void {
+        return toggleConfigSections(this);
     }
 
     /**
      * 处理设置变化
      */
-    private handleSettingChange(): void {
-        this.emit('change');
-        this.scheduleAutoSave();
+    public handleSettingChange(): void {
+        return handleSettingChange(this);
     }
 
     /**
@@ -3104,532 +942,82 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 渲染过滤规则列表
      */
-    private renderFilterRules(): void {
-        if (!this.filterRulesList) return;
-
-        this.filterRulesList.innerHTML = '';
-
-        if (this.currentFilterRules.length === 0) {
-            this.filterRulesList.innerHTML = `
-                <div class="empty-state">
-                    <p>暂无过滤规则</p>
-                    <p class="text-muted">点击"添加规则"按钮创建第一个过滤规则</p>
-                </div>
-            `;
-            return;
-        }
-
-        this.currentFilterRules.forEach((rule, index) => {
-            const ruleElement = this.createFilterRuleElement(rule, index);
-            this.filterRulesList.appendChild(ruleElement);
-        });
+    public renderFilterRules(): void {
+        return renderFilterRules(this);
     }
 
     /**
      * 创建过滤规则元素
      */
-    private createFilterRuleElement(rule: KeywordFilterRule, index: number): HTMLElement {
-        const ruleDiv = document.createElement('div');
-        ruleDiv.className = 'filter-rule-item';
-        
-        // 生成关键词或日期范围的显示文本
-        let keywordDisplay = '';
-        if (rule.keyword) {
-            keywordDisplay = `<div class="rule-keywords"><strong>关键词:</strong> ${rule.keyword}</div>`;
-        }
-        
-        // 如果有发行日期配置,显示日期范围信息
-        if (rule.releaseDateRange && rule.fields.includes('release-date')) {
-            const dateRange = rule.releaseDateRange;
-            let dateText = '';
-            
-            switch (dateRange.comparison) {
-                case 'between':
-                    dateText = `${dateRange.startDate || '?'} 至 ${dateRange.endDate || '?'}`;
-                    break;
-                case 'before':
-                    dateText = `早于 ${dateRange.exactDate || '?'}`;
-                    break;
-                case 'after':
-                    dateText = `晚于 ${dateRange.exactDate || '?'}`;
-                    break;
-                case 'exact':
-                    dateText = `精确匹配 ${dateRange.exactDate || '?'}`;
-                    break;
-            }
-            
-            keywordDisplay += `<div class="rule-keywords"><strong>发行日期:</strong> ${dateText}</div>`;
-        }
-        
-        ruleDiv.innerHTML = `
-            <div class="rule-header">
-                <span class="rule-name">${rule.name}</span>
-                <div class="rule-actions">
-                    <div class="enhancement-toggle-wrapper">
-                        <button class="enhancement-toggle ${rule.enabled ? 'active' : ''}" data-index="${index}" data-enabled="${rule.enabled !== false}" title="${rule.enabled ? '点击禁用' : '点击启用'}"></button>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-primary edit-rule" data-index="${index}">
-                        编辑
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger delete-rule" data-index="${index}">
-                        删除
-                    </button>
-                </div>
-            </div>
-            <div class="rule-details">
-                <div class="rule-info">
-                    <span class="rule-type">字段: ${this.getFilterFieldsText(rule.fields)}</span>
-                    <span class="rule-action">动作: ${this.getFilterActionText(rule.action)}</span>
-                </div>
-                ${keywordDisplay}
-                ${rule.message ? `<div class="rule-description">${rule.message}</div>` : ''}
-            </div>
-        `;
-
-        // 绑定事件
-        const toggleBtn = ruleDiv.querySelector('.enhancement-toggle') as HTMLButtonElement;
-        const editBtn = ruleDiv.querySelector('.edit-rule') as HTMLButtonElement;
-        const deleteBtn = ruleDiv.querySelector('.delete-rule') as HTMLButtonElement;
-
-        // 绑定快速开关事件
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleFilterRuleEnabled(index);
-            });
-        }
-
-        if (editBtn) {
-            if (STATE.settings?.logging?.verboseMode) {
-                console.log(`[Enhancement] 绑定编辑按钮事件，规则索引: ${index}`);
-            }
-            editBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (STATE.settings?.logging?.verboseMode) {
-                    console.log(`[Enhancement] 编辑按钮被点击，规则索引: ${index}`);
-                }
-                this.editFilterRule(index);
-            });
-        } else {
-            console.error(`[Enhancement] 未找到编辑按钮，规则索引: ${index}`);
-        }
-
-        if (deleteBtn) {
-            if (STATE.settings?.logging?.verboseMode) {
-                console.log(`[Enhancement] 绑定删除按钮事件，规则索引: ${index}`);
-            }
-            deleteBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (STATE.settings?.logging?.verboseMode) {
-                    console.log(`[Enhancement] 删除按钮被点击，规则索引: ${index}`);
-                }
-
-                // 直接调用删除方法，添加更多调试信息
-                try {
-                    await this.deleteFilterRule(index);
-                } catch (error) {
-                    console.error(`[Enhancement] 删除规则时出错:`, error);
-                    showMessage('删除规则时出错，请检查控制台', 'error');
-                }
-            });
-        } else {
-            console.error(`[Enhancement] 未找到删除按钮，规则索引: ${index}`);
-        }
-
-        return ruleDiv;
+    public createFilterRuleElement(rule: KeywordFilterRule, index: number): HTMLElement {
+        return createFilterRuleElement(this, rule, index);
     }
 
     /**
      * 获取过滤字段文本
      */
-    private getFilterFieldsText(fields: string[]): string {
-        const fieldMap: Record<string, string> = {
-            'title': '标题',
-            'actor': '演员',
-            'studio': '厂商',
-            'genre': '类型',
-            'tag': '标签',
-            'video-id': '番号',
-            'release-date': '发行日期'
-        };
-        return fields.map(field => fieldMap[field] || field).join(', ');
+    public getFilterFieldsText(fields: string[]): string {
+        return getFilterFieldsText(fields);
     }
 
     /**
      * 获取过滤动作文本
      */
-    private getFilterActionText(action: string): string {
-        const actionMap: Record<string, string> = {
-            'hide': '隐藏',
-            'highlight': '高亮',
-            'blur': '模糊',
-            'mark': '标记'
-        };
-        return actionMap[action] || action;
+    public getFilterActionText(action: string): string {
+        return getFilterActionText(action);
     }
 
     /**
      * 添加过滤规则
      */
-    private addFilterRule(): void {
-        console.log('[Enhancement] 添加过滤规则按钮被点击');
-        try {
-            this.openFilterRuleModal();
-        } catch (error) {
-            console.error('[Enhancement] 显示内联编辑器时出错:', error);
-            showMessage('显示编辑器时出错，请检查控制台', 'error');
-        }
+    public addFilterRule(): void {
+        return addFilterRule(this);
     }
 
     /**
      * 编辑过滤规则
      */
-    private editFilterRule(index: number): void {
-        console.log(`[Enhancement] 编辑过滤规则按钮被点击，索引: ${index}`);
-        const rule = this.currentFilterRules[index];
-        if (!rule) {
-            console.error(`[Enhancement] 未找到索引为 ${index} 的过滤规则`);
-            showMessage('未找到要编辑的规则', 'error');
-            return;
-        }
-        console.log(`[Enhancement] 编辑规则: ${rule.name}`);
-        try {
-            this.openFilterRuleModal(rule, index);
-        } catch (error) {
-            console.error('[Enhancement] 显示内联编辑器时出错:', error);
-            showMessage('显示内联编辑器时出错，请检查控制台', 'error');
-        }
+    public editFilterRule(index: number): void {
+        return editFilterRule(this, index);
     }
 
     /**
      * 打开规则弹窗
      */
-    private openFilterRuleModal(rule?: KeywordFilterRule, index?: number): void {
-        const modal = document.getElementById('filterRuleModal');
-        if (!modal) {
-            console.warn('[Enhancement] 未找到过滤规则弹窗节点');
-            return;
-        }
-
-        // 标题
-        const title = document.getElementById('filterRuleModalTitle');
-        if (title) title.textContent = rule ? '编辑过滤规则' : '添加过滤规则';
-
-        // 填充字段
-        (document.getElementById('modalInlineRuleName') as HTMLInputElement).value = rule?.name || '';
-        (document.getElementById('modalInlineRuleKeyword') as HTMLInputElement).value = rule?.keyword || '';
-        (document.getElementById('modalInlineRuleAction') as HTMLSelectElement).value = rule?.action || 'hide';
-
-        const fieldsSel = document.getElementById('modalInlineRuleFields') as HTMLSelectElement;
-        if (fieldsSel) {
-            Array.from(fieldsSel.options).forEach(opt => {
-                opt.selected = !!rule?.fields?.includes(opt.value as any);
-            });
-        }
-
-        (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked = !!rule?.isRegex;
-        (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked = !!rule?.caseSensitive;
-        
-        // 设置启用开关状态
-        const enableToggle = document.getElementById('modalInlineRuleEnabled') as HTMLButtonElement;
-        const isEnabled = rule?.enabled !== false;
-        if (enableToggle) {
-            enableToggle.classList.toggle('active', isEnabled);
-            enableToggle.setAttribute('data-enabled', isEnabled.toString());
-        }
-        
-        (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value = rule?.message || '';
-
-        // 字段设置
-        const keywordSettings = document.getElementById('keywordSettings') as HTMLElement;
-        const releaseDateSettings = document.getElementById('releaseDateSettings') as HTMLElement;
-        const dateComparison = document.getElementById('modalInlineRuleDateComparison') as HTMLSelectElement;
-        const dateRangeInputs = document.getElementById('dateRangeInputs') as HTMLElement;
-        const singleDateInput = document.getElementById('singleDateInput') as HTMLElement;
-        const startDateInput = document.getElementById('modalInlineRuleStartDate') as HTMLInputElement;
-        const endDateInput = document.getElementById('modalInlineRuleEndDate') as HTMLInputElement;
-        const singleDate = document.getElementById('modalInlineRuleSingleDate') as HTMLInputElement;
-
-        // 检查选择的字段，决定显示哪个设置盒子
-        const updateFieldSettings = () => {
-            const selectedFields = Array.from(fieldsSel.selectedOptions).map(opt => opt.value);
-            const hasReleaseDate = selectedFields.includes('release-date');
-            const hasOtherFields = selectedFields.some(f => f !== 'release-date');
-            
-            // 如果只选择了发行日期，只显示发行日期设置
-            // 如果选择了其他字段（无论是否包含发行日期），显示关键词设置
-            if (hasReleaseDate && !hasOtherFields) {
-                keywordSettings.style.display = 'none';
-                releaseDateSettings.style.display = 'block';
-            } else if (hasOtherFields) {
-                keywordSettings.style.display = 'block';
-                releaseDateSettings.style.display = hasReleaseDate ? 'block' : 'none';
-            } else {
-                // 没有选择任何字段
-                keywordSettings.style.display = 'block';
-                releaseDateSettings.style.display = 'none';
-            }
-        };
-
-        // 初始化发行日期设置
-        if (rule?.releaseDateRange) {
-            const dateRange = rule.releaseDateRange;
-            dateComparison.value = dateRange.comparison || 'between';
-            startDateInput.value = dateRange.startDate || '';
-            endDateInput.value = dateRange.endDate || '';
-            singleDate.value = dateRange.exactDate || '';
-        }
-
-        // 根据对比方式显示不同的输入框
-        const updateDateInputs = () => {
-            const comparison = dateComparison.value;
-            if (comparison === 'between') {
-                dateRangeInputs.style.display = 'flex';
-                singleDateInput.style.display = 'none';
-            } else {
-                dateRangeInputs.style.display = 'none';
-                singleDateInput.style.display = 'block';
-            }
-        };
-
-        // 初始化显示状态
-        updateFieldSettings();
-        updateDateInputs();
-
-        // 监听字段选择变化
-        fieldsSel.addEventListener('change', updateFieldSettings);
-
-        // 监听对比方式变化
-        dateComparison?.addEventListener('change', updateDateInputs);
-
-        // 绑定启用开关点击事件
-        const toggleHandler = () => {
-            const isActive = enableToggle.classList.contains('active');
-            enableToggle.classList.toggle('active', !isActive);
-            enableToggle.setAttribute('data-enabled', (!isActive).toString());
-        };
-        enableToggle?.addEventListener('click', toggleHandler);
-
-        // 事件绑定（先移除旧的）
-        const closeBtn = document.getElementById('filterRuleModalClose');
-        const cancelBtn = document.getElementById('cancelFilterRuleBtn');
-        const saveBtn = document.getElementById('saveFilterRuleBtn');
-
-        const hide = () => { modal.classList.remove('visible'); modal.classList.add('hidden'); };
-        closeBtn?.addEventListener('click', hide, { once: true });
-        cancelBtn?.addEventListener('click', hide, { once: true });
-
-        saveBtn?.addEventListener('click', () => {
-            this.saveFilterRuleFromModal(index);
-            hide();
-        }, { once: true });
-
-        // 显示
-        modal.classList.remove('hidden');
-        modal.classList.add('visible');
+    public openFilterRuleModal(rule?: KeywordFilterRule, index?: number): void {
+        return openFilterRuleModal(this, rule, index);
     }
 
     /** 保存弹窗中的规则 */
-    private saveFilterRuleFromModal(index?: number): void {
-        const name = (document.getElementById('modalInlineRuleName') as HTMLInputElement).value.trim();
-        const fieldsSelect = document.getElementById('modalInlineRuleFields') as HTMLSelectElement;
-        const action = (document.getElementById('modalInlineRuleAction') as HTMLSelectElement).value;
-        const keyword = (document.getElementById('modalInlineRuleKeyword') as HTMLInputElement).value.trim();
-        const isRegex = (document.getElementById('modalInlineRuleIsRegex') as HTMLInputElement).checked;
-        const caseSensitive = (document.getElementById('modalInlineRuleCaseSensitive') as HTMLInputElement).checked;
-        
-        // 从button获取启用状态
-        const enableToggle = document.getElementById('modalInlineRuleEnabled') as HTMLButtonElement;
-        const enabled = enableToggle?.classList.contains('active') ?? true;
-        
-        const message = (document.getElementById('modalInlineRuleMessage') as HTMLTextAreaElement).value.trim();
-
-        if (!name) { showMessage('请输入规则名称', 'error'); return; }
-        if (!action) { showMessage('请选择过滤动作', 'error'); return; }
-
-        const selectedFields = Array.from(fieldsSelect.selectedOptions).map(option => option.value) as ('title' | 'actor' | 'studio' | 'genre' | 'tag' | 'video-id' | 'release-date')[];
-        if (selectedFields.length === 0) { showMessage('请至少选择一个过滤字段', 'error'); return; }
-
-        // 检查是否只选择了发行日期
-        const hasReleaseDate = selectedFields.includes('release-date');
-        const hasOtherFields = selectedFields.some(f => f !== 'release-date');
-
-        // 如果选择了非发行日期的字段，必须输入关键词
-        if (hasOtherFields && !keyword) {
-            showMessage('请输入关键词', 'error');
-            return;
-        }
-
-        const rule: KeywordFilterRule = {
-            id: typeof index === 'number' ? this.currentFilterRules[index].id : Date.now().toString(),
-            name,
-            keyword: keyword || '', // 如果只选择发行日期，关键词可以为空
-            fields: selectedFields,
-            action: action as 'hide' | 'highlight' | 'blur' | 'mark',
-            isRegex,
-            caseSensitive,
-            enabled,
-            message: message || undefined
-        };
-
-        // 如果选择了发行日期字段，添加日期范围配置
-        if (hasReleaseDate) {
-            const dateComparison = (document.getElementById('modalInlineRuleDateComparison') as HTMLSelectElement).value;
-            const startDate = (document.getElementById('modalInlineRuleStartDate') as HTMLInputElement).value;
-            const endDate = (document.getElementById('modalInlineRuleEndDate') as HTMLInputElement).value;
-            const singleDate = (document.getElementById('modalInlineRuleSingleDate') as HTMLInputElement).value;
-
-            rule.releaseDateRange = {
-                enabled: true,
-                comparison: dateComparison as 'between' | 'before' | 'after' | 'exact'
-            };
-            
-            // 根据对比方式设置日期
-            if (dateComparison === 'between') {
-                rule.releaseDateRange.startDate = startDate || undefined;
-                rule.releaseDateRange.endDate = endDate || undefined;
-            } else if (dateComparison === 'exact') {
-                rule.releaseDateRange.exactDate = singleDate || undefined;
-            } else if (dateComparison === 'before') {
-                rule.releaseDateRange.exactDate = singleDate || undefined;
-            } else if (dateComparison === 'after') {
-                rule.releaseDateRange.exactDate = singleDate || undefined;
-            }
-        }
-
-        if (typeof index === 'number') {
-            this.currentFilterRules[index] = rule;
-            showMessage(`过滤规则 "${rule.name}" 已更新`, 'success');
-        } else {
-            this.currentFilterRules.push(rule);
-            showMessage(`过滤规则 "${rule.name}" 已添加`, 'success');
-        }
-
-        this.renderFilterRules();
-        this.handleSettingChange();
+    public saveFilterRuleFromModal(index?: number): void {
+        return saveFilterRuleFromModal(this, index);
     }
 
     /**
      * 删除过滤规则
      */
-    private async deleteFilterRule(index: number): Promise<void> {
-        console.log(`[Enhancement] deleteFilterRule 被调用，索引: ${index}`);
-
-        const rule = this.currentFilterRules[index];
-        if (!rule) {
-            console.error(`[Enhancement] 未找到索引为 ${index} 的规则`);
-            showMessage('未找到要删除的规则', 'error');
-            return;
-        }
-
-        console.log(`[Enhancement] 准备删除规则: ${rule.name}`);
-
-        let confirmed = false;
-
-        try {
-            // 首先尝试使用美观的确认弹窗
-            const { showDanger } = await import('../../../components/confirmModal');
-            confirmed = await showDanger(
-                `确定要删除过滤规则 "${rule.name}" 吗？\n\n关键词: ${rule.keyword}\n动作: ${this.getFilterActionText(rule.action)}\n\n此操作不可撤销！`,
-                '删除过滤规则'
-            );
-            console.log(`[Enhancement] showDanger 返回结果: ${confirmed}`);
-        } catch (error) {
-            // 如果美观弹窗失败，使用原生确认对话框作为备选方案
-            console.warn('[Enhancement] showDanger 失败，使用原生确认对话框', error);
-            confirmed = confirm(
-                `确定要删除过滤规则 "${rule.name}" 吗？\n\n关键词: ${rule.keyword}\n动作: ${this.getFilterActionText(rule.action)}\n\n此操作不可撤销！`
-            );
-            console.log(`[Enhancement] 原生confirm 返回结果: ${confirmed}`);
-        }
-
-        if (confirmed) {
-            try {
-                console.log(`[Enhancement] 开始删除规则: ${rule.name}`);
-                this.currentFilterRules.splice(index, 1);
-                console.log(`[Enhancement] 规则已从数组中移除，剩余规则数量: ${this.currentFilterRules.length}`);
-
-                this.renderFilterRules();
-                console.log(`[Enhancement] 规则列表已重新渲染`);
-
-                this.handleSettingChange();
-                console.log(`[Enhancement] 设置变更已处理`);
-
-                showMessage(`过滤规则 "${rule.name}" 已删除`, 'success');
-                console.log(`[Enhancement] 删除成功消息已显示`);
-            } catch (error) {
-                console.error('[Enhancement] 删除规则过程中出错:', error);
-                showMessage('删除规则时出错，请检查控制台', 'error');
-            }
-        } else {
-            console.log(`[Enhancement] 用户取消删除规则: ${rule.name}`);
-        }
+    public async deleteFilterRule(index: number): Promise<void> {
+        return deleteFilterRule(this, index);
     }
 
     /**
      * 快速切换过滤规则的启用状态
      */
-    private toggleFilterRuleEnabled(index: number): void {
-        const rule = this.currentFilterRules[index];
-        if (!rule) {
-            console.error(`[Enhancement] 未找到索引为 ${index} 的规则`);
-            return;
-        }
-
-        // 切换启用状态
-        rule.enabled = !rule.enabled;
-        
-        // 只更新对应的滑块状态,不重新渲染整个列表
-        const toggleBtn = this.filterRulesList?.querySelector(`.enhancement-toggle[data-index="${index}"]`) as HTMLButtonElement;
-        if (toggleBtn) {
-            toggleBtn.classList.toggle('active', rule.enabled);
-            toggleBtn.setAttribute('data-enabled', rule.enabled.toString());
-            toggleBtn.title = rule.enabled ? '点击禁用' : '点击启用';
-        }
-        
-        // 保存设置
-        this.handleSettingChange();
-        
-        // 显示提示
-        showMessage(`规则 "${rule.name}" 已${rule.enabled ? '启用' : '禁用'}`, 'success');
+    public toggleFilterRuleEnabled(index: number): void {
+        return toggleFilterRuleEnabled(this, index);
     }
 
     /**
      * 强制更新所有滑块状态
      */
-    private updateAllToggleStates(): void {
-        console.log('[Enhancement] 强制更新所有滑块状态');
-        const toggles = document.querySelectorAll('#enhancement-settings .enhancement-toggle');
-        toggles.forEach((toggleEl) => {
-            const targetId = toggleEl.getAttribute('data-target');
-            if (!targetId) return;
-            const hiddenCheckbox = document.getElementById(targetId) as HTMLInputElement | null;
-            if (!hiddenCheckbox) return;
-
-            // 同步外观
-            if (hiddenCheckbox.checked) {
-                toggleEl.classList.add('active');
-            } else {
-                toggleEl.classList.remove('active');
-            }
-
-            // 同步子设置可用状态标记
-            this.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
-
-            // 特殊：翻译子设置可见性
-            if (targetId === 'enableTranslation') {
-                this.updateTranslationConfigVisibility();
-            }
-        });
+    public updateAllToggleStates(): void {
+        return updateAllToggleStates(this);
     }
 
     /**
      * 切换子标签显示
      */
-    private switchSubtab(sub: 'list' | 'video' | 'actor' | 'other'): void {
+    public switchSubtab(sub: 'list' | 'video' | 'actor' | 'other'): void {
         console.log('[Enhancement] switchSubtab called with:', sub);
         this.currentSubtab = sub as any;
         try { localStorage.setItem('enhancementSubtab', sub); } catch {}
@@ -3675,32 +1063,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 设置复选框组样式支持
      * 为不支持CSS :has()选择器的浏览器提供JavaScript支持
      */
-    private setupCheckboxGroupStyles(): void {
-        // 查找所有复选框组中的复选框
-        const checkboxGroups = document.querySelectorAll('.form-group.checkbox-group');
-
-        checkboxGroups.forEach(group => {
-            const checkboxes = group.querySelectorAll('input[type="checkbox"]');
-
-            checkboxes.forEach(checkbox => {
-                const label = checkbox.closest('.checkbox-label');
-                if (!label) return;
-
-                // 初始化状态
-                this.updateCheckboxLabelState(checkbox as HTMLInputElement, label as HTMLElement);
-
-                // 监听变化
-                checkbox.addEventListener('change', () => {
-                    this.updateCheckboxLabelState(checkbox as HTMLInputElement, label as HTMLElement);
-                });
-            });
-        });
+    public setupCheckboxGroupStyles(): void {
+        return setupCheckboxGroupStyles();
     }
 
     /**
      * 更新复选框标签状态
      */
-    private updateCheckboxLabelState(checkbox: HTMLInputElement, label: HTMLElement): void {
+    public updateCheckboxLabelState(checkbox: HTMLInputElement, label: HTMLElement): void {
         if (checkbox.checked) {
             label.classList.add('checked');
         } else {
@@ -3712,55 +1082,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 设置锚点配置样式支持
      * 为不支持CSS :has()选择器的浏览器提供JavaScript支持
      */
-    private setupAnchorConfigStyles(): void {
-        // 查找锚点配置容器
-        const anchorConfigContainer = document.querySelector('.anchor-config-container');
-        if (!anchorConfigContainer) return;
-
-        // 处理滑块开关
-        const toggleInput = anchorConfigContainer.querySelector('#showPreviewButton') as HTMLInputElement;
-        if (toggleInput) {
-            const option = toggleInput.closest('.anchor-config-option');
-            if (option) {
-                // 初始化状态
-                this.updateAnchorConfigState(toggleInput, option as HTMLElement);
-
-                // 监听变化
-                toggleInput.addEventListener('change', () => {
-                    this.updateAnchorConfigState(toggleInput, option as HTMLElement);
-                });
-            }
-        }
-
-        // 处理下拉框
-        const selectInput = anchorConfigContainer.querySelector('#anchorButtonPosition') as HTMLSelectElement;
-        if (selectInput) {
-            const option = selectInput.closest('.anchor-config-option');
-            if (option) {
-                // 监听聚焦和失焦
-                selectInput.addEventListener('focus', () => {
-                    option.classList.add('active');
-                });
-
-                selectInput.addEventListener('blur', () => {
-                    option.classList.remove('active');
-                });
-
-                selectInput.addEventListener('change', () => {
-                    // 短暂激活状态以显示变化反馈
-                    option.classList.add('active');
-                    setTimeout(() => {
-                        option.classList.remove('active');
-                    }, 1000);
-                });
-            }
-        }
+    public setupAnchorConfigStyles(): void {
+        return setupAnchorConfigStyles();
     }
 
     /**
      * 更新锚点配置选项状态
      */
-    private updateAnchorConfigState(input: HTMLInputElement, option: HTMLElement): void {
+    public updateAnchorConfigState(input: HTMLInputElement, option: HTMLElement): void {
         if (input.checked) {
             option.classList.add('active');
         } else {
@@ -3772,123 +1101,14 @@ export class EnhancementSettings extends BaseSettingsPanel {
      * 设置音量控制样式支持
      * 处理滑块轨道填充效果和交互状态
      */
-    private setupVolumeControlStyles(): void {
-        console.log('[Enhancement] 开始设置音量控制样式...');
-
-        // 使用更灵活的元素查找方式
-        const volumeSlider = document.getElementById('previewVolume') as HTMLInputElement;
-        const volumeGroup = document.querySelector('.volume-control-group') as HTMLElement;
-
-        if (!volumeSlider) {
-            console.warn('[Enhancement] 未找到音量滑块元素 #previewVolume');
-            return;
-        }
-
-        if (!volumeGroup) {
-            console.warn('[Enhancement] 未找到音量控制组元素 .volume-control-group');
-            return;
-        }
-
-        // 在音量控制组内查找子元素
-        const trackFill = volumeGroup.querySelector('.range-track-fill') as HTMLElement;
-        const volumeValue = volumeGroup.querySelector('.volume-percentage') as HTMLElement;
-
-        if (!trackFill) {
-            console.warn('[Enhancement] 未找到进度条元素 .range-track-fill');
-            return;
-        }
-
-        if (!volumeValue) {
-            console.warn('[Enhancement] 未找到百分比显示元素 .volume-percentage');
-            return;
-        }
-
-        console.log('[Enhancement] 所有音量控制元素找到，开始绑定事件...');
-
-        // 更新轨道填充和百分比显示
-        const updateTrackFill = () => {
-            const value = parseFloat(volumeSlider.value);
-            const percentage = Math.round(value * 100);
-
-            trackFill.style.width = `${percentage}%`;
-            volumeValue.textContent = `${percentage}%`;
-
-            console.log(`[Enhancement] 音量更新: ${percentage}%, 进度条宽度: ${trackFill.style.width}`);
-        };
-
-        // 初始化轨道填充和百分比显示
-        updateTrackFill();
-
-        // 延迟再次同步，确保设置加载完成后的同步
-        setTimeout(() => {
-            updateTrackFill();
-            console.log('[Enhancement] 延迟同步音量显示完成');
-        }, 500);
-
-        // 监听滑块变化
-        volumeSlider.addEventListener('input', () => {
-            console.log('[Enhancement] 音量滑块input事件触发');
-            updateTrackFill();
-
-            // 添加激活状态
-            volumeGroup.classList.add('active');
-
-            // 短暂移除激活状态
-            if (this.volumeActiveTimeout) {
-                clearTimeout(this.volumeActiveTimeout);
-            }
-            this.volumeActiveTimeout = setTimeout(() => {
-                volumeGroup.classList.remove('active');
-            }, 1000);
-        });
-
-        // 监听滑块变化（change事件作为备用）
-        volumeSlider.addEventListener('change', () => {
-            console.log('[Enhancement] 音量滑块change事件触发');
-            updateTrackFill();
-        });
-
-        // 监听鼠标按下和释放
-        volumeSlider.addEventListener('mousedown', () => {
-            console.log('[Enhancement] 音量滑块mousedown事件');
-            volumeGroup.classList.add('active');
-        });
-
-        volumeSlider.addEventListener('mouseup', () => {
-            console.log('[Enhancement] 音量滑块mouseup事件');
-            if (this.volumeActiveTimeout) {
-                clearTimeout(this.volumeActiveTimeout);
-            }
-            this.volumeActiveTimeout = setTimeout(() => {
-                volumeGroup.classList.remove('active');
-            }, 500);
-        });
-
-        // 监听聚焦和失焦
-        volumeSlider.addEventListener('focus', () => {
-            console.log('[Enhancement] 音量滑块focus事件');
-            volumeGroup.classList.add('active');
-        });
-
-        volumeSlider.addEventListener('blur', () => {
-            console.log('[Enhancement] 音量滑块blur事件');
-            if (this.volumeActiveTimeout) {
-                clearTimeout(this.volumeActiveTimeout);
-            }
-            this.volumeActiveTimeout = setTimeout(() => {
-                volumeGroup.classList.remove('active');
-            }, 300);
-        });
-
-        console.log('[Enhancement] 音量控制样式设置完成');
+    public setupVolumeControlStyles(): void {
+        return setupVolumeControlStyles();
     }
-
-    private volumeActiveTimeout: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * 加载上次应用的标签
      */
-    private async loadLastAppliedTags(): Promise<void> {
+    public async loadLastAppliedTags(): Promise<void> {
         try {
             const lastAppliedTags = await getValue('lastAppliedActorTags', '');
             if (lastAppliedTags && this.appliedTagsContainer) {
@@ -3902,96 +1122,28 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 显示已应用的标签
      */
-    private displayAppliedTags(tagsString: string): void {
-        if (!this.appliedTagsContainer) return;
-
-        if (!tagsString) {
-            this.appliedTagsContainer.innerHTML = '<span class="no-tags-message">暂无记录</span>';
-            return;
-        }
-
-        const tags = tagsString.split(',').filter(tag => tag.trim());
-
-        const tagElements = tags.map(tag => {
-            // 使用配置文件中的标签定义
-            const tagConfig = getTagByValue(tag);
-            const tagName = tagConfig ? tagConfig.label : tag;
-            return `<span class="applied-tag">${tagName}</span>`;
-        }).join('');
-
-        this.appliedTagsContainer.innerHTML = tagElements;
+    public displayAppliedTags(tagsString: string): void {
+        return displayAppliedTags(this, tagsString);
     }
 
     /**
      * 初始化演员页增强事件监听器
      */
-    private initializeActorEnhancementEvents(): void {
-        // 默认过滤条件复选框事件监听
-        if (this.actorDefaultTagInputs && this.actorDefaultTagInputs.length > 0) {
-            this.actorDefaultTagInputs.forEach((input: HTMLInputElement) => {
-                input.addEventListener('change', this.handleSettingChange.bind(this));
-            });
-        }
-
-        // 自动应用过滤器开关事件监听
-        if (this.enableAutoApplyTags) {
-            this.enableAutoApplyTags.addEventListener('change', this.handleSettingChange.bind(this));
-        }
-
-        // 清除上次应用标签
-        if (this.clearLastAppliedTags) {
-            this.clearLastAppliedTags.addEventListener('click', async () => {
-                await setValue('lastAppliedActorTags', '');
-                this.displayAppliedTags('');
-            });
-        }
+    public initializeActorEnhancementEvents(): void {
+        return initializeActorEnhancementEvents(this);
     }
 
     /**
      * 获取并更新性能指标
      */
-    private async fetchAndUpdateMetrics(): Promise<void> {
-        console.log('[Enhancement] Fetching aggregated metrics from background...');
-        try {
-            const globalState = await fetchGlobalTaskState().catch(() => null as any);
-            const liveTasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
-            // 从后台获取聚合的性能指标
-            const resp = await new Promise<any>((resolve) => {
-                try {
-                    chrome.runtime.sendMessage({ type: 'orchestrator:getAggregatedMetrics' }, (reply) => {
-                        const err = chrome.runtime.lastError;
-                        if (err) {
-                            console.warn('[Enhancement] Failed to get metrics:', err);
-                            resolve(null);
-                        } else {
-                            console.log('[Enhancement] Received metrics response:', reply);
-                            resolve(reply);
-                        }
-                    });
-                } catch (e) {
-                    console.error('[Enhancement] Exception when sending message:', e);
-                    resolve(null);
-                }
-            });
-
-            if (resp && resp.success) {
-                const metrics = this.enrichMetricsWithLiveTaskState(resp.metrics, liveTasks);
-                console.log('[Enhancement] Updating metrics display with:', metrics);
-                this.updatePerformanceMetrics(metrics);
-            } else {
-                console.warn('[Enhancement] No valid metrics response, clearing display');
-                this.updatePerformanceMetrics(null);
-            }
-        } catch (e) {
-            console.warn('[Enhancement] fetchAndUpdateMetrics failed:', e);
-            this.updatePerformanceMetrics(null);
-        }
+    public async fetchAndUpdateMetrics(): Promise<void> {
+        return fetchAndUpdateMetrics(this);
     }
 
     /**
      * 更新性能指标显示
      */
-    private updatePerformanceMetrics(metrics: any): void {
+    public updatePerformanceMetrics(metrics: any): void {
         const metricTotalTasks = document.getElementById('metricTotalTasks');
         const metricCompletedTasks = document.getElementById('metricCompletedTasks');
         const metricRunningTasks = document.getElementById('metricRunningTasks');
@@ -4056,15 +1208,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
         if (metricTotalDuration) metricTotalDuration.textContent = formatDuration(metrics.totalDuration || 0);
     }
 
-    private enrichMetricsWithLiveTaskState(metrics: any, tasks: any[]): any {
-        const list = Array.isArray(tasks) ? tasks : [];
-        const runningTasks = list.filter((task: any) => ['leased', 'running'].includes(this.getGlobalTaskStatus(task))).length;
-        const pendingTasks = list.filter((task: any) => ['registered', 'queued', 'paused'].includes(this.getGlobalTaskStatus(task))).length;
-        return {
-            ...(metrics || {}),
-            runningTasks,
-            pendingTasks,
-        };
+    public enrichMetricsWithLiveTaskState(metrics: any, tasks: any[]): any {
+        return enrichMetricsWithLiveTaskState(this, metrics, tasks);
     }
 
     // ===== 任务明细弹窗相关方法 =====
@@ -4072,1265 +1217,187 @@ export class EnhancementSettings extends BaseSettingsPanel {
     /**
      * 打开任务明细弹窗
      */
-    private async openTaskDetailsModal(): Promise<void> {
-        if (!this.taskDetailsModal) return;
-        
-        this.taskDetailsModal.classList.remove('hidden');
-        this.taskDetailsModal.classList.add('visible');
-        
-        // 重置分页和搜索
-        this.taskDetailsCurrentPage = 1;
-        this.taskDetailsSearchQuery = '';
-        this.taskDetailsFilteredData = [];
-        if (this.taskDetailsSearch) {
-            this.taskDetailsSearch.value = '';
-        }
-        
-        // 加载任务明细数据
-        await this.fetchTaskDetails(true);
-        this.startTaskDetailsAutoRefresh();
+    public async openTaskDetailsModal(): Promise<void> {
+        return this.taskDetailsController.openTaskDetailsModal();
     }
 
     /**
      * 关闭任务明细弹窗
      */
-    private closeTaskDetailsModal(): void {
-        if (!this.taskDetailsModal) return;
-        this.taskDetailsModal.classList.add('hidden');
-        this.taskDetailsModal.classList.remove('visible');
-        this.stopTaskDetailsAutoRefresh();
+    public closeTaskDetailsModal(): void {
+        return this.taskDetailsController.closeTaskDetailsModal();
     }
 
-    private startTaskDetailsAutoRefresh(): void {
-        this.stopTaskDetailsAutoRefresh();
-        this.taskDetailsAutoRefreshTimer = window.setInterval(() => {
-            if (!this.taskDetailsModal || this.taskDetailsModal.classList.contains('hidden')) {
-                return;
-            }
-            if (this.taskDetailsRefreshing) {
-                return;
-            }
-            void this.refreshTaskDetails(false);
-        }, 5000);
+    public startTaskDetailsAutoRefresh(): void {
+        return this.taskDetailsController.startTaskDetailsAutoRefresh();
     }
 
-    private stopTaskDetailsAutoRefresh(): void {
-        if (this.taskDetailsAutoRefreshTimer) {
-            window.clearInterval(this.taskDetailsAutoRefreshTimer);
-            this.taskDetailsAutoRefreshTimer = undefined;
-        }
+    public stopTaskDetailsAutoRefresh(): void {
+        return this.taskDetailsController.stopTaskDetailsAutoRefresh();
     }
 
     /**
      * 刷新任务明细数据
      */
-    private async refreshTaskDetails(showSpinner: boolean = true): Promise<void> {
-        if (!this.taskDetailsRefreshBtn) return;
-        if (this.taskDetailsRefreshing) return;
-        this.taskDetailsRefreshing = true;
-        
-        // 显示刷新动画
-        const icon = this.taskDetailsRefreshBtn.querySelector('i');
-        if (showSpinner && icon) {
-            icon.classList.add('fa-spin');
-        }
-        if (showSpinner) {
-            this.taskDetailsRefreshBtn.disabled = true;
-        }
-
-        try {
-            // 重新获取数据
-            await this.fetchTaskDetails(showSpinner);
-        } finally {
-            // 恢复按钮状态
-            if (showSpinner && icon) {
-                icon.classList.remove('fa-spin');
-            }
-            if (showSpinner) {
-                this.taskDetailsRefreshBtn.disabled = false;
-            }
-            this.taskDetailsRefreshing = false;
-        }
+    public async refreshTaskDetails(showSpinner: boolean = true): Promise<void> {
+        return this.taskDetailsController.refreshTaskDetails(showSpinner);
     }
 
     /**
      * 清空任务明细数据
      */
-    private async clearTaskDetails(): Promise<void> {
-        // 确认对话框
-        const confirmed = confirm('确定要清空所有任务执行记录和性能指标吗？此操作不可恢复。');
-        if (!confirmed) return;
-
-        try {
-            // 发送清空请求到后台
-            const resp = await new Promise<any>((resolve) => {
-                chrome.runtime.sendMessage({
-                    type: 'orchestrator:clearTaskDetails'
-                }, (reply) => {
-                    const err = chrome.runtime.lastError;
-                    if (err) {
-                        console.warn('[Enhancement] Failed to clear task details:', err);
-                        resolve({ success: false });
-                    } else {
-                        resolve(reply);
-                    }
-                });
-            });
-
-            if (resp && resp.success) {
-                this.stopTaskDetailsAutoRefresh();
-                this.unsubscribeOrchestratorEvents();
-                this.globalOrchestratorState = [];
-                this.orchestratorTimelineData = [];
-                this.taskDetailsData = [];
-                this.taskDetailsFilteredData = [];
-                this.taskDetailsPageSummaryData = [];
-                this.taskDetailsPageSummaryFilteredData = [];
-                this.taskDetailsRenderFingerprint = this.buildTaskDetailsFingerprint([]);
-                this.taskDetailsCurrentPage = 1;
-                this.taskDetailsExpandedParents.clear();
-                this.taskDetailsExpandedPageSummaries.clear();
-                this.renderTaskDetailsTable();
-                this.updateTaskDetailsPagination(0, 1);
-                this.updatePerformanceMetrics({
-                    totalTasks: 0,
-                    completedTasks: 0,
-                    failedTasks: 0,
-                    timeoutTasks: 0,
-                    avgDuration: 0,
-                    maxDuration: 0,
-                    minDuration: 0,
-                    totalDuration: 0,
-                    recordCount: 0,
-                    avgTasksPerPage: 0,
-                    successRate: 0,
-                    maxDurationTask: '',
-                    lastSavedAt: 0,
-                } as any);
-                showMessage('任务记录和性能指标已清空', 'success');
-                await this.fetchAndUpdateMetrics();
-                if (this.orchestratorPhases) this.orchestratorPhases.textContent = '';
-                if (this.orchestratorTimeline) this.orchestratorTimeline.textContent = '';
-                if (this.orchestratorSummary) this.orchestratorSummary.textContent = '任务记录和性能指标已清空';
-            } else {
-                showMessage('清空失败，请重试', 'error');
-            }
-        } catch (e) {
-            console.error('[Enhancement] Exception when clearing task details:', e);
-            showMessage('清空失败，请重试', 'error');
-        }
+    public async clearTaskDetails(): Promise<void> {
+        return this.taskDetailsController.clearTaskDetails();
     }
 
-    private async clearGlobalTaskState(): Promise<void> {
-        const confirmed = confirm('确定要清空全局任务快照吗？这会移除所有页面实例的持久化任务状态。');
-        if (!confirmed) return;
-
-        try {
-            const resp = await chrome.runtime.sendMessage({ type: 'task-center:clear' });
-            if (!resp?.ok) {
-                throw new Error(resp?.error || '清空全局任务失败');
-            }
-
-            this.globalOrchestratorState = [];
-            this.orchestratorTimelineData = [];
-            if (this.orchestratorPhases) this.orchestratorPhases.textContent = '';
-            if (this.orchestratorTimeline) this.orchestratorTimeline.textContent = '';
-            if (this.orchestratorSummary) this.orchestratorSummary.textContent = '全局任务快照已清空';
-            await this.refreshOrchestratorState();
-            await this.fetchAndUpdateMetrics();
-            showMessage('全局任务状态已清空', 'success');
-        } catch (error: any) {
-            console.error('[Enhancement] Failed to clear global task state:', error);
-            showMessage(`清空全局任务失败: ${error?.message || String(error)}`, 'error');
-        }
+    public async clearGlobalTaskState(): Promise<void> {
+        return this.taskDetailsController.clearGlobalTaskState();
     }
 
-    private async stopAllTaskDetails(): Promise<void> {
-        const confirmed = confirm('确定要停止所有运行中、等待中、已注册和暂停中的任务吗？这会立即中断当前测试批次。');
-        if (!confirmed) return;
-
-        try {
-            const resp = await new Promise<any>((resolve) => {
-                chrome.runtime.sendMessage({
-                    type: 'orchestrator:stopAllTasks'
-                }, (reply) => {
-                    const err = chrome.runtime.lastError;
-                    if (err) {
-                        console.warn('[Enhancement] Failed to stop all tasks:', err);
-                        resolve({ success: false, error: err.message });
-                    } else {
-                        resolve(reply);
-                    }
-                });
-            });
-
-            if (resp && resp.success) {
-                showMessage(`已停止 ${resp.canceled || 0} 个任务，已清理 ${resp.cleared || 0} 条全局记录`, 'success');
-                this.globalOrchestratorState = [];
-                this.orchestratorTimelineData = [];
-                if (this.orchestratorPhases) this.orchestratorPhases.textContent = '';
-                if (this.orchestratorTimeline) this.orchestratorTimeline.textContent = '';
-                if (this.orchestratorSummary) this.orchestratorSummary.textContent = `已手动停止 ${resp.canceled || 0} 个任务，已清理 ${resp.cleared || 0} 条全局记录`;
-                await this.fetchTaskDetails(false);
-                await this.refreshOrchestratorState();
-                await this.fetchAndUpdateMetrics();
-            } else {
-                showMessage('停止任务失败，请重试', 'error');
-            }
-        } catch (e) {
-            console.error('[Enhancement] Exception when stopping all tasks:', e);
-            showMessage('停止任务失败，请重试', 'error');
-        }
+    public async stopAllTaskDetails(): Promise<void> {
+        return this.taskDetailsController.stopAllTaskDetails();
     }
 
     /**
      * 从后台获取任务明细数据
      */
-    private buildTaskDetailsFingerprint(rows: any[]): string {
-        return JSON.stringify((rows || []).map((row: any) => ({
-            label: row?.label,
-            parentLabel: row?.parentLabel,
-            subtaskLabel: row?.subtaskLabel,
-            batchIndex: row?.batchIndex,
-            itemCount: row?.itemCount,
-            phase: row?.phase,
-            status: row?.status,
-            pageInstanceId: row?.pageInstanceId,
-            tabId: row?.tabId,
-            createdAt: row?.createdAt ?? row?.timestamp,
-            startedAt: row?.startedAt,
-            endedAt: row?.endedAt,
-            waitReason: row?.waitReason,
-            durationMs: row?.durationMs,
-            detail: row?.detail,
-        })));
+    public buildTaskDetailsFingerprint(rows: any[]): string {
+        return this.taskDetailsController.buildTaskDetailsFingerprint(rows);
     }
 
-    private async fetchTaskDetails(showLoading: boolean = true): Promise<void> {
-        try {
-            // 显示加载状态
-            if (showLoading && this.taskDetailsTableBody) {
-                this.taskDetailsTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
-                            <i class="fas fa-spinner fa-spin"></i> 加载中...
-                        </td>
-                    </tr>
-                `;
-            }
-
-            // 从后台获取任务明细（一次性获取所有数据，最多5000条）
-            const resp = await new Promise<any>((resolve) => {
-                try {
-                    chrome.runtime.sendMessage({
-                        type: 'orchestrator:getTaskDetails',
-                        options: {
-                            page: 1,
-                            pageSize: 5000, // 一次性获取最多5000条
-                        }
-                    }, (reply) => {
-                        const err = chrome.runtime.lastError;
-                        if (err) {
-                            console.warn('[Enhancement] Failed to get task details:', err);
-                            resolve(null);
-                        } else {
-                            resolve(reply);
-                        }
-                    });
-                } catch (e) {
-                    console.error('[Enhancement] Exception when fetching task details:', e);
-                    resolve(null);
-                }
-            });
-
-            if (resp && resp.success && resp.details) {
-                const nextTaskDetailsData = resp.details.details || [];
-                const nextFingerprint = this.buildTaskDetailsFingerprint(nextTaskDetailsData);
-                const dataChanged = nextFingerprint !== this.taskDetailsRenderFingerprint;
-                this.taskDetailsData = nextTaskDetailsData;
-                this.taskDetailsPageSummaryData = this.buildTaskDetailPageSummaries(this.taskDetailsData);
-                this.taskDetailsPageSummaryFilteredData = [];
-                this.taskDetailsRenderFingerprint = nextFingerprint;
-                
-                // 如果有搜索查询，重新应用过滤
-                if (this.taskDetailsSearchQuery) {
-                    this.taskDetailsSearchHandler();
-                } else {
-                    this.taskDetailsFilteredData = [];
-                    this.renderTaskDetailsTable();
-                    const total = this.getRenderedTaskDetailsCount();
-                    const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-                    this.updateTaskDetailsPagination(total, totalPages);
-                }
-            } else {
-                // 显示错误状态
-                if (this.taskDetailsTableBody) {
-                    this.taskDetailsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="10" style="padding:40px; text-align:center; color:#ef4444;">
-                                <i class="fas fa-exclamation-triangle"></i> 加载失败
-                            </td>
-                        </tr>
-                    `;
-                }
-            }
-        } catch (e) {
-            console.error('[Enhancement] Failed to fetch task details:', e);
-            if (this.taskDetailsTableBody) {
-                this.taskDetailsTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="10" style="padding:40px; text-align:center; color:#ef4444;">
-                            <i class="fas fa-exclamation-triangle"></i> 加载失败
-                        </td>
-                    </tr>
-                `;
-            }
-        }
+    public async fetchTaskDetails(showLoading: boolean = true): Promise<void> {
+        return this.taskDetailsController.fetchTaskDetails(showLoading);
     }
 
     /**
      * 渲染任务明细表格
      */
 
-    private getTaskDetailsSourceData(): any[] {
-        return this.taskDetailsFilteredData.length > 0 || this.taskDetailsSearchQuery
-            ? this.taskDetailsFilteredData
-            : this.taskDetailsData;
+    public getTaskDetailsSourceData(): any[] {
+        return this.taskDetailsController.getTaskDetailsSourceData();
     }
 
-    private getTaskDetailsPageSummarySourceData(): any[] {
-        return this.taskDetailsPageSummaryFilteredData.length > 0 || this.taskDetailsSearchQuery
-            ? this.taskDetailsPageSummaryFilteredData
-            : this.taskDetailsPageSummaryData;
+    public getTaskDetailsPageSummarySourceData(): any[] {
+        return this.taskDetailsController.getTaskDetailsPageSummarySourceData();
     }
 
-    private getPagePath(url?: string): string {
-        if (!url) return '-';
-        try {
-            const parsed = new URL(url);
-            return `${parsed.pathname || '/'}${parsed.search || ''}`;
-        } catch {
-            return url;
-        }
+    public getPagePath(url?: string): string {
+        return this.taskDetailsController.getPagePath(url);
     }
 
-    private formatTaskDuration(ms: number): string {
-        if (ms < 1000) return `${Math.round(ms)}ms`;
-        if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-        const minutes = Math.floor(ms / 60000);
-        const seconds = ((ms % 60000) / 1000).toFixed(0);
-        return `${minutes}m ${seconds}s`;
+    public formatTaskDuration(ms: number): string {
+        return this.taskDetailsController.formatTaskDuration(ms);
     }
 
-    private formatTaskTimestamp(ts: number): string {
-        const date = new Date(ts);
-        return date.toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+    public formatTaskTimestamp(ts: number): string {
+        return this.taskDetailsController.formatTaskTimestamp(ts);
     }
 
 
-    private getTaskRegisteredAt(task: any): number {
-        const value = task?.registeredAt ?? task?.createdAt ?? task?.timestamp ?? 0;
-        return typeof value === 'number' ? value : 0;
+    public getTaskRegisteredAt(task: any): number {
+        return this.taskDetailsController.getTaskRegisteredAt(task);
     }
 
-    private getTaskStartedAt(task: any): number {
-        const value = task?.startedAt ?? 0;
-        return typeof value === 'number' ? value : 0;
+    public getTaskStartedAt(task: any): number {
+        return this.taskDetailsController.getTaskStartedAt(task);
     }
 
-    private getTaskEndedAt(task: any): number {
-        const value = task?.endedAt ?? 0;
-        return typeof value === 'number' ? value : 0;
+    public getTaskEndedAt(task: any): number {
+        return this.taskDetailsController.getTaskEndedAt(task);
     }
 
-    private getTaskEffectiveEndAt(task: any): number {
-        const endedAt = this.getTaskEndedAt(task);
-        if (endedAt > 0) return endedAt;
-        const startedAt = this.getTaskStartedAt(task);
-        const durationMs = task?.durationMs;
-        if (
-            this.isTerminalTaskStatus(task?.status) &&
-            startedAt > 0 &&
-            typeof durationMs === 'number' &&
-            Number.isFinite(durationMs) &&
-            durationMs >= 0
-        ) {
-            return startedAt + durationMs;
-        }
-        return 0;
+    public getTaskEffectiveEndAt(task: any): number {
+        return this.taskDetailsController.getTaskEffectiveEndAt(task);
     }
 
-    private getTaskWaitDurationMs(task: any): number {
-        const createdAt = this.getTaskRegisteredAt(task);
-        const startedAt = this.getTaskStartedAt(task);
-        if (createdAt <= 0 || startedAt <= 0) return 0;
-        return Math.max(0, startedAt - createdAt);
+    public getTaskWaitDurationMs(task: any): number {
+        return this.taskDetailsController.getTaskWaitDurationMs(task);
     }
 
-    private getTaskRunDurationMs(task: any): number {
-        const durationMs = task?.durationMs;
-        if (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0) {
-            return durationMs;
-        }
-        const startedAt = this.getTaskStartedAt(task);
-        const endedAt = this.getTaskEffectiveEndAt(task);
-        if (startedAt > 0 && endedAt >= startedAt) {
-            return Math.max(0, endedAt - startedAt);
-        }
-        return 0;
+    public getTaskRunDurationMs(task: any): number {
+        return this.taskDetailsController.getTaskRunDurationMs(task);
     }
 
-    private getTaskPendingReasonLabel(waitReason?: string): string {
-        if (!waitReason) return '等待调度';
-        if (waitReason === 'dependency-wait') return '依赖未满足';
-        if (waitReason === 'tab-hidden') return '后台标签页';
-        if (waitReason === 'higher-priority-wait') return '更高优先级任务占用';
-        if (waitReason === 'page-closed-by-user') return '页面关闭取消';
-        if (waitReason === 'page-refresh-replaced') return '页面刷新替换';
-        if (waitReason === 'lease-timeout') return '心跳超时取消';
-        if (waitReason === 'manual-cancel') return '手动取消';
-        if (waitReason.startsWith('bucket:')) {
-            const bucket = waitReason.slice('bucket:'.length) || 'default';
-            return `并发桶等待:${bucket}`;
-        }
-        return waitReason;
+    public getTaskPendingReasonLabel(waitReason?: string): string {
+        return this.taskDetailsController.getTaskPendingReasonLabel(waitReason);
     }
 
-    private isTerminalTaskStatus(status?: string): boolean {
-        return ['done', 'error', 'canceled'].includes(status || '');
+    public isTerminalTaskStatus(status?: string): boolean {
+        return this.taskDetailsController.isTerminalTaskStatus(status);
     }
 
-    private getTaskDisplayReason(task: any): string {
-        const status = task?.status || '';
-        if (status === 'canceled') {
-            return this.getTaskPendingReasonLabel(task?.waitReason || 'manual-cancel');
-        }
-        if (this.isTerminalTaskStatus(status)) {
-            return '-';
-        }
-        const detail = String(task?.detail || '');
-        if (detail.startsWith('deps:')) {
-            return '依赖未满足';
-        }
-        if (status === 'running') {
-            return '执行中';
-        }
-        return this.getTaskPendingReasonLabel(task?.waitReason);
+    public getTaskDisplayReason(task: any): string {
+        return this.taskDetailsController.getTaskDisplayReason(task);
     }
 
-    private escapeHtml(value: any): string {
-        const text = String(value ?? '');
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    public escapeHtml(value: any): string {
+        return this.taskDetailsController.escapeHtml(value);
     }
 
-    private getPageSummaryTasks(item: any): any[] {
-        const source = this.getTaskDetailsSourceData();
-        const groupKey = item?.groupKey || `${item?.tabId || -1}|${item?.pageInstanceId || ''}`;
-        return source.filter((task) => `${task?.tabId || -1}|${task?.pageInstanceId || ''}` === groupKey);
+    public getPageSummaryTasks(item: any): any[] {
+        return this.taskDetailsController.getPageSummaryTasks(item);
     }
 
-    private buildPageSummaryReasonStats(tasks: any[]): Array<{ label: string; count: number }> {
-        const counts = new Map<string, number>();
-        for (const task of tasks) {
-            if (task?.status === 'done' || task?.status === 'error' || task?.status === 'canceled') continue;
-            const label = this.getTaskDisplayReason(task);
-            counts.set(label, (counts.get(label) || 0) + 1);
-        }
-        return Array.from(counts.entries())
-            .map(([label, count]) => ({ label, count }))
-            .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    public buildPageSummaryReasonStats(tasks: any[]): Array<{ label: string; count: number }> {
+        return this.taskDetailsController.buildPageSummaryReasonStats(tasks);
     }
 
-    private buildTaskDetailPageSummaries(tasks: any[]): any[] {
-        const pageScopedBlueprintLabels = new Set([
-            'videoStatus:initialSync',
-            'videoEnhancement:initCore',
-            'videoEnhancement:clickEnhancement',
-            'videoEnhancement:loadData',
-            'videoEnhancement:translateCurrentTitle',
-            'videoEnhancement:runCover',
-            'videoEnhancement:runTitle',
-            'videoEnhancement:runFC2Breaker',
-            'videoEnhancement:runReviewBreaker',
-            'videoEnhancement:finish',
-            'actorRemarks:run',
-            'videoFavoriteRating:init',
-            'actorMarks:page',
-            'videoEnhancement:panel',
-        ]);
-
-        const pageGroups = new Map<string, any[]>();
-        for (const task of tasks) {
-            const pageUrl = task?.pageUrl || '';
-            const pageInstanceId = task?.pageInstanceId || `${task?.tabId || -1}:${pageUrl}:${task?.timestamp || 0}`;
-            const groupKey = `${task?.tabId || -1}|${pageInstanceId}`;
-            if (!pageGroups.has(groupKey)) {
-                pageGroups.set(groupKey, []);
-            }
-            pageGroups.get(groupKey)!.push(task);
-        }
-
-        return Array.from(pageGroups.entries()).map(([groupKey, groupTasks]) => {
-            const sample = groupTasks[0] || {};
-            const groupedParents = this.getTaskDetailsGroupedParents(groupTasks);
-            let blueprintParentCount = 0;
-            let runtimeParentCount = 0;
-            let parentDoneCount = 0;
-            let parentErrorCount = 0;
-            let pendingCount = 0;
-            let childCount = 0;
-            let childDoneCount = 0;
-            let childErrorCount = 0;
-            const statuses = new Set<string>();
-            const labels = new Set<string>();
-            const waitReasons = new Map<string, number>();
-            let startedAt = Number.MAX_SAFE_INTEGER;
-            let endedAt = 0;
-
-            for (const task of groupTasks) {
-                if (task?.label) labels.add(task.label);
-                statuses.add(task?.status || 'unknown');
-                const isChildTask = !!(task?.parentLabel && task?.subtaskLabel);
-                if (isChildTask) {
-                    childCount += 1;
-                    if (task?.status === 'done') childDoneCount += 1;
-                    if (task?.status === 'error') childErrorCount += 1;
-                }
-            }
-
-            for (const group of groupedParents) {
-                const parent = group.parent || {};
-                const isSyntheticParent = parent?.__syntheticParent === true;
-                const registrationSource = parent?.registrationSource === 'blueprint' ? 'blueprint' : 'runtime';
-                const isPageScopedBlueprint = registrationSource === 'blueprint' && pageScopedBlueprintLabels.has(parent?.label || '');
-                if (!isSyntheticParent) {
-                    if (isPageScopedBlueprint) blueprintParentCount += 1;
-                    else runtimeParentCount += 1;
-                    if (parent?.status === 'done') parentDoneCount += 1;
-                    if (parent?.status === 'error') parentErrorCount += 1;
-                    if (!['done', 'error', 'canceled'].includes(parent?.status || '')) {
-                        pendingCount += 1;
-                        const reasonKey = this.getTaskDisplayReason(parent);
-                        waitReasons.set(reasonKey, (waitReasons.get(reasonKey) || 0) + 1);
-                    }
-                }
-                const registeredAt = this.getTaskRegisteredAt(parent);
-                const effectiveEndAt = this.getTaskEffectiveEndAt(parent);
-                if (registeredAt > 0) startedAt = Math.min(startedAt, registeredAt);
-                if (effectiveEndAt > 0) endedAt = Math.max(endedAt, effectiveEndAt);
-            }
-
-            const normalizedStartedAt = startedAt === Number.MAX_SAFE_INTEGER ? 0 : startedAt;
-            const totalElapsedMs = (normalizedStartedAt > 0 && endedAt >= normalizedStartedAt)
-                ? Math.max(0, endedAt - normalizedStartedAt)
-                : 0;
-            const normalizedStatus = statuses.has('error')
-                ? 'error'
-                : (pendingCount > 0
-                    ? (statuses.has('running') ? 'running' : (statuses.has('paused') ? 'paused' : 'queued'))
-                    : 'done');
-
-            return {
-                groupKey,
-                tabId: typeof sample?.tabId === 'number' ? sample.tabId : -1,
-                pageInstanceId: sample?.pageInstanceId || `${sample?.tabId || -1}:${sample?.pageUrl || ""}:${sample?.timestamp || 0}`,
-                pageUrl: sample?.pageUrl || '',
-                pageType: sample?.pageType || (
-                    (sample?.pageUrl || '').includes('/actors/')
-                        ? 'actor'
-                        : ((sample?.pageUrl || '').includes('/v/')
-                            ? 'video'
-                            : ((sample?.pageUrl || '').includes('/search')
-                                ? 'search'
-                                : 'generic'))
-                ),
-                mainId: sample?.mainId || '-',
-                taskCount: groupedParents.length + childCount,
-                blueprintTaskCount: blueprintParentCount,
-                runtimeTaskCount: runtimeParentCount,
-                parentCount: blueprintParentCount + runtimeParentCount,
-                blueprintParentCount,
-                runtimeParentCount,
-                childCount,
-                childDoneCount,
-                childErrorCount,
-                totalDurationMs: totalElapsedMs,
-                pendingCount,
-                doneCount: parentDoneCount,
-                errorCount: parentErrorCount,
-                terminalParentCount: parentDoneCount + parentErrorCount,
-                statuses,
-                labels,
-                waitReasons,
-                startedAt: normalizedStartedAt,
-                endedAt,
-                status: normalizedStatus,
-                label: `${this.getPagePath(sample?.pageUrl || "")} [${sample?.pageInstanceId || ""}]`,
-                detail: `tab=${typeof sample?.tabId === "number" ? sample.tabId : -1} · 蓝图父任务=${blueprintParentCount} · 运行时父任务=${runtimeParentCount} · 父任务总数=${blueprintParentCount + runtimeParentCount} · 子任务=${childCount} · 父任务完成=${parentDoneCount} · 子任务完成=${childDoneCount} · 标签=${labels.size} · 未完成=${pendingCount}`,
-                topWaitReasons: Array.from(waitReasons.entries() as IterableIterator<[string, number]>)
-                    .map(([reason, count]: [string, number]) => ({ reason, count }))
-                    .sort((a: { reason: string; count: number }, b: { reason: string; count: number }) => b.count - a.count || a.reason.localeCompare(b.reason))
-                    .slice(0, 3),
-            };
-        });
+    public buildTaskDetailPageSummaries(tasks: any[]): any[] {
+        return this.taskDetailsController.buildTaskDetailPageSummaries(tasks);
     }
 
-    private getTaskDetailsGroupedParents(data: any[]): Array<{ parentKey: string; parent: any; children: any[] }> {
-        const sortedData = [...data].sort((a, b) => this.compareTaskDetailItems(a, b));
-
-        const groups = new Map<string, { parent: any | null; fallbackChild: any | null; children: any[] }>();
-        for (const task of sortedData) {
-            const baseParentKey = task.parentLabel || task.label || 'unknown';
-            const parentKey = `${baseParentKey}|${task.pageInstanceId || ''}|${task.pageUrl || ''}|${task.tabId || -1}`;
-            if (!groups.has(parentKey)) {
-                groups.set(parentKey, { parent: null, fallbackChild: null, children: [] });
-            }
-
-            const group = groups.get(parentKey)!;
-            if (task.parentLabel && task.subtaskLabel) {
-                group.children.push(task);
-                if (!group.fallbackChild) {
-                    group.fallbackChild = task;
-                }
-                continue;
-            }
-
-            if (!group.parent) {
-                group.parent = task;
-            }
-        }
-
-        return Array.from(groups.entries()).map(([parentKey, group]) => {
-            const parentLabel = group.fallbackChild?.parentLabel || String(parentKey).split('|')[0] || parentKey;
-            const fallbackChild = group.fallbackChild || {};
-            const parent = group.parent || {
-                ...fallbackChild,
-                label: parentLabel,
-                parentLabel: undefined,
-                subtaskLabel: undefined,
-                batchIndex: undefined,
-                itemCount: undefined,
-                status: fallbackChild.status || 'done',
-                durationMs: 0,
-                registrationSource: fallbackChild.registrationSource || 'blueprint',
-                timestamp: fallbackChild.timestamp || Date.now(),
-                registeredAt: fallbackChild.registeredAt || fallbackChild.timestamp || 0,
-                startedAt: fallbackChild.startedAt || fallbackChild.registeredAt || fallbackChild.timestamp || 0,
-                endedAt: fallbackChild.endedAt || fallbackChild.timestamp || 0,
-                __syntheticParent: true,
-            };
-
-            const children = group.children.sort((a, b) => {
-                const ai = typeof a.batchIndex === 'number' ? a.batchIndex : 0;
-                const bi = typeof b.batchIndex === 'number' ? b.batchIndex : 0;
-                return ai - bi;
-            });
-
-            return { parentKey, parent, children };
-        });
+    public getTaskDetailsGroupedParents(data: any[]): Array<{ parentKey: string; parent: any; children: any[] }> {
+        return this.taskDetailsController.getTaskDetailsGroupedParents(data);
     }
 
     /**
      * 渲染任务明细表格
      */
-    private renderTaskDetailsTable(): void {
-        if (!this.taskDetailsTableBody) return;
-
-        if (this.taskDetailsTable) {
-            const mainHead = this.taskDetailsTable.querySelector('thead');
-            if (mainHead) {
-                mainHead.classList.toggle('hidden', this.taskDetailsView === 'pages');
-            }
-        }
-        if (this.taskDetailsPageSummaryHead) {
-            this.taskDetailsPageSummaryHead.classList.toggle('hidden', this.taskDetailsView !== 'pages');
-        }
-
-        if (this.taskDetailsView === 'pages') {
-            this.renderTaskDetailsPageSummaryTable();
-            return;
-        }
-
-        const dataToRender = this.getTaskDetailsSourceData();
-
-        if (dataToRender.length === 0) {
-            const emptyMessage = this.taskDetailsSearchQuery
-                ? `<i class="fas fa-search"></i> 未找到匹配"${this.taskDetailsSearchQuery}"的任务记录`
-                : '<i class="fas fa-inbox"></i> 暂无任务记录';
-            this.taskDetailsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
-                        ${emptyMessage}
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        const groupedParents = this.getTaskDetailsGroupedParents(this.getSortedTaskDetailsData());
-        const totalParents = groupedParents.length;
-        const totalPages = Math.max(1, Math.ceil(totalParents / this.taskDetailsPageSize));
-        this.taskDetailsCurrentPage = Math.min(Math.max(1, this.taskDetailsCurrentPage), totalPages);
-
-        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
-        const endIndex = startIndex + this.taskDetailsPageSize;
-        const pagedGroups = groupedParents.slice(startIndex, endIndex);
-
-        const paginatedData: any[] = [];
-        for (const group of pagedGroups) {
-            paginatedData.push({
-                ...group.parent,
-                __rowType: 'parent',
-                __parentKey: group.parentKey,
-                __childCount: group.children.length,
-            });
-
-            if (this.taskDetailsExpandedParents.has(group.parentKey)) {
-                if (group.children.length > 0) {
-                    paginatedData.push({
-                        __rowType: 'child-header',
-                        __parentKey: group.parentKey,
-                    });
-                }
-                group.children.forEach((child) => {
-                    paginatedData.push({
-                        ...child,
-                        __rowType: 'child',
-                        __parentKey: group.parentKey,
-                    });
-                });
-            }
-        }
-
-        const formatDuration = (ms: number): string => {
-            if (ms < 1000) {
-                return `${Math.round(ms)}ms`;
-            } else if (ms < 60000) {
-                return `${(ms / 1000).toFixed(2)}s`;
-            } else {
-                const minutes = Math.floor(ms / 60000);
-                const seconds = ((ms % 60000) / 1000).toFixed(0);
-                return `${minutes}m ${seconds}s`;
-            }
-        };
-
-        const getDurationColor = (ms: number): string => {
-            if (ms < 100) {
-                return '#059669';
-            } else if (ms < 500) {
-                return '#0891b2';
-            } else if (ms < 1000) {
-                return '#7c3aed';
-            } else if (ms < 3000) {
-                return '#d97706';
-            } else {
-                return '#dc2626';
-            }
-        };
-
-        const formatTimestamp = (ts: number): string => {
-            const date = new Date(ts);
-            return date.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-            });
-        };
-
-        const getStatusBadge = (status: string): string => {
-            const statusMap: Record<string, { text: string; color: string; bg: string }> = {
-                done: { text: '完成', color: '#059669', bg: '#ecfdf5' },
-                running: { text: '运行中', color: '#2563eb', bg: '#eff6ff' },
-                pending: { text: '等待中', color: '#d97706', bg: '#fffbeb' },
-                error: { text: '错误', color: '#dc2626', bg: '#fef2f2' },
-                paused: { text: '已暂停', color: '#7c3aed', bg: '#f5f3ff' },
-                timeout: { text: '超时', color: '#ea580c', bg: '#fff7ed' },
-                registered: { text: '已注册', color: '#475569', bg: '#f8fafc' },
-                'subtask-only': { text: '仅子任务', color: '#64748b', bg: '#f8fafc' },
-                unknown: { text: '未知', color: '#64748b', bg: '#f8fafc' },
-            };
-            const badge = statusMap[status] || statusMap.unknown;
-            return `<span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
-        };
-
-        const getPhaseBadge = (phase: string): string => {
-            const phaseMap: Record<string, { text: string; color: string; bg: string }> = {
-                critical: { text: 'critical', color: '#dc2626', bg: '#fef2f2' },
-                high: { text: 'high', color: '#ea580c', bg: '#fff7ed' },
-                deferred: { text: 'deferred', color: '#2563eb', bg: '#eff6ff' },
-                idle: { text: 'idle', color: '#64748b', bg: '#f8fafc' },
-                unknown: { text: 'unknown', color: '#64748b', bg: '#f8fafc' },
-            };
-            const badge = phaseMap[phase] || phaseMap.unknown;
-            return `<span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
-        };
-
-        const getPageLink = (url: string): string => {
-            if (!url) return '-';
-            try {
-                const parsed = new URL(url);
-                return parsed.pathname || '/';
-            } catch {
-                return url;
-            }
-        };
-
-        const getTaskDisplayName = (label: string): string => {
-            const taskNameMap: Record<string, string> = {
-                'drive115:init:video': '115功能初始化-视频页 (drive115:init:video)',
-                'drive115:init:list': '115功能初始化-列表页 (drive115:init:list)',
-                'drive115:push': '115推送任务 (drive115:push)',
-                'insights:collector': '观影标签采集器 (insights:collector)',
-                'actorRemarks:actorPage': '演员备注-演员页 (actorRemarks:actorPage)',
-                'actorRemarks:run': '演员备注-运行 (actorRemarks:run)',
-                'actorMarks:page': '演员标识-页面标记 (actorMarks:page)',
-                'videoStatus:initialSync': '番号库状态同步与页面标记 (videoStatus:initialSync)',
-                'videoStatus:finalizeStatus': '番号库状态发布与图标更新 (videoStatus:finalizeStatus)',
-                'videoStatus:fullRefresh': '番号库详情全量刷新 (videoStatus:fullRefresh)',
-                'videoStatus:update': '页面影片状态更新 (videoStatus:update)',
-                'videoStatus:observer': '页面影片状态监听 (videoStatus:observer)',
-                'ux:shortcuts:init': '快捷键初始化 (ux:shortcuts:init)',
-                'ux:magnet:autoSearch': '磁力搜索自动检索 (ux:magnet:autoSearch)',
-                'privacy:init': '隐私保护初始化 (privacy:init)',
-                'ui:remove-unwanted': '移除不需要的按钮 (ui:remove-unwanted)',
-                'magnetSearch:init': '磁力搜索初始化 (magnetSearch:init)',
-                'anchorOptimization:init': '锚点优化初始化 (anchorOptimization:init)',
-                'listEnhancement:init': '列表增强初始化 (listEnhancement:init)',
-                'listEnhancement:reprocess': '列表增强-二次处理 (listEnhancement:reprocess)',
-                'list:reprocess:after-listEnhancement': '列表增强-二次处理 (list:reprocess:after-listEnhancement)',
-                'list:observe:init': '列表页观察器初始化 (list:observe:init)',
-                'actorEnhancement:init': '演员增强初始化 (actorEnhancement:init)',
-                'actorEnhancement:actionButtons': '演员增强-操作按钮 (actorEnhancement:actionButtons)',
-                'emby:init': 'Emby增强初始化 (emby:init)',
-                'emby:badge': 'Emby徽标增强 (emby:badge)',
-                'passwordHelper:init': '密码助手初始化 (passwordHelper:init)',
-                'enhancementUI:showLoadingIndicator': '增强加载提示显示 (enhancementUI:showLoadingIndicator)',
-                'defaultHide:init': '默认隐藏初始化 (defaultHide:init)',
-                'contentFilter:init': '内容过滤初始化 (contentFilter:init)',
-                'contentFilter:initialize': '内容过滤初始化 (contentFilter:initialize)',
-                'videoEnhancement:clickEnhancement': '视频增强-点击增强 (videoEnhancement:clickEnhancement)',
-                'videoEnhancement:initCore': '视频增强-核心初始化 (videoEnhancement:initCore)',
-                'videoEnhancement:loadData': '视频增强-加载聚合数据 (videoEnhancement:loadData)',
-                'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译 (videoEnhancement:translateCurrentTitle)',
-                'videoEnhancement:runCover': '视频增强-封面处理 (videoEnhancement:runCover)',
-                'videoEnhancement:runTitle': '视频增强-标题处理 (videoEnhancement:runTitle)',
-                'videoEnhancement:runReviewBreaker': '视频增强-评论破解 (videoEnhancement:runReviewBreaker)',
-                'videoEnhancement:runFC2Breaker': '视频增强-FC2破解 (videoEnhancement:runFC2Breaker)',
-                'videoEnhancement:panel': '视频增强-面板注入 (videoEnhancement:panel)',
-                'videoEnhancement:finish': '视频增强-完成 (videoEnhancement:finish)',
-                'videoFavoriteRating:init': '视频收藏评分初始化 (videoFavoriteRating:init)',
-                'actorQuickActions:init': '演员快捷操作初始化 (actorQuickActions:init)',
-            };
-            return taskNameMap[label] || `${label}`;
-        };
-
-        this.taskDetailsRenderedRows = paginatedData;
-        const rows = paginatedData.map((task) => {
-            const registeredAtMs = this.getTaskRegisteredAt(task);
-            const startedAtMs = this.getTaskStartedAt(task);
-            const endedAtMs = this.getTaskEffectiveEndAt(task);
-            const waitDurationMs = this.getTaskWaitDurationMs(task);
-            const runDurationMs = this.getTaskRunDurationMs(task);
-            const registeredAt = formatTimestamp(registeredAtMs || Date.now());
-            const startedAt = startedAtMs > 0 ? formatTimestamp(startedAtMs) : '-';
-            const endedAt = endedAtMs > 0 ? formatTimestamp(endedAtMs) : '-';
-            const waitDuration = formatDuration(waitDurationMs);
-            const runDuration = formatDuration(runDurationMs);
-            const runDurationColor = getDurationColor(runDurationMs);
-            const status = getStatusBadge(task.status || 'unknown');
-            const phase = getPhaseBadge(task.phase || 'unknown');
-            const pageLink = getPageLink(task.pageUrl || '');
-            const label = task.label || 'unknown';
-            const displayName = getTaskDisplayName(label);
-            const subtask = task.subtaskLabel || '-';
-            const subtaskMeta = typeof task.batchIndex === 'number'
-                ? `${subtask} #${task.batchIndex}${typeof task.itemCount === 'number' ? ` · ${task.itemCount}项` : ''}`
-                : subtask;
-            const detailLine = task.detail ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">${task.detail}</div>` : '';
-
-            const isParent = task.__rowType === 'parent';
-            const isChildHeader = task.__rowType === 'child-header';
-            const paddingLeft = isParent ? '10px' : '28px';
-            const toggle = isParent && task.__childCount > 0
-                ? `<button data-task-parent-toggle="${task.__parentKey}" style="border:none; background:transparent; color:#3b82f6; cursor:pointer; margin-right:6px; font-size:12px;">${this.taskDetailsExpandedParents.has(task.__parentKey) ? '▼' : '▶'} ${task.__childCount}</button>`
-                : (isParent ? '' : '<span style="color:#94a3b8;">└</span> ');
-
-            if (isChildHeader) {
-                return `
-                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td style="padding:8px 12px 8px 28px; color:var(--text-secondary); font-size:11px; font-weight:700;">子任务</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">子任务信息</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">阶段</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">状态</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">注册</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">开始</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">结束</td>
-                        <td style="padding:8px 12px; text-align:right; color:var(--text-secondary); font-size:11px; font-weight:700;">等待</td>
-                        <td style="padding:8px 12px; text-align:right; color:var(--text-secondary); font-size:11px; font-weight:700;">耗时</td>
-                        <td style="padding:8px 12px; color:var(--text-secondary); font-size:11px; font-weight:700;">页面</td>
-                    </tr>
-                `;
-            }
-
-            return `
-                <tr style="background:${isParent ? 'var(--bg-primary)' : 'var(--bg-secondary)'}; border-bottom:1px solid var(--border-color);">
-                    <td style="padding:10px 12px 10px ${paddingLeft}; color:var(--text-primary); font-weight:${isParent ? '500' : '400'};" title="${label}">${toggle}${displayName}${detailLine}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${subtaskMeta}</td>
-                    <td style="padding:10px 12px;">${phase}</td>
-                    <td style="padding:10px 12px;">${status}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${registeredAt}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${startedAt}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${endedAt}</td>
-                    <td style="padding:10px 12px; text-align:right; color:var(--text-primary); font-weight:600;">${waitDuration}</td>
-                    <td style="padding:10px 12px; text-align:right; color:${runDurationColor}; font-weight:600;">${runDuration}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${pageLink}</td>
-                </tr>
-            `;
-        }).join('');
-
-        this.taskDetailsTableBody.innerHTML = rows;
+    public renderTaskDetailsTable(): void {
+        return this.taskDetailsController.renderTaskDetailsTable();
     }
 
-    private renderTaskDetailsPageSummaryTable(): void {
-        if (!this.taskDetailsTableBody) return;
-
-        const dataToRender = this.getTaskDetailsPageSummarySourceData();
-        if (dataToRender.length === 0) {
-            const emptyMessage = this.taskDetailsSearchQuery
-                ? `<i class="fas fa-search"></i> 未找到匹配"${this.taskDetailsSearchQuery}"的页面实例`
-                : '<i class="fas fa-inbox"></i> 暂无页面实例记录';
-            this.taskDetailsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="10" style="padding:40px; text-align:center; color:#94a3b8;">
-                        ${emptyMessage}
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        const sortedData = [...dataToRender].sort((a, b) => {
-            let aVal = a[this.taskDetailsSortField as keyof typeof a];
-            let bVal = b[this.taskDetailsSortField as keyof typeof b];
-            if (this.taskDetailsSortField === 'duration' || this.taskDetailsSortField === 'totalDurationMs') {
-                aVal = a.totalDurationMs || 0;
-                bVal = b.totalDurationMs || 0;
-            }
-            if (typeof aVal === 'string' && typeof bVal === 'string') {
-                return this.taskDetailsSortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-            }
-            const aNum = typeof aVal === 'number' ? aVal : 0;
-            const bNum = typeof bVal === 'number' ? bVal : 0;
-            return this.taskDetailsSortOrder === 'asc' ? aNum - bNum : bNum - aNum;
-        });
-
-        const total = sortedData.length;
-        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-        this.taskDetailsCurrentPage = Math.min(Math.max(1, this.taskDetailsCurrentPage), totalPages);
-        const startIndex = (this.taskDetailsCurrentPage - 1) * this.taskDetailsPageSize;
-        const endIndex = startIndex + this.taskDetailsPageSize;
-        const paginatedData = sortedData.slice(startIndex, endIndex);
-
-        const renderedRows: any[] = [];
-        const rows = paginatedData.map((item) => {
-            const status = this.getStatusLabel(item.status || 'unknown');
-            const path = this.getPagePath(item.pageUrl || '');
-            const title = `${path}
-${item.detail || ''}`;
-            const groupKey = item.groupKey || `${item.tabId || -1}|${item.pageInstanceId || ''}`;
-            const expanded = this.taskDetailsExpandedPageSummaries.has(groupKey);
-            const tasks = this.getPageSummaryTasks(item);
-            const groupedParents = this.getTaskDetailsGroupedParents(tasks);
-            const reasonStats = this.buildPageSummaryReasonStats(tasks);
-            const topReasonSummary = Array.isArray(item.topWaitReasons) && item.topWaitReasons.length > 0
-                ? item.topWaitReasons.map((entry: any) => `${entry.reason}×${entry.count}`).join(' · ')
-                : '全部任务已结束';
-            renderedRows.push({ ...item, __rowType: 'page-summary-parent', topReasonSummary });
-            const summaryRow = `
-                <tr style="border-bottom:1px solid var(--border-color); background:var(--bg-primary);">
-                    <td style="padding:10px 12px; color:var(--text-primary);" title="${title}">
-                        <div style="display:flex; align-items:flex-start; gap:8px;">
-                            <button data-page-summary-toggle="${groupKey}" style="border:none; background:transparent; color:#3b82f6; cursor:pointer; font-size:12px; padding:0; margin-top:1px;">${expanded ? '▼' : '▶'}</button>
-                            <div>
-                                <div style="font-weight:600;">${path}</div>
-                                <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'} · 父任务=${item.parentCount || 0} · ${topReasonSummary}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.mainId || '-'}</td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.pageType || '-'}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.parentCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:#059669; font-weight:600;">${item.doneCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:${(item.errorCount || 0) > 0 ? '#dc2626' : 'var(--text-primary)'}; font-weight:600;">${item.errorCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${this.formatTaskDuration(item.totalDurationMs || 0)}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.childCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-secondary); font-size:12px;">${this.formatTaskTimestamp(item.startedAt || 0)}<div style="font-size:11px; margin-top:4px;">${status}</div></td>
-                </tr>
-            `;
-            if (!expanded) return summaryRow;
-
-            const reasonRows = reasonStats.map((entry) => {
-                renderedRows.push({ __rowType: 'page-summary-reason', reason: entry.label, count: entry.count });
-                return `
-                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px; color:var(--text-secondary); font-size:12px;">
-                            <span style="display:inline-flex; align-items:center; gap:8px; margin-right:18px;"><span style="font-weight:600; color:var(--text-primary);">未完成原因</span>${this.escapeHtml(entry.label)}</span>
-                            <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:#eff6ff; color:#2563eb; font-weight:600;">${entry.count}</span>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            const subHeaderRow = groupedParents.length > 0
-                ? `
-                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px;">
-                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:11px; color:var(--text-secondary); font-weight:700;">
-                                <div>父任务</div>
-                                <div>阶段</div>
-                                <div>状态</div>
-                                <div>注册</div>
-                                <div>开始</div>
-                                <div style="text-align:right;">耗时</div>
-                                <div>说明</div>
-                            </div>
-                        </td>
-                    </tr>
-                `
-                : '';
-
-            const taskRows = groupedParents.map((group) => {
-                const task = group.parent || {};
-                const taskName = this.getTaskDisplayNameForExport(task?.label || group.parentKey || 'unknown');
-                const startedAtMs = this.getTaskStartedAt(task);
-                const childSuffix = group.children.length > 0 ? ` · 子任务${group.children.length}` : '';
-                renderedRows.push({
-                    __rowType: 'page-summary-child',
-                    taskName,
-                    phase: task?.phase || '-',
-                    status: task?.status || 'unknown',
-                    registeredAt: this.formatTaskTimestamp(this.getTaskRegisteredAt(task) || 0),
-                    startedAt: startedAtMs > 0 ? this.formatTaskTimestamp(startedAtMs) : '-',
-                    runDuration: this.formatTaskDuration(this.getTaskRunDurationMs(task)),
-                    reason: this.getTaskDisplayReason(task),
-                });
-                return `
-                    <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px;">
-                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:12px;">
-                                <div style="font-weight:600; color:var(--text-primary);">${this.escapeHtml(taskName)}${this.escapeHtml(childSuffix)}</div>
-                                <div style="color:var(--text-secondary);">${this.escapeHtml(task?.phase || '-')}</div>
-                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.getStatusLabel(task?.status || 'unknown'))}</div>
-                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.formatTaskTimestamp(this.getTaskRegisteredAt(task) || 0) || '-')}</div>
-                                <div style="color:var(--text-secondary);">${this.escapeHtml(startedAtMs > 0 ? this.formatTaskTimestamp(startedAtMs) : '-')}</div>
-                                <div style="text-align:right; font-weight:600; color:var(--text-primary);">${this.escapeHtml(this.formatTaskDuration(this.getTaskRunDurationMs(task)))}</div>
-                                <div style="color:var(--text-secondary);">${this.escapeHtml(this.getTaskDisplayReason(task))}</div>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            return summaryRow + reasonRows + subHeaderRow + taskRows;
-        }).join('');
-
-        this.taskDetailsRenderedRows = renderedRows;
-        this.taskDetailsTableBody.innerHTML = rows;
+    public renderTaskDetailsPageSummaryTable(): void {
+        return this.taskDetailsController.renderTaskDetailsPageSummaryTable();
     }
 
     /**
      * 更新分页信息
 
      */
-    private updateTaskDetailsPagination(total: number, totalPages: number): void {
-        if (this.taskDetailsCount) {
-            this.taskDetailsCount.textContent = String(total);
-        }
-
-        if (this.taskDetailsPagination) {
-            this.taskDetailsPagination.textContent = `第 ${this.taskDetailsCurrentPage} / ${totalPages} 页`;
-        }
-
-        // 更新按钮状态
-        if (this.taskDetailsPrevPage) {
-            this.taskDetailsPrevPage.disabled = this.taskDetailsCurrentPage <= 1;
-        }
-
-        if (this.taskDetailsNextPage) {
-            this.taskDetailsNextPage.disabled = this.taskDetailsCurrentPage >= totalPages;
-        }
+    public updateTaskDetailsPagination(total: number, totalPages: number): void {
+        return this.taskDetailsController.updateTaskDetailsPagination(total, totalPages);
     }
 
     /**
      * 上一页
      */
-    private taskDetailsPrevPageHandler(): void {
-        if (this.taskDetailsCurrentPage > 1) {
-            this.taskDetailsCurrentPage--;
-            this.renderTaskDetailsTable();
-            const total = this.getRenderedTaskDetailsCount();
-            const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-            this.updateTaskDetailsPagination(total, totalPages);
-        }
+    public taskDetailsPrevPageHandler(): void {
+        return this.taskDetailsController.taskDetailsPrevPageHandler();
     }
 
     /**
      * 下一页
      */
-    private taskDetailsNextPageHandler(): void {
-        const total = this.getRenderedTaskDetailsCount();
-        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-        if (this.taskDetailsCurrentPage < totalPages) {
-            this.taskDetailsCurrentPage++;
-        }
-        this.renderTaskDetailsTable();
-        this.updateTaskDetailsPagination(total, totalPages);
+    public taskDetailsNextPageHandler(): void {
+        return this.taskDetailsController.taskDetailsNextPageHandler();
     }
 
-    private getRenderedTaskDetailsCount(): number {
-        if (this.taskDetailsView === 'pages') {
-            return this.getTaskDetailsPageSummarySourceData().length;
-        }
-        return this.getTaskDetailsGroupedParents(this.getTaskDetailsSourceData()).length;
+    public getRenderedTaskDetailsCount(): number {
+        return this.taskDetailsController.getRenderedTaskDetailsCount();
     }
 
     /**
      * 排序处理
      */
-    private taskDetailsSortHandler(field: string): void {
-        if (this.taskDetailsSortField === field) {
-            // 切换排序顺序
-            this.taskDetailsSortOrder = this.taskDetailsSortOrder === 'asc' ? 'desc' : 'asc';
-        } else {
-            // 新字段，默认降序
-            this.taskDetailsSortField = field;
-            this.taskDetailsSortOrder = 'desc';
-        }
-
-        // 重新渲染表格
-        this.renderTaskDetailsTable();
-
-        // 更新排序图标
-        if (this.taskDetailsTable) {
-            const headers = this.taskDetailsTable.querySelectorAll('thead th[data-sort]');
-            headers.forEach((header) => {
-                const icon = header.querySelector('i');
-                if (!icon) return;
-
-                const headerField = header.getAttribute('data-sort');
-                if (headerField === field) {
-                    icon.className = this.taskDetailsSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-                } else {
-                    icon.className = 'fas fa-sort';
-                }
-            });
-        }
+    public taskDetailsSortHandler(field: string): void {
+        return this.taskDetailsController.taskDetailsSortHandler(field);
     }
 
     /**
      * 搜索处理
      */
-    private taskDetailsSearchHandler(): void {
-        if (!this.taskDetailsSearch) return;
-
-        const query = this.taskDetailsSearch.value.trim().toLowerCase();
-        this.taskDetailsSearchQuery = query;
-
-        if (!query) {
-            this.taskDetailsFilteredData = [];
-            this.taskDetailsPageSummaryFilteredData = [];
-        } else {
-            this.taskDetailsFilteredData = this.taskDetailsData.filter((task) => {
-                const label = (task.label || '').toLowerCase();
-                const pageUrl = (task.pageUrl || '').toLowerCase();
-                const subtask = (task.subtaskLabel || '').toLowerCase();
-                const detail = (task.detail || '').toLowerCase();
-                const mainId = (task.mainId || '').toLowerCase();
-                const pageInstanceId = (task.pageInstanceId || '').toLowerCase();
-
-                const taskNameMap: Record<string, string> = {
-                    'drive115:init:video': '115功能初始化-视频页',
-                    'drive115:init:list': '115功能初始化-列表页',
-                    'drive115:push': '115推送任务',
-                    'insights:collector': '观影标签采集器',
-                    'actorRemarks:actorPage': '演员备注-演员页',
-                    'actorRemarks:run': '演员备注-运行',
-                    'actorMarks:page': '演员标识-页面标记',
-                    'videoStatus:update': '页面影片状态更新',
-                    'videoStatus:observer': '页面影片状态监听',
-                    'videoEnhancement:clickEnhancement': '视频增强-点击增强',
-                    'ux:shortcuts:init': '快捷键初始化',
-                    'ux:magnet:autoSearch': '磁力搜索自动检索',
-                    'privacy:init': '隐私保护初始化',
-                    'ui:remove-unwanted': '移除不需要的按钮',
-                    'magnetSearch:init': '磁力搜索初始化',
-                    'anchorOptimization:init': '锚点优化初始化',
-                    'listEnhancement:init': '列表增强初始化',
-                    'listEnhancement:reprocess': '列表增强-二次处理',
-                    'actorEnhancement:init': '演员增强初始化',
-                    'actorEnhancement:actionButtons': '演员页操作按钮增强',
-                    'enhancementUI:showLoadingIndicator': '增强加载提示显示',
-                    'emby:init': 'Emby增强初始化',
-                    'emby:badge': 'Emby徽标增强',
-                    'passwordHelper:init': '密码助手初始化',
-                    'defaultHide:init': '默认隐藏初始化',
-                    'contentFilter:init': '内容过滤初始化',
-                    'contentFilter:initialize': '内容过滤初始化',
-                    'videoEnhancement:initCore': '视频增强-核心初始化',
-                    'videoEnhancement:loadData': '视频增强-加载聚合数据',
-                    'videoEnhancement:translateCurrentTitle': '视频增强-标题定点翻译',
-                    'videoEnhancement:runCover': '视频增强-封面处理',
-                    'videoEnhancement:runTitle': '视频增强-标题处理',
-                    'videoEnhancement:runReviewBreaker': '视频增强-评论破解',
-                    'videoEnhancement:runFC2Breaker': '视频增强-FC2破解',
-                    'videoEnhancement:panel': '视频增强-面板注入',
-                    'videoEnhancement:finish': '视频增强-完成',
-                    'videoFavoriteRating:init': '视频收藏评分初始化',
-                };
-                const displayName = (taskNameMap[task.label] || task.label || '').toLowerCase();
-
-                return label.includes(query)
-                    || pageUrl.includes(query)
-                    || subtask.includes(query)
-                    || detail.includes(query)
-                    || displayName.includes(query)
-                    || mainId.includes(query)
-                    || pageInstanceId.includes(query);
-            });
-
-            this.taskDetailsPageSummaryFilteredData = this.taskDetailsPageSummaryData.filter((item) => {
-                const pageUrl = (item.pageUrl || '').toLowerCase();
-                const mainId = (item.mainId || '').toLowerCase();
-                const pageType = (item.pageType || '').toLowerCase();
-                const pageInstanceId = (item.pageInstanceId || '').toLowerCase();
-                const detail = (item.detail || '').toLowerCase();
-                return pageUrl.includes(query)
-                    || mainId.includes(query)
-                    || pageType.includes(query)
-                    || pageInstanceId.includes(query)
-                    || detail.includes(query);
-            });
-        }
-
-        this.taskDetailsCurrentPage = 1;
-        this.renderTaskDetailsTable();
-        const total = this.getRenderedTaskDetailsCount();
-        const totalPages = Math.max(1, Math.ceil(total / this.taskDetailsPageSize));
-        this.updateTaskDetailsPagination(total, totalPages);
+    public taskDetailsSearchHandler(): void {
+        return this.taskDetailsController.taskDetailsSearchHandler();
     }
 }
