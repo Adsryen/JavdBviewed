@@ -1,5 +1,6 @@
 import { STATE } from '../../../../state';
 import type { ExtensionSettings } from '../../../../../types';
+import { getVideoDetailTaskBlueprints } from '../../../../../content/videoDetail';
 
 export type OrchestratorDesignTask = {
   phase: 'critical' | 'high' | 'deferred' | 'idle';
@@ -9,15 +10,7 @@ export type OrchestratorDesignTask = {
   visibilityPolicy?: string;
   source: 'video' | 'actor' | 'list' | 'global';
   enabled: boolean;
-};
-
-export type OrchestratorTimelineItem = {
-  phase: 'critical' | 'high' | 'deferred' | 'idle';
-  label: string;
-  status: 'registered';
-  ts: number;
-  detail?: string;
-  durationMs?: number;
+  dependsOn?: string[];
 };
 
 export function buildDesignTasks(doGetSettings: () => ExtensionSettings): OrchestratorDesignTask[] {
@@ -28,7 +21,7 @@ export function buildDesignTasks(doGetSettings: () => ExtensionSettings): Orches
   const videoTasks: OrchestratorDesignTask[] = [
     { phase: 'idle', label: 'drive115:init:video', source: 'video', enabled: true },
     { phase: 'idle', label: 'insights:collector', source: 'video', enabled: true },
-    ...getVideoDetailDesignBlueprints(settings).map((task) => ({
+    ...getVideoDetailTaskBlueprints(settings).map((task) => ({
       phase: task.phase,
       label: task.label,
       priority: task.priority,
@@ -36,6 +29,7 @@ export function buildDesignTasks(doGetSettings: () => ExtensionSettings): Orches
       visibilityPolicy: task.visibilityPolicy,
       source: 'video' as const,
       enabled: true,
+      dependsOn: task.dependsOn,
     })),
   ];
   videoTasks.forEach(pushTask);
@@ -124,112 +118,23 @@ export function buildDesignTasks(doGetSettings: () => ExtensionSettings): Orches
   });
 }
 
-export function getVideoDetailDesignBlueprints(settings: ExtensionSettings & Record<string, any>): Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> {
-  const blueprints: Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> = [];
-  const enableVideoEnhancement = settings?.videoEnhancement?.enabled === true;
-  const enableMultiSource = (settings as any)?.dataEnhancement?.enableMultiSource;
-  const enableTranslation = (settings as any)?.dataEnhancement?.enableTranslation;
-  const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMsForDesign(settings);
+export function computeDagLayers(tasks: OrchestratorDesignTask[]): Map<string, number> {
+  const layers = new Map<string, number>();
+  const taskMap = new Map(tasks.map(t => [t.label, t]));
 
-  if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
-    blueprints.push(
-      { phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' },
-      { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed' },
-      { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed' },
-      { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000 },
-      { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000 },
-      { phase: 'idle', label: 'videoEnhancement:runCover' },
-      { phase: 'idle', label: 'videoEnhancement:runTitle' },
-      { phase: 'idle', label: 'videoEnhancement:runFC2Breaker' },
-      { phase: 'idle', label: 'videoEnhancement:runReviewBreaker' },
-      { phase: 'idle', label: 'videoEnhancement:finish' },
-    );
-  }
-
-  if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
-    blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs });
-  }
-
-  if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
-    blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed' });
-  }
-
-  if ((settings as any)?.videoEnhancement?.enableActorNameMarks !== false) {
-    blueprints.push({ phase: 'idle', label: 'actorMarks:page' });
-  }
-
-  blueprints.push({ phase: 'idle', label: 'videoEnhancement:panel' });
-  return blueprints;
-}
-
-export function getActorRemarksTaskTimeoutMsForDesign(settings: ExtensionSettings & Record<string, any>): number {
-  const seconds = Number((settings as any)?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
-  if (!Number.isFinite(seconds) || seconds <= 0) return 12000;
-  return Math.max(1000, Math.round(seconds * 1000));
-}
-
-export function groupDesignTasksByPhase(tasks: OrchestratorDesignTask[]): Record<'critical' | 'high' | 'deferred' | 'idle', string[]> {
-  const phases: Record<'critical' | 'high' | 'deferred' | 'idle', string[]> = {
-    critical: [],
-    high: [],
-    deferred: [],
-    idle: [],
-  };
-  tasks.filter(task => task.enabled).forEach((task) => {
-    phases[task.phase].push(task.label);
-  });
-  return phases;
-}
-
-export function buildDesignTaskDetail(task: OrchestratorDesignTask): string {
-  const sourceMap: Record<OrchestratorDesignTask['source'], string> = {
-    video: '影片页',
-    actor: '演员页',
-    list: '列表页',
-    global: '全局',
-  };
-  const detailParts = [
-    `来源: ${sourceMap[task.source]}`,
-    `优先级: ${task.priority ?? 5}`,
-  ];
-  if (task.visibilityPolicy) detailParts.push(`可见性: ${task.visibilityPolicy}`);
-  if (typeof task.timeout === 'number' && task.timeout > 0) detailParts.push(`超时: ${task.timeout}ms`);
-  return detailParts.join(' ｜ ');
-}
-
-export function buildDesignTimeline(tasks: OrchestratorDesignTask[]): OrchestratorTimelineItem[] {
-  const timeline: OrchestratorTimelineItem[] = [];
-  const groups: Record<'critical' | 'high' | 'deferred' | 'idle', OrchestratorDesignTask[]> = {
-    critical: tasks.filter(task => task.enabled && task.phase === 'critical'),
-    high: tasks.filter(task => task.enabled && task.phase === 'high'),
-    deferred: tasks.filter(task => task.enabled && task.phase === 'deferred'),
-    idle: tasks.filter(task => task.enabled && task.phase === 'idle'),
+  const getLayer = (label: string, visited = new Set<string>()): number => {
+    if (layers.has(label)) return layers.get(label)!;
+    if (visited.has(label)) return 0;
+    visited.add(label);
+    const task = taskMap.get(label);
+    const deps = task?.dependsOn ?? [];
+    const layer = deps.length === 0 ? 0 : Math.max(...deps.map(d => getLayer(d, new Set(visited)) + 1));
+    layers.set(label, layer);
+    return layer;
   };
 
-  let currentTs = 0;
-  groups.critical.forEach((task) => {
-    timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: buildDesignTaskDetail(task) });
-    currentTs += 10;
-  });
-
-  const highTs = currentTs;
-  groups.high.forEach((task) => {
-    timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: highTs, detail: buildDesignTaskDetail(task) });
-  });
-
-  currentTs += groups.high.length > 0 ? 20 : 0;
-  groups.deferred.forEach((task) => {
-    timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: buildDesignTaskDetail(task) });
-    currentTs += 10;
-  });
-
-  currentTs += groups.idle.length > 0 ? 30 : 0;
-  groups.idle.forEach((task) => {
-    timeline.push({ phase: task.phase, label: task.label, status: 'registered', ts: currentTs, detail: buildDesignTaskDetail(task) });
-    currentTs += 10;
-  });
-
-  return timeline;
+  tasks.forEach(t => getLayer(t.label));
+  return layers;
 }
 
 export function isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {

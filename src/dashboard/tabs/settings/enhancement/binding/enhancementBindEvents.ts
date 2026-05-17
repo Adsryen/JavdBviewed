@@ -129,14 +129,10 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
       host.taskDetailsExpandedPageSummaries.clear();
       const isPages = view === 'pages';
       if (host.taskDetailsViewTasks) {
-        host.taskDetailsViewTasks.style.background = isPages ? 'var(--bg-primary)' : 'var(--bg-accent, #546da1)';
-        host.taskDetailsViewTasks.style.color = isPages ? 'var(--text-secondary)' : '#fff';
-        host.taskDetailsViewTasks.style.fontWeight = isPages ? '400' : '600';
+        host.taskDetailsViewTasks.classList.toggle('td-view-btn--active', !isPages);
       }
       if (host.taskDetailsViewPages) {
-        host.taskDetailsViewPages.style.background = isPages ? 'var(--bg-accent, #546da1)' : 'var(--bg-primary)';
-        host.taskDetailsViewPages.style.color = isPages ? '#fff' : 'var(--text-secondary)';
-        host.taskDetailsViewPages.style.fontWeight = isPages ? '600' : '400';
+        host.taskDetailsViewPages.classList.toggle('td-view-btn--active', isPages);
       }
       if (host.taskDetailsSearchQuery) host.taskDetailsSearchHandler();
       else {

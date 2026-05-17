@@ -9,18 +9,16 @@ export async function refreshOrchestratorState(host: EnhancementOrchestratorStat
     host.setOrchestratorConnectionStatus('idle');
     if (host.orchFilterStatusSel) host.orchFilterStatusSel.disabled = false;
 
-    if (mode === 'design') {
+    if (mode === 'dag') {
       const designTasks = host.buildDesignTasks();
-      const phases = host.groupDesignTasksByPhase(designTasks);
       if (host.orchestratorSummary) {
         const enabledCount = designTasks.filter((task: any) => task.enabled).length;
-        const highestPriority = designTasks.reduce((max: number, task: any) => Math.max(max, task.priority ?? 5), 0);
-        host.orchestratorSummary.textContent = `设计视图（真实编排蓝图）：${enabledCount} 个启用任务｜最高优先级 ${highestPriority}｜当前配置实时生成`;
+        host.orchestratorSummary.textContent = `DAG 拓扑视图：${enabledCount} 个启用任务｜同列可并发，左列先执行`;
       }
-      host.renderOrchestratorPhases(phases);
-      host.updateOrchestratorLegend('design');
-      host.orchestratorTimelineData = host.buildDesignTimeline(designTasks) as any[];
-      host.renderOrchestratorTimeline(host.orchestratorTimelineData);
+      if (host.orchestratorDag) host.orchestratorDag.style.display = '';
+      if (host.orchestratorGrid) host.orchestratorGrid.style.display = 'none';
+      host.renderOrchestratorDag(designTasks);
+      host.updateOrchestratorLegend('dag');
       await host.fetchAndUpdateMetrics();
       host.setOrchestratorConnectionStatus('idle');
       host.unsubscribeOrchestratorEvents();
@@ -28,6 +26,8 @@ export async function refreshOrchestratorState(host: EnhancementOrchestratorStat
     }
 
     if (mode === 'global') {
+      if (host.orchestratorDag) host.orchestratorDag.style.display = 'none';
+      if (host.orchestratorGrid) host.orchestratorGrid.style.display = '';
       const globalState = await fetchGlobalTaskState();
       const allTasks = Array.isArray(globalState?.tasks) ? globalState.tasks : [];
       const preferredTab = await getPreferredJavdbTab();

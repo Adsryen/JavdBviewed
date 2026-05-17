@@ -128,6 +128,8 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.orchestratorPhases = document.getElementById('orchestratorPhases') as HTMLElement | null;
   host.orchestratorTimeline = document.getElementById('orchestratorTimeline') as HTMLElement | null;
   host.orchestratorSummary = document.getElementById('orchestratorSummary') as HTMLElement | null;
+  host.orchestratorDag = document.getElementById('orchestratorDag') as HTMLElement | null;
+  host.orchestratorGrid = document.getElementById('orchestratorGrid') as HTMLElement | null;
 
   host.showTaskDetailsBtn = document.getElementById('showTaskDetailsBtn') as HTMLButtonElement | null;
   host.taskDetailsModal = document.getElementById('taskDetailsModal') as HTMLElement | null;

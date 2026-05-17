@@ -27,8 +27,8 @@ import { openOrchestratorModal, closeOrchestratorModal, copyPhasesText, copyTime
 import { refreshOrchestratorState } from './metrics/enhancementOrchestratorState';
 import { bindSubtabLinks, bindOrchestratorControls, mountTranslationConfigIntoVideoBlock } from './binding/enhancementBind';
 import { startOrchestratorAutoRefresh, stopOrchestratorAutoRefresh, unsubscribeOrchestratorEvents, getPreferredJavdbTab } from './orchestrator/orchestratorActions';
-import { setOrchestratorConnectionStatus, updateOrchestratorLegend, renderOrchestratorPhases, renderOrchestratorTimeline } from './orchestrator/orchestratorRender';
-import { buildDesignTasks, getVideoDetailDesignBlueprints, getActorRemarksTaskTimeoutMsForDesign, groupDesignTasksByPhase, buildDesignTimeline, buildDesignTaskDetail, isDesignEmbyEnabled } from './orchestrator/orchestratorDesign';
+import { setOrchestratorConnectionStatus, updateOrchestratorLegend, renderOrchestratorPhases, renderOrchestratorTimeline, renderOrchestratorDag } from './orchestrator/orchestratorRender';
+import { buildDesignTasks, computeDagLayers, isDesignEmbyEnabled } from './orchestrator/orchestratorDesign';
 import type { OrchestratorDesignTask } from './orchestrator/orchestratorDesign';
 import { getDesignTaskMeta, getTimelineFilters } from './orchestrator/orchestratorUtils';
 import { getStatusLabel, getGlobalTaskStatus, getWaitReasonLabel, buildGlobalTaskDetail, getTaskDescription } from './orchestrator/orchestratorData';
@@ -180,6 +180,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private orchestratorPhases!: HTMLElement | null;
     private orchestratorTimeline!: HTMLElement | null;
     private orchestratorSummary!: HTMLElement | null;
+    private orchestratorDag!: HTMLElement | null;
+    private orchestratorGrid!: HTMLElement | null;
     private orchestratorLegend!: HTMLElement | null;
     private orchestratorConnectionStatus!: HTMLElement | null;
     private orchestratorRuntimeListener?: (msg: any, sender: any, sendResponse: any) => void;
@@ -467,28 +469,16 @@ export class EnhancementSettings extends BaseSettingsPanel {
         return buildDesignTasks(() => this.doGetSettings() as any);
     }
 
-    public getVideoDetailDesignBlueprints(settings: ExtensionSettings & Record<string, any>): Array<Pick<OrchestratorDesignTask, 'phase' | 'label' | 'priority' | 'timeout' | 'visibilityPolicy'>> {
-        return getVideoDetailDesignBlueprints(settings);
-    }
-
-    public updateOrchestratorLegend(mode: 'design' | 'realtime' | 'global'): void {
+    public updateOrchestratorLegend(mode: 'global' | 'dag'): void {
         return updateOrchestratorLegend(this, mode);
     }
 
-    public getActorRemarksTaskTimeoutMsForDesign(settings: ExtensionSettings & Record<string, any>): number {
-        return getActorRemarksTaskTimeoutMsForDesign(settings);
+    public renderOrchestratorDag(tasks: OrchestratorDesignTask[]): void {
+        return renderOrchestratorDag(this, tasks);
     }
 
-    public groupDesignTasksByPhase(tasks: OrchestratorDesignTask[]): Record<'critical'|'high'|'deferred'|'idle', string[]> {
-        return groupDesignTasksByPhase(tasks);
-    }
-
-    public buildDesignTimeline(tasks: OrchestratorDesignTask[]): Array<{ phase: 'critical'|'high'|'deferred'|'idle'; label: string; status: 'registered'; ts: number; detail?: string; durationMs?: number }> {
-        return buildDesignTimeline(tasks) as any;
-    }
-
-    public buildDesignTaskDetail(task: OrchestratorDesignTask): string {
-        return buildDesignTaskDetail(task);
+    public computeDagLayers(tasks: OrchestratorDesignTask[]): Map<string, number> {
+        return computeDagLayers(tasks);
     }
 
     public isDesignEmbyEnabled(settings: ExtensionSettings & Record<string, any>): boolean {
@@ -592,6 +582,19 @@ export class EnhancementSettings extends BaseSettingsPanel {
         .label-desc { color:var(--text-secondary); font-size:12px; margin-top:2px; }
         .concurrent-marker { color:#3b82f6; font-size:14px; margin-right:4px; font-weight:bold; }
         .col.time { color:var(--text-secondary); font-family:monospace; }
+        .orch-dag-wrap { overflow-x:auto; }
+        .orch-dag-grid { display:grid; gap:1px; background:var(--border-color); border:1px solid var(--border-color); border-radius:8px; overflow:hidden; min-width:max-content; }
+        .orch-dag-corner { background:var(--bg-secondary); padding:8px; }
+        .orch-dag-layer-hdr { background:var(--bg-secondary); padding:8px 10px; font-weight:600; font-size:12px; text-align:center; color:var(--text-secondary); }
+        .orch-dag-phase-lbl { background:var(--bg-secondary); padding:8px 4px; font-size:11px; font-weight:700; text-align:center; display:flex; align-items:center; justify-content:center; writing-mode:vertical-rl; }
+        .orch-dag-cell { background:var(--bg-primary); padding:6px; display:flex; flex-direction:column; gap:4px; min-height:40px; }
+        .orch-dag-node { border-radius:6px; padding:5px 8px; font-size:12px; cursor:default; border-left:3px solid; display:flex; flex-direction:column; gap:2px; background:rgba(0,0,0,0.03); }
+        .orch-dag-node-label { font-weight:600; color:var(--text-primary); word-break:break-all; }
+        .orch-dag-node-meta { font-size:10px; color:var(--text-secondary); }
+        .td-view-switcher { display:flex; gap:2px; align-items:center; }
+        .td-view-btn { padding:5px 12px; border:none; border-bottom:2px solid transparent; background:transparent; color:var(--text-secondary); cursor:pointer; font-size:12px; font-weight:500; border-radius:4px 4px 0 0; transition:color .15s, border-color .15s; }
+        .td-view-btn:hover { color:var(--text-primary); background:var(--bg-secondary); }
+        .td-view-btn--active { color:var(--bg-accent, #546da1); border-bottom-color:var(--bg-accent, #546da1); font-weight:600; }
         `;
         document.head.appendChild(style);
     }
