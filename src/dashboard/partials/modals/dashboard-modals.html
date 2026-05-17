@@ -43,7 +43,7 @@
         <div class="orchestrator-toolbar" style="margin: 6px 0 10px 0;">
           <label>视图
             <select id="orchViewMode">
-              <option value="design">设计</option>
+              <option value="dag">DAG 拓扑</option>
               <option value="global" selected>全局</option>
             </select>
           </label>
@@ -138,7 +138,8 @@
           </div>
         </div>
 
-        <div class="orchestrator-grid" style="display:grid; grid-template-columns: 1fr 1.2fr; gap:14px;">
+        <div id="orchestratorDag" style="display:none; overflow:auto; border:1px solid var(--border-color); border-radius:8px; padding:10px; margin-bottom:14px;"></div>
+        <div id="orchestratorGrid" class="orchestrator-grid" style="display:grid; grid-template-columns: 1fr 1.2fr; gap:14px;">
           <div>
             <h4 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <span>已注册任务</span>
@@ -308,9 +309,9 @@
             <div style="color:var(--text-secondary); font-size:13px;">
               显示最近 <span id="taskDetailsCount">0</span> 条记录
             </div>
-            <div style="display:flex; border:1px solid var(--border-color); border-radius:6px; overflow:hidden; font-size:12px;">
-              <button id="taskDetailsViewTasks" data-view="tasks" style="padding:5px 14px; border:none; background:var(--bg-accent, #546da1); color:#fff; cursor:pointer; font-size:12px; font-weight:600;">任务明细</button>
-              <button id="taskDetailsViewPages" data-view="pages" style="padding:5px 14px; border:none; background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; font-size:12px;">页面实例汇总</button>
+            <div class="td-view-switcher">
+              <button id="taskDetailsViewTasks" class="td-view-btn td-view-btn--active" data-view="tasks">任务明细</button>
+              <button id="taskDetailsViewPages" class="td-view-btn" data-view="pages">页面实例汇总</button>
             </div>
           </div>
           <div style="flex:1; max-width:400px; min-width:260px;">

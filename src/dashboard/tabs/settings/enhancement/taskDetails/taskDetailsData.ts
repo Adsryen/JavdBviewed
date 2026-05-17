@@ -212,13 +212,37 @@ export function buildTaskDetailPageSummaries(tasks: any[]): any[] {
 }
 
 export function getTaskDetailsGroupedParents(data: any[]): Array<{ parentKey: string; parent: any; children: any[] }> {
-  const groups = new Map<string, { parent: any; children: any[] }>();
+  const groups = new Map<string, { parent: any; fallbackChild: any | null; children: any[] }>();
   for (const item of data || []) {
-    const parentKey = item?.parentLabel || item?.label || '-';
-    if (!groups.has(parentKey)) groups.set(parentKey, { parent: item, children: [] });
+    const baseParentKey = item?.parentLabel || item?.label || '-';
+    const parentKey = `${baseParentKey}|${item?.pageInstanceId || ''}|${item?.pageUrl || ''}|${item?.tabId ?? -1}`;
+    if (!groups.has(parentKey)) groups.set(parentKey, { parent: null, fallbackChild: null, children: [] });
     const group = groups.get(parentKey)!;
-    if (item?.parentLabel) group.children.push(item);
-    else group.parent = item;
+    if (item?.parentLabel && item?.subtaskLabel) {
+      group.children.push(item);
+      if (!group.fallbackChild) group.fallbackChild = item;
+    } else if (!group.parent) {
+      group.parent = item;
+    }
   }
-  return Array.from(groups.entries()).map(([parentKey, value]) => ({ parentKey, parent: value.parent, children: value.children }));
+  return Array.from(groups.entries()).map(([parentKey, group]) => {
+    const fallbackChild = group.fallbackChild || {};
+    const parent = group.parent || {
+      ...fallbackChild,
+      label: fallbackChild.parentLabel || String(parentKey).split('|')[0] || parentKey,
+      parentLabel: undefined,
+      subtaskLabel: undefined,
+      batchIndex: undefined,
+      itemCount: undefined,
+      status: fallbackChild.status || 'done',
+      durationMs: 0,
+      registrationSource: fallbackChild.registrationSource || 'blueprint',
+      timestamp: fallbackChild.timestamp || Date.now(),
+      registeredAt: fallbackChild.registeredAt || fallbackChild.timestamp || 0,
+      startedAt: fallbackChild.startedAt || fallbackChild.registeredAt || fallbackChild.timestamp || 0,
+      endedAt: fallbackChild.endedAt || fallbackChild.timestamp || 0,
+      __syntheticParent: true,
+    };
+    return { parentKey, parent, children: group.children };
+  });
 }

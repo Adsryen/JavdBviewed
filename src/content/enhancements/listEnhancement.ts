@@ -4,6 +4,7 @@ import { log } from '../state';
 import { showToast } from '../toast';
 import { actorManager } from '../../services/actorManager';
 import { newWorksManager } from '../../services/newWorks';
+import { processVisibleItems } from '../itemProcessor';
 
 export interface ListEnhancementConfig {
   enabled: boolean;
@@ -1680,11 +1681,16 @@ class ListEnhancementManager {
         });
 
         this.currentPage = nextPage;
-        log(`Successfully loaded page ${nextPage}, added ${newItems.length} items`);
+        log(`[ScrollPaging] page ${nextPage} appended ${newItems.length} items to DOM at ${new Date().toISOString()}`);
 
         // 更新URL但不刷新页面
         const newUrl = this.buildNextPageUrl(nextPage);
         window.history.pushState({}, '', newUrl);
+
+        // 对新追加的条目立即执行 display-settings 过滤（hideViewed/hideBrowsed 等）
+        // setupObserver 在演员页不会被调用，所以这里主动触发，列表页和演员页均适用
+        log('[ScrollPaging] triggering processVisibleItems for new items');
+        processVisibleItems();
       }
 
     } catch (error) {

@@ -1,3 +1,6 @@
+import { computeDagLayers } from './orchestratorDesign';
+import type { OrchestratorDesignTask } from './orchestratorDesign';
+
 export type OrchestratorHost = any;
 
 export function setOrchestratorConnectionStatus(host: OrchestratorHost, status: 'connecting' | 'connected' | 'disconnected' | 'idle'): void {
@@ -6,7 +9,7 @@ export function setOrchestratorConnectionStatus(host: OrchestratorHost, status: 
     connecting: { text: '连接中...', color: '#2563eb', bg: '#eff6ff' },
     connected: { text: '已连接', color: '#059669', bg: '#ecfdf5' },
     disconnected: { text: '未连接', color: '#dc2626', bg: '#fef2f2' },
-    idle: { text: '全局/设计视图', color: '#64748b', bg: '#f1f5f9' },
+    idle: { text: '静态视图', color: '#64748b', bg: '#f1f5f9' },
   } as const;
   const item = map[status];
   host.orchestratorConnectionStatus.textContent = item.text;
@@ -14,23 +17,19 @@ export function setOrchestratorConnectionStatus(host: OrchestratorHost, status: 
   host.orchestratorConnectionStatus.style.background = item.bg;
 }
 
-export function updateOrchestratorLegend(host: OrchestratorHost, mode: 'design' | 'realtime' | 'global'): void {
+export function updateOrchestratorLegend(host: OrchestratorHost, mode: 'global' | 'dag'): void {
   if (!host.orchestratorLegend) return;
-  const legendMap: Record<'design' | 'realtime' | 'global', string> = {
-    design: `
-      <div><strong>说明：</strong>设计视图展示当前配置生成的真实蓝图。</div>
-      <div>• <strong>critical</strong>：关键路径，先执行，优先级最高。</div>
-      <div>• <strong>high</strong>：高优先级，尽快进入编排。</div>
-      <div>• <strong>deferred</strong>：延后执行，等待合适时机。</div>
-      <div>• <strong>idle</strong>：空闲时执行，避免打断主流程。</div>
-    `,
-    realtime: `<div><strong>说明：</strong>实时视图已停用，使用全局视图进行页面实例聚焦。</div>`,
+  const legendMap: Record<'global' | 'dag', string> = {
     global: `
       <div><strong>说明：</strong>全局视图展示任务中心里的真实任务状态，可按当前页实例、最近活跃页和活动任务聚焦。</div>
       <div>• <strong>critical</strong>：最高优先级，直接影响首屏与状态同步。</div>
       <div>• <strong>high</strong>：高优先级，优先进入租约执行。</div>
       <div>• <strong>deferred</strong>：排队后延时启动的任务。</div>
       <div>• <strong>idle</strong>：低优先级后台任务。</div>
+    `,
+    dag: `
+      <div><strong>说明：</strong>DAG 拓扑视图从真实蓝图自动生成，代码变更后自动刷新。</div>
+      <div>• <strong>同列任务</strong>可并发执行 · <strong>左列先于右列</strong>执行 · 悬停节点查看依赖关系。</div>
     `,
   };
   host.orchestratorLegend.innerHTML = `<div class="orch-legend">${legendMap[mode]}</div>`;
@@ -151,4 +150,62 @@ export function renderOrchestratorTimeline(host: OrchestratorHost, timeline: Arr
   host.orchestratorTimeline.innerHTML = `${header}${rows || empty}`;
   host.ensureOrchestratorLocalStyles();
   host.orchestratorTimeline.scrollTop = host.orchestratorTimeline.scrollHeight;
+}
+
+export function renderOrchestratorDag(host: OrchestratorHost, tasks: OrchestratorDesignTask[]): void {
+  if (!host.orchestratorDag) return;
+
+  const layers = computeDagLayers(tasks);
+  const maxLayer = tasks.reduce((max, t) => Math.max(max, layers.get(t.label) ?? 0), 0);
+  const phases: Array<'critical' | 'high' | 'deferred' | 'idle'> = ['critical', 'high', 'deferred', 'idle'];
+
+  // grid[layer][phase] = tasks[]
+  const grid: Map<number, Map<string, OrchestratorDesignTask[]>> = new Map();
+  for (let l = 0; l <= maxLayer; l++) {
+    const m = new Map<string, OrchestratorDesignTask[]>();
+    phases.forEach(p => m.set(p, []));
+    grid.set(l, m);
+  }
+  tasks.filter(t => t.enabled).forEach(t => {
+    const layer = layers.get(t.label) ?? 0;
+    grid.get(layer)?.get(t.phase)?.push(t);
+  });
+
+  const numCols = maxLayer + 1;
+  const colTemplate = `72px repeat(${numCols}, minmax(170px, 1fr))`;
+
+  const html: string[] = [];
+  html.push(`<div class="orch-dag-wrap">`);
+  html.push(`<div class="orch-dag-grid" style="grid-template-columns:${colTemplate}">`);
+
+  // header row
+  html.push(`<div class="orch-dag-corner"></div>`);
+  for (let l = 0; l <= maxLayer; l++) {
+    const sub = l === 0 ? '<br><small style="font-weight:400;opacity:.7">无依赖</small>' : '';
+    html.push(`<div class="orch-dag-layer-hdr">层 ${l}${sub}</div>`);
+  }
+
+  // phase rows
+  phases.forEach(phase => {
+    const phaseColors: Record<string, string> = { critical: '#dc2626', high: '#d97706', deferred: '#2563eb', idle: '#6b7280' };
+    html.push(`<div class="orch-dag-phase-lbl" style="color:${phaseColors[phase]}">${phase}</div>`);
+    for (let l = 0; l <= maxLayer; l++) {
+      const cellTasks = grid.get(l)?.get(phase) ?? [];
+      html.push(`<div class="orch-dag-cell">`);
+      cellTasks.forEach(t => {
+        const depsText = t.dependsOn?.length ? `依赖: ${t.dependsOn.join(', ')}` : '无依赖';
+        const meta = [`P${t.priority ?? 5}`, t.source, t.timeout ? `${t.timeout}ms` : ''].filter(Boolean).join(' · ');
+        const borderColor = phaseColors[t.phase];
+        html.push(`<div class="orch-dag-node" style="border-left-color:${borderColor}" title="${depsText}">`);
+        html.push(`<span class="orch-dag-node-label">${t.label}</span>`);
+        html.push(`<span class="orch-dag-node-meta">${meta}</span>`);
+        html.push(`</div>`);
+      });
+      html.push(`</div>`);
+    }
+  });
+
+  html.push(`</div></div>`);
+  host.orchestratorDag.innerHTML = html.join('');
+  host.ensureOrchestratorLocalStyles();
 }

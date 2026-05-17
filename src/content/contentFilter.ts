@@ -22,8 +22,10 @@ export class ContentFilterManager {
     blurred: 0,
     marked: 0,
   };
-  private lastApplyTime = 0; // 防止重复应用
+  private lastApplyTime = 0; // 防止并发重入
   private isApplyingFilters = false; // 防止无限循环
+  private filterDebounceTimer: ReturnType<typeof setTimeout> | null = null; // 防抖计时器
+  private pendingRerun = false; // 过滤执行中有新条目进来时标记
 
   constructor(config: Partial<ContentFilterConfig> = {}) {
     this.config = {
@@ -118,18 +120,22 @@ export class ContentFilterManager {
    */
   private async applyFilters(): Promise<void> {
     try {
-      // 防止无限循环
+      // 防止并发重入
       if (this.isApplyingFilters) {
+        log('[ContentFilter] applyFilters skipped — already running, setting pendingRerun=true');
+        this.pendingRerun = true;
         return;
       }
 
-      // 防止短时间内重复应用
+      // 防止极短时间内重复触发（仅防并发，不做长冷却）
       const now = Date.now();
-      if (now - this.lastApplyTime < 1000) { // 1秒内不重复应用
+      if (now - this.lastApplyTime < 50) {
+        log(`[ContentFilter] applyFilters skipped — too soon (${now - this.lastApplyTime}ms since last run)`);
         return;
       }
       this.lastApplyTime = now;
       this.isApplyingFilters = true;
+      log(`[ContentFilter] applyFilters START at ${new Date().toISOString()}`);
 
       // 检查是否在详情页，如果是则不应用过滤器
       if (this.isDetailPage()) {
@@ -144,6 +150,9 @@ export class ContentFilterManager {
 
       // 查找所有视频项目
       const videoItems = this.findVideoItems();
+      const unprocessed = videoItems.filter(i => !i.hasAttribute('data-filter-processed'));
+      const alreadyProcessed = videoItems.length - unprocessed.length;
+      log(`[ContentFilter] found ${videoItems.length} items total: ${unprocessed.length} new, ${alreadyProcessed} already processed`);
 
       // 简化日志输出
       const activeRules = this.config.keywordRules.filter(r => r.enabled);
@@ -175,12 +184,20 @@ export class ContentFilterManager {
         }
       });
 
-      log(`Applied filters to ${videoItems.length} items (hidden: ${this.filterStats.hidden}, highlighted: ${this.filterStats.highlighted})`);
+      log(`[ContentFilter] applyFilters DONE — hidden:${this.filterStats.hidden} highlighted:${this.filterStats.highlighted} blurred:${this.filterStats.blurred} marked:${this.filterStats.marked}`);
     } catch (error) {
       log('Error applying filters:', error);
     } finally {
       // 重置标志，允许下次应用
       this.isApplyingFilters = false;
+      // 若执行期间有新条目进来，立即补跑一次
+      if (this.pendingRerun) {
+        this.pendingRerun = false;
+        log('[ContentFilter] pendingRerun=true — triggering follow-up applyFilters');
+        void this.applyFilters().catch(error => {
+          log('Error in pending rerun of filters:', error);
+        });
+      }
     }
   }
 
@@ -191,7 +208,7 @@ export class ContentFilterManager {
     try {
       // 检查是否已经处理过
       if (item.hasAttribute('data-filter-processed')) {
-        return;
+        return; // 已处理，静默跳过
       }
 
       // 检查是否应该被默认功能隐藏
@@ -1031,8 +1048,15 @@ export class ContentFilterManager {
       }
 
       if (hasNewVideoItems) {
-        // 延迟应用过滤，避免频繁操作
-        setTimeout(() => {
+        // 防抖：重置计时器，确保最后一批条目加载完后才执行过滤
+        if (this.filterDebounceTimer !== null) {
+          clearTimeout(this.filterDebounceTimer);
+          log('[ContentFilter] debounce reset — new items arrived before previous timer fired');
+        }
+        log('[ContentFilter] new video items detected, scheduling debounced applyFilters (500ms)');
+        this.filterDebounceTimer = setTimeout(() => {
+          this.filterDebounceTimer = null;
+          log('[ContentFilter] debounce fired — calling applyFilters');
           this.applyFilters().catch(error => {
             log('Error reapplying filters after mutation:', error);
           });
@@ -1089,9 +1113,15 @@ export class ContentFilterManager {
       this.observer = null;
     }
 
+    if (this.filterDebounceTimer !== null) {
+      clearTimeout(this.filterDebounceTimer);
+      this.filterDebounceTimer = null;
+    }
+
     this.clearAllFilters();
     this.isInitialized = false;
-    this.isApplyingFilters = false; // 重置标志
+    this.isApplyingFilters = false;
+    this.pendingRerun = false;
   }
 }
 

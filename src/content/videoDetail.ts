@@ -425,6 +425,10 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         blueprints.push({ phase: 'idle', label: 'actorRemarks:run', timeout: actorRemarksTaskTimeoutMs, dependsOn: ['videoStatus:initialSync'] });
     }
 
+    if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
+        blueprints.push({ phase: 'idle', label: 'videoEnhancement:runReviewBreaker', dependsOn: ['videoStatus:initialSync'] });
+    }
+
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
         blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] });
     }
