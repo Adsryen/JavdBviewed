@@ -434,12 +434,14 @@ async function initialize(): Promise<void> {
 
     const isCurrentVideoPage = window.location.pathname.startsWith('/v/');
     if (isCurrentVideoPage && (settings.videoEnhancement as any)?.showLoadingIndicator !== false) {
+        showEnhancementLoading('video');
         initOrchestrator.add('critical', () => {
             showEnhancementLoading('video');
         }, { label: 'enhancementUI:showLoadingIndicator', priority: 13, visibilityPolicy: 'background_allowed' });
     }
 
     if (isActorPage && (settings.videoEnhancement as any)?.showLoadingIndicator !== false) {
+        showEnhancementLoading('actor');
         initOrchestrator.add('critical', () => {
             showEnhancementLoading('actor');
         }, { label: 'enhancementUI:showLoadingIndicator', priority: 13, visibilityPolicy: 'background_allowed' });
