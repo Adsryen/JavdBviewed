@@ -204,7 +204,7 @@ registerDynamicContentScripts();
 async function autoUpdateRoutes(): Promise<void> {
   try {
     if (typeof document !== 'undefined') {
-      console.info('[Background] 当前上下文支持 document，继续检查线路配置');
+      console.info('[Background] 检测到 document，上下文可能不是 Service Worker');
     }
     const { RouteManager } = await import('../utils/routeManager');
     const routeManager = RouteManager.getInstance();
@@ -219,11 +219,8 @@ async function autoUpdateRoutes(): Promise<void> {
     }
   } catch (e: any) {
     const message = e?.message || String(e);
-    if (message.includes('document is not defined')) {
-      console.warn('[Background] 自动更新线路配置已跳过，后台上下文不支持 document:', message);
-      return;
-    }
     console.warn('[Background] 自动更新线路配置失败:', message);
+    console.warn('[Background] 自动更新线路配置错误详情:', e);
   }
 }
 

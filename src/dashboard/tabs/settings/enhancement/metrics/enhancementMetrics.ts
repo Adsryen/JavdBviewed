@@ -22,7 +22,8 @@ export async function fetchAndUpdateMetrics(host: EnhancementMetricsHost): Promi
       }
     });
 
-    const metrics = host.enrichMetricsWithLiveTaskState(resp?.data || null, liveTasks);
+    const metricsPayload = resp?.metrics ?? resp?.data ?? null;
+    const metrics = host.enrichMetricsWithLiveTaskState(metricsPayload, liveTasks);
     host.updatePerformanceMetrics(metrics);
   } catch (error) {
     console.error('[Enhancement] fetchAndUpdateMetrics failed:', error);

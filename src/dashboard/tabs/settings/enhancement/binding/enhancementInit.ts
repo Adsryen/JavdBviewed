@@ -106,6 +106,7 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.magnetBgPerHostMaxConcurrent = document.getElementById('magnetBgPerHostMaxConcurrent') as HTMLInputElement;
   host.magnetBgPerHostRateLimitPerMin = document.getElementById('magnetBgPerHostRateLimitPerMin') as HTMLInputElement;
 
+  host.subtabLinks = document.querySelectorAll('#enhancement-settings .subtab-link');
   host.showOrchestratorBtn = document.getElementById('showOrchestratorBtn') as HTMLButtonElement | null;
   host.orchestratorModal = document.getElementById('orchestratorModal') as HTMLElement | null;
   host.orchestratorModalClose = document.getElementById('orchestratorModalClose') as HTMLButtonElement | null;

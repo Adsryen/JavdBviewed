@@ -302,8 +302,17 @@ export function renderTaskDetailsPageSummaryTable(controller: TaskDetailsControl
         const paginatedData = sortedData.slice(startIndex, endIndex);
 
         const renderedRows: any[] = [];
+        const getPageStatusBadge = (s: string): string => {
+            const map: Record<string, { text: string; color: string; bg: string }> = {
+                done:    { text: '已完成', color: '#059669', bg: '#ecfdf5' },
+                running: { text: '运行中', color: '#2563eb', bg: '#eff6ff' },
+                queued:  { text: '等待中', color: '#d97706', bg: '#fffbeb' },
+                error:   { text: '有失败', color: '#dc2626', bg: '#fef2f2' },
+            };
+            const badge = map[s] || map.done;
+            return `<span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
+        };
         const rows = paginatedData.map((item) => {
-            const status = controller.host.getStatusLabel(item.status || 'unknown');
             const path = controller.getPagePath(item.pageUrl || '');
             const title = `${path}
 ${item.detail || ''}`;
@@ -323,18 +332,19 @@ ${item.detail || ''}`;
                             <button data-page-summary-toggle="${groupKey}" style="border:none; background:transparent; color:#3b82f6; cursor:pointer; font-size:12px; padding:0; margin-top:1px;">${expanded ? '▼' : '▶'}</button>
                             <div>
                                 <div style="font-weight:600;">${path}</div>
-                                <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'} · 父任务=${item.parentCount || 0} · ${topReasonSummary}</div>
+                                <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">实例ID=${item.pageInstanceId || '-'} · tab=${item.tabId ?? '-'} · ${topReasonSummary}</div>
                             </div>
                         </div>
                     </td>
-                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.mainId || '-'}</td>
                     <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.pageType || '-'}</td>
+                    <td style="padding:10px 12px; color:var(--text-secondary); font-size:12px;">${item.mainId || '-'}</td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-secondary); font-size:12px;">${controller.formatTaskTimestamp(item.startedAt || 0)}</td>
+                    <td style="padding:10px 12px; white-space:nowrap;">${getPageStatusBadge(item.status || 'done')}</td>
                     <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.parentCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:#059669; font-weight:600;">${item.doneCount || 0}</td>
                     <td style="padding:10px 12px; text-align:left; color:${(item.errorCount || 0) > 0 ? '#dc2626' : 'var(--text-primary)'}; font-weight:600;">${item.errorCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${controller.formatTaskDuration(item.totalDurationMs || 0)}</td>
                     <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${item.childCount || 0}</td>
-                    <td style="padding:10px 12px; text-align:left; color:var(--text-secondary); font-size:12px;">${controller.formatTaskTimestamp(item.startedAt || 0)}<div style="font-size:11px; margin-top:4px;">${status}</div></td>
+                    <td style="padding:10px 12px; text-align:left; color:var(--text-primary); font-weight:600;">${controller.formatTaskDuration(item.totalDurationMs || 0)}</td>
                 </tr>
             `;
             if (!expanded) return summaryRow;
@@ -343,7 +353,7 @@ ${item.detail || ''}`;
                 renderedRows.push({ __rowType: 'page-summary-reason', reason: entry.label, count: entry.count });
                 return `
                     <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px; color:var(--text-secondary); font-size:12px;">
+                        <td colspan="10" style="padding:8px 12px 8px 34px; color:var(--text-secondary); font-size:12px;">
                             <span style="display:inline-flex; align-items:center; gap:8px; margin-right:18px;"><span style="font-weight:600; color:var(--text-primary);">未完成原因</span>${controller.escapeHtml(entry.label)}</span>
                             <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:#eff6ff; color:#2563eb; font-weight:600;">${entry.count}</span>
                         </td>
@@ -354,7 +364,7 @@ ${item.detail || ''}`;
             const subHeaderRow = groupedParents.length > 0
                 ? `
                     <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px;">
+                        <td colspan="10" style="padding:8px 12px 8px 34px;">
                             <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:11px; color:var(--text-secondary); font-weight:700;">
                                 <div>父任务</div>
                                 <div>阶段</div>
@@ -386,7 +396,7 @@ ${item.detail || ''}`;
                 });
                 return `
                     <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
-                        <td colspan="9" style="padding:8px 12px 8px 34px;">
+                        <td colspan="10" style="padding:8px 12px 8px 34px;">
                             <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:12px;">
                                 <div style="font-weight:600; color:var(--text-primary);">${controller.escapeHtml(taskName)}${controller.escapeHtml(childSuffix)}</div>
                                 <div style="color:var(--text-secondary);">${controller.escapeHtml(task?.phase || '-')}</div>

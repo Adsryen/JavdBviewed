@@ -371,14 +371,14 @@ export function registerMiscRouter(): void {
           } catch (error: any) {
             sendResponse({ success: false, error: error.message });
           }
-          return true;
+          return false;
         case 'privacy-lock':
           // 处理手动锁定请求
           handlePrivacyLock(sendResponse);
           return true;
         case 'orchestrator:saveMetrics': {
           sendResponse({ success: true, queued: true });
-          handleSaveOrchestratorMetrics(message.metrics)
+          void handleSaveOrchestratorMetrics(message.metrics)
             .catch((error) => {
               console.warn('[Background] Failed to save orchestrator metrics:', error);
             });
@@ -970,6 +970,74 @@ async function handleSaveOrchestratorMetrics(metrics: any): Promise<void> {
 async function handleGetAggregatedMetrics(): Promise<any> {
   console.log('[Background] Getting aggregated metrics...');
   try {
+    const taskDetails = await getValue<any[]>('orchestratorTaskDetails', []);
+    const taskGroups = new Map<string, { root: any; items: any[] }>();
+    for (const item of taskDetails) {
+      const rootKey = String(item?.rootTaskId || item?.parentTaskId || item?.taskId || item?.label || 'unknown');
+      const group = taskGroups.get(rootKey) || { root: item, items: [] };
+      if (!group.root || !group.root.taskId) group.root = item;
+      group.items.push(item);
+      taskGroups.set(rootKey, group);
+    }
+
+    const deriveFromDetails = () => {
+      const result = {
+        batchTotal: taskGroups.size,
+        batchCompleted: 0,
+        batchFailed: 0,
+        batchTimeout: 0,
+        batchTotalDuration: 0,
+        batchMaxDuration: 0,
+        batchMinDuration: Infinity,
+        batchMaxDurationTask: '',
+        subtaskTotal: taskDetails.length,
+        subtaskDone: 0,
+        subtaskError: 0,
+        subtaskTimeout: 0,
+        subtaskTotalDuration: 0,
+        subtaskMaxDuration: 0,
+        subtaskMinDuration: Infinity,
+        subtaskMaxDurationTask: '',
+      };
+
+      for (const [rootKey, group] of taskGroups.entries()) {
+        const root = group.root || {};
+        const rootStatus = String(root?.status || '').toLowerCase();
+        const rootDuration = Number(root?.durationMs || 0);
+        if (rootStatus === 'done') result.batchCompleted++;
+        if (rootStatus === 'error' || rootStatus === 'canceled') result.batchFailed++;
+        if (rootStatus === 'timeout') result.batchTimeout++;
+        if (rootDuration > 0) {
+          result.batchTotalDuration += rootDuration;
+          if (rootDuration > result.batchMaxDuration) {
+            result.batchMaxDuration = rootDuration;
+            result.batchMaxDurationTask = String(root?.label || rootKey);
+          }
+          result.batchMinDuration = Math.min(result.batchMinDuration, rootDuration);
+        }
+
+        for (const item of group.items) {
+          const status = String(item?.status || '').toLowerCase();
+          const duration = Number(item?.durationMs || 0);
+          if (status === 'done') result.subtaskDone++;
+          if (status === 'error' || status === 'canceled') result.subtaskError++;
+          if (status === 'timeout') result.subtaskTimeout++;
+          if (duration > 0) {
+            result.subtaskTotalDuration += duration;
+            if (duration > result.subtaskMaxDuration) {
+              result.subtaskMaxDuration = duration;
+              result.subtaskMaxDurationTask = String(item?.label || rootKey);
+            }
+            result.subtaskMinDuration = Math.min(result.subtaskMinDuration, duration);
+          }
+        }
+      }
+
+      return result;
+    };
+
+    const treeMetrics = deriveFromDetails();
+
     // 从存储中获取所有性能指标
     const metricsData = await getValue<any[]>('orchestratorMetrics', []);
     console.log('[Background] Retrieved metrics records:', metricsData.length);
@@ -1047,9 +1115,12 @@ async function handleGetAggregatedMetrics(): Promise<any> {
     
     const result = {
       ...aggregated,
+      ...treeMetrics,
       avgDuration,
       avgTasksPerPage,
       successRate,
+      batchAvgDuration: treeMetrics.batchCompleted > 0 ? treeMetrics.batchTotalDuration / treeMetrics.batchCompleted : 0,
+      subtaskAvgDuration: treeMetrics.subtaskDone > 0 ? treeMetrics.subtaskTotalDuration / treeMetrics.subtaskDone : 0,
     };
     
     console.log('[Background] Aggregated metrics:', result);

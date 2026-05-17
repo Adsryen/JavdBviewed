@@ -1242,6 +1242,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
         const metricMaxDuration = document.getElementById('metricMaxDuration');
         const metricMinDuration = document.getElementById('metricMinDuration');
         const metricTotalDuration = document.getElementById('metricTotalDuration');
+        const metricBatchTotal = document.getElementById('metricBatchTotal');
+        const metricBatchCompleted = document.getElementById('metricBatchCompleted');
+        const metricSubtaskTotal = document.getElementById('metricSubtaskTotal');
+        const metricSubtaskCompleted = document.getElementById('metricSubtaskCompleted');
+        const metricSubtaskFailed = document.getElementById('metricSubtaskFailed');
 
         if (!metrics) {
             // 清空或显示默认值
@@ -1255,6 +1260,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             if (metricMaxDuration) metricMaxDuration.textContent = '0ms';
             if (metricMinDuration) metricMinDuration.textContent = '∞';
             if (metricTotalDuration) metricTotalDuration.textContent = '0ms';
+            if (metricBatchTotal) metricBatchTotal.textContent = '0';
+            if (metricBatchCompleted) metricBatchCompleted.textContent = '0';
+            if (metricSubtaskTotal) metricSubtaskTotal.textContent = '0';
+            if (metricSubtaskCompleted) metricSubtaskCompleted.textContent = '0';
+            if (metricSubtaskFailed) metricSubtaskFailed.textContent = '0';
             return;
         }
 
@@ -1294,6 +1304,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
             metricMinDuration.textContent = (minDur === Infinity || minDur === undefined) ? '∞' : formatDuration(minDur);
         }
         if (metricTotalDuration) metricTotalDuration.textContent = formatDuration(metrics.totalDuration || 0);
+        if (metricBatchTotal) metricBatchTotal.textContent = String(metrics.batchTotal ?? metrics.recordCount ?? 0);
+        if (metricBatchCompleted) metricBatchCompleted.textContent = String(metrics.batchCompleted ?? metrics.completedTasks ?? 0);
+        if (metricSubtaskTotal) metricSubtaskTotal.textContent = String(metrics.subtaskTotal ?? 0);
+        if (metricSubtaskCompleted) metricSubtaskCompleted.textContent = String(metrics.subtaskDone ?? 0);
+        if (metricSubtaskFailed) metricSubtaskFailed.textContent = String((metrics.subtaskError ?? 0) + (metrics.subtaskTimeout ?? 0));
     }
 
     public enrichMetricsWithLiveTaskState(metrics: any, tasks: any[]): any {
