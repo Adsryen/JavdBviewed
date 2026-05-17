@@ -39,6 +39,30 @@ export class ContentFilterManager {
   /**
    * 初始化关键字过滤系统
    */
+  private injectHighlightStyles(): void {
+    if (document.getElementById('content-filter-highlight-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'content-filter-highlight-styles';
+    style.textContent = `
+      @keyframes cf-amber-pulse {
+        0%   { box-shadow: 0 0  6px 1px rgba(255,193,7,0.45), inset 0 0 0 2px rgba(255,193,7,0.25); }
+        50%  { box-shadow: 0 0 18px 4px rgba(255,193,7,0.75), inset 0 0 0 2px rgba(255,193,7,0.55); }
+        100% { box-shadow: 0 0  6px 1px rgba(255,193,7,0.45), inset 0 0 0 2px rgba(255,193,7,0.25); }
+      }
+      .content-filter-highlighted {
+        outline: 2px solid rgba(255,193,7,0.85) !important;
+        outline-offset: -2px !important;
+        border-radius: 8px !important;
+        animation: cf-amber-pulse 2.4s ease-in-out infinite !important;
+        background-color: transparent !important;
+        border: none !important;
+        transform: none !important;
+        transition: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   async initialize(): Promise<void> {
     if (!this.config.enabled || this.isInitialized) {
       return;
@@ -49,6 +73,7 @@ export class ContentFilterManager {
 
       await runChunkedWork([
         async () => {
+          this.injectHighlightStyles();
           if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
@@ -739,19 +764,9 @@ export class ContentFilterManager {
         break;
 
       case 'highlight':
-        // 应用自定义样式或默认高亮样式
         if (rule.style) {
           Object.assign(item.style, rule.style);
-        } else {
-          // 默认高亮样式 - 明显的黄色背景和边框
-          item.style.backgroundColor = '#fff3cd';
-          item.style.border = '3px solid #ffc107';
-          item.style.borderRadius = '8px';
-          item.style.boxShadow = '0 4px 12px rgba(255, 193, 7, 0.3)';
-          item.style.transform = 'scale(1.02)';
-          item.style.transition = 'all 0.3s ease';
         }
-        // 添加CSS类以便于识别
         item.classList.add('content-filter-highlighted');
         item.setAttribute('data-filter-applied', 'highlight');
         this.filterStats.highlighted++;
