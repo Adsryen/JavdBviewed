@@ -100,30 +100,40 @@
               <i class="fas fa-list"></i> 任务执行明细
             </button>
           </h4>
-          <div style="overflow-x:auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:8px;">
-            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 110px 110px 90px 90px 130px 150px 130px 150px; min-width:1250px; font-size:13px; background:var(--bg-primary); border-radius:4px;">
+          <div class="c-table-wrapper" style="padding:8px; background:var(--bg-secondary);">
+            <div id="orchestratorMetricsTable" style="display:grid; grid-template-columns:110px 180px 110px 110px 90px 90px 130px 150px 130px 150px 120px 120px 120px 120px 120px; min-width:1820px; font-size:13px; background:var(--bg-primary); border-radius:4px; white-space:nowrap;">
               <!-- 表头 -->
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">总任务数</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">已完成</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">运行中</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">排程中</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">失败</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">超时</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">平均耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">最长耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">最短耗时</div>
-              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color);">总耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">总任务数</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">运行中</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">排程中</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">失败</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">超时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">平均耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">最长耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">最短耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">总耗时</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">批次总数</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">批次已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">子任务总数</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">子任务已完成</div>
+              <div style="padding:8px 10px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border-color); white-space:nowrap;">子任务失败</div>
               <!-- 数据行 -->
-              <div id="metricTotalTasks" style="padding:8px 10px; color:var(--text-primary); font-weight:600;">0</div>
-              <div id="metricCompletedTasks" style="padding:8px 10px; color:#059669; font-weight:600;">0</div>
-              <div id="metricRunningTasks" style="padding:8px 10px; color:#2563eb; font-weight:600;">0</div>
-              <div id="metricPendingTasks" style="padding:8px 10px; color:#7c3aed; font-weight:600;">0</div>
-              <div id="metricFailedTasks" style="padding:8px 10px; color:#dc2626; font-weight:600;">0</div>
-              <div id="metricTimeoutTasks" style="padding:8px 10px; color:#d97706; font-weight:600;">0</div>
-              <div id="metricAvgDuration" style="padding:8px 10px; color:#7c3aed; font-weight:600;">0ms</div>
-              <div id="metricMaxDuration" style="padding:8px 10px; color:#db2777; font-weight:600;">0ms</div>
-              <div id="metricMinDuration" style="padding:8px 10px; color:#0891b2; font-weight:600;">∞</div>
-              <div id="metricTotalDuration" style="padding:8px 10px; color:#0d9488; font-weight:600;">0ms</div>
+              <div id="metricTotalTasks" style="padding:8px 10px; color:var(--text-primary); font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricCompletedTasks" style="padding:8px 10px; color:#059669; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricRunningTasks" style="padding:8px 10px; color:#2563eb; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricPendingTasks" style="padding:8px 10px; color:#7c3aed; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricFailedTasks" style="padding:8px 10px; color:#dc2626; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricTimeoutTasks" style="padding:8px 10px; color:#d97706; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricAvgDuration" style="padding:8px 10px; color:#7c3aed; font-weight:600; white-space:nowrap;">0ms</div>
+              <div id="metricMaxDuration" style="padding:8px 10px; color:#db2777; font-weight:600; white-space:nowrap;">0ms</div>
+              <div id="metricMinDuration" style="padding:8px 10px; color:#0891b2; font-weight:600; white-space:nowrap;">∞</div>
+              <div id="metricTotalDuration" style="padding:8px 10px; color:#0d9488; font-weight:600; white-space:nowrap;">0ms</div>
+              <div id="metricBatchTotal" style="padding:8px 10px; color:var(--text-primary); font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricBatchCompleted" style="padding:8px 10px; color:#059669; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricSubtaskTotal" style="padding:8px 10px; color:var(--text-primary); font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricSubtaskCompleted" style="padding:8px 10px; color:#059669; font-weight:600; white-space:nowrap;">0</div>
+              <div id="metricSubtaskFailed" style="padding:8px 10px; color:#dc2626; font-weight:600; white-space:nowrap;">0</div>
             </div>
           </div>
         </div>
@@ -283,7 +293,7 @@
 
   <!-- Task Details Modal -->
   <div id="taskDetailsModal" class="modal-overlay hidden">
-    <div class="modal-content" style="width:90vw; max-width:1200px; max-height:85vh; display:flex; flex-direction:column;">
+    <div class="modal-content" style="width:96vw; max-width:1600px; max-height:88vh; display:flex; flex-direction:column;">
       <div class="modal-header" style="background: linear-gradient(135deg, #546da1, #a39db0);">
         <h3>
           <i class="fas fa-tasks"></i>
@@ -325,7 +335,7 @@
           </div>
         </div>
         <div style="flex:1; overflow:auto; border:1px solid var(--border-color); border-radius:8px;">
-          <table id="taskDetailsTable" style="width:100%; border-collapse:collapse; font-size:13px; min-width:800px;">
+          <table id="taskDetailsTable" style="width:100%; border-collapse:collapse; font-size:13px; min-width:1100px;">
             <thead style="position:sticky; top:0; background:var(--bg-secondary); z-index:1;">
               <tr style="border-bottom:2px solid var(--border-color);">
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="label">
@@ -337,7 +347,7 @@
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="phase">
                   阶段 <i class="fas fa-sort"></i>
                 </th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="status">
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer; white-space:nowrap;" data-sort="status">
                   状态 <i class="fas fa-sort"></i>
                 </th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="createdAt">
@@ -363,19 +373,20 @@
             <thead id="taskDetailsPageSummaryHead" class="hidden" style="position:sticky; top:0; background:var(--bg-secondary); z-index:1;">
               <tr style="border-bottom:2px solid var(--border-color);">
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageUrl">页面实例 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="mainId">主ID <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageType">类型 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">父任务数 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="doneCount">成功 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="errorCount">失败 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="totalDurationMs">总耗时 <i class="fas fa-sort"></i></th>
-                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="childCount">子任务 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="pageType">页面类型 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="mainId">页面ID <i class="fas fa-sort"></i></th>
                 <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="startedAt">开始时间 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer; white-space:nowrap;" data-sort="status">状态 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="parentCount">任务数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="doneCount">完成数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="errorCount">失败数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="childCount">子任务数 <i class="fas fa-sort"></i></th>
+                <th style="padding:10px 12px; text-align:left; font-weight:600; color:var(--text-secondary); cursor:pointer;" data-sort="totalDurationMs">累计耗时 <i class="fas fa-sort"></i></th>
               </tr>
             </thead>
             <tbody id="taskDetailsTableBody">
               <tr>
-                <td colspan="9" style="padding:40px; text-align:center; color:var(--text-secondary);">
+                <td colspan="10" style="padding:40px; text-align:center; color:var(--text-secondary);">
                   <i class="fas fa-spinner fa-spin"></i> 加载中...
                 </td>
               </tr>

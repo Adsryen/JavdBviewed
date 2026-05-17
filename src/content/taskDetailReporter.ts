@@ -55,33 +55,18 @@ export function saveSubtaskDetail(payload: SubtaskDetailPayload): Promise<boolea
         mainId: taskDetail.mainId,
       });
 
-      chrome.runtime.sendMessage(
-        {
-          type: 'orchestrator:saveTaskDetail',
-          taskDetail,
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            log('[TaskDetailReporter] send failed', {
-              label: taskDetail.label,
-              parentLabel: taskDetail.parentLabel,
-              pageInstanceId: taskDetail.pageInstanceId,
-              error: chrome.runtime.lastError.message,
-            });
-            resolve(false);
-            return;
-          }
+      chrome.runtime.sendMessage({
+        type: 'orchestrator:saveTaskDetail',
+        taskDetail,
+      });
 
-          const success = response?.success !== false;
-          log('[TaskDetailReporter] send done', {
-            label: taskDetail.label,
-            parentLabel: taskDetail.parentLabel,
-            pageInstanceId: taskDetail.pageInstanceId,
-            success,
-          });
-          resolve(success);
-        }
-      );
+      log('[TaskDetailReporter] send done', {
+        label: taskDetail.label,
+        parentLabel: taskDetail.parentLabel,
+        pageInstanceId: taskDetail.pageInstanceId,
+        success: true,
+      });
+      resolve(true);
     } catch (error: any) {
       log('[TaskDetailReporter] send exception', {
         label: payload?.label,

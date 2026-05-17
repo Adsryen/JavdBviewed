@@ -145,6 +145,45 @@ export function buildTaskDetailPageSummaries(tasks: any[]): any[] {
     const first = items[0] || {};
     const pageUrl = first?.pageUrl || '';
     const reasonStats = buildPageSummaryReasonStats(items);
+
+    const parentItems = items.filter((t: any) => !t?.parentLabel);
+    const childItems = items.filter((t: any) => !!t?.parentLabel);
+    const doneCount = items.filter((t: any) => t?.status === 'done').length;
+    const errorCount = items.filter((t: any) => ['error', 'timeout'].includes(t?.status)).length;
+    const runningCount = items.filter((t: any) => t?.status === 'running').length;
+    const queuedCount = items.filter((t: any) => ['queued', 'pending'].includes(t?.status)).length;
+
+    let totalDurationMs = 0;
+    for (const t of parentItems) {
+      const s = getTaskStartedAt(t);
+      const e = getTaskEndedAt(t);
+      if (s > 0 && e > 0 && e >= s) totalDurationMs += e - s;
+    }
+
+    let startedAt = 0;
+    for (const t of items) {
+      const s = getTaskStartedAt(t);
+      if (s > 0 && (startedAt === 0 || s < startedAt)) startedAt = s;
+    }
+
+    const topWaitReasons = [...reasonStats]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(r => ({ reason: r.label, count: r.count }));
+
+    let status = 'done';
+    if (runningCount > 0) status = 'running';
+    else if (queuedCount > 0) status = 'queued';
+    else if (errorCount > 0) status = 'error';
+
+    let mainId = '-';
+    let pageType = '-';
+    try {
+      const parts = new URL(pageUrl).pathname.split('/').filter(Boolean);
+      if (parts.length >= 2) { pageType = parts[0]; mainId = parts[1]; }
+      else if (parts.length === 1) { pageType = parts[0]; }
+    } catch { /* ignore */ }
+
     return {
       groupKey,
       pageUrl,
@@ -152,10 +191,19 @@ export function buildTaskDetailPageSummaries(tasks: any[]): any[] {
       pageInstanceId: first?.pageInstanceId || '-',
       tabId: typeof first?.tabId === 'number' ? first.tabId : '-',
       taskCount: items.length,
-      runningCount: items.filter((t: any) => t?.status === 'running').length,
-      queuedCount: items.filter((t: any) => ['queued', 'pending'].includes(t?.status)).length,
-      errorCount: items.filter((t: any) => ['error', 'timeout'].includes(t?.status)).length,
-      completedCount: items.filter((t: any) => t?.status === 'done').length,
+      parentCount: parentItems.length,
+      childCount: childItems.length,
+      runningCount,
+      queuedCount,
+      errorCount,
+      completedCount: doneCount,
+      doneCount,
+      totalDurationMs,
+      startedAt,
+      topWaitReasons,
+      status,
+      mainId,
+      pageType,
       tasks: items,
       reasonStats,
     };

@@ -219,7 +219,11 @@ export class TaskDetailsController {
                 }
             });
             if (!resp?.success) throw new Error(resp?.error || '获取任务明细失败');
-            const rows = Array.isArray(resp?.data?.items) ? resp.data.items : [];
+            const rows = Array.isArray(resp?.details?.details)
+                ? resp.details.details
+                : Array.isArray(resp?.data?.items)
+                    ? resp.data.items
+                    : [];
             const fingerprint = this.buildTaskDetailsFingerprint(rows);
             this.host.taskDetailsData = rows;
             this.host.taskDetailsPageSummaryData = this.buildTaskDetailPageSummaries(rows);
@@ -310,7 +314,7 @@ export class TaskDetailsController {
         }
 
         const header = this.host.taskDetailsView === 'pages'
-            ? '页面实例	主ID	类型	父任务数	成功	失败	总耗时	子任务	开始时间'
+            ? '页面实例\t页面类型\t页面ID\t开始时间\t状态\t任务数\t完成数\t失败数\t子任务数\t累计耗时'
             : '任务名称	子任务	阶段	状态	注册时间	开始时间	结束时间	等待执行	执行耗时	页面';
 
         const lines: string[] = [header];
@@ -319,14 +323,15 @@ export class TaskDetailsController {
             for (const row of rows) {
                 lines.push([
                     getPagePath(row.pageUrl || ''),
-                    row.mainId || '-',
                     row.pageType || '-',
+                    row.mainId || '-',
+                    formatTaskTimestamp(row.startedAt || 0),
+                    row.status || 'done',
                     row.parentCount || 0,
                     row.doneCount || 0,
                     row.errorCount || 0,
-                    formatTaskDuration(row.totalDurationMs || 0),
                     row.childCount || 0,
-                    formatTaskTimestamp(row.startedAt || 0),
+                    formatTaskDuration(row.totalDurationMs || 0),
                 ].join('\t'));
 
                 const tasks = getPageSummaryTasks(this.host, row);

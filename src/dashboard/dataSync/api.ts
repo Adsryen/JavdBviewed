@@ -1328,14 +1328,20 @@ export class ApiClient {
                     id = rawId.slice('list-'.length).trim();
                 }
                 if (!id) {
-                    const a = li.querySelector('a[href^="/lists/"]') as HTMLAnchorElement | null;
+                    const a = li.querySelector('a[href*="/lists/"]') as HTMLAnchorElement | null;
                     const href = a?.getAttribute('href') || '';
-                    const m = href.match(/^\/lists\/([^/?#]+)$/);
+                    const m = href.match(/\/lists\/([^/?#]+)/);
                     if (m) id = String(m[1] || '').trim();
                 }
 
-                const name = String(li.querySelector('.list-name')?.textContent || '').trim();
-                const metaRaw = String(li.querySelector('.meta')?.textContent || '')
+                const name = String(
+                    li.querySelector('.list-name')?.textContent ||
+                    li.querySelector('.name')?.textContent ||
+                    li.querySelector('a[title]')?.getAttribute('title') ||
+                    li.querySelector('a')?.textContent ||
+                    ''
+                ).trim();
+                const metaRaw = String(li.querySelector('.meta')?.textContent || li.textContent || '')
                     .replace(/\s+/g, ' ')
                     .replace(/，/g, ',')
                     .trim();
@@ -1343,9 +1349,9 @@ export class ApiClient {
                 let moviesCount: number | undefined;
                 let clickedCount: number | undefined;
 
-                const mc = metaRaw.match(/(\d+)\s*部影片/);
+                const mc = metaRaw.match(/(\d+)\s*部影片/) || metaRaw.match(/(\d+)\s*(?:videos?|影片|部)/i);
                 if (mc) moviesCount = Number(mc[1]);
-                const cc = metaRaw.match(/點擊了\s*(\d+)\s*次/);
+                const cc = metaRaw.match(/點擊了\s*(\d+)\s*次/) || metaRaw.match(/(?:点击|點擊|clicks?)\s*(?:了)?\s*(\d+)\s*次?/i);
                 if (cc) clickedCount = Number(cc[1]);
                 if (!cc) {
                     const cc2 = metaRaw.match(/(\d+)\s*次/);
@@ -1355,6 +1361,23 @@ export class ApiClient {
                 if (id && name) {
                     items.push({ id, name, moviesCount, clickedCount });
                 }
+            }
+
+            if (items.length > 0) {
+                return items;
+            }
+
+            const emptyHints = [
+                '.lists-empty-tip',
+                '.lists-empty',
+                '.empty',
+                '.empty-state',
+                '.section-container .message',
+                '.section-container .notification'
+            ];
+            const hasEmptyState = emptyHints.some((selector) => !!doc.querySelector(selector));
+            if (hasEmptyState) {
+                return [];
             }
         } catch {
             return items;
@@ -1414,9 +1437,8 @@ export class ApiClient {
                 const html = await res.text();
                 const items = this.parseListsFromHTML(html);
                 if (items.length === 0) {
-                    // 第 1 页就为空：很可能未登录或页面结构变化
                     if (page === 1) {
-                        throw new Error('未能解析到任何清单数据，可能未登录或页面结构已变化');
+                        logAsync('INFO', '清单首页为空', { type, url });
                     }
                     break;
                 }
@@ -1428,6 +1450,7 @@ export class ApiClient {
                         id: it.id,
                         name: it.name,
                         type,
+                        source: 'javdb',
                         url: `${origin}/lists/${it.id}`,
                         moviesCount: it.moviesCount,
                         clickedCount: it.clickedCount,
@@ -1587,9 +1610,8 @@ export class ApiClient {
                 }
             }
 
-            // 写入所有 JavDB 清单（新增+更新），为每条记录标记 source: 'javdb'
-            const javdbListRecords = listRecords.map(l => ({ ...l, source: 'javdb' as const }));
-            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: javdbListRecords });
+            // 写入所有 JavDB 清单（新增+更新）
+            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: listRecords });
 
             logAsync('INFO', `清单列表已更新（增量）`, {
                 added: listsToAdd.length,
