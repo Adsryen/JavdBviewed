@@ -137,6 +137,8 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.taskDetailsNextPage = document.getElementById('taskDetailsNextPage') as HTMLButtonElement | null;
   host.taskDetailsPagination = document.getElementById('taskDetailsPagination') as HTMLElement | null;
   host.taskDetailsSearch = document.getElementById('taskDetailsSearch') as HTMLInputElement | null;
-  host.taskDetailsViewMode = document.getElementById('taskDetailsViewMode') as HTMLSelectElement | null;
+  host.taskDetailsViewTasks = document.getElementById('taskDetailsViewTasks') as HTMLButtonElement | null;
+  host.taskDetailsViewPages = document.getElementById('taskDetailsViewPages') as HTMLButtonElement | null;
+  host.taskDetailsViewMode = null;
   host.taskDetailsPageSummaryHead = document.getElementById('taskDetailsPageSummaryHead') as HTMLElement | null;
 }

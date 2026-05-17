@@ -308,12 +308,9 @@
             <div style="color:var(--text-secondary); font-size:13px;">
               显示最近 <span id="taskDetailsCount">0</span> 条记录
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <label for="taskDetailsViewMode" style="font-size:12px; color:var(--text-secondary);">视图</label>
-              <select id="taskDetailsViewMode" style="padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; background:var(--bg-primary); color:var(--text-primary);">
-                <option value="tasks">任务明细</option>
-                <option value="pages">页面实例汇总</option>
-              </select>
+            <div style="display:flex; border:1px solid var(--border-color); border-radius:6px; overflow:hidden; font-size:12px;">
+              <button id="taskDetailsViewTasks" data-view="tasks" style="padding:5px 14px; border:none; background:var(--bg-accent, #546da1); color:#fff; cursor:pointer; font-size:12px; font-weight:600;">任务明细</button>
+              <button id="taskDetailsViewPages" data-view="pages" style="padding:5px 14px; border:none; background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; font-size:12px;">页面实例汇总</button>
             </div>
           </div>
           <div style="flex:1; max-width:400px; min-width:260px;">

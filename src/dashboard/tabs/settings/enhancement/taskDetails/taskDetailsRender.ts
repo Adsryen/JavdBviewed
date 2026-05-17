@@ -365,10 +365,11 @@ ${item.detail || ''}`;
                 ? `
                     <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
                         <td colspan="10" style="padding:8px 12px 8px 34px;">
-                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:11px; color:var(--text-secondary); font-weight:700;">
+                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 0.5fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:11px; color:var(--text-secondary); font-weight:700;">
                                 <div>父任务</div>
                                 <div>阶段</div>
                                 <div>状态</div>
+                                <div>子任务</div>
                                 <div>注册</div>
                                 <div>开始</div>
                                 <div style="text-align:right;">耗时</div>
@@ -383,7 +384,6 @@ ${item.detail || ''}`;
                 const task = group.parent || {};
                 const taskName = controller.host.getTaskDisplayNameForExport(task?.label || group.parentKey || 'unknown');
                 const startedAtMs = controller.getTaskStartedAt(task);
-                const childSuffix = group.children.length > 0 ? ` · 子任务${group.children.length}` : '';
                 renderedRows.push({
                     __rowType: 'page-summary-child',
                     taskName,
@@ -397,10 +397,11 @@ ${item.detail || ''}`;
                 return `
                     <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color);">
                         <td colspan="10" style="padding:8px 12px 8px 34px;">
-                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:12px;">
-                                <div style="font-weight:600; color:var(--text-primary);">${controller.escapeHtml(taskName)}${controller.escapeHtml(childSuffix)}</div>
+                            <div style="display:grid; grid-template-columns:minmax(260px, 2.6fr) 0.7fr 0.8fr 0.5fr 1.2fr 1.2fr 0.8fr 1.4fr; gap:10px; align-items:center; font-size:12px;">
+                                <div style="font-weight:600; color:var(--text-primary);">${controller.escapeHtml(taskName)}</div>
                                 <div style="color:var(--text-secondary);">${controller.escapeHtml(task?.phase || '-')}</div>
                                 <div style="color:var(--text-secondary);">${controller.escapeHtml(controller.host.getStatusLabel(task?.status || 'unknown'))}</div>
+                                <div style="color:var(--text-secondary);">${group.children.length > 0 ? group.children.length : '-'}</div>
                                 <div style="color:var(--text-secondary);">${controller.escapeHtml(controller.formatTaskTimestamp(controller.getTaskRegisteredAt(task) || 0) || '-')}</div>
                                 <div style="color:var(--text-secondary);">${controller.escapeHtml(startedAtMs > 0 ? controller.formatTaskTimestamp(startedAtMs) : '-')}</div>
                                 <div style="text-align:right; font-weight:600; color:var(--text-primary);">${controller.escapeHtml(controller.formatTaskDuration(controller.getTaskRunDurationMs(task)))}</div>

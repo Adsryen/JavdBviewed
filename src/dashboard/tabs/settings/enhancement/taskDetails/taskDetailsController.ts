@@ -231,6 +231,9 @@ export class TaskDetailsController {
             this.host.taskDetailsCurrentPage = 1;
             await this.host.fetchAndUpdateMetrics();
             this.host.renderTaskDetailsTable();
+            const total = this.host.getRenderedTaskDetailsCount();
+            const totalPages = Math.max(1, Math.ceil(total / this.host.taskDetailsPageSize));
+            this.host.updateTaskDetailsPagination(total, totalPages);
         } catch (error: any) {
             console.error('[Enhancement] Failed to fetch task details:', error);
             if (this.host.taskDetailsTableBody) {

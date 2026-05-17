@@ -199,7 +199,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private taskDetailsPrevPage!: HTMLButtonElement | null;
     private taskDetailsNextPage!: HTMLButtonElement | null;
     private taskDetailsSearch!: HTMLInputElement | null;
-    private taskDetailsViewMode!: HTMLSelectElement | null;
+    private taskDetailsViewTasks!: HTMLButtonElement | null;
+    private taskDetailsViewPages!: HTMLButtonElement | null;
+    private taskDetailsViewMode!: null;
     private taskDetailsTable!: HTMLTableElement | null;
     private taskDetailsTableBody!: HTMLElement | null;
     private taskDetailsCount!: HTMLElement | null;
