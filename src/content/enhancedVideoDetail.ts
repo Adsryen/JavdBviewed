@@ -13,6 +13,7 @@ import { yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementDone } from './enhancementLoadingIndicator';
+import { isDarkTheme } from './utils';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -80,7 +81,24 @@ export class VideoDetailEnhancer {
       titleEl.textContent = translated;
       return;
     }
-    if (!document.querySelector('.enhanced-translation')) {
+    const dark = isDarkTheme();
+    const existing = titleEl.parentElement?.querySelector('.enhanced-translation') as HTMLElement | null;
+    if (existing) {
+      const label = existing.querySelector('[data-translation-label]') as HTMLElement | null;
+      const content = existing.querySelector('[data-translation-content]') as HTMLElement | null;
+      if (label) label.textContent = '中文翻译';
+      if (content) {
+        content.textContent = translated;
+        content.style.cssText = `
+          font-size: 16px;
+          color: ${dark ? '#e0e0e0' : '#333'};
+          line-height: 1.4;
+        `;
+      }
+      existing.style.borderLeftColor = '#4CAF50';
+      existing.removeAttribute('data-translation-state');
+      existing.setAttribute('data-original-title', original);
+    } else {
       const container = this.createTranslationContainer(original, translated);
       titleEl.parentElement?.insertBefore(container, titleEl.nextSibling);
     }
@@ -165,7 +183,7 @@ export class VideoDetailEnhancer {
       }
 
       const existingTranslation = titleEl.parentElement?.querySelector('.enhanced-translation');
-      if (existingTranslation) {
+      if (existingTranslation && existingTranslation.getAttribute('data-translation-state') !== 'pending') {
         log('[Translation] existing translated title found, skip duplicate render.');
         return;
       }
@@ -298,9 +316,84 @@ export class VideoDetailEnhancer {
     await this.translateCurrentTitleIfNeeded();
   }
 
+  public async insertTranslationPlaceholder(): Promise<void> {
+    try {
+      const settings = STATE.settings;
+      if (!settings?.dataEnhancement?.enableTranslation) return;
+      const targetEnabled = settings.translation?.targets
+        ? (settings.translation.targets.currentTitle !== false)
+        : true;
+      if (!targetEnabled) return;
+
+      const titleEl = await this.waitForElement('h2.title.is-4 .current-title', 3000, 300) as HTMLElement | null;
+      if (!titleEl) return;
+
+      if (titleEl.parentElement?.querySelector('.enhanced-translation')) return;
+
+      const container = document.createElement('div');
+      container.className = 'enhanced-translation';
+      container.setAttribute('data-translation-state', 'pending');
+      const dark = isDarkTheme();
+      container.style.cssText = `
+        margin: 10px 0;
+        padding: 12px;
+        background: ${dark ? 'linear-gradient(135deg, #2a2a2a 0%, #3a3a4a 100%)' : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'};
+        border-radius: 8px;
+        border-left: 4px solid #9e9e9e;
+      `;
+
+      const label = document.createElement('div');
+      label.setAttribute('data-translation-label', '');
+      label.textContent = '标题翻译';
+      label.style.cssText = `
+        font-size: 12px;
+        color: ${dark ? '#aaa' : '#666'};
+        margin-bottom: 5px;
+        font-weight: bold;
+      `;
+
+      const linkColor = dark ? '#64b5f6' : '#1976d2';
+      const linkHover = dark ? '#90caf9' : '#0d47a1';
+      const btn = document.createElement('div');
+      btn.setAttribute('data-translation-content', '');
+      btn.textContent = '点击翻译';
+      btn.style.cssText = `
+        font-size: 14px;
+        color: ${linkColor};
+        cursor: pointer;
+        display: inline-block;
+        padding: 2px 0;
+        border-bottom: 1px dashed ${linkColor};
+        line-height: 1.4;
+      `;
+      btn.onmouseenter = () => { btn.style.color = linkHover; btn.style.borderBottomColor = linkHover; };
+      btn.onmouseleave = () => { btn.style.color = linkColor; btn.style.borderBottomColor = linkColor; };
+      btn.onclick = async () => {
+        btn.textContent = '翻译中...';
+        btn.style.cursor = 'default';
+        btn.style.color = dark ? '#666' : '#999';
+        btn.style.borderBottomColor = dark ? '#666' : '#999';
+        btn.onclick = null;
+        btn.onmouseenter = null;
+        btn.onmouseleave = null;
+        await this.runCurrentTitleTranslation();
+      };
+
+      container.appendChild(label);
+      container.appendChild(btn);
+      titleEl.parentElement?.insertBefore(container, titleEl.nextSibling);
+    } catch (error) {
+      log('Error inserting translation placeholder:', error);
+    }
+  }
+
   public async refreshTranslationFromSettings(): Promise<void> {
     this.applyOptionsFromSettings();
-    await this.runCurrentTitleTranslation();
+    // Only re-translate if a real translation is already showing; leave placeholder as-is
+    const existing = document.querySelector('.enhanced-translation');
+    if (existing && existing.getAttribute('data-translation-state') !== 'pending') {
+      await this.runCurrentTitleTranslation();
+    }
   }
 
   /**
@@ -1114,32 +1207,34 @@ export class VideoDetailEnhancer {
    * 创建翻译容器
    */
   private createTranslationContainer(originalTitle: string, translatedTitle: string): HTMLElement {
+    const dark = isDarkTheme();
     const container = document.createElement('div');
     container.className = 'enhanced-translation';
-    // 为调试/辅助用途保存原始标题，避免未使用参数告警
     try { container.setAttribute('data-original-title', originalTitle || ''); } catch {}
     container.style.cssText = `
       margin: 10px 0;
       padding: 12px;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      background: ${dark ? 'linear-gradient(135deg, #2a2a2a 0%, #3a3a4a 100%)' : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'};
       border-radius: 8px;
       border-left: 4px solid #4CAF50;
     `;
 
     const label = document.createElement('div');
+    label.setAttribute('data-translation-label', '');
     label.textContent = '中文翻译';
     label.style.cssText = `
       font-size: 12px;
-      color: #666;
+      color: ${dark ? '#aaa' : '#666'};
       margin-bottom: 5px;
       font-weight: bold;
     `;
 
     const translation = document.createElement('div');
+    translation.setAttribute('data-translation-content', '');
     translation.textContent = translatedTitle;
     translation.style.cssText = `
       font-size: 16px;
-      color: #333;
+      color: ${dark ? '#e0e0e0' : '#333'};
       line-height: 1.4;
     `;
 

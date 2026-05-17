@@ -325,8 +325,8 @@ export async function handlePushToDrive115(
         }));
         log(`[Drive115] task registered: ${rootTask.taskId}`);
         button.disabled = true;
-        button.innerHTML = '排队中...';
-        button.className = 'button is-warning is-small drive115-push-btn';
+        button.innerHTML = '&nbsp;推送中...&nbsp;';
+        button.className = 'button is-warning is-small drive115-push-btn is-loading';
 
         await progressManagedTask(rootTask.taskId, { stage: 'queue', detail: 'waiting-for-lease', progressPct: 1 });
 
@@ -339,8 +339,8 @@ export async function handlePushToDrive115(
         }
 
         button.disabled = true;
-        button.innerHTML = '推送中...';
-        button.className = 'button is-warning is-small drive115-push-btn';
+        button.innerHTML = '&nbsp;推送中...&nbsp;';
+        button.className = 'button is-warning is-small drive115-push-btn is-loading';
 
         log(`推送磁链到115网盘: ${magnetName} (${videoId})`);
 

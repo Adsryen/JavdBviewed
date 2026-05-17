@@ -1671,52 +1671,27 @@ export async function logsGetAll(): Promise<PersistedLogEntry[]> {
   return db.getAll('logs');
 }
 
-// 保留策略：按天数与按数量
+// 保留策略：按条数限制
 async function logsEnforceRetention(): Promise<void> {
   try {
     const settings = await getSettings();
     const logging: any = (settings as any)?.logging || {};
-    let maxEntries = Number(logging.maxLogEntries ?? logging.maxEntries ?? 1500);
-    if (!Number.isFinite(maxEntries) || maxEntries <= 0) maxEntries = 1500;
+    let maxEntries = Number(logging.maxLogEntries ?? logging.maxEntries ?? 5000);
+    if (!Number.isFinite(maxEntries) || maxEntries <= 0) maxEntries = 5000;
+
     const db = await initDB();
-
-    // 只按数量限制，不按时间回收
-    let maxMagnetPushEntries = Number((logging as any).maxMagnetPushEntries ?? 5000);
-    if (!Number.isFinite(maxMagnetPushEntries) || maxMagnetPushEntries <= 0) maxMagnetPushEntries = 5000;
-
-    const isMagnetPushLog = (entry: any) => {
-      const action = String(entry?.data?.action || '');
-      return action === 'push_start' || action === 'push_success' || action === 'push_failed';
-    };
-
-    const allLogs = await db.getAll('logs');
-    const magnetPushLogs = allLogs
-      .filter((entry: any) => isMagnetPushLog(entry))
-      .sort((a: any, b: any) => Number(a?.timestampMs || 0) - Number(b?.timestampMs || 0));
-
-    if (magnetPushLogs.length > maxMagnetPushEntries) {
-      const txMagnet = db.transaction('logs', 'readwrite');
-      const removeCount = magnetPushLogs.length - maxMagnetPushEntries;
-      for (const entry of magnetPushLogs.slice(0, removeCount)) {
-        try {
-          if (entry?.id != null) await txMagnet.store.delete(entry.id);
-        } catch {}
-      }
-      await txMagnet.done;
-    }
-
     const total = await db.count('logs');
-    if (total > maxEntries) {
-      const toRemove = total - maxEntries;
-      const tx2 = db.transaction('logs', 'readwrite');
-      const idx2 = tx2.store.index('by_timestamp');
-      let removed = 0;
-      for (let cursor = await idx2.openCursor(undefined, 'next'); cursor && removed < toRemove; cursor = await cursor.continue()) {
-        await cursor.delete();
-        removed++;
-      }
-      await tx2.done;
+    if (total <= maxEntries) return;
+
+    const toRemove = total - maxEntries;
+    const tx = db.transaction('logs', 'readwrite');
+    const idx = tx.store.index('by_timestamp');
+    let removed = 0;
+    for (let cursor = await idx.openCursor(undefined, 'next'); cursor && removed < toRemove; cursor = await cursor.continue()) {
+      await cursor.delete();
+      removed++;
     }
+    await tx.done;
   } catch {
     // 忽略保留清理错误，避免阻断日志写入
   }
