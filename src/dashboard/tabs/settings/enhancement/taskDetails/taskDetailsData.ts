@@ -127,6 +127,7 @@ export function getPageSummaryTasks(_host: TaskDetailsHost, item: any): any[] {
 export function buildPageSummaryReasonStats(tasks: any[]): Array<{ label: string; count: number }> {
   const stats = new Map<string, number>();
   for (const task of tasks || []) {
+    if (isTerminalTaskStatus(task?.status) || task?.status === 'running') continue;
     const label = getTaskDisplayReason(task);
     stats.set(label, (stats.get(label) || 0) + 1);
   }
@@ -148,10 +149,10 @@ export function buildTaskDetailPageSummaries(tasks: any[]): any[] {
 
     const parentItems = items.filter((t: any) => !t?.parentLabel);
     const childItems = items.filter((t: any) => !!t?.parentLabel);
-    const doneCount = items.filter((t: any) => t?.status === 'done').length;
-    const errorCount = items.filter((t: any) => ['error', 'timeout'].includes(t?.status)).length;
-    const runningCount = items.filter((t: any) => t?.status === 'running').length;
-    const queuedCount = items.filter((t: any) => ['queued', 'pending'].includes(t?.status)).length;
+    const doneCount = parentItems.filter((t: any) => t?.status === 'done').length;
+    const errorCount = parentItems.filter((t: any) => ['error', 'timeout'].includes(t?.status)).length;
+    const runningCount = parentItems.filter((t: any) => t?.status === 'running').length;
+    const queuedCount = parentItems.filter((t: any) => ['queued', 'pending'].includes(t?.status)).length;
 
     let totalDurationMs = 0;
     for (const t of parentItems) {

@@ -121,13 +121,23 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
       }
     });
   }
-  if (host.taskDetailsViewMode && host.taskDetailsViewMode.dataset.taskDetailsBound !== '1') {
-    host.taskDetailsViewMode.dataset.taskDetailsBound = '1';
-    host.taskDetailsViewMode.addEventListener('change', () => {
-      host.taskDetailsView = host.taskDetailsViewMode?.value === 'pages' ? 'pages' : 'tasks';
+  if (host.taskDetailsViewTasks && host.taskDetailsViewTasks.dataset.taskDetailsBound !== '1') {
+    const switchView = (view: 'tasks' | 'pages') => {
+      host.taskDetailsView = view;
       host.taskDetailsCurrentPage = 1;
       host.taskDetailsExpandedParents.clear();
       host.taskDetailsExpandedPageSummaries.clear();
+      const isPages = view === 'pages';
+      if (host.taskDetailsViewTasks) {
+        host.taskDetailsViewTasks.style.background = isPages ? 'var(--bg-primary)' : 'var(--bg-accent, #546da1)';
+        host.taskDetailsViewTasks.style.color = isPages ? 'var(--text-secondary)' : '#fff';
+        host.taskDetailsViewTasks.style.fontWeight = isPages ? '400' : '600';
+      }
+      if (host.taskDetailsViewPages) {
+        host.taskDetailsViewPages.style.background = isPages ? 'var(--bg-accent, #546da1)' : 'var(--bg-primary)';
+        host.taskDetailsViewPages.style.color = isPages ? '#fff' : 'var(--text-secondary)';
+        host.taskDetailsViewPages.style.fontWeight = isPages ? '600' : '400';
+      }
       if (host.taskDetailsSearchQuery) host.taskDetailsSearchHandler();
       else {
         host.renderTaskDetailsTable();
@@ -135,7 +145,13 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
         const totalPages = Math.max(1, Math.ceil(total / host.taskDetailsPageSize));
         host.updateTaskDetailsPagination(total, totalPages);
       }
-    });
+    };
+    host.taskDetailsViewTasks.dataset.taskDetailsBound = '1';
+    host.taskDetailsViewTasks.addEventListener('click', () => switchView('tasks'));
+    if (host.taskDetailsViewPages) {
+      host.taskDetailsViewPages.dataset.taskDetailsBound = '1';
+      host.taskDetailsViewPages.addEventListener('click', () => switchView('pages'));
+    }
   }
   if (host.taskDetailsSearch && host.taskDetailsSearch.dataset.taskDetailsBound !== '1') {
     host.taskDetailsSearch.dataset.taskDetailsBound = '1';
