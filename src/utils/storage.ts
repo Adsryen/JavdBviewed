@@ -291,6 +291,10 @@ export async function getSettings(): Promise<ExtensionSettings> {
     translation: {
       ...DEFAULT_SETTINGS.translation,
       ...(storedSettings.translation || {}),
+      targets: {
+        ...((DEFAULT_SETTINGS.translation as any).targets || {}),
+        ...((storedSettings.translation as any)?.targets || {}),
+      },
       traditional: {
         ...DEFAULT_SETTINGS.translation.traditional,
         ...(storedSettings.translation?.traditional || {}),

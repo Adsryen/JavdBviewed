@@ -298,6 +298,11 @@ export class VideoDetailEnhancer {
     await this.translateCurrentTitleIfNeeded();
   }
 
+  public async refreshTranslationFromSettings(): Promise<void> {
+    this.applyOptionsFromSettings();
+    await this.runCurrentTitleTranslation();
+  }
+
   /**
    * 单独运行封面增强（供外部编排 deferred 调用）
    */
@@ -330,6 +335,11 @@ export class VideoDetailEnhancer {
    * 单独运行破解评论区功能
    */
   async runReviewBreaker(): Promise<void> {
+    log('[ReviewBreaker] runReviewBreaker entered', {
+      videoId: this.videoId,
+      enabled: this.options.enableReviewBreaker,
+      pathname: window.location.pathname,
+    });
     if (!this.videoId || !this.options.enableReviewBreaker) return;
     
     try {
@@ -534,13 +544,26 @@ export class VideoDetailEnhancer {
       log(`[ReviewBreaker] Extracted movieId from URL: ${movieId}`);
 
       // 先监听短评标签的点击事件，点击时立即显示加载提示
-      const reviewTab = document.querySelector('.movie-panel-info a[data-movie-tab-target="reviews"]') as HTMLElement | null;
+      const reviewTab = document.querySelector([
+        '.movie-panel-info a[data-movie-tab-target="reviews"]',
+        'a[href="#reviews"]',
+        'a[data-movie-tab-target="reviews"]',
+        '.tabs a[href="#reviews"]',
+        '.tab a[href="#reviews"]',
+        'a[href*="reviews"]',
+      ].join(', ')) as HTMLElement | null;
+
+      log('[ReviewBreaker] review tab probe', {
+        found: !!reviewTab,
+        pathname: window.location.pathname,
+        reviewRootExists: !!document.querySelector('#reviews, div[data-movie-tab-target="reviews"]'),
+      });
       
       const scheduleReviewBreaking = (trigger: HTMLElement) => {
         const flag = '__jdb_review_breaker_scheduled__';
         if ((trigger as any)[flag]) return;
         (trigger as any)[flag] = true;
-        trigger.addEventListener('click', () => {
+        const invokeBreaker = () => {
           const runFlag = '__jdb_review_breaker_running__';
           if ((window as any)[runFlag]) return;
           (window as any)[runFlag] = true;
@@ -559,8 +582,30 @@ export class VideoDetailEnhancer {
             } finally {
               (window as any)[runFlag] = false;
             }
-          }, { label: 'videoEnhancement:runReviewBreaker', idle: true, idleTimeout: 5000, delayMs: 0 });
+          }, { label: 'videoEnhancement:runReviewBreaker:click', idle: true, idleTimeout: 5000, delayMs: 0 });
+        };
+
+        trigger.addEventListener('click', () => {
+          log('[ReviewBreaker] Review tab clicked, showing loading indicator immediately');
+          invokeBreaker();
         }, { once: true });
+
+        const observerFlag = '__jdb_review_breaker_observer__';
+        if (!(window as any)[observerFlag]) {
+          (window as any)[observerFlag] = true;
+          const observer = new MutationObserver(() => {
+            const reviewsRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews') as HTMLElement | null;
+            if (!reviewsRoot) return;
+            const isVisible = reviewsRoot.offsetParent !== null || reviewsRoot.classList.contains('is-active') || reviewsRoot.getAttribute('aria-hidden') === 'false';
+            if (!isVisible) return;
+            const hasNativeItems = reviewsRoot.querySelectorAll('.review-item').length > 0 || /短評|评论|評論/.test(reviewsRoot.textContent || '');
+            if (!hasNativeItems) return;
+            log('[ReviewBreaker] Reviews container activated, invoking breaker fallback');
+            observer.disconnect();
+            invokeBreaker();
+          });
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'aria-hidden'] });
+        }
       };
 
       if (reviewTab) {
@@ -569,10 +614,18 @@ export class VideoDetailEnhancer {
       } else {
         log('[ReviewBreaker] Review tab not found, will try alternative selectors');
         // 尝试其他可能的选择器
-        const altReviewTab = document.querySelector('a[href*="reviews"], .review-tab, [data-tab="reviews"]') as HTMLElement | null;
+        const altReviewTab = document.querySelector([
+          'a[href*="reviews"]',
+          '.review-tab',
+          '[data-tab="reviews"]',
+          '[data-movie-tab-target="reviews"]',
+          '#tabs-container a',
+        ].join(', ')) as HTMLElement | null;
         if (altReviewTab) {
-          log('[ReviewBreaker] Found alternative review tab');
+          log('[ReviewBreaker] Found alternative review tab', { text: altReviewTab.textContent?.trim(), href: (altReviewTab as HTMLAnchorElement).getAttribute?.('href') });
           scheduleReviewBreaking(altReviewTab);
+        } else {
+          log('[ReviewBreaker] No review tab selector matched');
         }
       }
     } catch (error) {

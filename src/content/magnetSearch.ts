@@ -823,31 +823,22 @@ export class MagnetSearchManager {
   }
 
   /**
-   * 清空磁力列表 - 使用性能优化器调度DOM操作
+   * 清空磁力列表（同步，供内部使用）
    */
   private clearMagnetList(): void {
-    performanceOptimizer.scheduleDOMOperation(() => {
-      const magnetContent = document.querySelector('#magnets-content');
-      if (magnetContent) {
-        magnetContent.innerHTML = '';
-        log('Cleared existing magnet list');
-      }
-    });
+    const magnetContent = document.querySelector('#magnets-content');
+    if (magnetContent) {
+      magnetContent.innerHTML = '';
+      log('Cleared existing magnet list');
+    }
   }
 
   /**
-   * 显示所有磁力数据（统一样式）- 使用性能优化器批量处理DOM操作
+   * 显示所有磁力数据（统一样式）- 清空与追加在同一个 DOM 批次中执行，避免乱序
    */
   private displayAllMagnets(results: MagnetResult[]): void {
-    const magnetContent = document.querySelector('#magnets-content');
-    if (!magnetContent) {
-      log('Magnet content area not found');
-      return;
-    }
-
-    // 使用DocumentFragment批量创建DOM元素，减少重排重绘
+    // 先同步构建 DocumentFragment，不触及真实 DOM
     const fragment = document.createDocumentFragment();
-    
     results.forEach((result, index) => {
       try {
         const magnetItem = this.createUnifiedMagnetItem(result, index);
@@ -858,8 +849,15 @@ export class MagnetSearchManager {
       }
     });
 
-    // 使用性能优化器调度DOM操作
+    // 清空 + 追加在同一个调度批次内，保证原子性
     performanceOptimizer.scheduleDOMOperation(() => {
+      const magnetContent = document.querySelector('#magnets-content');
+      if (!magnetContent) {
+        log('Magnet content area not found');
+        return;
+      }
+      magnetContent.innerHTML = '';
+      log('Cleared existing magnet list');
       magnetContent.appendChild(fragment);
       log(`Successfully displayed ${results.length} unified magnet items`);
     });

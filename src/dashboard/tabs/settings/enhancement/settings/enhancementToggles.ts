@@ -62,11 +62,7 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
   }
 
   if (host.videoEnhancementConfig) {
-    const enabled = (
-      host.veEnableCoverImage?.checked === true ||
-      host.enableTranslation?.checked === true ||
-      host.veShowLoadingIndicator?.checked === true
-    );
+    const enabled = host.enableVideoEnhancement?.checked === true;
     host.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');
     host.videoEnhancementConfig.style.display = 'block';
   }

@@ -291,6 +291,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     // 新增：翻译服务默认配置
     translation: {
         provider: 'traditional' as const, // 默认使用传统翻译服务
+        displayMode: 'append' as const,
+        targets: {
+            currentTitle: true,
+        },
         traditional: {
             service: 'google' as const, // 默认使用Google翻译
             sourceLanguage: 'ja', // 日语
@@ -393,7 +397,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         showLoadingIndicator: true,
         enableReviewBreaker: true,
         enableFC2Breaker: true,
-        // 新增：默认开启“想看同步”和“115推送后自动已看”（保持旧行为）
+        // 新增：默认开启”想看同步”和”115推送后自动已看”（保持旧行为）
         enableWantSync: true,
         autoMarkWatchedAfter115: true,
         autoMarkWatchedStars: 4, // 默认4星

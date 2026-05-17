@@ -14,6 +14,8 @@ import { keyboardShortcutsManager } from './keyboardShortcuts';
 import { magnetSearchManager } from './magnetSearch';
 import { anchorOptimizationManager } from './anchorOptimization';
 import { showToast } from './toast';
+import { videoDetailEnhancer } from './enhancedVideoDetail';
+import { refreshActorMarksOnPage, runActorRemarksQuick } from './videoDetail';
 import { listEnhancementManager } from './enhancements/listEnhancement';
 import { actorEnhancementManager } from './enhancements/actorEnhancement';
 import { actorQuickActionsManager } from './enhancements/actorQuickActions';
@@ -30,7 +32,6 @@ import { PasswordHelper } from './passwordHelper';
 import { installTaskVisibilityReporter } from './taskVisibilityReporter';
 import { getActiveManagedTaskIds } from './taskRuntime';
 import { installTaskHeartbeatReporter } from './taskHeartbeat';
-import { showEnhancementLoading } from './enhancementLoadingIndicator';
 import { showEnhancementLoading } from './enhancementLoadingIndicator';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
@@ -820,9 +821,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'settings-updated') {
         log('Settings updated, reloading settings and reprocessing items');
         // 重新加载设置并重新处理页面项目
-        getSettings().then(settings => {
+        Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
+            const settings = incomingSettings || await getSettings();
             STATE.settings = settings;
             log('Updated display settings:', STATE.settings.display);
+            log('Updated translation targets:', (STATE.settings as any)?.translation?.targets);
             processVisibleItems();
 
             // 同步列表增强的“演员过滤”开关，并立即重应用（无需等待刷新）
@@ -860,6 +863,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 embyEnhancementManager.refresh?.();
             } catch (e) {
                 log('Failed to refresh Emby enhancement after settings update:', e as any);
+            }
+
+            try {
+                if (window.location.pathname.startsWith('/v/')) {
+                    await videoDetailEnhancer.refreshTranslationFromSettings();
+                    await refreshActorMarksOnPage();
+                    await runActorRemarksQuick();
+                    log('Video detail enhancement reapplied after settings update');
+                }
+            } catch (e) {
+                log('Failed to reapply video detail enhancement after settings update:', e as any);
             }
         });
         return false;

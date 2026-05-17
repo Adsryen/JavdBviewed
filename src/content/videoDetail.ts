@@ -22,6 +22,8 @@ import { newWorksManager } from '../services/newWorks';
 import { getSettings, saveSettings } from '../utils/storage';
 import { actorExtraInfoService } from '../services/actorRemarks';
 import { createManagedTaskDescriptor, runManagedTask } from './taskRuntime';
+import { videoDetailEnhancer } from './enhancedVideoDetail';
+import { videoFavoriteRatingEnhancer } from './videoFavoriteRating';
 
 function getActorRemarksTaskTimeoutMs(settings: any): number {
     const seconds = Number(settings?.videoEnhancement?.actorRemarksTaskTimeoutSeconds);
@@ -387,21 +389,36 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     const enableVideoEnhancement = settings?.videoEnhancement?.enabled === true;
     const enableMultiSource = settings?.dataEnhancement?.enableMultiSource;
     const enableTranslation = settings?.dataEnhancement?.enableTranslation;
+    const enableCurrentTitleTranslation = enableTranslation && (settings?.translation?.targets ? settings.translation.targets.currentTitle !== false : true);
+    const enableActorNameMarks = (settings as any)?.videoEnhancement?.enableActorNameMarks !== false;
     const actorRemarksTaskTimeoutMs = getActorRemarksTaskTimeoutMs(settings as any);
+
+    log('[VideoDetailBlueprints] gates', {
+        enableVideoEnhancement,
+        enableMultiSource,
+        enableTranslation,
+        enableCurrentTitleTranslation,
+        translationTargets: settings?.translation?.targets,
+        enableActorNameMarks,
+        enableActorRemarks: (settings as any)?.videoEnhancement?.enableActorRemarks === true,
+    });
 
     blueprints.push({ phase: 'critical', label: 'videoStatus:initialSync', priority: 12, visibilityPolicy: 'background_allowed' });
 
-    if (enableVideoEnhancement || enableMultiSource || enableTranslation) {
+    if (enableVideoEnhancement || enableMultiSource || enableCurrentTitleTranslation) {
         blueprints.push(
             { phase: 'high', label: 'videoEnhancement:initCore', priority: 8, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'high', label: 'videoEnhancement:clickEnhancement', priority: 10, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'deferred', label: 'videoEnhancement:loadData', timeout: 10000, dependsOn: ['videoStatus:initialSync'] },
-            { phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000, dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runCover', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runTitle', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runFC2Breaker', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:finish', dependsOn: ['videoStatus:initialSync'] },
         );
+    }
+
+    if (enableCurrentTitleTranslation) {
+        blueprints.push({ phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000, dependsOn: ['videoStatus:initialSync'] });
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
@@ -412,10 +429,11 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         blueprints.push({ phase: 'high', label: 'videoFavoriteRating:init', priority: 4, visibilityPolicy: 'background_allowed', dependsOn: ['videoStatus:initialSync'] });
     }
 
-    blueprints.push(
-        { phase: 'idle', label: 'actorMarks:page', dependsOn: ['videoStatus:initialSync'] },
-        { phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] },
-    );
+    if (enableActorNameMarks) {
+        blueprints.push({ phase: 'idle', label: 'actorMarks:page', dependsOn: ['videoStatus:initialSync'] });
+    }
+
+    blueprints.push({ phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] });
 
     return blueprints;
 }
@@ -622,6 +640,110 @@ export async function handleVideoDetailPage(): Promise<void> {
         }
 
         try {
+            log('[VideoDetail] scheduling enhancement tasks', {
+                enableCurrentTitleTranslation: STATE.settings?.dataEnhancement?.enableTranslation && (STATE.settings?.translation?.targets ? STATE.settings.translation.targets.currentTitle !== false : true),
+                enableActorNameMarks: (STATE.settings as any)?.videoEnhancement?.enableActorNameMarks !== false,
+                enableActorRemarks: (STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true,
+                enableReviewBreaker: (STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true,
+                enableVideoFavoriteRating: (STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true,
+            });
+
+            initOrchestrator.add('high', async () => {
+                await videoDetailEnhancer.initCore();
+            }, {
+                label: 'videoEnhancement:initCore',
+                priority: 8,
+                visibilityPolicy: 'background_allowed',
+                delayMs: 50,
+            });
+
+            initOrchestrator.add('deferred', async () => {
+                await videoDetailEnhancer.loadEnhancedData();
+            }, {
+                label: 'videoEnhancement:loadData',
+                timeout: 10000,
+                dependsOn: ['videoStatus:initialSync'],
+            });
+
+            if (STATE.settings?.dataEnhancement?.enableTranslation && (STATE.settings?.translation?.targets ? STATE.settings.translation.targets.currentTitle !== false : true)) {
+                initOrchestrator.add('deferred', async () => {
+                    await videoDetailEnhancer.runCurrentTitleTranslation();
+                }, {
+                    label: 'videoEnhancement:translateCurrentTitle',
+                    timeout: 15000,
+                    dependsOn: ['videoStatus:initialSync'],
+                });
+            }
+
+            initOrchestrator.add('idle', async () => {
+                await videoDetailEnhancer.runCover();
+            }, {
+                label: 'videoEnhancement:runCover',
+                idle: true,
+                idleTimeout: 5000,
+                dependsOn: ['videoStatus:initialSync'],
+            });
+
+            initOrchestrator.add('idle', async () => {
+                await videoDetailEnhancer.runTitle();
+            }, {
+                label: 'videoEnhancement:runTitle',
+                idle: true,
+                idleTimeout: 5000,
+                dependsOn: ['videoStatus:initialSync'],
+            });
+
+            initOrchestrator.add('idle', async () => {
+                await videoDetailEnhancer.runFC2Breaker();
+            }, {
+                label: 'videoEnhancement:runFC2Breaker',
+                idle: true,
+                idleTimeout: 5000,
+                dependsOn: ['videoStatus:initialSync'],
+            });
+
+            if ((STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true) {
+                initOrchestrator.add('idle', async () => {
+                    await videoDetailEnhancer.runReviewBreaker();
+                }, {
+                    label: 'videoEnhancement:runReviewBreaker',
+                    idle: true,
+                    idleTimeout: 5000,
+                    dependsOn: ['videoStatus:initialSync'],
+                });
+            }
+
+            if ((STATE.settings as any)?.videoEnhancement?.enableActorRemarks === true) {
+                initOrchestrator.add('idle', async () => {
+                    await runActorRemarksQuick();
+                }, {
+                    label: 'actorRemarks:run',
+                    idle: true,
+                    idleTimeout: 5000,
+                    timeout: getActorRemarksTaskTimeoutMs(STATE.settings as any),
+                    dependsOn: ['videoStatus:initialSync'],
+                });
+            }
+
+            if ((STATE.settings as any)?.videoEnhancement?.enableActorNameMarks !== false) {
+                scheduleMarkActorsOnPage(0);
+            }
+
+            if ((STATE.settings as any)?.videoEnhancement?.enableVideoFavoriteRating === true) {
+                initOrchestrator.add('high', async () => {
+                    await videoFavoriteRatingEnhancer.init();
+                }, {
+                    label: 'videoFavoriteRating:init',
+                    priority: 4,
+                    visibilityPolicy: 'background_allowed',
+                    delayMs: 80,
+                });
+            }
+        } catch (e) {
+            log('video enhancement scheduling failed:', e as any);
+        }
+
+        try {
             bindWantSyncOnClick(videoId);
         } catch (e) { log('bindWantSyncOnClick error:', e as any); }
 
@@ -737,6 +859,10 @@ async function markActorsOnPage(): Promise<void> {
     } catch (error) {
         log('markActorsOnPage error:', error);
     }
+}
+
+export async function refreshActorMarksOnPage(): Promise<void> {
+    await markActorsOnPage();
 }
 
 export function scheduleMarkActorsOnPage(delayMs: number = 0): void {

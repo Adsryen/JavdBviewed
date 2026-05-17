@@ -836,6 +836,10 @@ export class EnhancementSettings extends BaseSettingsPanel {
             };
 
             await saveSettings(newSettings);
+            console.log('[Enhancement] saving translation targets', {
+                currentTitleChecked: this.translateCurrentTitleChk?.checked,
+                translationTargets: newSettings.translation?.targets,
+            });
             STATE.settings = newSettings;
 
             // 通知所有JavDB标签页设置已更新（兼容大小写类型）
