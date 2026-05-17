@@ -4,7 +4,7 @@ import { getSettings, getValue } from '../utils/storage';
 import type { VideoRecord } from '../types';
 import { STATE, SELECTORS, log, currentFaviconState, currentTitleStatus } from './state';
 import { processVisibleItems, setupObserver } from './itemProcessor';
-import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints } from './videoDetail';
+import { handleVideoDetailPage, cleanupVideoDetailObservers, getVideoDetailTaskBlueprints, injectVideoEnhancementPanel } from './videoDetail';
 import { checkAndUpdateVideoStatus } from './statusManager';
 import { initExportFeature } from './export';
 import { initDrive115Features } from './drive115';
@@ -452,6 +452,12 @@ async function initialize(): Promise<void> {
         initOrchestrator.add('idle', async () => {
             await initInsightsCollector();
         }, { label: 'insights:collector', idle: true, idleTimeout: 5000, delayMs: 1800 });
+
+        if (settings?.videoEnhancement?.enabled === true) {
+            initOrchestrator.add('idle', async () => {
+                await injectVideoEnhancementPanel();
+            }, { label: 'videoEnhancement:panel', idle: true, idleTimeout: 5000, dependsOn: ['videoStatus:initialSync'] });
+        }
     }
 
     // 应用磁力搜索的并发与超时（来源于 settings.magnetSearch）
@@ -568,7 +574,8 @@ async function initialize(): Promise<void> {
                     enabled: true,
                     showInlineResults: true,
                     showFloatingButton: true,
-                    autoSearch: true,
+                    autoSearch: magnetSearchConfig.autoSearch === true,
+                    blockMojContent: magnetSearchConfig.blockMojContent !== false,
                     sources: {
                         sukebei: sources.sukebei !== false,
                         btdig: sources.btdig !== false,
@@ -816,6 +823,26 @@ export function onExecute() {
     // 立即注入顶栏标识，不等待编排器
     injectNavbarBadge();
     initialize().catch(err => console.error('[JavDB Ext] Initialization failed:', err));
+}
+
+try {
+    window.addEventListener('actor-state-changed', async () => {
+        try {
+            listEnhancementManager.reapplyActorHidingForAll?.();
+        } catch (e) {
+            log('Failed to reapply actor-based list hiding after actor state change:', e as any);
+        }
+
+        try {
+            if (window.location.pathname.startsWith('/v/')) {
+                await refreshActorMarksOnPage();
+            }
+        } catch (e) {
+            log('Failed to refresh actor marks after actor state change:', e as any);
+        }
+    });
+} catch (e) {
+    log('Failed to bind actor-state-changed listener:', e as any);
 }
 
 // 监听来自popup或dashboard的设置更新// 消息监听器

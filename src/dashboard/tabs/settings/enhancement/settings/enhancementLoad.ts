@@ -28,6 +28,8 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   host.magnetSourceBtdig.checked = msSources.btdig !== false;
   host.magnetSourceBtsow.checked = msSources.btsow !== false;
   host.magnetSourceTorrentz2.checked = !!msSources.torrentz2;
+  if (host.magnetBlockMojContent) host.magnetBlockMojContent.checked = magnetSearch.blockMojContent !== false;
+  if (host.magnetAutoSearch) host.magnetAutoSearch.checked = magnetSearch.autoSearch === true;
 
   const cc = (magnetSearch.concurrency || {}) as any;
   if (host.magnetPageMaxConcurrentRequests) host.magnetPageMaxConcurrentRequests.value = String(typeof cc.pageMaxConcurrentRequests === 'number' ? cc.pageMaxConcurrentRequests : 2);

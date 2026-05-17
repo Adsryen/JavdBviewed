@@ -148,3 +148,13 @@ export function createTaskTimeoutGuard(timeoutMs?: number): {
 export function isTaskTimeoutError(error: unknown): boolean {
     return error instanceof Error && /^Task timeout after \d+ms$/.test(error.message);
 }
+
+export type JavdbTheme = 'dark' | 'light';
+
+export function getJavdbTheme(): JavdbTheme {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+export function isDarkTheme(): boolean {
+    return getJavdbTheme() === 'dark';
+}

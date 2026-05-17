@@ -379,6 +379,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
             torrentz2: false,
             custom: [],
         },
+        autoSearch: false,
+        blockMojContent: true,
         maxResults: 15,
         timeoutMs: 6000,
         concurrency: {

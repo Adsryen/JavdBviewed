@@ -76,6 +76,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private magnetSourceBtdig!: HTMLInputElement;
     private magnetSourceBtsow!: HTMLInputElement;
     private magnetSourceTorrentz2!: HTMLInputElement;
+    private magnetBlockMojContent!: HTMLInputElement;
+    private magnetAutoSearch!: HTMLInputElement;
     // 磁力搜索并发与限流配置
     private magnetPageMaxConcurrentRequests!: HTMLInputElement;
     private magnetBgGlobalMaxConcurrent!: HTMLInputElement;
@@ -716,6 +718,8 @@ export class EnhancementSettings extends BaseSettingsPanel {
                         torrentz2: this.magnetSourceTorrentz2?.checked === true,
                         custom: [],
                     },
+                    blockMojContent: this.magnetBlockMojContent?.checked !== false,
+                    autoSearch: this.magnetAutoSearch?.checked === true,
                     maxResults: (STATE.settings?.magnetSearch as any)?.maxResults ?? 15,
                     timeoutMs: (STATE.settings?.magnetSearch as any)?.timeoutMs ?? 6000,
                     concurrency: {

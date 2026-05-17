@@ -8,7 +8,7 @@ import { STATE, SELECTORS, log, setSuspendEarlyFaviconSync } from './state';
 import { extractVideoIdFromPage } from './videoId';
 import { concurrencyManager, storageManager } from './concurrency';
 import { showToast } from './toast';
-import { createTaskTimeoutGuard, waitForElement } from './utils';
+import { createTaskTimeoutGuard, waitForElement, isDarkTheme } from './utils';
 import { runChunkedWork, yieldToMainThread } from './taskChunking';
 import { saveSubtaskDetail } from './taskDetailReporter';
 import { updateFaviconForStatus } from './statusManager';
@@ -418,7 +418,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
     }
 
     if (enableCurrentTitleTranslation) {
-        blueprints.push({ phase: 'deferred', label: 'videoEnhancement:translateCurrentTitle', timeout: 15000, dependsOn: ['videoStatus:initialSync'] });
+        blueprints.push({ phase: 'deferred', label: 'videoEnhancement:titleTranslateBtn', timeout: 5000, dependsOn: ['videoStatus:initialSync'] });
     }
 
     if (enableVideoEnhancement && (settings as any)?.videoEnhancement?.enableActorRemarks === true) {
@@ -437,7 +437,9 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
         blueprints.push({ phase: 'idle', label: 'actorMarks:page', dependsOn: ['videoStatus:initialSync'] });
     }
 
-    blueprints.push({ phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] });
+    if (enableVideoEnhancement) {
+        blueprints.push({ phase: 'idle', label: 'videoEnhancement:panel', dependsOn: ['videoStatus:initialSync'] });
+    }
 
     return blueprints;
 }
@@ -671,10 +673,10 @@ export async function handleVideoDetailPage(): Promise<void> {
 
             if (STATE.settings?.dataEnhancement?.enableTranslation && (STATE.settings?.translation?.targets ? STATE.settings.translation.targets.currentTitle !== false : true)) {
                 initOrchestrator.add('deferred', async () => {
-                    await videoDetailEnhancer.runCurrentTitleTranslation();
+                    await videoDetailEnhancer.insertTranslationPlaceholder();
                 }, {
-                    label: 'videoEnhancement:translateCurrentTitle',
-                    timeout: 15000,
+                    label: 'videoEnhancement:titleTranslateBtn',
+                    timeout: 5000,
                     dependsOn: ['videoStatus:initialSync'],
                 });
             }
@@ -838,19 +840,24 @@ async function markActorsOnPage(): Promise<void> {
                     const isSubscribed = subscribedActorIds.has(actorId);
 
                     const record = await actorManager.getActorById(actorId);
+                    a.style.color = '';
+                    a.style.textDecoration = '';
+                    a.removeAttribute('title');
+                    a.parentElement?.querySelector(`.actor-subscribe-badge[data-actor-id="${actorId}"]`)?.remove();
+
                     if (!record && !isSubscribed) return;
 
                     if (record?.blacklisted) {
                         a.style.color = colorBlacklisted;
                         a.style.textDecoration = 'line-through';
-                        a.title = a.title ? `${a.title}（黑名单）` : '黑名单';
+                        a.title = '黑名单';
                     } else if (record) {
                         a.style.color = colorCollected;
                         a.style.textDecoration = 'none';
-                        a.title = a.title ? `${a.title}（已收藏）` : '已收藏';
+                        a.title = '已收藏';
                     }
 
-                    if (isSubscribed && !a.parentElement?.querySelector(`.actor-subscribe-badge[data-actor-id="${actorId}"]`)) {
+                    if (isSubscribed) {
                         const badge = document.createElement('span');
                         badge.className = 'actor-subscribe-badge';
                         badge.dataset.actorId = actorId;
@@ -1204,25 +1211,26 @@ export async function injectVideoEnhancementPanel(): Promise<void> {
 
         const settings = await getSettings();
         const ve: any = (settings as any).videoEnhancement || {};
+        const dark = isDarkTheme();
 
         const panel = document.createElement('div');
         panel.id = PANEL_ID;
         panel.style.cssText = `
           margin-top: 8px;
           padding: 8px 10px;
-          background: #f7f7f7;
-          border: 1px solid #e6e6e6;
+          background: ${dark ? '#2a2a2a' : '#f7f7f7'};
+          border: 1px solid ${dark ? '#444' : '#e6e6e6'};
           border-radius: 6px;
           font-size: 13px;
         `;
 
         const title = document.createElement('div');
         title.textContent = '影片页增强';
-        title.style.cssText = 'font-weight: bold; margin-bottom: 6px; color: #333;';
+        title.style.cssText = `font-weight: bold; margin-bottom: 6px; color: ${dark ? '#ccc' : '#333'};`;
 
         const line = (labelText: string, checked: boolean, onToggle: (v: boolean) => void) => {
             const wrap = document.createElement('label');
-            wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;';
+            wrap.style.cssText = `display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:${dark ? '#bbb' : 'inherit'};`;
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = !!checked;

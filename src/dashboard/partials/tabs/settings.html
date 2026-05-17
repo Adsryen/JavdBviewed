@@ -1047,6 +1047,9 @@
                                     <!-- 新增：演员页增强 - 影片分段显示（隐藏 checkbox 作为状态源） -->
                                     <input type="checkbox" id="aeEnableActionButtons">
                                     <input type="checkbox" id="aeEnableTimeSegmentationDivider">
+                                    <!-- 磁力搜索子项 -->
+                                    <input type="checkbox" id="magnetBlockMojContent" checked>
+                                    <input type="checkbox" id="magnetAutoSearch">
                                 </div>
 
                                 <!-- 数据增强 -->
@@ -1786,6 +1789,36 @@
                                                     <span class="checkmark"></span>
                                                     Torrentz2 (TZ2)
                                                 </label>
+                                            </div>
+
+                                            <div class="form-group" style="margin-top: 10px;">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">🚫 屏蔽磁力区域广告</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="magnetBlockMojContent"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">隐藏磁力链接区域内的广告横幅（<code>.moj-content</code>）。</p>
+                                            </div>
+
+                                            <div class="form-group" style="margin-top: 10px;">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">⚡ 自动加载磁力资源</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="magnetAutoSearch"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">开启后，进入<strong>未看</strong>影片页自动搜索磁力资源；已看影片仍需手动点击加载。关闭后无论是否已看均需手动加载。</p>
                                             </div>
 
                                             <div class="info-box">

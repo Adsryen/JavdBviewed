@@ -33,6 +33,7 @@ export interface MagnetSearchConfig {
   showInlineResults: boolean;
   showFloatingButton: boolean;
   autoSearch: boolean;
+  blockMojContent: boolean;
   sources: {
     sukebei: boolean;
     btdig: boolean;
@@ -56,6 +57,7 @@ export class MagnetSearchManager {
       showInlineResults: true,
       showFloatingButton: true,
       autoSearch: false,
+      blockMojContent: true,
       sources: {
         sukebei: true,
         btdig: true,
@@ -149,20 +151,28 @@ export class MagnetSearchManager {
       // 添加搜索源标签
       this.addSearchSourceTags();
 
+      // 屏蔽磁力区域广告
+      if (this.config.blockMojContent) {
+        document.querySelectorAll<HTMLElement>('.moj-content').forEach(el => {
+          el.style.display = 'none';
+        });
+      }
+
       // 检查影片是否已看
       const isViewed = await this.checkIfVideoViewed();
-      
-      if (isViewed) {
-        // 如果已看，显示手动搜索按钮而不是自动搜索
+
+      if (!this.config.autoSearch) {
+        // 自动加载关闭：始终显示手动按钮
+        this.showManualSearchButton(false);
+      } else if (isViewed) {
+        // 自动加载开启但已看：显示手动按钮
         log('Video is viewed, showing manual search button instead of auto-search');
-        this.showManualSearchButton();
+        this.showManualSearchButton(true);
       } else {
-        // 未看状态，按原逻辑自动搜索
-        if (this.config.autoSearch) {
-          setTimeout(() => {
-            this.searchMagnets(this.currentVideoId!);
-          }, 2000);
-        }
+        // 自动加载开启且未看：自动搜索
+        setTimeout(() => {
+          this.searchMagnets(this.currentVideoId!);
+        }, 2000);
       }
 
       this.isInitialized = true;
@@ -1030,7 +1040,7 @@ export class MagnetSearchManager {
   /**
    * 显示手动搜索按钮
    */
-  private showManualSearchButton(): void {
+  private showManualSearchButton(isViewed = false): void {
     try {
       const topMeta = document.querySelector('.top-meta');
       if (!topMeta) return;
@@ -1048,11 +1058,11 @@ export class MagnetSearchManager {
       searchButton.className = 'button is-info is-small';
       searchButton.innerHTML = '🧲 加载磁力资源';
       searchButton.style.cssText = 'margin-right: 8px;';
-      
+
       searchButton.addEventListener('click', async () => {
         searchButton.disabled = true;
         searchButton.innerHTML = '🔄 搜索中...';
-        
+
         try {
           await this.searchMagnets(this.currentVideoId!);
           // 搜索完成后移除按钮
@@ -1067,7 +1077,7 @@ export class MagnetSearchManager {
       // 创建提示文本
       const hintText = document.createElement('span');
       hintText.className = 'has-text-grey is-size-7';
-      hintText.textContent = '（影片已看，点击按钮加载磁力资源）';
+      hintText.textContent = isViewed ? '（影片已看，点击按钮加载磁力资源）' : '（点击按钮加载磁力资源）';
 
       buttonContainer.appendChild(searchButton);
       buttonContainer.appendChild(hintText);

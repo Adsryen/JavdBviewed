@@ -24,6 +24,8 @@ export function initializeElements(host: EnhancementInitHost): void {
     ['magnetSourceBtdig', 'magnetSourceBtdig'],
     ['magnetSourceBtsow', 'magnetSourceBtsow'],
     ['magnetSourceTorrentz2', 'magnetSourceTorrentz2'],
+    ['magnetBlockMojContent', 'magnetBlockMojContent'],
+    ['magnetAutoSearch', 'magnetAutoSearch'],
     ['anchorButtonPosition', 'anchorButtonPosition'],
     ['showPreviewButton', 'showPreviewButton'],
     ['enableClickEnhancement', 'enableClickEnhancement'],
