@@ -760,6 +760,7 @@ export class VideoDetailEnhancer {
       };
 
       const listEl = ensureList();
+      const nativeParsedReviews = this.extractNativeReviews(listEl);
       
       // 移除VIP提示
       const vipPrompt = listEl.querySelector('.review-item.more');
@@ -818,8 +819,10 @@ export class VideoDetailEnhancer {
           // 移除加载提示
           loadingIndicator.remove();
           
-          hideLoadingPlaceholders();
-          if (resp.success && resp.data) {
+        hideLoadingPlaceholders();
+        if (resp.success && resp.data) {
+            const mergedReviews = this.mergeReviews(nativeParsedReviews, resp.data, totalCount);
+
             // 隐藏原生评论（保留DOM结构但不显示）
             const nativeReviews = listEl.querySelectorAll('.review-item:not(.jhs-review-item)');
             nativeReviews.forEach(el => {
@@ -832,9 +835,9 @@ export class VideoDetailEnhancer {
             log('[ReviewBreaker] Removed VIP prompts and hidden native reviews');
             
             // 添加提示横幅（插入到listEl之前）
-            this.addReviewBreakerBanner(listEl, resp.data.length, totalCount);
+            this.addReviewBreakerBanner(listEl, Math.max(mergedReviews.length, totalCount), totalCount);
             
-            this.displayNativeReviews(resp.data, listEl);
+            this.displayNativeReviews(mergedReviews, listEl, totalCount);
             const err = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
             if (err) err.remove();
             log('[ReviewBreaker] Native reviews injected.');
@@ -890,7 +893,7 @@ export class VideoDetailEnhancer {
               (el as HTMLElement).style.display = 'none';
             });
             
-            this.displayNativeReviews(cachedReviews, dl);
+            this.displayNativeReviews(cachedReviews, dl, totalCount);
             log('[ReviewBreaker] Re-injection completed');
           } else {
             log('[ReviewBreaker] WARNING: No cached reviews to re-inject!');
@@ -927,7 +930,7 @@ export class VideoDetailEnhancer {
             // 重新添加横幅
             this.addReviewBreakerBanner(dl, cachedReviews.length, totalCount);
             
-            this.displayNativeReviews(cachedReviews, dl);
+            this.displayNativeReviews(cachedReviews, dl, totalCount);
             log('[ReviewBreaker] Delayed re-injection completed');
           }
         }
@@ -1256,6 +1259,14 @@ export class VideoDetailEnhancer {
     return indicator;
   }
 
+  private hideLoadingIndicator(): void {
+    const indicator = document.getElementById('enhancement-loading')
+      || document.getElementById('jhs-review-loading');
+    if (indicator) {
+      indicator.remove();
+    }
+  }
+
   /**
    * 添加评论破解提示横幅
    */
@@ -1299,7 +1310,7 @@ export class VideoDetailEnhancer {
 
     const mainText = document.createElement('div');
     mainText.style.fontWeight = 'bold';
-    mainText.textContent = `🎉 已为您解锁全部 ${fetchedCount} 条评论`;
+    mainText.textContent = `🎉 已为您解锁全部 ${Math.max(fetchedCount, totalCount)} 条评论`;
 
     const subText = document.createElement('div');
     subText.style.cssText = `
@@ -1385,7 +1396,7 @@ export class VideoDetailEnhancer {
   /**
    * 将评论渲染为原生样式并挂载到 <dl class="review-items">，支持分页
    */
-  private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement): void {
+  private displayNativeReviews(reviews: ReviewData[], dl: HTMLElement, expectedTotalCount?: number): void {
     log(`[ReviewBreaker] displayNativeReviews called with ${reviews.length} reviews`);
     
     const filterKeywords = reviewBreakerService.getFilterKeywords();
@@ -1395,6 +1406,8 @@ export class VideoDetailEnhancer {
 
     // 缓存供重渲染复用
     try { (window as any).__JHS_REVIEWS_CACHE__ = filtered; } catch {}
+
+    const resolvedTotalCount = Math.max(expectedTotalCount || 0, filtered.length);
 
     // 分页配置
     const pageSize = 10;
@@ -1545,7 +1558,7 @@ export class VideoDetailEnhancer {
       }
 
       if (pageInfo) {
-        pageInfo.textContent = `第 ${page} / ${totalPages} 页 (共 ${filtered.length} 条评论)`;
+        pageInfo.textContent = `第 ${page} / ${totalPages} 页 (共 ${resolvedTotalCount} 条评论)`;
       }
     };
 
@@ -1591,6 +1604,82 @@ export class VideoDetailEnhancer {
     log(`[ReviewBreaker] Starting to render first page`);
     renderPage(1);
     log(`[ReviewBreaker] displayNativeReviews completed`);
+  }
+
+  private extractNativeReviews(dl: HTMLElement): ReviewData[] {
+    const nodes = Array.from(dl.querySelectorAll('.review-item:not(.jhs-review-item):not(.more)')) as HTMLElement[];
+    return nodes.map(node => {
+      const rawId = node.id?.replace(/^review-item-/, '') || `${Date.now()}-${Math.random()}`;
+      const reviewTitle = node.querySelector('.review-title') as HTMLElement | null;
+      const authorText = this.extractNativeReviewAuthor(reviewTitle);
+      const content = (node.querySelector('.content p')?.textContent || '').trim();
+      const time = (node.querySelector('.time')?.textContent || '').trim();
+      const likesText = (node.querySelector('.likes-count')?.textContent || '0').trim();
+      const rating = node.querySelectorAll('.score-stars .icon-star').length * 2;
+      return {
+        id: rawId,
+        author: authorText || '匿名用户',
+        content,
+        date: time,
+        likes: parseInt(likesText, 10) || 0,
+        rating,
+      };
+    }).filter(review => review.content);
+  }
+
+  private extractNativeReviewAuthor(reviewTitle: HTMLElement | null): string {
+    if (!reviewTitle) return '匿名用户';
+    const cloned = reviewTitle.cloneNode(true) as HTMLElement;
+    cloned.querySelectorAll('.report, .likes, .score-stars, .time, form, button').forEach(el => el.remove());
+    const text = (cloned.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    return text || '匿名用户';
+  }
+
+  private mergeReviews(nativeReviews: ReviewData[], apiReviews: ReviewData[], expectedTotalCount: number): ReviewData[] {
+    const merged = new Map<string, ReviewData>();
+    const buildKey = (review: ReviewData): string => {
+      const author = (review.author || '').trim().toLowerCase();
+      const date = (review.date || '').trim();
+      const content = (review.content || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      return `${author}__${date}__${content}`;
+    };
+
+    const addReview = (review: ReviewData, source: 'native' | 'api') => {
+      if (!review.content?.trim()) return;
+      const key = buildKey(review);
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, review);
+        return;
+      }
+
+      const score = (item: ReviewData, itemSource: 'native' | 'api') => {
+        let value = 0;
+        if (item.id) value += 4;
+        if (item.likes && item.likes > 0) value += 3;
+        if (item.rating && item.rating > 0) value += 2;
+        if (item.author && item.author !== '匿名用户') value += 1;
+        if (itemSource === 'native') value += 2;
+        return value;
+      };
+
+      if (score(review, source) > score(existing, 'api')) {
+        merged.set(key, { ...existing, ...review });
+      }
+    };
+
+    nativeReviews.forEach(review => addReview(review, 'native'));
+    apiReviews.forEach(review => addReview(review, 'api'));
+
+    const result = Array.from(merged.values()).sort((a, b) => {
+      const aTime = new Date(a.date).getTime();
+      const bTime = new Date(b.date).getTime();
+      if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) return aTime - bTime;
+      return String(a.id).localeCompare(String(b.id));
+    });
+
+    log(`[ReviewBreaker] mergeReviews: native=${nativeReviews.length}, api=${apiReviews.length}, merged=${result.length}, expected=${expectedTotalCount}`);
+    return result;
   }
 
   /**
