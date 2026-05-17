@@ -413,7 +413,7 @@ export function getVideoDetailTaskBlueprints(settings: any): VideoDetailTaskBlue
             { phase: 'idle', label: 'videoEnhancement:runCover', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runTitle', dependsOn: ['videoStatus:initialSync'] },
             { phase: 'idle', label: 'videoEnhancement:runFC2Breaker', dependsOn: ['videoStatus:initialSync'] },
-            { phase: 'idle', label: 'videoEnhancement:finish', dependsOn: ['videoStatus:initialSync'] },
+            { phase: 'idle', label: 'videoEnhancement:finish', dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:loadData'] },
         );
     }
 
@@ -700,6 +700,15 @@ export async function handleVideoDetailPage(): Promise<void> {
                 idle: true,
                 idleTimeout: 5000,
                 dependsOn: ['videoStatus:initialSync'],
+            });
+
+            initOrchestrator.add('idle', () => {
+                videoDetailEnhancer.finish();
+            }, {
+                label: 'videoEnhancement:finish',
+                idle: true,
+                idleTimeout: 5000,
+                dependsOn: ['videoEnhancement:runCover', 'videoEnhancement:runTitle', 'videoEnhancement:loadData'],
             });
 
             if ((STATE.settings as any)?.videoEnhancement?.enableReviewBreaker === true) {

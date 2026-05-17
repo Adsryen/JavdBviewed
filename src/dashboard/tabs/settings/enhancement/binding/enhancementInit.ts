@@ -118,6 +118,12 @@ export function initializeElements(host: EnhancementInitHost): void {
   host.orchestratorFullscreenBtn = document.getElementById('orchestratorFullscreenBtn') as HTMLButtonElement | null;
   host.orchestratorCopyPhasesBtn = document.getElementById('orchestratorCopyPhasesBtn') as HTMLButtonElement | null;
   host.orchestratorCopyTimelineBtn = document.getElementById('orchestratorCopyTimelineBtn') as HTMLButtonElement | null;
+  host.orchViewModeSel = document.getElementById('orchViewMode') as HTMLSelectElement | null;
+  host.orchFilterStatusSel = document.getElementById('orchFilterStatus') as HTMLSelectElement | null;
+  host.orchFilterPhaseSel = document.getElementById('orchFilterPhase') as HTMLSelectElement | null;
+  host.orchGlobalScopeSel = document.getElementById('orchGlobalScope') as HTMLSelectElement | null;
+  host.orchGlobalGroupingSel = document.getElementById('orchGlobalGrouping') as HTMLSelectElement | null;
+  host.orchFilterSearchInput = document.getElementById('orchFilterSearch') as HTMLInputElement | null;
   host.taskDetailsCopyCurrentPageBtn = document.getElementById('taskDetailsCopyCurrentPageBtn') as HTMLButtonElement | null;
   host.orchestratorPhases = document.getElementById('orchestratorPhases') as HTMLElement | null;
   host.orchestratorTimeline = document.getElementById('orchestratorTimeline') as HTMLElement | null;

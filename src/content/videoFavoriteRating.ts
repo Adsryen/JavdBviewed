@@ -154,6 +154,9 @@ export class VideoFavoriteRatingEnhancer {
     }
   }
 
+  private static readonly HEART_PATH = 'M10 17 C10 17 2 11.5 2 6.5 C2 4 4 2.5 6 2.5 C7.6 2.5 9.1 3.5 10 5 C10.9 3.5 12.4 2.5 14 2.5 C16 2.5 18 4 18 6.5 C18 11.5 10 17 10 17Z';
+  private static readonly STAR_POINTS = '10,1.5 12.4,7.2 18.5,7.6 14,11.8 15.6,17.9 10,14.5 4.4,17.9 6,11.8 1.5,7.6 7.6,7.2';
+
   /**
    * 生成HTML
    */
@@ -164,10 +167,12 @@ export class VideoFavoriteRatingEnhancer {
     return `
       <div class="vfr-panel">
         <div class="vfr-favorite">
-          <button class="vfr-favorite-btn ${isFavorite ? 'favorited' : ''}" 
-                  data-favorited="${isFavorite}" 
+          <button class="vfr-favorite-btn ${isFavorite ? 'favorited' : ''}"
+                  data-favorited="${isFavorite}"
                   title="${isFavorite ? '取消收藏' : '添加到收藏'}">
-            <i class="${isFavorite ? 'fas' : 'far'} fa-heart"></i>
+            <svg class="vfr-heart-svg" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path d="${VideoFavoriteRatingEnhancer.HEART_PATH}"/>
+            </svg>
             <span>${isFavorite ? '已收藏' : '收藏'}</span>
           </button>
         </div>
@@ -183,22 +188,27 @@ export class VideoFavoriteRatingEnhancer {
   }
 
   /**
-   * 生成星星HTML
+   * 生成星星HTML（SVG渐变实现半星，不依赖字体）
    */
   private generateStarsHTML(rating: number): string {
     let html = '';
     for (let i = 1; i <= 5; i++) {
       const isFull = i <= Math.floor(rating);
       const isHalf = !isFull && i <= Math.ceil(rating) && rating % 1 >= 0.5;
-      
+      const filledPct = isFull ? 100 : isHalf ? 50 : 0;
+      const gradId = `vfr-sg-${i}`;
+
       html += `
-        <span class="vfr-star-wrapper" data-rating="${i}">
-          <span class="vfr-star-half vfr-star-left" data-rating="${i - 0.5}">
-            <i class="${isFull || isHalf ? 'fas' : 'far'} fa-star"></i>
-          </span>
-          <span class="vfr-star-half vfr-star-right" data-rating="${i}">
-            <i class="${isFull ? 'fas' : 'far'} fa-star"></i>
-          </span>
+        <span class="vfr-star-svg" data-star="${i}">
+          <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="${gradId}" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="${filledPct}%" stop-color="#ffd700"/>
+                <stop offset="${filledPct}%" stop-color="#d0d0d0"/>
+              </linearGradient>
+            </defs>
+            <polygon fill="url(#${gradId})" points="${VideoFavoriteRatingEnhancer.STAR_POINTS}"/>
+          </svg>
         </span>
       `;
     }
@@ -206,22 +216,22 @@ export class VideoFavoriteRatingEnhancer {
   }
 
   /**
-   * 绑定事件
+   * 绑定事件（星星用事件委托，避免重复绑定）
    */
   private bindEvents(): void {
     if (!this.containerElement) return;
 
-    // 收藏按钮点击
     const favoriteBtn = this.containerElement.querySelector('.vfr-favorite-btn');
     favoriteBtn?.addEventListener('click', () => this.toggleFavorite());
 
-    // 星星点击
-    const starHalves = this.containerElement.querySelectorAll('.vfr-star-half');
-    starHalves.forEach(half => {
-      half.addEventListener('click', (e) => {
-        const rating = parseFloat((e.currentTarget as HTMLElement).dataset.rating || '0');
-        this.setRating(rating);
-      });
+    const starsContainer = this.containerElement.querySelector('.vfr-stars');
+    starsContainer?.addEventListener('click', (e) => {
+      const starSpan = (e.target as HTMLElement).closest('.vfr-star-svg') as HTMLElement | null;
+      if (!starSpan) return;
+      const starIndex = parseInt(starSpan.dataset.star || '0');
+      const rect = starSpan.getBoundingClientRect();
+      const isLeftHalf = (e as MouseEvent).clientX < rect.left + rect.width / 2;
+      this.setRating(isLeftHalf ? starIndex - 0.5 : starIndex);
     });
   }
 
@@ -262,12 +272,7 @@ export class VideoFavoriteRatingEnhancer {
         btn.classList.toggle('favorited', newFavoriteState);
         btn.setAttribute('data-favorited', String(newFavoriteState));
         btn.setAttribute('title', newFavoriteState ? '取消收藏' : '添加到收藏');
-        
-        const icon = btn.querySelector('i');
-        const text = btn.querySelector('span');
-        if (icon) {
-          icon.className = newFavoriteState ? 'fas fa-heart' : 'far fa-heart';
-        }
+        const text = btn.querySelector('span:last-child');
         if (text) {
           text.textContent = newFavoriteState ? '已收藏' : '收藏';
         }
@@ -311,19 +316,11 @@ export class VideoFavoriteRatingEnhancer {
       // 更新UI
       const starsContainer = this.containerElement?.querySelector('.vfr-stars');
       const ratingValue = this.containerElement?.querySelector('.vfr-rating-value');
-      
+
       if (starsContainer) {
         starsContainer.innerHTML = this.generateStarsHTML(rating);
-        // 重新绑定星星事件
-        const starHalves = starsContainer.querySelectorAll('.vfr-star-half');
-        starHalves.forEach(half => {
-          half.addEventListener('click', (e) => {
-            const newRating = parseFloat((e.currentTarget as HTMLElement).dataset.rating || '0');
-            this.setRating(newRating);
-          });
-        });
       }
-      
+
       if (ratingValue) {
         ratingValue.textContent = rating > 0 ? rating.toFixed(1) : '未评分';
       }

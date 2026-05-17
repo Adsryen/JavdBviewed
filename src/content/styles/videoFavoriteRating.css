@@ -57,29 +57,39 @@
   box-shadow: 0 4px 12px rgba(255, 64, 129, 0.5);
 }
 
-.vfr-favorite-btn i {
-  font-size: 16px;
+/* 心形 SVG 图标 */
+.vfr-heart-svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   transition: transform 0.3s ease;
+  overflow: visible;
 }
 
-.vfr-favorite-btn:hover i {
+.vfr-heart-svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.vfr-favorite-btn.favorited .vfr-heart-svg path {
+  fill: currentColor;
+  stroke: none;
+}
+
+.vfr-favorite-btn:hover .vfr-heart-svg {
   transform: scale(1.2);
 }
 
-.vfr-favorite-btn.favorited i {
+.vfr-favorite-btn.favorited .vfr-heart-svg {
   animation: heartbeat 1s ease-in-out;
 }
 
 @keyframes heartbeat {
-  0%, 100% {
-    transform: scale(1);
-  }
-  14%, 42% {
-    transform: scale(1.3);
-  }
-  28%, 56% {
-    transform: scale(1);
-  }
+  0%, 100% { transform: scale(1); }
+  14%, 42% { transform: scale(1.3); }
+  28%, 56% { transform: scale(1); }
 }
 
 /* 评分区域 */
@@ -101,43 +111,24 @@
   gap: 4px;
 }
 
-.vfr-star-wrapper {
-  position: relative;
+/* 星星 SVG */
+.vfr-star-svg {
   display: inline-block;
   width: 28px;
   height: 28px;
   cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.vfr-star-half {
-  position: absolute;
-  top: 0;
-  font-size: 24px;
-  transition: all 0.2s ease;
-  pointer-events: auto;
-  color: #ffd700;
-}
-
-.vfr-star-half.vfr-star-left {
-  left: 0;
-  width: 50%;
-  overflow: hidden;
-  z-index: 2;
-}
-
-.vfr-star-half.vfr-star-right {
-  right: 0;
+.vfr-star-svg svg {
   width: 100%;
-  z-index: 1;
+  height: 100%;
+  display: block;
 }
 
-.vfr-star-half i.far {
-  color: #ddd;
-}
-
-.vfr-star-wrapper:hover .vfr-star-half {
+.vfr-star-svg:hover {
   transform: scale(1.2);
-  filter: brightness(1.2);
+  filter: brightness(1.1);
 }
 
 .vfr-rating-value {
@@ -174,10 +165,6 @@
 
 [data-theme="dark"] .vfr-rating-value {
   color: #ffa94d;
-}
-
-[data-theme="dark"] .vfr-star-half i.far {
-  color: #4a5568;
 }
 
 /* 响应式设计 */
