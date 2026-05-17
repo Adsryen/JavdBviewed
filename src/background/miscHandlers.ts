@@ -1231,11 +1231,22 @@ async function handleGetTaskDetails(options: any = {}): Promise<any> {
 async function handleClearTaskDetails(): Promise<any> {
   try {
     console.log('[Background] Clearing orchestrator task details and metrics...');
-    // 清空存储中的任务详细信息
     await setValue('orchestratorTaskDetails', []);
-    // 同时清空性能指标统计
     await setValue('orchestratorMetrics', []);
     const clearedGlobalState = globalTaskCenter.clearAll();
+    // 广播给所有 tab，让 content script 重置内存中的指标，防止旧数据被重新写回存储
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (typeof tab.id === 'number' && tab.id >= 0) {
+          chrome.tabs.sendMessage(tab.id, { type: 'orchestrator:resetMetrics' }, () => {
+            void chrome.runtime.lastError; // suppress "no receiver" errors
+          });
+        }
+      }
+    } catch (broadcastErr) {
+      console.warn('[Background] Failed to broadcast resetMetrics:', broadcastErr);
+    }
     console.log('[Background] Cleared orchestrator task details and metrics');
     return { success: true, clearedGlobalState };
   } catch (error) {
