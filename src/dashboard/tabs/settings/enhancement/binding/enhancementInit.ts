@@ -1,4 +1,4 @@
-import { TaskDetailsController } from './taskDetails/taskDetailsController';
+import { TaskDetailsController } from '../taskDetails/taskDetailsController';
 
 export type EnhancementInitHost = any;
 

@@ -1,4 +1,4 @@
-import { aiService } from '../../../../../../services/ai/aiService';
+import { aiService } from '../../../../../services/ai/aiService';
 
 export type EnhancementTranslationHost = any;
 

@@ -1,4 +1,4 @@
-import { log } from '../../../../../../utils/logController';
+import { log } from '../../../../../utils/logController';
 
 export type EnhancementTogglesHost = any;
 

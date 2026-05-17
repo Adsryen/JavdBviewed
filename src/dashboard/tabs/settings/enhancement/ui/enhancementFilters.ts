@@ -1,6 +1,6 @@
 import { STATE } from '../../../../state';
-import { showMessage } from '../../../../../../toast';
-import type { KeywordFilterRule } from '../../../../../../types';
+import { showMessage } from '../../../../ui/toast';
+import type { KeywordFilterRule } from '../../../../../types';
 
 export type EnhancementFiltersHost = any;
 
@@ -164,7 +164,7 @@ export async function deleteFilterRule(host: EnhancementFiltersHost, index: numb
 
   let confirmed = false;
   try {
-    const { showDanger } = await import('../../../components/confirmModal');
+    const { showDanger } = await import('../../../../components/confirmModal');
     confirmed = await showDanger(
       `确定要删除过滤规则 "${rule.name}" 吗？\n\n关键词: ${rule.keyword}\n动作: ${getFilterActionText(rule.action)}\n\n此操作不可撤销！`,
       '删除过滤规则'
