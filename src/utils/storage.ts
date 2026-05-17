@@ -316,6 +316,14 @@ export async function getSettings(): Promise<ExtensionSettings> {
       ...DEFAULT_SETTINGS.contentFilter,
       ...(storedSettings.contentFilter || {}),
     },
+    listEnhancement: {
+      ...DEFAULT_SETTINGS.listEnhancement,
+      ...(storedSettings.listEnhancement || {}),
+      listDisplayControl: {
+        ...((DEFAULT_SETTINGS.listEnhancement as any).listDisplayControl || {}),
+        ...((storedSettings.listEnhancement as any)?.listDisplayControl || {}),
+      },
+    },
     drive115: {
       ...DEFAULT_SETTINGS.drive115,
       ...migratedDrive115,
