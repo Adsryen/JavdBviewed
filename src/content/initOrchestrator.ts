@@ -338,6 +338,27 @@ class InitOrchestrator {
   }
 
   /**
+   * 重置内存中的性能指标（由后台广播触发，配合清空存储使用）
+   */
+  resetMetrics() {
+    this.metrics = {
+      totalTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0,
+      timeoutTasks: 0,
+      totalDuration: 0,
+      avgDuration: 0,
+      maxDuration: 0,
+      minDuration: Infinity,
+      maxDurationTask: '',
+    };
+    if (this.metricsSaveTimeout) {
+      clearTimeout(this.metricsSaveTimeout);
+      this.metricsSaveTimeout = undefined;
+    }
+  }
+
+  /**
    * 将性能指标保存到数据库
    */
   private async saveMetricsToDatabase(): Promise<void> {
@@ -1005,6 +1026,11 @@ try {
         if (message && message.type === 'orchestrator:getMetrics') {
           const metrics = initOrchestrator.getMetrics();
           sendResponse({ ok: true, metrics });
+          return false;
+        }
+        if (message && message.type === 'orchestrator:resetMetrics') {
+          initOrchestrator.resetMetrics();
+          sendResponse({ ok: true });
           return false;
         }
       } catch (err) {
