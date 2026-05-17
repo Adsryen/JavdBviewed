@@ -1,5 +1,5 @@
 import { getDefaultTags } from '../../../../config/actorFilterTags';
-import type { ExtensionSettings } from '../../../../../../types';
+import type { ExtensionSettings } from '../../../../../types';
 
 export type EnhancementSettingsSyncHost = any;
 

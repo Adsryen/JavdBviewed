@@ -14,6 +14,46 @@ export function bindSubtabLinks(host: EnhancementBindHost): void {
 }
 
 export function bindOrchestratorControls(host: EnhancementBindHost): void {
+  if (host.showOrchestratorBtn && host.showOrchestratorBtn.dataset.orchestratorBound !== '1') {
+    host.showOrchestratorBtn.dataset.orchestratorBound = '1';
+    host.showOrchestratorBtn.addEventListener('click', () => host.openOrchestratorModal());
+  }
+
+  if (host.orchestratorModalClose && host.orchestratorModalClose.dataset.orchestratorBound !== '1') {
+    host.orchestratorModalClose.dataset.orchestratorBound = '1';
+    host.orchestratorModalClose.addEventListener('click', () => host.closeOrchestratorModal());
+  }
+
+  if (host.orchestratorCloseBtn && host.orchestratorCloseBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorCloseBtn.dataset.orchestratorBound = '1';
+    host.orchestratorCloseBtn.addEventListener('click', () => host.closeOrchestratorModal());
+  }
+
+  if (host.orchestratorRefreshBtn && host.orchestratorRefreshBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorRefreshBtn.dataset.orchestratorBound = '1';
+    host.orchestratorRefreshBtn.addEventListener('click', () => host.refreshOrchestratorState());
+  }
+
+  if (host.orchestratorStopAllBtn && host.orchestratorStopAllBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorStopAllBtn.dataset.orchestratorBound = '1';
+    host.orchestratorStopAllBtn.addEventListener('click', () => host.stopAllTaskDetails());
+  }
+
+  if (host.orchestratorClearGlobalBtn && host.orchestratorClearGlobalBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorClearGlobalBtn.dataset.orchestratorBound = '1';
+    host.orchestratorClearGlobalBtn.addEventListener('click', () => host.clearGlobalTaskState());
+  }
+
+  if (host.orchestratorCopyPhasesBtn && host.orchestratorCopyPhasesBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorCopyPhasesBtn.dataset.orchestratorBound = '1';
+    host.orchestratorCopyPhasesBtn.addEventListener('click', () => host.copyPhasesText());
+  }
+
+  if (host.orchestratorCopyTimelineBtn && host.orchestratorCopyTimelineBtn.dataset.orchestratorBound !== '1') {
+    host.orchestratorCopyTimelineBtn.dataset.orchestratorBound = '1';
+    host.orchestratorCopyTimelineBtn.addEventListener('click', () => host.copyTimelineText());
+  }
+
   if (host.orchestratorFullscreenBtn && host.orchestratorFullscreenBtn.dataset.orchestratorBound !== '1') {
     host.orchestratorFullscreenBtn.dataset.orchestratorBound = '1';
     host.orchestratorFullscreenBtn.addEventListener('click', () => {

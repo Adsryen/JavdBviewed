@@ -1,5 +1,5 @@
 import { getTagByValue } from '../../../../config/actorFilterTags';
-import { setValue } from '../../../../../../utils/storage';
+import { setValue } from '../../../../../utils/storage';
 
 export type EnhancementActorAuxHost = any;
 
