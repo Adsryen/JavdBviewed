@@ -14,6 +14,7 @@ import { saveSubtaskDetail } from './taskDetailReporter';
 import { initOrchestrator } from './initOrchestrator';
 import { showEnhancementDone } from './enhancementLoadingIndicator';
 import { isDarkTheme } from './utils';
+import { addTaskUrlsV2 } from '../services/drive115Router';
 
 export interface EnhancementOptions {
   enableCoverImage: boolean;
@@ -21,6 +22,9 @@ export interface EnhancementOptions {
   showLoadingIndicator: boolean;
   enableReviewBreaker: boolean;
   enableFC2Breaker: boolean;
+  enableReviewEnhancement: boolean;
+  enableReviewMagnetLinkify: boolean;
+  enableReviewPush115: boolean;
   enableVideoPreview: boolean; // 🆕 视频预览功能
 }
 
@@ -44,6 +48,9 @@ export class VideoDetailEnhancer {
       showLoadingIndicator: true,
       enableReviewBreaker: true,
       enableFC2Breaker: true,
+      enableReviewEnhancement: false,
+      enableReviewMagnetLinkify: true,
+      enableReviewPush115: true,
       enableVideoPreview: true, // 🆕 默认启用视频预览
       ...options,
     };
@@ -70,6 +77,9 @@ export class VideoDetailEnhancer {
       this.options.showLoadingIndicator = cfg.showLoadingIndicator !== false;
       this.options.enableReviewBreaker = cfg.enableReviewBreaker === true;
       this.options.enableFC2Breaker = cfg.enableFC2Breaker === true;
+      this.options.enableReviewEnhancement = cfg.enableReviewEnhancement === true;
+      this.options.enableReviewMagnetLinkify = cfg.enableReviewMagnetLinkify !== false;
+      this.options.enableReviewPush115 = cfg.enableReviewPush115 !== false;
       // 🆕 从列表增强配置中读取视频预览设置（详情页专用）
       const listCfg = STATE.settings?.listEnhancement;
       this.options.enableVideoPreview = listCfg?.enableVideoPreview !== false && listCfg?.enableVideoPreviewDetail !== false;
@@ -931,6 +941,8 @@ export class VideoDetailEnhancer {
             this.addReviewBreakerBanner(listEl, Math.max(mergedReviews.length, totalCount), totalCount);
             
             this.displayNativeReviews(mergedReviews, listEl, totalCount);
+            this.enhanceExistingReviewContent();
+            this.inject115ButtonsIntoReviews();
             const err = reviewsRoot.querySelector('#jhs-review-error') as HTMLElement | null;
             if (err) err.remove();
             log('[ReviewBreaker] Native reviews injected.');
@@ -1563,6 +1575,9 @@ export class VideoDetailEnhancer {
       log(`[ReviewBreaker]   - Native reviews (not .jhs-review-item): ${nativeReviewItems.length}`);
       log(`[ReviewBreaker]   - dl.children.length: ${dl.children.length}`);
 
+      this.enhanceExistingReviewContent();
+      this.inject115ButtonsIntoReviews();
+
       // 更新分页器状态
       updatePagination(page);
     };
@@ -1698,6 +1713,8 @@ export class VideoDetailEnhancer {
     // 渲染第一页
     log(`[ReviewBreaker] Starting to render first page`);
     renderPage(1);
+    this.enhanceExistingReviewContent();
+    this.inject115ButtonsIntoReviews();
     log(`[ReviewBreaker] displayNativeReviews completed`);
   }
 
@@ -1845,12 +1862,106 @@ export class VideoDetailEnhancer {
     const contentWrap = document.createElement('div');
     contentWrap.className = 'content';
     const p = document.createElement('p');
-    p.textContent = review.content;
+    this.renderReviewContent(p, review.content);
     contentWrap.appendChild(p);
 
     dt.appendChild(title);
     dt.appendChild(contentWrap);
     return dt;
+  }
+
+  private renderReviewContent(container: HTMLElement, content: string): void {
+    if (!this.options.enableReviewEnhancement || !this.options.enableReviewMagnetLinkify) {
+      container.textContent = (content || '').trim();
+      return;
+    }
+
+    const text = (content || '').trim();
+    if (!text) return;
+
+    const fragment = document.createDocumentFragment();
+    const regex = /(magnet:\?[^\s\u00a0<>"']+)|\b([A-Z]{2,8}-\d{2,6})\b/gi;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+
+      const magnetText = match[1];
+      const rawId = match[2];
+      const link = document.createElement('a');
+
+      if (magnetText) {
+        link.href = magnetText;
+        link.textContent = magnetText;
+      } else {
+        link.href = `https://javdb.com/search?q=${encodeURIComponent(rawId)}&f=all`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = rawId;
+      }
+
+      fragment.appendChild(link);
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+
+    container.textContent = '';
+    container.appendChild(fragment);
+  }
+
+  private inject115ButtonsIntoReviews(): void {
+    if (!this.options.enableReviewEnhancement || !this.options.enableReviewPush115) return;
+    const reviewRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews');
+    if (!reviewRoot) return;
+
+    const items = Array.from(reviewRoot.querySelectorAll('.review-item')) as HTMLElement[];
+    for (const item of items) {
+      if (item.querySelector('.jhs-review-push-115')) continue;
+      const content = item.querySelector('.content');
+      const magnetLink = content?.querySelector('a[href^="magnet:"]') as HTMLAnchorElement | null;
+      if (!content || !magnetLink) continue;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'button is-success is-small jhs-review-push-115';
+      btn.style.marginLeft = '8px';
+      btn.textContent = '推送115';
+      btn.addEventListener('click', async () => {
+        const videoId = this.videoId || extractVideoIdFromPage() || 'unknown';
+        btn.disabled = true;
+        try {
+          const result = await addTaskUrlsV2({ urls: magnetLink.href, context: { source: 'detail', videoId, pageUrl: window.location.href } as any });
+          showToast(result?.success ? '已提交 115 推送' : (result?.message || '115 推送失败'));
+        } catch (error) {
+          showToast('115 推送失败');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      magnetLink.insertAdjacentElement('afterend', btn);
+    }
+  }
+
+  private enhanceExistingReviewContent(): void {
+    if (!this.options.enableReviewEnhancement || !this.options.enableReviewMagnetLinkify) return;
+    const reviewRoot = document.querySelector('div[data-movie-tab-target="reviews"], #reviews');
+    if (!reviewRoot) return;
+
+    const paragraphs = Array.from(reviewRoot.querySelectorAll('.review-item .content p')) as HTMLElement[];
+    for (const paragraph of paragraphs) {
+      if (paragraph.getAttribute('data-jhs-review-enhanced') === '1') continue;
+      const text = (paragraph.textContent || '').trim();
+      if (!text) continue;
+      this.renderReviewContent(paragraph, text);
+      paragraph.setAttribute('data-jhs-review-enhanced', '1');
+    }
   }
 
   /**

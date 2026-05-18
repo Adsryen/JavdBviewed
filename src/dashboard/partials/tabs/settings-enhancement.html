@@ -47,8 +47,11 @@
                                     <input type="checkbox" id="showStatusBadge">
                                     <!-- 影片页增强子项（右侧通用开关的状态源） -->
                                     <input type="checkbox" id="veShowLoadingIndicator">
+                                    <input type="checkbox" id="veEnableReviewEnhancement">
                                     <input type="checkbox" id="veEnableReviewBreaker">
                                     <input type="checkbox" id="veEnableFC2Breaker">
+                                    <input type="checkbox" id="veEnableReviewMagnetLinkify">
+                                    <input type="checkbox" id="veEnableReviewPush115">
                                     <input type="checkbox" id="veEnableActorRemarks">
                                     <input type="checkbox" id="veEnableActorNameMarks">
                                     <!-- 新增：影片页增强 - 本地同步类子项（隐藏 checkbox 作为状态源） -->
@@ -725,24 +728,76 @@
                                         </div>
                                     </div>
 
-                                    <!-- 新：🔓 破解评论区功能（独立区块） -->
+                                    <!-- 评论区增强 -->
                                     <div class="form-group" data-subtab="video">
                                         <label class="checkbox-label">
                                             <div class="enhancement-feature-info">
                                                 <div class="enhancement-feature-title">
-                                                    <h6 class="enhancement-feature-name">🔓 破解评论区</h6>
+                                                    <h6 class="enhancement-feature-name">💬 评论区增强</h6>
                                                     <span class="enhancement-feature-status available">可用</span>
                                                 </div>
                                             </div>
                                             <div class="enhancement-toggle-wrapper">
-                                                <button class="enhancement-toggle" data-target="veEnableReviewBreaker"></button>
+                                                <button class="enhancement-toggle" data-target="veEnableReviewEnhancement"></button>
                                             </div>
                                         </label>
                                         <p class="input-description">
-                                            <strong>效果：</strong>集成JAV-JHS的API，破解影片评论区限制，显示完整评论内容<br>
-                                            <strong>使用：</strong>在影片详情页自动显示破解后的评论，支持分页浏览和关键词过滤<br>
-                                            <strong>数据源：</strong>使用JAV-JHS的代理API服务器获取评论数据
+                                            <strong>效果：</strong>增强影片页评论区，支持完整评论、链接识别和磁链快捷操作<br>
+                                            <strong>使用：</strong>主开关控制整组功能，子开关控制评论解锁、链接识别和 115 推送按钮<br>
+                                            <strong>数据源：</strong>评论解锁使用 JAV-JHS 代理 API
                                         </p>
+
+                                        <div class="sub-settings" id="reviewEnhancementConfig" style="display: none;">
+                                            <div class="sub-settings-header">
+                                                <h5>评论区增强子设置</h5>
+                                                <p class="sub-description">控制评论区里的链接识别和磁链推送行为</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">🔓 破解评论区</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableReviewBreaker"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">使用 JAV-JHS 的 API 解锁影片评论区，显示完整评论内容并支持分页浏览。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">🔗 自动识别番号与磁链</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableReviewMagnetLinkify"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">自动把评论中的番号转成搜索链接，把纯文本磁链转成可点击磁链。</p>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <div class="enhancement-feature-info">
+                                                        <div class="enhancement-feature-title">
+                                                            <h6 class="enhancement-feature-name">🧲 磁链后显示推送115按钮</h6>
+                                                            <span class="enhancement-feature-status available">可用</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="enhancement-toggle-wrapper">
+                                                        <button class="enhancement-toggle" data-target="veEnableReviewPush115"></button>
+                                                    </div>
+                                                </label>
+                                                <p class="input-description">在评论区磁链后显示推送115按钮，支持翻页后重新注入。</p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- 新：🚫 破解FC2拦截功能（独立区块） -->

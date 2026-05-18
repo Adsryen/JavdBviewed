@@ -89,8 +89,11 @@ export function doSetSettings(host: EnhancementSettingsSyncHost, settings: Parti
       const ve = settings.videoEnhancement as any;
       if (host.veEnableCoverImage && typeof ve.enableCoverImage === 'boolean') host.veEnableCoverImage.checked = ve.enableCoverImage;
       if (host.veShowLoadingIndicator && typeof ve.showLoadingIndicator === 'boolean') host.veShowLoadingIndicator.checked = ve.showLoadingIndicator;
+      if (host.veEnableReviewEnhancement && typeof ve.enableReviewEnhancement === 'boolean') host.veEnableReviewEnhancement.checked = ve.enableReviewEnhancement;
       if (host.veEnableReviewBreaker && typeof ve.enableReviewBreaker === 'boolean') host.veEnableReviewBreaker.checked = ve.enableReviewBreaker;
       if (host.veEnableFC2Breaker && typeof ve.enableFC2Breaker === 'boolean') host.veEnableFC2Breaker.checked = ve.enableFC2Breaker;
+      if (host.veEnableReviewMagnetLinkify && typeof ve.enableReviewMagnetLinkify === 'boolean') host.veEnableReviewMagnetLinkify.checked = ve.enableReviewMagnetLinkify;
+      if (host.veEnableReviewPush115 && typeof ve.enableReviewPush115 === 'boolean') host.veEnableReviewPush115.checked = ve.enableReviewPush115;
       if (host.veEnableWantSync && typeof ve.enableWantSync === 'boolean') host.veEnableWantSync.checked = ve.enableWantSync;
       if (host.veAutoMarkWatchedAfter115 && typeof ve.autoMarkWatchedAfter115 === 'boolean') host.veAutoMarkWatchedAfter115.checked = ve.autoMarkWatchedAfter115;
       if (host.veAutoMarkWatchedStars && typeof ve.autoMarkWatchedStars !== 'undefined') host.veAutoMarkWatchedStars.value = String(ve.autoMarkWatchedStars ?? 4);

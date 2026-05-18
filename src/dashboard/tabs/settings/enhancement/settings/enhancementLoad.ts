@@ -78,8 +78,11 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.enableVideoEnhancement) host.enableVideoEnhancement.checked = !!(ve as any).enabled;
   if (host.veEnableCoverImage) host.veEnableCoverImage.checked = (ve as any).enableCoverImage !== false;
   if (host.veShowLoadingIndicator) host.veShowLoadingIndicator.checked = (ve as any).showLoadingIndicator !== false;
+  if (host.veEnableReviewEnhancement) host.veEnableReviewEnhancement.checked = (ve as any).enableReviewEnhancement === true;
   if (host.veEnableReviewBreaker) host.veEnableReviewBreaker.checked = (ve as any).enableReviewBreaker === true;
   if (host.veEnableFC2Breaker) host.veEnableFC2Breaker.checked = (ve as any).enableFC2Breaker === true;
+  if (host.veEnableReviewMagnetLinkify) host.veEnableReviewMagnetLinkify.checked = (ve as any).enableReviewMagnetLinkify !== false;
+  if (host.veEnableReviewPush115) host.veEnableReviewPush115.checked = (ve as any).enableReviewPush115 !== false;
   if (host.veEnableWantSync) host.veEnableWantSync.checked = (ve as any).enableWantSync !== false;
   if (host.veAutoMarkWatchedAfter115) host.veAutoMarkWatchedAfter115.checked = (ve as any).autoMarkWatchedAfter115 !== false;
   if (host.veAutoMarkWatchedStars) host.veAutoMarkWatchedStars.value = String((ve as any).autoMarkWatchedStars ?? 4);
