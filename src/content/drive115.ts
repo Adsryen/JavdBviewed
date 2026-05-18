@@ -272,25 +272,34 @@ export async function handlePushToDrive115(
 ): Promise<void> {
     const pageContext = getPageContext();
     const correlationId = `drive115-push:${videoId}:${Date.now()}`;
+    const traceId = correlationId;
     let rootTask: Awaited<ReturnType<typeof ensureManagedTaskRegistered>> | null = null;
+    const getRootTask = () => {
+        if (!rootTask) {
+            throw new Error('drive115-push-task-not-ready');
+        }
+        return rootTask;
+    };
     const originalText = button.innerHTML;
     log(`[Drive115] handlePushToDrive115 start: ${videoId} | ${magnetName} | ${pageContext.pageInstanceId}`);
     const stageStartTimes = new Map<string, number>();
     const beginStage = async (stage: string, detail: string, progressPct: number) => {
         const now = Date.now();
         stageStartTimes.set(stage, now);
-        await progressManagedTask(rootTask.taskId, { stage, detail, progressPct, stageStartedAt: now });
+        const task = getRootTask();
+        await progressManagedTask(task.taskId, { stage, detail, progressPct, stageStartedAt: now });
     };
     const endStage = (stage: string, status: 'done' | 'error', detail: string, error?: string) => {
         const startedAt = stageStartTimes.get(stage) || Date.now();
         const durationMs = Date.now() - startedAt;
+        const task = getRootTask();
         saveSubtaskDetail({
             label: `drive115:push:${stage}`,
-            taskId: `${rootTask.taskId}:${stage}`,
-            parentTaskId: rootTask.taskId,
-            rootTaskId: rootTask.rootTaskId || rootTask.taskId,
+            taskId: `${task.taskId}:${stage}`,
+            parentTaskId: task.taskId,
+            rootTaskId: task.rootTaskId || task.taskId,
             correlationId,
-            parentLabel: rootTask.label,
+            parentLabel: task.label,
             subtaskLabel: stage,
             pageUrl: pageContext.pageUrl,
             pageType: pageContext.pageType,
@@ -302,7 +311,7 @@ export async function handlePushToDrive115(
             detail,
             error,
         });
-        void progressManagedTask(rootTask.taskId, { stage, detail, stageStartedAt: startedAt, stageDurationMs: durationMs });
+        void progressManagedTask(task.taskId, { stage, detail, stageStartedAt: startedAt, stageDurationMs: durationMs });
     };
     try {
         const cachedSettings = await getDrive115PushSettingsCached();
@@ -358,13 +367,33 @@ export async function handlePushToDrive115(
 
             endStage('prepare', 'done', 'request prepared');
             await beginStage('push-api', `wpPathId=${wpPathId ?? 'root'}`, 40);
-            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId, context: { source: 'detail', videoId, magnetName, pageUrl: window.location.href, wpPathId, taskId: rootTask.taskId, correlationId } as any });
+            const task = getRootTask();
+            console.info('[115Trace] content:addTaskUrls:start', {
+                traceId,
+                correlationId,
+                taskId: task.taskId,
+                videoId,
+                magnetName,
+                wpPathId,
+                pageUrl: window.location.href,
+            });
+            const res = await addTaskUrlsV2({ urls, wp_path_id: wpPathId, context: { source: 'detail', videoId, magnetName, pageUrl: window.location.href, wpPathId, taskId: task.taskId, correlationId, traceId } as any });
+            console.info('[115Trace] content:addTaskUrls:end', {
+                traceId,
+                correlationId,
+                taskId: task.taskId,
+                videoId,
+                success: res.success,
+                message: res.message,
+                returned: Array.isArray(res.data) ? res.data.length : 0,
+            });
             result = { success: res.success, data: res.data, error: res.message };
             if (res.success) {
                 endStage('push-api', 'done', `returned=${Array.isArray(res.data) ? res.data.length : 0}`);
                 const returned = Array.isArray(res.data) ? res.data.length : 0;
                 await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：推送成功，返回 ${returned} 项，videoId=${videoId}` });
-                await progressManagedTask(rootTask.taskId, { stage: 'push-api', detail: 'push complete', progressPct: 70 });
+                const task = getRootTask();
+                await progressManagedTask(task.taskId, { stage: 'push-api', detail: 'push complete', progressPct: 70 });
             } else {
                 endStage('push-api', 'error', res.message || 'push failed', res.message || 'push failed');
                 await addLogV2({ timestamp: Date.now(), level: 'error', message: `内容脚本：推送失败：${res.message || '未知错误'}，videoId=${videoId}，magnet=${magnetUrl}` });
@@ -391,15 +420,16 @@ export async function handlePushToDrive115(
                     await beginStage('mark-watched', `stars=${stars}`, 80);
                     log('开始标记视频为已看...');
                     console.log('[JavDB Ext] 开始标记视频为已看...');
-                    await progressManagedTask(rootTask.taskId, { stage: 'mark-watched', detail: `stars=${stars}`, progressPct: 85 });
+                    const task = getRootTask();
+                    await progressManagedTask(task.taskId, { stage: 'mark-watched', detail: `stars=${stars}`, progressPct: 85 });
                     await markVideoAsWatched(videoId, stars);
                     endStage('mark-watched', 'done', `stars=${stars}`);
                     log('markVideoAsWatched函数执行完毕');
                     console.log('[JavDB Ext] markVideoAsWatched函数执行完毕');
 
                     // 由于markVideoAsWatched内部会刷新页面，不需要恢复按钮状态
-                    await progressManagedTask(rootTask.taskId, { stage: 'done', detail: 'push + mark complete', progressPct: 100 });
-                    await completeManagedTask(rootTask.taskId);
+                    await progressManagedTask(task.taskId, { stage: 'done', detail: 'push + mark complete', progressPct: 100 });
+                    await completeManagedTask(task.taskId);
                     return;
                 }
             } catch (error) {
@@ -418,8 +448,9 @@ export async function handlePushToDrive115(
                     button.className = 'button is-success is-small drive115-push-btn';
                 }, 3000);
             }
-            await progressManagedTask(rootTask.taskId, { stage: 'done', detail: 'push complete', progressPct: 100 });
-            await completeManagedTask(rootTask.taskId);
+            const task = getRootTask();
+            await progressManagedTask(task.taskId, { stage: 'done', detail: 'push complete', progressPct: 100 });
+            await completeManagedTask(task.taskId);
         } else {
             throw new Error(result.error || '推送失败');
         }

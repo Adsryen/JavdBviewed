@@ -149,7 +149,7 @@
     border-color: var(--error-hover);
 }
 
-/* 视图切换（扩展日志 vs 控制台日志） */
+/* 视图切换（扩展日志 vs 磁力推送） */
 .log-view-switch {
     display: flex;
     gap: 8px;
@@ -238,77 +238,6 @@
 .log-entry:hover {
     box-shadow: var(--shadow-md);
 }
-
-/* 控制台日志容器（适配主题切换） */
-.console-log-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    padding: 10px;
-    color: var(--text-primary);
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-.console-log-entry {
-    background: var(--surface-primary);
-    border-left: 5px solid var(--border-primary);
-    border-radius: 6px;
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-.console-log-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-}
-.console-level-badge {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-    flex-shrink: 0;
-}
-.console-category {
-    font-size: 12px;
-    color: var(--text-secondary);
-    font-weight: 500;
-    flex-shrink: 0;
-}
-.console-timestamp {
-    margin-left: auto;
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.console-log-message {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    word-break: break-word;
-    text-align: left;
-    flex-grow: 1;
-}
-
-/* 控制台级别配色 */
-.console-level-info { border-left-color: #22c55e; }
-.console-level-info .console-level-badge { background-color: #22c55e; }
-
-.console-level-warn { border-left-color: #f59e0b; }
-.console-level-warn .console-level-badge { background-color: #f59e0b; }
-
-.console-level-error { border-left-color: #ef4444; }
-.console-level-error .console-level-badge { background-color: #ef4444; }
-
-.console-level-debug { border-left-color: #64748b; }
-.console-level-debug .console-level-badge { background-color: #64748b; }
 
 /* 日志头部 */
 .log-header {
