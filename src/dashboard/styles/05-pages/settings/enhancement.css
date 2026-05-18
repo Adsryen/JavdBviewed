@@ -2801,3 +2801,41 @@
     color: #ff5722;
     border-bottom-color: #ff5722;
 }
+
+
+#enhancement-settings .popularity-threshold-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+#enhancement-settings .popularity-threshold-row .form-group-inline {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-self: stretch;
+}
+
+#enhancement-settings .popularity-threshold-row .form-group-inline label {
+    display: block;
+    white-space: nowrap;
+    margin-bottom: 6px;
+}
+
+#enhancement-settings .popularity-threshold-row .number-input {
+    width: 100%;
+}
+
+#enhancement-settings .popularity-threshold-row .input-description {
+    margin-top: 6px;
+    line-height: 1.5;
+    min-height: 3em;
+}
+
+@media (max-width: 900px) {
+    #enhancement-settings .popularity-threshold-row {
+        grid-template-columns: 1fr;
+    }
+}

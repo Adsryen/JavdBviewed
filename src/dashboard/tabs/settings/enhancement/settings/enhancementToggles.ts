@@ -78,6 +78,12 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
     actorAutoApplyConfig.setAttribute('data-enabled', host.enableAutoApplyTags?.checked ? '1' : '0');
     actorAutoApplyConfig.style.display = 'block';
   }
+
+  const popularityEffectsConfig = document.getElementById('popularityEffectsConfig');
+  if (popularityEffectsConfig) {
+    popularityEffectsConfig.setAttribute('data-enabled', host.enablePopularityEffects?.checked ? '1' : '0');
+    popularityEffectsConfig.style.display = 'block';
+  }
 }
 
 export function handleSettingChange(host: EnhancementTogglesHost): void {

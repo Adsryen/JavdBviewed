@@ -635,6 +635,10 @@ async function initialize(): Promise<void> {
             },
             // 🆕 状态标签显示
             showStatusBadge: (settings.listEnhancement as any)?.showStatusBadge !== false, // 默认启用
+            popularityEffects: {
+                enabled: (settings.listEnhancement as any)?.popularityEffects?.enabled === true,                minRating: Math.max(0, Math.min(5, parseFloat(String((settings.listEnhancement as any)?.popularityEffects?.minRating ?? 4)) || 4)),
+                minRatingCount: Math.max(0, parseInt(String((settings.listEnhancement as any)?.popularityEffects?.minRatingCount ?? 350), 10) || 350),
+            },
         });
         if (!isVideoPage) {
             initOrchestrator.add('high', () => listEnhancementManager.initialize(), { label: 'listEnhancement:init', delayMs: 100, priority: 7, visibilityPolicy: 'background_allowed' });
@@ -696,7 +700,7 @@ async function initialize(): Promise<void> {
         const passwordHelperConfig = (settings as any).passwordHelper || { showMethod: 0, waitTime: 300 };
         const passwordHelper = new PasswordHelper(
             passwordHelperConfig.showMethod || 0,
-            passwordHelperConfig.waitTime || 300
+            passwordHelperConfig.waitTime || 350
         );
         initOrchestrator.add('deferred', () => {
             passwordHelper.init();
@@ -870,6 +874,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                         columnCount: (settings.listEnhancement as any)?.listDisplayControl?.columnCount || 4,
                         containerWidth: (settings.listEnhancement as any)?.listDisplayControl?.containerWidth || 100,
                         enableContainerExpansion: (settings.listEnhancement as any)?.listDisplayControl?.enableContainerExpansion === true,
+                    },
+                    popularityEffects: {
+                        enabled: (settings.listEnhancement as any)?.popularityEffects?.enabled === true,                        minRating: Math.max(0, Math.min(5, parseFloat(String((settings.listEnhancement as any)?.popularityEffects?.minRating ?? 4)) || 4)),
+                        minRatingCount: Math.max(0, parseInt(String((settings.listEnhancement as any)?.popularityEffects?.minRatingCount ?? 350), 10) || 350),
                     },
                 });
                 listEnhancementManager.reapplyActorHidingForAll?.();

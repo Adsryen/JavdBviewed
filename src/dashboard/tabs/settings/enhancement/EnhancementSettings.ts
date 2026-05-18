@@ -118,6 +118,9 @@ export class EnhancementSettings extends BaseSettingsPanel {
     private enableContainerExpansion!: HTMLInputElement;
     // 🆕 状态标签显示
     private showStatusBadge!: HTMLInputElement;
+    private enablePopularityEffects!: HTMLInputElement;
+    private popularityMinRating!: HTMLInputElement;
+    private popularityMinRatingCount!: HTMLInputElement;
 
     // 演员页增强配置
     private enableAutoApplyTags!: HTMLInputElement;
@@ -788,7 +791,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                 },
                 passwordHelper: {
                     showMethod: parseInt(this.passwordShowMethod?.value || '0', 10),
-                    waitTime: parseInt(this.passwordWaitTime?.value || '300', 10),
+                    waitTime: parseInt(this.passwordWaitTime?.value || '350', 10),
                 },
                 anchorOptimization: {
                     enabled: this.enableAnchorOptimization.checked,
@@ -822,6 +825,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     },
                     // 🆕 状态标签显示
                     showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
+                    popularityEffects: {
+                        enabled: this.enablePopularityEffects?.checked === true,
+                        minRating: Math.max(0, Math.min(5, parseFloat(this.popularityMinRating?.value || '4') || 4)),
+                        minRatingCount: Math.max(0, parseInt(this.popularityMinRatingCount?.value || '350', 10) || 350),
+                    },
                 },
                 actorEnhancement: {
                     // 演员页增强运行总开关与主开关保持一致
