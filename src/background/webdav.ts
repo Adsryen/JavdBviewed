@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import { getSettings, setValue, getValue, saveSettings } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 import { quickDiagnose, type DiagnosticResult } from '../utils/webdavDiagnostic';
-import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, initDB, logsClear as idbLogsClear } from './db';
+import { logsGetAll as idbLogsGetAll, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsGetAll as idbMagnetPushLogsGetAll, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, initDB, logsClear as idbLogsClear } from './db';
 import type { WebDAVClientProfile, WebDAVUploadIndex, WebDAVUploadIndexItem } from '../types';
 
 // 背景日志封装：转发到 background 的 log-message 处理
@@ -622,6 +622,7 @@ async function collectBackupData(): Promise<any> {
 
   // 日志优先从 IDB 导出，失败则回退至 storage
   const logs = await idbLogsGetAll().catch(async () => await getValue(STORAGE_KEYS.LOGS, []));
+  const magnetPushLogs = await idbMagnetPushLogsGetAll().catch(async () => await getValue('magnetPushLogs_backup' as any, []));
 
   // 读取 IndexedDB 中的所有相关表
   let idbViewed: any[] = [];
@@ -667,6 +668,7 @@ async function collectBackupData(): Promise<any> {
           config: byteSizeOf(newWorksConfig),
         },
         logs: byteSizeOf(logs),
+        magnetPushLogs: byteSizeOf(magnetPushLogs),
         importStats: byteSizeOf(importStats),
       },
       topKeysBySize: topStorageKeysByBytes,
@@ -677,6 +679,7 @@ async function collectBackupData(): Promise<any> {
       newWorks: { count: Array.isArray(idbNewWorks) ? idbNewWorks.length : 0 },
       magnets: { count: Array.isArray(idbMagnets) ? idbMagnets.length : 0 },
       logs: { count: Array.isArray(logs) ? logs.length : 0 },
+      magnetPushLogs: { count: Array.isArray(magnetPushLogs) ? magnetPushLogs.length : 0 },
     },
     storageViewedMapCount: recordsToSync ? Object.keys(recordsToSync || {}).length : 0,
   } as any;
@@ -691,6 +694,7 @@ async function collectBackupData(): Promise<any> {
     userProfile,
     actorRecords,
     logs,
+    magnetPushLogs,
     importStats,
     newWorks: {
       subscriptions: newWorksSubscriptions,
@@ -704,6 +708,7 @@ async function collectBackupData(): Promise<any> {
       newWorks: idbNewWorks,
       magnets: idbMagnets,
       logs,
+      magnetPushLogs,
     },
     // 新增：完整 storage 快照（全量备份），包含所有键值
     storageAll,
@@ -719,6 +724,7 @@ async function collectBackupData(): Promise<any> {
     idbNewWorksCount: stats.idb.newWorks.count,
     idbMagnetsCount: stats.idb.magnets.count,
     logsCount: stats.idb.logs.count,
+    magnetPushLogsCount: stats.idb.magnetPushLogs.count,
     storageKeys: stats.storage.keys,
   });
 
@@ -952,6 +958,7 @@ async function applyImportDataDirect(importData: any, options?: {
     newWorks?: boolean;
     magnets?: boolean;
     logs?: boolean;
+    magnetPushLogs?: boolean;
     importStats?: boolean;
   };
 }): Promise<{ success: boolean; error?: string; summary?: any }> {
@@ -964,6 +971,7 @@ async function applyImportDataDirect(importData: any, options?: {
       newWorks: true,
       importStats: true,
       logs: false,
+      magnetPushLogs: false,
       magnets: false,
     },
   } as const;
@@ -1087,6 +1095,21 @@ async function applyImportDataDirect(importData: any, options?: {
       }
     }
 
+    if (opts.categories.magnetPushLogs) {
+      const c0 = Date.now();
+      try {
+        let items: any[] = [];
+        if (Array.isArray(importData?.idb?.magnetPushLogs)) items = importData.idb.magnetPushLogs;
+        else if (Array.isArray(importData?.magnetPushLogs)) items = importData.magnetPushLogs;
+        else if (Array.isArray(importData?.data?.magnetPushLogs)) items = importData.data.magnetPushLogs;
+        try { await clearStore(db, 'magnetPushLogs'); } catch {}
+        if (items.length > 0) { try { await idbMagnetPushLogsBulkAdd(items as any); } catch {} }
+        mark('magnetPushLogs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
+      } catch (e: any) {
+        mark('magnetPushLogs', { cleared: false, written: 0, reason: 'error', error: e?.message, durationMs: Date.now() - c0 });
+      }
+    }
+
     if (opts.categories.importStats) {
       const c0 = Date.now();
       const val = importData?.importStats ?? importData?.storageAll?.[STORAGE_KEYS.LAST_IMPORT_STATS];
@@ -1117,6 +1140,7 @@ async function performRestoreUnified(filename: string, options?: {
     newWorks?: boolean;
     magnets?: boolean;
     logs?: boolean;
+    magnetPushLogs?: boolean;
     importStats?: boolean;
   };
   autoBackupBeforeRestore?: boolean;
@@ -1130,6 +1154,7 @@ async function performRestoreUnified(filename: string, options?: {
       newWorks: true,
       importStats: true,
       logs: false,
+      magnetPushLogs: false,
       magnets: false,
     },
     autoBackupBeforeRestore: true,
@@ -1267,6 +1292,21 @@ async function performRestoreUnified(filename: string, options?: {
       mark('logs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
     }
 
+    if (opts.categories.magnetPushLogs) {
+      const c0 = Date.now();
+      let items: any[] = [];
+      if (Array.isArray(importData?.idb?.magnetPushLogs)) items = importData.idb.magnetPushLogs;
+      else if (Array.isArray(importData?.magnetPushLogs)) items = importData.magnetPushLogs;
+      else if (Array.isArray(importData?.data?.magnetPushLogs)) items = importData.data.magnetPushLogs;
+      try { await clearStore(db, 'magnetPushLogs'); } catch {}
+      if (items.length > 0) {
+        try { await idbMagnetPushLogsBulkAdd(items as any); } catch (e: any) {
+          bgLog('WARN', 'IDB magnet push logs restore failed', { error: e?.message, count: items.length });
+        }
+      }
+      mark('magnetPushLogs', { cleared: true, written: items.length, durationMs: Date.now() - c0 });
+    }
+
     // 8) 导入统计（storage）
     if (opts.categories.importStats) {
       const c0 = Date.now();
@@ -1397,6 +1437,16 @@ async function performRestore(filename: string, options = {
         // 回退到 storage（极端情况下）
         await setValue(STORAGE_KEYS.LOGS, importData.logs);
         bgLog('WARN', 'IDB logs restore failed, fallback to storage', { error: e?.message });
+      }
+    }
+    if (importData.magnetPushLogs && options.restoreMagnetPushLogs) {
+      try {
+        const db = await initDB();
+        await clearStore(db, 'magnetPushLogs');
+        await idbMagnetPushLogsBulkAdd(importData.magnetPushLogs);
+        bgLog('INFO', 'Restored magnet push logs to IDB', { logCount: Array.isArray(importData.magnetPushLogs) ? importData.magnetPushLogs.length : 0 });
+      } catch (e: any) {
+        bgLog('WARN', 'IDB magnet push logs restore failed', { error: e?.message });
       }
     }
     if (importData.importStats && options.restoreImportStats) {

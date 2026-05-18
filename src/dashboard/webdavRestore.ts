@@ -9,6 +9,7 @@ import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS, RESTORE_CONFIG } from '../utils/config';
 import { requireAuthIfRestricted } from '../services/privacy';
 import { dbActorsBulkPut } from './dbClient';
+import { dbMagnetPushLogsBulkAdd, dbMagnetPushLogsClear } from './dbClient';
 import { showConfirm } from './components/confirmModal';
 import type { VideoRecord, VideoStatus } from '../types';
 
@@ -1032,6 +1033,7 @@ function startWizardRestore(): void {
     const restoreUserProfile = (document.getElementById('webdavRestoreUserProfile') as HTMLInputElement)?.checked ?? true;
     const restoreActorRecords = (document.getElementById('webdavRestoreActorRecords') as HTMLInputElement)?.checked ?? true;
     const restoreLogs = (document.getElementById('webdavRestoreLogs') as HTMLInputElement)?.checked ?? false;
+    const restoreMagnetPushLogs = (document.getElementById('webdavRestoreMagnetPushLogs') as HTMLInputElement)?.checked ?? false;
     const restoreImportStats = (document.getElementById('webdavRestoreImportStats') as HTMLInputElement)?.checked ?? false;
     const restoreNewWorks = (document.getElementById('webdavRestoreNewWorks') as HTMLInputElement)?.checked ?? false;
 
@@ -1042,6 +1044,7 @@ function startWizardRestore(): void {
         restoreUserProfile,
         restoreActorRecords,
         restoreLogs,
+        restoreMagnetPushLogs,
         restoreImportStats,
         restoreNewWorks
     };
@@ -1073,8 +1076,9 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             actors: !!mergeOptions.restoreActorRecords,
             newWorks: !!mergeOptions.restoreNewWorks,
             logs: !!mergeOptions.restoreLogs,
+            magnetPushLogs: ((document.getElementById('webdavRestoreMagnetPushLogs') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetPushLogsSimple') as HTMLInputElement)?.checked) ?? false,
             importStats: !!mergeOptions.restoreImportStats,
-            magnets: (((document.getElementById('webdavRestoreMagnets') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetsSimple') as HTMLInputElement)?.checked) ?? false), // 暂无前端开关，默认不恢复
+            magnets: (((document.getElementById('webdavRestoreMagnets') as HTMLInputElement)?.checked) ?? ((document.getElementById('webdavRestoreMagnetsSimple') as HTMLInputElement)?.checked) ?? false),
         };
 
         // 读取自动备份开关状态
@@ -1089,6 +1093,7 @@ async function executeRestore(mergeOptions: MergeOptions): Promise<void> {
             actors: '演员库',
             newWorks: '新作品',
             logs: '日志记录',
+            magnetPushLogs: '磁力推送日志',
             importStats: '导入统计',
             magnets: '磁链缓存'
         };
@@ -1262,6 +1267,7 @@ function showRestoreResults(summary: any): void {
         actors: '演员库',
         newWorks: '新作品',
         logs: '日志记录',
+        magnetPushLogs: '磁力推送日志',
         importStats: '导入统计',
         magnets: '磁链缓存'
     };
@@ -1925,6 +1931,12 @@ async function loadCloudPreview(): Promise<void> {
             const idbMagnetsArr = Array.isArray(currentCloudData?.idb?.magnets) ? currentCloudData.idb.magnets : [];
             magnetCount = idbMagnetsArr.length || 0;
         }
+        // 磁力推送日志计数：优先 preview.counts.magnetPushLogs，回退到 idb.magnetPushLogs.length
+        let magnetPushLogCount = Number(previewCounts.magnetPushLogs ?? NaN);
+        if (isNaN(magnetPushLogCount)) {
+            const idbMagnetPushLogsArr = Array.isArray(currentCloudData?.idb?.magnetPushLogs) ? currentCloudData.idb.magnetPushLogs : [];
+            magnetPushLogCount = idbMagnetPushLogsArr.length || 0;
+        }
 
         updateElement('quickVideoCount', videoCount.toString());
         updateElement('quickActorCount', actorCount.toString());
@@ -1943,6 +1955,22 @@ async function loadCloudPreview(): Promise<void> {
                 item.innerHTML = `
                     <span class="stat-number" id="quickMagnetCount">${magnetCount}</span>
                     <span class="stat-label">磁链缓存</span>
+                `;
+                statsContainer.appendChild(item);
+            }
+        }
+
+        const magnetPushLogNumEl = mq<HTMLElement>('#quickMagnetPushLogCount');
+        if (magnetPushLogNumEl) {
+            magnetPushLogNumEl.textContent = magnetPushLogCount.toString();
+        } else {
+            const statsContainer = mq<HTMLElement>('#restoreModeStats');
+            if (statsContainer) {
+                const item = document.createElement('div');
+                item.className = 'stat-item';
+                item.innerHTML = `
+                    <span class="stat-number" id="quickMagnetPushLogCount">${magnetPushLogCount}</span>
+                    <span class="stat-label">磁力推送日志</span>
                 `;
                 statsContainer.appendChild(item);
             }
@@ -2380,6 +2408,12 @@ function configureRestoreOptions(cloudData: any): void {
             name: '日志记录'
         },
         {
+            id: 'webdavRestoreMagnetPushLogs',
+            dataKey: 'magnetPushLogs',
+            required: false,
+            name: '磁力推送日志'
+        },
+        {
             id: 'webdavRestoreNewWorks',
             dataKey: 'newWorks',
             required: false,
@@ -2422,6 +2456,11 @@ function configureRestoreOptions(cloudData: any): void {
             case 'actorRecords': { // 演员库
                 dataset = cloudData?.actorRecords || sa[STORAGE_KEYS.ACTOR_RECORDS] ||
                     (Array.isArray(cloudData?.idb?.actors) ? cloudData.idb.actors : undefined);
+                break;
+            }
+            case 'magnetPushLogs': {
+                dataset = cloudData?.magnetPushLogs || cloudData?.data?.magnetPushLogs ||
+                    (Array.isArray(cloudData?.idb?.magnetPushLogs) ? cloudData.idb.magnetPushLogs : undefined);
                 break;
             }
             case 'settings': {
@@ -2669,9 +2708,10 @@ async function handleConfirmRestore(): Promise<void> {
         const restoreUserProfile = (document.getElementById('webdavRestoreUserProfile') as HTMLInputElement)?.checked ?? true;
         const restoreActorRecords = (document.getElementById('webdavRestoreActorRecords') as HTMLInputElement)?.checked ?? true;
         const restoreLogs = (document.getElementById('webdavRestoreLogs') as HTMLInputElement)?.checked ?? false;
+        const restoreMagnetPushLogs = (document.getElementById('webdavRestoreMagnetPushLogs') as HTMLInputElement)?.checked ?? false;
         const restoreImportStats = (document.getElementById('webdavRestoreImportStats') as HTMLInputElement)?.checked ?? false;
 
-        if (!restoreSettings && !restoreRecords && !restoreUserProfile && !restoreActorRecords && !restoreLogs && !restoreImportStats) {
+        if (!restoreSettings && !restoreRecords && !restoreUserProfile && !restoreActorRecords && !restoreLogs && !restoreMagnetPushLogs && !restoreImportStats) {
             showMessage('请至少选择一项要恢复的内容', 'warn');
             return;
         }
@@ -2687,6 +2727,7 @@ async function handleConfirmRestore(): Promise<void> {
             restoreUserProfile,
             restoreActorRecords,
             restoreLogs,
+            restoreMagnetPushLogs,
             restoreImportStats,
             customConflictResolutions: strategy === 'custom' ? conflictResolutions : undefined
         };
@@ -3121,6 +3162,12 @@ export async function rollbackLastRestore(): Promise<void> {
 
         if (backupData.data.logs) {
             promises.push(setValue(STORAGE_KEYS.LOGS, backupData.data.logs));
+        }
+
+        if (backupData.data.magnetPushLogs) {
+            promises.push(
+                dbMagnetPushLogsClear().then(() => dbMagnetPushLogsBulkAdd(backupData.data.magnetPushLogs))
+            );
         }
 
         if (backupData.data.importStats) {
