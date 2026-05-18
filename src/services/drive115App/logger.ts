@@ -1,5 +1,4 @@
 import { getValue, setValue } from '../../utils/storage';
-import { dbMagnetPushLogsAdd } from '../../content/dbClient';
 import type { Drive115LogEntryUnified, Drive115LogType, Drive115PushContext } from './types';
 
 
@@ -10,6 +9,38 @@ const DRIVE115_LOG_CONFIG = {
 } as const;
 
 let logAsync: ((level: string, message: string, data?: any) => Promise<void>) | null = null;
+
+async function sendRuntimeDbMessage<T = any>(type: string, payload?: any): Promise<T> {
+  if (typeof chrome === 'undefined' || !chrome.runtime?.id || typeof chrome.runtime.sendMessage !== 'function') {
+    throw new Error('runtime unavailable');
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    try {
+      chrome.runtime.sendMessage({ type, payload }, (resp) => {
+        const lastErr = chrome.runtime.lastError;
+        if (lastErr) {
+          reject(new Error(lastErr.message || 'runtime error'));
+          return;
+        }
+        if (!resp || resp.success !== true) {
+          reject(new Error(resp?.error || 'db error'));
+          return;
+        }
+        resolve(resp as T);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function traceMagnetPush(message: string, data?: any): void {
+  try {
+    if (data !== undefined) console.info(`[115Trace] ${message}`, data);
+    else console.info(`[115Trace] ${message}`);
+  } catch {}
+}
 
 try {
   if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -37,7 +68,7 @@ export class Drive115AppLogger {
     } as Drive115LogEntryUnified;
 
     try {
-      await Promise.all([
+      await Promise.allSettled([
         this.logToLocal(entry),
         this.logToDedicatedMagnetPool(entry),
         this.logToGlobal(type, message, { videoId, ...data })
@@ -49,15 +80,34 @@ export class Drive115AppLogger {
 
   private async logToDedicatedMagnetPool(entry: Drive115LogEntryUnified): Promise<void> {
     if (!(entry.type === 'push_start' || entry.type === 'push_success' || entry.type === 'push_failed')) return;
+    const data = (entry.data || {}) as any;
+    const trace = {
+      traceId: data.traceId || data.correlationId || '',
+      correlationId: data.correlationId || '',
+      taskId: data.taskId || '',
+      type: entry.type,
+      videoId: entry.videoId,
+      action: data.action || entry.type,
+      source: data.source || '',
+      magnetName: data.magnetName || '',
+      wpPathId: data.wpPathId,
+    };
     try {
-      await dbMagnetPushLogsAdd({
-        type: entry.type,
-        videoId: entry.videoId,
-        message: entry.message,
-        timestamp: entry.timestamp,
-        data: entry.data,
+      traceMagnetPush('logger:magnet-log:add:start', trace);
+      await sendRuntimeDbMessage('DB:MAGNET_PUSH_LOGS_ADD', {
+        entry: {
+          type: entry.type,
+          videoId: entry.videoId,
+          message: entry.message,
+          timestamp: entry.timestamp,
+          data: entry.data,
+        },
       });
-    } catch {}
+      traceMagnetPush('logger:magnet-log:add:success', trace);
+    } catch (error) {
+      traceMagnetPush('logger:magnet-log:add:error', { ...trace, error: error instanceof Error ? error.message : String(error) });
+      console.warn('[115] magnet push log write failed:', error);
+    }
   }
 
   private async logToLocal(entry: Drive115LogEntryUnified): Promise<void> {
@@ -108,6 +158,9 @@ export class Drive115AppLogger {
       magnetUrl: context.magnetUrl,
       pageUrl: context.pageUrl,
       wpPathId: context.wpPathId,
+      taskId: context.taskId,
+      correlationId: context.correlationId,
+      traceId: context.traceId || context.correlationId,
       action: 'push_start',
     });
   }
@@ -120,6 +173,9 @@ export class Drive115AppLogger {
       magnetUrl: context.magnetUrl,
       pageUrl: context.pageUrl,
       wpPathId: context.wpPathId,
+      taskId: context.taskId,
+      correlationId: context.correlationId,
+      traceId: context.traceId || context.correlationId,
       response: context.response,
       action: 'push_success',
     });
@@ -133,6 +189,9 @@ export class Drive115AppLogger {
       magnetUrl: context.magnetUrl,
       pageUrl: context.pageUrl,
       wpPathId: context.wpPathId,
+      taskId: context.taskId,
+      correlationId: context.correlationId,
+      traceId: context.traceId || context.correlationId,
       error: context.error,
       response: context.response,
       action: 'push_failed',

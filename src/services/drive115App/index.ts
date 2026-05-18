@@ -35,6 +35,13 @@ function matchesVideoCode(name: string, videoId: string): boolean {
   return !!code && target.includes(code);
 }
 
+function traceDrive115App(message: string, data?: any): void {
+  try {
+    if (data !== undefined) console.info(`[115Trace] ${message}`, data);
+    else console.info(`[115Trace] ${message}`);
+  } catch {}
+}
+
 export class Drive115AppService {
   async getRuntimeState(): Promise<NormalizedDrive115Settings> {
     return getDrive115RuntimeState();
@@ -98,20 +105,38 @@ export class Drive115AppService {
       ...params.context,
       wpPathId: params.context?.wpPathId ?? params.wp_path_id,
     };
+    const traceBase = {
+      traceId: context.traceId || context.correlationId || '',
+      correlationId: context.correlationId || '',
+      taskId: context.taskId || '',
+      videoId: context.videoId || '',
+      magnetName: context.magnetName || '',
+      source: context.source || '',
+      wpPathId: context.wpPathId,
+    };
+
+    traceDrive115App('app:addTaskUrls:start', {
+      ...traceBase,
+      hasMagnet: !!magnetUrl,
+      isValidMagnet: isValidMagnetUrl(magnetUrl),
+    });
 
     if (!isValidMagnetUrl(magnetUrl)) {
       const errorMessage = '磁链格式无效';
       await logger.logPushFailed({ ...context, magnetUrl, error: errorMessage });
+      traceDrive115App('app:addTaskUrls:invalid-magnet', { ...traceBase, error: errorMessage });
       throw new Error(errorMessage);
     }
 
     await logger.logPushStart({ ...context, magnetUrl });
+    traceDrive115App('app:addTaskUrls:log-start-written', traceBase);
 
     const svc = getDrive115V2Service();
     const vt = await svc.getValidAccessToken();
     if (!vt.success) {
       const errorMessage = vt.message || '获取 access_token 失败';
       await logger.logPushFailed({ ...context, magnetUrl, error: errorMessage, response: vt });
+      traceDrive115App('app:addTaskUrls:token-error', { ...traceBase, error: errorMessage });
       throw new Error(errorMessage);
     }
 
@@ -123,12 +148,20 @@ export class Drive115AppService {
 
     if (res.success) {
       await logger.logPushSuccess({ ...context, magnetUrl, response: res.raw ?? res });
+      traceDrive115App('app:addTaskUrls:success-log-written', {
+        ...traceBase,
+        returned: Array.isArray(res.data) ? res.data.length : 0,
+      });
     } else {
       await logger.logPushFailed({
         ...context,
         magnetUrl,
         error: res.message || '添加离线任务失败',
         response: res.raw ?? res,
+      });
+      traceDrive115App('app:addTaskUrls:failed-log-written', {
+        ...traceBase,
+        error: res.message || '添加离线任务失败',
       });
     }
 

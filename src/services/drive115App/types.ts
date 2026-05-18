@@ -87,6 +87,9 @@ export interface Drive115PushContext {
   magnetName?: string;
   pageUrl?: string;
   wpPathId?: string;
+  taskId?: string;
+  correlationId?: string;
+  traceId?: string;
 }
 
 export interface Drive115LogEntryUnified {

@@ -6,7 +6,6 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <div class="log-view-switch">
         <button id="log-view-ext" class="switch-btn active" title="显示扩展持久化日志">扩展日志</button>
-        <button id="log-view-console" class="switch-btn" title="显示控制台即时输出（不持久化）">控制台日志</button>
         <button id="log-view-magnet" class="switch-btn" title="显示 115 磁力推送记录（成功/失败）">磁力推送</button>
       </div>
       <div class="log-actions" style="display: flex; gap: 8px;">
@@ -81,10 +80,7 @@
       <div id="log-body">
         <!-- Log entries will be inserted here -->
       </div>
-      <div id="console-log-body" class="console-log-container" style="display:none;">
-        <!-- Console log entries will be inserted here -->
-      </div>
-      <div id="magnet-log-body" class="console-log-container" style="display:none;">
+      <div id="magnet-log-body" style="display:none;">
         <!-- Magnet cache entries will be inserted here -->
       </div>
     </div>

@@ -334,33 +334,16 @@ function wrapMethod(level: Exclude<LogLevel, 'OFF'>, native: (...args: any[]) =>
         native(text, ...cleanedArgs);
       }
 
-      // 将控制台输出广播给页面（例如 Dashboard 日志页）用于"控制台日志"视图
+      // 将 INFO/WARN/ERROR 控制台输出持久化至后台 IDB 日志（避免 DEBUG 造成高写入量）
       try {
-        const g: any = (typeof window !== 'undefined') ? window : (globalThis as any);
-        if (g && typeof g.dispatchEvent === 'function') {
+        if (level !== 'DEBUG' && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
           const serialized = cleanedArgs.map((a) => safeToString(a)).join(' ');
-          g.dispatchEvent(new CustomEvent('jdb:console-output', {
-            detail: {
-              level,
-              category: catKey,
-              timestamp: Date.now(),
-              // 仅传递纯消息内容，避免将带有 %c 的彩色前缀注入到 UI
-              // UI 会基于 level/category/timestamp 自行渲染头部信息
-              message: serialized,
-            }
-          }));
-
-          // 将 INFO/WARN/ERROR 控制台输出持久化至后台 IDB 日志（避免 DEBUG 造成高写入量）
-          try {
-            if (level !== 'DEBUG' && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
-              const entry: any = {
-                timestamp: new Date().toISOString(),
-                level,
-                message: serialized,
-              };
-              chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
-            }
-          } catch {}
+          const entry: any = {
+            timestamp: new Date().toISOString(),
+            level,
+            message: serialized,
+          };
+          chrome.runtime.sendMessage({ type: 'DB:LOGS_ADD', payload: { entry } });
         }
       } catch {}
     } catch (e) {

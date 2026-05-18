@@ -108,8 +108,42 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:MAGNET_PUSH_LOGS_ADD') {
         const entry = message?.payload?.entry;
-        idbMagnetPushLogsAdd(entry).then(() => sendResponse({ success: true }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'magnet push log add failed' }));
+        try {
+          console.info('[115Trace] bg:magnet-log:add:received', {
+            traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
+            correlationId: entry?.data?.correlationId || '',
+            taskId: entry?.data?.taskId || '',
+            type: entry?.type,
+            videoId: entry?.videoId,
+            action: entry?.data?.action,
+          });
+        } catch {}
+        idbMagnetPushLogsAdd(entry).then((id) => {
+          try {
+            console.info('[115Trace] bg:magnet-log:add:success', {
+              traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
+              correlationId: entry?.data?.correlationId || '',
+              taskId: entry?.data?.taskId || '',
+              id,
+              type: entry?.type,
+              videoId: entry?.videoId,
+            });
+          } catch {}
+          sendResponse({ success: true, id });
+        })
+          .catch((e) => {
+            try {
+              console.warn('[115Trace] bg:magnet-log:add:error', {
+                traceId: entry?.data?.traceId || entry?.data?.correlationId || '',
+                correlationId: entry?.data?.correlationId || '',
+                taskId: entry?.data?.taskId || '',
+                type: entry?.type,
+                videoId: entry?.videoId,
+                error: e?.message || String(e),
+              });
+            } catch {}
+            sendResponse({ success: false, error: e?.message || 'magnet push log add failed' });
+          });
         return true;
       }
       if (message.type === 'DB:MAGNET_PUSH_LOGS_BULK') {
@@ -120,8 +154,24 @@ export function registerDbMessageRouter(): void {
       }
       if (message.type === 'DB:MAGNET_PUSH_LOGS_QUERY') {
         const payload = message?.payload || {};
-        idbMagnetPushLogsQuery(payload).then((data) => sendResponse({ success: true, ...data }))
-          .catch((e) => sendResponse({ success: false, error: e?.message || 'magnet push log query failed' }));
+        try { console.info('[115Trace] bg:magnet-log:query:received', payload); } catch {}
+        idbMagnetPushLogsQuery(payload).then((data) => {
+          try {
+            console.info('[115Trace] bg:magnet-log:query:success', {
+              total: (data as any)?.total,
+              items: Array.isArray((data as any)?.items) ? (data as any).items.length : -1,
+              query: payload?.query || '',
+              status: payload?.status || 'ALL',
+              offset: payload?.offset,
+              limit: payload?.limit,
+            });
+          } catch {}
+          sendResponse({ success: true, ...data });
+        })
+          .catch((e) => {
+            try { console.warn('[115Trace] bg:magnet-log:query:error', { error: e?.message || String(e), payload }); } catch {}
+            sendResponse({ success: false, error: e?.message || 'magnet push log query failed' });
+          });
         return true;
       }
       if (message.type === 'DB:MAGNET_PUSH_LOGS_CLEAR') {

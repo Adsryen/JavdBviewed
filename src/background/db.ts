@@ -1542,8 +1542,7 @@ function normalizeLog(entry: LogEntry): PersistedLogEntry {
 
 function normalizeMagnetPushLog(entry: any): PersistedMagnetPushLogEntry {
   const ts = typeof entry?.timestamp === 'number' ? entry.timestamp : Date.now();
-  return {
-    id: entry?.id,
+  const normalized: PersistedMagnetPushLogEntry = {
     type: entry?.type,
     videoId: String(entry?.videoId || ''),
     message: String(entry?.message || ''),
@@ -1554,6 +1553,10 @@ function normalizeMagnetPushLog(entry: any): PersistedMagnetPushLogEntry {
     category: 'DRIVE115',
     data: entry?.data,
   };
+  if (typeof entry?.id === 'number' && Number.isFinite(entry.id)) {
+    normalized.id = entry.id;
+  }
+  return normalized;
 }
 
 export async function logsAdd(entry: LogEntry): Promise<number> {
@@ -1730,7 +1733,28 @@ export async function magnetPushLogsAdd(entry: any): Promise<number> {
   await ensureMagnetPushLogsStore();
   const db = await initDB();
   const v = normalizeMagnetPushLog(entry);
+  try {
+    console.info('[115Trace] idb:magnet-log:add:normalized', {
+      traceId: (v.data as any)?.traceId || (v.data as any)?.correlationId || '',
+      correlationId: (v.data as any)?.correlationId || '',
+      taskId: (v.data as any)?.taskId || '',
+      type: v.type,
+      videoId: v.videoId,
+      timestampMs: v.timestampMs,
+      hasData: !!v.data,
+    });
+  } catch {}
   const id = await db.add('magnetPushLogs', v as any);
+  try {
+    console.info('[115Trace] idb:magnet-log:add:done', {
+      traceId: (v.data as any)?.traceId || (v.data as any)?.correlationId || '',
+      correlationId: (v.data as any)?.correlationId || '',
+      taskId: (v.data as any)?.taskId || '',
+      id,
+      type: v.type,
+      videoId: v.videoId,
+    });
+  } catch {}
   try { await magnetPushLogsEnforceRetention(); } catch {}
   return id as number;
 }
@@ -1766,6 +1790,9 @@ export async function magnetPushLogsQuery(params: {
   const { type = 'ALL', fromMs, toMs, offset = 0, limit = 100, order = 'desc', query = '', status = 'ALL' } = params || {} as any;
   await ensureMagnetPushLogsStore();
   const db = await initDB();
+  try {
+    console.info('[115Trace] idb:magnet-log:query:start', { type, fromMs, toMs, offset, limit, order, query, status });
+  } catch {}
   const store = db.transaction('magnetPushLogs').store;
   const idx = store.index('by_timestamp');
   const dir = order === 'asc' ? 'next' : 'prev';
@@ -1790,6 +1817,9 @@ export async function magnetPushLogsQuery(params: {
     if (skipped < offset) { skipped++; continue; }
     if (items.length < limit) items.push(v);
   }
+  try {
+    console.info('[115Trace] idb:magnet-log:query:done', { total, items: items.length, type, query, status, offset, limit });
+  } catch {}
   return { items, total };
 }
 

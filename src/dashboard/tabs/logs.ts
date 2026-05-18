@@ -11,14 +11,6 @@ interface LogEntry extends CoreLogEntry {
     source?: string;
 }
 
-/** 控制台日志条目（仅内存，非持久化） */
-interface ConsoleLogEntry {
-    timestamp: number;
-    level: Exclude<LogLevel, 'OFF'> | 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
-    category: string;
-    message: string;
-}
-
 interface MagnetLogEntry extends LogEntry {}
 
 /**
@@ -36,12 +28,10 @@ export class LogsTab {
     private logs: LogEntry[] = [];
     private totalLogsCount: number = 0; // IDB 端总数（EXT 视图无过滤时使用）
 
-    // 视图模式：扩展日志（EXT）/ 控制台日志（CONSOLE）
-    private viewMode: 'EXT' | 'CONSOLE' | 'MAGNET' = 'EXT';
-    private consoleLogs: ConsoleLogEntry[] = [];
+    // 视图模式：扩展日志（EXT）/ 磁力推送记录（MAGNET）
+    private viewMode: 'EXT' | 'MAGNET' = 'EXT';
     private magnetLogs: MagnetLogEntry[] = [];
     private totalMagnetCount: number = 0;
-    private MAX_CONSOLE_LOGS = 500;
 
     // 分页状态
     private currentPage: number = 1;
@@ -63,10 +53,8 @@ export class LogsTab {
     private clearButton!: HTMLButtonElement;
     private exportButton!: HTMLButtonElement;
     private logBody!: HTMLDivElement;
-    private consoleLogBody!: HTMLDivElement;
     private magnetLogBody!: HTMLDivElement;
     private logViewExtBtn!: HTMLButtonElement;
-    private logViewConsoleBtn!: HTMLButtonElement;
     private logViewMagnetBtn!: HTMLButtonElement;
 
     /**
@@ -131,13 +119,11 @@ export class LogsTab {
             } catch {}
         }
         this.logBody = document.getElementById('log-body') as HTMLDivElement;
-        this.consoleLogBody = document.getElementById('console-log-body') as HTMLDivElement;
         this.magnetLogBody = document.getElementById('magnet-log-body') as HTMLDivElement;
         this.logsPaginationEl = document.getElementById('logsPagination') as HTMLElement;
         this.logsPerPageSelect = document.getElementById('logsPerPageSelect') as HTMLSelectElement;
         this.logsCountInfoEl = document.getElementById('logsCountInfo') as HTMLSpanElement;
         this.logViewExtBtn = document.getElementById('log-view-ext') as HTMLButtonElement;
-        this.logViewConsoleBtn = document.getElementById('log-view-console') as HTMLButtonElement;
         this.logViewMagnetBtn = document.getElementById('log-view-magnet') as HTMLButtonElement;
 
         // 验证元素是否存在
@@ -207,14 +193,6 @@ export class LogsTab {
                 this.viewMode = 'EXT';
                 this.updateViewVisibility();
                 this.currentPage = 1;
-                this.renderLogs();
-                this.updateSwitchBtnActive();
-            }
-        });
-        this.logViewConsoleBtn?.addEventListener('click', () => {
-            if (this.viewMode !== 'CONSOLE') {
-                this.viewMode = 'CONSOLE';
-                this.updateViewVisibility();
                 this.renderLogs();
                 this.updateSwitchBtnActive();
             }
@@ -343,27 +321,6 @@ export class LogsTab {
                 this.exportButton.textContent = '导出';
             }
         });
-
-        // 监听控制台输出事件（来自 consoleProxy）
-        try {
-            window.addEventListener('jdb:console-output' as any, (ev: Event) => {
-                const e = ev as CustomEvent;
-                const d = e.detail || {};
-                const entry: ConsoleLogEntry = {
-                    timestamp: typeof d.timestamp === 'number' ? d.timestamp : Date.now(),
-                    level: (String(d.level || 'INFO').toUpperCase()) as any,
-                    category: String(d.category || 'general'),
-                    message: String(d.message || ''),
-                };
-                this.consoleLogs.push(entry);
-                if (this.consoleLogs.length > this.MAX_CONSOLE_LOGS) {
-                    this.consoleLogs.splice(0, this.consoleLogs.length - this.MAX_CONSOLE_LOGS);
-                }
-                if (this.viewMode === 'CONSOLE') {
-                    this.renderLogs();
-                }
-            });
-        } catch {}
     }
 
     /**
@@ -393,15 +350,10 @@ export class LogsTab {
                 const total = (res?.total ?? pageCount);
                 showMessage(`已刷新（本页 ${pageCount} / 总 ${total}）`, 'success');
             } else {
-                if (this.viewMode === 'MAGNET') {
-                    const res = await this.fetchAndRenderMagnetLogs();
-                    const pageCount = (res?.items?.length ?? 0);
-                    const total = (res?.total ?? pageCount);
-                    showMessage(`磁力推送：本页 ${pageCount} / 总 ${total} 条`, 'success');
-                } else {
-                    this.renderLogs();
-                    showMessage(`控制台日志（内存） 共 ${this.consoleLogs.length} 条`, 'info');
-                }
+                const res = await this.fetchAndRenderMagnetLogs();
+                const pageCount = (res?.items?.length ?? 0);
+                const total = (res?.total ?? pageCount);
+                showMessage(`磁力推送：本页 ${pageCount} / 总 ${total} 条`, 'success');
             }
         } catch (error) {
             console.error('刷新日志失败:', error);
@@ -417,26 +369,19 @@ export class LogsTab {
      */
     private async clearLogs(): Promise<void> {
         try {
-            if (this.viewMode === 'CONSOLE') {
-                if (!confirm('确定要清空控制台日志（仅内存）吗？')) return;
-                this.consoleLogs = [];
-                this.renderLogs();
-                showMessage('控制台日志已清空', 'success');
+            if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
+            if (this.viewMode === 'MAGNET') {
+                await dbMagnetPushLogsClear();
+                this.magnetLogs = [];
+                this.totalMagnetCount = 0;
             } else {
-                if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
-                if (this.viewMode === 'MAGNET') {
-                    await dbMagnetPushLogsClear();
-                    this.magnetLogs = [];
-                    this.totalMagnetCount = 0;
-                } else {
-                    await dbLogsClear();
-                }
-                this.logs = [];
-                this.totalLogsCount = 0;
-                this.currentPage = 1;
-                this.renderLogs();
-                showMessage('日志已清空', 'success');
+                await dbLogsClear();
             }
+            this.logs = [];
+            this.totalLogsCount = 0;
+            this.currentPage = 1;
+            this.renderLogs();
+            showMessage('日志已清空', 'success');
         } catch (error) {
             console.error('清空日志失败:', error);
             showMessage('清空日志失败', 'error');
@@ -451,11 +396,6 @@ export class LogsTab {
 
         // 视图切换下的可见性
         this.updateViewVisibility();
-
-        if (this.viewMode === 'CONSOLE') {
-            this.renderConsoleLogs();
-            return;
-        }
 
         if (this.viewMode === 'MAGNET') {
             this.magnetLogBody.innerHTML = '<div class="loading">加载中...</div>';
@@ -545,7 +485,26 @@ export class LogsTab {
         if (this.currentStartDate) (params as any).fromMs = this.currentStartDate.getTime();
         if (this.currentEndDate) (params as any).toMs = this.currentEndDate.getTime();
 
+        try {
+            console.info('[115Trace] dashboard:magnet-log:query:start', {
+                ...params,
+                fromMs: (params as any).fromMs,
+                toMs: (params as any).toMs,
+                page: this.currentPage,
+                pageSize: this.pageSize,
+            });
+        } catch {}
         const { items, total } = await dbMagnetPushLogsQuery(params);
+        try {
+            console.info('[115Trace] dashboard:magnet-log:query:done', {
+                total,
+                items: Array.isArray(items) ? items.length : -1,
+                query: params.query,
+                status: params.status,
+                page: this.currentPage,
+                pageSize: this.pageSize,
+            });
+        } catch {}
         this.totalMagnetCount = Number.isFinite(total) ? total : 0;
         const totalPages = Math.max(1, Math.ceil(this.totalMagnetCount / this.pageSize));
         if (this.currentPage > totalPages) this.currentPage = totalPages;
@@ -558,60 +517,6 @@ export class LogsTab {
         this.updateCountText(`磁力推送：${statusLabel} ${this.totalMagnetCount} 条（第 ${this.currentPage}/${totalPages} 页）`);
         return { items: this.magnetLogs, total: this.totalMagnetCount, totalPages };
     }
-
-    /**
-     * 渲染控制台日志
-     */
-    private renderConsoleLogs(): void {
-            if (!this.consoleLogBody) return;
-
-            const q = (this.currentSearchQuery || '').trim().toLowerCase();
-            const levelFilter = this.currentLevelFilter;
-            const categoryFilter = this.currentCategoryFilter;
-            const start = this.currentStartDate ? this.currentStartDate.getTime() : undefined;
-            const end = this.currentEndDate ? this.currentEndDate.getTime() : undefined;
-
-            const list = [...this.consoleLogs]
-                .filter(e => {
-                    // 日志级别筛选
-                    if (levelFilter !== 'ALL' && String(e.level).toUpperCase() !== String(levelFilter).toUpperCase()) return false;
-                    // 类别筛选
-                    if (categoryFilter !== 'ALL') {
-                        const cat = String(e.category || '').toUpperCase();
-                        if (cat !== categoryFilter) return false;
-                    }
-                    // 日期筛选
-                    if (start && e.timestamp < start) return false;
-                    if (end && e.timestamp > end) return false;
-                    // 搜索关键字筛选
-                    if (q) {
-                        const msg = e.message.toLowerCase();
-                        if (!msg.includes(q)) return false;
-                    }
-                    return true;
-                })
-                .slice(-this.MAX_CONSOLE_LOGS)
-                .reverse(); // 最新在前
-
-            if (list.length === 0) {
-                this.consoleLogBody.innerHTML = '<div class="no-logs">暂无控制台输出</div>';
-                if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
-                this.updateCountText(`控制台日志：已筛选 0 条（内存 ${this.consoleLogs.length} 条，上限 ${this.MAX_CONSOLE_LOGS}）`);
-                
-                return;
-            }
-
-            const html = list.map(e => this.createConsoleLogHtml(e)).join('');
-            this.consoleLogBody.innerHTML = html;
-            // 控制台视图不使用分页
-            if (this.logsPaginationEl) this.logsPaginationEl.innerHTML = '';
-
-            // 更新计数显示（控制台视图）
-            this.updateCountText(`控制台日志：已筛选 ${list.length} 条（内存 ${this.consoleLogs.length} 条，上限 ${this.MAX_CONSOLE_LOGS}）`);
-
-            
-        }
-
 
     /**
      * 渲染分页控件
@@ -670,27 +575,6 @@ export class LogsTab {
             });
         });
     }
-
-    /**
-     * 等级阈值判断：threshold为最小显示等级，显示 >= threshold 的日志
-     */
-    private levelPass(level: LogLevel, threshold: 'OFF' | LogLevel): boolean {
-        if (threshold === 'OFF') return false;
-        const rank = (lv: LogLevel) => {
-            switch (lv) {
-                case 'DEBUG': return 0;
-                case 'INFO': return 1;
-                case 'WARN': return 2;
-                case 'ERROR': return 3;
-            }
-        };
-        return rank(level) >= rank(threshold as LogLevel);
-    }
-
-    /**
-     * 从全局设置应用过滤：consoleLevel + consoleCategories
-     */
-
 
     /**
      * 创建日志条目HTML
@@ -807,40 +691,6 @@ export class LogsTab {
         }
     }
 
-    /**
-     * 控制台日志项 HTML
-     */
-    private createConsoleLogHtml(e: ConsoleLogEntry): string {
-        const fmt = this.getConsoleFormat();
-        const tsStr = this.formatConsoleTimestamp(e.timestamp, fmt);
-        const levelClass = this.getLevelClass(String(e.level));
-        const highlight = (text: string) => {
-            const q = (this.currentSearchQuery || '').trim();
-            if (!q) return this.escapeHtml(text);
-            try {
-                const escaped = this.escapeHtml(text);
-                const re = new RegExp(this.escapeRegExp(q), 'ig');
-                return escaped.replace(re, (m) => `<mark class="log-highlight">${this.escapeHtml(m)}</mark>`);
-            } catch {
-                return this.escapeHtml(text);
-            }
-        };
-
-        const headerParts: string[] = [];
-        headerParts.push(`<span class="console-level-badge">${this.escapeHtml(String(e.level).toUpperCase())}</span>`);
-        if (fmt.showSource !== false) {
-            headerParts.push(`<span class="console-category">${this.escapeHtml(String(e.category || '').toUpperCase())}</span>`);
-        }
-
-        return `
-            <div class="console-log-entry console-level-${levelClass}">
-                <div class="console-log-header">${headerParts.join('')}</div>
-                <div class="console-log-message">${highlight(e.message)}</div>
-                ${fmt.showTimestamp !== false ? `<span class="console-timestamp">${this.escapeHtml(tsStr)}</span>` : ''}
-            </div>
-        `;
-    }
-
     private createMagnetEntryHtml(item: MagnetLogEntry): string {
         const fmt = this.getConsoleFormat();
         const timestamp = this.formatConsoleTimestamp(new Date(item.timestamp).getTime(), { showMilliseconds: fmt.showMilliseconds, timeZone: fmt.timeZone });
@@ -904,39 +754,27 @@ export class LogsTab {
      * 根据视图切换显示容器
      */
     private updateViewVisibility(): void {
-        if (!this.logBody || !this.consoleLogBody || !this.magnetLogBody) return;
+        if (!this.logBody || !this.magnetLogBody) return;
         if (this.magnetStatusFilterGroup) {
             this.magnetStatusFilterGroup.style.display = this.viewMode === 'MAGNET' ? 'flex' : 'none';
         }
         if (this.viewMode === 'EXT') {
             this.logBody.style.display = '';
-            this.consoleLogBody.style.display = 'none';
             this.magnetLogBody.style.display = 'none';
-        } else if (this.viewMode === 'MAGNET') {
-            this.logBody.style.display = 'none';
-            this.consoleLogBody.style.display = 'none';
-            this.magnetLogBody.style.display = '';
         } else {
             this.logBody.style.display = 'none';
-            this.consoleLogBody.style.display = '';
-            this.magnetLogBody.style.display = 'none';
+            this.magnetLogBody.style.display = '';
         }
     }
 
     private updateSwitchBtnActive(): void {
-        if (this.logViewExtBtn && this.logViewConsoleBtn && this.logViewMagnetBtn) {
+        if (this.logViewExtBtn && this.logViewMagnetBtn) {
             if (this.viewMode === 'EXT') {
                 this.logViewExtBtn.classList.add('active');
-                this.logViewConsoleBtn.classList.remove('active');
                 this.logViewMagnetBtn.classList.remove('active');
-            } else if (this.viewMode === 'MAGNET') {
+            } else {
                 this.logViewMagnetBtn.classList.add('active');
                 this.logViewExtBtn.classList.remove('active');
-                this.logViewConsoleBtn.classList.remove('active');
-            } else {
-                this.logViewConsoleBtn.classList.add('active');
-                this.logViewExtBtn.classList.remove('active');
-                this.logViewMagnetBtn.classList.remove('active');
             }
         }
     }
