@@ -17,6 +17,19 @@ export interface PersistedLogEntry extends LogEntry {
   category?: string;
 }
 
+export interface PersistedMagnetPushLogEntry {
+  id?: number;
+  type: 'push_start' | 'push_success' | 'push_failed';
+  videoId: string;
+  message: string;
+  timestamp: number;
+  timestampMs: number;
+  timestampISO?: string;
+  source: 'DRIVE115';
+  category: 'DRIVE115';
+  data?: any;
+}
+
 // ----- daily trends (records/actors/newWorks) -----
 
 type DateMode = 'cumulative' | 'daily';
@@ -928,6 +941,15 @@ interface JavdbDB extends DBSchema {
       by_expireAt: number;
     };
   };
+  magnetPushLogs: {
+    key: number;
+    value: PersistedMagnetPushLogEntry;
+    indexes: {
+      by_timestamp: number;
+      by_type: string;
+      by_videoId: string;
+    };
+  };
   insightsViews: {
     key: string; // date YYYY-MM-DD
     value: ViewsDaily;
@@ -958,7 +980,7 @@ export interface NewWorksDailyStat {
 }
 
 const DB_NAME = 'javdb_v1';
-const DB_VERSION = 11;
+const DB_VERSION = 14;
 
 let dbPromise: Promise<IDBPDatabase<JavdbDB>> | null = null;
 
@@ -1167,6 +1189,15 @@ export async function initDB(): Promise<IDBPDatabase<JavdbDB>> {
               }
               cursor.continue();
             };
+          } catch {}
+        }
+        // v12 -> 磁力推送日志独立存储池
+        if (oldVersion < 12) {
+          try {
+            const store = db.createObjectStore('magnetPushLogs', { keyPath: 'id', autoIncrement: true });
+            store.createIndex('by_timestamp', 'timestampMs');
+            store.createIndex('by_type', 'type');
+            store.createIndex('by_videoId', 'videoId');
           } catch {}
         }
       }
@@ -1509,6 +1540,22 @@ function normalizeLog(entry: LogEntry): PersistedLogEntry {
   } as PersistedLogEntry;
 }
 
+function normalizeMagnetPushLog(entry: any): PersistedMagnetPushLogEntry {
+  const ts = typeof entry?.timestamp === 'number' ? entry.timestamp : Date.now();
+  return {
+    id: entry?.id,
+    type: entry?.type,
+    videoId: String(entry?.videoId || ''),
+    message: String(entry?.message || ''),
+    timestamp: ts,
+    timestampMs: ts,
+    timestampISO: new Date(ts).toISOString(),
+    source: 'DRIVE115',
+    category: 'DRIVE115',
+    data: entry?.data,
+  };
+}
+
 export async function logsAdd(entry: LogEntry): Promise<number> {
   const db = await initDB();
   const v = normalizeLog(entry);
@@ -1669,6 +1716,123 @@ export async function logsClear(beforeMs?: number): Promise<void> {
 export async function logsGetAll(): Promise<PersistedLogEntry[]> {
   const db = await initDB();
   return db.getAll('logs');
+}
+
+async function ensureMagnetPushLogsStore(): Promise<void> {
+  const db = await initDB();
+  if (db.objectStoreNames.contains('magnetPushLogs')) return;
+  db.close();
+  dbPromise = null;
+  await initDB();
+}
+
+export async function magnetPushLogsAdd(entry: any): Promise<number> {
+  await ensureMagnetPushLogsStore();
+  const db = await initDB();
+  const v = normalizeMagnetPushLog(entry);
+  const id = await db.add('magnetPushLogs', v as any);
+  try { await magnetPushLogsEnforceRetention(); } catch {}
+  return id as number;
+}
+
+export async function magnetPushLogsBulkAdd(entries: any[]): Promise<void> {
+  if (!entries || entries.length === 0) return;
+  await ensureMagnetPushLogsStore();
+  const db = await initDB();
+  const tx = db.transaction('magnetPushLogs', 'readwrite');
+  try {
+    for (const e of entries) {
+      const v = normalizeMagnetPushLog(e);
+      await tx.store.add(v as any);
+    }
+    await tx.done;
+    try { await magnetPushLogsEnforceRetention(); } catch {}
+  } catch (e) {
+    try { await tx.done; } catch {}
+    throw e;
+  }
+}
+
+export async function magnetPushLogsQuery(params: {
+  type?: 'push_start' | 'push_success' | 'push_failed' | 'ALL';
+  fromMs?: number;
+  toMs?: number;
+  offset?: number;
+  limit?: number;
+  order?: 'asc' | 'desc';
+  query?: string;
+  status?: 'ALL' | 'SUCCESS' | 'FAILED';
+}): Promise<{ items: PersistedMagnetPushLogEntry[]; total: number; }> {
+  const { type = 'ALL', fromMs, toMs, offset = 0, limit = 100, order = 'desc', query = '', status = 'ALL' } = params || {} as any;
+  await ensureMagnetPushLogsStore();
+  const db = await initDB();
+  const store = db.transaction('magnetPushLogs').store;
+  const idx = store.index('by_timestamp');
+  const dir = order === 'asc' ? 'next' : 'prev';
+  const q = String(query || '').trim().toLowerCase();
+  const items: PersistedMagnetPushLogEntry[] = [];
+  let skipped = 0;
+  let total = 0;
+  for (let cursor = await idx.openCursor(undefined, dir); cursor; cursor = await cursor.continue()) {
+    const v = cursor.value as PersistedMagnetPushLogEntry;
+    if (fromMs != null && v.timestampMs < fromMs) continue;
+    if (toMs != null && v.timestampMs > toMs) continue;
+    if (type !== 'ALL' && v.type !== type) continue;
+    if (status === 'SUCCESS' && v.type !== 'push_success') continue;
+    if (status === 'FAILED' && v.type !== 'push_failed') continue;
+    if (q) {
+      const inMsg = String(v.message || '').toLowerCase().includes(q);
+      let inData = false;
+      try { inData = v.data ? JSON.stringify(v.data).toLowerCase().includes(q) : false; } catch { inData = false; }
+      if (!inMsg && !inData) continue;
+    }
+    total++;
+    if (skipped < offset) { skipped++; continue; }
+    if (items.length < limit) items.push(v);
+  }
+  return { items, total };
+}
+
+export async function magnetPushLogsClear(beforeMs?: number): Promise<void> {
+  await ensureMagnetPushLogsStore();
+  const db = await initDB();
+  const tx = db.transaction('magnetPushLogs', 'readwrite');
+  const idx = tx.store.index('by_timestamp');
+  if (beforeMs == null) {
+    await tx.store.clear();
+  } else {
+    for (let cursor = await idx.openCursor(IDBKeyRange.upperBound(beforeMs)); cursor; cursor = await cursor.continue()) {
+      await cursor.delete();
+    }
+  }
+  await tx.done;
+}
+
+export async function magnetPushLogsGetAll(): Promise<PersistedMagnetPushLogEntry[]> {
+  await ensureMagnetPushLogsStore();
+  const db = await initDB();
+  return db.getAll('magnetPushLogs');
+}
+
+async function magnetPushLogsEnforceRetention(): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const logging: any = (settings as any)?.logging || {};
+    let maxEntries = Number(logging.maxMagnetPushEntries ?? 10000);
+    if (!Number.isFinite(maxEntries) || maxEntries <= 0) maxEntries = 10000;
+    const db = await initDB();
+    const total = await db.count('magnetPushLogs');
+    if (total <= maxEntries) return;
+    const toRemove = total - maxEntries;
+    const tx = db.transaction('magnetPushLogs', 'readwrite');
+    const idx = tx.store.index('by_timestamp');
+    let removed = 0;
+    for (let cursor = await idx.openCursor(undefined, 'next'); cursor && removed < toRemove; cursor = await cursor.continue()) {
+      await cursor.delete();
+      removed++;
+    }
+    await tx.done;
+  } catch {}
 }
 
 // 保留策略：按条数限制

@@ -2,7 +2,7 @@
 import { showMessage } from '../ui/toast';
 import { log } from '../../utils/logController';
 import type { LogEntry as CoreLogEntry, LogLevel } from '../../types';
-import { dbLogsQuery, dbLogsClear, dbLogsExport, type LogsQueryParams } from '../dbClient';
+import { dbLogsQuery, dbLogsClear, dbLogsExport, dbMagnetPushLogsQuery, dbMagnetPushLogsClear, dbMagnetPushLogsExport, type LogsQueryParams } from '../dbClient';
 
 /**
  * 日志条目接口：在全局 LogEntry 基础上扩展可选来源字段
@@ -310,7 +310,7 @@ export class LogsTab {
                 this.exportButton.disabled = true;
                 this.exportButton.textContent = '导出中...';
                 if (this.viewMode === 'MAGNET') {
-                    const json = JSON.stringify(this.magnetLogs, null, 2);
+                    const json = await dbMagnetPushLogsExport();
                     const blob = new Blob([json], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -424,7 +424,13 @@ export class LogsTab {
                 showMessage('控制台日志已清空', 'success');
             } else {
                 if (!confirm('确定要清空所有日志吗？此操作不可撤销。')) return;
-                await dbLogsClear();
+                if (this.viewMode === 'MAGNET') {
+                    await dbMagnetPushLogsClear();
+                    this.magnetLogs = [];
+                    this.totalMagnetCount = 0;
+                } else {
+                    await dbLogsClear();
+                }
                 this.logs = [];
                 this.totalLogsCount = 0;
                 this.currentPage = 1;
@@ -527,33 +533,23 @@ export class LogsTab {
     }
 
     private async fetchAndRenderMagnetLogs(): Promise<{ items: MagnetLogEntry[]; total: number; totalPages: number }>{
-        const params: LogsQueryParams = {
-            offset: 0,
-            limit: 1000,
-            order: 'desc',
-            source: 'DRIVE115',
+        const offset = (this.currentPage - 1) * this.pageSize;
+        const params = {
+            offset,
+            limit: this.pageSize,
+            order: 'desc' as const,
             query: this.currentSearchQuery || '',
-        } as any;
+            status: this.currentMagnetStatusFilter,
+        };
 
-        if (this.currentStartDate) params.fromMs = this.currentStartDate.getTime();
-        if (this.currentEndDate) params.toMs = this.currentEndDate.getTime();
-        if (this.currentHasDataOnly) params.hasDataOnly = true;
-        if (this.currentLevelFilter !== 'ALL') params.level = this.currentLevelFilter as any;
+        if (this.currentStartDate) (params as any).fromMs = this.currentStartDate.getTime();
+        if (this.currentEndDate) (params as any).toMs = this.currentEndDate.getTime();
 
-        const { items } = await dbLogsQuery(params);
-        const filtered = (Array.isArray(items) ? items : []).filter((item: any) => {
-            const action = String(item?.data?.action || '');
-            if (!(action === 'push_start' || action === 'push_success' || action === 'push_failed')) return false;
-            if (this.currentMagnetStatusFilter === 'SUCCESS') return action === 'push_success';
-            if (this.currentMagnetStatusFilter === 'FAILED') return action === 'push_failed';
-            return true;
-        }) as MagnetLogEntry[];
-
-        this.totalMagnetCount = filtered.length;
+        const { items, total } = await dbMagnetPushLogsQuery(params);
+        this.totalMagnetCount = Number.isFinite(total) ? total : 0;
         const totalPages = Math.max(1, Math.ceil(this.totalMagnetCount / this.pageSize));
         if (this.currentPage > totalPages) this.currentPage = totalPages;
-        const offset = (this.currentPage - 1) * this.pageSize;
-        this.magnetLogs = filtered.slice(offset, offset + this.pageSize);
+        this.magnetLogs = Array.isArray(items) ? items as MagnetLogEntry[] : [];
 
         const html = this.magnetLogs.map((item) => this.createMagnetEntryHtml(item)).join('');
         this.magnetLogBody.innerHTML = html || '<div class="no-logs">暂无磁力推送记录</div>';
