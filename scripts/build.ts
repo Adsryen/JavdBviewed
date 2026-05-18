@@ -48,6 +48,14 @@ async function main() {
         await build();
         console.log('Vite build finished successfully.');
 
+        // Keep runtime-loaded Font Awesome assets at stable extension URLs.
+        const fontawesomeSrcDir = resolve(root, 'src/assets/fontawesome');
+        const fontawesomeDistDir = resolve(distDir, 'assets/fontawesome');
+        if (fs.existsSync(fontawesomeSrcDir)) {
+            await fs.copy(fontawesomeSrcDir, fontawesomeDistDir);
+            console.log(`[build] Copied Font Awesome assets from: ${fontawesomeSrcDir}`);
+        }
+
         // Ensure external runtime assets are present in dist
         const distTemplatesDir = resolve(distDir, 'assets/templates');
         await fs.ensureDir(distTemplatesDir);
