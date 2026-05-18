@@ -35,6 +35,7 @@ import { bindUiListeners } from './listeners/ui';
 import { refreshHomeOverview, bindHomeChartsRangeControls, bindHomeRefreshButton } from './home/charts';
 import { STORAGE_KEYS } from '../utils/config';
 import { getSettings } from '../utils/storage';
+import { getDisplayVersionInfo } from '../utils/versionInfo';
 import { normalizeDrive115Settings, isDrive115EnabledState } from '../services/drive115App';
 import { handleCloudflareVerification } from './dataSync/cloudflareVerification';
 // 主题系统
@@ -448,18 +449,18 @@ function initInfoContainer(): void {
         manifestVersion = chrome?.runtime?.getManifest?.().version || '';
     } catch {}
 
-    const envVersion = import.meta.env.VITE_APP_VERSION || '';
-    const version = manifestVersion || envVersion || 'N/A';
-    const buildId = import.meta.env.VITE_APP_BUILD_ID || '';
-    const versionState = import.meta.env.VITE_APP_VERSION_STATE || 'unknown';
+    const versionInfo = getDisplayVersionInfo({
+        manifestVersion,
+        env: import.meta.env,
+    });
     const deviceId = String(STATE.settings?.webdav?.clientId || '').trim();
 
     const getStateTitle = (state: string): string => {
     switch (state) {
         case 'clean':
             return '此版本基于干净且完全提交的 Git 工作区构建。';
-        case 'dev':
-            return '此版本包含暂存或未提交的更改（dev/staged）。';
+        case 'staged':
+            return '此版本包含已暂存但未提交的更改。';
         case 'dirty':
             return '警告：此版本包含未提交或未暂存的本地修改（dirty）。';
         default:
@@ -467,11 +468,33 @@ function initInfoContainer(): void {
     }
 };
 
-    const buildLine = buildId
+    const buildLine = versionInfo.buildNumber
         ? `
         <div class="info-item">
             <span class="info-label">Build:</span>
-            <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${buildId}</span>
+            <span class="info-value">${versionInfo.buildNumber}</span>
+        </div>`
+        : '';
+
+    const commitLine = versionInfo.commit
+        ? `
+        <div class="info-item">
+            <span class="info-label">Commit:</span>
+            <span class="info-value">${versionInfo.commit}</span>
+        </div>`
+        : '';
+
+    const stateLine = `
+        <div class="info-item">
+            <span class="info-label">State:</span>
+            <span class="info-value version-state-${versionInfo.state}" title="${getStateTitle(versionInfo.state)}">${versionInfo.state}</span>
+        </div>`;
+
+    const builtAtLine = versionInfo.builtAt
+        ? `
+        <div class="info-item">
+            <span class="info-label">Built At:</span>
+            <span class="info-value">${versionInfo.builtAt}</span>
         </div>`
         : '';
 
@@ -486,8 +509,8 @@ function initInfoContainer(): void {
     infoContainer.innerHTML = `
         <div class="info-item">
             <span class="info-label">Version:</span>
-            <span class="info-value version-state-${versionState}" title="${getStateTitle(versionState)}">${version}</span>
-        </div>${buildLine}${deviceIdLine}
+            <span class="info-value version-state-${versionInfo.state}" title="${getStateTitle(versionInfo.state)}">${versionInfo.version}</span>
+        </div>${buildLine}${commitLine}${stateLine}${builtAtLine}${deviceIdLine}
     `;
 }
 

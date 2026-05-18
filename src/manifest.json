@@ -1,146 +1,146 @@
 {
-    "manifest_version": 3,
-    "name": "Jav 助手",
-    "version": "1.7.0",
-    "description": "Jav视频浏览助手，提供观看标记、高级筛选和数据管理功能。",
-    "permissions": [
-        "storage",
-        "tabs",
-        "alarms",
-        "scripting",
-        "notifications",
-        "unlimitedStorage",
-        "declarativeNetRequest"
-    ],
-    "host_permissions": [
+  "manifest_version": 3,
+  "name": "Jav 助手",
+  "version": "1.20.0",
+  "description": "Jav视频浏览助手，提供观看标记、高级筛选和数据管理功能。",
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms",
+    "scripting",
+    "notifications",
+    "unlimitedStorage",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.javbus.com/*",
+    "*://*.javdb.com/*",
+    "*://javdb.com/*",
+    "*://javdb570.com/*",
+    "https://dav.jianguoyun.com/*",
+    "https://*.teracloud.jp/*",
+    "https://*.webdav.yandex.com/*",
+    "https://*.nextcloud.com/*",
+    "*://*.sukebei.nyaa.si/*",
+    "*://*.btdig.com/*",
+    "*://*.btsow.com/*",
+    "*://*.torrentz2.eu/*",
+    "https://*.owncloud.com/*",
+    "https://115.com/*",
+    "https://*.115.com/*",
+    "https://webapi.115.com/*",
+    "https://captchaapi.115.com/*",
+    "https://uplb.115.com/*",
+    "https://v.anxia.com/*",
+    "https://123av.com/*",
+    "https://fc2ppvdb.com/*",
+    "https://adult.contents.fc2.com/*",
+    "https://*/*",
+    "http://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' https: http:;"
+  },
+  "background": {
+    "service_worker": "background/background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
         "*://*.javbus.com/*",
         "*://*.javdb.com/*",
         "*://javdb.com/*",
-        "*://javdb570.com/*",
-        "https://dav.jianguoyun.com/*",
-        "https://*.teracloud.jp/*",
-        "https://*.webdav.yandex.com/*",
-        "https://*.nextcloud.com/*",
-        "*://*.sukebei.nyaa.si/*",
-        "*://*.btdig.com/*",
-        "*://*.btsow.com/*",
-        "*://*.torrentz2.eu/*",
-        "https://*.owncloud.com/*",
-        "https://115.com/*",
-        "https://*.115.com/*",
-        "https://webapi.115.com/*",
-        "https://captchaapi.115.com/*",
-        "https://uplb.115.com/*",
-        "https://v.anxia.com/*",
-        "https://123av.com/*",
-        "https://fc2ppvdb.com/*",
-        "https://adult.contents.fc2.com/*",
-        "https://*/*",
-        "http://*/*"
-    ],
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' https: http:;"
+        "*://javdb570.com/*"
+      ],
+      "js": [
+        "content/index.ts"
+      ],
+      "run_at": "document_end"
     },
-    "background": {
-        "service_worker": "background/background.ts",
-        "type": "module"
+    {
+      "matches": [
+        "http://localhost/web/*",
+        "https://localhost/web/*",
+        "http://127.0.0.1/web/*",
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content/index.ts"
+      ],
+      "run_at": "document_end"
     },
-    "content_scripts": [
-        {
-            "matches": [
-                "*://*.javbus.com/*",
-                "*://*.javdb.com/*",
-                "*://javdb.com/*",
-                "*://javdb570.com/*"
-            ],
-            "js": [
-                "content/index.ts"
-            ],
-            "run_at": "document_end"
-        },
-        {
-            "matches": [
-                "http://localhost/web/*",
-                "https://localhost/web/*",
-                "http://127.0.0.1/web/*",
-                "http://localhost/*",
-                "https://localhost/*",
-                "http://127.0.0.1/*"
-            ],
-            "js": [
-                "content/index.ts"
-            ],
-            "run_at": "document_end"
-        },
-        {
-            "matches": [
-                "*://115.com/*",
-                "*://*.115.com/*"
-            ],
-            "js": [
-                "content/drive115-content.ts"
-            ],
-            "run_at": "document_end"
-        },
-        {
-            "matches": [
-                "*://captchaapi.115.com/*"
-            ],
-            "js": [
-                "content/drive115-verify.ts"
-            ],
-            "run_at": "document_end"
-        },
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "content/passwordHelper-standalone.ts"
-            ],
-            "run_at": "document_idle",
-            "all_frames": false
-        }
-    ],
-    "action": {
-        "default_popup": "popup/popup.html",
-        "default_icon": {
-            "16": "assets/favicons/dark/favicon-16x16.png",
-            "32": "assets/favicons/dark/favicon-32x32.png",
-            "48": "assets/favicons/dark/favicon-48x48.png",
-            "128": "assets/favicons/dark/favicon-128x128.png"
-        }
+    {
+      "matches": [
+        "*://115.com/*",
+        "*://*.115.com/*"
+      ],
+      "js": [
+        "content/drive115-content.ts"
+      ],
+      "run_at": "document_end"
     },
-    "icons": {
-        "16": "assets/favicons/dark/favicon-16x16.png",
-        "32": "assets/favicons/dark/favicon-32x32.png",
-        "48": "assets/favicons/dark/favicon-48x48.png",
-        "128": "assets/favicons/dark/favicon-128x128.png"
+    {
+      "matches": [
+        "*://captchaapi.115.com/*"
+      ],
+      "js": [
+        "content/drive115-verify.ts"
+      ],
+      "run_at": "document_end"
     },
-    "options_ui": {
-        "page": "dashboard/dashboard.html",
-        "open_in_tab": true
-    },
-    "web_accessible_resources": [
-        {
-            "resources": [
-                "assets/*",
-                "assets/*.js",
-                "content/*.js",
-                "assets/templates/*",
-                "assets/switch-viewed.png",
-                "assets/switch-want.png",
-                "assets/switch-browsed.png",
-                "assets/favicons/light/favicon-32x32.png",
-                "assets/favicons/dark/favicon-32x32.png",
-                "assets/javbus.ico",
-                "assets/javdb.ico",
-                "assets/alternate-search.png",
-                "assets/115-logo.svg"
-            ],
-            "matches": [
-                "<all_urls>"
-            ]
-        }
-    ]
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/passwordHelper-standalone.ts"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/favicons/dark/favicon-16x16.png",
+      "32": "assets/favicons/dark/favicon-32x32.png",
+      "48": "assets/favicons/dark/favicon-48x48.png",
+      "128": "assets/favicons/dark/favicon-128x128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/favicons/dark/favicon-16x16.png",
+    "32": "assets/favicons/dark/favicon-32x32.png",
+    "48": "assets/favicons/dark/favicon-48x48.png",
+    "128": "assets/favicons/dark/favicon-128x128.png"
+  },
+  "options_ui": {
+    "page": "dashboard/dashboard.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "assets/*.js",
+        "content/*.js",
+        "assets/templates/*",
+        "assets/switch-viewed.png",
+        "assets/switch-want.png",
+        "assets/switch-browsed.png",
+        "assets/favicons/light/favicon-32x32.png",
+        "assets/favicons/dark/favicon-32x32.png",
+        "assets/javbus.ico",
+        "assets/javdb.ico",
+        "assets/alternate-search.png",
+        "assets/115-logo.svg"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }

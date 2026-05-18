@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs-extra';
 import archiver from 'archiver';
 import { execSync } from 'child_process';
+import { formatArtifactVersion } from './versioning';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -15,8 +16,10 @@ async function getVersion() {
     const versionJsonPath = resolve(root, 'version.json');
     if (fs.existsSync(versionJsonPath)) {
         const versionJson = await fs.readJson(versionJsonPath);
-        const build = Number(versionJson.build);
-        return Number.isFinite(build) ? `${versionJson.version}.${build}` : versionJson.version;
+        return formatArtifactVersion({
+            version: versionJson.version,
+            build: versionJson.build,
+        });
     }
     // Fallback to package.json
     const packageJsonPath = resolve(root, 'package.json');

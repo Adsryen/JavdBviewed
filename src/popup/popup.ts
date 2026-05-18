@@ -1,5 +1,6 @@
 import { getSettings, saveSettings } from '../utils/storage';
 import type { ExtensionSettings } from '../types';
+import { getDisplayVersionInfo } from '../utils/versionInfo';
 
 const DOCS_URL = 'https://javd-bviewed-docs.vercel.app/';
 
@@ -140,10 +141,12 @@ function initVersionInfo() {
             manifestVersion = chrome?.runtime?.getManifest?.().version || '';
         } catch {}
 
-        const envVersion = import.meta.env.VITE_APP_VERSION || '';
-        const version = manifestVersion || envVersion || 'N/A';
+        const versionInfo = getDisplayVersionInfo({
+            manifestVersion,
+            env: import.meta.env,
+        });
 
-        versionTag.textContent = `v${version}`;
+        versionTag.textContent = `v${versionInfo.version}`;
     }
 }
 

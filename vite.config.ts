@@ -3,6 +3,7 @@ import { crx } from '@crxjs/vite-plugin';
 import manifest from './src/manifest.json';
 import path from 'path';
 import fs from 'fs';
+import { formatManifestVersion } from './scripts/versioning';
 
 // 动态同步 manifest.version 从 version.json（仅在构建时）
 function getUpdatedManifest() {
@@ -13,8 +14,7 @@ function getUpdatedManifest() {
     if (fs.existsSync(versionJsonPath)) {
       const versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
       if (versionData.version) {
-        const build = Number(versionData.build);
-        const manifestVersion = Number.isFinite(build) ? `${versionData.version}.${build}` : `${versionData.version}`;
+        const manifestVersion = formatManifestVersion(versionData);
         manifestCopy.version = manifestVersion;
         console.log(`📦 Manifest version synced to: ${manifestVersion}`);
       }

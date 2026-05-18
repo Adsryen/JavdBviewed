@@ -1,7 +1,7 @@
 {
   "name": "javdb-extension",
   "type": "module",
-  "version": "1.9.0",
+  "version": "1.20.0",
   "description": "Jav 助手",
   "scripts": {
     "vitepress:dev": "vitepress dev vitepress --host 127.0.0.1 --port 5174",
@@ -11,7 +11,10 @@
     "docs:build": "npm run vitepress:build",
     "docs:preview": "npm run vitepress:preview",
     "build": "rimraf dist-zip && node --import tsx scripts/build.ts",
-    "version": "npm version"
+    "version:major": "pnpm tsx scripts/version.ts major",
+    "version:minor": "pnpm tsx scripts/version.ts minor",
+    "version:patch": "pnpm tsx scripts/version.ts patch",
+    "version:build": "pnpm tsx scripts/version.ts"
   },
   "dependencies": {
     "fs-extra": "^10.1.0",

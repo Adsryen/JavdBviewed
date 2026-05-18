@@ -536,7 +536,7 @@
     color: var(--text-primary);
 }
 
-.version-state-dev {
+.version-state-staged {
     color: var(--primary);
 }
 
