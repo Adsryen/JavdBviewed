@@ -2,9 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { formatArtifactVersion } from './versioning';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const versionFilePath = path.join(__dirname, '..', 'version.json');
+const packageFilePath = path.join(__dirname, '..', 'package.json');
+const manifestFilePath = path.join(__dirname, '..', 'src', 'manifest.json');
 const viteEnvFilePath = path.join(__dirname, '..', '.env.local');
 
 interface VersionData {
@@ -16,8 +19,8 @@ interface VersionData {
 }
 
 type VersionType = 'major' | 'minor' | 'patch';
-type GitState = '-dev' | '-dirty' | '' | '-unknown';
-type SimpleGitState = 'clean' | 'dev' | 'dirty' | 'unknown';
+type GitState = '-staged' | '-dirty' | '' | '-unknown';
+type SimpleGitState = 'clean' | 'staged' | 'dirty' | 'unknown';
 
 // --- Git Helper Functions ---
 function getGitHash(): string {
@@ -31,15 +34,14 @@ function getGitState(): GitState {
         const status = execSync('git status --porcelain').toString().trim();
         if (status === '') return '';
         const stagedChanges = execSync('git diff --name-only --cached').toString().trim();
-        if (stagedChanges !== '') return '-dev';
+        if (stagedChanges !== '') return '-staged';
         return '-dirty';
     } catch (e) { return '-unknown'; }
 }
 
-function getSimpleGitState(): SimpleGitState {
-    const state = getGitState();
+function simplifyGitState(state: GitState): SimpleGitState {
     if (state === '') return 'clean';
-    if (state === '-dev') return 'dev';
+    if (state === '-staged') return 'staged';
     if (state === '-dirty') return 'dirty';
     return 'unknown';
 }
@@ -61,6 +63,26 @@ export function commitAndTagVersion(version: string) {
 }
 
 // --- Version Generation Function ---
+function writeJsonFile(filePath: string, data: unknown) {
+    fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+function syncVersionArtifacts(versionData: VersionData) {
+    writeJsonFile(versionFilePath, versionData);
+
+    if (fs.existsSync(packageFilePath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageFilePath, 'utf8'));
+        packageJson.version = versionData.version;
+        writeJsonFile(packageFilePath, packageJson);
+    }
+
+    if (fs.existsSync(manifestFilePath)) {
+        const manifestJson = JSON.parse(fs.readFileSync(manifestFilePath, 'utf8'));
+        manifestJson.version = versionData.version;
+        writeJsonFile(manifestFilePath, manifestJson);
+    }
+}
+
 function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit: boolean) {
     // 标记参数已使用（用于满足 TS noUnusedParameters）
     if (isReleaseCommit) {
@@ -72,17 +94,27 @@ function generateAndWriteBuildVersion(versionData: VersionData, isReleaseCommit:
     // Always get the real git state, regardless of release or not.
     const gitHash = getGitHash();
     const gitState = getGitState();
-    const simpleGitState = getSimpleGitState();
-    const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 12); // YYYYMMDDHHmm
+    const simpleGitState = simplifyGitState(gitState);
+    const buildTime = new Date().toISOString();
+    const timestamp = buildTime.replace(/[-:.TZ]/g, '').slice(0, 12); // YYYYMMDDHHmm
 
     const buildId = `+${gitHash}${gitState}-${timestamp}`;
 
-    fs.writeFileSync(versionFilePath, JSON.stringify(versionData, null, 2), 'utf8');
-    const envContent = `VITE_APP_VERSION=${versionData.version}\nVITE_APP_BUILD_ID=${buildId}\nVITE_APP_VERSION_STATE=${simpleGitState}\n`;
+    syncVersionArtifacts(versionData);
+    const envContent = [
+        `VITE_APP_VERSION=${versionData.version}`,
+        `VITE_APP_BUILD_NUMBER=${versionData.build}`,
+        `VITE_APP_GIT_HASH=${gitHash}`,
+        `VITE_APP_VERSION_STATE=${simpleGitState}`,
+        `VITE_APP_BUILD_TIME=${buildTime}`,
+        `VITE_APP_BUILD_ID=${buildId}`,
+        '',
+    ].join('\n');
     fs.writeFileSync(viteEnvFilePath, envContent, 'utf8');
     
-    const fullVersion = `${versionData.version}.${versionData.build}`;
-    console.log(`\x1b[32mVersion updated to: ${fullVersion} (${buildId})\x1b[0m`);
+    const artifactVersion = formatArtifactVersion(versionData);
+    console.log(`\x1b[32mVersion updated to: ${versionData.version} build ${versionData.build} (${buildId})\x1b[0m`);
+    console.log(`\x1b[32mArtifact version: ${artifactVersion}\x1b[0m`);
     console.log(`\x1b[32mVersion written to ${path.basename(viteEnvFilePath)} for Vite.\x1b[0m`);
 }
 

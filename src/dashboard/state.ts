@@ -3,6 +3,7 @@ import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/config';
 import type { ExtensionSettings, VideoRecord, LogEntry } from '../types';
 import { logAsync } from './logger';
 import { showMessage } from './ui/toast';
+import { getDisplayVersionInfo } from '../utils/versionInfo';
 
 // --- Global State & Utilities ---
 
@@ -34,7 +35,10 @@ export async function initializeGlobalState(): Promise<void> {
         try {
             manifestVersion = chrome?.runtime?.getManifest?.().version || '';
         } catch {}
-        const actualVersion = manifestVersion || import.meta.env.VITE_APP_VERSION || 'N/A';
+        const actualVersion = getDisplayVersionInfo({
+            manifestVersion,
+            env: import.meta.env,
+        }).version;
         if (settings.version !== actualVersion) {
             settings.version = actualVersion;
             settingsChanged = true;

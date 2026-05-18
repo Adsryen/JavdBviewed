@@ -44,19 +44,40 @@ read_version() {
   echo "$v"
 }
 
+read_build() {
+  local b=""
+  if [[ -f "$root_dir/version.json" ]]; then
+    b=$(node -e "const v=JSON.parse(require('fs').readFileSync('version.json','utf8')); console.log(Number.isFinite(Number(v.build)) ? Number(v.build) : '')" 2>/dev/null || true)
+  fi
+  echo "$b"
+}
+
+artifact_version() {
+  local version="$1"
+  local build="${2:-}"
+  if [[ -n "$build" ]]; then
+    echo "${version}-build-${build}"
+  else
+    echo "$version"
+  fi
+}
+
 zip_dist() {
   local version="$1"
+  local build="${2:-}"
+  local artifact
+  artifact=$(artifact_version "$version" "$build")
   mkdir -p "$zip_dir"
   local out
   if have zip; then
-    zip_name="javdb-extension-v${version}.zip"
+    zip_name="javdb-extension-v${artifact}.zip"
     out="$zip_dir/$zip_name"
     [[ -f "$out" ]] && rm -f "$out"
     info "Zipping dist -> $out"
     (cd "$dist_dir" && zip -qr "$out" .)
     ok "ZIP created: $out"
   else
-    zip_name="javdb-extension-v${version}.tar.gz"
+    zip_name="javdb-extension-v${artifact}.tar.gz"
     out="$zip_dir/$zip_name"
     [[ -f "$out" ]] && rm -f "$out"
     info "Archiving dist (tar.gz) -> $out"
@@ -85,8 +106,10 @@ quick_build() {
 
   local version
   version=$(read_version)
+  local build
+  build=$(read_build)
   info "Detected version: $version"
-  zip_dist "$version"
+  zip_dist "$version" "$build"
 
   ok "Done. Dist: $dist_dir"
   ok "Zip: $zip_dir/$zip_name"
@@ -130,8 +153,9 @@ show_help() {
 preview_release_notes() {
   if ! have git; then err "未检测到 git"; return 1; fi
   
-  local tag current_version
+  local tag current_version current_build
   current_version=$(read_version)
+  current_build=$(read_build)
   tag="v$current_version"
   
   # 获取上一个标签
@@ -228,6 +252,9 @@ preview_release_notes() {
   echo ""
   echo "**Build Type:** $build_type"
   echo "**Version:** $current_version"
+  if [[ -n "$current_build" ]]; then
+    echo "**Build:** $current_build"
+  fi
   echo "**Release Date:** $release_date"
   echo ""
   
@@ -313,11 +340,16 @@ preview_release_notes() {
     fi
     
     # 输出制品信息（兼容带 v 与不带 v 的命名）
-    local zip_file_v="javdb-extension-v$current_version.zip"
+    local current_artifact
+    current_artifact=$(artifact_version "$current_version" "$current_build")
+    local zip_file_v="javdb-extension-v$current_artifact.zip"
+    local zip_file_legacy="javdb-extension-v$current_version.$current_build.zip"
     local zip_file_nv="javdb-extension-${current_version}.zip"
     local display_file=""
     if [[ -f "$zip_dir/$zip_file_v" ]]; then
       display_file="$zip_file_v"
+    elif [[ -n "$current_build" && -f "$zip_dir/$zip_file_legacy" ]]; then
+      display_file="$zip_file_legacy"
     elif [[ -f "$zip_dir/$zip_file_nv" ]]; then
       display_file="$zip_file_nv"
     else
@@ -453,7 +485,8 @@ menu_main() {
       install_and_build
       if [[ ! -d "$dist_dir" ]]; then err "构建失败：缺少 dist/"; exit 1; fi
       local v; v=$(read_version)
-      zip_dist "$v"
+      local b; b=$(read_build)
+      zip_dist "$v" "$b"
       # 交互步骤 4: 询问是否创建 GitHub Release（版本更新模式）
       local doRel; doRel=$(ask "现在创建 GitHub Release 吗？(y/n) [N]:")
       doRel="${doRel:-N}"
@@ -480,7 +513,8 @@ menu_main() {
       info "仅构建"
       install_and_build
       local v; v=$(read_version)
-      zip_dist "$v"
+      local b; b=$(read_build)
+      zip_dist "$v" "$b"
       # 交互步骤 3: 询问是否创建 GitHub Release（Just Build 模式）
       local doRel; doRel=$(ask "现在创建 GitHub Release 吗？(y/n) [N]:")
       doRel="${doRel:-N}"
@@ -504,19 +538,23 @@ menu_main() {
     5)
       info "仅发布（自定义备注）"
       local v; v=$(read_version)
+      local b; b=$(read_build)
+      local av; av=$(artifact_version "$v" "$b")
       local tag="v${v}"
-      local asset_zip_v="$zip_dir/javdb-extension-v${v}.zip"
-      local asset_tgz_v="$zip_dir/javdb-extension-v${v}.tar.gz"
+      local asset_zip_v="$zip_dir/javdb-extension-v${av}.zip"
+      local asset_tgz_v="$zip_dir/javdb-extension-v${av}.tar.gz"
+      local asset_zip_legacy="$zip_dir/javdb-extension-v${v}.${b}.zip"
+      local asset_tgz_legacy="$zip_dir/javdb-extension-v${v}.${b}.tar.gz"
       local asset_zip_nv="$zip_dir/javdb-extension-${v}.zip"
       local asset_tgz_nv="$zip_dir/javdb-extension-${v}.tar.gz"
       local asset=""
-      if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
+      if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -n "$b" && -f "$asset_zip_legacy" ]]; then asset="$asset_zip_legacy"; elif [[ -n "$b" && -f "$asset_tgz_legacy" ]]; then asset="$asset_tgz_legacy"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
       if [[ -z "$asset" ]]; then
         # 没有现成产物，尝试从 dist/ 打包一次（不进行编译）
         if [[ -d "$dist_dir" ]]; then
           info "未找到现有产物，检测到 dist/ 目录，开始打包..."
-          zip_dist "$v"
-          if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
+          zip_dist "$v" "$b"
+          if [[ -f "$asset_zip_v" ]]; then asset="$asset_zip_v"; elif [[ -f "$asset_tgz_v" ]]; then asset="$asset_tgz_v"; elif [[ -n "$b" && -f "$asset_zip_legacy" ]]; then asset="$asset_zip_legacy"; elif [[ -n "$b" && -f "$asset_tgz_legacy" ]]; then asset="$asset_tgz_legacy"; elif [[ -f "$asset_zip_nv" ]]; then asset="$asset_zip_nv"; elif [[ -f "$asset_tgz_nv" ]]; then asset="$asset_tgz_nv"; fi
         else
           err "未找到打包产物且缺少 dist/ 目录，无法发布。请先执行 [4] 仅构建。"; exit 1
         fi

@@ -248,10 +248,13 @@ try {
     exit 1
 }
 
-# 构建完整版本号（包含 build 号）
-$fullVersionStr = if ($buildNum) { "$versionStr.$buildNum" } else { $versionStr }
-$tagName = "v$fullVersionStr"
-$zipName = "javdb-extension-v$fullVersionStr.zip"
+# Release 使用三位语义版本，构建号只进入资产文件名
+$releaseVersionStr = $versionStr
+$assetVersionStr = if ($buildNum) { "$versionStr-build-$buildNum" } else { $versionStr }
+$legacyFullVersionStr = if ($buildNum) { "$versionStr.$buildNum" } else { $versionStr }
+$tagName = "v$releaseVersionStr"
+$releaseTitle = "Release $releaseVersionStr"
+$zipName = "javdb-extension-v$assetVersionStr.zip"
 $zipPath = "dist-zip\$zipName"
 
 Write-Host "Looking for artifact: $zipName" -ForegroundColor Gray
@@ -260,15 +263,19 @@ Write-Host "Looking for artifact: $zipName" -ForegroundColor Gray
 if (Test-Path $zipPath) {
     Write-Host "Found artifact with build number: $zipName" -ForegroundColor Green
 } else {
+    $legacyZipName = "javdb-extension-v$legacyFullVersionStr.zip"
+    $legacyZipPath = "dist-zip\$legacyZipName"
     # 如果找不到带 build 号的文件，尝试查找不带 build 号的文件
     $altZipName = "javdb-extension-v$versionStr.zip"
     $altZipPath = "dist-zip\$altZipName"
-    if (Test-Path $altZipPath) {
+    if (Test-Path $legacyZipPath) {
+        Write-Host "Found legacy artifact with dotted build number: $legacyZipName" -ForegroundColor Yellow
+        $zipName = $legacyZipName
+        $zipPath = $legacyZipPath
+    } elseif (Test-Path $altZipPath) {
         Write-Host "Found alternative zip without build number: $altZipName" -ForegroundColor Yellow
         $zipName = $altZipName
         $zipPath = $altZipPath
-        $fullVersionStr = $versionStr
-        $tagName = "v$versionStr"
     }
 }
 
@@ -359,7 +366,7 @@ if ($autoNotes) {
     $notesPath = "release-notes-$tagName.md"
     $content = New-Object System.Collections.Generic.List[string]
     # 标题/正文头，与 -p 预览一致
-    $content.Add("Title: Release $fullVersionStr") | Out-Null
+    $content.Add("Title: $releaseTitle") | Out-Null
     $content.Add("") | Out-Null
     $content.Add("Body:") | Out-Null
     $content.Add("") | Out-Null
@@ -431,7 +438,10 @@ if ($autoNotes) {
     
     $buildType = "$changeType release"
     $content.Add("**Build Type:** $buildType") | Out-Null
-    $content.Add("**Version:** $fullVersionStr") | Out-Null
+    $content.Add("**Version:** $releaseVersionStr") | Out-Null
+    if ($buildNum) {
+        $content.Add("**Build:** $buildNum") | Out-Null
+    }
     $content.Add("**Release Date:** $releaseDate") | Out-Null
     $content.Add("") | Out-Null
     
@@ -608,7 +618,7 @@ if ($autoNotes) {
         & git rev-parse -q --verify "refs/tags/$tagName" | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Creating annotated tag: $tagName" -ForegroundColor Gray
-            & git tag -a $tagName -m "Release $tagName"
+            & git tag -a $tagName -m $releaseTitle
         } else {
             Write-Host "Tag $tagName already exists" -ForegroundColor Yellow
         }
@@ -641,7 +651,7 @@ if ($autoNotes) {
     } catch {}
 
     try {
-        & gh release create $tagName $zipPath --title "Release $tagName" -F $notesRelease
+        & gh release create $tagName $zipPath --title $releaseTitle -F $notesRelease
         if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed" }
         Write-Host "GitHub Release created successfully!" -ForegroundColor Green
         Show-Success
