@@ -57,8 +57,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
     // 影片页增强子项
     private veEnableCoverImage!: HTMLInputElement;
     private veShowLoadingIndicator!: HTMLInputElement;
+    private veEnableReviewEnhancement!: HTMLInputElement;
     private veEnableReviewBreaker!: HTMLInputElement;
     private veEnableFC2Breaker!: HTMLInputElement;
+    private veEnableReviewMagnetLinkify!: HTMLInputElement;
+    private veEnableReviewPush115!: HTMLInputElement;
     private veEnableActorRemarks!: HTMLInputElement;
     private veEnableActorNameMarks!: HTMLInputElement;
     private veActorRemarksMode!: HTMLSelectElement;
@@ -745,8 +748,11 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     // 与"翻译"总开关保持一致，避免两处状态不一致
                     enableTranslation: this.enableTranslation?.checked === true,
                     showLoadingIndicator: this.veShowLoadingIndicator?.checked !== false,
+                    enableReviewEnhancement: this.veEnableReviewEnhancement?.checked === true,
                     enableReviewBreaker: this.veEnableReviewBreaker?.checked === true,
                     enableFC2Breaker: this.veEnableFC2Breaker?.checked === true,
+                    enableReviewMagnetLinkify: this.veEnableReviewMagnetLinkify?.checked !== false,
+                    enableReviewPush115: this.veEnableReviewPush115?.checked !== false,
                     // 新增：本地同步子项
                     enableWantSync: this.veEnableWantSync?.checked !== false,
                     autoMarkWatchedAfter115: this.veAutoMarkWatchedAfter115?.checked !== false,

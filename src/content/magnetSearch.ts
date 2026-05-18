@@ -103,7 +103,7 @@ export class MagnetSearchManager {
         }
       });
       if (culprit) {
-        try { culprit.style.outline = '2px solid #e74c3c'; } catch {}
+        try { (culprit as HTMLElement).style.outline = '2px solid #e74c3c'; } catch {}
         console.log('[Magnet Overflow] container', { clientWidth: cw, scrollWidth: sw, culprit, culpritWidth: max, style: getComputedStyle(culprit) });
       } else {
         console.log('[Magnet Overflow] container', { clientWidth: cw, scrollWidth: sw, note: 'no explicit culprit found' });
@@ -993,7 +993,7 @@ export class MagnetSearchManager {
     push115Button.title = '推送到115网盘离线下载';
     push115Button.style.marginLeft = '5px';
     push115Button.innerHTML = '&nbsp;推送115&nbsp;';
-    push115Button.addEventListener('click', () => this.push115(result.magnet, result.name));
+    push115Button.addEventListener('click', () => this.push115(push115Button, result.magnet, result.name));
 
     buttonsColumn.appendChild(copyButton);
     buttonsColumn.appendChild(downloadButton);
@@ -1392,21 +1392,16 @@ export class MagnetSearchManager {
   /**
    * 推送磁力链接到115（直接使用详情页的完整逻辑）
    */
-  private async push115(magnet: string, name: string): Promise<void> {
+  private async push115(button: HTMLButtonElement, magnet: string, name: string): Promise<void> {
     try {
       log(`Pushing to 115: ${name}`);
-
-      // 创建一个临时按钮元素，用于传递给详情页的推送函数
-      const tempButton = document.createElement('button');
-      tempButton.className = 'button is-success is-small drive115-push-btn';
-      tempButton.innerHTML = '&nbsp;推送115&nbsp;';
 
       // 直接调用详情页的完整推送逻辑，包含所有功能：
       // - 完整的日志记录
       // - 推送成功后自动标记已看
       // - 标记已看后自动刷新页面
       await handlePushToDrive115(
-        tempButton,
+        button,
         this.currentVideoId || 'unknown',
         magnet,
         name

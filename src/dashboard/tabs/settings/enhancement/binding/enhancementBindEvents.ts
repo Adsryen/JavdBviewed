@@ -32,8 +32,11 @@ export function bindEvents(host: EnhancementBindEventsHost): void {
   host.enableVideoEnhancement?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableCoverImage?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veShowLoadingIndicator?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableReviewEnhancement?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableReviewBreaker?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableFC2Breaker?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableReviewMagnetLinkify?.addEventListener('change', host.handleSettingChange.bind(host));
+  host.veEnableReviewPush115?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableActorRemarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veEnableActorNameMarks?.addEventListener('change', host.handleSettingChange.bind(host));
   host.veActorRemarksMode?.addEventListener('change', host.handleSettingChange.bind(host));

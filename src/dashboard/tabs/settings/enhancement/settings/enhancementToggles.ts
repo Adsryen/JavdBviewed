@@ -25,6 +25,7 @@ export function initEnhancementToggles(host: EnhancementTogglesHost): void {
       hiddenCheckbox.checked = !hiddenCheckbox.checked;
       updateToggleState();
       host.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
+      toggleConfigSections(host);
       if (targetId === 'enableTranslation') {
         host.updateTranslationConfigVisibility();
       }
@@ -35,6 +36,7 @@ export function initEnhancementToggles(host: EnhancementTogglesHost): void {
     hiddenCheckbox.addEventListener('change', () => {
       updateToggleState();
       host.handleSubSettingsToggle(targetId, hiddenCheckbox.checked);
+      toggleConfigSections(host);
       if (targetId === 'enableTranslation') {
         host.updateTranslationConfigVisibility();
       }
@@ -46,44 +48,48 @@ export function initEnhancementToggles(host: EnhancementTogglesHost): void {
 }
 
 export function toggleConfigSections(host: EnhancementTogglesHost): void {
+  const setConfigEnabled = (element: HTMLElement | null | undefined, enabled: boolean): void => {
+    if (!element) return;
+    element.setAttribute('data-enabled', enabled ? '1' : '0');
+    element.style.display = 'block';
+    element.querySelectorAll('.enhancement-toggle[data-target]').forEach(el => {
+      (el as HTMLButtonElement).toggleAttribute('disabled', !enabled);
+    });
+  };
+
   if (host.magnetSourcesConfig) {
-    host.magnetSourcesConfig.setAttribute('data-enabled', host.enableMagnetSearch.checked ? '1' : '0');
-    host.magnetSourcesConfig.style.display = 'block';
+    setConfigEnabled(host.magnetSourcesConfig, host.enableMagnetSearch.checked === true);
   }
 
   if (host.contentFilterConfig) {
-    host.contentFilterConfig.setAttribute('data-enabled', host.enableContentFilter.checked ? '1' : '0');
-    host.contentFilterConfig.style.display = 'block';
+    setConfigEnabled(host.contentFilterConfig, host.enableContentFilter.checked === true);
   }
 
   if (host.anchorOptimizationConfig) {
-    host.anchorOptimizationConfig.setAttribute('data-enabled', host.enableAnchorOptimization.checked ? '1' : '0');
-    host.anchorOptimizationConfig.style.display = 'block';
+    setConfigEnabled(host.anchorOptimizationConfig, host.enableAnchorOptimization.checked === true);
   }
 
   if (host.videoEnhancementConfig) {
-    const enabled = host.enableVideoEnhancement?.checked === true;
-    host.videoEnhancementConfig.setAttribute('data-enabled', enabled ? '1' : '0');
-    host.videoEnhancementConfig.style.display = 'block';
+    setConfigEnabled(host.videoEnhancementConfig, host.enableVideoEnhancement?.checked === true);
   }
 
-  const actorRemarksConfig = document.getElementById('actorRemarksConfig');
-  if (actorRemarksConfig) {
-    actorRemarksConfig.setAttribute('data-enabled', host.veEnableActorRemarks?.checked ? '1' : '0');
-    actorRemarksConfig.style.display = 'block';
+  setConfigEnabled(document.getElementById('actorRemarksConfig') as HTMLElement | null, host.veEnableActorRemarks?.checked === true);
+  setConfigEnabled(document.getElementById('autoMarkWatchedConfig') as HTMLElement | null, host.veAutoMarkWatchedAfter115?.checked === true);
+  setConfigEnabled(document.getElementById('clickEnhancementConfig') as HTMLElement | null, host.enableClickEnhancement?.checked === true);
+  setConfigEnabled(document.getElementById('listVideoPreviewConfig') as HTMLElement | null, host.enableListVideoPreview?.checked === true);
+  setConfigEnabled(document.getElementById('actorWatermarkConfig') as HTMLElement | null, host.enableActorWatermark?.checked === true);
+  setConfigEnabled(document.getElementById('actorEnhancementConfig') as HTMLElement | null, host.enableActorEnhancement?.checked === true);
+  setConfigEnabled(document.getElementById('actorTimeSegmentationConfig') as HTMLElement | null, host.aeEnableTimeSegmentationDivider?.checked === true);
+  setConfigEnabled(document.getElementById('passwordHelperConfig') as HTMLElement | null, host.enablePasswordHelper?.checked === true);
+
+  const reviewEnhancementConfig = document.getElementById('reviewEnhancementConfig');
+  if (reviewEnhancementConfig) {
+    const enabled = host.veEnableReviewEnhancement?.checked === true;
+    setConfigEnabled(reviewEnhancementConfig, enabled);
   }
 
-  const actorAutoApplyConfig = document.getElementById('actorAutoApplyConfig');
-  if (actorAutoApplyConfig) {
-    actorAutoApplyConfig.setAttribute('data-enabled', host.enableAutoApplyTags?.checked ? '1' : '0');
-    actorAutoApplyConfig.style.display = 'block';
-  }
-
-  const popularityEffectsConfig = document.getElementById('popularityEffectsConfig');
-  if (popularityEffectsConfig) {
-    popularityEffectsConfig.setAttribute('data-enabled', host.enablePopularityEffects?.checked ? '1' : '0');
-    popularityEffectsConfig.style.display = 'block';
-  }
+  setConfigEnabled(document.getElementById('actorAutoApplyConfig') as HTMLElement | null, host.enableAutoApplyTags?.checked === true);
+  setConfigEnabled(document.getElementById('popularityEffectsConfig') as HTMLElement | null, host.enablePopularityEffects?.checked === true);
 }
 
 export function handleSettingChange(host: EnhancementTogglesHost): void {
