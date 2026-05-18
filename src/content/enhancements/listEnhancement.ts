@@ -40,6 +40,11 @@ export interface ListEnhancementConfig {
   };
   // 🆕 状态标签显示
   showStatusBadge?: boolean; // 是否在列表卡片上显示状态标签（已观看/想看/已浏览）
+  // 🆕 影片热度特效
+  popularityEffects?: {
+    enabled: boolean;    minRating: number;
+    minRatingCount: number;
+  };
 }
 
 interface VideoPreviewSource {
@@ -80,6 +85,10 @@ class ListEnhancementManager {
     },
     // 🆕 状态标签显示默认配置
     showStatusBadge: true, // 默认启用状态标签显示
+    popularityEffects: {
+      enabled: false,      minRating: 4,
+      minRatingCount: 350,
+    },
   };
   
   // 保存上一次的列表显示控制配置，用于检测变化
@@ -105,6 +114,7 @@ class ListEnhancementManager {
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存有效期
   // 演员水印样式注入标记
   private watermarkStylesInjected = false;
+  private popularityStylesInjected = false;
 
   updateConfig(newConfig: Partial<ListEnhancementConfig>): void {
     const oldConfig = { ...this.config };
@@ -170,6 +180,164 @@ class ListEnhancementManager {
           enableContainerExpansion: currentControl.enableContainerExpansion ?? false
         };
       }
+    }
+
+    const popularityChanged = JSON.stringify(oldConfig.popularityEffects || null) !== JSON.stringify(this.config.popularityEffects || null);
+    if (popularityChanged) {
+      this.ensurePopularityStyles();
+      this.reapplyPopularityEffects();
+    }
+  }
+
+  private ensurePopularityStyles(): void {
+    const currentConfig = this.config.popularityEffects;
+    const existingStyle = document.getElementById('x-popularity-effects-style');
+
+    if (!currentConfig?.enabled) {
+      existingStyle?.remove();
+      this.popularityStylesInjected = false;
+      return;
+    }
+
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+
+    const style = document.createElement('style');
+    style.id = 'x-popularity-effects-style';
+    style.textContent = `
+      .movie-list .item[data-popularity-level] {
+        position: relative;
+        isolation: isolate;
+      }
+
+      .movie-list .item[data-popularity-level] > .box {
+        position: relative;
+        z-index: 1;
+        overflow: visible !important;
+        transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+      }
+
+      .movie-list .item[data-popularity-level]::before,
+      .movie-list .item[data-popularity-level]::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 16px;
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      .movie-list .item[data-popularity-effect='fire']::before,
+      .movie-list .item[data-popularity-effect='fire']::after {
+        opacity: 1;
+      }
+
+      .movie-list .item[data-popularity-effect='fire']::before {
+        border: 3px solid rgba(255,186,64,0.92);
+        box-shadow:
+          0 0 0 0 rgba(255,152,0,0.24),
+          0 0 0 0 rgba(255,111,0,0.16),
+          0 0 0 0 rgba(244,81,30,0.1);
+        animation: x-popularity-fire-ripple-a 4.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+      }
+
+      .movie-list .item[data-popularity-effect='fire']::after {
+        border: 2px solid rgba(255,224,130,0.78);
+        animation: x-popularity-fire-ripple-b 4.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite 0.36s;
+      }
+
+      .movie-list .item[data-popularity-effect='fire'] > .box {
+        transform: translateY(-1px);
+        box-shadow: 0 0 0 2px rgba(255,186,64,0.3);
+      }
+
+      @keyframes x-popularity-fire-ripple-a {
+        0% {
+          inset: -2px;
+          opacity: 0.88;
+          box-shadow: 0 0 0 0 rgba(255,193,7,0.28), 0 0 16px rgba(255,152,0,0.22);
+        }
+        70% {
+          inset: -11px;
+          opacity: 0.16;
+          box-shadow: 0 0 0 8px rgba(255,152,0,0.16), 0 0 30px rgba(255,111,0,0.18);
+        }
+        100% {
+          inset: -19px;
+          opacity: 0;
+          box-shadow: 0 0 0 10px rgba(255,111,0,0), 0 0 0 rgba(244,81,30,0);
+        }
+      }
+
+      @keyframes x-popularity-fire-ripple-b {
+        0% {
+          inset: 0;
+          opacity: 0;
+        }
+        25% {
+          inset: -2px;
+          opacity: 0.68;
+        }
+        75% {
+          inset: -15px;
+          opacity: 0.14;
+        }
+        100% {
+          inset: -20px;
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    this.popularityStylesInjected = true;
+  }
+
+  private reapplyPopularityEffects(): void {
+    const items = document.querySelectorAll('.movie-list .item');
+    items.forEach(item => this.applyPopularityEffect(item as HTMLElement));
+  }
+
+  private extractRatingStats(item: HTMLElement): { score: number | null; count: number | null } {
+    const scoreText = item.querySelector('.score .value')?.textContent || item.querySelector('.score')?.textContent || '';
+    const countMatch = scoreText.match(/由\s*(\d+)\s*人評價|由\s*(\d+)\s*人评价|\b(\d+)\s*人評價|\b(\d+)\s*人评价/i);
+    const scoreMatch = scoreText.match(/([0-5](?:\.\d+)?)\s*分/i);
+
+    const rawCount = countMatch ? (countMatch[1] || countMatch[2] || countMatch[3] || countMatch[4]) : '';
+    const rawScore = scoreMatch ? scoreMatch[1] : '';
+
+    const count = rawCount ? parseInt(rawCount, 10) : null;
+    const score = rawScore ? parseFloat(rawScore) : null;
+
+    return {
+      score: Number.isFinite(score as number) ? score : null,
+      count: Number.isFinite(count as number) ? count : null,
+    };
+  }
+
+  private applyPopularityEffect(item: HTMLElement): void {
+    const config = this.config.popularityEffects;
+    item.removeAttribute('data-popularity-effect');
+    item.removeAttribute('data-popularity-level');
+    item.removeAttribute('data-popularity-count');
+
+    if (!config?.enabled) {
+      return;
+    }
+
+    const stats = this.extractRatingStats(item);
+    if (stats.count === null || stats.score === null) {
+      return;
+    }
+
+    item.setAttribute('data-popularity-count', String(stats.count));
+    item.setAttribute('data-popularity-score', String(stats.score));
+    if (
+      stats.count >= config.minRatingCount &&
+      stats.score >= config.minRating
+    ) {
+      item.setAttribute('data-popularity-effect', 'fire');
+      item.setAttribute('data-popularity-level', '1');
     }
   }
 
@@ -725,6 +893,9 @@ class ListEnhancementManager {
       this.ensureWatermarkStyles();
     }
 
+    this.ensurePopularityStyles();
+    this.reapplyPopularityEffects();
+
     log('List enhancement initialized successfully');
   }
 
@@ -838,6 +1009,8 @@ class ListEnhancementManager {
     if (this.config.enableActorWatermark) {
       this.applyActorWatermark(item, videoInfo).catch(err => log('Actor watermark error:', err));
     }
+
+    this.applyPopularityEffect(item);
 
     // 基于演员偏好的隐藏（黑名单/未收藏）
     this.applyActorBasedHiding(item, videoInfo).catch(err => log('Actor-based hiding error:', err));
