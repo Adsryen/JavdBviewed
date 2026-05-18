@@ -308,6 +308,10 @@ export async function dbMagnetPushLogsClear(beforeMs?: number): Promise<void> {
   await sendMessage('DB:MAGNET_PUSH_LOGS_CLEAR', { beforeMs });
 }
 
+export async function dbMagnetPushLogsBulkAdd(entries: MagnetPushLogEntry[]): Promise<void> {
+  await sendMessage('DB:MAGNET_PUSH_LOGS_BULK', { entries });
+}
+
 export async function dbMagnetPushLogsExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:MAGNET_PUSH_LOGS_EXPORT');
   return (resp as any).json || '[]';
