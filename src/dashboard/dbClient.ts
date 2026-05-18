@@ -39,6 +39,7 @@ function getDefaultTimeoutMs(type: string): number {
     case 'DB:VIEWED_QUERY':
       return 22000;
     case 'DB:LOGS_QUERY':
+    case 'DB:MAGNET_PUSH_LOGS_QUERY':
       return 12000;
     default:
       return 8000;
@@ -278,6 +279,38 @@ export async function dbLogsExport(): Promise<string> {
   const resp = await sendMessage<{ success: true; json: string }>('DB:LOGS_EXPORT');
   // @ts-ignore
   return resp.json || '[]';
+}
+
+export interface MagnetPushLogEntry extends LogEntry {
+  id?: number;
+  type: 'push_start' | 'push_success' | 'push_failed';
+  videoId: string;
+  timestampMs: number;
+}
+
+export interface MagnetPushLogsQueryParams {
+  type?: 'push_start' | 'push_success' | 'push_failed' | 'ALL';
+  fromMs?: number;
+  toMs?: number;
+  offset?: number;
+  limit?: number;
+  order?: 'asc' | 'desc';
+  query?: string;
+  status?: 'ALL' | 'SUCCESS' | 'FAILED';
+}
+
+export async function dbMagnetPushLogsQuery(params: MagnetPushLogsQueryParams): Promise<{ items: MagnetPushLogEntry[]; total: number }>{
+  const resp = await sendMessage<{ success: true; items: MagnetPushLogEntry[]; total: number }>('DB:MAGNET_PUSH_LOGS_QUERY', params);
+  return { items: resp.items || [], total: resp.total || 0 } as any;
+}
+
+export async function dbMagnetPushLogsClear(beforeMs?: number): Promise<void> {
+  await sendMessage('DB:MAGNET_PUSH_LOGS_CLEAR', { beforeMs });
+}
+
+export async function dbMagnetPushLogsExport(): Promise<string> {
+  const resp = await sendMessage<{ success: true; json: string }>('DB:MAGNET_PUSH_LOGS_EXPORT');
+  return (resp as any).json || '[]';
 }
 
 export async function dbMagnetsQuery(params: MagnetsQueryParams): Promise<{ items: MagnetCacheRecord[]; total: number }>{

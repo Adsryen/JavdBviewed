@@ -1,4 +1,5 @@
 import { getValue, setValue } from '../../utils/storage';
+import { dbMagnetPushLogsAdd } from '../../content/dbClient';
 import type { Drive115LogEntryUnified, Drive115LogType, Drive115PushContext } from './types';
 
 
@@ -38,11 +39,25 @@ export class Drive115AppLogger {
     try {
       await Promise.all([
         this.logToLocal(entry),
+        this.logToDedicatedMagnetPool(entry),
         this.logToGlobal(type, message, { videoId, ...data })
       ]);
     } catch (error) {
       console.error('记录115日志失败:', error);
     }
+  }
+
+  private async logToDedicatedMagnetPool(entry: Drive115LogEntryUnified): Promise<void> {
+    if (!(entry.type === 'push_start' || entry.type === 'push_success' || entry.type === 'push_failed')) return;
+    try {
+      await dbMagnetPushLogsAdd({
+        type: entry.type,
+        videoId: entry.videoId,
+        message: entry.message,
+        timestamp: entry.timestamp,
+        data: entry.data,
+      });
+    } catch {}
   }
 
   private async logToLocal(entry: Drive115LogEntryUnified): Promise<void> {

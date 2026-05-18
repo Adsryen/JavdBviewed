@@ -242,8 +242,8 @@ export class LoggingSettings extends BaseSettingsPanel {
         const logging = settings?.logging || {};
 
         // 日志配置设置
-        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 5000);
-        this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries || 5000);
+        this.maxLogEntries.value = String((logging as any).maxLogEntries || (logging as any).maxEntries || 10000);
+        this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries || 10000);
         this.verboseMode.checked = logging.verboseMode || false;
         this.showPrivacyLogs.checked = logging.showPrivacyLogs || false;
         this.showStorageLogs.checked = logging.showStorageLogs || false;
@@ -319,8 +319,8 @@ export class LoggingSettings extends BaseSettingsPanel {
                 ...STATE.settings,
                 logging: {
                     ...STATE.settings?.logging,
-                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 5000,
-                    maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 5000,
+                    maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
+                    maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 10000,
                     verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                     showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                     showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
@@ -423,8 +423,8 @@ export class LoggingSettings extends BaseSettingsPanel {
 
         return {
             logging: {
-                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 5000,
-                maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 5000,
+                maxLogEntries: this.maxLogEntries ? parseInt(this.maxLogEntries.value, 10) : 10000,
+                maxMagnetPushEntries: this.maxMagnetPushEntries ? parseInt(this.maxMagnetPushEntries.value, 10) : 10000,
                 verboseMode: this.verboseMode ? this.verboseMode.checked : false,
                 showPrivacyLogs: this.showPrivacyLogs ? this.showPrivacyLogs.checked : false,
                 showStorageLogs: this.showStorageLogs ? this.showStorageLogs.checked : false,
@@ -454,7 +454,7 @@ export class LoggingSettings extends BaseSettingsPanel {
                 this.maxLogEntries.value = String((logging as any).maxLogEntries ?? (logging as any).maxEntries);
             }
             if ((logging as any).maxMagnetPushEntries !== undefined) {
-                this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries ?? 5000);
+                this.maxMagnetPushEntries.value = String((logging as any).maxMagnetPushEntries ?? 10000);
             }
             if (logging.verboseMode !== undefined) {
                 this.verboseMode.checked = logging.verboseMode;
@@ -579,8 +579,8 @@ export class LoggingSettings extends BaseSettingsPanel {
      */
     private handleConsoleResetDefault(): void {
         if (this.consoleLevel) this.consoleLevel.value = 'INFO' as any;
-        if (this.maxLogEntries) this.maxLogEntries.value = '5000';
-        if (this.maxMagnetPushEntries) this.maxMagnetPushEntries.value = '5000';
+        if (this.maxLogEntries) this.maxLogEntries.value = '10000';
+        if (this.maxMagnetPushEntries) this.maxMagnetPushEntries.value = '10000';
         if (this.logModuleCore) this.logModuleCore.checked = true;
         if (this.logModuleOrchestrator) this.logModuleOrchestrator.checked = true;
         if (this.logModuleStorage) this.logModuleStorage.checked = true;

@@ -255,7 +255,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     ],
     logging: {
         maxLogEntries: 5000,
-        maxMagnetPushEntries: 5000,
+        maxMagnetPushEntries: 10000,
         verboseMode: false, // 详细日志模式（默认关闭以减少噪音）
         showPrivacyLogs: false, // 显示隐私相关日志（默认关闭）
         showStorageLogs: false, // 显示存储相关日志（默认关闭）

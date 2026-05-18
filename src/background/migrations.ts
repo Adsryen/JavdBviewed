@@ -1,7 +1,7 @@
 // src/background/migrations.ts
 // 迁移与周期任务（如磁链清理）
 
-import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from './db';
+import { initDB, viewedBulkPut as idbViewedBulkPut, viewedCount as idbViewedCount, magnetsClearExpired as idbMagnetsClearExpired, logsBulkAdd as idbLogsBulkAdd, magnetPushLogsBulkAdd as idbMagnetPushLogsBulkAdd, actorsBulkPut as idbActorsBulkPut } from './db';
 import { getValue, setValue } from '../utils/storage';
 import { STORAGE_KEYS } from '../utils/config';
 
@@ -49,10 +49,38 @@ async function ensureIDBLogsMigrated(): Promise<void> {
   }
 }
 
+async function ensureMagnetPushLogsMigrated(): Promise<void> {
+  try {
+    await initDB();
+    const migrated = await getValue<boolean>('idb_magnet_push_logs_migrated' as any, false);
+    if (migrated) return;
+
+    const oldLogs = await getValue<any[]>('drive115_logs' as any, []);
+    if (Array.isArray(oldLogs) && oldLogs.length > 0) {
+      const mapped = oldLogs
+        .filter((item: any) => item && (item.type === 'push_start' || item.type === 'push_success' || item.type === 'push_failed'))
+        .map((item: any) => ({
+          type: item.type,
+          videoId: String(item.videoId || ''),
+          message: String(item.message || ''),
+          timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
+          data: item.data,
+        }));
+      if (mapped.length > 0) {
+        try { await idbMagnetPushLogsBulkAdd(mapped as any); } catch {}
+      }
+    }
+    await setValue('idb_magnet_push_logs_migrated' as any, true);
+  } catch (e) {
+    console.warn('[Background] Magnet push logs migration failed (will not block extension)', (e as any)?.message);
+  }
+}
+
 export function ensureMigrationsStart(): void {
   // fire-and-forget on startup/wakeup
   try { ensureIDBMigrated(); } catch {}
   try { ensureIDBLogsMigrated(); } catch {}
+  try { ensureMagnetPushLogsMigrated(); } catch {}
   try { ensureIDBActorsMigrated(); } catch {}
 
   // Best-effort: 清理过期的磁链缓存

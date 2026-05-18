@@ -132,3 +132,7 @@ export interface LogEntry {
 export async function dbLogsAdd(entry: LogEntry): Promise<void> {
   await sendMessage('DB:LOGS_ADD', { entry });
 }
+
+export async function dbMagnetPushLogsAdd(entry: any): Promise<void> {
+  await sendMessage('DB:MAGNET_PUSH_LOGS_ADD', { entry });
+}
