@@ -87,6 +87,7 @@ export function toggleConfigSections(host: EnhancementTogglesHost): void {
 }
 
 export function handleSettingChange(host: EnhancementTogglesHost): void {
+  toggleConfigSections(host);
   host.emit('change');
   host.scheduleAutoSave();
 }

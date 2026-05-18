@@ -909,22 +909,34 @@ export async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
         const timeoutGuard = createTaskTimeoutGuard(taskTimeoutMs);
         const mode = (((STATE.settings as any)?.videoEnhancement?.actorRemarksMode) === 'inline') ? 'inline' : 'panel';
 
-        // 等待演员链接出现（页面结构可能变动，避免过早执行导致无效果）
-        const firstActorLink = await waitForElement('a[href^="/actors/"]', timeoutGuard.timeoutMs > 0 ? Math.min(8000, timeoutGuard.timeoutMs) : 8000, 200);
+        // 影片详情页里 /actors/ 链接很多，先锁定演员区块，再读取该区块内演员链接
+        const firstActorLink = await waitForElement(
+            '.movie-panel-info a[href^="/actors/"]',
+            timeoutGuard.timeoutMs > 0 ? Math.min(8000, timeoutGuard.timeoutMs) : 8000,
+            200,
+        );
         if (!firstActorLink) {
             log('actorRemarks: no actor links found (timeout)');
             return;
         }
 
-        const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="/actors/"]'));
-        if (!links.length) {
-            log('actorRemarks: no actor links found (empty)');
+        const actorBlock =
+            Array.from(document.querySelectorAll<HTMLElement>('.movie-panel-info .panel-block'))
+                .find((block) => block.querySelector('a[href^="/actors/"]'))
+            || firstActorLink.closest<HTMLElement>('.panel-block')
+            || (firstActorLink.parentElement as HTMLElement | null);
+        if (!actorBlock) {
+            log('actorRemarks: actor container not found');
             return;
         }
 
-        const actorBlock = links[0].closest<HTMLElement>('.panel-block') || (links[0].parentElement as HTMLElement | null);
-        if (!actorBlock) {
-            log('actorRemarks: actor container not found');
+        const links = Array.from(actorBlock.querySelectorAll<HTMLAnchorElement>('a[href^="/actors/"]'))
+            .filter((a) => {
+                const name = (a.textContent || '').trim();
+                return Boolean(name) && !['有碼', '無碼', '无码', '歐美'].includes(name);
+            });
+        if (!links.length) {
+            log('actorRemarks: no actor links found (empty)');
             return;
         }
 
@@ -1019,38 +1031,38 @@ export async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             const wikiUrl = data?.wikiUrl || `https://ja.wikipedia.org/wiki/${encodeURIComponent(name)}`;
             const xslistUrl = (data as any)?.xslistUrl || `https://xslist.org/search?query=${encodeURIComponent(name)}&lg=zh`;
 
-            if (mode === 'inline') {
-                // 只移除当前演员 a 后面紧挨着的备注，避免同一父节点下互相覆盖
-                const existing = a.nextElementSibling as HTMLElement | null;
-                if (existing?.classList?.contains('jdb-actor-remarks-inline')) existing.remove();
+            // 详情页始终在演员名旁边给出可见反馈；panel 模式再额外渲染汇总面板
+            const existing = a.nextElementSibling as HTMLElement | null;
+            if (existing?.classList?.contains('jdb-actor-remarks-inline')) existing.remove();
 
-                const wrap = document.createElement('span');
-                wrap.className = 'jdb-actor-remarks-inline';
-                wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:6px;';
+            const wrap = document.createElement('span');
+            wrap.className = 'jdb-actor-remarks-inline';
+            wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:6px;vertical-align:middle;';
 
-                if (badgeText) {
-                    const infoEl = document.createElement('span');
-                    infoEl.textContent = badgeText;
-                    infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
-                    wrap.appendChild(infoEl);
-                } else {
-                    const link1 = document.createElement('a');
-                    link1.href = wikiUrl;
-                    link1.target = '_blank';
-                    link1.textContent = 'Wiki';
-                    link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
-                    wrap.appendChild(link1);
-
-                    const link2 = document.createElement('a');
-                    link2.href = xslistUrl;
-                    link2.target = '_blank';
-                    link2.textContent = 'xslist';
-                    link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
-                    wrap.appendChild(link2);
-                }
-
-                a.insertAdjacentElement('afterend', wrap);
+            if (badgeText) {
+                const infoEl = document.createElement('span');
+                infoEl.textContent = badgeText;
+                infoEl.style.cssText = 'background:#ffedd5;color:#7c2d12;padding:1px 6px;border-radius:999px;font-size:12px;line-height:18px;';
+                wrap.appendChild(infoEl);
             } else {
+                const link1 = document.createElement('a');
+                link1.href = wikiUrl;
+                link1.target = '_blank';
+                link1.textContent = 'Wiki';
+                link1.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                wrap.appendChild(link1);
+
+                const link2 = document.createElement('a');
+                link2.href = xslistUrl;
+                link2.target = '_blank';
+                link2.textContent = 'xslist';
+                link2.style.cssText = 'color:#b45309;text-decoration:underline;font-size:12px;';
+                wrap.appendChild(link2);
+            }
+
+            a.insertAdjacentElement('afterend', wrap);
+
+            if (mode === 'panel') {
                 const panel = ensurePanel();
 
                 const row = document.createElement('div');
@@ -1093,7 +1105,7 @@ export async function runActorRemarksQuick(timeoutMs?: number): Promise<void> {
             }
         }
 
-        log('actorRemarks: done', { mode, rendered: renderedCount });
+        log('actorRemarks: done', { mode, rendered: renderedCount, panelPresent: Boolean(document.getElementById('enhanced-actor-remarks')), inlinePresent: Boolean(document.querySelector('.jdb-actor-remarks-inline')) });
     } catch (e) {
         log('actorRemarks: failed', e);
     }
