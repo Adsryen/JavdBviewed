@@ -17,6 +17,7 @@ import { initializeElements } from './binding/enhancementInit';
 import { bindEvents } from './binding/enhancementBindEvents';
 import { doLoadSettings } from './settings/enhancementLoad';
 import { doGetSettings, doSetSettings } from './settings/enhancementSettingsSync';
+import { mergeEnhancementSettingsForSave } from './settings/enhancementSettingsMerge';
 import { initEnhancementToggles, toggleConfigSections, handleSettingChange } from './settings/enhancementToggles';
 import { setupSubSettingsHoverBehavior, handleSubSettingsToggle, updateAllToggleStates } from './ui/enhancementHover';
 import { updateTranslationConfigVisibility, onTranslationProviderChange, onTraditionalServiceChange, applyTranslationProviderUI, updateAiCurrentModelUI, navigateToAISettings } from './translation/enhancementTranslation';
@@ -713,6 +714,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
      */
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
+            const mergedEnhancementSettings = mergeEnhancementSettingsForSave(STATE.settings, this);
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 // 磁力资源搜索设置保存
@@ -804,39 +806,7 @@ export class EnhancementSettings extends BaseSettingsPanel {
                     showPreviewButton: this.showPreviewButton?.checked !== false,
                     buttonPosition: (this.anchorButtonPosition?.value as 'right-center' | 'right-bottom') || 'right-center',
                 },
-                listEnhancement: {
-                    enabled: this.enableListEnhancement.checked,
-                    enableClickEnhancement: this.enableClickEnhancement?.checked !== false,
-                    enableClickEnhancementList: this.enableClickEnhancementList?.checked !== false,
-                    enableClickEnhancementDetail: this.enableClickEnhancementDetail?.checked !== false,
-                    enableVideoPreview: this.enableListVideoPreview?.checked !== false,
-                    // 🆕 视频预览启用范围
-                    enableVideoPreviewList: this.enableVideoPreviewList?.checked !== false,
-                    enableVideoPreviewDetail: this.enableVideoPreviewDetail?.checked !== false,
-                    enableScrollPaging: this.enableScrollPaging?.checked === true,
-                    enableListOptimization: true, // 总是启用列表优化
-                    previewDelay: parseInt(this.previewDelay?.value || '1000', 10),
-                    previewVolume: parseFloat(this.previewVolume?.value || '0.2'),
-                    enableRightClickBackground: true, // 总是启用右键后台打开
-                    preferredPreviewSource: this.getPreferredPreviewSource(),
-                    enableActorWatermark: this.enableActorWatermark?.checked === true,
-                    actorWatermarkPosition: (this.actorWatermarkPosition?.value as any) || 'top-right',
-                    actorWatermarkOpacity: parseFloat(this.actorWatermarkOpacity?.value || '0.8'),
-                    // 🆕 列表显示控制
-                    listDisplayControl: {
-                        enabled: true, // 默认启用
-                        columnCount: parseInt(this.listColumnCount?.value || '4'),
-                        containerWidth: parseInt(this.listContainerWidth?.value || '100'),
-                        enableContainerExpansion: this.enableContainerExpansion?.checked === true,
-                    },
-                    // 🆕 状态标签显示
-                    showStatusBadge: this.showStatusBadge?.checked !== false, // 默认启用
-                    popularityEffects: {
-                        enabled: this.enablePopularityEffects?.checked === true,
-                        minRating: Math.max(0, Math.min(5, parseFloat(this.popularityMinRating?.value || '4') || 4)),
-                        minRatingCount: Math.max(0, parseInt(this.popularityMinRatingCount?.value || '350', 10) || 350),
-                    },
-                },
+                listEnhancement: mergedEnhancementSettings.listEnhancement,
                 actorEnhancement: {
                     // 演员页增强运行总开关与主开关保持一致
                     enabled: this.enableActorEnhancement.checked,

@@ -95,6 +95,26 @@ export async function doLoadSettings(host: EnhancementLoadHost): Promise<void> {
   if (host.veEnableVideoFavoriteRating) host.veEnableVideoFavoriteRating.checked = (ve as any).enableVideoFavoriteRating !== false;
   if (host.enableActorQuickActions) host.enableActorQuickActions.checked = (ve as any).enableActorQuickActions !== false;
 
+  if (host.previewVolume && typeof listEnhancement.previewVolume === 'number') host.previewVolume.value = String(listEnhancement.previewVolume);
+  if (host.previewVolumeValue && typeof listEnhancement.previewVolume === 'number') host.previewVolumeValue.textContent = `${Math.round(listEnhancement.previewVolume * 100)}%`;
+  if (host.enableClickEnhancement && typeof listEnhancement.enableClickEnhancement === 'boolean') host.enableClickEnhancement.checked = listEnhancement.enableClickEnhancement;
+  if (host.enableClickEnhancementList && typeof (listEnhancement as any).enableClickEnhancementList === 'boolean') host.enableClickEnhancementList.checked = (listEnhancement as any).enableClickEnhancementList;
+  if (host.enableClickEnhancementDetail && typeof (listEnhancement as any).enableClickEnhancementDetail === 'boolean') host.enableClickEnhancementDetail.checked = (listEnhancement as any).enableClickEnhancementDetail;
+  if (host.enableListVideoPreview && typeof listEnhancement.enableVideoPreview === 'boolean') host.enableListVideoPreview.checked = listEnhancement.enableVideoPreview;
+  if (host.enableVideoPreviewList && typeof (listEnhancement as any).enableVideoPreviewList === 'boolean') host.enableVideoPreviewList.checked = (listEnhancement as any).enableVideoPreviewList;
+  if (host.enableVideoPreviewDetail && typeof (listEnhancement as any).enableVideoPreviewDetail === 'boolean') host.enableVideoPreviewDetail.checked = (listEnhancement as any).enableVideoPreviewDetail;
+  if (host.enableScrollPaging && typeof listEnhancement.enableScrollPaging === 'boolean') host.enableScrollPaging.checked = listEnhancement.enableScrollPaging;
+  if (host.enableActorWatermark && typeof (listEnhancement as any).enableActorWatermark === 'boolean') host.enableActorWatermark.checked = (listEnhancement as any).enableActorWatermark;
+  if (host.actorWatermarkPosition && (listEnhancement as any).actorWatermarkPosition) host.actorWatermarkPosition.value = (listEnhancement as any).actorWatermarkPosition;
+  if (host.actorWatermarkOpacity && typeof (listEnhancement as any).actorWatermarkOpacity === 'number') host.actorWatermarkOpacity.value = String((listEnhancement as any).actorWatermarkOpacity);
+  if (host.listColumnCount && typeof (listEnhancement as any).listDisplayControl?.columnCount === 'number') host.listColumnCount.value = String((listEnhancement as any).listDisplayControl.columnCount);
+  if (host.listContainerWidth && typeof (listEnhancement as any).listDisplayControl?.containerWidth === 'number') host.listContainerWidth.value = String((listEnhancement as any).listDisplayControl.containerWidth);
+  if (host.enableContainerExpansion && typeof (listEnhancement as any).listDisplayControl?.enableContainerExpansion === 'boolean') host.enableContainerExpansion.checked = (listEnhancement as any).listDisplayControl.enableContainerExpansion;
+  if (host.showStatusBadge && typeof (listEnhancement as any).showStatusBadge === 'boolean') host.showStatusBadge.checked = (listEnhancement as any).showStatusBadge;
+  if (host.enablePopularityEffects && typeof (listEnhancement as any).popularityEffects?.enabled === 'boolean') host.enablePopularityEffects.checked = (listEnhancement as any).popularityEffects.enabled;
+  if (host.popularityMinRating && typeof (listEnhancement as any).popularityEffects?.minRating === 'number') host.popularityMinRating.value = String((listEnhancement as any).popularityEffects.minRating);
+  if (host.popularityMinRatingCount && typeof (listEnhancement as any).popularityEffects?.minRatingCount === 'number') host.popularityMinRatingCount.value = String((listEnhancement as any).popularityEffects.minRatingCount);
+
   const contentFilter = settings?.contentFilter || {};
   host.currentFilterRules = contentFilter?.keywordRules || [];
   host.renderFilterRules();
