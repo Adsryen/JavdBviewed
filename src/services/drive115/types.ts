@@ -7,7 +7,6 @@ export interface Drive115Settings {
   downloadDir: string;
   verifyCount: number;
   maxFailures: number;
-  autoNotify: boolean;
   v2AccessToken?: string;
   v2RefreshToken?: string;
   v2TokenExpiresAt?: number | null;
@@ -40,7 +39,6 @@ export interface OfflineDownloadOptions {
   magnetUrl: string;
   downloadDir?: string;
   autoVerify?: boolean;
-  notify?: boolean;
 }
 
 export interface BatchOfflineOptions {
@@ -51,7 +49,6 @@ export interface BatchOfflineOptions {
   downloadDir?: string;
   maxFailures?: number;
   autoVerify?: boolean;
-  notify?: boolean;
 }
 
 export interface OfflineDownloadResult {

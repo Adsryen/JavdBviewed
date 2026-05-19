@@ -382,6 +382,9 @@ export class Drive115TasksManager {
     const progress = task.percentDone || 0;
     const sizeText = this.formatSize(task.size || 0);
     const addTime = task.add_time ? new Date(task.add_time * 1000).toLocaleString() : '';
+    const copyBtn = task.url
+      ? `<button class="task-action-btn copy-url-btn" data-action="copy-url" data-url="${this.escapeAttr(task.url)}" title="复制下载链接"><i class="fas fa-copy"></i></button>`
+      : '';
 
     return `
       <div class="task-item" data-hash="${task.info_hash}">
@@ -407,12 +410,17 @@ export class Drive115TasksManager {
           <div class="progress-text">${progress}%</div>
         </div>
         <div class="task-actions">
+          ${copyBtn}
           <button class="task-action-btn delete-btn" data-action="delete" data-hash="${task.info_hash}" title="删除任务">
             <i class="fas fa-trash"></i>
           </button>
         </div>
       </div>
     `;
+  }
+
+  private escapeAttr(val: string): string {
+    return val.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 
   /** 绑定任务项事件 */
@@ -426,6 +434,34 @@ export class Drive115TasksManager {
         }
       });
     });
+
+    const copyButtons = this.container?.querySelectorAll('.copy-url-btn');
+    copyButtons?.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const url = (e.currentTarget as HTMLElement).dataset.url;
+        if (url) this.copyToClipboard(url);
+      });
+    });
+  }
+
+  private async copyToClipboard(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      this.showMessage('链接已复制', 'success');
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        this.showMessage('链接已复制', 'success');
+      } catch {
+        this.showMessage('复制失败，请手动复制', 'error');
+      }
+    }
   }
 
   /**

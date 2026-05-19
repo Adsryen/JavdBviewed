@@ -41,7 +41,6 @@ function mapRuntimeToLegacySettings(raw: any): Drive115Settings {
     downloadDir: normalized.downloadDir,
     verifyCount: normalized.verifyCount,
     maxFailures: normalized.maxFailures,
-    autoNotify: normalized.autoNotify,
     v2AccessToken: normalized.v2AccessToken,
     v2RefreshToken: normalized.v2RefreshToken,
     v2TokenExpiresAt: normalized.v2TokenExpiresAt,

@@ -345,6 +345,17 @@
   transform: scale(1.05);
 }
 
+.task-action-btn.copy-url-btn {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.task-action-btn.copy-url-btn:hover {
+  background: var(--primary);
+  color: var(--text-inverse);
+  transform: scale(1.05);
+}
+
 /* 分页控件 */
 .pagination {
   display: flex;
@@ -838,7 +849,12 @@
 }
 
 .drive115-tasks-page .task-item {
-  position: relative;
+  display: grid;
+  grid-template-areas:
+    "header  header"
+    "progress actions";
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
   gap: 9px;
   padding: 12px;
   border: 1px solid var(--d115-border);
@@ -853,6 +869,7 @@
 }
 
 .drive115-tasks-page .task-header {
+  grid-area: header;
   gap: 10px;
   margin-bottom: 0;
   align-items: center;
@@ -907,9 +924,10 @@
 }
 
 .drive115-tasks-page .task-progress {
+  grid-area: progress;
   gap: 10px;
   margin-bottom: 0;
-  padding-right: 44px;
+  align-self: center;
 }
 
 .drive115-tasks-page .progress-bar {
@@ -930,9 +948,8 @@
 }
 
 .drive115-tasks-page .task-actions {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
+  grid-area: actions;
+  align-self: center;
 }
 
 .drive115-tasks-page .task-action-btn {
@@ -945,6 +962,18 @@
 
 .drive115-tasks-page .task-action-btn.delete-btn:hover {
   background: var(--d115-danger);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.drive115-tasks-page .task-action-btn.copy-url-btn {
+  border-color: color-mix(in srgb, var(--d115-primary) 24%, var(--d115-border));
+  background: color-mix(in srgb, var(--d115-primary) 10%, transparent);
+  color: var(--d115-primary);
+}
+
+.drive115-tasks-page .task-action-btn.copy-url-btn:hover {
+  background: var(--d115-primary);
   color: #ffffff;
   transform: translateY(-1px);
 }
@@ -1229,7 +1258,7 @@
 }
 
 .drive115-folder-picker-modal {
-  width: min(760px, calc(100vw - 28px));
+  width: min(880px, calc(100vw - 28px));
   border: 1px solid var(--d115-border);
   border-radius: 18px;
   background:
@@ -1253,7 +1282,7 @@
 .drive115-folder-picker-modal .c-modal__body {
   display: grid;
   gap: 10px;
-  max-height: min(68vh, 620px);
+  max-height: min(74vh, 700px);
   padding-top: 0;
 }
 
@@ -1350,7 +1379,7 @@
   align-content: start;
   gap: 6px;
   min-height: 300px;
-  max-height: min(46vh, 420px);
+  max-height: min(52vh, 500px);
   padding: 7px;
   border-color: var(--d115-border);
   border-radius: 16px;
@@ -1513,14 +1542,5 @@
   .drive115-task-dir-summary {
     max-width: none;
     width: 100%;
-  }
-
-  .drive115-tasks-page .task-actions {
-    position: static;
-    justify-content: flex-end;
-  }
-
-  .drive115-tasks-page .task-progress {
-    padding-right: 0;
   }
 }

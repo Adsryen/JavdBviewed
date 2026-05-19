@@ -6,7 +6,6 @@ const DEFAULT_DRIVE115_RUNTIME_SETTINGS: NormalizedDrive115Settings = {
   downloadDir: '',
   verifyCount: 5,
   maxFailures: 5,
-  autoNotify: true,
   v2ApiBaseUrl: 'https://proapi.115.com',
   v2AuthMode: 'openlist_manual',
   v2ClientId: '',
@@ -34,7 +33,6 @@ export function normalizeDrive115Settings(raw: any): NormalizedDrive115Settings 
     downloadDir: String(raw?.downloadDir ?? raw?.defaultWpPathId ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.downloadDir),
     verifyCount: Number(raw?.verifyCount ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.verifyCount,
     maxFailures: Number(raw?.maxFailures ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures) || DEFAULT_DRIVE115_RUNTIME_SETTINGS.maxFailures,
-    autoNotify: raw?.autoNotify !== false,
     v2ApiBaseUrl: String(raw?.v2ApiBaseUrl ?? DEFAULT_DRIVE115_RUNTIME_SETTINGS.v2ApiBaseUrl),
     v2AuthMode: raw?.v2AuthMode === 'self_app'
       ? 'self_app'

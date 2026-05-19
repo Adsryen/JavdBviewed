@@ -2,7 +2,7 @@ import { getSettings, saveSettings } from '../utils/storage';
 import type { ExtensionSettings } from '../types';
 import { getDisplayVersionInfo } from '../utils/versionInfo';
 
-const DOCS_URL = 'https://javd-bviewed-docs.vercel.app/';
+const DOCS_URL = 'https://jbd.we-together.club/';
 
 // 安全获取设置，带重试机制
 async function getSettingsSafely(maxRetries = 3): Promise<ExtensionSettings | null> {

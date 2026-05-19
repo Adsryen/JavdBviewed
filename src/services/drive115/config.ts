@@ -9,7 +9,6 @@ export const DEFAULT_DRIVE115_SETTINGS: Drive115Settings = {
   downloadDir: '',
   verifyCount: 5,
   maxFailures: 5,
-  autoNotify: true,
   v2AccessToken: '',
   v2RefreshToken: '',
   v2TokenExpiresAt: null,
