@@ -413,8 +413,10 @@ async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
       refresh.style.borderRadius = 'var(--ins-row2-radius)';
       refresh.onclick = async () => {
         try {
+          await aiService.ready();
           const cfg = aiService.getSettings();
           if (!cfg.enabled) { setModelErrorBanner('AI 未启用，无法刷新模型'); try { showMessage('AI 未启用，无法刷新模型', 'error'); } catch {} return; }
+          if (!cfg.apiUrl || !cfg.apiKey) { setModelErrorBanner('AI API 地址或密钥未配置，无法刷新模型'); try { showMessage('AI API 地址或密钥未配置', 'error'); } catch {} return; }
           clearModelErrorBanner();
           const old = refresh.textContent || '';
           refresh.disabled = true;
@@ -489,6 +491,7 @@ async function ensureModelDropdown(): Promise<HTMLDivElement | null> {
     const refreshEl = document.getElementById('insights-model-refresh') as HTMLButtonElement | null;
     if (sel) {
       sel.innerHTML = '';
+      await aiService.ready();
       const aiCfg = aiService.getSettings();
       const follow = document.createElement('option');
       follow.value = '';

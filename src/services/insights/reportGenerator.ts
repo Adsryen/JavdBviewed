@@ -379,6 +379,7 @@ export function mergeFields(base: Record<string, string>, ai: Record<string, str
  */
 export async function generateReportHTML({ templateHTML, stats, baseFields, modelOverride }: GenerateReportHTMLParams): Promise<string> {
   try {
+    await aiService.ready();
     const settings = aiService.getSettings();
     const effectiveModel = (typeof modelOverride === 'string' && modelOverride.trim())
       ? modelOverride.trim()

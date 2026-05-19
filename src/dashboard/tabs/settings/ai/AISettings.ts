@@ -268,6 +268,7 @@ export class AISettingsPanel extends BaseSettingsPanel {
      */
     protected async doLoadSettings(): Promise<void> {
         try {
+            await aiService.ready();
             // 从AI服务获取设置
             this.aiSettings = aiService.getSettings();
 
