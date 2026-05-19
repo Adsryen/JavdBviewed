@@ -7,23 +7,58 @@
         <p class="settings-description">高级用户可以在此处查看和编辑原始配置数据。</p>
     </div>
     <div class="settings-page-body">
-        <div class="settings-section settings-card">
-            <h4>原始设置 (JSON)</h4>
-            <div class="action-buttons-top">
-                <button id="viewJsonBtn" class="btn">查看设置</button>
-                <button id="editJsonBtn" class="btn">编辑设置</button>
-                <button id="exportJsonBtn" class="btn">导出完整备份</button>
+        <div class="settings-section advanced-hero">
+            <div class="advanced-hero-card">
+                <div class="advanced-hero-main">
+                    <div>
+                        <span class="advanced-eyebrow">Advanced Console</span>
+                        <h4>原始配置工作台</h4>
+                        <p class="advanced-hero-copy">这里提供原始 JSON 配置查看、编辑和完整备份导出。编辑配置会直接影响扩展行为。</p>
+                    </div>
+                    <div class="advanced-hero-actions">
+                        <button id="viewJsonBtn" class="btn">查看设置</button>
+                        <button id="editJsonBtn" class="btn warning">编辑设置</button>
+                        <button id="exportJsonBtn" class="btn primary">导出完整备份</button>
+                    </div>
+                </div>
+
+                <div class="advanced-warning-strip">
+                    <span class="advanced-warning-icon">⚠️</span>
+                    <span>编辑 JSON 前建议先导出完整备份，避免配置结构错误影响使用。</span>
+                </div>
             </div>
-            <p class="section-description">查看和编辑扩展的原始配置数据，支持JSON格式导入导出。</p>
         </div>
 
-        <div class="settings-section settings-card">
-            <h4>原始日志 (Raw Logs)</h4>
-            <div class="action-buttons-top">
-                <button id="viewRawLogsBtn" class="btn">查看日志</button>
-                <button id="testLogBtn" class="btn">测试日志</button>
+        <div class="advanced-tools-grid">
+            <div class="settings-section settings-card advanced-tool-card logs-tool">
+                <div class="advanced-tool-header">
+                    <span class="advanced-tool-icon">📜</span>
+                    <div>
+                        <h4>原始日志</h4>
+                        <p>查看扩展运行日志，用于定位异常和排查问题。</p>
+                    </div>
+                </div>
+                <div class="action-buttons-top">
+                    <button id="viewRawLogsBtn" class="btn">查看日志</button>
+                    <button id="testLogBtn" class="btn">测试日志</button>
+                </div>
+                <p class="section-description">日志查看为只读操作，测试日志会写入一条新的诊断日志。</p>
             </div>
-            <p class="section-description">查看扩展运行时产生的详细日志信息，用于调试和问题排查。</p>
+
+            <div class="settings-section settings-card advanced-tool-card backup-tool">
+                <div class="advanced-tool-header">
+                    <span class="advanced-tool-icon">🧩</span>
+                    <div>
+                        <h4>使用建议</h4>
+                        <p>高级功能适合调试、迁移和恢复配置时使用。</p>
+                    </div>
+                </div>
+                <div class="advanced-note-list">
+                    <span>先备份，再编辑。</span>
+                    <span>修改 JSON 后刷新页面确认配置生效。</span>
+                    <span>排查问题时先导出日志和完整备份。</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
