@@ -15,6 +15,310 @@
     gap: 8px;
 }
 
+/* ===================================================================
+   番号库现代化覆盖 - Records Page Modern Overrides
+   ================================================================ */
+
+.records-page {
+    --records-primary: #2563eb;
+    --records-info: #0891b2;
+    --records-success: #059669;
+    --records-warning: #d97706;
+    --records-danger: #dc2626;
+    --records-card: color-mix(in srgb, var(--surface-primary) 92%, #ffffff 8%);
+    --records-soft: color-mix(in srgb, var(--surface-secondary) 88%, #ffffff 12%);
+    --records-border: color-mix(in srgb, var(--border-primary) 78%, transparent);
+    --records-muted: var(--text-secondary);
+    --records-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    --records-shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+    position: relative;
+    overflow: visible;
+    padding: 14px !important;
+    border: 1px solid var(--records-border);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.10), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(8, 145, 178, 0.12), transparent 30%),
+        var(--surface-primary);
+}
+
+#tab-records .card.records-page {
+    padding: 14px !important;
+}
+
+[data-theme="dark"] .records-page {
+    --records-card: color-mix(in srgb, var(--surface-primary) 92%, #0f172a 8%);
+    --records-soft: color-mix(in srgb, var(--surface-secondary) 88%, #0f172a 12%);
+    --records-border: color-mix(in srgb, var(--border-primary) 84%, rgba(148, 163, 184, 0.18));
+    --records-shadow: 0 20px 56px rgba(0, 0, 0, 0.30);
+    --records-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.22);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(45, 212, 191, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+.records-page .records-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.records-page .records-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--records-info) 13%, transparent);
+    color: var(--records-info);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.records-page .records-hero h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.records-page .records-hero p {
+    margin: 3px 0 0;
+    color: var(--records-muted);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.records-page .records-hero-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--records-primary) 18%, transparent), color-mix(in srgb, var(--records-info) 14%, transparent));
+    color: var(--records-primary);
+    border: 1px solid var(--records-border);
+    box-shadow: var(--records-shadow-soft);
+    flex: 0 0 auto;
+}
+
+.records-page .stats-section,
+.records-page .records-toolbar,
+.records-page .advanced-search-panel,
+.records-page #batchOperations,
+.records-page #searchResultCount,
+.records-page .video-list-container,
+.records-page .pagination-controls {
+    margin: 12px 0 0;
+}
+
+.records-page .stats-section {
+    padding: 14px;
+    border: 1px solid var(--records-border);
+    border-radius: 20px;
+    background: var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-section-header {
+    margin-bottom: 12px;
+}
+
+.records-section-header h4 {
+    margin: 0 0 4px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.records-section-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.records-page #recordsStatsContainer.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 12px;
+}
+
+.records-page #recordsStatsContainer .stat-card.new-works-stat {
+    min-height: 86px;
+    padding: 16px;
+    border: 1px solid var(--records-border);
+    border-radius: 16px;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--records-stat-accent, var(--records-primary)) 9%, transparent), transparent 58%),
+        var(--surface-primary);
+    box-shadow: none;
+}
+
+.records-page #recordsStatsContainer .stat-card.clickable:hover,
+.records-page #recordsStatsContainer .stat-card.clickable.active {
+    transform: translateY(-2px);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .search-and-filter.records-toolbar {
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--records-border);
+    border-radius: 20px;
+    background: var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .records-toolbar .search-row,
+.records-page .records-toolbar .filter-row,
+.records-page .records-toolbar .search-row-full {
+    padding: 0;
+    margin: 0;
+}
+
+.records-page .records-toolbar .toolbar-left,
+.records-page .records-toolbar .toolbar-right,
+.records-page .records-toolbar .filter-row {
+    gap: 8px;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like,
+.records-page .search-and-filter.records-toolbar select,
+.records-page .records-per-page-selector,
+.records-page .tags-filter-container > input,
+.records-page .search-row-full #searchInput {
+    min-height: 42px;
+    border: 1px solid var(--records-border);
+    border-radius: 13px;
+    background: var(--input-bg, var(--surface-primary));
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like {
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .search-and-filter.records-toolbar #myFavoritesBtn.button-like {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border-color: transparent;
+}
+
+.records-page .search-and-filter.records-toolbar #myFavoritesBtn.button-like.active {
+    box-shadow: 0 12px 28px rgba(239, 68, 68, 0.24);
+}
+
+.records-page .records-per-page-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.records-page .records-per-page-selector label {
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.records-page .records-per-page-selector select {
+    min-height: 30px;
+    border: 0;
+    background-color: transparent;
+}
+
+.records-page .filter-row select,
+.records-page .tags-filter-container > input {
+    padding-left: 12px;
+}
+
+.records-page .search-row-full #searchInput {
+    padding: 0 42px 0 14px;
+}
+
+.records-page .search-and-filter.records-toolbar .search-row-full #searchInput:focus,
+.records-page .filter-row select:focus,
+.records-page .tags-filter-container > input:focus {
+    border-color: var(--records-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--records-primary) 18%, transparent);
+}
+
+.records-page .advanced-search-panel {
+    padding: 14px;
+    border: 1px solid var(--records-border);
+    border-radius: 20px;
+    background: var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page #batchOperations {
+    border: 1px solid color-mix(in srgb, var(--records-primary) 28%, var(--records-border));
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--records-primary) 10%, transparent), transparent),
+        var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .batch-btn {
+    border-radius: 999px;
+    font-weight: 800;
+}
+
+.records-page #searchResultCount {
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--records-primary), var(--records-info));
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .video-list-container {
+    padding: 12px;
+    border: 1px solid var(--records-border);
+    border-radius: 22px;
+    background: var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .pagination-controls {
+    padding-bottom: 2px;
+}
+
+@media (max-width: 960px) {
+    .records-page .records-hero,
+    .records-page .search-and-filter.records-toolbar .search-row {
+        flex-direction: column;
+    }
+
+    .records-page .records-toolbar .toolbar-left,
+    .records-page .records-toolbar .toolbar-right {
+        width: 100%;
+    }
+
+    .records-page .records-per-page-selector,
+    .records-page .records-toolbar .filter-row select,
+    .records-page .records-toolbar .filter-row .tags-filter-container {
+        width: 100%;
+        max-width: none;
+        flex-basis: 100%;
+    }
+}
+
 .search-result-count::before {
     content: "🔍";
     font-size: 16px;
@@ -2755,4 +3059,88 @@
 [data-theme="dark"] #recordsStatsContainer .stat-card.clickable.active {
     outline-color: rgba(96, 165, 250, 0.32);
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.38);
+}
+
+/* 番号库现代化最终覆盖：放在文件末尾，压过旧规则 */
+.records-page .stats-section,
+.records-page .search-and-filter.records-toolbar,
+.records-page .advanced-search-panel,
+.records-page #batchOperations,
+.records-page .video-list-container {
+    border: 1px solid var(--records-border);
+    border-radius: 20px;
+    background: var(--records-card);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page .stats-section,
+.records-page .advanced-search-panel,
+.records-page .video-list-container {
+    padding: 14px;
+}
+
+.records-page .search-and-filter.records-toolbar {
+    padding: 12px;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like,
+.records-page .search-and-filter.records-toolbar select,
+.records-page .records-per-page-selector,
+.records-page .tags-filter-container > input,
+.records-page .search-row-full #searchInput {
+    min-height: 42px;
+    border: 1px solid var(--records-border);
+    border-radius: 13px;
+    background: var(--input-bg, var(--surface-primary));
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like {
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.records-page .search-and-filter.records-toolbar #myFavoritesBtn.button-like {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border-color: transparent;
+}
+
+.records-page .records-per-page-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.records-page .records-per-page-selector select {
+    min-height: 30px;
+    border: 0;
+    background-color: transparent;
+}
+
+.records-page #recordsStatsContainer .stat-card.new-works-stat {
+    min-height: 86px;
+    padding: 16px;
+    border: 1px solid var(--records-border);
+    border-radius: 16px;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--records-stat-accent, var(--records-primary)) 9%, transparent), transparent 58%),
+        var(--surface-primary);
+    box-shadow: none;
+}
+
+.records-page #recordsStatsContainer .stat-card.clickable:hover,
+.records-page #recordsStatsContainer .stat-card.clickable.active {
+    transform: translateY(-2px);
+    box-shadow: var(--records-shadow-soft);
+}
+
+.records-page #searchResultCount {
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--records-primary), var(--records-info));
+    box-shadow: var(--records-shadow-soft);
 }
