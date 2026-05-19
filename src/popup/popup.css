@@ -340,35 +340,37 @@ body {
 
 /* 手动锁定按钮 */
 .popup-lock-btn {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 50%;
     border: 1px solid var(--border-primary);
-    background: var(--bg-tertiary);
+    background: var(--surface-primary);
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 0;
-    margin-left: 6px;
+    box-shadow: var(--shadow-sm);
 }
 
-.popup-lock-btn i { 
-    font-size: 12px; 
+.popup-lock-btn i {
+    font-size: 12px;
 }
 
-.popup-lock-btn:hover { 
+.popup-lock-btn:hover {
     background: var(--primary);
     border-color: var(--primary);
     color: var(--text-inverse);
-    transform: translateY(-1px);
+    transform: scale(1.1);
     box-shadow: var(--shadow-md);
 }
 
-.popup-lock-btn:active { 
-    transform: translateY(0); 
+.popup-lock-btn:active {
+    transform: scale(0.95);
     box-shadow: var(--shadow-sm);
 }
 
@@ -407,6 +409,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 8px;
+    text-align: center;
 }
 
 /* Make toggle buttons slightly more compact to fit in narrow columns */
@@ -472,14 +475,14 @@ body {
 }
 
 .reset-btn {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 50%;
     border: 1px solid var(--border-primary);
     background: var(--surface-primary);
     color: var(--text-secondary);
@@ -488,18 +491,19 @@ body {
     padding: 0;
     margin-left: auto;
     font-size: 12px;
+    box-shadow: var(--shadow-sm);
 }
 
 .reset-btn:hover {
     background: var(--primary);
     border-color: var(--primary);
     color: var(--text-inverse);
-    transform: translateY(-1px);
+    transform: scale(1.1);
     box-shadow: var(--shadow-md);
 }
 
 .reset-btn:active {
-    transform: translateY(0);
+    transform: scale(0.95);
     box-shadow: var(--shadow-sm);
 }
 
@@ -756,36 +760,48 @@ body {
 
 .toggle-button {
     width: 100%;
-    padding: 8px 12px;
+    padding: 7px 12px;
     color: var(--text-inverse);
-    border: none;
-    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
     box-sizing: border-box;
     white-space: nowrap;
     text-align: left;
+    box-shadow: var(--shadow-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Toggle hover effects */
 .toggle-button.active {
-    background-color: var(--text-muted);
+    background-color: var(--bg-tertiary);
+    color: var(--text-muted);
+    border-color: var(--border-primary);
+    box-shadow: none;
 }
 
 .toggle-button.active:hover {
-    background-color: var(--text-secondary);
+    background-color: var(--bg-hover);
+    color: var(--text-secondary);
+    border-color: var(--border-hover);
     transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
 .toggle-button:not(.active) {
     background-color: var(--success);
+    border-color: transparent;
 }
 
 .toggle-button:not(.active):hover {
     background-color: var(--success-hover);
     transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 /* 可访问性：键盘聚焦态 */
@@ -801,23 +817,29 @@ body {
 
 .dashboard-link .button {
     width: 100%;
-    padding: 12px;
+    padding: 11px 16px;
     background-color: var(--primary);
     color: var(--text-inverse);
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     box-shadow: var(--shadow-sm);
     white-space: nowrap;
+    letter-spacing: 0.01em;
 }
 
 .dashboard-link .button:hover {
     background-color: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.dashboard-link .button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Version Info */
