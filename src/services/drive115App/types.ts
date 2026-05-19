@@ -28,7 +28,6 @@ export interface NormalizedDrive115Settings {
   v2AccessTokenStatus?: 'valid' | 'expired' | 'rate_limited' | 'unknown';
   v2AccessTokenLastError?: string;
   v2AccessTokenLastErrorCode?: number;
-  defaultWpPathId: string;
   quotaCache?: {
     data?: any;
     updatedAt?: number;

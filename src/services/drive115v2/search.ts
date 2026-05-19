@@ -17,8 +17,9 @@ export async function searchFilesV2(query: Drive115V2SearchQuery): Promise<{
   const svc = getDrive115V2Service();
   const tokenRet = await svc.getValidAccessToken();
   if (!tokenRet.success) {
-    await addLogV2({ timestamp: Date.now(), level: 'warn', message: `v2 搜索失败：无法获取有效 access_token（${tokenRet.message || '未知原因'}）` });
-    return { success: false, message: tokenRet.message || '无法获取有效 access_token' };
+    const message = (tokenRet as any).message || '无法获取有效 access_token';
+    await addLogV2({ timestamp: Date.now(), level: 'warn', message: `v2 搜索失败：无法获取有效 access_token（${message}）` });
+    return { success: false, message };
   }
   // 基础参数校验与兜底
   const q: Drive115V2SearchQuery = {
