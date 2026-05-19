@@ -7,6 +7,10 @@
     padding: 24px;
 }
 
+#tab-sync .card.sync-page {
+    padding: 14px !important;
+}
+
 /* 数据同步标题样式 */
 .data-sync-section .section-title {
     font-size: 24px;
@@ -193,12 +197,12 @@
 .sync-button-group {
     display: flex;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .sync-button-group .sync-btn {
-    flex: 1;
-    min-width: 140px;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 /* 双按钮布局：图标+主文案+副文案纵向排布（还原旧版体验） */
@@ -1947,4 +1951,223 @@
     color: var(--text-muted);
     font-size: 12px;
     padding: 20px;
+}
+
+/* Sync page modern shell */
+.sync-page {
+    --sync-primary: #2563eb;
+    --sync-info: #0891b2;
+    --sync-success: #059669;
+    --sync-warning: #d97706;
+    --sync-danger: #dc2626;
+    --sync-card: color-mix(in srgb, var(--surface-primary) 92%, #ffffff 8%);
+    --sync-soft: color-mix(in srgb, var(--surface-secondary) 88%, #ffffff 12%);
+    --sync-border: color-mix(in srgb, var(--border-primary) 78%, transparent);
+    --sync-muted: var(--text-secondary);
+    --sync-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    --sync-shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+    position: relative;
+    overflow: visible;
+    padding: 14px !important;
+    border: 1px solid var(--sync-border);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.10), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(5, 150, 105, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+[data-theme="dark"] .sync-page {
+    --sync-card: color-mix(in srgb, var(--surface-primary) 92%, #0f172a 8%);
+    --sync-soft: color-mix(in srgb, var(--surface-secondary) 88%, #0f172a 12%);
+    --sync-border: color-mix(in srgb, var(--border-primary) 84%, rgba(148, 163, 184, 0.18));
+    --sync-shadow: 0 20px 56px rgba(0, 0, 0, 0.30);
+    --sync-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.22);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(45, 212, 191, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+.sync-page-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.sync-page-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sync-primary) 13%, transparent);
+    color: var(--sync-primary);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sync-page-hero h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.sync-page-hero p {
+    margin: 3px 0 0;
+    color: var(--sync-muted);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.sync-page-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--sync-primary) 18%, transparent), color-mix(in srgb, var(--sync-success) 14%, transparent));
+    color: var(--sync-primary);
+    border: 1px solid var(--sync-border);
+    box-shadow: var(--sync-shadow-soft);
+}
+
+.sync-page .sync-info-notice,
+.sync-page .sync-usage-notice,
+.sync-page .sync-login-notice {
+    padding: 12px;
+    border: 1px solid var(--sync-border);
+    border-radius: 16px;
+    background: var(--sync-card);
+    box-shadow: var(--sync-shadow-soft);
+}
+
+.sync-page .sync-info-notice {
+    border-left: 0;
+    color: var(--sync-muted);
+    margin-bottom: 16px;
+}
+
+.sync-page .sync-info-notice i {
+    color: var(--sync-primary);
+}
+
+.sync-page .sync-usage-notice {
+    margin-bottom: 20px;
+    border-color: color-mix(in srgb, var(--sync-warning) 35%, var(--sync-border));
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--sync-warning) 11%, transparent), transparent 58%),
+        var(--sync-card);
+}
+
+.sync-page .sync-usage-notice::before {
+    display: none;
+}
+
+.sync-page .sync-usage-notice .notice-content,
+.sync-page .sync-login-notice .notice-content {
+    gap: 10px;
+}
+
+.sync-page .sync-usage-notice .notice-icon {
+    color: var(--sync-warning);
+}
+
+.sync-page .sync-usage-notice .notice-text h5,
+.sync-page .sync-login-notice .notice-text h5 {
+    margin: 0 0 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.sync-page .sync-usage-notice .notice-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    padding-left: 0;
+}
+
+.sync-page .sync-usage-notice .notice-list li {
+    margin-bottom: 0;
+    padding-left: 14px;
+    color: var(--sync-muted);
+}
+
+.sync-page .sync-usage-notice .notice-list li::before {
+    left: 0;
+    color: var(--sync-warning);
+}
+
+.sync-page .sync-usage-notice .notice-list li strong {
+    color: var(--text-primary);
+}
+
+.sync-page .sync-progress-container,
+.sync-page .sync-result {
+    margin-top: 0;
+    border: 1px solid var(--sync-border);
+    border-radius: 18px;
+    background: var(--sync-card);
+    box-shadow: var(--sync-shadow-soft);
+}
+
+.sync-page .sync-progress-container .progress-section {
+    padding: 16px;
+    background: transparent;
+}
+
+.sync-page .sync-progress-container .progress-section > h5 {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.sync-page .progress-stage {
+    border-radius: 14px;
+    background: var(--sync-soft);
+    border: 1px solid var(--sync-border);
+}
+
+.sync-page .progress-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--sync-soft);
+}
+
+.sync-page .progress-fill {
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--sync-primary), var(--sync-success));
+}
+
+.sync-page .cancel-sync-btn {
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--sync-danger), #b91c1c);
+}
+
+@media (max-width: 900px) {
+    .sync-page .sync-usage-notice .notice-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .sync-page {
+        padding: 16px !important;
+    }
+
+    .sync-page-hero {
+        flex-direction: column;
+    }
+
+    .sync-page-mark {
+        display: none;
+    }
+
 }

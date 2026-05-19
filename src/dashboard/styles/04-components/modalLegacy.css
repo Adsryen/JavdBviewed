@@ -2945,6 +2945,254 @@ body.modal-open {
     color: var(--error-text, #c62828);
 }
 
+/* 清单同步确认弹窗 */
+.list-sync-confirm-modal {
+    --list-sync-modal-bg: var(--surface-primary, #fff);
+    --list-sync-panel-bg: color-mix(in srgb, var(--surface-secondary, #f8fafc) 88%, transparent);
+    --list-sync-item-bg: var(--surface-primary, #fff);
+    --list-sync-summary-bg: rgba(59, 130, 246, 0.08);
+    --list-sync-summary-border: rgba(59, 130, 246, 0.18);
+    --list-sync-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.list-sync-confirm-modal .confirm-modal-content {
+    max-width: 620px !important;
+    border: 1px solid var(--border-primary, rgba(148, 163, 184, 0.24)) !important;
+    border-radius: 20px !important;
+    background:
+        radial-gradient(circle at 16% 0%, rgba(59, 130, 246, 0.12), transparent 34%),
+        var(--list-sync-modal-bg) !important;
+    box-shadow: var(--list-sync-shadow) !important;
+}
+
+.list-sync-confirm-modal .modal-header {
+    padding: 22px 26px 16px !important;
+    background: transparent !important;
+    border-bottom: 0 !important;
+}
+
+.list-sync-confirm-modal .modal-header h3 {
+    color: var(--text-primary, #111827) !important;
+    font-size: 20px !important;
+    letter-spacing: -0.02em !important;
+}
+
+.list-sync-confirm-modal .modal-body {
+    padding: 0 26px 24px !important;
+    background: transparent !important;
+}
+
+.list-sync-confirm-modal .list-sync-changes {
+    display: grid;
+    gap: 14px;
+}
+
+.list-sync-confirm-modal .list-sync-summary {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px;
+    border: 1px solid var(--list-sync-summary-border);
+    border-radius: 16px;
+    background: var(--list-sync-summary-bg);
+}
+
+.list-sync-confirm-modal .list-sync-summary-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--primary, #2196f3);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(33, 150, 243, 0.24);
+}
+
+.list-sync-confirm-modal .list-sync-summary strong,
+.list-sync-confirm-modal .list-sync-summary span {
+    display: block;
+}
+
+.list-sync-confirm-modal .list-sync-summary strong {
+    margin-bottom: 4px;
+    color: var(--text-primary, #111827);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.list-sync-confirm-modal .list-sync-summary span {
+    color: var(--text-secondary, #64748b);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.list-sync-confirm-modal .change-section {
+    padding: 14px;
+    border: 1px solid var(--border-primary, rgba(148, 163, 184, 0.24));
+    border-radius: 16px;
+    background: var(--list-sync-panel-bg);
+}
+
+.list-sync-confirm-modal .change-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.list-sync-confirm-modal .change-section-icon {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.list-sync-confirm-modal .add-section .change-section-icon {
+    background: rgba(34, 197, 94, 0.14);
+    color: #16a34a;
+}
+
+.list-sync-confirm-modal .update-section .change-section-icon {
+    background: rgba(59, 130, 246, 0.14);
+    color: #2563eb;
+}
+
+.list-sync-confirm-modal .delete-section .change-section-icon {
+    background: rgba(245, 158, 11, 0.16);
+    color: #d97706;
+}
+
+.list-sync-confirm-modal .change-section h4 {
+    margin: 0;
+    flex: 1;
+    color: var(--text-primary, #111827);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.list-sync-confirm-modal .change-count {
+    min-width: 28px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--list-sync-item-bg);
+    color: var(--text-secondary, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: inset 0 0 0 1px var(--border-primary, rgba(148, 163, 184, 0.24));
+}
+
+.list-sync-confirm-modal .list-items {
+    display: grid;
+    gap: 8px;
+    max-height: 220px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.list-sync-confirm-modal .list-items li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--list-sync-item-bg);
+    color: var(--text-primary, #111827);
+    box-shadow: inset 0 0 0 1px var(--border-primary, rgba(148, 163, 184, 0.18));
+}
+
+.list-sync-confirm-modal .list-item-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.list-sync-confirm-modal .list-item-count {
+    flex: 0 0 auto;
+    color: var(--text-muted, #94a3b8);
+    font-size: 12px;
+}
+
+.list-sync-confirm-modal .list-item-more {
+    justify-content: center !important;
+    color: var(--text-secondary, #64748b) !important;
+    font-weight: 600;
+}
+
+.list-sync-confirm-modal .change-section-note,
+.list-sync-confirm-modal .warning-text {
+    margin: 4px 0 0;
+    color: var(--text-secondary, #64748b);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.list-sync-confirm-modal .warning-text {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+    color: var(--warning, #f59e0b);
+}
+
+.list-sync-confirm-modal .modal-footer {
+    padding: 16px 26px 22px !important;
+    background: transparent !important;
+    border-top: 1px solid var(--border-primary, rgba(148, 163, 184, 0.2)) !important;
+}
+
+.list-sync-confirm-modal .modal-footer button {
+    min-height: 38px;
+    padding: 0 18px !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal {
+    --list-sync-modal-bg: var(--surface-primary, #1e293b);
+    --list-sync-panel-bg: rgba(15, 23, 42, 0.44);
+    --list-sync-item-bg: rgba(15, 23, 42, 0.52);
+    --list-sync-summary-bg: rgba(96, 165, 250, 0.12);
+    --list-sync-summary-border: rgba(96, 165, 250, 0.28);
+    --list-sync-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal .modal-overlay {
+    background-color: rgba(2, 6, 23, 0.72) !important;
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal .confirm-modal-content {
+    background:
+        radial-gradient(circle at 16% 0%, rgba(96, 165, 250, 0.18), transparent 34%),
+        var(--list-sync-modal-bg) !important;
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal .add-section .change-section-icon {
+    background: rgba(74, 222, 128, 0.16);
+    color: var(--success, #4ade80);
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal .update-section .change-section-icon {
+    background: rgba(96, 165, 250, 0.16);
+    color: var(--primary, #60a5fa);
+}
+
+html[data-theme="dark"] .list-sync-confirm-modal .delete-section .change-section-icon {
+    background: rgba(251, 191, 36, 0.16);
+    color: var(--warning, #fbbf24);
+}
+
 /* 新作品配置弹窗表单样式 */
 .new-works-config-modal .form-group {
     margin-bottom: 20px !important;

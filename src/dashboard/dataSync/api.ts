@@ -1569,7 +1569,8 @@ export class ApiClient {
                 confirmText: '确认同步',
                 cancelText: '取消',
                 type: listsToDelete.length > 0 ? 'warning' : 'info',
-                isHtml: true
+                isHtml: true,
+                className: 'list-sync-confirm-modal'
             });
 
             if (!confirmed) {
@@ -1963,49 +1964,85 @@ export class ApiClient {
         listsToDelete: ListRecord[]
     ): string {
         const parts: string[] = [];
+        const totalChanges = listsToAdd.length + listsToUpdate.length + listsToDelete.length;
         
         parts.push('<div class="list-sync-changes">');
+        parts.push(`
+            <div class="list-sync-summary">
+                <span class="list-sync-summary-icon"><i class="fas fa-tasks"></i></span>
+                <div>
+                    <strong>即将同步 JavDB 清单变更</strong>
+                    <span>共 ${totalChanges} 项清单变化，本地清单会保留。</span>
+                </div>
+            </div>
+        `);
         
         if (listsToAdd.length > 0) {
             parts.push(`<div class="change-section add-section">`);
-            parts.push(`<h4>🆕 新增清单 (${listsToAdd.length})</h4>`);
+            parts.push(`
+                <div class="change-section-header">
+                    <span class="change-section-icon"><i class="fas fa-plus"></i></span>
+                    <h4>新增清单</h4>
+                    <span class="change-count">${listsToAdd.length}</span>
+                </div>
+            `);
             parts.push(`<ul class="list-items">`);
             for (const list of listsToAdd.slice(0, 5)) {
-                const count = list.moviesCount !== undefined ? ` (${list.moviesCount}部)` : '';
-                parts.push(`<li>• ${this.escapeHtml(list.name)}${count}</li>`);
+                parts.push(this.buildListChangeItem(list));
             }
             if (listsToAdd.length > 5) {
-                parts.push(`<li>... 还有 ${listsToAdd.length - 5} 个清单</li>`);
+                parts.push(`<li class="list-item-more">还有 ${listsToAdd.length - 5} 个清单</li>`);
             }
             parts.push(`</ul></div>`);
         }
         
         if (listsToUpdate.length > 0) {
             parts.push(`<div class="change-section update-section">`);
-            parts.push(`<h4>🔄 更新清单 (${listsToUpdate.length})</h4>`);
-            parts.push(`<p>将刷新这些清单的影片信息并同步新增影片</p>`);
+            parts.push(`
+                <div class="change-section-header">
+                    <span class="change-section-icon"><i class="fas fa-sync-alt"></i></span>
+                    <h4>更新清单</h4>
+                    <span class="change-count">${listsToUpdate.length}</span>
+                </div>
+            `);
+            parts.push(`<p class="change-section-note">刷新清单影片信息，并同步新增影片。</p>`);
             parts.push(`</div>`);
         }
         
         if (listsToDelete.length > 0) {
             parts.push(`<div class="change-section delete-section">`);
-            parts.push(`<h4>🗑️ 删除清单 (${listsToDelete.length})</h4>`);
+            parts.push(`
+                <div class="change-section-header">
+                    <span class="change-section-icon"><i class="fas fa-trash-alt"></i></span>
+                    <h4>删除清单</h4>
+                    <span class="change-count">${listsToDelete.length}</span>
+                </div>
+            `);
             parts.push(`<ul class="list-items">`);
             for (const list of listsToDelete.slice(0, 5)) {
-                const count = list.moviesCount !== undefined ? ` (${list.moviesCount}部)` : '';
-                parts.push(`<li>• ${this.escapeHtml(list.name)}${count}</li>`);
+                parts.push(this.buildListChangeItem(list));
             }
             if (listsToDelete.length > 5) {
-                parts.push(`<li>... 还有 ${listsToDelete.length - 5} 个清单</li>`);
+                parts.push(`<li class="list-item-more">还有 ${listsToDelete.length - 5} 个清单</li>`);
             }
             parts.push(`</ul>`);
-            parts.push(`<p class="warning-text">⚠️ 这些清单下的影片将被移除清单关联</p>`);
+            parts.push(`<p class="warning-text"><i class="fas fa-exclamation-triangle"></i> 删除清单下的影片会移除清单关联。</p>`);
             parts.push(`</div>`);
         }
         
         parts.push('</div>');
         
         return parts.join('');
+    }
+
+    private buildListChangeItem(list: ListRecord): string {
+        const count = list.moviesCount ?? 0;
+        return `
+            <li>
+                <span class="list-item-name">${this.escapeHtml(list.name)}</span>
+                <span class="list-item-count">${count} 部</span>
+            </li>
+        `;
     }
 
     /**
