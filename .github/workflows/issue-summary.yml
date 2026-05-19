@@ -21,7 +21,6 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
         with:
           script: |
@@ -29,7 +28,6 @@ jobs:
             const reminderMarker = '<!-- issue-summary-bot-reminder -->';
             const title = process.env.ISSUE_TITLE || '';
             const body = process.env.ISSUE_BODY || '';
-            const author = process.env.ISSUE_AUTHOR || '';
             const issueNumber = process.env.ISSUE_NUMBER || '';
             const issueUrl = process.env.ISSUE_URL || '';
 
@@ -166,13 +164,6 @@ jobs:
 
             const type = title.toLowerCase().includes('[feature]') ? (language === 'zh' ? '功能建议' : 'feature request') : (language === 'zh' ? '问题反馈' : 'bug report');
             const area = detectArea(`${title}\n${body}`, language);
-            const missingItems = [];
-            if (type === (language === 'zh' ? '问题反馈' : 'bug report') && !environment.hasAny) missingItems.push(language === 'zh' ? '环境信息' : 'environment details');
-            if (!hasMeaningfulContent(description)) missingItems.push(language === 'zh' ? '核心描述' : 'core description');
-            if (!hasMeaningfulContent(steps)) missingItems.push(type === (language === 'zh' ? '功能建议' : 'feature request') ? (language === 'zh' ? '使用场景' : 'use case') : (language === 'zh' ? '复现步骤' : 'reproduction steps'));
-            if (!hasMeaningfulContent(expected)) missingItems.push(type === (language === 'zh' ? '功能建议' : 'feature request') ? (language === 'zh' ? '建议方案' : 'proposed solution') : (language === 'zh' ? '期望行为' : 'expected behavior'));
-            if (type === (language === 'zh' ? '问题反馈' : 'bug report') && !hasMeaningfulContent(logs)) missingItems.push(language === 'zh' ? '错误日志' : 'error logs');
-
             const judgment = type === (language === 'zh' ? '功能建议' : 'feature request')
               ? (language === 'zh'
                   ? `这条 Issue 指向 ${area} 的功能建议，当前需求重点是 ${oneLine(description || expected, '功能诉求还不够具体')}。`
@@ -202,9 +193,6 @@ jobs:
                   '已知信息：',
                   ...knownFacts.slice(0, 3).map(item => `- ${item}`),
                   '',
-                  '待补充：',
-                  ...(missingItems.length > 0 ? missingItems.map(item => `- ${item}`) : ['- 信息完整，可直接继续判断']),
-                  '',
                   `补充说明：${oneLine(extra, '当前没有额外补充')}`
                 ].join('\n')
               : [
@@ -216,35 +204,8 @@ jobs:
                   'Known facts:',
                   ...knownFacts.slice(0, 3).map(item => `- ${item}`),
                   '',
-                  'Still needed:',
-                  ...(missingItems.length > 0 ? missingItems.map(item => `- ${item}`) : ['- The issue has enough information for further triage.']),
-                  '',
                   `Additional notes: ${oneLine(extra, 'No extra notes were provided.')}`
                 ].join('\n');
-
-            const reminder = missingItems.length > 0
-              ? (language === 'zh'
-                  ? [
-                      reminderMarker,
-                      '## 📝 信息补充提醒',
-                      '',
-                      `@${author} 为了更快处理这条 Issue，请补充这些内容：`,
-                      '',
-                      ...missingItems.map(item => `- ${item}`),
-                      '',
-                      '- 补充完成后直接编辑原 Issue 即可，总结会自动刷新。'
-                    ].join('\n')
-                  : [
-                      reminderMarker,
-                      '## 📝 Missing Information',
-                      '',
-                      `@${author} Please add the following details so this issue can be triaged faster:`,
-                      '',
-                      ...missingItems.map(item => `- ${item}`),
-                      '',
-                      '- Edit the original issue after updating the details. The bot will refresh the summary automatically.'
-                    ].join('\n'))
-              : '';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -279,46 +240,19 @@ jobs:
               });
             }
 
-            if (reminder) {
-              if (!currentLabels.has('needs-info')) {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: Number(issueNumber),
-                  labels: ['needs-info'],
-                });
-              }
+            if (currentLabels.has('needs-info')) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(issueNumber),
+                name: 'needs-info',
+              }).catch(() => undefined);
+            }
 
-              if (reminderComment) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: reminderComment.id,
-                  body: reminder,
-                });
-              } else {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: Number(issueNumber),
-                  body: reminder,
-                });
-              }
-            } else {
-              if (currentLabels.has('needs-info')) {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: Number(issueNumber),
-                  name: 'needs-info',
-                }).catch(() => undefined);
-              }
-
-              if (reminderComment) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: reminderComment.id,
-                });
-              }
+            if (reminderComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: reminderComment.id,
+              });
             }
