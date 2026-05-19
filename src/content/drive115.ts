@@ -20,7 +20,7 @@ import { getPageContext } from './pageContext';
 
 type Drive115PushSettingsCache = {
     enabled: boolean;
-    defaultWpPathId: string;
+    downloadDir: string;
     autoMarkWatchedAfter115: boolean;
     autoMarkWatchedStars: number;
 };
@@ -35,7 +35,7 @@ async function refreshDrive115PushSettingsCache(): Promise<Drive115PushSettingsC
 
     const cache: Drive115PushSettingsCache = {
         enabled,
-        defaultWpPathId: ((settings as any)?.drive115?.defaultWpPathId ?? '').toString().trim(),
+        downloadDir: ((settings as any)?.drive115?.downloadDir ?? (settings as any)?.drive115?.defaultWpPathId ?? '').toString().trim(),
         autoMarkWatchedAfter115: (settings as any)?.videoEnhancement?.autoMarkWatchedAfter115 !== false,
         autoMarkWatchedStars: (settings as any)?.videoEnhancement?.autoMarkWatchedStars ?? 4,
     };
@@ -361,7 +361,7 @@ export async function handlePushToDrive115(
             await addLogV2({ timestamp: Date.now(), level: 'info', message: `内容脚本：发起 115 推送，videoId=${videoId}，name=${magnetName}，magnet=${magnetUrl}，page=${window.location.href}` });
             let wpPathId: string | undefined;
             try {
-                const def = cachedSettings.defaultWpPathId;
+                const def = cachedSettings.downloadDir;
                 wpPathId = def === '' ? '0' : def;
             } catch {}
 

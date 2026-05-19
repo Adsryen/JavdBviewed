@@ -134,7 +134,7 @@ export class Drive115AppService {
     const svc = getDrive115V2Service();
     const vt = await svc.getValidAccessToken();
     if (!vt.success) {
-      const errorMessage = vt.message || '获取 access_token 失败';
+      const errorMessage = (vt as any).message || '获取 access_token 失败';
       await logger.logPushFailed({ ...context, magnetUrl, error: errorMessage, response: vt });
       traceDrive115App('app:addTaskUrls:token-error', { ...traceBase, error: errorMessage });
       throw new Error(errorMessage);
@@ -190,7 +190,7 @@ export class Drive115AppService {
 
       await logger.logOfflineStart(videoId, magnetUrl);
 
-      const wpPathId = String(downloadDir || state.defaultWpPathId || '').trim() || undefined;
+      const wpPathId = String(downloadDir || state.downloadDir || '').trim() || undefined;
       const ret = await this.addTaskUrls({ urls: magnetUrl, wp_path_id: wpPathId, context: { source: 'downloadOffline', videoId, wpPathId } });
       if (!ret.success) {
         throw new Error(ret.message || '添加离线任务失败');

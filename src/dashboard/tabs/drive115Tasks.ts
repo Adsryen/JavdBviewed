@@ -1,5 +1,6 @@
 ﻿import { getDrive115V2Service, Drive115V2Task } from '../../services/drive115v2';
-import { getSettings } from '../../utils/storage';
+import { getSettings, saveSettings } from '../../utils/storage';
+import { openDrive115FolderPicker } from '../components/drive115FolderPicker';
 
 const DISPLAY_PAGE_SIZE_STORAGE_KEY = 'drive115TasksDisplayPageSize';
 
@@ -46,6 +47,7 @@ export class Drive115TasksManager {
    * 初始化任务列表页面
    */
   async initialize(): Promise<void> {
+    await this.loadDefaultDownloadDir();
     this.showStats();
     this.bindStatsEvents();
     await this.loadTasks();
@@ -115,6 +117,21 @@ export class Drive115TasksManager {
       }
     });
 
+    const dirInput = document.getElementById('drive115TaskDirInput') as HTMLInputElement | null;
+    dirInput?.addEventListener('change', () => this.saveDefaultDownloadDir(dirInput.value).catch(() => {}));
+    dirInput?.addEventListener('blur', () => this.saveDefaultDownloadDir(dirInput.value).catch(() => {}));
+    const chooseDirBtn = document.getElementById('drive115TaskChooseDirBtn');
+    chooseDirBtn?.addEventListener('click', () => {
+      openDrive115FolderPicker({
+        initialCid: (dirInput?.value || '').trim(),
+        onSelect: async (selection) => {
+          if (dirInput) dirInput.value = selection.cid;
+          await this.saveDefaultDownloadDir(selection.cid, selection.name, selection.path);
+          this.showMessage(`已选择目录：${selection.path}`, 'success');
+        },
+      });
+    });
+
     // 搜索输入框
     const searchInput = document.getElementById('drive115TaskSearchInput') as HTMLInputElement;
     const clearSearchBtn = document.getElementById('drive115ClearSearchBtn');
@@ -143,6 +160,58 @@ export class Drive115TasksManager {
         this.updateStats();
       }
     });
+  }
+
+  private async loadDefaultDownloadDir(): Promise<void> {
+    try {
+      const settings: any = await getSettings();
+      const dir = (settings?.drive115?.downloadDir ?? settings?.drive115?.defaultWpPathId ?? '').toString();
+      const dirInput = document.getElementById('drive115TaskDirInput') as HTMLInputElement | null;
+      if (dirInput) dirInput.value = dir;
+      this.renderDefaultDownloadDirSummary(settings?.drive115?.downloadDirName, settings?.drive115?.downloadDirPath, dir);
+    } catch {}
+  }
+
+  private renderDefaultDownloadDirSummary(name?: string, path?: string, cid?: string): void {
+    const summary = document.getElementById('drive115TaskDirSummary') as HTMLSpanElement | null;
+    if (!summary) return;
+    const displayName = String(name || '').trim();
+    const displayPath = String(path || '').trim();
+    const displayCid = String(cid || '').trim();
+    if (!displayName && !displayPath) {
+      summary.textContent = '';
+      summary.title = '';
+      summary.style.display = 'none';
+      return;
+    }
+    summary.textContent = `${displayName || displayPath} (${displayCid || '0'})`;
+    summary.title = displayPath || displayName;
+    summary.style.display = 'inline-flex';
+  }
+
+  private async saveDefaultDownloadDir(value: string, name?: string, path?: string): Promise<string> {
+    const dir = (value || '').trim();
+    const displayName = String(name || '').trim();
+    const displayPath = String(path || '').trim();
+    try {
+      const settings: any = await getSettings();
+      const nextSettings: any = { ...settings };
+      nextSettings.drive115 = {
+        ...(settings?.drive115 || {}),
+        downloadDir: dir,
+      };
+      delete nextSettings.drive115.defaultWpPathId;
+      if (displayName || displayPath) {
+        nextSettings.drive115.downloadDirName = displayName;
+        nextSettings.drive115.downloadDirPath = displayPath;
+      } else {
+        delete nextSettings.drive115.downloadDirName;
+        delete nextSettings.drive115.downloadDirPath;
+      }
+      await saveSettings(nextSettings);
+      this.renderDefaultDownloadDirSummary(displayName, displayPath, dir);
+    } catch {}
+    return dir;
   }
 
   /**
@@ -480,7 +549,8 @@ export class Drive115TasksManager {
    */
   private async handleAddTask(): Promise<void> {
     const urlInput = document.getElementById('drive115TaskUrlInput') as HTMLInputElement;
-    const urls = urlInput?.value?.trim();
+    const dirInput = document.getElementById('drive115TaskDirInput') as HTMLInputElement | null;
+    const urls = (urlInput?.value || '').trim().split(/\s+/).filter(Boolean).join('\n');
 
     if (!urls) {
       this.showMessage('请输入下载链接', 'warning');
@@ -490,9 +560,11 @@ export class Drive115TasksManager {
     try {
       const accessToken = await this.resolveAccessTokenOrExplain();
       if (!accessToken) return;
+      const dir = await this.saveDefaultDownloadDir(dirInput?.value || '');
+      const wpPathId = dir === '' ? '0' : dir;
 
       const drive115Service = getDrive115V2Service();
-      const result = await drive115Service.addTaskUrls({ accessToken, urls });
+      const result = await drive115Service.addTaskUrls({ accessToken, urls, wp_path_id: wpPathId });
 
       if (!result.success) {
         this.showMessage(result.message || '添加任务失败', 'error');
