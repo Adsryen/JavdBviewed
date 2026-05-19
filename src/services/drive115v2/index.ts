@@ -90,6 +90,38 @@ export interface Drive115V2SearchResponse {
   [k: string]: any;
 }
 
+export interface Drive115V2FileListItem {
+  fid?: string;
+  cid?: string | number;
+  pid?: string | number;
+  fc?: string | number; // 0 文件夹，1 文件
+  fn?: string;
+  file_name?: string;
+  file_id?: string;
+  [k: string]: any;
+}
+
+export interface Drive115V2PathItem {
+  name?: string;
+  file_name?: string;
+  cid?: string | number;
+  file_id?: string | number;
+  [k: string]: any;
+}
+
+export interface Drive115V2FileListResponse {
+  state?: boolean;
+  message?: string;
+  code?: number;
+  count?: number;
+  offset?: number;
+  limit?: number;
+  cid?: string | number;
+  data?: Drive115V2FileListItem[];
+  path?: Drive115V2PathItem[];
+  [k: string]: any;
+}
+
 
 // 配额信息类型（/open/offline/get_quota_info）
 export interface Drive115V2QuotaExpireInfo {
@@ -785,14 +817,14 @@ class Drive115V2Service {
         return { success: false, message: 'access_token 已过期且未开启自动刷新（v2）' } as any;
       }
       const vt2 = await this.getValidAccessToken({ forceAutoRefresh: true });
-      if (!vt2.success) return { success: false, message: vt2.message } as any;
+      if (!vt2.success) return { success: false, message: (vt2 as any).message } as any;
       await addLogV2({ timestamp: Date.now(), level: 'debug', message: '刷新后重试获取用户信息（v2）' });
       return await this.fetchUserInfo(vt2.accessToken);
     }
 
     // 若没有 access_token，只能按设置执行自动刷新流程以获取一个可用的 token
     const vt = await this.getValidAccessToken({ forceAutoRefresh: autoRefresh });
-    if (!vt.success) return { success: false, message: vt.message } as any;
+    if (!vt.success) return { success: false, message: (vt as any).message } as any;
     await addLogV2({ timestamp: Date.now(), level: 'debug', message: '首次无 token，使用 getValidAccessToken 后获取用户信息（v2）' });
     return await this.fetchUserInfo(vt.accessToken);
   }
@@ -931,6 +963,114 @@ class Drive115V2Service {
     } catch (e: any) {
       const msg = describe115Error(e) || e?.message || '搜索失败';
       await addLogV2({ timestamp: Date.now(), level: 'error', message: `搜索异常：${msg}` });
+      return { success: false, message: msg } as any;
+    }
+  }
+
+  /**
+   * 文件列表（v2）
+   * GET {baseURL}/open/ufile/files
+   * Header: Authorization: Bearer <access_token>
+   */
+  async listFiles(params: {
+    accessToken: string;
+    cid?: string | number;
+    limit?: number;
+    offset?: number;
+    show_dir?: 0 | 1;
+    stdir?: 0 | 1;
+    cur?: 0 | 1;
+    o?: string;
+    asc?: 0 | 1;
+  }): Promise<
+    { success: boolean; message?: string; raw?: Drive115V2FileListResponse } &
+    { count?: number; data?: Drive115V2FileListItem[]; path?: Drive115V2PathItem[]; limit?: number; offset?: number; cid?: string | number }
+  > {
+    try {
+      const token = (params.accessToken || '').trim();
+      if (!token) return { success: false, message: '缺少 access_token' } as any;
+
+      const base = await this.getBaseURL();
+      const url = `${base}/open/ufile/files`;
+      const qs = new URLSearchParams();
+      const cid = String(params.cid ?? '').trim();
+      if (cid && cid !== '0') qs.set('cid', cid);
+      qs.set('limit', String(Math.min(1150, Math.max(1, Number(params.limit ?? 1150) || 1150))));
+      qs.set('offset', String(Math.max(0, Number(params.offset ?? 0) || 0)));
+      qs.set('show_dir', String(params.show_dir ?? 1));
+      qs.set('stdir', String(params.stdir ?? 1));
+      qs.set('cur', String(params.cur ?? 1));
+      qs.set('o', params.o || 'file_name');
+      qs.set('asc', String(params.asc ?? 1));
+
+      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `开始获取文件列表（v2）：cid=${cid || 'root'}` });
+      let json: Drive115V2FileListResponse | undefined;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.id && typeof chrome.runtime.sendMessage === 'function') {
+          const bgResp: any = await new Promise((resolve) => {
+            try {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'drive115.list_files_v2',
+                  payload: {
+                    accessToken: token,
+                    baseUrl: base,
+                    query: Object.fromEntries(qs.entries()),
+                  },
+                },
+                (resp) => resolve(resp)
+              );
+            } catch { resolve(undefined); }
+          });
+          if (bgResp && typeof bgResp.success === 'boolean') {
+            if (!bgResp.success) {
+              const msg = bgResp.message || '后台文件列表请求失败';
+              await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+              return { success: false, message: msg, raw: bgResp.raw } as any;
+            }
+            json = (bgResp.raw || {}) as Drive115V2FileListResponse;
+          }
+        }
+      } catch {}
+
+      if (!json) {
+        const res = await fetch(`${url}?${qs.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const msg = `文件列表网络错误: ${res.status} ${res.statusText}`;
+          await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
+          return { success: false, message: msg } as any;
+        }
+
+        json = await res.json().catch(() => ({} as Drive115V2FileListResponse));
+      }
+
+      const ok = typeof json.state === 'boolean' ? json.state : true;
+      if (!ok) {
+        const msg = describe115Error(json) || json.message || '获取文件列表失败';
+        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取文件列表失败：${msg}` });
+        return { success: false, message: msg, raw: json } as any;
+      }
+
+      return {
+        success: true,
+        count: typeof json.count === 'number' ? json.count : undefined,
+        data: Array.isArray(json.data) ? json.data : [],
+        path: Array.isArray(json.path) ? json.path : [],
+        limit: typeof json.limit === 'number' ? json.limit : undefined,
+        offset: typeof json.offset === 'number' ? json.offset : undefined,
+        cid: json.cid,
+        raw: json,
+      } as any;
+    } catch (e: any) {
+      const msg = describe115Error(e) || e?.message || '获取文件列表失败';
+      await addLogV2({ timestamp: Date.now(), level: 'error', message: `获取文件列表异常：${msg}` });
       return { success: false, message: msg } as any;
     }
   }

@@ -205,6 +205,47 @@ export function installDrive115V2Proxy(): void {
             sendResponse({ success: false, message: e?.message || '后台换取 token 异常' });
             return false;
           }
+        } else if (message.type === 'drive115.list_files_v2') {
+          try {
+            const accessToken = String(message?.payload?.accessToken || '').trim();
+            const base = String(message?.payload?.baseUrl || 'https://proapi.115.com').replace(/\/$/, '');
+            const query = message?.payload?.query || {};
+            if (!accessToken) {
+              sendResponse({ success: false, message: '缺少 access_token' });
+              return false;
+            }
+
+            const url = new URL(`${base}/open/ufile/files`);
+            Object.entries(query).forEach(([key, value]) => {
+              if (value !== undefined && value !== null && String(value).trim() !== '') {
+                url.searchParams.set(key, String(value));
+              }
+            });
+
+            fetch(url.toString(), {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json'
+              },
+            }).then(async (res) => {
+              const raw = await res.json().catch(() => ({} as any));
+              const ok = typeof raw.state === 'boolean' ? raw.state : res.ok;
+              sendResponse({
+                success: ok,
+                message: raw?.message || raw?.error,
+                raw,
+                data: raw?.data,
+                path: raw?.path,
+              });
+            }).catch((err) => {
+              sendResponse({ success: false, message: err?.message || '后台文件列表请求失败' });
+            });
+            return true;
+          } catch (e: any) {
+            sendResponse({ success: false, message: e?.message || '后台文件列表异常' });
+            return false;
+          }
         } else if (message.type === 'drive115.get_quota_info_v2') {
           try {
             const accessToken = String(message?.payload?.accessToken || '').trim();
