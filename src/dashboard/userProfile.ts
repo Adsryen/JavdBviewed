@@ -81,9 +81,9 @@ export function initUserProfileSection(): void {
                         <div class="user-meta-row">
                             <div class="user-identity">
                                 <i class="fas fa-user"></i>
-                                <span id="user-name-text">-</span>
+                                <span id="user-name-text" data-sensitive>-</span>
                             </div>
-                            <span id="user-email-badge" class="user-email-badge" title="邮箱：-">
+                            <span id="user-email-badge" class="user-email-badge" data-sensitive title="邮箱：-">
                                 <i class="fas fa-envelope"></i>
                                 <span class="badge-text">邮箱</span>
                             </span>

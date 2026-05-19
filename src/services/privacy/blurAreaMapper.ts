@@ -12,7 +12,7 @@ import type { BlurArea } from '../../types/privacy';
 const AREA_SELECTORS: Record<BlurArea, string[]> = {
     'sidebar': [
         // === JavDB账号信息 ===
-        '#user-email-text',                // 用户邮箱
+        '#user-email-badge',               // 用户邮箱徽章
         '#user-name-text',                 // 用户名
         '#user-type-text',                 // 用户类型
         '#server-want-count',              // 想看数量
