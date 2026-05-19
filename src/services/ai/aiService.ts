@@ -32,6 +32,7 @@ export class AIService {
     private client: NewApiClient;
     private modelManager: ModelManager;
     private status: AIServiceStatus;
+    private settingsReady: Promise<void>;
 
     constructor() {
         this.client = new NewApiClient(this.settings);
@@ -41,7 +42,7 @@ export class AIService {
             lastUpdate: Date.now()
         };
         
-        this.loadSettings();
+        this.settingsReady = this.loadSettings();
     }
 
     /**
@@ -60,6 +61,10 @@ export class AIService {
             console.warn('加载AI设置失败:', error);
             this.settings = { ...DEFAULT_AI_SETTINGS };
         }
+    }
+
+    async ready(): Promise<void> {
+        await this.settingsReady;
     }
 
     /**
