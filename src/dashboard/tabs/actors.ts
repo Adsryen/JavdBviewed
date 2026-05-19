@@ -452,14 +452,6 @@ export class ActorsTab {
                 if (actor.avatarUrl && actorCard) {
                     actorCard.setAttribute('data-has-avatar', 'true');
                     actorCard.style.setProperty('--avatar-bg', `url("${actor.avatarUrl}")`);
-                    // 使用CSS变量设置背景
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        .actor-card[data-actor-id="${actor.id}"]::before {
-                            background-image: var(--avatar-bg);
-                        }
-                    `;
-                    document.head.appendChild(style);
                 }
             }
 
