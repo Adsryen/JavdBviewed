@@ -1,4 +1,16 @@
-<div class="card">
+<div class="card new-works-page">
+  <div class="new-works-hero">
+    <div>
+      <span class="new-works-eyebrow">New Works</span>
+      <h3>新作品中心</h3>
+      <p>集中检查订阅演员的新作品，快速筛选、批量打开和同步状态。</p>
+    </div>
+    <div id="lastCheckTimeDisplay" class="last-check-time" style="display:none;">
+      <i class="fas fa-clock"></i>
+      <strong id="lastCheckTimeText">未检查</strong>
+    </div>
+  </div>
+
   <!-- 新作品统计信息 -->
   <div class="stats-section">
     <h4>新作品概览</h4>
@@ -8,11 +20,17 @@
   </div>
 
   <!-- 全局配置和订阅管理 -->
-  <div class="new-works-controls">
-    <div class="config-section">
-      <h5>功能操作</h5>
+  <div class="new-works-controls new-works-command-center">
+    <div class="config-section new-works-panel">
+      <div class="new-works-panel-header">
+        <span class="new-works-panel-icon"><i class="fas fa-sliders-h"></i></span>
+        <div>
+          <h5>功能操作</h5>
+          <p>检查新作品、同步状态和维护已读列表。</p>
+        </div>
+      </div>
       <div class="config-controls">
-        <div class="control-row">
+        <div class="control-row command-row">
           <button id="newWorksGlobalConfigBtn" class="btn-primary">
             <i class="fas fa-cog"></i> 新作品设置
           </button>
@@ -22,12 +40,6 @@
             </span>
             <i class="fas fa-question-circle help-icon" id="checkNowHelpIcon"></i>
           </button>
-          <div id="lastCheckTimeDisplay" class="last-check-time" style="display:none;">
-            <i class="fas fa-clock"></i>
-            <span id="lastCheckTimeText">未检查</span>
-          </div>
-        </div>
-        <div class="control-row">
           <button id="syncStatusBtn" class="btn-info btn-with-help">
             <span class="btn-content">
               <i class="fas fa-sync-alt"></i> 同步状态
@@ -41,8 +53,14 @@
       </div>
     </div>
 
-    <div class="subscription-section">
-      <h5>演员订阅</h5>
+    <div class="subscription-section new-works-panel">
+      <div class="new-works-panel-header">
+        <span class="new-works-panel-icon subscription"><i class="fas fa-users"></i></span>
+        <div>
+          <h5>演员订阅</h5>
+          <p>添加演员订阅，维护监控名单。</p>
+        </div>
+      </div>
       <div class="subscription-controls">
         <button id="addSubscriptionBtn" class="btn-success">
           <i class="fas fa-user-plus"></i> 添加演员
@@ -56,35 +74,50 @@
 
   <!-- 新作品列表 -->
   <div class="new-works-list-section">
+    <div class="new-works-list-header">
+      <div>
+        <h4>作品列表</h4>
+        <p>按关键词、状态和排序规则定位目标作品。</p>
+      </div>
+    </div>
     <div class="list-controls">
-      <input type="text" id="newWorksSearchInput" placeholder="搜索作品或演员...">
-      <select id="newWorksFilterSelect">
-        <option value="all">全部作品</option>
-        <option value="unread">未读作品</option>
-        <option value="today">今日发现</option>
-        <option value="week">本周发现</option>
-      </select>
-      <select id="newWorksSortSelect">
-        <option value="discoveredAt_desc">按发现时间排序 (最新)</option>
-        <option value="releaseDate_desc">按发行时间排序 (最新)</option>
-        <option value="actorName_asc">按演员姓名排序</option>
-      </select>
-      <button id="batchOpenUnreadBtn" class="btn-action" title="打开当前页所有未读新作品（最多10个，15秒冷却）">
-        <i class="fas fa-external-link-alt"></i> 批量打开未读（当页）
-      </button>
-      <button id="selectAllCurrentPageBtn" class="btn-secondary" title="选择当前页的全部作品">
-        <i class="fas fa-check-square"></i> 本页全选
-      </button>
-      <button id="clearSelectionBtn" class="btn-secondary" title="清空所有已选择的作品">
-        <i class="fas fa-eraser"></i> 清空选择
-      </button>
-      <button id="batchOpenSelectedBtn" class="btn-action" disabled title="打开所有已选择的作品">
-        <i class="fas fa-external-link-alt"></i> 批量打开（已选）
-      </button>
-      <button id="batchDeleteSelectedBtn" class="btn-danger" disabled title="删除所有已选择的作品">
-        <i class="fas fa-trash-alt"></i> 删除已选
-      </button>
-      <span id="selectedCountLabel" style="margin-left:8px;opacity:.8;">已选 0</span>
+      <div class="new-works-filter-bar">
+        <div class="new-works-search-group">
+          <i class="fas fa-search"></i>
+          <input type="text" id="newWorksSearchInput" placeholder="搜索作品或演员...">
+        </div>
+        <div class="new-works-select-grid">
+          <select id="newWorksFilterSelect">
+            <option value="all">全部作品</option>
+            <option value="unread">未读作品</option>
+            <option value="today">今日发现</option>
+            <option value="week">本周发现</option>
+          </select>
+          <select id="newWorksSortSelect">
+            <option value="discoveredAt_desc">按发现时间排序 (最新)</option>
+            <option value="releaseDate_desc">按发行时间排序 (最新)</option>
+            <option value="actorName_asc">按演员姓名排序</option>
+          </select>
+        </div>
+      </div>
+      <div class="new-works-batch-toolbar">
+        <button id="batchOpenUnreadBtn" class="btn-action" title="打开当前页所有未读新作品（最多10个，15秒冷却）">
+          <i class="fas fa-external-link-alt"></i> 批量打开未读（当页）
+        </button>
+        <button id="selectAllCurrentPageBtn" class="btn-secondary" title="选择当前页的全部作品">
+          <i class="fas fa-check-square"></i> 本页全选
+        </button>
+        <button id="clearSelectionBtn" class="btn-secondary" title="清空所有已选择的作品">
+          <i class="fas fa-eraser"></i> 清空选择
+        </button>
+        <button id="batchOpenSelectedBtn" class="btn-action" disabled title="打开所有已选择的作品">
+          <i class="fas fa-external-link-alt"></i> 批量打开（已选）
+        </button>
+        <button id="batchDeleteSelectedBtn" class="btn-danger" disabled title="删除所有已选择的作品">
+          <i class="fas fa-trash-alt"></i> 删除已选
+        </button>
+        <span id="selectedCountLabel">已选 0</span>
+      </div>
     </div>
 
     <div class="new-works-list-container">
