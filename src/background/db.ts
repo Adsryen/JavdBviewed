@@ -6,6 +6,7 @@ import type { VideoRecord, ActorRecord, LogEntry, ListRecord } from '../types';
 import type { NewWorkRecord } from '../services/newWorks/types';
 import { buildNewWorksTrendPointsFromDailyMap, mergeNewWorksDailyStatForTrend } from './trendUtils';
 import { getSettings } from '../utils/storage';
+import { normalizeListRecordForUse } from '../utils/listRecordHelpers';
 import type { ViewsDaily, ReportMonthly } from '../types/insights';
 
 // 日志持久化存储结构（扩展原 LogEntry，增加数值时间戳与自增键）
@@ -1252,7 +1253,7 @@ export async function listsDelete(id: string): Promise<void> {
  * 规范化清单记录：对缺失 source 字段的旧数据补全为 'javdb'，不修改其他字段
  */
 function normalizeListRecord(r: any): ListRecord {
-  return { ...r, source: r.source ?? 'javdb' };
+  return normalizeListRecordForUse({ ...r, source: r.source ?? 'javdb' });
 }
 
 /**

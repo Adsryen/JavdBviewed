@@ -126,14 +126,16 @@ export interface ActorSyncResult {
 export interface ListRecord {
   id: string;
   name: string;
-  /** 清单类型：'mine' = 我的清单，'favorite' = 收藏清单，'local' = 本地自定义清单 */
-  type: 'mine' | 'favorite' | 'local';
+  /** 清单类型：'mine' = 我的清单，'favorite' = 收藏清单，'local' = 本地自定义清单，'series' = 收藏系列，'label' = 收藏番号 */
+  type: 'mine' | 'favorite' | 'local' | 'series' | 'label';
   /**
    * 清单来源：
    * - 'javdb'：从 JavDB 同步的清单（默认值，兼容旧数据）
    * - 'local'：用户在扩展内手动创建的本地清单
    */
   source: 'javdb' | 'local';
+  /** 系列 / 番号同步后的真实 JavDB 标识，兼容带前缀的内部记录 ID */
+  externalId?: string;
   moviesCount?: number;
   clickedCount?: number;
   url?: string;
