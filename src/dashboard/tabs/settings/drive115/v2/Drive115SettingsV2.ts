@@ -8,8 +8,6 @@ import { getSettings, saveSettings } from '../../../../../utils/storage';
 import { showMessage } from '../../../../ui/toast';
 import { log } from '../../../../../utils/logController';
 import { Drive115V2Pane } from '../Drive115V2Pane';
-import { searchFilesV2 } from '../../../../../services/drive115v2/search';
-import { addLogV2 } from '../../../../../services/drive115v2/logs';
 // 避免从全局类型引入（其依赖 v1 类型），此处不再导入 ExtensionSettings，使用结构化 any
 
 // v2 局部设置类型（仅包含 v2 需要的字段，避免依赖 v1 类型与默认值）
@@ -133,19 +131,6 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       } catch (_) {}
     });
 
-    // v2 专属：手动测试搜索（与 v1 彻底隔离）
-    const testSearchInput = document.getElementById('testSearchInput') as HTMLInputElement | null;
-    const testSearchButton = document.getElementById('testDrive115Search') as HTMLButtonElement | null;
-    testSearchButton?.addEventListener('click', async () => {
-      const query = testSearchInput?.value?.trim();
-      if (!query) {
-        showMessage('请输入搜索关键词', 'warn');
-        return;
-      }
-      await addLogV2({ timestamp: Date.now(), level: 'debug', message: `设置面板：触发 v2 测试搜索，q="${query.slice(0,50)}"` });
-      await this.testSearch(query);
-    });
-
     // 移除日志相关事件绑定（统一到全局“日志”标签页，不在设置页展示/维护）
   }
 
@@ -238,8 +223,6 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
       'drive115V2ClientId',
       'drive115V2AccessToken',
       'drive115V2RefreshToken',
-      'testSearchInput',
-      'testDrive115Search',
       'drive115V2ValidateToken',
       'drive115V2ManualRefresh',
       'drive115V2StartAuth',
@@ -256,120 +239,6 @@ export class Drive115SettingsPanelV2 extends BaseSettingsPanel {
 
     const v2Pane = document.getElementById('drive115V2Pane') as HTMLDivElement | null;
     if (v2Pane) v2Pane.style.display = 'block';
-  }
-
-  private async testSearch(query: string): Promise<void> {
-    const button = document.getElementById('testDrive115Search') as HTMLButtonElement | null;
-    const originalText = button?.textContent || '测试搜索';
-    try {
-      if (button) {
-        button.disabled = true;
-        button.textContent = '测试中...';
-      }
-      const ret = await searchFilesV2({ search_value: query, limit: 20, offset: 0 });
-      if (!ret.success) {
-        await addLogV2({ timestamp: Date.now(), level: 'warn', message: `设置面板：v2 测试搜索失败：${ret.message || '未知错误'}` });
-        throw new Error(ret.message || '搜索失败');
-      }
-      const results = Array.isArray(ret.data) ? ret.data : [];
-      const count = results.length;
-      showMessage(`搜索测试成功（v2），找到 ${count} 个结果`, 'success');
-      await addLogV2({ timestamp: Date.now(), level: 'info', message: `设置面板：v2 测试搜索成功，返回 ${count} 条` });
-      this.displayTestResults(results as any[], query);
-    } catch (err) {
-      console.error('115 v2 搜索测试失败:', err);
-      showMessage('搜索测试失败，请检查 access_token 与网络', 'error');
-      await addLogV2({ timestamp: Date.now(), level: 'error', message: `设置面板：v2 测试搜索异常：${(err as any)?.message || err || '未知异常'}` });
-      this.clearTestResults();
-    } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    }
-  }
-
-  private displayTestResults(results: any[], query: string): void {
-    const resultsContainer = document.getElementById('testResults');
-    if (!resultsContainer) return;
-    if (results.length === 0) {
-      resultsContainer.innerHTML = `
-        <div class="test-result-empty">
-          <p>未找到包含"${this.escapeHtml(query)}"的文件</p>
-        </div>
-      `;
-      return;
-    }
-    const displayResults = results.slice(0, 5);
-    resultsContainer.innerHTML = `
-      <div class="test-result-header">
-        <h5>搜索结果 (显示前${displayResults.length}个，共${results.length}个)</h5>
-      </div>
-      <div class="test-result-list">
-        ${displayResults.map(file => `
-          <div class="test-result-item">
-            <div class="file-name">${this.escapeHtml(this.getFileName(file))}</div>
-            <div class="file-info">
-              <span class="file-type">${this.getTypeText(file)}</span>
-              ${this.getIsFile(file) ? `<span class=\"file-size\">${this.formatFileSize(this.getFileSize(file))}</span>` : ''}
-              <span class="file-time">${this.formatTime(this.getFileTime(file))}</span>
-            </div>
-            ${file?.pick_code ? `<div class=\"file-extra\">提取码：${this.escapeHtml(String(file.pick_code))}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-      ${results.length > 5 ? `<p class=\"test-result-more\">还有 ${results.length - 5} 个结果未显示</p>` : ''}
-    `;
-  }
-
-  private clearTestResults(): void {
-    const resultsContainer = document.getElementById('testResults');
-    if (resultsContainer) resultsContainer.innerHTML = '';
-  }
-
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  private formatTime(timestamp: string | number): string {
-    if (!timestamp) return '';
-    const date = new Date(typeof timestamp === 'string' ? parseInt(timestamp) * 1000 : timestamp * 1000);
-    return date.toLocaleDateString('zh-CN');
-  }
-
-  // 统一字段映射：兼容 v1 与 v2 返回结构
-  private getFileName(file: any): string {
-    return (file?.n || file?.name || file?.file_name || '未知文件') as string;
-  }
-
-  private getFileSize(file: any): number {
-    const val = file?.s ?? file?.size ?? file?.file_size;
-    const num = typeof val === 'string' ? parseInt(val, 10) : Number(val);
-    return Number.isFinite(num) && num > 0 ? num : 0;
-  }
-
-  private getFileTime(file: any): string | number {
-    return (file?.user_utime ?? file?.user_ptime ?? file?.t ?? file?.time ?? '') as any;
-  }
-
-  private getIsFile(file: any): boolean {
-    const cat = file?.file_category ?? file?.fc;
-    const s = String(cat ?? '');
-    return s === '1'; // 文档：1 文件；0 文件夹
-  }
-
-  private getTypeText(file: any): string {
-    return this.getIsFile(file) ? '文件' : '文件夹';
   }
 
   private formatDateTime(tsSec: number): string {
