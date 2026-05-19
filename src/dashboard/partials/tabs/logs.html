@@ -3,22 +3,24 @@
     <h4>日志记录</h4>
     <p class="settings-description">在此查看扩展运行日志，可按等级、来源、关键词与时间范围进行筛选，并支持仅显示包含详细数据的日志。</p>
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div class="logs-toolbar">
       <div class="log-view-switch">
         <button id="log-view-ext" class="switch-btn active" title="显示扩展持久化日志">扩展日志</button>
         <button id="log-view-magnet" class="switch-btn" title="显示 115 磁力推送记录（成功/失败）">磁力推送</button>
       </div>
-      <div class="log-actions" style="display: flex; gap: 8px;">
+      <div class="log-actions">
         <button id="refresh-logs-button" class="primary">刷新</button>
         <button id="clear-logs-button" class="danger">清空日志</button>
         <button id="export-logs-button" class="button is-light">导出</button>
       </div>
     </div>
 
-    <div class="log-filters">
-      <div class="filter-group" style="flex: 1; min-width: 240px;">
+    <div class="log-filters" id="log-filters-ext">
+      <div class="filter-group log-search-filter">
         <label for="log-search-input">关键词搜索</label>
-        <input id="log-search-input" type="search" placeholder="搜索消息或详细数据..." />
+        <div class="linked-filter-control" data-linked-control="log-search-input">
+          <input id="log-search-input" type="search" placeholder="搜索消息或详细数据..." />
+        </div>
       </div>
       <div class="filter-group">
         <label for="log-level-filter">日志级别</label>
@@ -54,7 +56,30 @@
           <option value="CONTENT">内容脚本</option>
         </select>
       </div>
-      <div class="filter-group" id="magnet-status-filter-group" style="display: none;">
+      <div class="filter-group">
+        <label>日期范围（起）</label>
+        <div class="linked-filter-control" data-linked-control="log-start-date">
+          <input id="log-start-date" type="date" />
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>日期范围（止）</label>
+        <div class="linked-filter-control" data-linked-control="log-end-date">
+          <input id="log-end-date" type="date" />
+        </div>
+      </div>
+      <div class="filter-group log-data-toggle-filter">
+        <label for="log-has-data-only">仅含详细数据</label>
+        <input id="log-has-data-only" type="checkbox" />
+      </div>
+    </div>
+
+    <div class="log-filters is-hidden" id="log-filters-magnet">
+      <div class="filter-group log-search-filter">
+        <label for="log-search-input">关键词搜索</label>
+        <div class="linked-filter-control" data-linked-control="log-search-input"></div>
+      </div>
+      <div class="filter-group">
         <label for="magnet-status-filter">推送结果</label>
         <select id="magnet-status-filter">
           <option value="ALL">全部</option>
@@ -64,15 +89,11 @@
       </div>
       <div class="filter-group">
         <label>日期范围（起）</label>
-        <input id="log-start-date" type="date" />
+        <div class="linked-filter-control" data-linked-control="log-start-date"></div>
       </div>
       <div class="filter-group">
         <label>日期范围（止）</label>
-        <input id="log-end-date" type="date" />
-      </div>
-      <div class="filter-group" style="align-self: flex-end;">
-        <label for="log-has-data-only">仅含详细数据</label>
-        <input id="log-has-data-only" type="checkbox" />
+        <div class="linked-filter-control" data-linked-control="log-end-date"></div>
       </div>
     </div>
 
@@ -80,7 +101,7 @@
       <div id="log-body">
         <!-- Log entries will be inserted here -->
       </div>
-      <div id="magnet-log-body" style="display:none;">
+      <div id="magnet-log-body" hidden>
         <!-- Magnet cache entries will be inserted here -->
       </div>
     </div>

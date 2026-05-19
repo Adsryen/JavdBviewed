@@ -533,3 +533,520 @@
         justify-content: center;
     }
 }
+
+/* ===================================================================
+   日志页现代化覆盖 - Diagnostic Console
+   ================================================================ */
+
+#tab-logs {
+    --logs-console-bg: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+    --logs-console-panel: color-mix(in srgb, var(--surface-primary) 94%, var(--bg-secondary));
+    --logs-console-panel-strong: color-mix(in srgb, var(--surface-primary) 88%, var(--primary) 4%);
+    --logs-console-border: color-mix(in srgb, var(--border-primary) 78%, transparent);
+    --logs-console-border-strong: color-mix(in srgb, var(--border-primary) 82%, var(--text-secondary) 10%);
+    --logs-console-muted: var(--text-secondary);
+    --logs-console-code-bg: color-mix(in srgb, var(--bg-secondary) 92%, #0f172a 4%);
+    --logs-console-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    --logs-info: #2563eb;
+    --logs-warn: #d97706;
+    --logs-error: #dc2626;
+    --logs-debug: #64748b;
+}
+
+[data-theme="dark"] #tab-logs,
+html[data-theme="dark"] #tab-logs {
+    --logs-console-bg: rgba(15, 23, 42, 0.52);
+    --logs-console-panel: rgba(15, 23, 42, 0.78);
+    --logs-console-panel-strong: rgba(30, 41, 59, 0.86);
+    --logs-console-border: rgba(148, 163, 184, 0.18);
+    --logs-console-border-strong: rgba(148, 163, 184, 0.28);
+    --logs-console-code-bg: rgba(2, 6, 23, 0.72);
+    --logs-console-shadow: 0 22px 58px rgba(0, 0, 0, 0.28);
+    --logs-info: #60a5fa;
+    --logs-warn: #fbbf24;
+    --logs-error: #f87171;
+    --logs-debug: #94a3b8;
+}
+
+#tab-logs > .card {
+    background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 10%, transparent), transparent 34%),
+        var(--surface-primary);
+    border: 1px solid var(--logs-console-border);
+    border-radius: 18px;
+    box-shadow: var(--logs-console-shadow);
+    overflow: hidden;
+}
+
+#tab-logs .settings-section {
+    padding: 22px;
+}
+
+#tab-logs .settings-section > h4 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px;
+    color: var(--text-primary);
+    font-size: 20px;
+    letter-spacing: -0.02em;
+}
+
+#tab-logs .settings-description {
+    max-width: 880px;
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+#tab-logs .logs-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    margin: 0 0 16px !important;
+    padding: 12px;
+    background: var(--logs-console-panel);
+    border: 1px solid var(--logs-console-border);
+    border-radius: 16px;
+}
+
+#tab-logs .log-view-switch {
+    gap: 6px;
+    margin: 0;
+    padding: 4px;
+    background: var(--logs-console-bg);
+    border: 1px solid var(--logs-console-border);
+    border-radius: 999px;
+}
+
+#tab-logs .log-view-switch .switch-btn {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#tab-logs .log-view-switch .switch-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+#tab-logs .log-view-switch .switch-btn.active {
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.10);
+}
+
+[data-theme="dark"] #tab-logs .log-view-switch .switch-btn.active,
+html[data-theme="dark"] #tab-logs .log-view-switch .switch-btn.active {
+    background: rgba(51, 65, 85, 0.92);
+}
+
+#tab-logs .log-actions {
+    gap: 8px !important;
+    margin: 0;
+}
+
+#tab-logs .log-actions button {
+    min-height: 34px;
+    padding: 0 13px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: none;
+}
+
+#tab-logs #refresh-logs-button {
+    background: color-mix(in srgb, var(--logs-info) 92%, #fff 8%);
+    border-color: transparent;
+}
+
+#tab-logs #clear-logs-button {
+    background: color-mix(in srgb, var(--logs-error) 92%, #fff 8%);
+    border-color: transparent;
+}
+
+#tab-logs #refresh-logs-button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--logs-info) 82%, #0f172a 18%);
+    border-color: transparent;
+}
+
+#tab-logs #clear-logs-button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--logs-error) 82%, #0f172a 18%);
+    border-color: transparent;
+}
+
+#tab-logs #export-logs-button {
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    border-color: var(--logs-console-border-strong);
+}
+
+#tab-logs .log-actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+#tab-logs .log-filters {
+    display: grid;
+    grid-template-columns: minmax(260px, 1.7fr) repeat(4, minmax(132px, 1fr)) auto;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 14px;
+    background: var(--logs-console-panel);
+    border: 1px solid var(--logs-console-border);
+    border-radius: 16px;
+}
+
+#tab-logs #log-filters-magnet {
+    grid-template-columns: minmax(260px, 1.7fr) repeat(3, minmax(150px, 1fr));
+}
+
+#tab-logs .log-search-filter {
+    min-width: 240px;
+}
+
+#tab-logs .linked-filter-control {
+    display: contents;
+}
+
+#tab-logs .log-data-toggle-filter {
+    align-self: end;
+}
+
+#tab-logs .is-hidden,
+#tab-logs [hidden] {
+    display: none !important;
+}
+
+#tab-logs .log-filters .filter-group {
+    gap: 7px;
+    min-width: 0;
+}
+
+#tab-logs .log-filters label {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+#tab-logs .log-filters input[type="search"],
+#tab-logs .log-filters input[type="date"],
+#tab-logs .log-filters select,
+#tab-logs .records-per-page-selector select {
+    min-height: 38px;
+    width: 100%;
+    border-radius: 11px;
+    border: 1px solid var(--logs-console-border-strong);
+    background-color: var(--surface-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+#tab-logs .log-filters input[type="search"] {
+    padding-left: 36px;
+    background-image:
+        linear-gradient(transparent, transparent),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    background-size: 15px;
+}
+
+#tab-logs .log-filters input:focus,
+#tab-logs .log-filters select:focus,
+#tab-logs .records-per-page-selector select:focus {
+    border-color: color-mix(in srgb, var(--primary) 72%, var(--logs-console-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+#tab-logs .log-filters input[type="checkbox"] {
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border: 1px solid var(--logs-console-border-strong);
+    border-radius: 999px;
+    appearance: none;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.18s ease;
+}
+
+#tab-logs .log-filters input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--surface-primary);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+    transition: transform 0.18s ease;
+}
+
+#tab-logs .log-filters input[type="checkbox"]:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+#tab-logs .log-filters input[type="checkbox"]:checked::after {
+    transform: translateX(16px);
+}
+
+#tab-logs .log-container {
+    max-height: 640px;
+    padding: 10px;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--border-primary) 22%, transparent) 1px, transparent 1px),
+        linear-gradient(color-mix(in srgb, var(--border-primary) 18%, transparent) 1px, transparent 1px),
+        var(--logs-console-bg);
+    background-size: 28px 28px;
+    border: 1px solid var(--logs-console-border);
+    border-radius: 18px;
+}
+
+#tab-logs #log-body,
+#tab-logs #magnet-log-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#tab-logs .log-entry {
+    position: relative;
+    overflow: hidden;
+    background: var(--logs-console-panel);
+    border: 1px solid var(--logs-console-border);
+    border-left: 0;
+    border-radius: 13px;
+    box-shadow: none;
+}
+
+#tab-logs .log-entry::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: var(--logs-debug);
+}
+
+#tab-logs .log-entry:hover {
+    background: var(--logs-console-panel-strong);
+    border-color: var(--logs-console-border-strong);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+#tab-logs .log-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px 11px 16px;
+}
+
+#tab-logs .log-level-badge {
+    min-width: 56px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    letter-spacing: 0.04em;
+    color: var(--logs-debug);
+    background: color-mix(in srgb, var(--logs-debug) 13%, transparent);
+}
+
+#tab-logs .log-category {
+    max-width: 128px;
+    padding: 4px 8px;
+    overflow: hidden;
+    border: 1px solid var(--logs-console-border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#tab-logs .log-message {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.55;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#tab-logs .log-timestamp {
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    letter-spacing: -0.02em;
+}
+
+#tab-logs .log-data-details {
+    border-top: 1px solid var(--logs-console-border);
+    background: color-mix(in srgb, var(--logs-console-code-bg) 84%, transparent);
+}
+
+#tab-logs .log-data-details summary {
+    padding: 9px 16px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#tab-logs .log-data-details summary:hover {
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+#tab-logs .log-data-details pre {
+    max-height: 340px;
+    overflow: auto;
+    padding: 14px 16px 16px;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#tab-logs .log-level-info::before { background: var(--logs-info); }
+#tab-logs .log-level-warn::before { background: var(--logs-warn); }
+#tab-logs .log-level-error::before { background: var(--logs-error); }
+#tab-logs .log-level-debug::before { background: var(--logs-debug); }
+
+#tab-logs .log-level-info .log-level-badge {
+    color: var(--logs-info);
+    background: color-mix(in srgb, var(--logs-info) 14%, transparent);
+}
+
+#tab-logs .log-level-warn .log-level-badge {
+    color: var(--logs-warn);
+    background: color-mix(in srgb, var(--logs-warn) 16%, transparent);
+}
+
+#tab-logs .log-level-error .log-level-badge {
+    color: var(--logs-error);
+    background: color-mix(in srgb, var(--logs-error) 15%, transparent);
+}
+
+#tab-logs .log-level-debug .log-level-badge {
+    color: var(--logs-debug);
+    background: color-mix(in srgb, var(--logs-debug) 14%, transparent);
+}
+
+#tab-logs .magnet-entry .log-category {
+    color: var(--logs-info);
+    border-color: color-mix(in srgb, var(--logs-info) 28%, var(--logs-console-border));
+    background: color-mix(in srgb, var(--logs-info) 9%, transparent);
+}
+
+#tab-logs .log-highlight {
+    background: color-mix(in srgb, var(--logs-warn) 26%, transparent);
+    color: var(--logs-warn);
+    border-radius: 4px;
+    padding: 1px 3px;
+}
+
+#tab-logs .no-logs,
+#tab-logs .loading {
+    padding: 56px 20px;
+    color: var(--text-secondary);
+    text-align: center;
+    background: var(--logs-console-panel);
+    border: 1px dashed var(--logs-console-border-strong);
+    border-radius: 14px;
+}
+
+#tab-logs #logsCountInfo {
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+#tab-logs .pagination-controls {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--logs-console-panel);
+    border: 1px solid var(--logs-console-border);
+    border-radius: 16px;
+}
+
+#tab-logs .page-button {
+    min-width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--surface-primary);
+    border-color: var(--logs-console-border);
+    font-size: 13px;
+}
+
+#tab-logs .page-button.active {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: var(--surface-primary);
+}
+
+#tab-logs .records-per-page-selector label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+@media (max-width: 1180px) {
+    #tab-logs .log-filters {
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    #tab-logs .settings-section {
+        padding: 16px;
+    }
+
+    #tab-logs .logs-toolbar {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #tab-logs .log-actions,
+    #tab-logs .log-view-switch {
+        width: 100%;
+    }
+
+    #tab-logs .log-actions button,
+    #tab-logs .log-view-switch .switch-btn {
+        flex: 1;
+    }
+
+    #tab-logs .log-filters {
+        grid-template-columns: 1fr;
+    }
+
+    #tab-logs .log-header {
+        grid-template-columns: auto 1fr;
+        align-items: start;
+    }
+
+    #tab-logs .log-message,
+    #tab-logs .log-timestamp {
+        grid-column: 1 / -1;
+        white-space: normal;
+    }
+}

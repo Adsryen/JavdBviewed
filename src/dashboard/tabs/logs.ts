@@ -47,7 +47,8 @@ export class LogsTab {
     private logStartDateInput!: HTMLInputElement;
     private logEndDateInput!: HTMLInputElement;
     private logHasDataOnlyCheckbox!: HTMLInputElement;
-    private magnetStatusFilterGroup!: HTMLDivElement;
+    private extFilters!: HTMLDivElement;
+    private magnetFilters!: HTMLDivElement;
     private magnetStatusFilter!: HTMLSelectElement;
     private refreshButton!: HTMLButtonElement;
     private clearButton!: HTMLButtonElement;
@@ -71,6 +72,9 @@ export class LogsTab {
 
             // 绑定事件监听器
             this.bindEvents();
+
+            // 同步初始过滤器显示
+            this.updateFilterVisibility();
 
             // 加载日志数据
             await this.loadLogs();
@@ -96,7 +100,8 @@ export class LogsTab {
         this.logStartDateInput = document.getElementById('log-start-date') as HTMLInputElement;
         this.logEndDateInput = document.getElementById('log-end-date') as HTMLInputElement;
         this.logHasDataOnlyCheckbox = document.getElementById('log-has-data-only') as HTMLInputElement;
-        this.magnetStatusFilterGroup = document.getElementById('magnet-status-filter-group') as HTMLDivElement;
+        this.extFilters = document.getElementById('log-filters-ext') as HTMLDivElement;
+        this.magnetFilters = document.getElementById('log-filters-magnet') as HTMLDivElement;
         this.magnetStatusFilter = document.getElementById('magnet-status-filter') as HTMLSelectElement;
         this.refreshButton = document.getElementById('refresh-logs-button') as HTMLButtonElement;
         this.clearButton = document.getElementById('clear-logs-button') as HTMLButtonElement;
@@ -151,8 +156,12 @@ export class LogsTab {
             console.error('[LogsTab] 找不到log-has-data-only元素');
             return;
         }
-        if (!this.magnetStatusFilterGroup) {
-            console.error('[LogsTab] 找不到magnet-status-filter-group元素');
+        if (!this.extFilters) {
+            console.error('[LogsTab] 找不到log-filters-ext元素');
+            return;
+        }
+        if (!this.magnetFilters) {
+            console.error('[LogsTab] 找不到log-filters-magnet元素');
             return;
         }
         if (!this.magnetStatusFilter) {
@@ -707,7 +716,7 @@ export class LogsTab {
                     <span class="log-message">${this.escapeHtml(String(title))}</span>
                     <span class="log-timestamp">${this.escapeHtml(timestamp)}</span>
                 </div>
-                <details class="log-data-details" open>
+                <details class="log-data-details">
                     <summary>${this.escapeHtml(meta || item.message || '详细信息')}</summary>
                     <pre>${this.escapeHtml(JSON.stringify(item.data || item, null, 2))}</pre>
                 </details>
@@ -755,16 +764,35 @@ export class LogsTab {
      */
     private updateViewVisibility(): void {
         if (!this.logBody || !this.magnetLogBody) return;
-        if (this.magnetStatusFilterGroup) {
-            this.magnetStatusFilterGroup.style.display = this.viewMode === 'MAGNET' ? 'flex' : 'none';
-        }
+        this.updateFilterVisibility();
         if (this.viewMode === 'EXT') {
-            this.logBody.style.display = '';
-            this.magnetLogBody.style.display = 'none';
+            this.logBody.hidden = false;
+            this.magnetLogBody.hidden = true;
         } else {
-            this.logBody.style.display = 'none';
-            this.magnetLogBody.style.display = '';
+            this.logBody.hidden = true;
+            this.magnetLogBody.hidden = false;
         }
+    }
+
+    private updateFilterVisibility(): void {
+        if (this.extFilters) {
+            this.extFilters.classList.toggle('is-hidden', this.viewMode !== 'EXT');
+        }
+        if (this.magnetFilters) {
+            this.magnetFilters.classList.toggle('is-hidden', this.viewMode !== 'MAGNET');
+        }
+        this.moveLinkedFilterControl('log-search-input');
+        this.moveLinkedFilterControl('log-start-date');
+        this.moveLinkedFilterControl('log-end-date');
+    }
+
+    private moveLinkedFilterControl(controlId: string): void {
+        const control = document.getElementById(controlId);
+        const target = document.querySelector<HTMLElement>(
+            `.log-filters:not(.is-hidden) [data-linked-control="${controlId}"]`
+        );
+        if (!control || !target || target.firstElementChild === control) return;
+        target.replaceChildren(control);
     }
 
     private updateSwitchBtnActive(): void {
