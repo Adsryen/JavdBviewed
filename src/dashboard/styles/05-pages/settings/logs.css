@@ -41,7 +41,7 @@
 }
 
 #tab-logs .card:first-child .settings-section:first-child h4 {
-    color: var(--logs-primary);
+    color: #000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -52,10 +52,9 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#tab-logs .card:first-child .settings-section:first-child h4::before {
-    content: '📋';
-    font-size: 1.3em;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+[data-theme="dark"] #tab-logs .card:first-child .settings-section:first-child h4,
+html[data-theme="dark"] #tab-logs .card:first-child .settings-section:first-child h4 {
+    color: #fff;
 }
 
 #logs-settings {

@@ -246,7 +246,6 @@ export class Drive115AppService {
         magnetUrl: task.magnetUrl,
         downloadDir: options.downloadDir,
         autoVerify: options.autoVerify,
-        notify: false,
       });
 
       results.push({ videoId: task.videoId, result });

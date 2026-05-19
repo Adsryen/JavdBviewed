@@ -502,7 +502,6 @@ export async function handleBatchDownload(
                     videoId,
                     magnetUrl: item.url,
                     autoVerify: false,
-                    notify: true
                 });
                 if (res.success) successCount++;
             } catch (e) {

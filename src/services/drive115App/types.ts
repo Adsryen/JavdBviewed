@@ -13,7 +13,6 @@ export interface NormalizedDrive115Settings {
   downloadDir: string;
   verifyCount: number;
   maxFailures: number;
-  autoNotify: boolean;
   v2ApiBaseUrl: string;
   v2AuthMode?: 'openlist_manual' | 'openlist_scan' | 'self_app';
   v2ClientId?: string;
@@ -42,7 +41,6 @@ export interface Drive115OfflineOptionsUnified {
   magnetUrl: string;
   downloadDir?: string;
   autoVerify?: boolean;
-  notify?: boolean;
 }
 
 export interface Drive115BatchTaskUnified {
@@ -55,7 +53,6 @@ export interface Drive115BatchOptionsUnified {
   downloadDir?: string;
   maxFailures?: number;
   autoVerify?: boolean;
-  notify?: boolean;
 }
 
 export interface Drive115OfflineResultUnified {
