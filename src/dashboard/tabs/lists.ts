@@ -247,7 +247,7 @@ export class ListsTab {
 
         return `
             <div class="lists-item" data-list-id="${safeId}" title="点击筛选番号库：${safeName}">
-                <div class="lists-item-title">${safeName}${sourceBadge}</div>
+                <div class="lists-item-title"><span class="lists-item-name">${safeName}</span>${sourceBadge}</div>
                 <div class="lists-item-meta">${safeMeta}</div>
                 ${actionBtns}
             </div>
