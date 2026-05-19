@@ -393,7 +393,7 @@ export class Drive115TasksManager {
             <i class="fas fa-file"></i>
           </div>
           <div class="task-info">
-            <div class="task-name" title="${task.name || ''}">${task.name || '未知任务'}</div>
+            <div class="task-name" data-sensitive>${task.name || '未知任务'}</div>
             <div class="task-meta">
               <span class="task-size">${sizeText}</span>
               <span class="task-time">添加时间: ${addTime}</span>
