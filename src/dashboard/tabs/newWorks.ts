@@ -14,7 +14,8 @@ import {
     getUnreadBatchOpenCooldownSeconds,
     pickUnreadBatchOpenTargets,
 } from './newWorksBatchOpenPolicy';
-import type { NewWorkRecord, ActorRecord, ActorSubscription } from '../../types';
+import type { ActorRecord } from '../../types';
+import type { NewWorkRecord, ActorSubscription } from '../../services/newWorks';
 
 export class NewWorksTab {
     public isInitialized: boolean = false;
@@ -633,7 +634,7 @@ export class NewWorksTab {
 
         const tagsHtml = work.tags.length > 0 
             ? `<div class="new-work-tags">
-                ${work.tags.slice(0, 3).map(tag => `<span class="new-work-tag">${tag}</span>`).join('')}
+                ${work.tags.slice(0, 3).map((tag: string) => `<span class="new-work-tag">${tag}</span>`).join('')}
                 ${work.tags.length > 3 ? `<span class="new-work-tag">+${work.tags.length - 3}</span>` : ''}
                </div>`
             : '';
@@ -643,7 +644,12 @@ export class NewWorksTab {
                 <div class="new-work-checkbox">
                     <input type="checkbox" ${isSelected ? 'checked' : ''}>
                 </div>
-                ${work.coverImage ? `<img src="${work.coverImage}" alt="${work.title}" class="new-work-cover">` : '<div class="new-work-cover"></div>'}
+                ${work.coverImage ? `
+                <div class="new-work-cover-wrap">
+                    <img src="${work.coverImage}" alt="${work.title}" class="new-work-cover">
+                    <img src="${work.coverImage}" alt="${work.title}" class="new-work-cover-preview">
+                </div>
+                ` : '<div class="new-work-cover-wrap"><div class="new-work-cover"></div></div>'}
                 <div class="new-work-info">
                     <h3 class="new-work-title">${work.title}</h3>
                     <div class="new-work-meta">
@@ -742,31 +748,49 @@ export class NewWorksTab {
                 e.stopPropagation();
                 if (checkbox.checked) {
                     this.selectedWorks.add(workId);
+                    item.classList.add('selected');
                 } else {
                     this.selectedWorks.delete(workId);
+                    item.classList.remove('selected');
                 }
                 this.updateBatchOperations();
             });
 
-            // 整项点击事件（以按钮为主，避免冒泡导致误选）
+            // 整项点击事件：操作按钮执行动作，卡片主体切换选中
             item.addEventListener('click', async (e) => {
                 const target = e.target as HTMLElement;
                 const actionBtn = target.closest ? target.closest('.new-work-action-btn') : null;
-                if (!actionBtn) return;
-                const action = (actionBtn as HTMLElement).getAttribute('data-action');
-                switch (action) {
-                    case 'mark-read':
-                        await this.markWorksAsRead([workId]);
-                        break;
-                    case 'visit':
-                        await this.visitWork(workId);
-                        break;
-                    case 'delete':
-                        await this.deleteWorks([workId]);
-                        break;
-                    default:
-                        break;
+                if (actionBtn) {
+                    const action = (actionBtn as HTMLElement).getAttribute('data-action');
+                    switch (action) {
+                        case 'mark-read':
+                            await this.markWorksAsRead([workId]);
+                            break;
+                        case 'visit':
+                            await this.visitWork(workId);
+                            break;
+                        case 'delete':
+                            await this.deleteWorks([workId]);
+                            break;
+                        default:
+                            break;
+                    }
+                    return;
                 }
+
+                const checkboxTarget = target.closest ? target.closest('.new-work-checkbox') : null;
+                if (checkboxTarget) return;
+
+                if (this.selectedWorks.has(workId)) {
+                    this.selectedWorks.delete(workId);
+                    if (checkbox) checkbox.checked = false;
+                    item.classList.remove('selected');
+                } else {
+                    this.selectedWorks.add(workId);
+                    if (checkbox) checkbox.checked = true;
+                    item.classList.add('selected');
+                }
+                this.updateBatchOperations();
             });
         });
         // 渲染后同步一次批量操作状态
@@ -929,7 +953,7 @@ export class NewWorksTab {
         
         let tooltip: HTMLDivElement | null = null;
 
-        const showTooltip = (e: MouseEvent) => {
+        const showTooltip = () => {
             // 移除旧的tooltip
             if (tooltip) {
                 tooltip.remove();
@@ -991,7 +1015,7 @@ export class NewWorksTab {
         
         let tooltip: HTMLDivElement | null = null;
 
-        const showTooltip = (e: MouseEvent) => {
+        const showTooltip = () => {
             // 移除旧的tooltip
             if (tooltip) {
                 tooltip.remove();
@@ -1077,6 +1101,7 @@ export class NewWorksTab {
             const id = item.getAttribute('data-work-id');
             if (!id) return;
             this.selectedWorks.add(id);
+            item.classList.add('selected');
             const cb = item.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
             if (cb) cb.checked = true;
         });
@@ -1093,6 +1118,9 @@ export class NewWorksTab {
         const items = Array.from(document.querySelectorAll('.new-work-item input[type="checkbox"]')) as HTMLInputElement[];
         console.log('找到复选框数量:', items.length);
         items.forEach(cb => { cb.checked = false; });
+        document.querySelectorAll('.new-work-item.selected').forEach(item => {
+            item.classList.remove('selected');
+        });
         this.updateBatchOperations();
         console.log('清空选择完成');
     }
