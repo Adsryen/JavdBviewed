@@ -56,6 +56,7 @@ vitepress/.vitepress/cache/
 # 参考文档
 !reference/
 !reference/openai-115/
+!reference/openai-115/*/*.md
 !reference/openai-115/*.md
 !PRIVACY_POLICY.md
 !FEATURES.md
