@@ -7,21 +7,42 @@
         <p class="settings-description">管理扩展程序的更新检查设置，获取最新版本信息。</p>
     </div>
     <div class="settings-page-body">
-        <!-- 版本信息卡片 -->
-        <div class="settings-section">
-            <h4>版本信息</h4>
-            <div class="version-info">
-                <div class="version-item">
-                    <span class="version-label">当前版本</span>
-                    <span class="version-value" id="currentVersion">加载中...</span>
+        <!-- 更新状态卡片 -->
+        <div class="settings-section update-status-section">
+            <div class="update-status-card">
+                <div class="update-status-main">
+                    <div>
+                        <span class="update-eyebrow">Update Status</span>
+                        <h4>版本检查</h4>
+                        <p class="update-status-copy">进入此页面会实时检查 GitHub 最新发布，自动检查间隔只用于顶部徽标和后台提醒。</p>
+                    </div>
+                    <div class="action-buttons-top">
+                        <button id="checkUpdateNow" class="btn primary">立即检查</button>
+                        <button id="downloadUpdate" class="btn success" style="display: none;">下载更新</button>
+                        <button id="viewChangelog" class="btn">查看更新日志</button>
+                    </div>
                 </div>
-                <div class="version-item">
-                    <span class="version-label">最新版本</span>
-                    <span class="version-value" id="latestVersion">检查中...</span>
+
+                <div class="version-info">
+                    <div class="version-item">
+                        <span class="version-label">当前版本</span>
+                        <span class="version-value" id="currentVersion">加载中...</span>
+                    </div>
+                    <div class="version-item">
+                        <span class="version-label">最新版本</span>
+                        <span class="version-value checking" id="latestVersion">检查中...</span>
+                    </div>
+                    <div class="version-item">
+                        <span class="version-label">上次检查</span>
+                        <span class="version-value" id="lastUpdateCheck">从未检查</span>
+                    </div>
                 </div>
-                <div class="version-item">
-                    <span class="version-label">上次检查</span>
-                    <span class="version-value" id="lastUpdateCheck">从未检查</span>
+
+                <div id="updateNotification" class="update-notification" style="display: none;">
+                    <div class="notification-content">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="updateMessage">检查更新状态...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -33,7 +54,7 @@
                     <span class="section-icon">⚙️</span>
                     自动检查设置
                 </h4>
-                <p class="section-description">配置自动更新检查的频率和范围</p>
+                <p class="section-description">用于 dashboard 顶部徽标和自动提醒，不影响本页面实时检查</p>
             </div>
             
             <div class="auto-check-card">
@@ -86,30 +107,5 @@
             </div>
         </div>
 
-        <!-- 手动操作区域 -->
-        <div class="settings-section">
-            <h4>手动操作</h4>
-            <div class="action-buttons-top">
-                <button id="checkUpdateNow" class="btn primary">立即检查</button>
-                <button id="viewChangelog" class="btn">查看更新日志</button>
-                <button id="downloadUpdate" class="btn success" style="display: none;">下载更新</button>
-            </div>
-            <p class="input-description" style="margin-top: 12px; font-size: 13px; line-height: 1.6;">
-                <strong>立即检查:</strong> 手动检查是否有新版本可用<br>
-                <strong>查看更新日志:</strong> 查看最新版本的更新内容和修复<br>
-                <strong>下载更新:</strong> 当有新版本时，跳转到下载页面
-            </p>
-        </div>
-
-        <!-- 更新通知区域 -->
-        <div class="settings-section" id="updateNotification" style="display: none;">
-            <h4>更新通知</h4>
-            <div class="update-notification">
-                <div class="notification-content">
-                    <i class="fas fa-info-circle"></i>
-                    <span id="updateMessage">检查更新状态...</span>
-                </div>
-            </div>
-        </div>
     </div>
 </div>

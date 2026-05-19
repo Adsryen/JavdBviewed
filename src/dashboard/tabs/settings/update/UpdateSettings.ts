@@ -7,13 +7,24 @@ import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { SettingsPanelConfig, SettingsSaveResult, SettingsValidationResult } from '../base/interfaces';
 import { getSettings, saveSettings } from '../../../../utils/storage';
 import { showMessage } from '../../../ui/toast';
-import { checkForUpdates, getCurrentVersion } from '../../../../services/update/checker';
+import {
+    checkForUpdatesWithPolicy,
+    getCurrentVersion,
+    LAST_UPDATE_CHECK_KEY,
+} from '../../../../services/update/checker';
 import { log } from '../../../../utils/logController';
 import type { ExtensionSettings } from '../../../../types';
 
 export class UpdateSettings extends BaseSettingsPanel {
     private settings: any = {};
     private isCheckingUpdate = false;
+    private downloadUpdateUrl = 'https://github.com/Adsryen/JavdBviewed/releases/latest';
+    private readonly onAutoUpdateCheckChange = this.handleAutoUpdateCheckToggle.bind(this);
+    private readonly onUpdateCheckIntervalChange = this.handleUpdateCheckIntervalChange.bind(this);
+    private readonly onIncludePrereleaseChange = this.handleIncludePrereleaseToggle.bind(this);
+    private readonly onCheckUpdateNowClick = this.handleCheckUpdateNow.bind(this);
+    private readonly onViewChangelogClick = this.handleViewChangelog.bind(this);
+    private readonly onDownloadUpdateClick = this.handleDownloadUpdate.bind(this);
 
     constructor() {
         const config: SettingsPanelConfig = {
@@ -61,37 +72,37 @@ export class UpdateSettings extends BaseSettingsPanel {
         // 自动检查更新开关
         const autoUpdateCheckToggle = document.getElementById('autoUpdateCheck') as HTMLInputElement;
         if (autoUpdateCheckToggle) {
-            autoUpdateCheckToggle.addEventListener('change', this.handleAutoUpdateCheckToggle.bind(this));
+            autoUpdateCheckToggle.addEventListener('change', this.onAutoUpdateCheckChange);
         }
 
         // 检查间隔选择
         const updateCheckIntervalSelect = document.getElementById('updateCheckInterval') as HTMLSelectElement;
         if (updateCheckIntervalSelect) {
-            updateCheckIntervalSelect.addEventListener('change', this.handleUpdateCheckIntervalChange.bind(this));
+            updateCheckIntervalSelect.addEventListener('change', this.onUpdateCheckIntervalChange);
         }
 
         // 包含预发布版本
         const includePrereleaseToggle = document.getElementById('includePrerelease') as HTMLInputElement;
         if (includePrereleaseToggle) {
-            includePrereleaseToggle.addEventListener('change', this.handleIncludePrereleaseToggle.bind(this));
+            includePrereleaseToggle.addEventListener('change', this.onIncludePrereleaseChange);
         }
 
         // 立即检查按钮
         const checkUpdateNowBtn = document.getElementById('checkUpdateNow') as HTMLButtonElement;
         if (checkUpdateNowBtn) {
-            checkUpdateNowBtn.addEventListener('click', this.handleCheckUpdateNow.bind(this));
+            checkUpdateNowBtn.addEventListener('click', this.onCheckUpdateNowClick);
         }
 
         // 查看更新日志按钮
         const viewChangelogBtn = document.getElementById('viewChangelog') as HTMLButtonElement;
         if (viewChangelogBtn) {
-            viewChangelogBtn.addEventListener('click', this.handleViewChangelog.bind(this));
+            viewChangelogBtn.addEventListener('click', this.onViewChangelogClick);
         }
 
         // 下载更新按钮
         const downloadUpdateBtn = document.getElementById('downloadUpdate') as HTMLButtonElement;
         if (downloadUpdateBtn) {
-            downloadUpdateBtn.addEventListener('click', this.handleDownloadUpdate.bind(this));
+            downloadUpdateBtn.addEventListener('click', this.onDownloadUpdateClick);
         }
 
         log.verbose('[UpdateSettings] 事件监听器绑定完成');
@@ -104,37 +115,37 @@ export class UpdateSettings extends BaseSettingsPanel {
         // 自动检查更新开关
         const autoUpdateCheckToggle = document.getElementById('autoUpdateCheck') as HTMLInputElement;
         if (autoUpdateCheckToggle) {
-            autoUpdateCheckToggle.removeEventListener('change', this.handleAutoUpdateCheckToggle.bind(this));
+            autoUpdateCheckToggle.removeEventListener('change', this.onAutoUpdateCheckChange);
         }
 
         // 检查间隔选择
         const updateCheckIntervalSelect = document.getElementById('updateCheckInterval') as HTMLSelectElement;
         if (updateCheckIntervalSelect) {
-            updateCheckIntervalSelect.removeEventListener('change', this.handleUpdateCheckIntervalChange.bind(this));
+            updateCheckIntervalSelect.removeEventListener('change', this.onUpdateCheckIntervalChange);
         }
 
         // 包含预发布版本
         const includePrereleaseToggle = document.getElementById('includePrerelease') as HTMLInputElement;
         if (includePrereleaseToggle) {
-            includePrereleaseToggle.removeEventListener('change', this.handleIncludePrereleaseToggle.bind(this));
+            includePrereleaseToggle.removeEventListener('change', this.onIncludePrereleaseChange);
         }
 
         // 立即检查按钮
         const checkUpdateNowBtn = document.getElementById('checkUpdateNow') as HTMLButtonElement;
         if (checkUpdateNowBtn) {
-            checkUpdateNowBtn.removeEventListener('click', this.handleCheckUpdateNow.bind(this));
+            checkUpdateNowBtn.removeEventListener('click', this.onCheckUpdateNowClick);
         }
 
         // 查看更新日志按钮
         const viewChangelogBtn = document.getElementById('viewChangelog') as HTMLButtonElement;
         if (viewChangelogBtn) {
-            viewChangelogBtn.removeEventListener('click', this.handleViewChangelog.bind(this));
+            viewChangelogBtn.removeEventListener('click', this.onViewChangelogClick);
         }
 
         // 下载更新按钮
         const downloadUpdateBtn = document.getElementById('downloadUpdate') as HTMLButtonElement;
         if (downloadUpdateBtn) {
-            downloadUpdateBtn.removeEventListener('click', this.handleDownloadUpdate.bind(this));
+            downloadUpdateBtn.removeEventListener('click', this.onDownloadUpdateClick);
         }
 
         log.verbose('[UpdateSettings] 事件监听器解绑完成');
@@ -228,7 +239,7 @@ export class UpdateSettings extends BaseSettingsPanel {
         // 显示上次检查时间
         const lastUpdateCheckElement = document.getElementById('lastUpdateCheck');
         if (lastUpdateCheckElement) {
-            const lastCheck = localStorage.getItem('lastUpdateCheck');
+            const lastCheck = localStorage.getItem(LAST_UPDATE_CHECK_KEY);
             if (lastCheck) {
                 const date = new Date(lastCheck);
                 lastUpdateCheckElement.textContent = date.toLocaleString('zh-CN');
@@ -252,21 +263,23 @@ export class UpdateSettings extends BaseSettingsPanel {
 
             log.verbose('[UpdateSettings] 自动检查最新版本...');
 
-            // 检查更新
-            const result = await checkForUpdates(this.settings.includePrerelease === true);
+            const result = await checkForUpdatesWithPolicy(
+                {
+                    autoUpdateCheck: this.settings.autoUpdateCheck !== false,
+                    updateCheckInterval: this.settings.updateCheckInterval || '24',
+                    force: true,
+                },
+                this.settings.includePrerelease === true,
+            );
 
             if (result.error) {
-                // 检查失败
                 latestVersionElement.textContent = '检查失败';
                 latestVersionElement.className = 'version-value error';
                 console.warn('[UpdateSettings] 自动检查更新失败:', result.error);
             } else {
-                // 检查成功
                 latestVersionElement.textContent = result.latestVersion || result.currentVersion;
                 latestVersionElement.className = 'version-value';
 
-                // 保存最后检查时间
-                localStorage.setItem('lastUpdateCheck', new Date().toISOString());
                 this.updateVersionInfo();
 
                 log.verbose('[UpdateSettings] 自动检查更新完成', result);
@@ -303,7 +316,7 @@ export class UpdateSettings extends BaseSettingsPanel {
                 // 显示下载按钮
                 if (downloadUpdateBtn && result.releaseUrl) {
                     downloadUpdateBtn.style.display = 'inline-block';
-                    downloadUpdateBtn.onclick = () => window.open(result.releaseUrl, '_blank');
+                    this.downloadUpdateUrl = result.releaseUrl;
                 }
             }
         }
@@ -405,16 +418,22 @@ export class UpdateSettings extends BaseSettingsPanel {
 
             log.verbose('[UpdateSettings] 开始检查更新...');
 
-            // 检查更新
-            const result = await checkForUpdates(this.settings.includePrerelease === true);
-
-            // 保存最后检查时间
-            localStorage.setItem('lastUpdateCheck', new Date().toISOString());
-            this.updateVersionInfo();
+            const result = await checkForUpdatesWithPolicy(
+                {
+                    autoUpdateCheck: this.settings.autoUpdateCheck !== false,
+                    updateCheckInterval: this.settings.updateCheckInterval || '24',
+                    force: true,
+                },
+                this.settings.includePrerelease === true,
+            );
 
             if (result.error) {
+                localStorage.setItem(LAST_UPDATE_CHECK_KEY, new Date().toISOString());
+                this.updateVersionInfo();
                 throw new Error(result.error);
             }
+
+            this.updateVersionInfo();
 
             // 更新最新版本显示
             if (latestVersionElement) {
@@ -435,7 +454,7 @@ export class UpdateSettings extends BaseSettingsPanel {
                     // 显示下载按钮
                     if (downloadUpdateBtn && result.releaseUrl) {
                         downloadUpdateBtn.style.display = 'inline-block';
-                        downloadUpdateBtn.onclick = () => window.open(result.releaseUrl, '_blank');
+                        this.downloadUpdateUrl = result.releaseUrl;
                     }
                     
                     showMessage(`发现新版本 ${result.latestVersion}`, 'info');
@@ -507,8 +526,7 @@ export class UpdateSettings extends BaseSettingsPanel {
         log.verbose('[UpdateSettings] 跳转到下载页面...');
         
         // 打开GitHub Releases页面
-        const downloadUrl = 'https://github.com/Adsryen/JavdBviewed/releases/latest';
-        window.open(downloadUrl, '_blank');
+        window.open(this.downloadUpdateUrl, '_blank');
     }
 
     /**

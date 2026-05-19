@@ -63,12 +63,66 @@
     line-height: 1.6;
 }
 
+/* 状态总览卡片 */
+#update-settings .update-status-section {
+    margin-bottom: 24px;
+}
+
+#update-settings .update-status-card {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border: 1px solid rgba(6, 182, 212, 0.22);
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at top right, rgba(6, 182, 212, 0.18), transparent 34%),
+        linear-gradient(135deg, var(--update-card-bg) 0%, var(--update-bg) 100%);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+#update-settings .update-status-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 20px;
+}
+
+#update-settings .update-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 8px;
+    color: var(--update-primary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#update-settings .update-status-main h4 {
+    margin: 0 0 8px;
+    color: var(--update-text);
+    font-size: 24px;
+    font-weight: 800;
+}
+
+#update-settings .update-status-copy {
+    max-width: 620px;
+    margin: 0;
+    color: var(--update-text-muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
 /* 版本信息区域 - 统一卡片风格 */
 #update-settings .version-info {
-    background: var(--update-card-bg);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.56);
     border-radius: 12px;
     padding: 8px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     border: 1px solid var(--update-border);
     transition: all 0.3s ease;
@@ -80,12 +134,14 @@
 
 #update-settings .version-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
     padding: 16px;
     border-radius: 10px;
     transition: all 0.2s ease;
-    gap: 20px;
+    gap: 10px;
+    min-height: 108px;
 }
 
 #update-settings .version-item:last-child {
@@ -97,7 +153,8 @@
 }
 
 #update-settings .version-item:not(:last-child) {
-    border-bottom: 1px solid var(--update-border);
+    border-bottom: none;
+    border-right: 1px solid var(--update-border);
 }
 
 #update-settings .version-label {
@@ -107,7 +164,7 @@
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
-    flex: 1;
+    flex: none;
     min-width: 0;
 }
 
@@ -138,6 +195,7 @@
     min-width: 140px;
     text-align: center;
     flex-shrink: 0;
+    width: 100%;
 }
 
 #update-settings .version-value:hover {
@@ -187,11 +245,11 @@
 
 /* 更新通知区域 - 统一卡片风格 */
 #update-settings .update-notification {
-    background: var(--surface-primary);
-    border: 2px solid var(--primary);
+    background: rgba(255, 255, 255, 0.66);
+    border: 1px solid var(--update-border);
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
     animation: slideIn 0.3s ease-out;
 }
 
@@ -209,7 +267,7 @@
 #update-settings .notification-content {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     font-size: 15px;
     line-height: 1.6;
     font-weight: 500;
@@ -217,9 +275,8 @@
 }
 
 #update-settings .notification-content i {
-    font-size: 24px;
+    font-size: 20px;
     flex-shrink: 0;
-    animation: bounce 2s infinite;
 }
 
 @keyframes bounce {
@@ -239,9 +296,10 @@
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
-    justify-content: flex-start;
+    margin-bottom: 0;
+    justify-content: flex-end;
     align-items: center;
+    max-width: 360px;
 }
 
 /* 立即检查按钮 */
@@ -257,8 +315,10 @@
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 8px;
+    min-width: 160px;
 }
 
 #checkUpdateNow::before {
@@ -281,19 +341,21 @@
 
 /* 查看更新日志按钮 */
 #viewChangelog {
-    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    color: white;
-    border: none;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--update-text);
+    border: 1px solid var(--update-border);
     padding: 12px 24px;
     border-radius: 10px;
     font-weight: 600;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 8px;
+    min-width: 160px;
 }
 
 #viewChangelog::before {
@@ -302,14 +364,14 @@
 }
 
 #viewChangelog:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    background: var(--update-card-bg);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
 }
 
 /* 下载更新按钮 */
 #downloadUpdate {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -318,10 +380,12 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 8px;
+    min-width: 160px;
 }
 
 #downloadUpdate::before {
@@ -330,9 +394,9 @@
 }
 
 #downloadUpdate:hover {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4);
 }
 
 .action-buttons-top .btn {
@@ -413,23 +477,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-#update-settings .settings-section > h4::before {
-    content: "📦";
-    font-size: 20px;
-}
-
-#update-settings .settings-section:nth-of-type(2) > h4::before {
-    content: "⚙️";
-}
-
-#update-settings .settings-section:nth-of-type(3) > h4::before {
-    content: "🎯";
-}
-
-#update-settings .settings-section:nth-of-type(4) > h4::before {
-    content: "📢";
 }
 
 /* 自动检查设置区域美化 */
@@ -569,9 +616,19 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+    #update-settings .update-status-card {
+        padding: 18px;
+    }
+
+    #update-settings .update-status-main {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
     #update-settings .action-buttons-top {
         flex-direction: column;
         align-items: stretch;
+        max-width: none;
     }
 
     #update-settings #checkUpdateNow,
@@ -582,9 +639,16 @@
     }
 
     #update-settings .version-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+        min-height: auto;
+    }
+
+    #update-settings .version-info {
+        grid-template-columns: 1fr;
+    }
+
+    #update-settings .version-item:not(:last-child) {
+        border-right: none;
+        border-bottom: 1px solid var(--update-border);
     }
 
     #update-settings .version-value {
