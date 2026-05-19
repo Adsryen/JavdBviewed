@@ -2,24 +2,217 @@
    演员库样式 - Actors Page Styles
    ================================================================ */
 
+.actors-page {
+    --actors-primary: #2563eb;
+    --actors-info: #0891b2;
+    --actors-success: #059669;
+    --actors-card: color-mix(in srgb, var(--surface-primary) 92%, #ffffff 8%);
+    --actors-card-soft: color-mix(in srgb, var(--surface-secondary) 88%, #ffffff 12%);
+    --actors-border: color-mix(in srgb, var(--border-primary) 78%, transparent);
+    --actors-muted: var(--text-secondary);
+    --actors-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    --actors-shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.06);
+    --actors-glow: rgba(59, 130, 246, 0.18);
+    position: relative;
+    overflow: visible;
+    padding: 14px;
+    border: 1px solid var(--actors-border);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.10), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(8, 145, 178, 0.12), transparent 30%),
+        var(--surface-primary);
+}
+
+[data-theme="dark"] .actors-page {
+    --actors-card: color-mix(in srgb, var(--surface-primary) 92%, #0f172a 8%);
+    --actors-card-soft: color-mix(in srgb, var(--surface-secondary) 88%, #0f172a 12%);
+    --actors-border: color-mix(in srgb, var(--border-primary) 84%, rgba(148, 163, 184, 0.18));
+    --actors-shadow: 0 20px 56px rgba(0, 0, 0, 0.30);
+    --actors-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.22);
+    --actors-glow: rgba(96, 165, 250, 0.2);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
+        radial-gradient(circle at 90% 8%, rgba(45, 212, 191, 0.10), transparent 30%),
+        var(--surface-primary);
+}
+
+.actors-page-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.actors-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--actors-info) 13%, transparent);
+    color: var(--actors-info);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.actors-page-hero h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.actors-page-hero p {
+    margin: 3px 0 0;
+    color: var(--actors-muted);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.actors-hero-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--actors-primary) 18%, transparent), color-mix(in srgb, var(--actors-info) 14%, transparent));
+    color: var(--actors-primary);
+    border: 1px solid var(--actors-border);
+    box-shadow: var(--actors-shadow-soft);
+    flex: 0 0 auto;
+}
+
+.actors-page .stats-section,
+.actors-page .actors-filter-panel,
+.actors-page .actor-list-wrapper,
+.actors-page .pagination-controls {
+    margin: 12px 0 0;
+}
+
+.actors-page .stats-section {
+    padding: 18px;
+    border: 1px solid var(--actors-border);
+    border-radius: 20px;
+    background: var(--actors-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.actors-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.actors-section-header h4 {
+    margin: 0 0 4px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.actors-section-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.actors-page .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 12px;
+}
+
+.actors-page .stat-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 86px;
+    padding: 16px;
+    border: 1px solid var(--actors-border);
+    border-radius: 16px;
+    background:
+        linear-gradient(135deg, rgba(59, 130, 246, 0.08), transparent 58%),
+        var(--surface-primary);
+    box-shadow: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.actors-page .stat-card.clickable {
+    cursor: pointer;
+}
+
+.actors-page .stat-card:hover,
+.actors-page .stat-card.active {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+}
+
+.actors-page .stat-value {
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 850;
+    letter-spacing: -0.03em;
+}
+
+.actors-page .stat-label {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.actors-filter-panel {
+    padding: 12px;
+    border: 1px solid var(--actors-border);
+    border-radius: 20px;
+    background: var(--actors-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.actors-search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.actors-search-field i {
+    position: absolute;
+    left: 15px;
+    z-index: 1;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.actors-search-field #actorSearchInput {
+    width: 100%;
+    padding-left: 42px;
+}
+
 /* 搜索和过滤区域 */
-.search-and-filter {
+.actors-page .search-and-filter {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr auto auto;
     gap: 12px;
-    margin-bottom: 24px;
-    padding: 20px;
-    background: var(--surface-primary);
-    border-radius: 16px;
-    border: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(10px);
+    margin-bottom: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 /* 搜索输入框 */
 #actorSearchInput {
-    padding: 14px 18px;
-    border: 2px solid var(--border-primary);
+    padding: 12px 16px;
+    border: 1px solid var(--actors-border, var(--border-primary));
     border-radius: 12px;
     font-size: 14px;
     background: var(--input-bg);
@@ -32,8 +225,8 @@
 #actorSearchInput:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: var(--ring), var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    transform: none;
 }
 
 #actorSearchInput::placeholder {
@@ -47,22 +240,22 @@
 #actorBlacklistFilter,
 #actorStatusFilter,
 #actorSortSelect {
-    padding: 14px 18px;
-    border: 2px solid var(--border-primary);
+    padding: 12px 16px;
+    border: 1px solid var(--actors-border, var(--border-primary));
     border-radius: 12px;
     font-size: 14px;
     background: var(--input-bg);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
     appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 14px center;
     background-repeat: no-repeat;
     background-size: 16px;
     padding-right: 44px;
-    height: 50px;
+    height: 46px;
 }
 
 #actorGenderFilter:hover,
@@ -71,8 +264,8 @@
 #actorStatusFilter:hover,
 #actorSortSelect:hover {
     border-color: var(--border-hover);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    transform: none;
 }
 
 #actorGenderFilter:focus,
@@ -82,8 +275,8 @@
 #actorSortSelect:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: var(--ring), var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    transform: none;
 }
 
 /* 每页数量选择器容器 */
@@ -91,20 +284,20 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 14px 18px;
-    border: 2px solid var(--border-primary);
+    padding: 10px 14px;
+    border: 1px solid var(--actors-border, var(--border-primary));
     border-radius: 12px;
     background: var(--input-bg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 50px;
+    height: 46px;
     white-space: nowrap;
 }
 
 .page-size-wrapper:hover {
     border-color: var(--border-hover);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    transform: none;
 }
 
 .page-size-label {
@@ -2491,5 +2684,363 @@
     .batch-btn {
         flex: 1;
         min-width: calc(50% - 6px);
+    }
+}
+
+/* ===================================================================
+   演员库现代化覆盖 - Scoped Modern Overrides
+   ================================================================ */
+
+.actors-page .actor-list-wrapper {
+    min-height: 260px;
+    padding: 18px;
+    border: 1px solid var(--actors-border);
+    border-radius: 22px;
+    background: var(--actors-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.actors-page .actor-grid {
+    grid-template-columns: repeat(auto-fill, minmax(286px, 1fr));
+    gap: 18px;
+    margin-top: 0;
+}
+
+.actors-page .actor-card {
+    border: 1px solid var(--actors-border);
+    border-radius: 20px;
+    background:
+        linear-gradient(180deg, transparent 0 200px, var(--surface-primary) 200px),
+        var(--surface-primary);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.actors-page .actor-grid .actor-card[data-has-avatar="true"] {
+    background-image:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.24) 58%, var(--surface-primary) 200px),
+        var(--avatar-bg),
+        linear-gradient(180deg, transparent 0 200px, var(--surface-primary) 200px);
+    background-position: top center, top center, center;
+    background-repeat: no-repeat;
+    background-size: 100% 200px, 100% 200px, auto;
+}
+
+.actors-page .actor-card::before {
+    background:
+        linear-gradient(135deg, rgba(59, 130, 246, 0.88), rgba(20, 184, 166, 0.72)),
+        var(--avatar-bg, none);
+}
+
+.actors-page .actor-card::after {
+    background: linear-gradient(180deg,
+        rgba(15, 23, 42, 0.04) 0%,
+        rgba(15, 23, 42, 0.16) 52%,
+        color-mix(in srgb, var(--surface-primary) 82%, transparent) 86%,
+        var(--surface-primary) 100%);
+}
+
+.actors-page .actor-card:hover {
+    transform: translateY(-5px);
+    border-color: color-mix(in srgb, var(--primary) 70%, var(--border-primary));
+    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.15);
+}
+
+.actors-page .actor-avatar {
+    border: 3px solid rgba(255, 255, 255, 0.92);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.22);
+}
+
+.actors-page .actor-card-name {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.actors-page .actor-card-name:hover,
+.actors-page .actor-alias:hover {
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 40%, var(--border-primary));
+}
+
+.actors-page .actor-card-meta > span,
+.actors-page .actor-social-link,
+.actors-page .sync-status {
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.actors-page .actor-gender-female {
+    background: rgba(236, 72, 153, 0.12);
+    color: #db2777;
+}
+
+.actors-page .actor-gender-male {
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+}
+
+.actors-page .actor-gender-unknown,
+.actors-page .actor-category-unknown,
+.actors-page .sync-status-unknown,
+.actors-page .actor-works-count {
+    background: var(--actors-card-soft);
+    color: var(--text-secondary);
+}
+
+.actors-page .actor-category-censored {
+    background: rgba(245, 158, 11, 0.13);
+    color: #d97706;
+}
+
+.actors-page .actor-category-uncensored {
+    background: rgba(20, 184, 166, 0.13);
+    color: #0d9488;
+}
+
+.actors-page .actor-category-western {
+    background: rgba(168, 85, 247, 0.13);
+    color: #9333ea;
+}
+
+.actors-page .sync-status-success {
+    background: rgba(34, 197, 94, 0.14);
+    color: #16a34a;
+}
+
+.actors-page .sync-status-failed {
+    background: rgba(239, 68, 68, 0.14);
+    color: #dc2626;
+}
+
+.actors-page .sync-status-pending {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+}
+
+.actors-page .actor-card-actions {
+    gap: 10px;
+    padding: 14px 16px 16px;
+    background:
+        linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-secondary) 36%, transparent)),
+        var(--surface-primary);
+}
+
+.actors-page .actor-action-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    border-radius: 12px;
+}
+
+.actors-page .actor-action-btn:hover {
+    transform: translateY(-2px) scale(1.04);
+}
+
+.actors-page .actor-list {
+    gap: 10px;
+}
+
+.actors-page .actor-list .actor-card {
+    grid-template-columns: 76px minmax(0, 1fr) auto;
+    min-height: 112px;
+    padding: 16px 18px;
+    border-left: 0;
+}
+
+.actors-page .actor-list .actor-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--primary) 62%, var(--border-primary));
+}
+
+.actors-page .actor-list .actor-card:not(:last-child) {
+    border-bottom: 1px solid var(--actors-border);
+}
+
+.actors-page .actor-list .actor-card-avatar {
+    width: 64px;
+    height: 64px;
+}
+
+.actors-page .actor-list .actor-card-info {
+    grid-template-columns: minmax(160px, 0.9fr) minmax(220px, 1.2fr) minmax(150px, auto);
+    gap: 10px 16px;
+}
+
+.actors-page .actor-list .actor-card-actions {
+    align-self: center;
+}
+
+.actors-page #actorBatchOperations {
+    margin: 0 24px 18px;
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-primary));
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, transparent), transparent),
+        var(--actors-card);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
+}
+
+.actors-page .select-all-label {
+    color: var(--text-primary);
+}
+
+.actors-page #actorSelectedCount {
+    border-color: var(--actors-border);
+    background: var(--surface-primary);
+    color: var(--text-secondary);
+}
+
+.actors-page .batch-btn {
+    border-radius: 999px;
+    font-weight: 800;
+}
+
+.actors-page .no-actors {
+    margin: 0;
+    padding: 72px 20px;
+    border: 1px dashed var(--actors-border);
+    border-radius: 18px;
+    background: var(--actors-card-soft);
+}
+
+.actors-page .no-actors-icon {
+    display: inline-flex;
+    width: 64px;
+    height: 64px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    font-size: 34px;
+    opacity: 1;
+}
+
+.actors-page .pagination-controls {
+    padding-bottom: 24px;
+}
+
+.actors-page .view-toggle {
+    height: 46px;
+    padding: 0 16px;
+    border: 1px solid var(--actors-border);
+    border-radius: 12px;
+    background: var(--input-bg);
+    box-shadow: none;
+}
+
+.actors-page .actor-card.batch-mode::before {
+    top: 12px;
+    left: 12px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid color-mix(in srgb, var(--border-primary) 82%, #fff 18%);
+    border-radius: 6px;
+    background: var(--surface-primary);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+}
+
+.actors-page .actor-card.selected::before {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.actors-page .actor-list .actor-card.batch-mode::before,
+.actors-page .actor-list .actor-card.selected::before {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+[data-theme="dark"] .actors-page .actor-card {
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+}
+
+[data-theme="dark"] .actors-page .actor-card:hover {
+    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] .actors-page .actor-card::after {
+    background: linear-gradient(180deg,
+        rgba(2, 6, 23, 0.02) 0%,
+        rgba(2, 6, 23, 0.34) 52%,
+        color-mix(in srgb, var(--surface-primary) 78%, transparent) 86%,
+        var(--surface-primary) 100%);
+}
+
+[data-theme="dark"] .actors-page .actor-gender-female {
+    color: #f472b6;
+}
+
+[data-theme="dark"] .actors-page .actor-gender-male {
+    color: #60a5fa;
+}
+
+[data-theme="dark"] .actors-page .actor-category-censored {
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .actors-page .actor-category-uncensored {
+    color: #2dd4bf;
+}
+
+[data-theme="dark"] .actors-page .actor-category-western {
+    color: #c084fc;
+}
+
+@media (max-width: 1200px) {
+    .actors-page .search-and-filter {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .actors-page .actors-search-field,
+    .actors-page #actorSortSelect {
+        grid-column: span 2;
+    }
+
+    .actors-page .actor-list .actor-card-info {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .actors-page .actor-list .actor-card-sync {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-content: flex-start;
+    }
+
+    .actors-page .actor-list .actor-card-aliases {
+        grid-row: 3;
+    }
+}
+
+@media (max-width: 768px) {
+    .actors-page-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .actors-page .stats-section,
+    .actors-page .actors-filter-panel,
+    .actors-page .actor-list-wrapper,
+    .actors-page .pagination-controls {
+        margin-top: 12px;
+    }
+
+    .actors-page .search-and-filter,
+    .actors-page .actors-search-field,
+    .actors-page #actorSortSelect {
+        grid-template-columns: 1fr;
+        grid-column: auto;
+    }
+
+    .actors-page .actor-list .actor-card {
+        grid-template-columns: 64px 1fr;
+        gap: 14px;
+    }
+
+    .actors-page .actor-list .actor-card-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 }
