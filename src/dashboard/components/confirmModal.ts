@@ -9,6 +9,7 @@ export interface ConfirmOptions {
     cancelText?: string;
     type?: 'info' | 'warning' | 'danger';
     isHtml?: boolean; // 是否将 message 作为 HTML 渲染
+    className?: string;
 }
 
 export class ConfirmModal {
@@ -41,11 +42,12 @@ export class ConfirmModal {
             confirmText = '确认',
             cancelText = '取消',
             type = 'info',
-            isHtml = false
+            isHtml = false,
+            className = ''
         } = options;
 
         this.modal = document.createElement('div');
-        this.modal.className = 'confirm-modal';
+        this.modal.className = `confirm-modal ${className}`.trim();
         this.modal.setAttribute('data-type', type); // 添加类型属性用于 CSS 选择
         
         // 根据 isHtml 决定如何渲染消息
