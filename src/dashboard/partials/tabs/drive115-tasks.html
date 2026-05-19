@@ -1,4 +1,15 @@
-<div class="card">
+<div class="card drive115-tasks-page">
+  <div class="drive115-tasks-hero">
+    <div>
+      <span class="drive115-eyebrow">Drive 115</span>
+      <h3>离线任务中心</h3>
+      <p>集中管理 115 网盘离线下载任务，支持链接添加、搜索过滤、刷新和清理。</p>
+    </div>
+    <div class="drive115-hero-mark">
+      <i class="fas fa-cloud-download-alt"></i>
+    </div>
+  </div>
+
   <div class="stats-section">
     <h4>115网盘下载任务</h4>
     <div id="drive115TasksStatsContainer" class="stats-grid">
@@ -8,8 +19,19 @@
 
   <!-- 任务操作控制栏 -->
   <div class="drive115-tasks-controls">
-    <div class="task-input-group">
-      <input type="text" id="drive115TaskUrlInput" placeholder="输入下载链接（支持HTTP(S)、FTP、磁力链、电驴链接）" class="task-url-input">
+    <div class="task-input-group drive115-add-panel">
+      <div class="task-url-field">
+        <i class="fas fa-link"></i>
+        <input type="text" id="drive115TaskUrlInput" placeholder="输入下载链接，多个链接可用空格分隔" class="task-url-input">
+      </div>
+      <div class="task-dir-field" title="留空或 0 表示根目录">
+        <i class="fas fa-folder"></i>
+        <input type="text" id="drive115TaskDirInput" placeholder="下载目录 ID（cid）" class="task-dir-input">
+      </div>
+      <span id="drive115TaskDirSummary" class="drive115-task-dir-summary" title=""></span>
+      <button id="drive115TaskChooseDirBtn" class="button-like secondary" title="选择 115 文件夹">
+        <i class="fas fa-folder-open"></i>
+      </button>
       <button id="drive115AddTaskBtn" class="button-like">
         <i class="fas fa-plus"></i>
         添加任务
@@ -17,6 +39,7 @@
     </div>
     <div class="task-action-group">
       <div class="task-search-group">
+        <i class="fas fa-search"></i>
         <input type="text" id="drive115TaskSearchInput" placeholder="搜索任务名称..." class="task-search-input">
         <button id="drive115ClearSearchBtn" class="button-like secondary" style="display: none;">
           <i class="fas fa-times"></i>
