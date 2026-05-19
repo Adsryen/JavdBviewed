@@ -8,7 +8,30 @@ export interface UpdateCheckResult {
   releaseUrl?: string;
   changelog?: string;
   error?: string;
+  skipped?: boolean;
+  reason?: UpdateCheckDecisionReason;
+  checkedAt?: string;
 }
+
+export type UpdateCheckDecisionReason = 'force' | 'disabled' | 'never' | 'expired' | 'cached';
+
+export interface UpdateCheckPolicyInput {
+  autoUpdateCheck?: boolean;
+  updateCheckInterval?: string | number;
+  lastCheckedAt?: string | null;
+  now?: number;
+  force?: boolean;
+}
+
+export interface UpdateCheckDecision {
+  shouldCheck: boolean;
+  reason: UpdateCheckDecisionReason;
+  intervalHours: number;
+}
+
+export const DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 24;
+export const LAST_UPDATE_CHECK_KEY = 'lastUpdateCheck';
+export const LAST_UPDATE_RESULT_KEY = 'lastUpdateResult';
 
 // 获取当前扩展版本（从 manifest 读取，适用于 background/service worker）
 export function getCurrentVersion(): string {
@@ -18,6 +41,84 @@ export function getCurrentVersion(): string {
   } catch {
     return '0.0.0';
   }
+}
+
+export function normalizeReleaseVersion(value: string | undefined | null): string {
+  if (!value) return '';
+  const match = value.trim().match(/v?(\d+\.\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.-]+)?)/);
+  return match ? match[1] : value.trim().replace(/^v/i, '');
+}
+
+export function parseUpdateCheckIntervalHours(value: string | number | undefined): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_UPDATE_CHECK_INTERVAL_HOURS;
+}
+
+export function shouldRunUpdateCheck(input: UpdateCheckPolicyInput): UpdateCheckDecision {
+  const intervalHours = parseUpdateCheckIntervalHours(input.updateCheckInterval);
+
+  if (input.force) {
+    return { shouldCheck: true, reason: 'force', intervalHours };
+  }
+
+  if (input.autoUpdateCheck === false) {
+    return { shouldCheck: false, reason: 'disabled', intervalHours };
+  }
+
+  if (!input.lastCheckedAt) {
+    return { shouldCheck: true, reason: 'never', intervalHours };
+  }
+
+  const lastCheckedTime = Date.parse(input.lastCheckedAt);
+  if (!Number.isFinite(lastCheckedTime)) {
+    return { shouldCheck: true, reason: 'never', intervalHours };
+  }
+
+  const now = input.now ?? Date.now();
+  const elapsedMs = now - lastCheckedTime;
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+  const shouldCheck = elapsedMs >= intervalMs || elapsedMs < 0;
+
+  return {
+    shouldCheck,
+    reason: shouldCheck ? 'expired' : 'cached',
+    intervalHours,
+  };
+}
+
+function readCachedUpdateResult(currentVersion: string): UpdateCheckResult | null {
+  try {
+    const raw = localStorage.getItem(LAST_UPDATE_RESULT_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as Partial<UpdateCheckResult>;
+    if (!cached || typeof cached !== 'object') return null;
+
+    return {
+      currentVersion,
+      latestVersion: cached.latestVersion,
+      hasUpdate: cached.latestVersion ? compareSemver(cached.latestVersion, currentVersion) > 0 : Boolean(cached.hasUpdate),
+      releaseUrl: cached.releaseUrl,
+      changelog: cached.changelog,
+      checkedAt: cached.checkedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUpdateResult(result: UpdateCheckResult): void {
+  try {
+    localStorage.setItem(
+      LAST_UPDATE_RESULT_KEY,
+      JSON.stringify({
+        latestVersion: result.latestVersion,
+        hasUpdate: result.hasUpdate,
+        releaseUrl: result.releaseUrl,
+        changelog: result.changelog,
+        checkedAt: result.checkedAt,
+      }),
+    );
+  } catch {}
 }
 
 // 语义化版本比较：a > b 返回 1，a < b 返回 -1，相等返回 0
@@ -213,7 +314,7 @@ export async function checkForUpdates(includePrerelease = false): Promise<Update
       };
     }
     
-    const latest = release.tag_name || release.name || current;
+    const latest = normalizeReleaseVersion(release.tag_name || release.name || current);
     const hasUpdate = compareSemver(latest, current) > 0;
     
     console.log(`[UpdateChecker] Latest version: ${latest}, Has update: ${hasUpdate}`);
@@ -224,6 +325,7 @@ export async function checkForUpdates(includePrerelease = false): Promise<Update
       hasUpdate,
       releaseUrl: release.html_url,
       changelog: release.body,
+      checkedAt: new Date().toISOString(),
     };
   } catch (err: any) {
     console.error('[UpdateChecker] Check failed:', err);
@@ -233,5 +335,36 @@ export async function checkForUpdates(includePrerelease = false): Promise<Update
       error: err?.message || '检查更新失败，请检查网络连接'
     };
   }
+}
+
+export async function checkForUpdatesWithPolicy(
+  policy: UpdateCheckPolicyInput,
+  includePrerelease = false,
+): Promise<UpdateCheckResult> {
+  const current = getCurrentVersion();
+  const decision = shouldRunUpdateCheck({
+    ...policy,
+    lastCheckedAt: policy.lastCheckedAt ?? localStorage.getItem(LAST_UPDATE_CHECK_KEY),
+  });
+
+  if (!decision.shouldCheck) {
+    const cached = readCachedUpdateResult(current);
+    return {
+      ...(cached || { currentVersion: current, hasUpdate: false }),
+      skipped: true,
+      reason: decision.reason,
+    };
+  }
+
+  const result = await checkForUpdates(includePrerelease);
+  if (!result.error) {
+    localStorage.setItem(LAST_UPDATE_CHECK_KEY, result.checkedAt || new Date().toISOString());
+    writeCachedUpdateResult(result);
+  }
+
+  return {
+    ...result,
+    reason: decision.reason,
+  };
 }
 

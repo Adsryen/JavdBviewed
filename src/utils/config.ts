@@ -194,6 +194,9 @@ export const STATUS_PRIORITY = {
 export const DEFAULT_SETTINGS: ExtensionSettings = {
     // 主题设置
     theme: 'light',
+    autoUpdateCheck: true,
+    updateCheckInterval: '24',
+    includePrerelease: false,
     
     display: {
         hideViewed: false, // Corresponds to VIEWED status

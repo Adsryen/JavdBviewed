@@ -3,7 +3,12 @@
  * 自动检测当前版本与 GitHub 最新版本的对比
  */
 
-import { checkForUpdates, getCurrentVersion, compareSemver } from '../../services/update/checker';
+import {
+  checkForUpdatesWithPolicy,
+  getCurrentVersion,
+  compareSemver,
+} from '../../services/update/checker';
+import { getSettings } from '../../utils/storage';
 
 interface VersionInfo {
   current: string;
@@ -37,14 +42,23 @@ export async function checkVersion(): Promise<VersionInfo> {
   
   checkPromise = (async () => {
     try {
-      const result = await checkForUpdates(false);
+      const settings = await getSettings();
+      const result = await checkForUpdatesWithPolicy(
+        {
+          autoUpdateCheck: settings.autoUpdateCheck !== false,
+          updateCheckInterval: settings.updateCheckInterval || '24',
+        },
+        false,
+      );
       
       if (result.error || !result.latestVersion) {
         const info: VersionInfo = {
           current,
           latest: null,
           status: 'unknown',
-          message: 'Unable to check for updates'
+          message: result.skipped
+            ? (result.reason === 'disabled' ? 'Update check disabled' : 'Update check skipped')
+            : 'Unable to check for updates'
         };
         cachedVersionInfo = info;
         lastCheckTime = now;
