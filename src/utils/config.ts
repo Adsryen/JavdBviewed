@@ -449,6 +449,13 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
         hideNonFavoritedActorsInList: false,
         hideUnrecognizedActorsInList: true, // 默认隐藏无法识别演员的作品
         treatSubscribedAsFavorited: true,
+        // 新增：列表页显示控制默认配置
+        listDisplayControl: {
+            enabled: true,
+            columnCount: 4,
+            containerWidth: 100,
+            enableContainerExpansion: false,
+        },
     },
 
     // 新增：Emby增强默认配置
