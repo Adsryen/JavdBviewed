@@ -44,7 +44,7 @@ class PasswordHelper {
 
     public destroy(): void {
         log('销毁密码显示助手');
-        
+
         if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
@@ -55,10 +55,10 @@ class PasswordHelper {
 
     public updateConfig(showMethod: number, waitTime: number): void {
         log('更新配置', { showMethod, waitTime });
-        
+
         this.showMethod = showMethod;
         this.waitTime = waitTime;
-        
+
         this.destroy();
         this.init();
     }
@@ -207,8 +207,8 @@ async function getSettings() {
 // 初始化密码助手
 async function initialize() {
     try {
-        const settings = await getSettings();
-        
+        const settings = await getSettings() as any;
+
         // 检查是否启用密码助手
         if (!settings.userExperience?.enablePasswordHelper) {
             log('Password helper is disabled');
@@ -216,7 +216,7 @@ async function initialize() {
         }
 
         const passwordHelperConfig = settings.passwordHelper || { showMethod: 0, waitTime: 300 };
-        
+
         const passwordHelper = new PasswordHelper(
             passwordHelperConfig.showMethod || 0,
             passwordHelperConfig.waitTime || 300

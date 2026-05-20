@@ -6,7 +6,7 @@
 export interface PrivacyConfig {
   // 截图模式配置
   screenshotMode: ScreenshotModeConfig;
-  // 私密模式配置  
+  // 私密模式配置
   privateMode: PrivateModeConfig;
   // 密码恢复配置
   passwordRecovery: PasswordRecoveryConfig;
@@ -63,7 +63,7 @@ export interface SecurityQuestion {
 }
 
 // 受限功能枚举
-export type RestrictedFeature = 
+export type RestrictedFeature =
   | 'data-sync'           // 数据同步
   | 'data-export'         // 数据导出
   | 'data-import'         // 数据导入
@@ -111,7 +111,7 @@ export interface BlurEffectConfig {
 }
 
 // 隐私事件类型
-export type PrivacyEventType = 
+export type PrivacyEventType =
   | 'blur-applied'        // 模糊已应用
   | 'blur-removed'        // 模糊已移除
   | 'locked'              // 已锁定
@@ -119,7 +119,8 @@ export type PrivacyEventType =
   | 'authenticated'       // 已验证
   | 'session-expired'     // 会话过期
   | 'password-changed'    // 密码已更改
-  | 'recovery-initiated'; // 恢复已启动
+  | 'recovery-initiated'  // 恢复已启动
+  | 'privateModeDisabled'; // 私密模式已禁用
 
 // 隐私事件接口
 export interface PrivacyEvent {
@@ -132,22 +133,22 @@ export interface PrivacyEvent {
 export interface IPrivacyManager {
   // 初始化
   initialize(): Promise<void>;
-  
+
   // 截图模式
   enableScreenshotMode(): Promise<void>;
   disableScreenshotMode(): Promise<void>;
   toggleBlur(): Promise<void>;
-  
+
   // 私密模式
   enablePrivateMode(): Promise<void>;
   disablePrivateMode(): Promise<void>;
   authenticate(password: string): Promise<PasswordVerificationResult>;
   lock(): Promise<void>;
-  
+
   // 状态查询
   getState(): PrivacyState;
   isFeatureRestricted(feature: RestrictedFeature): Promise<boolean>;
-  
+
   // 事件监听
   addEventListener(type: PrivacyEventType, listener: (event: PrivacyEvent) => void): void;
   removeEventListener(type: PrivacyEventType, listener: (event: PrivacyEvent) => void): void;

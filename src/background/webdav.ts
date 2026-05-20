@@ -25,6 +25,18 @@ function byteSizeOf(value: any): number {
 
 let webdavAutoUploadInProgress = false;
 
+interface LegacyRestoreOptions {
+  restoreSettings: boolean;
+  restoreRecords: boolean;
+  restoreUserProfile: boolean;
+  restoreActorRecords: boolean;
+  restoreLogs: boolean;
+  restoreMagnetPushLogs?: boolean;
+  restoreImportStats: boolean;
+  restoreIdb: boolean;
+  preview: boolean;
+}
+
 const WEBDAV_CLIENTS_DIR = 'clients';
 const WEBDAV_UPLOAD_INDEX_FILE = 'upload-index.json';
 const WEBDAV_UPLOAD_INDEX_VERSION = 1;
@@ -512,7 +524,7 @@ function toArrayFromObjMap<T = any>(maybeMap: any): T[] {
 }
 
 async function clearStore(db: any, storeName: string): Promise<void> {
-  try { 
+  try {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
     await store.clear();
@@ -527,39 +539,39 @@ async function clearStore(db: any, storeName: string): Promise<void> {
 async function putRecordsInBatches(db: any, storeName: string, records: any[], batchSize = RESTORE_BATCH_SIZE): Promise<number> {
   if (!Array.isArray(records) || records.length === 0) return 0;
   let written = 0;
-  
+
   // 按批次处理，每批次开启独立的事务
   for (const part of chunk(records, batchSize)) {
     try {
       // 为每个批次开启新的 readwrite 事务
       const tx = db.transaction(storeName, 'readwrite');
       const store = tx.objectStore(storeName);
-      
+
       // 批量写入当前批次的记录
       const putPromises = part.map(record => store.put(record));
       await Promise.all(putPromises);
-      
+
       // 等待事务完成
       await tx.complete;
       written += part.length;
-      
-      bgLog('DEBUG', `Batch write completed for ${storeName}`, { 
-        batchSize: part.length, 
+
+      bgLog('DEBUG', `Batch write completed for ${storeName}`, {
+        batchSize: part.length,
         totalWritten: written,
         remaining: records.length - written
       });
-      
+
     } catch (error: any) {
-      bgLog('ERROR', `Batch write failed for ${storeName}`, { 
-        error: error.message, 
+      bgLog('ERROR', `Batch write failed for ${storeName}`, {
+        error: error.message,
         batchSize: part.length,
-        written 
+        written
       });
       // 继续处理下一批次，不中断整个恢复流程
       continue;
     }
   }
-  
+
   return written;
 }
 
@@ -766,17 +778,17 @@ async function ensureWebDAVDirectoryExists(dirUrl: string, username: string, pas
     // 如果是 404，尝试创建目录
     if (checkResponse.status === 404) {
       bgLog('INFO', 'WebDAV directory not found, attempting to create', { dirUrl });
-      
+
       // 解析 URL，逐级创建目录
       const url = new URL(dirUrl);
       const pathParts = url.pathname.split('/').filter(p => p);
-      
+
       // 从根路径开始，逐级检查和创建目录
       let currentPath = '';
       for (const part of pathParts) {
         currentPath += '/' + part;
         const currentUrl = `${url.origin}${currentPath}/`;
-        
+
         // 检查当前路径是否存在
         const existsResponse = await fetch(currentUrl, {
           method: 'PROPFIND',
@@ -801,25 +813,25 @@ async function ensureWebDAVDirectoryExists(dirUrl: string, username: string, pas
             // 405 Method Not Allowed 可能表示目录已存在
             bgLog('DEBUG', 'Directory might already exist (405)', { path: currentUrl });
           } else {
-            bgLog('WARN', 'Failed to create directory', { 
-              path: currentUrl, 
-              status: mkcolResponse.status 
+            bgLog('WARN', 'Failed to create directory', {
+              path: currentUrl,
+              status: mkcolResponse.status
             });
           }
         }
       }
-      
+
       bgLog('INFO', 'WebDAV directory structure ensured', { dirUrl });
     } else {
-      bgLog('WARN', 'Unexpected response when checking directory', { 
-        dirUrl, 
-        status: checkResponse.status 
+      bgLog('WARN', 'Unexpected response when checking directory', {
+        dirUrl,
+        status: checkResponse.status
       });
     }
   } catch (error: any) {
-    bgLog('ERROR', 'Failed to ensure WebDAV directory exists', { 
-      dirUrl, 
-      error: error.message 
+    bgLog('ERROR', 'Failed to ensure WebDAV directory exists', {
+      dirUrl,
+      error: error.message
     });
     throw error;
   }
@@ -849,14 +861,14 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     let fileUrl = normalizeWebDavBaseUrl(settings.webdav.url);
     const baseUrl = fileUrl;
     const auth = { username: settings.webdav.username, password: settings.webdav.password };
-    
+
     // 确保目录存在
     try {
       await ensureWebDAVSupportDirs(fileUrl, settings.webdav.username, settings.webdav.password);
     } catch (dirError: any) {
       bgLog('WARN', 'Failed to ensure directory exists, will try upload anyway', { error: dirError.message });
     }
-    
+
     fileUrl += filename.startsWith('/') ? filename.substring(1) : filename;
 
     const zip = new JSZip();
@@ -917,7 +929,7 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
     updatedSettings.webdav.clientLastSyncAt = uploadedAt;
     updatedSettings.webdav.clientLastSyncStatus = 'success';
     updatedSettings.webdav.clientLastUploadId = uploadId;
-    
+
     // 同时更新当前激活配置的 lastSync
     const activeConfigId = updatedSettings.webdav.activeConfigId;
     if (activeConfigId && updatedSettings.webdav.configs) {
@@ -926,7 +938,7 @@ async function performUpload(): Promise<{ success: boolean; error?: string }> {
         updatedSettings.webdav.configs[configIndex].lastSync = updatedSettings.webdav.lastSync;
       }
     }
-    
+
     await saveSettings(updatedSettings);
     bgLog('INFO', 'WebDAV upload successful, updated last sync time.');
 
@@ -1328,7 +1340,7 @@ async function performRestoreUnified(filename: string, options?: {
   }
 }
 
-async function performRestore(filename: string, options = {
+async function performRestore(filename: string, options: LegacyRestoreOptions = {
   restoreSettings: true,
   restoreRecords: true,
   restoreUserProfile: true,
@@ -1717,34 +1729,34 @@ async function testWebDAVConnection(): Promise<{ success: boolean; error?: strin
 
 async function testWebDAVConnectionWithConfig(config: { url: string; username: string; password: string }): Promise<{ success: boolean; error?: string }> {
   bgLog('INFO', 'Testing WebDAV connection with temporary config.');
-  
+
   if (!config.url || !config.username || !config.password) {
     const errorMsg = 'WebDAV connection details are not fully configured.';
     bgLog('WARN', errorMsg);
     return { success: false, error: errorMsg };
   }
-  
+
   try {
     let url = config.url;
     if (!url.endsWith('/')) url += '/';
     bgLog('INFO', `Testing connection to: ${url}`);
-    
+
     const headers: Record<string, string> = {
       Authorization: 'Basic ' + btoa(`${config.username}:${config.password}`),
       Depth: '0',
       'Content-Type': 'application/xml; charset=utf-8',
       'User-Agent': 'JavDB-Extension/1.0',
     };
-    
+
     const xmlBody = `<?xml version="1.0" encoding="utf-8"?>\n<D:propfind xmlns:D="DAV:">\n    <D:prop>\n        <D:resourcetype/>\n        <D:getcontentlength/>\n        <D:getlastmodified/>\n    </D:prop>\n</D:propfind>`;
-    
+
     const response = await fetch(url, { method: 'PROPFIND', headers, body: xmlBody });
     bgLog('INFO', `Test response: ${response.status} ${response.statusText}`);
-    
+
     if (response.ok) {
       const responseText = await response.text();
       bgLog('DEBUG', 'Test response content:', { length: responseText.length, preview: responseText.substring(0, 200) });
-      
+
       if (responseText.includes('<?xml') || responseText.includes('<multistatus') || responseText.includes('<response')) {
         bgLog('INFO', 'WebDAV connection test successful - server supports WebDAV protocol');
         return { success: true };

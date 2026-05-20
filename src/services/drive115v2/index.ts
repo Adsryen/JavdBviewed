@@ -441,19 +441,19 @@ class Drive115V2Service {
     try {
       const rt = (refreshToken || '').trim();
       if (!rt) return { success: false, message: '缺少 refresh_token' };
-      
+
       // 检查 refresh_token 状态
       const settings = await getSettings();
       const drv = (settings?.drive115 || {}) as any;
       const rtStatus = drv.v2RefreshTokenStatus;
-      
+
       // 如果 refresh_token 已标记为永久失效，直接返回错误
       if (rtStatus === 'invalid' || rtStatus === 'expired') {
         const lastError = drv.v2RefreshTokenLastError || 'refresh_token 已失效';
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: `跳过刷新：${lastError}` });
         return { success: false, message: `${lastError}，请重新授权` };
       }
-      
+
       await addLogV2({ timestamp: Date.now(), level: 'info', message: '开始刷新 access_token（v2）' });
 
       // 优先通过后台代理，避免内容脚本 CORS
@@ -477,10 +477,10 @@ class Drive115V2Service {
             if (!bgResp.success) {
               const msg = bgResp.message || '后台刷新失败';
               await addLogV2({ timestamp: Date.now(), level: 'warn', message: `后台刷新失败：${msg}` });
-              
+
               // 更新 refresh_token 状态
               await this.updateRefreshTokenStatus(bgResp.raw);
-              
+
               return { success: false, message: msg, raw: bgResp.raw };
             }
             json = bgResp.raw || {};
@@ -520,10 +520,10 @@ class Drive115V2Service {
       if (!ok || !at) {
         const msg = describe115Error(json) || json?.message || json?.error || '刷新失败';
         await addLogV2({ timestamp: Date.now(), level: 'error', message: `刷新 access_token 失败：${msg}` });
-        
+
         // 更新 refresh_token 状态
         await this.updateRefreshTokenStatus(json);
-        
+
         return { success: false, message: msg, raw: json };
       }
 
@@ -533,7 +533,7 @@ class Drive115V2Service {
         refresh_token: newRt || rt,
         expires_at: expiresIn && !isNaN(expiresIn) ? nowSec + Math.max(0, expiresIn) : null,
       };
-      
+
       // 立刻持久化：确保任何入口刷新都会保存
       try {
         const currentSettings = await getSettings();
@@ -589,7 +589,7 @@ class Drive115V2Service {
       newSettings.drive115 = { ...(settings?.drive115 || {}) };
 
       const { is115RefreshTokenPermanentlyInvalidCode, is115RefreshRateLimitCode } = await import('./errorCodes');
-      
+
       if (is115RefreshTokenPermanentlyInvalidCode(code)) {
         // refresh_token 永久失效
         newSettings.drive115.v2RefreshTokenStatus = code === 40140119 ? 'expired' : 'invalid';
@@ -634,7 +634,7 @@ class Drive115V2Service {
     if (!accessToken && !refreshToken) return { success: false, message: '缺少 access_token/refresh_token' };
 
     const now = Math.floor(Date.now() / 1000);
-    
+
     // 优化：如果有 access_token 且过期时间未知或未过期，先尝试使用
     if (accessToken) {
       // 情况1：有明确的过期时间且未过期
@@ -642,7 +642,7 @@ class Drive115V2Service {
         await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 仍在有效期内（v2）' });
         return { success: true, accessToken };
       }
-      
+
       // 情况2：过期时间未知，但 token 存在（可能是手动填入的）
       if (expiresAt === null || expiresAt === undefined) {
         await addLogV2({ timestamp: Date.now(), level: 'debug', message: 'access_token 过期时间未知，尝试直接使用（v2）' });
@@ -661,7 +661,7 @@ class Drive115V2Service {
 
     // 检查是否需要刷新
     const needRefresh = !accessToken || (typeof expiresAt === 'number' && expiresAt - skewSec <= now);
-    
+
     if (!needRefresh) {
       return { success: true, accessToken };
     }
@@ -671,7 +671,7 @@ class Drive115V2Service {
       await addLogV2({ timestamp: Date.now(), level: 'warn', message: msg });
       return { success: false, message: msg };
     }
-    
+
     if (!refreshToken) return { success: false, message: '缺少 refresh_token，无法自动刷新' };
 
     // 检查 refresh_token 状态
@@ -715,7 +715,7 @@ class Drive115V2Service {
       // 重新读取最新的 refresh_token（可能已被其他地方更新）
       const latestSettings = await getSettings();
       const latestRt = ((latestSettings?.drive115 as any)?.v2RefreshToken || '').trim() || refreshToken;
-      
+
       this.refreshingPromise = this.refreshToken(latestRt);
       try {
         ret = await this.refreshingPromise;
@@ -723,7 +723,7 @@ class Drive115V2Service {
         this.refreshingPromise = null;
       }
     }
-    
+
     if (!ret.success || !ret.token) {
       const msg = ret.message || '刷新失败';
       await addLogV2({ timestamp: Date.now(), level: 'error', message: `自动刷新 access_token 失败：${msg}` });
@@ -1051,22 +1051,23 @@ class Drive115V2Service {
         json = await res.json().catch(() => ({} as Drive115V2FileListResponse));
       }
 
-      const ok = typeof json.state === 'boolean' ? json.state : true;
+      const fileList = json || ({} as Drive115V2FileListResponse);
+      const ok = typeof fileList.state === 'boolean' ? fileList.state : true;
       if (!ok) {
-        const msg = describe115Error(json) || json.message || '获取文件列表失败';
+        const msg = describe115Error(fileList) || fileList.message || '获取文件列表失败';
         await addLogV2({ timestamp: Date.now(), level: 'warn', message: `获取文件列表失败：${msg}` });
-        return { success: false, message: msg, raw: json } as any;
+        return { success: false, message: msg, raw: fileList } as any;
       }
 
       return {
         success: true,
-        count: typeof json.count === 'number' ? json.count : undefined,
-        data: Array.isArray(json.data) ? json.data : [],
-        path: Array.isArray(json.path) ? json.path : [],
-        limit: typeof json.limit === 'number' ? json.limit : undefined,
-        offset: typeof json.offset === 'number' ? json.offset : undefined,
-        cid: json.cid,
-        raw: json,
+        count: typeof fileList.count === 'number' ? fileList.count : undefined,
+        data: Array.isArray(fileList.data) ? fileList.data : [],
+        path: Array.isArray(fileList.path) ? fileList.path : [],
+        limit: typeof fileList.limit === 'number' ? fileList.limit : undefined,
+        offset: typeof fileList.offset === 'number' ? fileList.offset : undefined,
+        cid: fileList.cid,
+        raw: fileList,
       } as any;
     } catch (e: any) {
       const msg = describe115Error(e) || e?.message || '获取文件列表失败';
