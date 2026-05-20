@@ -12,7 +12,6 @@ import type {
 import { SyncCancelledError } from './types';
 import { getSettings, getValue, setValue } from '../../utils/storage';
 import { STORAGE_KEYS } from '../../utils/config';
-import { VIDEO_STATUS } from '../../utils/config';
 import { dbViewedPut } from '../dbClient';
 import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflareVerification';
 import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
@@ -1438,8 +1437,7 @@ export class ApiClient {
         let newRecords = 0;
         let updatedRecords = 0;
 
-        const migrated = await this.isIDBMigrated();
-        const videoToLists = new Map<string, Set<string>>();
+        await this.isIDBMigrated();
         const seenListIds = new Set<string>();
 
         const listRecords: ListRecord[] = [];
@@ -1500,49 +1498,6 @@ export class ApiClient {
         await fetchListIndex('mine', `${origin}/users/lists`);
         await fetchListIndex('favorite', `${origin}/users/favorite_lists`);
 
-        // === 恢复进度检查（必须在获取清单列表之后） ===
-        let startListIndex = 0;
-        let startPage = 1;
-        let startVideoIndex = 0;
-        
-        if (_config.resumeFromProgress) {
-            const savedProgress = await getSavedSyncProgress('lists', userProfile.email);
-            if (savedProgress && savedProgress.currentListIndex !== undefined) {
-                // 使用清单 ID 而不是索引来恢复进度
-                const savedListId = savedProgress.currentListId;
-                if (savedListId) {
-                    // 在新的清单列表中查找保存的清单 ID
-                    const foundIndex = listIndex.findIndex(l => l.id === savedListId);
-                    if (foundIndex >= 0) {
-                        // 找到了，从这个清单继续
-                        startListIndex = foundIndex;
-                        startPage = savedProgress.currentPage;
-                        startVideoIndex = savedProgress.currentVideoIndex;
-                        syncedCount = savedProgress.syncedCount;
-                        errorCount = savedProgress.errorCount;
-                        newRecords = savedProgress.newRecords;
-                        updatedRecords = savedProgress.updatedRecords;
-                        
-                        logAsync('INFO', '从上次进度继续清单同步', {
-                            savedListId,
-                            foundIndex,
-                            startPage,
-                            startVideoIndex,
-                            syncedCount
-                        });
-                    } else {
-                        // 清单已被删除，清除进度，从头开始
-                        logAsync('WARN', '保存的清单已不存在，清除进度从头开始', { savedListId });
-                        await clearSyncProgress();
-                    }
-                } else {
-                    // 旧版本的进度数据，没有 currentListId，清除进度
-                    logAsync('WARN', '进度数据格式过旧，清除进度从头开始');
-                    await clearSyncProgress();
-                }
-            }
-        }
-
         // === 预检查：比对本地和远程清单（只比对 JavDB 清单，本地清单不参与） ===
         let oldLists: ListRecord[] = [];
         try {
@@ -1552,8 +1507,8 @@ export class ApiClient {
             logAsync('WARN', '获取旧清单列表失败', { error: e?.message });
         }
 
-        // 只对 JavDB 清单做增删比对，本地清单不受影响
-        const oldJavdbLists = oldLists.filter(l => !l.source || l.source === 'javdb');
+        // 只对 JavDB 清单（mine/favorite）做增删比对，本地清单和 series/label 不受影响
+        const oldJavdbLists = oldLists.filter(l => (!l.source || l.source === 'javdb') && l.type !== 'series' && l.type !== 'label');
         const oldListMap = new Map(oldJavdbLists.map(l => [l.id, l]));
         const newListMap = new Map(listRecords.map(l => [l.id, l]));
 
@@ -1656,309 +1611,88 @@ export class ApiClient {
             };
         }
 
-        // 同步每个清单的影片
-        let processedLists = startListIndex; // 从保存的位置开始
-        for (let listIdx = startListIndex; listIdx < listIndex.length; listIdx++) {
-            const li = listIndex[listIdx];
+        // 轻量同步：只收集各清单的影片 URL ID，不拉取影片详情
+        const syncedJavdbListIds = new Set(listIndex.map(l => l.id));
+        const listToUrlIds = new Map<string, string[]>();
+
+        let processedLists = 0;
+        for (const li of listIndex) {
+            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
             processedLists++;
-            
-            if (abortSignal?.aborted) {
-                // 保存进度
-                await saveSyncProgress({
-                    type: 'lists',
-                    userEmail: userProfile.email,
-                    currentPage: 1,
-                    currentVideoIndex: 0,
-                    currentListIndex: listIdx,
-                    currentListId: li.id,
-                    totalLists: listIndex.length,
-                    totalPages: 0,
-                    videoCount: syncedCount,
-                    syncedCount,
-                    errorCount,
-                    newRecords,
-                    updatedRecords,
-                    timestamp: Date.now(),
-                    mode: _config.mode || 'full'
-                });
-                throw new SyncCancelledError('同步已取消');
-            }
+            if ((li.moviesCount ?? 0) === 0) { listToUrlIds.set(li.id, []); continue; }
 
-            // 跳过空清单
-            if (li.moviesCount === 0) {
-                logAsync('INFO', `跳过空清单: ${li.id}`, { moviesCount: li.moviesCount });
-                continue;
-            }
+            const approxPages = Math.max(1, Math.ceil((li.moviesCount ?? 20) / 20));
+            const urlIds: string[] = [];
 
-            const approxPages = li.moviesCount ? Math.max(1, Math.ceil(li.moviesCount / 20)) : 50;
-            const pageStart = (listIdx === startListIndex) ? startPage : 1; // 如果是恢复的清单，从保存的页开始
-            
-            for (let page = pageStart; page <= approxPages; page++) {
-                if (abortSignal?.aborted) {
-                    // 保存进度
-                    await saveSyncProgress({
-                        type: 'lists',
-                        userEmail: userProfile.email,
-                        currentPage: page,
-                        currentVideoIndex: 0,
-                        currentListIndex: listIdx,
-                        currentListId: li.id,
-                        totalLists: listIndex.length,
-                        totalPages: approxPages,
-                        videoCount: syncedCount,
-                        syncedCount,
-                        errorCount,
-                        newRecords,
-                        updatedRecords,
-                        timestamp: Date.now(),
-                        mode: _config.mode || 'full'
-                    });
-                    throw new SyncCancelledError('同步已取消');
-                }
-
-                const listUrl = `${origin}/lists/${li.id}?page=${page}`;
-                const res = await this.fetchWithRetry(listUrl, { method: 'GET', credentials: 'include' });
-                if (!res.ok) {
-                    errorCount++;
-                    break;
-                }
-                // 防止被重定向到首页/登录页等导致误解析 /v/
-                try {
-                    const finalUrl = String((res as any).url || '');
-                    if (finalUrl && !finalUrl.includes(`/lists/${li.id}`)) {
-                        errorCount++;
-                        break;
-                    }
-                } catch {}
-                const html = await res.text();
-                try {
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const hasVideos = doc.querySelectorAll('#videos .item, #videos .movie-list .item, .movie-list .item').length > 0;
-                    const hasListHint = html.includes(`/lists/${li.id}`);
-                    if (!hasVideos && !hasListHint) {
-                        errorCount++;
-                        break;
-                    }
-                } catch {}
-                const urlIds = this.parseUrlVideoIdsFromListHTML(html);
-                if (urlIds.length === 0) {
-                    // 没有影片则认为到底
-                    break;
-                }
-
+            for (let page = 1; page <= approxPages; page++) {
+                if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
                 onProgress?.({
-                    current: processedLists,
-                    total: listIndex.length,
-                    percentage: Math.round((processedLists / listIndex.length) * 100),
-                    message: `同步清单影片：${processedLists}/${listIndex.length}（${li.id} 第${page}页）...`,
+                    percentage: 50 + Math.round((processedLists / listIndex.length) * 40),
+                    message: `收集清单影片 ID：${processedLists}/${listIndex.length}（${li.id} 第${page}页）`,
                     stage: 'pages'
                 });
-
-                // 如果是恢复的清单和页面，从保存的视频索引开始
-                const videoStart = (listIdx === startListIndex && page === pageStart) ? startVideoIndex : 0;
-                
-                for (let i = videoStart; i < urlIds.length; i++) {
-                    if (abortSignal?.aborted) {
-                        // 保存进度
-                        await saveSyncProgress({
-                            type: 'lists',
-                            userEmail: userProfile.email,
-                            currentPage: page,
-                            currentVideoIndex: i,
-                            currentListIndex: listIdx,
-                            currentListId: li.id,
-                            totalLists: listIndex.length,
-                            totalPages: approxPages,
-                            videoCount: syncedCount,
-                            syncedCount,
-                            errorCount,
-                            newRecords,
-                            updatedRecords,
-                            timestamp: Date.now(),
-                            mode: _config.mode || 'full'
-                        });
-                        throw new SyncCancelledError('同步已取消');
-                    }
-                    const urlVideoId = urlIds[i];
-                    try {
-                        const videoDetail = await this.fetchVideoDetail(urlVideoId);
-                        if (!videoDetail) {
-                            errorCount++;
-                            continue;
-                        }
-                        const realVideoId = videoDetail.id || urlVideoId;
-
-                        // 汇总远端归属
-                        const set = videoToLists.get(realVideoId) || new Set<string>();
-                        set.add(li.id);
-                        videoToLists.set(realVideoId, set);
-
-                        // 先确保影片存在于番号库
-                        let existed = false;
-                        let currentRecord: VideoRecord | undefined;
-                        if (migrated) {
-                            try {
-                                const resp = await this.sendDbMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id: realVideoId });
-                                // @ts-ignore
-                                currentRecord = (resp as any).record;
-                                existed = !!currentRecord;
-                            } catch {
-                                existed = false;
-                            }
-                        } else {
-                            const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                            currentRecord = all[realVideoId];
-                            existed = !!currentRecord;
-                        }
-
-                        if (!existed) {
-                            const record: VideoRecord = {
-                                id: realVideoId,
-                                title: videoDetail.title || '',
-                                status: VIDEO_STATUS.UNTRACKED as any,
-                                tags: videoDetail.tags || [],
-                                createdAt: now,
-                                updatedAt: now,
-                                releaseDate: videoDetail.releaseDate,
-                                javdbUrl: `${origin}/v/${urlVideoId}`,
-                                javdbImage: videoDetail.javdbImage,
-                                listIds: [li.id]
-                            };
-                            await dbViewedPut(record);
-                            newRecords++;
-                        } else {
-                            updatedRecords++;
-                        }
-
-                        syncedCount++;
-                        
-                        // 通知UI添加到已获取列表
-                        this.notifyVideoFetched(syncedCount, videoDetail.title || realVideoId, true);
-
-                        // 构建详细的进度消息
-                        const actionType = !existed ? '新增' : '更新';
-                        const progressMessage = `${actionType} ${syncedCount} 部影片 (新增: ${newRecords}, 更新: ${updatedRecords})`;
-
-                        onProgress?.({
-                            current: syncedCount,
-                            total: syncedCount,
-                            percentage: 0,
-                            message: progressMessage,
-                            stage: 'details',
-                            actionType,  // 传递操作类型
-                            stats: {
-                                new: newRecords,
-                                updated: updatedRecords,
-                                error: errorCount
-                            }
-                        });
-                    } catch (e: any) {
-                        errorCount++;
-                        logAsync('ERROR', '同步清单影片失败', { listId: li.id, urlVideoId, error: e?.message });
-                    }
-
-                    if (i < urlIds.length - 1) {
-                        await this.delay(requestInterval);
-                    }
-                }
-
-                // 页面间隔
-                await this.delay(500);
+                try {
+                    const res = await this.fetchWithRetry(`${origin}/lists/${li.id}?page=${page}`, { method: 'GET', credentials: 'include' });
+                    if (!res.ok) break;
+                    const html = await res.text();
+                    const pageIds = this.parseUrlVideoIdsFromListHTML(html);
+                    if (pageIds.length === 0) break;
+                    urlIds.push(...pageIds);
+                } catch (e: any) { errorCount++; break; }
+                if (page > 1) await this.delay(requestInterval);
             }
+            listToUrlIds.set(li.id, urlIds);
+            syncedCount += urlIds.length;
         }
 
-        // 归属“只添加不覆盖”：对已同步到的影片，只添加 JavDB 清单 ID，保留用户手动添加的其他 ID
-        for (const [videoId, set] of videoToLists.entries()) {
-            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
-            try {
-                let record: VideoRecord | undefined;
-                if (migrated) {
-                    const resp = await this.sendDbMessage<{ success: true; record?: VideoRecord }>('DB:VIEWED_GET', { id: videoId });
-                    // @ts-ignore
-                    record = (resp as any).record;
-                } else {
-                    const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                    record = all[videoId];
-                }
-                if (!record) {
-                    skippedCount++;
-                    continue;
-                }
-                // 合并：保留现有 listIds，再添加本次同步到的 JavDB 清单 ID
-                const existingIds = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
-                for (const id of set) existingIds.add(id);
-                record.listIds = Array.from(existingIds);
-                record.updatedAt = Date.now();
-                await dbViewedPut(record);
-            } catch (e: any) {
-                // 覆盖失败时不要误删，本次不阻断
-                errorCount++;
-            }
-        }
-
-        // === 清理孤儿影片的 listIds ===
-        // 获取所有有 listIds 的影片，清空那些不在本次同步中的影片的 listIds
+        // 将 URL ID 与已入库影片匹配，更新 listIds（不创建新影片）
         try {
-            onProgress?.({
-                percentage: 95,
-                message: '清理已移除的清单关联...',
-                stage: 'cleanup'
-            });
+            onProgress?.({ percentage: 92, message: '更新已入库影片的清单关联...', stage: 'cleanup' });
 
-            let allRecords: VideoRecord[] = [];
-            if (migrated) {
-                const resp = await this.sendDbMessage<{ success: true; records: VideoRecord[] }>('DB:VIEWED_GET_ALL', {});
-                allRecords = ((resp as any).records || []);
-            } else {
-                const all = await getValue<Record<string, VideoRecord>>(STORAGE_KEYS.VIEWED_RECORDS, {});
-                allRecords = Object.values(all);
+            const allResp = await this.sendDbMessage<{ success: true; records: VideoRecord[] }>('DB:VIEWED_GET_ALL', {});
+            const allRecords: VideoRecord[] = (allResp as any).records || [];
+
+            // 构建 urlId → videoCode 反向索引
+            const urlIdPattern = /\/v\/([a-zA-Z0-9_-]+)/;
+            const urlIdToCode = new Map<string, string>();
+            for (const r of allRecords) {
+                const m = String(r.javdbUrl || '').match(urlIdPattern);
+                if (m) urlIdToCode.set(m[1], r.id);
             }
 
-            // 找出有 listIds 但不在本次同步中的影片（孤儿影片）
-            const syncedVideoIds = new Set(videoToLists.keys());
-            // 获取本次同步涉及的所有 JavDB 清单 ID 集合
-            const syncedJavdbListIds = new Set(listIndex.map(l => l.id));
-            // 只处理有 JavDB 清单 ID 但不在本次同步中的影片
-            const orphanRecords = allRecords.filter(r => {
-                if (!r.listIds || r.listIds.length === 0) return false;
-                if (syncedVideoIds.has(r.id)) return false;
-                // 只有当影片的 listIds 中包含 JavDB 清单 ID 时才需要清理
-                return r.listIds.some(id => syncedJavdbListIds.has(id));
-            });
-
-            if (orphanRecords.length > 0) {
-                logAsync('INFO', `检测到 ${orphanRecords.length} 个影片不再属于任何清单，清空其 listIds`);
-                
-                let cleanedCount = 0;
-                for (const record of orphanRecords) {
-                    if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
-                    try {
-                        // 只移除 JavDB 清单 ID，保留用户手动添加的本地清单 ID
-                        record.listIds = (record.listIds || []).filter(id => !syncedJavdbListIds.has(id));
-                        record.updatedAt = Date.now();
-                        await dbViewedPut(record);
-                        cleanedCount++;
-                        
-                        // 更新清理进度
-                        onProgress?.({
-                            percentage: 95 + Math.round((cleanedCount / orphanRecords.length) * 5),
-                            message: `清理清单关联 ${cleanedCount}/${orphanRecords.length}...`,
-                            stage: 'cleanup',
-                            actionType: '清理',
-                            stats: {
-                                cleaned: cleanedCount,
-                                total: orphanRecords.length
-                            }
-                        });
-                    } catch (e: any) {
-                        logAsync('WARN', '清空影片 listIds 失败', { videoId: record.id, error: e?.message });
-                    }
+            // 计算每个已入库影片应持有的 JavDB 清单 ID
+            const videoToNewLists = new Map<string, Set<string>>();
+            for (const [listId, urlIds] of listToUrlIds.entries()) {
+                for (const urlId of urlIds) {
+                    const code = urlIdToCode.get(urlId);
+                    if (!code) continue;
+                    if (!videoToNewLists.has(code)) videoToNewLists.set(code, new Set());
+                    videoToNewLists.get(code)!.add(listId);
                 }
-                
-                logAsync('INFO', `已清空 ${cleanedCount} 个影片的清单关联`);
+            }
+
+            // 只更新有变化的记录
+            const toUpdate: VideoRecord[] = [];
+            for (const record of allRecords) {
+                const oldJavdb = new Set((record.listIds || []).filter(id => syncedJavdbListIds.has(id)));
+                const newJavdb = videoToNewLists.get(record.id) || new Set<string>();
+                const changed = oldJavdb.size !== newJavdb.size
+                    || [...newJavdb].some(id => !oldJavdb.has(id))
+                    || [...oldJavdb].some(id => !newJavdb.has(id));
+                if (changed) {
+                    const local = (record.listIds || []).filter(id => !syncedJavdbListIds.has(id));
+                    record.listIds = [...local, ...Array.from(newJavdb)];
+                    record.updatedAt = Date.now();
+                    toUpdate.push(record);
+                }
+            }
+            if (toUpdate.length > 0) {
+                await this.sendDbMessage('DB:VIEWED_BULK_PUT', { records: toUpdate });
+                updatedRecords = toUpdate.length;
+                logAsync('INFO', `已更新 ${updatedRecords} 个影片的清单关联`);
             }
         } catch (e: any) {
-            logAsync('WARN', '清理孤儿影片失败（不阻断同步）', { error: e?.message });
+            logAsync('WARN', '更新影片清单关联失败（不阻断同步）', { error: e?.message });
         }
 
         // 同步完成，清除保存的进度
@@ -1972,7 +1706,7 @@ export class ApiClient {
             errorCount,
             newRecords,
             updatedRecords,
-            message: `清单同步完成：影片 ${syncedCount}，清单 ${listIndex.length}`
+            message: `清单同步完成：${listIndex.length} 个清单，更新 ${updatedRecords} 个已入库影片的关联`
         };
     }
     /**
