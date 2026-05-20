@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: pnpm run test
 
+      - name: Run DOM tests
+        run: pnpm run test:dom
+
       - name: Build extension
         run: pnpm run build
 
