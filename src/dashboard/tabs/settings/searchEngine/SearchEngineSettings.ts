@@ -81,7 +81,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
     protected async doSaveSettings(): Promise<SettingsSaveResult> {
         try {
             this.updateSearchEnginesFromUI();
-            
+
             const newSettings: ExtensionSettings = {
                 ...STATE.settings,
                 searchEngines: STATE.settings.searchEngines
@@ -115,11 +115,11 @@ export class SearchEngineSettings extends BaseSettingsPanel {
 
         nameInputs.forEach((nameInput, index) => {
             const urlInput = urlInputs[index];
-            
+
             if (nameInput.value && !urlInput.value) {
                 errors.push(`搜索引擎 "${nameInput.value}" 缺少URL模板`);
             }
-            
+
             if (urlInput.value && !urlInput.value.includes('{{ID}}')) {
                 warnings.push(`搜索引擎 "${nameInput.value || '未命名'}" 的URL模板中缺少 {{ID}} 占位符`);
             }
@@ -160,7 +160,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
 
         this.searchEngineList.innerHTML = ''; // Clear existing entries
 
-        STATE.settings.searchEngines?.forEach((engine, index) => {
+        STATE.settings.searchEngines?.forEach((engine: SearchEngine, index: number) => {
             if (!engine) {
                 console.warn('Skipping invalid search engine entry at index:', index, engine);
                 return;
@@ -243,7 +243,7 @@ export class SearchEngineSettings extends BaseSettingsPanel {
             urlTemplate: 'https://www.google.com/search?q={{ID}}',
             icon: chrome.runtime.getURL('assets/alternate-search.png')
         };
-        
+
         STATE.settings.searchEngines.push(newEngine);
         logAsync('INFO', '用户添加了一个新的搜索引擎。', { engine: newEngine });
         this.renderSearchEngines();
@@ -271,8 +271,8 @@ export class SearchEngineSettings extends BaseSettingsPanel {
      */
     private handleSearchEngineListInput(event: Event): void {
         const target = event.target as HTMLInputElement;
-        if (target.classList.contains('name-input') || 
-            target.classList.contains('url-template-input') || 
+        if (target.classList.contains('name-input') ||
+            target.classList.contains('url-template-input') ||
             target.classList.contains('icon-url-input')) {
             this.emit('change');
             this.scheduleAutoSave();

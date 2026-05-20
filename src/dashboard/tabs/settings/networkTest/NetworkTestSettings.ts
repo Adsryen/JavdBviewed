@@ -7,13 +7,13 @@ import { BaseSettingsPanel } from '../base/BaseSettingsPanel';
 import { showMessage } from '../../../ui/toast';
 import type { ExtensionSettings } from '../../../../types';
 import type { SettingsValidationResult, SettingsSaveResult } from '../types';
-import { 
-    getAllEnabledDomains, 
-    getDomainsByCategory, 
+import {
+    getAllEnabledDomains,
+    getDomainsByCategory,
     EXTENSION_DOMAINS,
     saveDomainConfig,
     loadDomainConfig,
-    type DomainInfo 
+    type DomainInfo
 } from '../../../../utils/domainConfig';
 
 /**
@@ -256,7 +256,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
 
         // 更新域名统计信息
         this.updateDomainStats();
-        
+
         // 加载上次测试时间
         this.loadLastTestTime();
 
@@ -271,7 +271,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
 
         try {
             const settings = await this.getStoredSettings();
-            
+
             // 保存网络加速配置
             const networkAcceleration = {
                 github: {
@@ -293,9 +293,9 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             return { success: true };
         } catch (error) {
             console.error('[NetworkTestSettings] [DEBUG] 保存网络配置失败:', error);
-            return { 
-                success: false, 
-                error: error instanceof Error ? error.message : '保存失败' 
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : '保存失败'
             };
         }
     }
@@ -375,7 +375,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
      */
     private handleGithubProxyToggle(): void {
         const enabled = this.enableGithubProxyCheckbox.checked;
-        
+
         // 启用/禁用相关控件
         if (this.githubProxyServiceSelect) {
             this.githubProxyServiceSelect.disabled = !enabled;
@@ -427,7 +427,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
 
             // 测试文件 URL（使用本仓库的 routes.json）
             const testFileUrl = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json';
-            
+
             // 获取代理 URL
             const proxyUrl = this.getProxyUrl(proxyService, customUrl);
             const proxiedUrl = proxyUrl + testFileUrl;
@@ -459,7 +459,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             // 显示结果
             let resultHtml = '<div style="padding: 10px;">';
             resultHtml += '<h5 style="margin-bottom: 10px;">测试结果</h5>';
-            
+
             resultHtml += '<div style="margin-bottom: 10px;">';
             resultHtml += `<div style="display: flex; align-items: center; margin-bottom: 5px;">`;
             resultHtml += `<i class="fas ${directSuccess ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${directSuccess ? '#4caf50' : '#f44336'}; margin-right: 8px;"></i>`;
@@ -571,11 +571,11 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             const routeItem = document.createElement('div');
             const isPreferred = route.url === preferredUrl;
             routeItem.className = `route-item ${isPreferred ? 'route-item-preferred' : ''}`;
-            
+
             // 获取缓存的延迟信息
             const latencyInfo = this.getRouteLatency(route.url);
             const latencyHtml = latencyInfo ? this.renderLatencyBadge(latencyInfo) : '';
-            
+
             routeItem.innerHTML = `
                 <div class="route-info">
                     <div class="route-url">
@@ -601,7 +601,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                     </button>` : ''}
                 </div>
             `;
-            
+
             // 禁用的线路整体变灰
             if (!route.enabled && !route.isPrimary) {
                 routeItem.style.opacity = '0.5';
@@ -648,7 +648,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     private renderLatencyBadge(latency: number): string {
         let className = 'latency-excellent';
         let icon = 'fa-bolt';
-        
+
         if (latency < 0) {
             className = 'latency-error';
             icon = 'fa-times-circle';
@@ -666,7 +666,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             className = 'latency-poor';
             icon = 'fa-exclamation-triangle';
         }
-        
+
         return `<span class="route-latency-badge ${className}"><i class="fas ${icon}"></i> ${latency}ms</span>`;
     }
 
@@ -712,7 +712,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                 const urlDiv = item.querySelector('.route-url') as HTMLDivElement;
                 const descDiv = item.querySelector('.route-description') as HTMLDivElement;
                 const isPrimary = checkbox.dataset.isPrimary === 'true';
-                
+
                 // 提取 URL（移除首选徽章和延迟徽章）
                 let urlText = urlDiv.textContent?.trim() || '';
                 const badgeIndex = urlText.indexOf('首选');
@@ -724,7 +724,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                 if (latencyMatch) {
                     urlText = latencyMatch[1];
                 }
-                
+
                 if (!isPrimary) {
                     javdbRoutes.push({
                         url: urlText,
@@ -780,7 +780,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         }
 
         const existingRoutes = settings.routes[service].alternatives;
-        if (existingRoutes.some(r => r.url === url)) {
+        if (existingRoutes.some((r: { url: string }) => r.url === url)) {
             showMessage('该线路已存在', 'warn');
             return;
         }
@@ -832,12 +832,12 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         if (!settings.routes) return;
 
         settings.routes[service].preferredUrl = url;
-        
+
         await this.saveStoredSettings(settings);
         await this.loadRoutesConfig();
-        
+
         showMessage(`已将 ${url} 设为首选线路`, 'success');
-        
+
         // 清除路由管理器的缓存，使新的首选线路立即生效
         const { getRouteManager } = await import('../../../../utils/routeManager');
         getRouteManager().clearCache(service);
@@ -867,7 +867,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     private async handleTestSingleRoute(service: 'javdb', url: string, routeItem: HTMLElement): Promise<void> {
         const testBtn = routeItem.querySelector('[data-action="test"]') as HTMLButtonElement;
         const originalText = testBtn.innerHTML;
-        
+
         testBtn.disabled = true;
         testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中';
 
@@ -875,17 +875,17 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         try {
             await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
             const latency = Date.now() - startTime;
-            
+
             // 保存延迟到缓存
             this.saveRouteLatency(url, latency);
-            
+
             // 更新UI显示延迟
             const urlDiv = routeItem.querySelector('.route-url') as HTMLDivElement;
             const existingBadge = urlDiv.querySelector('.route-latency-badge');
             if (existingBadge) {
                 existingBadge.remove();
             }
-            
+
             // 创建新的延迟徽章
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = this.renderLatencyBadge(latency);
@@ -893,21 +893,21 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             if (latencyBadge) {
                 urlDiv.appendChild(latencyBadge);
             }
-            
+
             showMessage(`线路可用，延迟 ${latency}ms`, 'success');
         } catch {
             const latency = Date.now() - startTime;
-            
+
             // 保存失败状态
             this.saveRouteLatency(url, -1);
-            
+
             // 更新UI显示失败
             const urlDiv = routeItem.querySelector('.route-url') as HTMLDivElement;
             const existingBadge = urlDiv.querySelector('.route-latency-badge');
             if (existingBadge) {
                 existingBadge.remove();
             }
-            
+
             // 创建新的延迟徽章
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = this.renderLatencyBadge(-1);
@@ -915,7 +915,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             if (latencyBadge) {
                 urlDiv.appendChild(latencyBadge);
             }
-            
+
             showMessage(`线路不可用，耗时 ${latency}ms`, 'error');
         } finally {
             testBtn.disabled = false;
@@ -982,20 +982,20 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         const btn = this.updateRoutesFromGithubBtn;
         const spinner = btn.querySelector('.spinner') as HTMLElement;
         const buttonText = btn.querySelector('.button-text') as HTMLElement;
-        
+
         try {
             // 显示加载状态
             btn.disabled = true;
             spinner?.classList.remove('hidden');
             if (buttonText) buttonText.textContent = '正在更新...';
-            
+
             // 动态导入 RouteManager
             const { RouteManager } = await import('../../../../utils/routeManager');
             const routeManager = RouteManager.getInstance();
-            
+
             // 强制更新线路配置
             const updated = await routeManager.checkAndUpdateRoutes(true);
-            
+
             if (updated) {
                 showMessage('线路配置已从 GitHub 更新成功！', 'success');
                 // 重新加载线路列表
@@ -1003,7 +1003,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             } else {
                 showMessage('当前已是最新版本，无需更新', 'info');
             }
-            
+
         } catch (error: any) {
             console.error('[NetworkTestSettings] 更新线路配置失败:', error);
             showMessage(`更新失败: ${error?.message || '未知错误'}`, 'error');
@@ -1022,7 +1022,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         if (!confirm('确定要恢复默认线路配置吗？这将清除所有自定义线路。')) return;
 
         const settings = await this.getStoredSettings();
-        
+
         // 恢复默认配置（仅 JavDB）
         settings.routes = {
             javdb: {
@@ -1258,7 +1258,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         const configPanel = document.getElementById('domain-config-panel');
         if (configPanel) {
             const isHidden = configPanel.style.display === 'none' || !configPanel.style.display;
-            
+
             if (isHidden) {
                 // 显示配置面板前，先生成域名配置UI
                 this.renderDomainConfig();
@@ -1334,7 +1334,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                 domain.enabled = true;
             });
         });
-        
+
         this.renderDomainConfig();
         this.updateDomainStats();
         saveDomainConfig();
@@ -1370,10 +1370,10 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                 checkboxItem.className = 'domain-checkbox-item';
 
                 const checkboxId = `domain-${categoryKey}-${index}`;
-                
+
                 checkboxItem.innerHTML = `
-                    <input type="checkbox" 
-                           id="${checkboxId}" 
+                    <input type="checkbox"
+                           id="${checkboxId}"
                            ${domain.enabled ? 'checked' : ''}
                            data-category="${categoryKey}"
                            data-index="${index}">
@@ -1460,15 +1460,15 @@ export class NetworkTestSettings extends BaseSettingsPanel {
             // 测试该分类下的所有域名
             for (const domain of categoryDomains) {
                 const result = await this.testSingleDomain(domain);
-                
+
                 // 创建结果项
                 const resultItem = document.createElement('div');
                 resultItem.className = `batch-result-item ${result.success ? 'success' : 'failure'}`;
-                
+
                 const statusIcon = result.success ? 'fa-check-circle' : 'fa-times-circle';
                 const statusText = result.success ? '可访问' : '无法访问';
                 const latencyText = result.latency >= 0 ? `${result.latency}ms` : 'N/A';
-                
+
                 resultItem.innerHTML = `
                     <div class="result-header">
                         <i class="fas ${statusIcon}"></i>
@@ -1485,7 +1485,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
                         ${result.error ? `<div class="error-message">${result.error}</div>` : ''}
                     </div>
                 `;
-                
+
                 resultsGrid.appendChild(resultItem);
 
                 // 更新统计
@@ -1538,7 +1538,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
 
         // 显示完成消息
         const successRate = ((successCount / domains.length) * 100).toFixed(1);
-        showMessage(`测试完成！成功: ${successCount}/${domains.length} (${successRate}%)`, 
+        showMessage(`测试完成！成功: ${successCount}/${domains.length} (${successRate}%)`,
                     successCount === domains.length ? 'success' : 'warn');
 
         // 保存测试时间
@@ -1576,7 +1576,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
         } catch (error) {
             const latency = Date.now() - startTime;
             let errorMessage = '未知错误';
-            
+
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
                     errorMessage = '请求超时';
@@ -1601,7 +1601,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
 
         // 遍历所有分类
         Object.entries(EXTENSION_DOMAINS).forEach(([, category]) => {
-            const categoryDomains = domains.filter(domain => 
+            const categoryDomains = domains.filter(domain =>
                 category.domains.some(d => d.domain === domain.domain)
             );
 
@@ -1631,7 +1631,7 @@ export class NetworkTestSettings extends BaseSettingsPanel {
     private updateDomainStats(): void {
         const totalDomainsEl = document.getElementById('total-domains');
         const enabledDomainsEl = document.getElementById('enabled-domains');
-        
+
         if (totalDomainsEl && enabledDomainsEl) {
             let total = 0;
             let enabled = 0;

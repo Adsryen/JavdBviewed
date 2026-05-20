@@ -68,7 +68,7 @@ class EmbyEnhancementManager {
 
         try {
             await this.loadConfig();
-            
+
             if (!this.config?.enabled) {
                 log('Emby enhancement is disabled');
                 return;
@@ -125,7 +125,7 @@ class EmbyEnhancementManager {
         if (!this.config?.matchUrls?.length) return false;
 
         const currentUrl = window.location.href;
-        
+
         return this.config.matchUrls.some(pattern => {
             try {
                 const regex = new RegExp(
@@ -148,7 +148,7 @@ class EmbyEnhancementManager {
             if (!this.config?.enableAutoDetection) return;
 
             let shouldProcess = false;
-            
+
             mutations.forEach(mutation => {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => {
@@ -186,7 +186,7 @@ class EmbyEnhancementManager {
                     if (node.parentElement && this.processedElements.has(node.parentElement)) {
                         return NodeFilter.FILTER_REJECT;
                     }
-                    
+
                     // 跳过脚本和样式标签
                     const parent = node.parentElement;
                     if (parent && ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) {
@@ -230,7 +230,7 @@ class EmbyEnhancementManager {
 
         // 创建包含链接的HTML
         let newHTML = text;
-        
+
         videoIds.forEach(videoId => {
             const link = this.createVideoLink(videoId);
             const regex = new RegExp(this.escapeRegExp(videoId), 'gi');
@@ -241,10 +241,10 @@ class EmbyEnhancementManager {
         if (newHTML !== text) {
             const wrapper = document.createElement('span');
             wrapper.innerHTML = newHTML;
-            
+
             // 应用样式
             this.applyLinkStyles(wrapper);
-            
+
             textNode.parentNode?.replaceChild(wrapper, textNode);
         }
     }
@@ -282,7 +282,7 @@ class EmbyEnhancementManager {
     private createVideoLink(videoId: string): string {
         const url = this.generateVideoUrl(videoId);
         const style = this.config?.highlightStyle;
-        
+
         const styleStr = style ? `
             background-color: ${style.backgroundColor};
             color: ${style.color};
@@ -311,8 +311,8 @@ class EmbyEnhancementManager {
 
         // 使用搜索引擎进行搜索
         const searchEngines = STATE.settings?.searchEngines || [];
-        const javdbEngine = searchEngines.find(engine => engine.id === 'javdb');
-        
+        const javdbEngine = searchEngines.find((engine: any) => engine.id === 'javdb');
+
         if (javdbEngine) {
             return javdbEngine.urlTemplate.replace('{{ID}}', encodeURIComponent(videoId));
         }
@@ -397,7 +397,7 @@ class EmbyEnhancementManager {
         }
 
         await this.loadConfig();
-        
+
         if (!this.config?.enabled || !this.isCurrentPageMatched()) {
             this.destroy();
             return;
@@ -629,7 +629,7 @@ class EmbyEnhancementManager {
     /** 构造通用搜索URL（默认 JavDB search?q=...&f=all） */
     private generateSearchUrl(query: string): string {
         const searchEngines = STATE.settings?.searchEngines || [];
-        const javdbEngine = searchEngines.find(engine => engine.id === 'javdb');
+        const javdbEngine = searchEngines.find((engine: any) => engine.id === 'javdb');
         if (javdbEngine?.urlTemplate) {
             return javdbEngine.urlTemplate.replace('{{ID}}', encodeURIComponent(query));
         }

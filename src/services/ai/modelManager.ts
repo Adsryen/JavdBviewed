@@ -43,7 +43,7 @@ export class ModelManager {
     private async loadCache(): Promise<void> {
         try {
             const result = await chrome.storage.local.get('ai_models_cache');
-            const cached = result['ai_models_cache'];
+            const cached = result['ai_models_cache'] as ModelCache | undefined;
 
             if (cached && this.isCacheValid(cached)) {
                 this.cache = cached;
@@ -148,7 +148,7 @@ export class ModelManager {
      */
     async getRecommendedModels(): Promise<AIModel[]> {
         const models = await this.getModels();
-        
+
         // 优先推荐常见的聊天模型
         const preferredModels = [
             'gpt-3.5-turbo',
@@ -162,10 +162,10 @@ export class ModelManager {
         const others: AIModel[] = [];
 
         for (const model of models) {
-            const isPreferred = preferredModels.some(preferred => 
+            const isPreferred = preferredModels.some(preferred =>
                 model.id.toLowerCase().includes(preferred.toLowerCase())
             );
-            
+
             if (isPreferred) {
                 recommended.push(model);
             } else {
@@ -210,7 +210,7 @@ export class ModelManager {
         const models = await this.getModels();
         const lowerQuery = query.toLowerCase();
 
-        return models.filter(model => 
+        return models.filter(model =>
             model.id.toLowerCase().includes(lowerQuery) ||
             model.name.toLowerCase().includes(lowerQuery) ||
             (model.description && model.description.toLowerCase().includes(lowerQuery))

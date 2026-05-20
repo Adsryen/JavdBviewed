@@ -170,7 +170,7 @@ export class EmbySettings extends BaseSettingsPanel {
     private renderMatchUrls(): void {
         const urls = STATE.settings.emby?.matchUrls || [];
 
-        this.matchUrlsList.innerHTML = urls.map((url, index) => `
+        this.matchUrlsList.innerHTML = urls.map((url: string, index: number) => `
             <div class="url-item" data-index="${index}">
                 <input type="text" class="url-input" value="${url}" placeholder="输入URL模式，如 http://192.168.1.6:8096/*">
                 <button type="button" class="remove-url-btn" title="删除">
