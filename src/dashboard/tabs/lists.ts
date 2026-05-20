@@ -1,15 +1,23 @@
 import type { ListRecord } from '../../types';
 import { dbListsPut, dbListsDelete, dbListsGetAllNormalized } from '../dbClient';
+import { STATE } from '../state';
 import { showMessage } from '../ui/toast';
 import { showConfirm } from '../components/confirmModal';
+import {
+    getCollectionExternalId,
+    matchesLabelRecord,
+    matchesSeriesRecord,
+} from '../../utils/listRecordHelpers';
+import { renderListSourceLinkButton } from './listsSourceLinks';
+
+type SubTab = 'lists' | 'series' | 'labels';
 
 export class ListsTab {
     public isInitialized: boolean = false;
     private lists: ListRecord[] = [];
-    // 当前正在重命名的清单 ID（null 表示无）
     private renamingId: string | null = null;
-    // 是否正在显示新建输入行
     private isCreating: boolean = false;
+    private activeSubTab: SubTab = 'lists';
 
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
@@ -19,7 +27,7 @@ export class ListsTab {
             this.isInitialized = true;
         } catch (e: any) {
             console.error('[ListsTab] initialize failed', e);
-            showMessage('初始化清单页面失败', 'error');
+            showMessage('初始化收藏中心失败', 'error');
         }
     }
 
@@ -39,11 +47,18 @@ export class ListsTab {
             this.isCreating = true;
             this.renamingId = null;
             this.render();
-            // 聚焦新建输入框
             setTimeout(() => {
                 const input = document.getElementById('listsInlineCreateInput') as HTMLInputElement | null;
                 input?.focus();
             }, 30);
+        });
+
+        // Sub-tab 切换
+        document.querySelectorAll('.lists-subtab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const subtab = (btn as HTMLElement).getAttribute('data-subtab') as SubTab | null;
+                if (subtab) this.switchSubTab(subtab);
+            });
         });
 
         // 我的清单 / 收藏清单 点击跳转
@@ -51,6 +66,7 @@ export class ListsTab {
         const fav = document.getElementById('listsFavContainer');
         const onClickNav = (e: Event) => {
             const target = e.target as HTMLElement | null;
+            if (this.handleSourceLinkClick(e, target)) return;
             const item = target?.closest('.lists-item') as HTMLElement | null;
             if (!item) return;
             const id = item.getAttribute('data-list-id') || '';
@@ -64,24 +80,16 @@ export class ListsTab {
         const localContainer = document.getElementById('listsLocalContainer');
         localContainer?.addEventListener('click', (e: Event) => {
             const target = e.target as HTMLElement | null;
+            if (this.handleSourceLinkClick(e, target)) return;
 
-            // 重命名确认
             const renameConfirmBtn = target?.closest('.list-rename-confirm-btn') as HTMLElement | null;
             if (renameConfirmBtn) {
-                const listId = renameConfirmBtn.getAttribute('data-list-id') || '';
-                this.commitRename(listId);
+                this.commitRename(renameConfirmBtn.getAttribute('data-list-id') || '');
                 return;
             }
-
-            // 重命名取消
             const renameCancelBtn = target?.closest('.list-rename-cancel-btn') as HTMLElement | null;
-            if (renameCancelBtn) {
-                this.renamingId = null;
-                this.render();
-                return;
-            }
+            if (renameCancelBtn) { this.renamingId = null; this.render(); return; }
 
-            // 重命名按钮
             const renameBtn = target?.closest('.list-rename-btn') as HTMLElement | null;
             if (renameBtn) {
                 const listId = renameBtn.getAttribute('data-list-id') || '';
@@ -90,46 +98,31 @@ export class ListsTab {
                 this.render();
                 setTimeout(() => {
                     const input = document.getElementById(`listsRenameInput_${listId}`) as HTMLInputElement | null;
-                    input?.focus();
-                    input?.select();
+                    input?.focus(); input?.select();
                 }, 30);
                 return;
             }
 
-            // 删除按钮
             const deleteBtn = target?.closest('.list-delete-btn') as HTMLElement | null;
             if (deleteBtn) {
-                const listId = deleteBtn.getAttribute('data-list-id') || '';
-                const list = this.lists.find(l => String(l.id) === listId);
+                const list = this.lists.find(l => String(l.id) === deleteBtn.getAttribute('data-list-id'));
                 if (list) this.deleteLocalList(list);
                 return;
             }
 
-            // 新建确认
             const createConfirmBtn = target?.closest('.list-create-confirm-btn') as HTMLElement | null;
-            if (createConfirmBtn) {
-                this.commitCreate();
-                return;
-            }
+            if (createConfirmBtn) { this.commitCreate(); return; }
 
-            // 新建取消
             const createCancelBtn = target?.closest('.list-create-cancel-btn') as HTMLElement | null;
-            if (createCancelBtn) {
-                this.isCreating = false;
-                this.render();
-                return;
-            }
+            if (createCancelBtn) { this.isCreating = false; this.render(); return; }
 
-            // 点击条目跳转（排除编辑状态）
             const item = target?.closest('.lists-item') as HTMLElement | null;
-            if (!item) return;
-            if (item.classList.contains('lists-item-editing')) return;
+            if (!item || item.classList.contains('lists-item-editing')) return;
             const id = item.getAttribute('data-list-id') || '';
-            if (!id) return;
-            this.navigateToRecordsWithList(id);
+            if (id) this.navigateToRecordsWithList(id);
         });
 
-        // 键盘事件委托（Enter/Escape）
+        // 键盘：Enter/Escape
         localContainer?.addEventListener('keydown', (e: KeyboardEvent) => {
             const target = e.target as HTMLElement | null;
             if (target?.id === 'listsInlineCreateInput') {
@@ -142,6 +135,80 @@ export class ListsTab {
                 if (e.key === 'Escape') { this.renamingId = null; this.render(); }
             }
         });
+
+        // 系列 panel 点击跳转
+        document.getElementById('listsSeriesContainer')?.addEventListener('click', (e: Event) => {
+            const target = e.target as HTMLElement | null;
+            if (this.handleSourceLinkClick(e, target)) return;
+            const item = target?.closest('.lists-item') as HTMLElement | null;
+            if (!item) return;
+            const id = item.getAttribute('data-filter-id') || '';
+            if (id) this.navigateToRecordsWithFilter(`series:${id}`);
+        });
+
+        // 番号 panel 点击跳转
+        document.getElementById('listsLabelsContainer')?.addEventListener('click', (e: Event) => {
+            const target = e.target as HTMLElement | null;
+            if (this.handleSourceLinkClick(e, target)) return;
+            const item = target?.closest('.lists-item') as HTMLElement | null;
+            if (!item) return;
+            const id = item.getAttribute('data-filter-id') || '';
+            if (id) this.navigateToRecordsWithFilter(`label:${id}`);
+        });
+    }
+
+    private handleSourceLinkClick(e: Event, target: HTMLElement | null): boolean {
+        const button = target?.closest('.list-source-link-btn') as HTMLButtonElement | null;
+        if (!button) return false;
+
+        e.preventDefault();
+        e.stopPropagation();
+        const sourceUrl = String(button.getAttribute('data-source-url') || '').trim();
+        if (!sourceUrl) return true;
+        try {
+            window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            console.error('[ListsTab] open source url failed', error);
+            showMessage('打开源站页面失败', 'error');
+        }
+        return true;
+    }
+
+    private switchSubTab(tab: SubTab): void {
+        this.activeSubTab = tab;
+
+        // 更新 pill 激活态
+        document.querySelectorAll('.lists-subtab').forEach(btn => {
+            const t = (btn as HTMLElement).getAttribute('data-subtab');
+            btn.classList.toggle('active', t === tab);
+        });
+
+        // 显示/隐藏 panel
+        const panels: Record<SubTab, string> = {
+            lists: 'lists-panel-lists',
+            series: 'lists-panel-series',
+            labels: 'lists-panel-labels',
+        };
+        Object.entries(panels).forEach(([key, id]) => {
+            document.getElementById(id)?.classList.toggle('lists-panel--hidden', key !== tab);
+        });
+
+        // 新建按钮只在清单 tab 可见
+        const createBtn = document.getElementById('listsCreateBtn') as HTMLElement | null;
+        if (createBtn) createBtn.style.display = tab === 'lists' ? '' : 'none';
+
+        // 搜索框 placeholder
+        const searchInput = document.getElementById('listsSearchInput') as HTMLInputElement | null;
+        if (searchInput) {
+            const placeholders: Record<SubTab, string> = {
+                lists: '搜索清单名称 / ID…',
+                series: '搜索系列名称…',
+                labels: '搜索番号前缀…',
+            };
+            searchInput.placeholder = placeholders[tab];
+        }
+
+        this.render();
     }
 
     private async loadAndRender(): Promise<void> {
@@ -154,6 +221,14 @@ export class ListsTab {
     }
 
     private render(): void {
+        switch (this.activeSubTab) {
+            case 'lists':   this.renderListsPanel(); break;
+            case 'series':  this.renderSeriesPanel(); break;
+            case 'labels':  this.renderLabelsPanel(); break;
+        }
+    }
+
+    private renderListsPanel(): void {
         const localEl = document.getElementById('listsLocalContainer') as HTMLElement | null;
         const mineEl = document.getElementById('listsMineContainer') as HTMLElement | null;
         const favEl = document.getElementById('listsFavContainer') as HTMLElement | null;
@@ -165,33 +240,108 @@ export class ListsTab {
         if (!mineEl || !favEl) return;
 
         const q = String(searchInput?.value || '').trim().toLowerCase();
-        const match = (l: ListRecord) => {
-            if (!q) return true;
-            return String(l.name || '').toLowerCase().includes(q) || String(l.id || '').toLowerCase().includes(q);
-        };
+        const match = (l: ListRecord) => !q ||
+            String(l.name || '').toLowerCase().includes(q) ||
+            String(l.id || '').toLowerCase().includes(q) ||
+            String(l.externalId || '').toLowerCase().includes(q);
 
-        const local = (this.lists || []).filter(l => l && l.source === 'local' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        const mine = (this.lists || []).filter(l => l && l.source !== 'local' && l.type === 'mine' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        const fav = (this.lists || []).filter(l => l && l.source !== 'local' && l.type === 'favorite' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const local = this.lists.filter(l => l?.source === 'local' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const mine  = this.lists.filter(l => l?.source !== 'local' && l?.type === 'mine' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const fav   = this.lists.filter(l => l?.source !== 'local' && l?.type === 'favorite' && match(l)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
         if (localEl) {
             const items = local.map(l => this.renderItem(l)).join('');
             const createRow = this.isCreating ? this.renderCreateRow() : '';
-            const empty = !items && !createRow ? '<div class="lists-empty">暂无本地清单</div>' : '';
-            localEl.innerHTML = items + createRow + empty;
+            localEl.innerHTML = items + createRow || '<div class="lists-empty">暂无本地清单</div>';
         }
         mineEl.innerHTML = mine.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
-        favEl.innerHTML = fav.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
+        favEl.innerHTML  = fav.map(l => this.renderItem(l)).join('') || '<div class="lists-empty">暂无</div>';
 
         if (localCountEl) localCountEl.textContent = String(local.length);
-        if (mineCountEl) mineCountEl.textContent = String(mine.length);
-        if (favCountEl) favCountEl.textContent = String(fav.length);
+        if (mineCountEl)  mineCountEl.textContent  = String(mine.length);
+        if (favCountEl)   favCountEl.textContent   = String(fav.length);
 
-        const total = (this.lists || []).length;
+        const listTotal = local.length + mine.length + fav.length;
         if (emptyTip) {
-            emptyTip.style.display = total === 0 && !this.isCreating ? '' : 'none';
-            if (total === 0 && !this.isCreating) emptyTip.textContent = '暂无清单数据，请先到"数据同步"里执行"同步清单"。';
+            emptyTip.style.display = listTotal === 0 && !this.isCreating ? '' : 'none';
+            if (listTotal === 0 && !this.isCreating)
+                emptyTip.textContent = '暂无清单数据，请先到"数据同步"里执行"同步清单"。';
         }
+    }
+
+    private renderSeriesPanel(): void {
+        const el = document.getElementById('listsSeriesContainer') as HTMLElement | null;
+        const countEl = document.getElementById('listsSeriesCount') as HTMLElement | null;
+        const emptyTip = document.getElementById('listsEmptyTip') as HTMLElement | null;
+        const searchInput = document.getElementById('listsSearchInput') as HTMLInputElement | null;
+        if (!el) return;
+
+        const q = String(searchInput?.value || '').trim().toLowerCase();
+        const items = this.lists
+            .filter(l => l?.type === 'series' && (!q ||
+                String(l.name || '').toLowerCase().includes(q) ||
+                String(l.id || '').toLowerCase().includes(q) ||
+                String(getCollectionExternalId(l)).toLowerCase().includes(q)))
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+        el.innerHTML = items.map(l => this.renderCollectionItem(l, 'series', this.computeSeriesLocalCount(l))).join('') ||
+            '<div class="lists-empty">暂无收藏系列，请先到"数据同步"里执行"同步系列"。</div>';
+        if (countEl) countEl.textContent = String(items.length);
+        if (emptyTip) emptyTip.style.display = 'none';
+    }
+
+    private renderLabelsPanel(): void {
+        const el = document.getElementById('listsLabelsContainer') as HTMLElement | null;
+        const countEl = document.getElementById('listsLabelsCount') as HTMLElement | null;
+        const emptyTip = document.getElementById('listsEmptyTip') as HTMLElement | null;
+        const searchInput = document.getElementById('listsSearchInput') as HTMLInputElement | null;
+        if (!el) return;
+
+        const q = String(searchInput?.value || '').trim().toLowerCase();
+        const items = this.lists
+            .filter(l => l?.type === 'label' && (!q ||
+                String(l.name || '').toLowerCase().includes(q) ||
+                String(l.id || '').toLowerCase().includes(q) ||
+                String(getCollectionExternalId(l)).toLowerCase().includes(q)))
+            .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+        el.innerHTML = items.map(l => this.renderCollectionItem(l, 'label', this.computeLabelLocalCount(l))).join('') ||
+            '<div class="lists-empty">暂无收藏番号，请先到"数据同步"里执行"同步番号"。</div>';
+        if (countEl) countEl.textContent = String(items.length);
+        if (emptyTip) emptyTip.style.display = 'none';
+    }
+
+    /** 渲染系列 / 番号条目（只读，无编辑操作） */
+    private renderCollectionItem(l: ListRecord, variant: 'series' | 'label', localCount?: number): string {
+        const safeName = this.escapeHtml(String(l.name || l.id));
+        const safeId   = this.escapeHtml(String(l.id));
+        const safeFilterId = this.escapeHtml(getCollectionExternalId(l));
+        const javdbCount = typeof l.moviesCount === 'number' ? l.moviesCount : undefined;
+        const sourceLinkButton = renderListSourceLinkButton(l);
+
+        const parts: string[] = [];
+        if (typeof localCount === 'number') parts.push(`已入库 <b>${localCount}</b> 部`);
+        if (javdbCount !== undefined) parts.push(`共 ${javdbCount} 部`);
+        const metaHtml = parts.join(' / ');
+
+        const tip = variant === 'series' ? `点击筛选系列：${safeName}` : `点击筛选番号：${safeName}`;
+        return `
+            <div class="lists-item lists-item--${variant}" data-list-id="${safeId}" data-filter-id="${safeFilterId}" title="${tip}">
+                <div class="lists-item-title"><span class="lists-item-name">${safeName}</span></div>
+                <div class="lists-item-meta">${metaHtml}</div>
+                ${sourceLinkButton}
+            </div>
+        `;
+    }
+
+    private computeSeriesLocalCount(series: ListRecord): number {
+        const records = Array.isArray(STATE.records) ? STATE.records : [];
+        return records.filter(r => matchesSeriesRecord(r, series)).length;
+    }
+
+    private computeLabelLocalCount(label: ListRecord): number {
+        const records = Array.isArray(STATE.records) ? STATE.records : [];
+        return records.filter(r => matchesLabelRecord(r, label)).length;
     }
 
     /** 渲染内嵌新建输入行 */
@@ -212,9 +362,8 @@ export class ListsTab {
         const meta = count !== undefined ? `${count} 部` : '';
         const safeName = this.escapeHtml(String(l.name || l.id));
         const safeMeta = this.escapeHtml(meta);
-        const safeId = this.escapeHtml(String(l.id));
+        const safeId   = this.escapeHtml(String(l.id));
 
-        // 来源徽章
         let sourceBadge = '';
         if (l.source === 'javdb') {
             sourceBadge = `<span class="list-source-badge list-source-javdb">JavDB</span>`;
@@ -222,7 +371,6 @@ export class ListsTab {
             sourceBadge = `<span class="list-source-badge list-source-local">本地</span>`;
         }
 
-        // 本地清单：重命名状态下渲染内嵌输入
         if (l.source === 'local' && this.renamingId === String(l.id)) {
             return `
                 <div class="lists-item lists-item-inline-edit lists-item-editing" data-list-id="${safeId}">
@@ -235,8 +383,7 @@ export class ListsTab {
             `;
         }
 
-        // 本地清单操作按钮
-        let actionBtns = '';
+        let actionBtns = renderListSourceLinkButton(l);
         if (l.source === 'local') {
             actionBtns = `
                 <div class="list-item-actions">
@@ -277,11 +424,7 @@ export class ListsTab {
         const input = document.getElementById('listsInlineCreateInput') as HTMLInputElement | null;
         const name = (input?.value || '').trim();
         const error = this.validateName(name);
-        if (error) {
-            showMessage(error, 'warning');
-            input?.focus();
-            return;
-        }
+        if (error) { showMessage(error, 'warning'); input?.focus(); return; }
         const record: ListRecord = {
             id: 'local_' + Date.now(),
             name,
@@ -305,11 +448,7 @@ export class ListsTab {
         const input = document.getElementById(`listsRenameInput_${id}`) as HTMLInputElement | null;
         const name = (input?.value || '').trim();
         const error = this.validateName(name, id);
-        if (error) {
-            showMessage(error, 'warning');
-            input?.focus();
-            return;
-        }
+        if (error) { showMessage(error, 'warning'); input?.focus(); return; }
         const list = this.lists.find(l => String(l.id) === id);
         if (!list) return;
         try {
@@ -347,14 +486,17 @@ export class ListsTab {
             showMessage('该清单为空，无需跳转', 'info');
             return;
         }
+        await this.navigateToRecordsWithFilter(`listid:${listId}`);
+    }
+
+    private async navigateToRecordsWithFilter(filterString: string): Promise<void> {
         location.hash = '#tab-records';
-        const desired = `listid:${String(listId)}`;
         for (let i = 0; i < 40; i++) {
             await new Promise((r) => setTimeout(r, 80));
-            const tab = document.getElementById('tab-records') as HTMLElement | null;
+            const tab   = document.getElementById('tab-records') as HTMLElement | null;
             const input = document.getElementById('searchInput') as HTMLInputElement | null;
             if (!tab || !tab.classList.contains('active') || !input) continue;
-            input.value = desired;
+            input.value = filterString;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             try { input.focus(); } catch {}
             break;
