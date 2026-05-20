@@ -78,7 +78,7 @@ class InitOrchestrator {
   // P0 FIX: hidden 页 lease 泄漏保护
   private hiddenLeaseTasks = new Map<string, number>(); // taskId -> hiddenAt timestamp
   private readonly hiddenLeaseReleaseMs = 60_000;  // hidden 超过 60s 记录诊断信息
-  
+
   // 性能指标
   private metrics = {
     totalTasks: 0,
@@ -91,7 +91,7 @@ class InitOrchestrator {
     minDuration: Infinity,
     maxDurationTask: '', // 最耗时的任务名称
   };
-  
+
   // 任务依赖管理
   private completedTasks = new Set<string>(); // 已完成的任务标签
   private taskDependencies = new Map<string, string[]>(); // 任务依赖关系
@@ -311,13 +311,13 @@ class InitOrchestrator {
       this.metrics.completedTasks++;
       this.metrics.totalDuration += durationMs;
       this.metrics.avgDuration = this.metrics.totalDuration / this.metrics.completedTasks;
-      
+
       // 更新最大耗时和对应的任务
       if (durationMs > this.metrics.maxDuration) {
         this.metrics.maxDuration = durationMs;
         this.metrics.maxDurationTask = taskLabel || 'unknown';
       }
-      
+
       this.metrics.minDuration = Math.min(this.metrics.minDuration, durationMs);
     } else {
       if (isTimeout) {
@@ -369,9 +369,9 @@ class InitOrchestrator {
         pageUrl,
         timestamp: Date.now(),
       };
-      
+
       this.log('Saving metrics to database:', metrics);
-      
+
       // 发送到后台保存
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
         chrome.runtime.sendMessage({
@@ -416,7 +416,7 @@ class InitOrchestrator {
         timestamp: Date.now(),
         error,
       };
-      
+
       // 发送到后台保存
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
         chrome.runtime.sendMessage({
@@ -461,7 +461,7 @@ class InitOrchestrator {
     if (options.dependsOn && options.dependsOn.length > 0 && options.label) {
       this.taskDependencies.set(options.label, options.dependsOn);
     }
-    
+
     const managedScheduledTask: ManagedScheduledTask = { task, options };
     this.trackTask(managedScheduledTask);
     if (options.label) {
@@ -553,7 +553,7 @@ class InitOrchestrator {
     }
     st.running = true;
     this.markTaskStarted(label);
-    
+
     // TODO(P1-future): 跨页面依赖检查 - 当前只查本地 this.completedTasks
     const localUnmetDeps = (st.options.dependsOn || []).filter(dep => !this.completedTasks.has(dep));
     if (localUnmetDeps.length > 0) {
@@ -561,7 +561,7 @@ class InitOrchestrator {
       dependencyError.unmetDeps = localUnmetDeps;
       return Promise.reject(dependencyError);
     }
-    
+
     const startMark = `orchestrator:${phase}:${label}:start`;
     const endMark = `orchestrator:${phase}:${label}:end`;
     try { performance.mark(startMark); } catch {}
@@ -569,7 +569,7 @@ class InitOrchestrator {
     this.timeline.push({ phase, label, status: 'running', ts: startAbs });
     this.emit('task:running', { phase, label, ts: startAbs, relativeTs: this.relTs(startAbs) });
     this.log('running', { phase, label, ts: Math.round(startAbs), relative: Math.round(this.relTs(startAbs)) });
-    
+
     // 创建超时Promise
     const timeout = st.options.timeout || 0;
     let timeoutId: number | undefined;
@@ -578,7 +578,7 @@ class InitOrchestrator {
         reject(new Error(`Task timeout after ${timeout}ms`));
       }, timeout);
     }) : null;
-    
+
     const executeTask = () => {
       if (timeoutPromise) {
         return Promise.race([st.task(), timeoutPromise]);
@@ -600,7 +600,7 @@ class InitOrchestrator {
           visibilityPolicy: st.options.visibilityPolicy ?? getDefaultVisibilityPolicy(phase),
           timeoutMs: timeout > 0 ? timeout : 10000,
           retryLimit: 2,
-          registrationSource: st.managedDescriptor?.registrationSource || 'runtime',
+          registrationSource: 'runtime',
           resumePolicy: 'restart',
         });
         st.managedDescriptor = descriptor;
@@ -619,7 +619,7 @@ class InitOrchestrator {
         if (timeoutId !== undefined) {
           clearTimeout(timeoutId);
         }
-        
+
         try {
           performance.mark(endMark);
           performance.measure(`orchestrator:${phase}:${label}`, startMark, endMark);
@@ -662,7 +662,7 @@ class InitOrchestrator {
         if (timeoutId !== undefined) {
           clearTimeout(timeoutId);
         }
-        
+
         const deferredError = e as TaskDeferredError;
         const waitReason = deferredError?.waitReason;
         const isDeferred = waitReason === 'tab-hidden' || waitReason === 'higher-priority-wait' || (typeof waitReason === 'string' && waitReason.startsWith('bucket:'));
@@ -874,15 +874,15 @@ class InitOrchestrator {
       const priorityB = b.options.priority ?? 5;
       return priorityB - priorityA; // 降序排列
     });
-    
+
     const runningTasks: Promise<void>[] = [];
     const pendingTasks = [...tasks]; // 待处理任务队列
-    
+
     while (pendingTasks.length > 0 || runningTasks.length > 0) {
       // 从待处理队列中找出依赖已满足的任务
       const readyTasks: ScheduledTask[] = [];
       const notReadyTasks: ScheduledTask[] = [];
-      
+
       for (const task of pendingTasks) {
         if (task.options.dependsOn && task.options.dependsOn.length > 0) {
           const allDepsReady = task.options.dependsOn.every(dep => this.completedTasks.has(dep));
@@ -895,17 +895,17 @@ class InitOrchestrator {
           readyTasks.push(task);
         }
       }
-      
+
       // 更新待处理队列
       pendingTasks.length = 0;
       pendingTasks.push(...notReadyTasks);
-      
+
       // 启动就绪的任务直到达到并发限制
       while (readyTasks.length > 0 && runningTasks.length < this.maxConcurrentHighTasks) {
         const task = readyTasks.shift()!;
         const taskPromise = this.runTask('high', task);
         runningTasks.push(taskPromise);
-        
+
         // 任务完成后从运行列表中移除
         taskPromise.finally(() => {
           const index = runningTasks.indexOf(taskPromise);
@@ -914,7 +914,7 @@ class InitOrchestrator {
           }
         });
       }
-      
+
       // 如果没有正在运行的任务但还有待处理任务，说明存在循环依赖或依赖不存在
       if (runningTasks.length === 0 && pendingTasks.length > 0) {
         this.log('warning: circular dependency or missing dependency detected', {
@@ -936,7 +936,7 @@ class InitOrchestrator {
         }
         pendingTasks.length = 0;
       }
-      
+
       // 等待至少一个任务完成
       if (runningTasks.length > 0) {
         await Promise.race(runningTasks);
@@ -968,7 +968,7 @@ export const initOrchestrator = new InitOrchestrator();
 try {
   if (typeof window !== 'undefined') {
     (window as any).__initOrchestrator__ = initOrchestrator;
-    
+
     // 页面卸载时强制保存性能指标
     const notifyPageLifecycleCancel = (reason: string) => {
       try {
@@ -1003,7 +1003,7 @@ try {
           pageUrl,
           timestamp: Date.now(),
         };
-        
+
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
           chrome.runtime.sendMessage({
             type: 'orchestrator:saveMetrics',
