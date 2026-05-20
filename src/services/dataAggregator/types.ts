@@ -98,7 +98,18 @@ export interface VideoMetadata {
   description?: string;
   images?: ImageData[];
   videos?: VideoData[];
+  ratings?: RatingData[];
+  actors?: ActorData[];
   lastUpdated?: number;
+}
+
+export interface DataAggregatorConfig {
+  sources: DataSourceConfig;
+  concurrency: number;
+  timeout: number;
+  enableCache?: boolean;
+  cacheTimeout?: number;
+  maxRetries?: number;
 }
 
 export interface TranslationResult {
