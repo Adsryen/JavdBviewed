@@ -53,6 +53,13 @@ interface RoutesUpdateStatus {
     remoteVersion?: string;
 }
 
+interface RouteAlternative {
+    url: string;
+    enabled: boolean;
+    description?: string;
+    addedAt?: number;
+}
+
 /**
  * 线路管理器类
  */
@@ -83,7 +90,7 @@ export class RouteManager {
         // 检查缓存
         const cached = this.cache.get(service);
         const expiry = this.cacheExpiry.get(service);
-        
+
         if (cached && expiry && Date.now() < expiry) {
             return cached;
         }
@@ -95,18 +102,18 @@ export class RouteManager {
 
         // 优先使用用户设置的首选线路
         let currentRoute = serviceRoutes.preferredUrl || serviceRoutes.primary;
-        
+
         // 验证首选线路是否有效（是否在主线路或备用线路中）
         const allRoutes = [
             serviceRoutes.primary,
-            ...serviceRoutes.alternatives.filter(alt => alt.enabled).map(alt => alt.url)
+            ...serviceRoutes.alternatives.filter((alt: RouteAlternative) => alt.enabled).map((alt: RouteAlternative) => alt.url)
         ];
-        
+
         if (!allRoutes.includes(currentRoute)) {
             // 如果首选线路无效，回退到主线路
             currentRoute = serviceRoutes.primary;
         }
-        
+
         // 更新缓存
         this.cache.set(service, currentRoute);
         this.cacheExpiry.set(service, Date.now() + this.CACHE_TTL);
@@ -125,11 +132,11 @@ export class RouteManager {
         const serviceRoutes = routes[service];
 
         const enabledRoutes = [serviceRoutes.primary];
-        
+
         // 添加所有启用的备用线路
         serviceRoutes.alternatives
-            .filter(alt => alt.enabled)
-            .forEach(alt => enabledRoutes.push(alt.url));
+            .filter((alt: RouteAlternative) => alt.enabled)
+            .forEach((alt: RouteAlternative) => enabledRoutes.push(alt.url));
 
         return enabledRoutes;
     }
@@ -142,10 +149,10 @@ export class RouteManager {
      */
     async buildUrl(service: ServiceType, path: string): Promise<string> {
         const baseUrl = await this.getCurrentRoute(service);
-        
+
         // 确保路径以 / 开头
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-        
+
         return `${baseUrl}${normalizedPath}`;
     }
 
@@ -160,10 +167,10 @@ export class RouteManager {
             const urlObj = new URL(url);
             const currentRoute = await this.getCurrentRoute(service);
             const currentRouteObj = new URL(currentRoute);
-            
+
             urlObj.protocol = currentRouteObj.protocol;
             urlObj.host = currentRouteObj.host;
-            
+
             return urlObj.toString();
         } catch (error) {
             console.error('[RouteManager] 替换 URL 域名失败:', error);
@@ -193,10 +200,10 @@ export class RouteManager {
         try {
             const REMOTE_URL = 'https://raw.githubusercontent.com/Adsryen/JavdBviewed/main/public/routes.json';
             const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // 24小时
-            
+
             // 获取更新状态
             const updateStatus = await this.getUpdateStatus();
-            
+
             // 检查是否需要更新
             if (!force && updateStatus.lastCheckTime) {
                 const timeSinceLastCheck = Date.now() - updateStatus.lastCheckTime;
@@ -205,13 +212,13 @@ export class RouteManager {
                     return false;
                 }
             }
-            
+
             // 更新检查时间
             await this.saveUpdateStatus({
                 ...updateStatus,
                 lastCheckTime: Date.now()
             });
-            
+
             // 获取远程配置
             console.info('[RouteManager] 正在从 GitHub 获取最新线路配置...');
             const response = await fetch(REMOTE_URL, {
@@ -220,25 +227,25 @@ export class RouteManager {
                     'Accept': 'application/json'
                 }
             });
-            
+
             if (!response.ok) {
                 console.warn('[RouteManager] 获取远程配置失败:', response.status);
                 return false;
             }
-            
+
             const remoteConfig: RemoteRoutesConfig = await response.json();
-            
+
             // 检查版本
             if (updateStatus.currentVersion === remoteConfig.version) {
                 console.debug('[RouteManager] 已是最新版本:', remoteConfig.version);
                 return false;
             }
-            
+
             console.info('[RouteManager] 发现新版本:', remoteConfig.version, '当前版本:', updateStatus.currentVersion);
-            
+
             // 合并远程配置到用户设置
             await this.mergeRemoteRoutes(remoteConfig);
-            
+
             // 更新状态
             await this.saveUpdateStatus({
                 lastCheckTime: Date.now(),
@@ -246,13 +253,13 @@ export class RouteManager {
                 currentVersion: remoteConfig.version,
                 remoteVersion: remoteConfig.version
             });
-            
+
             // 清除缓存
             this.clearCache();
-            
+
             console.info('[RouteManager] 线路配置已更新到版本:', remoteConfig.version);
             return true;
-            
+
         } catch (error) {
             console.error('[RouteManager] 更新线路配置失败:', error);
             return false;
@@ -266,16 +273,16 @@ export class RouteManager {
     private async mergeRemoteRoutes(remoteConfig: RemoteRoutesConfig): Promise<void> {
         const settings = await this.getSettings();
         const currentRoutes = settings.routes || DEFAULT_SETTINGS.routes!;
-        
+
         // 处理 JavDB 线路
         const javdbRemote = remoteConfig.services.javdb;
         const javdbCurrent = currentRoutes.javdb;
-        
+
         // 获取用户自定义的线路（不在远程配置中的）
-        const javdbCustomRoutes = javdbCurrent.alternatives.filter(alt => 
+        const javdbCustomRoutes = javdbCurrent.alternatives.filter((alt: RouteAlternative) =>
             !javdbRemote.alternatives.some(remote => remote.url === alt.url)
         );
-        
+
         // 合并线路：远程线路 + 用户自定义线路
         const javdbMergedAlternatives = [
             ...javdbRemote.alternatives.map(remote => ({
@@ -286,15 +293,15 @@ export class RouteManager {
             })),
             ...javdbCustomRoutes
         ];
-        
+
         // 处理 JavBus 线路
         const javbusRemote = remoteConfig.services.javbus;
         const javbusCurrent = currentRoutes.javbus;
-        
-        const javbusCustomRoutes = javbusCurrent.alternatives.filter(alt => 
+
+        const javbusCustomRoutes = javbusCurrent.alternatives.filter((alt: RouteAlternative) =>
             !javbusRemote.alternatives.some(remote => remote.url === alt.url)
         );
-        
+
         const javbusMergedAlternatives = [
             ...javbusRemote.alternatives.map(remote => ({
                 url: remote.url,
@@ -304,7 +311,7 @@ export class RouteManager {
             })),
             ...javbusCustomRoutes
         ];
-        
+
         // 更新设置（保留用户的 preferredUrl）
         settings.routes = {
             javdb: {
@@ -318,7 +325,7 @@ export class RouteManager {
                 alternatives: javbusMergedAlternatives
             }
         };
-        
+
         await this.saveSettings(settings);
         console.info('[RouteManager] 线路配置已合并，保留了用户自定义线路');
     }
@@ -329,7 +336,7 @@ export class RouteManager {
     private async getUpdateStatus(): Promise<RoutesUpdateStatus> {
         return new Promise((resolve) => {
             chrome.storage.local.get('routes_update_status', (result) => {
-                resolve(result.routes_update_status || {
+                resolve((result.routes_update_status as RoutesUpdateStatus | undefined) || {
                     lastCheckTime: 0,
                     lastUpdateTime: 0,
                     currentVersion: '1.0.0'
@@ -415,22 +422,22 @@ export async function buildJavBusUrl(path: string): Promise<string> {
  */
 export async function replaceJavDBDomain(url: string): Promise<string> {
     if (!url) return url;
-    
+
     try {
         const urlObj = new URL(url);
-        
+
         // 只替换 javdb.com 域名
         if (urlObj.hostname === 'javdb.com' || urlObj.hostname.endsWith('.javdb.com')) {
             const currentRoute = await getJavDBRoute();
             const currentRouteObj = new URL(currentRoute);
-            
+
             urlObj.protocol = currentRouteObj.protocol;
             urlObj.hostname = currentRouteObj.hostname;
             urlObj.port = currentRouteObj.port;
-            
+
             return urlObj.toString();
         }
-        
+
         // 不是 javdb.com 域名，直接返回
         return url;
     } catch (error) {
@@ -447,22 +454,22 @@ export async function replaceJavDBDomain(url: string): Promise<string> {
 export async function replaceJavDBDomains(urls: string[]): Promise<string[]> {
     const currentRoute = await getJavDBRoute();
     const currentRouteObj = new URL(currentRoute);
-    
+
     return urls.map(url => {
         if (!url) return url;
-        
+
         try {
             const urlObj = new URL(url);
-            
+
             // 只替换 javdb.com 域名
             if (urlObj.hostname === 'javdb.com' || urlObj.hostname.endsWith('.javdb.com')) {
                 urlObj.protocol = currentRouteObj.protocol;
                 urlObj.hostname = currentRouteObj.hostname;
                 urlObj.port = currentRouteObj.port;
-                
+
                 return urlObj.toString();
             }
-            
+
             return url;
         } catch (error) {
             return url;

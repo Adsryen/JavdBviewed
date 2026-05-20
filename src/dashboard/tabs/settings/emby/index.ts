@@ -3,6 +3,7 @@
  */
 
 // 注意：EmbySettings 类通过动态导入加载，避免循环依赖
+import type { EmbySettings } from './EmbySettings';
 
 // 延迟创建Emby设置实例，避免循环依赖
 let _embySettings: EmbySettings | null = null;
