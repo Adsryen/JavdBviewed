@@ -14,13 +14,8 @@ import {
   ApiResponse,
   BatchResult,
   DataSourceConfig,
+  DataAggregatorConfig,
 } from './types';
-
-export interface DataAggregatorConfig {
-  sources: DataSourceConfig;
-  concurrency: number;
-  timeout: number;
-}
 
 export class DataAggregator {
   private blogJav!: BlogJavSource;
@@ -33,6 +28,7 @@ export class DataAggregator {
     this.config = {
       concurrency: 3,
       timeout: 15000,
+      enableCache: false,
       sources: {
         blogJav: DEFAULT_BLOGJAV_CONFIG,
         javStore: { enabled: false, baseUrl: '', timeout: 10000 },
@@ -53,7 +49,7 @@ export class DataAggregator {
    */
   async getEnhancedVideoInfo(videoId: string): Promise<VideoMetadata> {
     const cacheKey = `enhanced_video_${videoId}`;
-    
+
     // 尝试从缓存获取
     if (this.config.enableCache) {
       const cached = await globalCache.getVideoDetail(cacheKey);
