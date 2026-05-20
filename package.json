@@ -19,7 +19,7 @@
     "test:coverage": "vitest run --config vitest.config.ts --coverage && vitest run --config vitest.dom.config.ts --coverage",
     "test:watch": "vitest --config vitest.config.ts",
     "lint": "pnpm run typecheck",
-    "ci": "pnpm run test && pnpm run test:dom && pnpm run build && pnpm run docs:build",
+    "ci": "pnpm run typecheck && pnpm run test && pnpm run test:dom && pnpm run build && pnpm run docs:build",
     "version:major": "pnpm tsx scripts/version.ts major",
     "version:minor": "pnpm tsx scripts/version.ts minor",
     "version:patch": "pnpm tsx scripts/version.ts patch",
