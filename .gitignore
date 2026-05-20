@@ -60,24 +60,18 @@ vitepress/.vitepress/cache/
 !reference/openai-115/*.md
 !PRIVACY_POLICY.md
 !FEATURES.md
+!CONTRIBUTING.md
+!SECURITY.md
 
-# 测试文件
-**/__tests__/
-*.test.ts
-*.test.js
-*.spec.ts
-*.spec.js
-*.mjs
-*.mts
-!vitepress/.vitepress/*.mts
-!vitepress/.vitepress/config.mts
+# TypeScript build metadata
+*.tsbuildinfo
 
 # Temp files
 temp/
 *debug*.html
 *test*.html
 *temp*.html
-*test*.js
+temp/test*.js
 *temp*.js
 *debug*.js
 
