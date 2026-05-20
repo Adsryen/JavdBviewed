@@ -30,7 +30,7 @@ export class UserService {
     public async fetchUserProfile(): Promise<UserProfile | null> {
         try {
             logAsync('INFO', '开始获取用户账号信息');
-            
+
             // 发送消息到background script获取用户信息
             return new Promise((resolve) => {
                 chrome.runtime.sendMessage({ type: 'fetch-user-profile' }, (response) => {
@@ -75,7 +75,7 @@ export class UserService {
             if (this.userProfile) {
                 return this.userProfile;
             }
-            
+
             const profile = await getValue<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null);
             this.setUserProfile(profile);
             return profile;
@@ -119,7 +119,7 @@ export class UserService {
      */
     public subscribe(listener: (profile: UserProfile | null) => void): () => void {
         this.listeners.add(listener);
-        
+
         // 返回取消订阅函数
         return () => {
             this.listeners.delete(listener);
@@ -131,7 +131,7 @@ export class UserService {
      */
     private setUserProfile(profile: UserProfile | null): void {
         this.userProfile = profile;
-        
+
         // 通知所有监听器
         this.listeners.forEach(listener => {
             try {
@@ -154,10 +154,12 @@ export class UserService {
      */
     public validateUserPermissions(userProfile?: UserProfile | null): boolean {
         const profile = userProfile || this.userProfile;
-        return profile && 
-               profile.isLoggedIn && 
-               profile.email && 
-               profile.username;
+        return !!(
+               profile &&
+               profile.isLoggedIn &&
+               profile.email &&
+               profile.username
+        );
     }
 }
 

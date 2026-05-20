@@ -6,7 +6,7 @@
 export type SyncType = 'all' | 'viewed' | 'want' | 'actors' | 'actors-gender' | 'lists' | 'series' | 'labels';
 
 // 同步模式（用于已观看、想看和演员同步）
-export type SyncMode = 'full' | 'incremental' | 'basic' | 'gender';
+export type SyncMode = 'full' | 'incremental' | 'basic' | 'gender' | 'force';
 
 // 同步模式配置
 export interface SyncModeOption {

@@ -23,6 +23,7 @@ export interface ActorRecord {
     lastSyncAt: number;
     syncStatus: 'success' | 'error' | 'pending';
   };
+  worksUrl?: string;
   details?: {
     worksCount?: number;
   };
@@ -88,7 +89,7 @@ export interface ActorSyncConfig {
  * 演员同步进度
  */
 export interface ActorSyncProgress {
-  stage: 'init' | 'syncing' | 'complete' | 'error';
+  stage: 'init' | 'pages' | 'details' | 'syncing' | 'complete' | 'error';
   current: number;
   total: number;
   percentage: number;
@@ -99,6 +100,9 @@ export interface ActorSyncProgress {
     newActors: number;
     updatedActors: number;
     skippedActors: number;
+    currentPageActors?: number;
+    currentPageProgress?: number;
+    currentPageTotal?: number;
   };
   errors?: string[];
 }
@@ -112,6 +116,7 @@ export interface ActorSyncResult {
   newActors: number;
   updatedActors: number;
   skippedCount: number;
+  errorCount?: number;
   errors: string[];
   duration: number;
 }
@@ -204,6 +209,12 @@ export interface VideoRecord {
   favoritedAt?: number;
   /** 增强数据（封面等） */
   enhancedData?: { coverImage?: string; [key: string]: any };
+}
+
+export interface OldVideoRecord extends Partial<VideoRecord> {
+  id?: string;
+  code?: string;
+  [key: string]: any;
 }
 
 // ============================================================

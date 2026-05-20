@@ -1,10 +1,10 @@
 // src/services/actorSync.ts
 // 演员数据同步服务
 
-import type { 
-    ActorRecord, 
-    ActorSyncConfig, 
-    ActorSyncProgress, 
+import type {
+    ActorRecord,
+    ActorSyncConfig,
+    ActorSyncProgress,
     ActorSyncResult
 } from '../types';
 import { actorManager } from './actorManager';
@@ -28,7 +28,7 @@ export class ActorSyncService {
 
         this.isRunning = true;
         this.abortController = new AbortController();
-        
+
         const startTime = Date.now();
         const result: ActorSyncResult = {
             success: false,
@@ -260,7 +260,7 @@ export class ActorSyncService {
     /**
      * 获取演员列表页面
      */
-    
+
 
     /**
      * 分页获取并保存演员信息
@@ -311,7 +311,7 @@ export class ActorSyncService {
             while (categoryHasMore && !this.abortController?.signal.aborted) {
                 try {
                     // 构建带分类参数的URL
-                    const baseUrl = config.urls.collectionActors;
+                    const baseUrl = config.urls?.collectionActors || '';
                     const params = new URLSearchParams();
                     params.set('g', category.g.toString());
                     params.set('t', category.t.toString());
@@ -442,7 +442,7 @@ export class ActorSyncService {
 
                     // 请求间隔
                     if (categoryHasMore) {
-                        await this.delay(config.requestInterval * 1000);
+                        await this.delay((config.requestInterval ?? 3) * 1000);
                     }
 
                 } catch (error) {
@@ -455,7 +455,7 @@ export class ActorSyncService {
                     console.error(errorMsg);
 
                     // 如果连续失败，停止同步
-                    if (result.errors.length >= config.maxRetries) {
+                    if (result.errors.length >= (config.maxRetries ?? 3)) {
                         throw new Error('连续失败次数过多，停止同步');
                     }
 
@@ -470,7 +470,7 @@ export class ActorSyncService {
         return result;
     }
 
-    
+
 
     /**
      * 保存演员数据到数据库

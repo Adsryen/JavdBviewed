@@ -8,9 +8,10 @@ import { log } from '../../../utils/logController';
 import { getApiClient } from '../api';
 import { getSyncConfig } from '../../config/syncConfig';
 import type { SyncProgress, SyncResult } from '../types';
+import type { SyncMode } from '../../config/syncConfig';
 
 export interface ListsSyncOptions {
-    mode?: string;
+    mode?: SyncMode;
     resumeFromProgress?: boolean;
     onProgress?: (progress: SyncProgress) => void;
     onComplete?: (result: SyncResult) => void;
@@ -62,7 +63,7 @@ export class ListsSyncManager {
                 'lists',
                 [],
                 userProfile,
-                getSyncConfig({ 
+                getSyncConfig({
                     mode: options.mode || 'full',
                     resumeFromProgress: options.resumeFromProgress
                 }),
