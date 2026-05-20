@@ -5,6 +5,13 @@ import { showMessage } from '../ui/toast';
 import { showConfirmationModal } from '../ui/modal';
 import { dbViewedPage, dbViewedStats, dbViewedDelete, dbViewedBulkDelete, dbViewedQuery, dbViewedPut, type ViewedPageParams, type ViewedStats, type ViewedQueryParams } from '../dbClient';
 import { dbListsGetAllNormalized, dbViewedPatchList, dbViewedBulkPatchList } from '../dbClient';
+import type { ListRecord } from '../../types';
+import {
+    getCollectionExternalId,
+    isVideoListRecord,
+    matchesLabelRecord,
+    matchesSeriesRecord,
+} from '../../utils/listRecordHelpers';
 
 // 防重复初始化（避免多次绑定事件导致重复行为）
 let RECORDS_TAB_INITIALIZED = false;
@@ -50,6 +57,18 @@ export function initRecordsTab(): void {
     const listsSearchInput = document.getElementById('listsSearchInput') as HTMLInputElement;
     const listsFilterList = document.getElementById('listsFilterList') as HTMLElement;
     const selectedListsContainer = document.getElementById('selectedListsContainer') as HTMLElement;
+
+    const seriesFilterInput = document.getElementById('seriesFilterInput') as HTMLInputElement;
+    const seriesFilterDropdown = document.getElementById('seriesFilterDropdown') as HTMLElement;
+    const seriesSearchInput = document.getElementById('seriesSearchInput') as HTMLInputElement;
+    const seriesFilterList = document.getElementById('seriesFilterList') as HTMLElement;
+    const selectedSeriesContainer = document.getElementById('selectedSeriesContainer') as HTMLElement;
+
+    const labelsFilterInput = document.getElementById('labelsFilterInput') as HTMLInputElement;
+    const labelsFilterDropdown = document.getElementById('labelsFilterDropdown') as HTMLElement;
+    const labelsSearchInput = document.getElementById('labelsSearchInput') as HTMLInputElement;
+    const labelsFilterList = document.getElementById('labelsFilterList') as HTMLElement;
+    const selectedLabelsContainer = document.getElementById('selectedLabelsContainer') as HTMLElement;
 
     // Advanced search elements
     const advAddBtn = document.getElementById('addConditionBtn') as HTMLButtonElement;
@@ -115,10 +134,19 @@ export function initRecordsTab(): void {
     let selectedListIds = new Set<string>();
     let tokenSelectedListIds = new Set<string>();
 
+    let selectedSeriesIds = new Set<string>();
+    let tokenSelectedSeriesIds = new Set<string>();
+    let selectedLabelIds = new Set<string>();
+    let tokenSelectedLabelIds = new Set<string>();
+
     let listMetaLoaded = false;
     let listMetaLoading = false;
     const listIdToName = new Map<string, string>();
     const listIdToSource = new Map<string, string>(); // 存储清单来源
+    const seriesIdToName = new Map<string, string>();
+    const labelIdToName = new Map<string, string>();
+    const seriesIdToRecord = new Map<string, ListRecord>();
+    const labelIdToRecord = new Map<string, ListRecord>();
     const ensureListMetaLoaded = () => {
         if (listMetaLoaded || listMetaLoading) return;
 
@@ -127,10 +155,24 @@ export function initRecordsTab(): void {
             .then((lists) => {
                 listIdToName.clear();
                 listIdToSource.clear();
+                seriesIdToName.clear();
+                labelIdToName.clear();
+                seriesIdToRecord.clear();
+                labelIdToRecord.clear();
                 (lists || []).forEach((l: any) => {
                     if (l && l.id) {
-                        listIdToName.set(String(l.id), String(l.name || l.id));
-                        listIdToSource.set(String(l.id), String(l.source || 'javdb'));
+                        if (l.type === 'series') {
+                            const externalId = getCollectionExternalId(l);
+                            seriesIdToName.set(externalId, String(l.name || externalId));
+                            seriesIdToRecord.set(externalId, l as ListRecord);
+                        } else if (l.type === 'label') {
+                            const externalId = getCollectionExternalId(l);
+                            labelIdToName.set(externalId, String(l.name || externalId));
+                            labelIdToRecord.set(externalId, l as ListRecord);
+                        } else if (isVideoListRecord(l)) {
+                            listIdToName.set(String(l.id), String(l.name || l.id));
+                            listIdToSource.set(String(l.id), String(l.source || 'javdb'));
+                        }
                     }
                 });
                 listMetaLoaded = true;
@@ -142,7 +184,7 @@ export function initRecordsTab(): void {
                 listMetaLoading = false;
                 try {
                     const hasAnyLists = (Array.isArray(STATE.records) ? STATE.records : []).some((r: any) => Array.isArray(r?.listIds) && r.listIds.length > 0);
-                    if (hasAnyLists) render();
+                    if (hasAnyLists || selectedSeriesIds.size > 0 || selectedLabelIds.size > 0) render();
                 } catch {}
             });
     };
@@ -279,11 +321,13 @@ export function initRecordsTab(): void {
     }
 
     // 解析搜索文本中的标签前缀，如：tag:素人  或  #无码
-    function parseSearchTokens(raw: string): { text: string; tags: string[]; listIds: string[]; listNames: string[] } {
+    function parseSearchTokens(raw: string): { text: string; tags: string[]; listIds: string[]; listNames: string[]; seriesIds: string[]; labelPrefixes: string[] } {
         const parts = (raw || '').split(/\s+/).filter(Boolean);
         const tags: string[] = [];
         const listIds: string[] = [];
         const listNames: string[] = [];
+        const seriesIds: string[] = [];
+        const labelPrefixes: string[] = [];
         const remains: string[] = [];
         const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
 
@@ -308,9 +352,19 @@ export function initRecordsTab(): void {
                 if (t) listNames.push(...splitMulti(t));
                 continue;
             }
+            if (/^series:/i.test(p)) {
+                const t = p.replace(/^series:/i, '').trim();
+                if (t) seriesIds.push(...splitMulti(t));
+                continue;
+            }
+            if (/^label:/i.test(p)) {
+                const t = p.replace(/^label:/i, '').trim();
+                if (t) labelPrefixes.push(...splitMulti(t).map(s => s.toUpperCase()));
+                continue;
+            }
             remains.push(p);
         }
-        return { text: remains.join(' ').trim(), tags, listIds, listNames };
+        return { text: remains.join(' ').trim(), tags, listIds, listNames, seriesIds, labelPrefixes };
     }
 
     function removeListIdTokenFromSearchInput(raw: string, listId: string): string {
@@ -325,6 +379,44 @@ export function initRecordsTab(): void {
                 const ids = splitMulti(t);
                 const remain = ids.filter(x => String(x).toLowerCase() !== idLower);
                 if (remain.length > 0) out.push(`listid:${remain.join(',')}`);
+                continue;
+            }
+            out.push(p);
+        }
+        return out.join(' ').trim();
+    }
+
+    function removeSeriesTokenFromSearchInput(raw: string, seriesId: string): string {
+        const parts = String(raw || '').split(/\s+/).filter(Boolean);
+        const idLower = String(seriesId || '').toLowerCase();
+        const out: string[] = [];
+        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+        for (const p of parts) {
+            if (/^series:/i.test(p)) {
+                const t = p.replace(/^series:/i, '').trim();
+                if (!t) continue;
+                const ids = splitMulti(t);
+                const remain = ids.filter(x => String(x).toLowerCase() !== idLower);
+                if (remain.length > 0) out.push(`series:${remain.join(',')}`);
+                continue;
+            }
+            out.push(p);
+        }
+        return out.join(' ').trim();
+    }
+
+    function removeLabelTokenFromSearchInput(raw: string, labelId: string): string {
+        const parts = String(raw || '').split(/\s+/).filter(Boolean);
+        const idUpper = String(labelId || '').toUpperCase();
+        const out: string[] = [];
+        const splitMulti = (s: string) => s.split(/[，,;；]/).map(x => x.trim()).filter(Boolean);
+        for (const p of parts) {
+            if (/^label:/i.test(p)) {
+                const t = p.replace(/^label:/i, '').trim();
+                if (!t) continue;
+                const ids = splitMulti(t);
+                const remain = ids.filter(x => String(x).toUpperCase() !== idUpper);
+                if (remain.length > 0) out.push(`label:${remain.join(',')}`);
                 continue;
             }
             out.push(p);
@@ -719,15 +811,17 @@ export function initRecordsTab(): void {
         const hasFilter = filterSelect?.value !== 'all';
         const hasTags = selectedTags.size > 0;
         const hasLists = selectedListIds.size > 0;
+        const hasSeries = selectedSeriesIds.size > 0;
+        const hasLabels = selectedLabelIds.size > 0;
         const hasAdvConditions = advConditions.length > 0;
-        
+
         // 判断是否有任何搜索或筛选条件
-        const hasAnyCondition = searchTerm || hasFilter || hasTags || hasLists || hasAdvConditions;
+        const hasAnyCondition = searchTerm || hasFilter || hasTags || hasLists || hasSeries || hasLabels || hasAdvConditions;
 
         if (hasAnyCondition && totalCount > 0) {
             let conditionText = '';
             const conditions: string[] = [];
-            
+
             if (searchTerm) conditions.push(`"${searchTerm}"`);
             if (hasFilter) {
                 const filterText = filterSelect.options[filterSelect.selectedIndex]?.text || '';
@@ -735,6 +829,8 @@ export function initRecordsTab(): void {
             }
             if (hasTags) conditions.push(`${selectedTags.size}个标签`);
             if (hasLists) conditions.push(`${selectedListIds.size}个清单`);
+            if (hasSeries) conditions.push(`${selectedSeriesIds.size}个系列`);
+            if (hasLabels) conditions.push(`${selectedLabelIds.size}个番号`);
             if (hasAdvConditions) conditions.push(`${advConditions.length}个高级条件`);
             
             conditionText = conditions.join(' + ');
@@ -764,6 +860,8 @@ export function initRecordsTab(): void {
 
     // 一律优先使用 IDB（复杂条件用查询，简单条件用分页），失败再回退到内存
     function shouldUseIDB(): boolean {
+        // Series/label filters are client-side only — IDB can't count them accurately
+        if (selectedSeriesIds.size > 0 || selectedLabelIds.size > 0) return false;
         return true;
     }
 
@@ -885,6 +983,18 @@ export function initRecordsTab(): void {
             tokenSelectedListIds = new Set(Array.from(resolved));
             tokenSelectedListIds.forEach(t => selectedListIds.add(t));
             try { refreshListsFilterDisplay(); } catch {}
+
+            // Sync series tokens → selectedSeriesIds
+            tokenSelectedSeriesIds.forEach(t => selectedSeriesIds.delete(t));
+            tokenSelectedSeriesIds = new Set(parsed.seriesIds);
+            tokenSelectedSeriesIds.forEach(t => selectedSeriesIds.add(t));
+            try { refreshSeriesFilterDisplay(); } catch {}
+
+            // Sync label tokens → selectedLabelIds
+            tokenSelectedLabelIds.forEach(t => selectedLabelIds.delete(t));
+            tokenSelectedLabelIds = new Set(parsed.labelPrefixes);
+            tokenSelectedLabelIds.forEach(t => selectedLabelIds.add(t));
+            try { refreshLabelsFilterDisplay(); } catch {}
             const filterValue = filterSelect.value as 'all' | VideoStatus;
 
             // 确保 STATE.records 是数组
@@ -917,10 +1027,26 @@ export function initRecordsTab(): void {
                     return Array.from(selectedListIds).some(id => recListIds.includes(String(id)));
                 })();
 
+                const matchesSeries = selectedSeriesIds.size === 0 || [...selectedSeriesIds].some(sid => {
+                    const series = seriesIdToRecord.get(String(sid));
+                    if (series) return matchesSeriesRecord(record, series);
+                    const url = String((record as any).seriesUrl || '');
+                    if (url.endsWith(`/series/${sid}`) || url.includes(`/series/${sid}?`)) return true;
+                    return String((record as any).series || '').trim().toLowerCase() === String(sid).trim().toLowerCase();
+                });
+
+                const matchesLabels = selectedLabelIds.size === 0 || [...selectedLabelIds].some(prefix => {
+                    const label = labelIdToRecord.get(String(prefix).toUpperCase());
+                    if (label) return matchesLabelRecord(record, label);
+                    const id = String(record.id || '').toUpperCase();
+                    const normalizedPrefix = String(prefix || '').toUpperCase();
+                    return id === normalizedPrefix || id.startsWith(normalizedPrefix + '-');
+                });
+
                 // 收藏过滤
                 const matchesFavorites = !favoritesFilterActive || record.isFavorite === true;
 
-                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists && matchesFavorites;
+                const basicMatch = matchesSearch && matchesFilter && matchesTags && matchesLists && matchesSeries && matchesLabels && matchesFavorites;
                 if (!basicMatch) return false;
 
                 // Advanced search conditions (AND)
@@ -1992,6 +2118,130 @@ export function initRecordsTab(): void {
         });
     }
 
+    function renderSeriesFilter() {
+        if (!seriesFilterList || !selectedSeriesContainer || !seriesFilterInput) return;
+        ensureListMetaLoaded();
+        const q = String(seriesSearchInput?.value || '').trim().toLowerCase();
+        const items = Array.from(seriesIdToName.entries())
+            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
+            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        seriesFilterList.innerHTML = items.map(it => `
+            <div class="tag-option ${selectedSeriesIds.has(it.id) ? 'selected' : ''}" data-series-id="${it.id}">
+                <input type="checkbox" ${selectedSeriesIds.has(it.id) ? 'checked' : ''}>
+                <span>${escapeHtml(it.name)}</span>
+            </div>
+        `).join('');
+        updateSelectedSeriesDisplay();
+        updateSeriesFilterInput();
+    }
+
+    function refreshSeriesFilterDisplay() {
+        if (!seriesFilterList) return;
+        const opts = seriesFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const id = option.getAttribute('data-series-id');
+            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            if (id) {
+                const isSelected = selectedSeriesIds.has(id);
+                option.classList.toggle('selected', isSelected);
+                if (checkbox) checkbox.checked = isSelected;
+            }
+        });
+        updateSelectedSeriesDisplay();
+        updateSeriesFilterInput();
+    }
+
+    function updateSelectedSeriesDisplay() {
+        if (!selectedSeriesContainer) return;
+        selectedSeriesContainer.innerHTML = Array.from(selectedSeriesIds).map(id => `
+            <div class="selected-tag">
+                <span>${escapeHtml(String(seriesIdToName.get(String(id)) || id))}</span>
+                <span class="remove-tag" data-series-id="${id}">×</span>
+            </div>
+        `).join('');
+    }
+
+    function updateSeriesFilterInput() {
+        if (!seriesFilterInput) return;
+        const count = selectedSeriesIds.size;
+        seriesFilterInput.value = count > 0 ? `已选择 ${count} 个系列` : '点击选择系列';
+    }
+
+    function filterSeriesList(searchTerm: string) {
+        if (!seriesFilterList) return;
+        const opts = seriesFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const name = option.querySelector('span')?.textContent || '';
+            const id = option.getAttribute('data-series-id') || '';
+            const q = String(searchTerm || '').toLowerCase();
+            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
+        });
+    }
+
+    function renderLabelsFilter() {
+        if (!labelsFilterList || !selectedLabelsContainer || !labelsFilterInput) return;
+        ensureListMetaLoaded();
+        const q = String(labelsSearchInput?.value || '').trim().toLowerCase();
+        const items = Array.from(labelIdToName.entries())
+            .map(([id, name]) => ({ id: String(id), name: String(name || id) }))
+            .filter(it => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        labelsFilterList.innerHTML = items.map(it => `
+            <div class="tag-option ${selectedLabelIds.has(it.id) ? 'selected' : ''}" data-label-id="${it.id}">
+                <input type="checkbox" ${selectedLabelIds.has(it.id) ? 'checked' : ''}>
+                <span>${escapeHtml(it.name)}</span>
+            </div>
+        `).join('');
+        updateSelectedLabelsDisplay();
+        updateLabelsFilterInput();
+    }
+
+    function refreshLabelsFilterDisplay() {
+        if (!labelsFilterList) return;
+        const opts = labelsFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const id = option.getAttribute('data-label-id');
+            const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+            if (id) {
+                const isSelected = selectedLabelIds.has(id);
+                option.classList.toggle('selected', isSelected);
+                if (checkbox) checkbox.checked = isSelected;
+            }
+        });
+        updateSelectedLabelsDisplay();
+        updateLabelsFilterInput();
+    }
+
+    function updateSelectedLabelsDisplay() {
+        if (!selectedLabelsContainer) return;
+        selectedLabelsContainer.innerHTML = Array.from(selectedLabelIds).map(id => `
+            <div class="selected-tag">
+                <span>${escapeHtml(String(labelIdToName.get(String(id)) || id))}</span>
+                <span class="remove-tag" data-label-id="${id}">×</span>
+            </div>
+        `).join('');
+    }
+
+    function updateLabelsFilterInput() {
+        if (!labelsFilterInput) return;
+        const count = selectedLabelIds.size;
+        labelsFilterInput.value = count > 0 ? `已选择 ${count} 个番号` : '点击选择番号';
+    }
+
+    function filterLabelsList(searchTerm: string) {
+        if (!labelsFilterList) return;
+        const opts = labelsFilterList.querySelectorAll('.tag-option');
+        opts.forEach(option => {
+            const name = option.querySelector('span')?.textContent || '';
+            const id = option.getAttribute('data-label-id') || '';
+            const q = String(searchTerm || '').toLowerCase();
+            const matches = name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+            (option as HTMLElement).style.display = matches ? 'flex' : 'none';
+        });
+    }
+
     let dropdownBackdrop: HTMLDivElement | null = null;
     const positionDropdownBackdrop = () => {
         try {
@@ -2334,6 +2584,116 @@ export function initRecordsTab(): void {
         });
     }
 
+    // Series filter events
+    if (seriesFilterInput && seriesFilterDropdown) {
+        seriesFilterInput.addEventListener('click', () => {
+            seriesFilterDropdown.style.display = seriesFilterDropdown.style.display === 'none' ? 'block' : 'none';
+            if (seriesFilterDropdown.style.display === 'block') {
+                renderSeriesFilter();
+                try { seriesSearchInput?.focus(); } catch {}
+            }
+            syncDropdownBackdrop();
+        });
+    }
+    if (seriesSearchInput) {
+        seriesSearchInput.addEventListener('input', (e) => {
+            filterSeriesList((e.target as HTMLInputElement).value);
+        });
+    }
+    if (seriesFilterList) {
+        seriesFilterList.addEventListener('click', (e) => {
+            const opt = (e.target as HTMLElement).closest('.tag-option');
+            if (opt) {
+                const id = opt.getAttribute('data-series-id');
+                if (id) {
+                    if (selectedSeriesIds.has(id)) selectedSeriesIds.delete(id);
+                    else selectedSeriesIds.add(id);
+                    refreshSeriesFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+    if (selectedSeriesContainer) {
+        selectedSeriesContainer.addEventListener('click', (e) => {
+            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
+            if (removeBtn) {
+                const id = removeBtn.getAttribute('data-series-id');
+                if (id) {
+                    try {
+                        if (tokenSelectedSeriesIds.has(String(id))) {
+                            searchInput.value = removeSeriesTokenFromSearchInput(searchInput.value, String(id));
+                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            return;
+                        }
+                    } catch {}
+                    selectedSeriesIds.delete(id);
+                    refreshSeriesFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+
+    // Labels filter events
+    if (labelsFilterInput && labelsFilterDropdown) {
+        labelsFilterInput.addEventListener('click', () => {
+            labelsFilterDropdown.style.display = labelsFilterDropdown.style.display === 'none' ? 'block' : 'none';
+            if (labelsFilterDropdown.style.display === 'block') {
+                renderLabelsFilter();
+                try { labelsSearchInput?.focus(); } catch {}
+            }
+            syncDropdownBackdrop();
+        });
+    }
+    if (labelsSearchInput) {
+        labelsSearchInput.addEventListener('input', (e) => {
+            filterLabelsList((e.target as HTMLInputElement).value);
+        });
+    }
+    if (labelsFilterList) {
+        labelsFilterList.addEventListener('click', (e) => {
+            const opt = (e.target as HTMLElement).closest('.tag-option');
+            if (opt) {
+                const id = opt.getAttribute('data-label-id');
+                if (id) {
+                    if (selectedLabelIds.has(id)) selectedLabelIds.delete(id);
+                    else selectedLabelIds.add(id);
+                    refreshLabelsFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+    if (selectedLabelsContainer) {
+        selectedLabelsContainer.addEventListener('click', (e) => {
+            const removeBtn = (e.target as HTMLElement).closest('.remove-tag');
+            if (removeBtn) {
+                const id = removeBtn.getAttribute('data-label-id');
+                if (id) {
+                    try {
+                        if (tokenSelectedLabelIds.has(String(id))) {
+                            searchInput.value = removeLabelTokenFromSearchInput(searchInput.value, String(id));
+                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            return;
+                        }
+                    } catch {}
+                    selectedLabelIds.delete(id);
+                    refreshLabelsFilterDisplay();
+                    currentPage = 1;
+                    updateFilteredRecords();
+                    render();
+                }
+            }
+        });
+    }
+
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!tagsFilterInput.contains(e.target as Node) && !tagsFilterDropdown.contains(e.target as Node)) {
@@ -2342,6 +2702,16 @@ export function initRecordsTab(): void {
         if (listsFilterInput && listsFilterDropdown) {
             if (!listsFilterInput.contains(e.target as Node) && !listsFilterDropdown.contains(e.target as Node)) {
                 listsFilterDropdown.style.display = 'none';
+            }
+        }
+        if (seriesFilterInput && seriesFilterDropdown) {
+            if (!seriesFilterInput.contains(e.target as Node) && !seriesFilterDropdown.contains(e.target as Node)) {
+                seriesFilterDropdown.style.display = 'none';
+            }
+        }
+        if (labelsFilterInput && labelsFilterDropdown) {
+            if (!labelsFilterInput.contains(e.target as Node) && !labelsFilterDropdown.contains(e.target as Node)) {
+                labelsFilterDropdown.style.display = 'none';
             }
         }
         syncDropdownBackdrop();
@@ -3477,6 +3847,7 @@ export function initRecordsTab(): void {
 
         let lists: any[] = [];
         try { lists = await dbListsGetAllNormalized(); } catch {}
+        lists = lists.filter(isVideoListRecord);
 
         const currentListIds = new Set<string>(Array.isArray(record.listIds) ? record.listIds : []);
 
@@ -3534,6 +3905,7 @@ export function initRecordsTab(): void {
 
         let lists: any[] = [];
         try { lists = await dbListsGetAllNormalized(); } catch {}
+        lists = lists.filter(isVideoListRecord);
 
         listEl.innerHTML = lists.length === 0
             ? '<div class="list-picker-empty">暂无清单</div>'
