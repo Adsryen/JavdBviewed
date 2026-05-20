@@ -85,7 +85,7 @@ async function applyConsoleSettingsFromStorage_CS() {
                 timeZone: logging.consoleFormat.timeZone || 'Asia/Shanghai',
             });
         }
-        
+
         // 应用日志模块配置（优先使用 logModules，向后兼容 consoleCategories）
         const modules = logging.logModules || logging.consoleCategories || {};
         const cfg = ctrl.getConfig();
@@ -349,7 +349,7 @@ async function initialize(): Promise<void> {
     const path = window.location.pathname;
     const isVideoPage = path.startsWith('/v/');
     const isActorPage = path.startsWith('/actors/');
-    const preregisterBlueprints: Array<{ phase: InitPhase; label: string; priority?: number; timeout?: number; visibilityPolicy?: 'foreground_first' | 'background_allowed' | 'foreground_only' }> = [];
+    const preregisterBlueprints: Array<{ phase: InitPhase; label: string; priority?: number; timeout?: number; visibilityPolicy?: 'foreground_first' | 'background_allowed' | 'foreground_only'; dependsOn?: string[] }> = [];
 
     if (isVideoPage) {
         preregisterBlueprints.push(...getVideoDetailTaskBlueprints(settings as any));
@@ -512,7 +512,7 @@ async function initialize(): Promise<void> {
             aiEnabled: settings.ai?.enabled,
             selectedModel: settings.ai?.selectedModel
         });
-        
+
         defaultDataAggregator.updateAITranslatorConfig({
             enabled: true,
             useGlobalModel: true, // 已写死使用 AI 设置中的模型
@@ -521,7 +521,7 @@ async function initialize(): Promise<void> {
             sourceLanguage: 'ja',
             targetLanguage: 'zh-CN',
         });
-        
+
         console.log('[JavDB Extension] AI translator configuration updated');
     } else {
         console.log('[JavDB Extension] AI translator not initialized:', {
@@ -857,7 +857,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         Promise.resolve((message && message.settings) || null).then(async (incomingSettings) => {
             const settings = incomingSettings || await getSettings();
             STATE.settings = settings;
-            log('Updated display settings:', STATE.settings.display);
+            log('Updated display settings:', settings.display);
             log('Updated translation targets:', (STATE.settings as any)?.translation?.targets);
             processVisibleItems();
 
@@ -1137,10 +1137,10 @@ if (typeof window !== 'undefined') {
         getCurrentVolume: () => currentVolume,
         handleVideos: handleVideos
     };
-    
+
     // 暴露列表增强管理器以便调试和测试
     (window as any).listEnhancementManager = listEnhancementManager;
-    
+
     // 暴露演员页增强管理器以便调试和测试
     (window as any).actorEnhancementManager = actorEnhancementManager;
 }

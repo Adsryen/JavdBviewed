@@ -58,7 +58,11 @@ class ActorEnhancementManager {
       label: 'actorEnhancement:actionButtons',
       phase: 'critical',
       priority: 9,
+      cost: 'medium',
       visibilityPolicy: 'background_allowed',
+      timeoutMs: 10000,
+      retryLimit: 2,
+      resumePolicy: 'restart',
       metadata: { source: 'actor' },
     }));
     this.actionButtonsTaskId = descriptor.taskId;
@@ -834,7 +838,7 @@ class ActorEnhancementManager {
     // 提取演员ID
     const match = window.location.pathname.match(/\/actors\/(\w+)/);
     if (!match) return;
-    
+
     this.currentActorId = match[1];
     console.log(`🎭 演员页增强功能已启用，演员ID: ${this.currentActorId}`);
 
@@ -943,7 +947,7 @@ class ActorEnhancementManager {
       const storedFilters = await getValue(this.storageKey, '{}');
       const tagFilters = JSON.parse(storedFilters);
       const lastFilter = this.getLastUsedFilter(tagFilters);
-      
+
       if (!lastFilter) {
         // 如果没有保存的过滤器，应用默认过滤器
         await this.applyDefaultFilter();
@@ -960,12 +964,12 @@ class ActorEnhancementManager {
 
       // 应用兼容的tags
       console.log(`🔄 应用保存的tag过滤器: ${compatibleTags.join(',')}`);
-      
+
       // 标记已应用，防止循环
       sessionStorage.setItem(appliedKey, Date.now().toString());
-      
+
       this.navigateWithTags(compatibleTags, lastFilter.sortType);
-      
+
       showToast(`已应用保存的过滤器: ${this.getTagNames(compatibleTags).join(', ')}`, 'success');
     } catch (error) {
       console.error('应用保存的tag过滤器失败:', error);
@@ -990,10 +994,10 @@ class ActorEnhancementManager {
     const compatibleTags = this.checkTagCompatibility(this.config.defaultTags);
     if (compatibleTags.length > 0) {
       console.log(`🔄 应用默认tag过滤器: ${compatibleTags.join(',')}`);
-      
+
       // 标记已应用，防止循环
       sessionStorage.setItem(appliedKey, Date.now().toString());
-      
+
       this.navigateWithTags(compatibleTags, this.config.defaultSortType);
       showToast(`已应用默认过滤器: ${this.getTagNames(compatibleTags).join(', ')}`, 'info');
     }
@@ -1004,7 +1008,7 @@ class ActorEnhancementManager {
     if (filters.length === 0) return null;
 
     // 返回最近使用的过滤器
-    return filters.reduce((latest, current) => 
+    return filters.reduce((latest, current) =>
       current.timestamp > latest.timestamp ? current : latest
     );
   }
@@ -1031,19 +1035,19 @@ class ActorEnhancementManager {
 
     tagContainer.addEventListener('click', async (event) => {
       const target = event.target as HTMLElement;
-      
+
       // 检查是否点击了tag链接或删除按钮
       const tagLink = target.closest('a.tag[href*="?t="]') as HTMLAnchorElement;
       const deleteButton = target.closest('button.delete') as HTMLButtonElement;
-      
+
       if (tagLink || deleteButton) {
         // 先保存当前状态，然后预测点击后的状态
         await this.saveCurrentTagFilter();
-        
+
         // 预测点击后的标签状态并保存
         let predictedTags: string[] = [];
         let predictedSortType = this.getCurrentSortType();
-        
+
         if (tagLink) {
           // 点击标签链接，解析目标URL的标签
           const href = tagLink.href;
@@ -1062,7 +1066,7 @@ class ActorEnhancementManager {
             }
           }
         }
-        
+
         // 保存预测的标签状态
         if (predictedTags.length > 0) {
           const filterData: ActorTagFilter = {
@@ -1070,17 +1074,17 @@ class ActorEnhancementManager {
             sortType: predictedSortType,
             timestamp: Date.now()
           };
-          
+
           const storedFilters = await getValue(this.storageKey, '{}');
           const tagFilters = JSON.parse(storedFilters);
           tagFilters[this.currentActorId] = filterData;
           await setValue(this.storageKey, JSON.stringify(tagFilters));
-          
+
           console.log(`💾 预保存tag过滤器: ${predictedTags.join(',')} (排序: ${predictedSortType})`);
         }
       }
     });
-    
+
     // 监听页面卸载事件，保存最终状态
     window.addEventListener('beforeunload', async () => {
       await this.saveCurrentTagFilter();

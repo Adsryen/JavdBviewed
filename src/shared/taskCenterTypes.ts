@@ -23,6 +23,8 @@ export interface GlobalTaskDescriptor {
   dedupeKey?: string;
   registrationSource?: 'blueprint' | 'runtime';
   resumePolicy: GlobalTaskResumePolicy;
+  dependsOn?: string[];
+  metadata?: Record<string, unknown>;
   createdAt: number;
 }
 
