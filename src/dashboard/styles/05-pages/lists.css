@@ -307,7 +307,8 @@
 }
 
 .list-rename-btn,
-.list-delete-btn {
+.list-delete-btn,
+.list-source-link-btn {
     padding: 4px 8px;
     border: none;
     border-radius: 6px;
@@ -326,6 +327,11 @@
 .list-delete-btn:hover {
     background: rgba(220, 53, 69, 0.15);
     color: #dc3545;
+}
+
+.list-source-link-btn:hover {
+    background: rgba(8, 145, 178, 0.15);
+    color: #0891b2;
 }
 
 /* ===== 清单选择浮层（番号库用）===== */
@@ -830,7 +836,8 @@
 
 .lists-page .list-inline-btn,
 .lists-page .list-rename-btn,
-.lists-page .list-delete-btn {
+.lists-page .list-delete-btn,
+.lists-page .list-source-link-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -856,6 +863,15 @@
 .lists-page .list-rename-btn:hover {
     color: var(--lists-primary);
     background: color-mix(in srgb, var(--lists-primary) 12%, transparent);
+}
+
+.lists-page .list-source-link-btn {
+    flex: 0 0 auto;
+}
+
+.lists-page .list-source-link-btn:hover {
+    color: var(--lists-info);
+    background: color-mix(in srgb, var(--lists-info) 12%, transparent);
 }
 
 .lists-page .list-source-badge {
@@ -910,4 +926,101 @@
         grid-column: 2;
         opacity: 1;
     }
+}
+
+/* ===== Sub-tabs（清单 / 系列 / 番号）===== */
+.lists-page .lists-subtabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 14px;
+}
+
+.lists-page .lists-subtab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border: 1px solid var(--lists-border);
+    border-radius: 999px;
+    background: var(--lists-soft);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.lists-page .lists-subtab:hover {
+    border-color: color-mix(in srgb, var(--lists-primary) 40%, var(--border-primary));
+    color: var(--text-primary);
+}
+
+.lists-page .lists-subtab.active {
+    background: linear-gradient(135deg, var(--lists-primary), color-mix(in srgb, var(--lists-info) 70%, var(--lists-primary)));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--lists-primary) 28%, transparent);
+}
+
+.lists-page .lists-subtab i {
+    font-size: 12px;
+}
+
+/* ===== Panel 显示切换 ===== */
+.lists-panel--hidden {
+    display: none !important;
+}
+
+/* ===== 系列 / 番号 双列网格 ===== */
+.lists-page .lists-sections--2col {
+    grid-template-columns: 1fr;
+}
+
+.lists-page .lists-section--full {
+    grid-column: 1 / -1;
+}
+
+.lists-page .lists-list--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/* 系列条目图标覆盖 */
+.lists-page .lists-item--series .lists-item-title::before {
+    content: '\f008';
+    color: var(--lists-primary);
+}
+
+/* 番号条目图标覆盖 */
+.lists-page .lists-item--label .lists-item-title::before {
+    content: '\f02b';
+    color: #059669;
+}
+
+@media (max-width: 900px) {
+    .lists-page .lists-list--grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 系列/番号 panel 信息提示 */
+.lists-page .lists-collection-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: var(--surface-secondary, #f8f9fa);
+    border: 1px solid var(--border-primary, #dee2e6);
+    color: var(--text-secondary, #666);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.lists-page .lists-collection-notice i {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--color-info, #0d6efd);
+    opacity: 0.75;
 }

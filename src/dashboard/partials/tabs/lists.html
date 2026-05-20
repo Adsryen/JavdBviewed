@@ -1,13 +1,25 @@
 <div class="card lists-page">
   <div class="lists-hero">
     <div>
-      <span class="lists-eyebrow">Lists</span>
-      <h3>清单中心</h3>
-      <p>管理本地清单、JavDB 我的清单和收藏清单，点击清单可快速筛选番号库。</p>
+      <span class="lists-eyebrow">Collections</span>
+      <h3>收藏中心</h3>
+      <p>管理本地清单、JavDB 收藏的系列与番号，点击条目可快速筛选番号库。</p>
     </div>
     <div class="lists-hero-mark">
-      <i class="fas fa-list"></i>
+      <i class="fas fa-bookmark"></i>
     </div>
+  </div>
+
+  <div class="lists-subtabs">
+    <button class="lists-subtab active" data-subtab="lists">
+      <i class="fas fa-list"></i> 清单
+    </button>
+    <button class="lists-subtab" data-subtab="series">
+      <i class="fas fa-film"></i> 系列
+    </button>
+    <button class="lists-subtab" data-subtab="labels">
+      <i class="fas fa-tag"></i> 番号
+    </button>
   </div>
 
   <div class="lists-toolbar">
@@ -17,23 +29,54 @@
     </div>
     <div class="lists-actions">
       <button id="listsCreateBtn" class="button-like" title="新建本地清单"><i class="fas fa-plus"></i> 新建清单</button>
-      <button id="listsRefreshBtn" class="button-like secondary" title="刷新清单列表"><i class="fas fa-sync-alt"></i> 刷新</button>
+      <button id="listsRefreshBtn" class="button-like secondary" title="刷新"><i class="fas fa-sync-alt"></i> 刷新</button>
       <button id="listsGoSyncBtn" class="button-like" title="前往数据同步"><i class="fas fa-cloud-download-alt"></i> 去同步</button>
     </div>
   </div>
 
-  <div class="lists-sections">
-    <div class="lists-section">
-      <h5>本地清单 <span id="listsLocalCount" class="badge-pill">0</span></h5>
-      <div id="listsLocalContainer" class="lists-list"></div>
+  <!-- 清单 panel -->
+  <div id="lists-panel-lists" class="lists-panel">
+    <div class="lists-sections">
+      <div class="lists-section">
+        <h5>本地清单 <span id="listsLocalCount" class="badge-pill">0</span></h5>
+        <div id="listsLocalContainer" class="lists-list"></div>
+      </div>
+      <div class="lists-section">
+        <h5>我的清单 <span id="listsMineCount" class="badge-pill">0</span></h5>
+        <div id="listsMineContainer" class="lists-list"></div>
+      </div>
+      <div class="lists-section">
+        <h5>收藏的清单 <span id="listsFavCount" class="badge-pill">0</span></h5>
+        <div id="listsFavContainer" class="lists-list"></div>
+      </div>
     </div>
-    <div class="lists-section">
-      <h5>我的清单 <span id="listsMineCount" class="badge-pill">0</span></h5>
-      <div id="listsMineContainer" class="lists-list"></div>
+  </div>
+
+  <!-- 系列 panel -->
+  <div id="lists-panel-series" class="lists-panel lists-panel--hidden">
+    <div class="lists-collection-notice">
+      <i class="fas fa-info-circle"></i>
+      仅保留收藏关系，不同步全量数据。点击系列可在番号库中查看已入库的匹配影片。
     </div>
-    <div class="lists-section">
-      <h5>收藏的清单 <span id="listsFavCount" class="badge-pill">0</span></h5>
-      <div id="listsFavContainer" class="lists-list"></div>
+    <div class="lists-sections lists-sections--2col">
+      <div class="lists-section lists-section--full">
+        <h5>收藏的系列 <span id="listsSeriesCount" class="badge-pill">0</span></h5>
+        <div id="listsSeriesContainer" class="lists-list lists-list--grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 番号 panel -->
+  <div id="lists-panel-labels" class="lists-panel lists-panel--hidden">
+    <div class="lists-collection-notice">
+      <i class="fas fa-info-circle"></i>
+      仅保留收藏关系，不同步全量数据。点击番号前缀可在番号库中查看已入库的匹配影片。
+    </div>
+    <div class="lists-sections lists-sections--2col">
+      <div class="lists-section lists-section--full">
+        <h5>收藏的番号 <span id="listsLabelsCount" class="badge-pill">0</span></h5>
+        <div id="listsLabelsContainer" class="lists-list lists-list--grid"></div>
+      </div>
     </div>
   </div>
 
