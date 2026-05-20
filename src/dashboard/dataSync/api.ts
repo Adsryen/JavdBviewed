@@ -18,6 +18,10 @@ import { isCloudflareChallenge, handleCloudflareVerification } from './cloudflar
 import { saveSyncProgress, getSavedSyncProgress, clearSyncProgress } from './progressManager';
 import type { SavedSyncProgress } from '../config/syncConfig';
 import { getJavDBRoute } from '../../utils/routeManager';
+import {
+    type CollectionListType,
+    normalizeCollectionRecord,
+} from '../../utils/listRecordHelpers';
 
 /**
  * 视频数据接口
@@ -155,6 +159,14 @@ export class ApiClient {
 
         if (type === 'lists') {
             return await this.syncUserLists(userProfile, config, onProgress, abortSignal);
+        }
+
+        if (type === 'series') {
+            return await this.syncUserSeries(userProfile, onProgress, abortSignal);
+        }
+
+        if (type === 'labels') {
+            return await this.syncUserLabels(userProfile, onProgress, abortSignal);
         }
 
         // 其他类型暂时返回空结果
@@ -555,6 +567,14 @@ export class ApiClient {
             lists: {
                 url: `${javdbRoute}/users/lists`,
                 displayName: '清单'
+            },
+            series: {
+                url: `${javdbRoute}/users/collection_series`,
+                displayName: '系列'
+            },
+            labels: {
+                url: `${javdbRoute}/users/collection_codes`,
+                displayName: '番号'
             }
         };
 
@@ -2067,6 +2087,181 @@ export class ApiClient {
         } catch (error: any) {
             // 忽略错误，不影响同步流程
         }
+    }
+
+    // ----------------------------------------------------------------
+    //  系列收藏同步
+    // ----------------------------------------------------------------
+    private async syncUserSeries(
+        userProfile: UserProfile,
+        onProgress?: (progress: any) => void,
+        abortSignal?: AbortSignal
+    ): Promise<SyncResponseData> {
+        const settings = await getSettings();
+        const origin = this.getOriginFromUrl(
+            String(settings?.dataSync?.urls?.wantWatch || settings?.dataSync?.urls?.watchedVideos || 'https://javdb.com')
+        );
+        const requestInterval = (settings.dataSync.requestInterval ?? 1) * 1000;
+        const now = Date.now();
+        const records: ListRecord[] = [];
+        const seen = new Set<string>();
+
+        onProgress?.({ percentage: 0, message: '准备同步收藏系列...', stage: 'preparing' });
+
+        for (let page = 1; page <= 50; page++) {
+            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+            const url = `${origin}/users/collection_series?page=${page}`;
+            onProgress?.({ percentage: Math.min(90, page * 10), message: `正在获取系列第 ${page} 页...`, stage: 'pages' });
+            const res = await this.fetchWithRetry(url, { method: 'GET', credentials: 'include' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            const items = this.parseCollectionItemsFromHTML(html, 'series');
+            if (items.length === 0) break;
+            for (const it of items) {
+                if (seen.has(it.id)) continue;
+                seen.add(it.id);
+                records.push(normalizeCollectionRecord({
+                    id: it.id,
+                    externalId: it.id,
+                    name: it.name,
+                    type: 'series',
+                    source: 'javdb',
+                    url: `${origin}/series/${it.id}`,
+                    moviesCount: it.moviesCount,
+                    createdAt: now,
+                    updatedAt: now
+                }));
+            }
+            if (page > 1) await this.delay(requestInterval);
+        }
+
+        await this.replaceCollectionListRecords('series', records);
+
+        onProgress?.({ percentage: 100, message: '系列同步完成', stage: 'complete' });
+        logAsync('INFO', `系列收藏同步完成：${records.length} 个`, { user: userProfile.username });
+        return { success: true, syncedCount: records.length, skippedCount: 0, errorCount: 0, newRecords: records.length, updatedRecords: 0, message: `系列同步完成：共 ${records.length} 个` };
+    }
+
+    // ----------------------------------------------------------------
+    //  番号收藏同步
+    // ----------------------------------------------------------------
+    private async syncUserLabels(
+        userProfile: UserProfile,
+        onProgress?: (progress: any) => void,
+        abortSignal?: AbortSignal
+    ): Promise<SyncResponseData> {
+        const settings = await getSettings();
+        const origin = this.getOriginFromUrl(
+            String(settings?.dataSync?.urls?.wantWatch || settings?.dataSync?.urls?.watchedVideos || 'https://javdb.com')
+        );
+        const requestInterval = (settings.dataSync.requestInterval ?? 1) * 1000;
+        const now = Date.now();
+        const records: ListRecord[] = [];
+        const seen = new Set<string>();
+
+        onProgress?.({ percentage: 0, message: '准备同步收藏番号...', stage: 'preparing' });
+
+        for (let page = 1; page <= 50; page++) {
+            if (abortSignal?.aborted) throw new SyncCancelledError('同步已取消');
+            const url = `${origin}/users/collection_codes?page=${page}`;
+            onProgress?.({ percentage: Math.min(90, page * 10), message: `正在获取番号第 ${page} 页...`, stage: 'pages' });
+            const res = await this.fetchWithRetry(url, { method: 'GET', credentials: 'include' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            const items = this.parseCollectionItemsFromHTML(html, 'labels');
+            if (items.length === 0) break;
+            for (const it of items) {
+                if (seen.has(it.id)) continue;
+                seen.add(it.id);
+                records.push(normalizeCollectionRecord({
+                    id: it.id,
+                    externalId: it.id,
+                    name: it.name,
+                    type: 'label',
+                    source: 'javdb',
+                    url: `${origin}/video_codes/${it.id}`,
+                    moviesCount: it.moviesCount,
+                    createdAt: now,
+                    updatedAt: now
+                }));
+            }
+            if (page > 1) await this.delay(requestInterval);
+        }
+
+        await this.replaceCollectionListRecords('label', records);
+
+        onProgress?.({ percentage: 100, message: '番号同步完成', stage: 'complete' });
+        logAsync('INFO', `番号收藏同步完成：${records.length} 个`, { user: userProfile.username });
+        return { success: true, syncedCount: records.length, skippedCount: 0, errorCount: 0, newRecords: records.length, updatedRecords: 0, message: `番号同步完成：共 ${records.length} 个` };
+    }
+
+    private async replaceCollectionListRecords(type: CollectionListType, records: ListRecord[]): Promise<void> {
+        const normalizedRecords = records.map(record => normalizeCollectionRecord(record));
+        const newIdSet = new Set(normalizedRecords.map(record => record.id));
+        const rawExisting = await this.sendDbMessage<{ success: true; records: ListRecord[] }>('DB:LISTS_GET_ALL', {});
+        const existingRecords: ListRecord[] = ((rawExisting as any).records || []).filter((record: ListRecord) => record.type === type);
+
+        for (const existing of existingRecords) {
+            const normalizedExisting = normalizeCollectionRecord(existing);
+            const rawId = String(existing.id || '');
+            const shouldDelete = rawId !== normalizedExisting.id || !newIdSet.has(normalizedExisting.id);
+            if (shouldDelete) {
+                await this.sendDbMessage('DB:LISTS_DELETE', { id: rawId });
+            }
+        }
+
+        if (normalizedRecords.length > 0) {
+            await this.sendDbMessage('DB:LISTS_BULK_PUT', { records: normalizedRecords });
+        }
+    }
+
+    // ----------------------------------------------------------------
+    //  系列 / 番号页面 HTML 解析器
+    // ----------------------------------------------------------------
+    private parseCollectionItemsFromHTML(html: string, mode: 'series' | 'labels'): Array<{ id: string; name: string; moviesCount?: number }> {
+        const items: Array<{ id: string; name: string; moviesCount?: number }> = [];
+        try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const hrefPattern = mode === 'series' ? /\/series\/([^/?#]+)/ : /\/video_codes\/([^/?#]+)/;
+            // series IDs are JavDB internal (e.g. "eb7x"), labels are code prefixes (e.g. "MISM")
+            const normalizeId = (raw: string) => mode === 'labels' ? raw.trim().toUpperCase() : raw.trim();
+
+            // Primary: #series .box (series-eb7x) or #codes .box (code-MISM)
+            const sectionSel = mode === 'series' ? '#series' : '#codes';
+            const idPrefix   = mode === 'series' ? 'series-' : 'code-';
+            const boxes = doc.querySelectorAll(`${sectionSel} .box`);
+            if (boxes.length > 0) {
+                for (const box of Array.from(boxes)) {
+                    let id = box.id?.startsWith(idPrefix) ? normalizeId(box.id.slice(idPrefix.length)) : '';
+                    if (!id) {
+                        const a = box.querySelector('a') as HTMLAnchorElement | null;
+                        const m = (a?.getAttribute('href') || '').match(hrefPattern);
+                        if (!m) continue;
+                        id = normalizeId(m[1]);
+                    }
+                    if (!id) continue;
+                    const name = String(box.querySelector('strong')?.textContent || id).trim();
+                    const spanText = box.querySelector('a > span')?.textContent || '';
+                    const mc = spanText.match(/(\d+)/);
+                    items.push({ id, name, moviesCount: mc ? Number(mc[1]) : undefined });
+                }
+                return items;
+            }
+
+            // Fallback: traverse anchor hrefs
+            const anchors = doc.querySelectorAll(`a[href*="${mode === 'series' ? '/series/' : '/video_codes/'}"]`);
+            for (const a of Array.from(anchors)) {
+                const href = (a as HTMLAnchorElement).getAttribute('href') || '';
+                const m = href.match(hrefPattern);
+                if (!m) continue;
+                const id = normalizeId(m[1]);
+                const name = String(a.getAttribute('title') || a.textContent || id).trim();
+                if (id) items.push({ id, name });
+            }
+        } catch (e) {
+            logAsync('WARN', `parseCollectionItemsFromHTML(${mode}) 解析出错`, { error: String(e) });
+        }
+        return items;
     }
 }
 
