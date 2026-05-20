@@ -414,8 +414,8 @@
     min-width: 120px;
 }
 
-.search-and-filter.records-toolbar .filter-row #sortSelect {
-    min-width: 220px;
+.search-and-filter.records-toolbar .toolbar-right #sortSelect {
+    min-width: 160px;
 }
 
 .search-and-filter.records-toolbar .filter-row .tags-filter-container {
@@ -3143,4 +3143,236 @@
     border-radius: 16px;
     background: linear-gradient(135deg, var(--records-primary), var(--records-info));
     box-shadow: var(--records-shadow-soft);
+}
+
+/* 番号库工具栏视觉整理：统一边框层级、控件高度和筛选区网格 */
+.records-page .search-and-filter.records-toolbar {
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--records-soft) 42%, transparent), transparent 66%),
+        var(--records-card);
+}
+
+.records-page .search-and-filter.records-toolbar .search-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.records-page .search-and-filter.records-toolbar .toolbar-left,
+.records-page .search-and-filter.records-toolbar .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.records-page .search-and-filter.records-toolbar .toolbar-left {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+}
+
+.records-page .search-and-filter.records-toolbar .toolbar-right {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like,
+.records-page .filter-row #filterSelect,
+.records-page .tags-filter-container > input,
+.records-page .search-row-full #searchInput,
+.records-page .records-toolbar-control {
+    min-height: 42px;
+    border: 1px solid color-mix(in srgb, var(--records-border) 88%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-primary) 94%, var(--records-soft) 6%);
+    color: var(--text-primary);
+    box-shadow: none;
+    box-sizing: border-box;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like {
+    justify-content: center;
+    padding: 0 13px;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+.records-page .search-and-filter.records-toolbar .button-like:hover {
+    border-color: color-mix(in srgb, var(--records-primary) 32%, var(--records-border));
+    background: color-mix(in srgb, var(--records-primary) 6%, var(--surface-primary));
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
+}
+
+.records-page .records-toolbar-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    white-space: nowrap;
+}
+
+.records-page .records-toolbar-control label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.records-page .search-and-filter.records-toolbar .toolbar-right .records-toolbar-control select {
+    min-height: 38px;
+    padding: 0 24px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    background-color: transparent;
+    color: var(--text-primary);
+    box-shadow: none;
+    appearance: auto;
+}
+
+.records-page .search-and-filter.records-toolbar .toolbar-right #sortSelect,
+.records-page .search-and-filter.records-toolbar .toolbar-right #recordsPerPageSelect {
+    min-height: 38px;
+    padding: 0 24px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    background-color: transparent;
+    box-shadow: none;
+    outline: 0;
+}
+
+.records-page .records-sort-control select {
+    min-width: 136px;
+}
+
+.records-page .records-per-page-selector {
+    gap: 6px;
+    padding: 0 10px 0 12px;
+}
+
+.records-page .records-per-page-selector select {
+    min-width: 52px;
+}
+
+.records-page .search-and-filter.records-toolbar .filter-row {
+    display: grid;
+    grid-template-columns: minmax(126px, 0.72fr) repeat(4, minmax(180px, 1fr));
+    align-items: start;
+    gap: 10px;
+}
+
+.records-page .search-and-filter.records-toolbar .filter-row #filterSelect,
+.records-page .search-and-filter.records-toolbar .filter-row .tags-filter-container {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: initial;
+}
+
+.records-page .tags-filter-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.records-page .filter-row #filterSelect,
+.records-page .tags-filter-container > input {
+    width: 100%;
+    padding: 0 12px;
+    font-size: 13px;
+}
+
+.records-page .tags-filter-container > input {
+    cursor: pointer;
+}
+
+.records-page .selected-tags {
+    gap: 5px;
+    min-height: 0;
+    margin-top: 6px;
+}
+
+.records-page .selected-tag {
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--records-primary) 11%, var(--surface-primary));
+    color: var(--records-primary);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.records-page .tags-dropdown {
+    top: calc(100% + 8px);
+    border: 1px solid var(--records-border);
+    border-radius: 14px;
+    background: var(--surface-primary);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+}
+
+.records-page .tags-search-box {
+    padding: 10px;
+    border-bottom: 1px solid var(--records-border);
+}
+
+.records-page .tags-search-box input {
+    min-height: 36px;
+    border: 1px solid var(--records-border);
+    border-radius: 10px;
+    background: var(--input-bg, var(--surface-primary));
+    color: var(--text-primary);
+}
+
+.records-page .tag-option {
+    border-radius: 10px;
+}
+
+.records-page .tag-option:hover {
+    background: color-mix(in srgb, var(--records-primary) 7%, transparent);
+}
+
+.records-page .tag-option.selected {
+    background: color-mix(in srgb, var(--records-primary) 12%, transparent);
+    color: var(--records-primary);
+}
+
+.records-page .search-and-filter.records-toolbar .search-row-full .search-input-wrapper {
+    width: 100%;
+}
+
+@media (max-width: 1320px) {
+    .records-page .search-and-filter.records-toolbar .filter-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 960px) {
+    .records-page .search-and-filter.records-toolbar .search-row {
+        align-items: stretch;
+    }
+
+    .records-page .search-and-filter.records-toolbar .toolbar-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .records-page .records-toolbar-control {
+        flex: 1 1 180px;
+    }
+}
+
+@media (max-width: 640px) {
+    .records-page .search-and-filter.records-toolbar .filter-row {
+        grid-template-columns: 1fr;
+    }
+
+    .records-page .search-and-filter.records-toolbar .button-like,
+    .records-page .records-toolbar-control {
+        width: 100%;
+    }
 }
