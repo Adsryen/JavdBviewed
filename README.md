@@ -144,6 +144,10 @@ pnpm run build
 ```bash
 pnpm run typecheck
 pnpm run test
+pnpm run test:unit
+pnpm run test:regression
+pnpm run test:dom
+pnpm run test:coverage
 pnpm run build
 pnpm run docs:build
 ```

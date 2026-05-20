@@ -18,6 +18,10 @@ Load the generated `dist/` directory as an unpacked extension in Chrome or Edge.
 ```bash
 pnpm run typecheck
 pnpm run test
+pnpm run test:unit
+pnpm run test:regression
+pnpm run test:dom
+pnpm run test:coverage
 pnpm run build
 pnpm run docs:build
 ```
@@ -54,7 +58,7 @@ Run `pnpm run ci` before opening a larger pull request. It runs the same core ch
 
 ## Testing Notes
 
-`pnpm run test` currently runs the Node-compatible regression suite. Some older browser-oriented tests still need a dedicated DOM test harness; keep new pure logic tests compatible with the Node runner when possible.
+`pnpm run test` runs the CI test set: unit tests plus regression tests. Use `pnpm run test:dom` for browser-like tests that need `window`, `document`, or Chrome API mocks. Use `pnpm run test:coverage` when you need a coverage report under `coverage/`. Keep new pure logic tests in the unit set when possible, and place behavior regressions that guard past bugs under `tests/regression/`.
 
 ## Issue Triage
 
