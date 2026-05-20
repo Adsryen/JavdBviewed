@@ -49,26 +49,47 @@ export class ConfirmModal {
         this.modal = document.createElement('div');
         this.modal.className = `confirm-modal ${className}`.trim();
         this.modal.setAttribute('data-type', type); // 添加类型属性用于 CSS 选择
-        
-        // 根据 isHtml 决定如何渲染消息
-        const messageContent = isHtml ? message : `<p class="confirm-message">${message}</p>`;
-        
-        this.modal.innerHTML = `
-            <div class="modal-overlay">
-                <div class="modal-content confirm-modal-content">
-                    <div class="modal-header">
-                        <h3>${title}</h3>
-                    </div>
-                    <div class="modal-body">
-                        ${messageContent}
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn-secondary" id="confirmCancel">${cancelText}</button>
-                        <button class="btn-${type === 'danger' ? 'danger' : 'primary'}" id="confirmOk">${confirmText}</button>
-                    </div>
-                </div>
-            </div>
-        `;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const content = document.createElement('div');
+        content.className = 'modal-content confirm-modal-content';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = title;
+        header.appendChild(titleEl);
+
+        const body = document.createElement('div');
+        body.className = 'modal-body';
+        if (isHtml) {
+            body.innerHTML = message;
+        } else {
+            const messageEl = document.createElement('p');
+            messageEl.className = 'confirm-message';
+            messageEl.textContent = message;
+            body.appendChild(messageEl);
+        }
+
+        const footer = document.createElement('div');
+        footer.className = 'modal-footer';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'btn-secondary';
+        cancelButton.id = 'confirmCancel';
+        cancelButton.textContent = cancelText;
+
+        const confirmButton = document.createElement('button');
+        confirmButton.className = `btn-${type === 'danger' ? 'danger' : 'primary'}`;
+        confirmButton.id = 'confirmOk';
+        confirmButton.textContent = confirmText;
+
+        footer.append(cancelButton, confirmButton);
+        content.append(header, body, footer);
+        overlay.appendChild(content);
+        this.modal.appendChild(overlay);
 
         document.body.appendChild(this.modal);
         this.setupEventListeners();
@@ -137,7 +158,7 @@ export class ConfirmModal {
         if (this.modal) {
             this.modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
-            
+
             // 添加visible类以显示弹窗
             const overlay = this.modal.querySelector('.modal-overlay');
             if (overlay) {
@@ -155,7 +176,7 @@ export class ConfirmModal {
             if (overlay) {
                 overlay.classList.remove('visible');
             }
-            
+
             // 等待动画完成后移除弹窗
             setTimeout(() => {
                 this.removeModal();
