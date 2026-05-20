@@ -29,7 +29,7 @@ export class PrivacyStateListener {
 
         try {
             const privacyManager = getPrivacyManager();
-            
+
             // 监听各种隐私事件
             privacyManager.addEventListener('blur-applied', this.handleBlurApplied.bind(this));
             privacyManager.addEventListener('blur-removed', this.handleBlurRemoved.bind(this));
@@ -69,13 +69,13 @@ export class PrivacyStateListener {
      */
     private handleBlurApplied(event: PrivacyEvent): void {
         console.log('[Privacy] Blur applied:', event.data);
-        
+
         // 通知页面其他组件
         this.notifyPageComponents('privacy-blur-applied', event.data);
-        
+
         // 更新页面样式
         document.body.classList.add('privacy-blur-active');
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('blur-applied', event);
     }
@@ -85,13 +85,13 @@ export class PrivacyStateListener {
      */
     private handleBlurRemoved(event: PrivacyEvent): void {
         console.log('[Privacy] Blur removed:', event.data);
-        
+
         // 通知页面其他组件
         this.notifyPageComponents('privacy-blur-removed', event.data);
-        
+
         // 更新页面样式
         document.body.classList.remove('privacy-blur-active');
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('blur-removed', event);
     }
@@ -101,16 +101,16 @@ export class PrivacyStateListener {
      */
     private handleLocked(event: PrivacyEvent): void {
         console.log('[Privacy] Locked:', event.data);
-        
+
         // 添加锁定样式
         document.body.classList.add('privacy-locked');
-        
+
         // 禁用某些交互
         this.disableInteractions();
-        
+
         // 显示锁定提示
         this.showLockNotification();
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('locked', event);
     }
@@ -120,16 +120,16 @@ export class PrivacyStateListener {
      */
     private handleUnlocked(event: PrivacyEvent): void {
         console.log('[Privacy] Unlocked:', event.data);
-        
+
         // 移除锁定样式
         document.body.classList.remove('privacy-locked');
-        
+
         // 恢复交互
         this.enableInteractions();
-        
+
         // 隐藏锁定提示
         this.hideLockNotification();
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('unlocked', event);
     }
@@ -139,13 +139,13 @@ export class PrivacyStateListener {
      */
     private handleAuthenticated(event: PrivacyEvent): void {
         console.log('[Privacy] Authentication successful:', event.data);
-        
+
         // 添加认证样式
         document.body.classList.add('privacy-authenticated');
-        
+
         // 显示成功提示
         this.showNotification('认证成功', 'success');
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('authenticated', event);
     }
@@ -155,13 +155,13 @@ export class PrivacyStateListener {
      */
     private handleSessionExpired(event: PrivacyEvent): void {
         console.log('[Privacy] Session expired:', event.data);
-        
+
         // 移除认证样式
         document.body.classList.remove('privacy-authenticated');
-        
+
         // 显示过期提示
         this.showNotification('会话已过期，请重新验证', 'warning');
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('session-expired', event);
     }
@@ -171,10 +171,10 @@ export class PrivacyStateListener {
      */
     private handlePasswordChanged(event: PrivacyEvent): void {
         console.log('[Privacy] Password changed:', event.data);
-        
+
         // 显示成功提示
         this.showNotification('密码已更新', 'success');
-        
+
         // 触发自定义事件处理器
         this.triggerEventHandlers('password-changed', event);
     }
@@ -185,10 +185,10 @@ export class PrivacyStateListener {
     private setupPageEventListeners(): void {
         // 监听键盘快捷键
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
-        
+
         // 监听右键菜单
         document.addEventListener('contextmenu', this.handleContextMenu.bind(this));
-        
+
         // 监听页面可见性变化
         document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
     }
@@ -216,7 +216,7 @@ export class PrivacyStateListener {
                 console.error('[Privacy] Failed to toggle privacy mode:', error);
             }
         }
-        
+
         // Ctrl+Shift+L: 锁定
         if (event.ctrlKey && event.shiftKey && event.key === 'L') {
             event.preventDefault();
@@ -235,7 +235,7 @@ export class PrivacyStateListener {
     private handleContextMenu(event: MouseEvent): void {
         const privacyManager = getPrivacyManager();
         const state = privacyManager.getState();
-        
+
         // 如果处于锁定状态，禁用右键菜单
         if (state.isLocked) {
             event.preventDefault();
@@ -257,10 +257,10 @@ export class PrivacyStateListener {
         // 禁用选择
         document.body.style.userSelect = 'none';
         document.body.style.webkitUserSelect = 'none';
-        
+
         // 禁用拖拽
-        document.body.style.webkitUserDrag = 'none';
-        
+        (document.body.style as any).webkitUserDrag = 'none';
+
         // 添加禁用样式
         const style = document.createElement('style');
         style.id = 'privacy-disable-interactions';
@@ -288,8 +288,8 @@ export class PrivacyStateListener {
         // 恢复选择
         document.body.style.userSelect = '';
         document.body.style.webkitUserSelect = '';
-        document.body.style.webkitUserDrag = '';
-        
+        (document.body.style as any).webkitUserDrag = '';
+
         // 移除禁用样式
         const style = document.getElementById('privacy-disable-interactions');
         if (style) {

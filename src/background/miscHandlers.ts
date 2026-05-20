@@ -130,7 +130,7 @@ export function registerMiscRouter(): void {
           setupAlarms().then(() => sendResponse({ success: true }))
             .catch((error) => sendResponse({ success: false, error: error.message }));
           return true;
-        
+
         case 'new-works-manual-check':
           (async () => {
             try {
@@ -164,48 +164,48 @@ export function registerMiscRouter(): void {
               // 使用并发控制
               for (let i = 0; i < active.length; i += concurrency) {
                 if (manualCheckCancel.cancelled) break;
-                
+
                 const batch = active.slice(i, i + concurrency);
                 console.log(`[Background] 处理批次 ${Math.floor(i / concurrency) + 1}，包含 ${batch.length} 个演员`);
-                
+
                 // 并发检查当前批次
                 const batchPromises = batch.map(async (sub) => {
                   if (manualCheckCancel.cancelled) return null;
-                  
+
                   try {
                     const det = await newWorksCollector.checkActorNewWorksDetailed(sub, cfg);
-                    
+
                     if (det.works.length > 0) {
                       console.log(`[Background] 准备保存 ${det.works.length} 个新作品到数据库`);
-                      try { 
+                      try {
                         await newWorksManager.addNewWorks(det.works);
                         console.log(`[Background] 成功保存 ${det.works.length} 个新作品`);
                       } catch (e) {
                         console.error(`[Background] 保存新作品失败:`, e);
                       }
                     }
-                    
+
                     // 立即更新进度（每个演员完成时）
                     identifiedTotal += det.identified || 0;
                     effectiveTotal += det.effective || 0;
                     discovered += det.works.length;
                     processed++;
-                    
+
                     // 发送单个演员完成的进度更新
                     try {
                       chrome.runtime.sendMessage({
                         type: 'new-works-progress',
-                        payload: { 
-                          processed, 
-                          total, 
-                          discovered, 
-                          identifiedTotal, 
-                          effectiveTotal, 
+                        payload: {
+                          processed,
+                          total,
+                          discovered,
+                          identifiedTotal,
+                          effectiveTotal,
                           actorName: sub.actorName  // 显示刚完成的演员名字
                         },
                       });
                     } catch {}
-                    
+
                     return {
                       success: true,
                       identified: det.identified,
@@ -218,22 +218,22 @@ export function registerMiscRouter(): void {
                     processed++;
                     const errorMsg = `检查演员 ${sub.actorName} 失败: ${e?.message || String(e)}`;
                     errors.push(errorMsg);
-                    
+
                     // 即使失败也要更新进度
                     try {
                       chrome.runtime.sendMessage({
                         type: 'new-works-progress',
-                        payload: { 
-                          processed, 
-                          total, 
-                          discovered, 
-                          identifiedTotal, 
-                          effectiveTotal, 
+                        payload: {
+                          processed,
+                          total,
+                          discovered,
+                          identifiedTotal,
+                          effectiveTotal,
                           actorName: sub.actorName
                         },
                       });
                     } catch {}
-                    
+
                     return {
                       success: false,
                       error: errorMsg,
@@ -242,10 +242,10 @@ export function registerMiscRouter(): void {
                     };
                   }
                 });
-                
+
                 // 等待当前批次完成
                 await Promise.all(batchPromises);
-                
+
                 // 批次间延迟
                 if (i + concurrency < active.length && !manualCheckCancel.cancelled) {
                   const gap = Math.max(0, Number(cfg.requestInterval || 0)) * 1000;
@@ -263,7 +263,7 @@ export function registerMiscRouter(): void {
             }
           })();
           return true;
-        
+
         case 'new-works-check-single-actor':
           (async () => {
             try {
@@ -276,7 +276,7 @@ export function registerMiscRouter(): void {
               console.log(`[Background] 开始检查单个演员: ${actorName} (${actorId})`);
 
               const config = await newWorksManager.getGlobalConfig();
-              
+
               // 覆盖过滤条件：排除本地番号库中任意状态的记录
               const cfg = {
                 ...config,
@@ -298,7 +298,7 @@ export function registerMiscRouter(): void {
 
               // 检查演员新作品
               const det = await newWorksCollector.checkActorNewWorksDetailed(subscription, cfg);
-              
+
               console.log(`[Background] 演员 ${actorName} 检查结果:`, {
                 identified: det.identified,
                 effective: det.effective,
@@ -343,14 +343,14 @@ export function registerMiscRouter(): void {
               });
             } catch (error: any) {
               console.error('[Background] 检查单个演员失败:', error);
-              sendResponse({ 
-                success: false, 
-                error: error?.message || '检查失败' 
+              sendResponse({
+                success: false,
+                error: error?.message || '检查失败'
               });
             }
           })();
           return true;
-        
+
         case 'new-works-manual-cancel':
           try {
             manualCheckCancel.cancelled = true;
@@ -431,8 +431,8 @@ export function registerMiscRouter(): void {
           applySchedulerConfigFromSettings().catch(() => {});
           setupAlarms().catch(() => {});
           // 如果 Emby 设置发生变化，重新注册动态内容脚本
-          const newSettings = changes['settings'].newValue;
-          const oldSettings = changes['settings'].oldValue;
+          const newSettings = changes['settings'].newValue as any;
+          const oldSettings = changes['settings'].oldValue as any;
           const embyChanged = JSON.stringify(newSettings?.emby) !== JSON.stringify(oldSettings?.emby);
           if (embyChanged) {
             registerEmbyDynamicScripts(newSettings?.emby).catch(() => {});
@@ -637,38 +637,38 @@ async function handleFetchJavDBPreview(message: any, sendResponse: (response: an
 async function handleFetchExternalCover(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const { code } = message || {};
-    if (!code) { 
-      sendResponse({ success: false, error: 'No code provided' }); 
-      return; 
+    if (!code) {
+      sendResponse({ success: false, error: 'No code provided' });
+      return;
     }
 
     // 尝试从 BlogJav 获取高质量封面
     const searchUrl = `https://blogjav.net/search?q=${encodeURIComponent(code)}`;
     const res = await fetch(searchUrl);
-    
-    if (!res.ok) { 
-      sendResponse({ success: false, error: `Failed to fetch BlogJav: ${res.status}` }); 
-      return; 
+
+    if (!res.ok) {
+      sendResponse({ success: false, error: `Failed to fetch BlogJav: ${res.status}` });
+      return;
     }
 
     const html = await res.text();
-    
+
     // 解析HTML查找封面图片
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    
+
     // 查找搜索结果中的图片
     const resultItems = doc.querySelectorAll('.post-item, .search-result-item, .video-item');
-    
+
     for (const item of resultItems) {
       const titleElement = item.querySelector('.title, .post-title, h2, h3');
       const title = titleElement?.textContent?.trim().toUpperCase() || '';
-      
+
       // 检查标题是否包含视频代码
       if (title.includes(code.toUpperCase().replace(/[-\s]/g, ''))) {
         const img = item.querySelector('img');
         const imgSrc = img?.getAttribute('src') || img?.getAttribute('data-src');
-        
+
         if (imgSrc) {
           // 解析相对URL
           let imageUrl = imgSrc;
@@ -677,13 +677,13 @@ async function handleFetchExternalCover(message: any, sendResponse: (response: a
           } else if (imgSrc.startsWith('/')) {
             imageUrl = 'https://blogjav.net' + imgSrc;
           }
-          
+
           sendResponse({ success: true, imageUrl });
           return;
         }
       }
     }
-    
+
     sendResponse({ success: false, error: 'Cover image not found' });
   } catch (error: any) {
     console.error('[Background] Failed to fetch external cover:', error);
@@ -694,9 +694,9 @@ async function handleFetchExternalCover(message: any, sendResponse: (response: a
 async function handleDrive115Push(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-    if (!tabs.length) { 
-      sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '未找到 115.com 标签页' }); 
-      return; 
+    if (!tabs.length) {
+      sendResponse({ type: 'DRIVE115_PUSH_RESPONSE', requestId: message?.requestId, success: false, error: '未找到 115.com 标签页' });
+      return;
     }
     const tabId = tabs[0].id;
     if (!tabId) {
@@ -720,9 +720,9 @@ async function handleDrive115Push(message: any, sendResponse: (response: any) =>
 async function handleDrive115Verify(message: any, sendResponse: (response: any) => void): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: '*://115.com/*' });
-    if (!tabs.length) { 
-      sendResponse({ success: false, error: '未找到 115.com 标签页' }); 
-      return; 
+    if (!tabs.length) {
+      sendResponse({ success: false, error: '未找到 115.com 标签页' });
+      return;
     }
     const tabId = tabs[0].id;
     if (!tabId) {
@@ -893,7 +893,7 @@ async function handlePrivacyLock(sendResponse: (response: any) => void): Promise
   try {
     // 通知所有dashboard页面锁定
     const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
-    
+
     for (const tab of tabs) {
       if (tab.id) {
         try {
@@ -904,7 +904,7 @@ async function handlePrivacyLock(sendResponse: (response: any) => void): Promise
         }
       }
     }
-    
+
     sendResponse({ success: true });
   } catch (error: any) {
     console.error('[Background] Failed to handle privacy lock:', error);
@@ -940,23 +940,23 @@ async function handleSaveOrchestratorMetrics(metrics: any): Promise<void> {
       console.warn('[Background] No metrics provided, skipping save');
       return;
     }
-    
+
     // 获取现有的性能指标数据
     const existingData = await getValue<any[]>('orchestratorMetrics', []);
     console.log('[Background] Existing metrics count:', existingData.length);
-    
+
     // 添加新的指标数据
     existingData.push({
       ...metrics,
       savedAt: Date.now(),
     });
-    
+
     // 只保留最近 100 条记录
     const trimmedData = existingData.slice(-100);
-    
+
     // 保存到存储
     await setValue('orchestratorMetrics', trimmedData);
-    
+
     console.log('[Background] Orchestrator metrics saved successfully, total records:', trimmedData.length);
   } catch (error) {
     console.error('[Background] Failed to save orchestrator metrics:', error);
@@ -1041,7 +1041,7 @@ async function handleGetAggregatedMetrics(): Promise<any> {
     // 从存储中获取所有性能指标
     const metricsData = await getValue<any[]>('orchestratorMetrics', []);
     console.log('[Background] Retrieved metrics records:', metricsData.length);
-    
+
     if (metricsData.length === 0) {
       console.log('[Background] No metrics data found, returning zeros');
       return {
@@ -1060,7 +1060,7 @@ async function handleGetAggregatedMetrics(): Promise<any> {
         lastSavedAt: 0,
       };
     }
-    
+
     // 聚合所有指标
     const aggregated = {
       totalTasks: 0,
@@ -1074,45 +1074,45 @@ async function handleGetAggregatedMetrics(): Promise<any> {
       maxDurationTask: '',
       lastSavedAt: 0,
     };
-    
+
     metricsData.forEach((record) => {
       aggregated.totalTasks += record.totalTasks || 0;
       aggregated.completedTasks += record.completedTasks || 0;
       aggregated.failedTasks += record.failedTasks || 0;
       aggregated.timeoutTasks += record.timeoutTasks || 0;
       aggregated.totalDuration += record.totalDuration || 0;
-      
+
       // 更新最大耗时和对应的任务
       if ((record.maxDuration || 0) > aggregated.maxDuration) {
         aggregated.maxDuration = record.maxDuration || 0;
         aggregated.maxDurationTask = record.maxDurationTask || '';
       }
-      
+
       if (record.minDuration !== undefined && record.minDuration !== Infinity) {
         aggregated.minDuration = Math.min(aggregated.minDuration, record.minDuration);
       }
-      
+
       // 更新最后保存时间
       if ((record.savedAt || 0) > aggregated.lastSavedAt) {
         aggregated.lastSavedAt = record.savedAt || 0;
       }
     });
-    
+
     // 计算平均耗时
-    const avgDuration = aggregated.completedTasks > 0 
-      ? aggregated.totalDuration / aggregated.completedTasks 
+    const avgDuration = aggregated.completedTasks > 0
+      ? aggregated.totalDuration / aggregated.completedTasks
       : 0;
-    
+
     // 计算平均每页任务数
     const avgTasksPerPage = aggregated.recordCount > 0
       ? aggregated.totalTasks / aggregated.recordCount
       : 0;
-    
+
     // 计算成功率
     const successRate = aggregated.totalTasks > 0
       ? (aggregated.completedTasks / aggregated.totalTasks) * 100
       : 0;
-    
+
     const result = {
       ...aggregated,
       ...treeMetrics,
@@ -1122,7 +1122,7 @@ async function handleGetAggregatedMetrics(): Promise<any> {
       batchAvgDuration: treeMetrics.batchCompleted > 0 ? treeMetrics.batchTotalDuration / treeMetrics.batchCompleted : 0,
       subtaskAvgDuration: treeMetrics.subtaskDone > 0 ? treeMetrics.subtaskTotalDuration / treeMetrics.subtaskDone : 0,
     };
-    
+
     console.log('[Background] Aggregated metrics:', result);
     return result;
   } catch (error) {
@@ -1191,27 +1191,27 @@ async function handleGetTaskDetails(options: any = {}): Promise<any> {
   try {
     // 从存储中获取所有任务详细信息
     const taskDetails = await getValue<any[]>('orchestratorTaskDetails', []);
-    
+
     // 应用过滤和排序
     let filtered = [...taskDetails];
-    
+
     // 按时间戳倒序排序（最新的在前）
     filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    
+
     // 限制最多返回 5000 条记录
     const maxRecords = 5000;
     if (filtered.length > maxRecords) {
       filtered = filtered.slice(0, maxRecords);
     }
-    
+
     // 分页
     const page = options.page || 1;
     const pageSize = options.pageSize || 20;
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    
+
     const paginatedDetails = filtered.slice(startIndex, endIndex);
-    
+
     return {
       details: paginatedDetails,
       total: filtered.length,
@@ -1277,7 +1277,7 @@ export async function registerEmbyDynamicScripts(embyConfig: any): Promise<void>
 }
 
 // 保存当前的 Emby tab 监听器，方便移除
-let embyTabListener: ((tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => void) | null = null;
+let embyTabListener: Parameters<typeof chrome.tabs.onUpdated.addListener>[0] | null = null;
 
 /**
  * 设置 Emby 页面的 tab 监听器
