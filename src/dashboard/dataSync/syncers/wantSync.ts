@@ -12,6 +12,7 @@ import type { SyncMode } from '../../config/syncConfig';
 
 export interface WantSyncOptions {
     mode?: SyncMode;
+    resumeFromProgress?: boolean;
     onProgress?: (progress: SyncProgress) => void;
     onComplete?: (result: SyncResult) => void;
     onError?: (error: Error) => void;
@@ -39,7 +40,7 @@ export class WantSyncManager {
 
         this.isRunning = true;
         this.abortController = new AbortController();
-        
+
         const startTime = Date.now();
         let result: SyncResult = {
             success: false,
@@ -71,13 +72,13 @@ export class WantSyncManager {
                 'want',
                 [], // 想看同步不需要本地数据
                 userProfile,
-                getSyncConfig({ 
+                getSyncConfig({
                     mode: options.mode || 'full',
                     resumeFromProgress: options.resumeFromProgress || false
                 }),
                 (progress) => {
                     const { current, total, stage, percentage, message } = progress;
-                    
+
                     let displayMessage = message;
                     if (stage === 'pages') {
                         displayMessage = `获取想看列表 (${current}/${total}页)...`;
@@ -119,7 +120,7 @@ export class WantSyncManager {
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知错误';
-            
+
             if (errorMessage.includes('取消') || errorMessage.includes('abort')) {
                 result = {
                     success: false,

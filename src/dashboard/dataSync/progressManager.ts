@@ -31,28 +31,28 @@ export async function saveSyncProgress(progress: SavedSyncProgress): Promise<voi
  */
 export async function getSavedSyncProgress(type: SyncType, userEmail: string): Promise<SavedSyncProgress | null> {
     try {
-        const progress = await getValue<SavedSyncProgress>(PROGRESS_STORAGE_KEY, null);
-        
+        const progress = await getValue<SavedSyncProgress | null>(PROGRESS_STORAGE_KEY, null);
+
         if (!progress) {
             return null;
         }
-        
+
         // 检查是否匹配当前同步类型和用户
         if (progress.type !== type || progress.userEmail !== userEmail) {
             return null;
         }
-        
+
         // 检查进度是否过期（超过24小时）
         const now = Date.now();
         const age = now - progress.timestamp;
         const maxAge = 24 * 60 * 60 * 1000; // 24小时
-        
+
         if (age > maxAge) {
             logAsync('INFO', '同步进度已过期，将被清除', { age: Math.round(age / 1000 / 60) + '分钟' });
             await clearSyncProgress();
             return null;
         }
-        
+
         logAsync('INFO', '找到保存的同步进度', {
             type: progress.type,
             page: progress.currentPage,
@@ -60,7 +60,7 @@ export async function getSavedSyncProgress(type: SyncType, userEmail: string): P
             synced: progress.syncedCount,
             age: Math.round(age / 1000 / 60) + '分钟前'
         });
-        
+
         return progress;
     } catch (error: any) {
         logAsync('ERROR', '获取同步进度失败', { error: error.message });

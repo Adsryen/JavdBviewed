@@ -336,7 +336,7 @@ function smartMergeVideoRecord(local: VideoRecord, cloud: VideoRecord): VideoRec
  * 获取更高优先级的状态
  */
 function getHigherPriorityStatus(status1: VideoStatus, status2: VideoStatus): VideoStatus {
-    const priority: Record<VideoStatus, number> = { browsed: 1, want: 2, viewed: 3 };
+    const priority: Record<VideoStatus, number> = { untracked: 0, browsed: 1, want: 2, viewed: 3 };
     const p1 = priority[status1] || 0;
     const p2 = priority[status2] || 0;
     return p1 >= p2 ? status1 : status2;
